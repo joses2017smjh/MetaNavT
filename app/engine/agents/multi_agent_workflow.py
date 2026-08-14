@@ -800,9 +800,9 @@ if __name__ == "__main__":
     )
     embed_model = HuggingFaceEmbedding(model_name=os.getenv("EMBEDDING_MODEL"))
     llm = Ollama(
-        model=os.getenv("MODEL", "llama3.2:1b"),
+        model=os.getenv("MODEL", "qwen2.5:14b"),
         base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-        temperature=0.7,
+        temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
     )    # Update global settings
     Settings.llm = llm
     Settings.embed_model = embed_model

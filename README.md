@@ -108,7 +108,7 @@ ollama serve
 
 3. Pull the required model:
 ```bash
-ollama pull llama3.2:1b
+ollama pull qwen2.5:14b
 ```
 
 4. &nbsp;<img src="https://www.postgresql.org/media/img/about/press/elephant.png" alt="PostgreSQL Logo" width="20" style="vertical-align: middle;" />&nbsp; Install PostgreSQL https://www.postgresql.org/download/ & pgvector https://github.com/pgvector/pgvector 
@@ -132,7 +132,7 @@ pip install -r requirements.txt
 Check the parameters that have been pre-configured in the `.env` file in this directory:
 ```env
 MODEL_PROVIDER=ollama
-MODEL=llama3.2:1b
+MODEL=qwen2.5:14b
 OLLAMA_BASE_URL=http://localhost:11434
 ```
 

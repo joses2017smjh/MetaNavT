@@ -1,3 +1,4 @@
+import os
 from typing import Optional, List, Sequence, Any, Union
 from chonkie import SDPMChunker
 from pydantic import BaseModel, Field
@@ -15,7 +16,7 @@ class EmbeddingWrapper:
     """Wrapper to make LlamaIndex embeddings compatible with chonkie"""
     def __init__(self, embed_model):
         self.embed_model = embed_model
-        self.embedding_dim = 768  # NomicEmbed dimension
+        self.embedding_dim = int(os.getenv("EMBEDDING_DIM", "1024"))
         self.max_seq_length = 1000
         
     def encode(self, texts: Union[str, List[str]], **kwargs) -> np.ndarray:
@@ -42,7 +43,7 @@ class OllamaEmbeddingWrapper:
             base_url="http://localhost:11434"
         )
         self.max_seq_length = 1000
-        self.embedding_dim = 768  # Nomic embed dimension
+        self.embedding_dim = int(os.getenv("EMBEDDING_DIM", "1024"))
         
     def encode(self, texts, **kwargs):
         if isinstance(texts, str):
@@ -55,7 +56,7 @@ class SDPMChunkerComponent(SimpleNodeParser):
     
     # Define both fields in the class
     chunker: SDPMChunker = Field(default_factory=lambda: SDPMChunker(
-        embedding_model="all-MiniLM-L6-v2",
+        embedding_model=os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"),
         threshold=0.5,
         chunk_size=1000,
         min_sentences=1,

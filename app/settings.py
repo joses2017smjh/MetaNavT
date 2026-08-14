@@ -45,24 +45,29 @@ def init_ollama():
     try:
         from llama_index.llms.ollama import Ollama
         from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-        from llama_index.llms.ollama.base import DEFAULT_REQUEST_TIMEOUT, Ollama
+        from llama_index.llms.ollama.base import DEFAULT_REQUEST_TIMEOUT
     except ImportError:
         raise ImportError(
-            "Ollama support is not installed. Please install it with `poetry add llama-index-llms-ollama` and `poetry add llama-index-embeddings-ollama`"
+            "Ollama support is not installed. Please install it with `pip install llama-index-llms-ollama` and `pip install llama-index-embeddings-huggingface`"
         )
 
-    base_url = os.getenv("OLLAMA_BASE_URL") or "http://127.0.0.1:11434"
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     request_timeout = float(
         os.getenv("OLLAMA_REQUEST_TIMEOUT", DEFAULT_REQUEST_TIMEOUT)
     )
-    embed_model = HuggingFaceEmbedding(model_name=os.getenv("EMBEDDING_MODEL"))
-    llm = Ollama(
-        model=os.getenv("MODEL", "llama3.2:1b"),
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-        temperature=0.7,
-    )    # Update global settings
-    Settings.llm = llm
-    Settings.embed_model = embed_model
+    temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+    max_tokens = os.getenv("LLM_MAX_TOKENS")
+
+    Settings.llm = Ollama(
+        model=os.getenv("MODEL", "qwen2.5:14b"),
+        base_url=base_url,
+        temperature=temperature,
+        request_timeout=request_timeout,
+        additional_kwargs={"num_predict": int(max_tokens)} if max_tokens else {},
+    )
+    Settings.embed_model = HuggingFaceEmbedding(
+        model_name=os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"),
+    )
 
 
 def init_openai():
