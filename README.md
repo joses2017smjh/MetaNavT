@@ -290,3 +290,48 @@ Our Email Addresses:
 - Carlana S: soma@oregonstate.edu
 - Jose G: sanchej7@oregonstate.edu
 - John T: tranj8@oregonstate.edu
+
+---
+
+## Development Plan
+
+### Phase 0: Foundation Upgrade (Complete)
+Upgraded all AI models to the best available open-source alternatives.
+
+| Component | Old | New | Why |
+|-----------|-----|-----|-----|
+| LLM | llama3.2:1b | qwen2.5:14b | Best open-source 14B; fits in RTX 8000 46GB; strong reasoning + coding |
+| Embedding | all-MiniLM-L6-v2 (384d) | BAAI/bge-large-en-v1.5 (1024d) | Top MTEB retrieval scores; HuggingFace native |
+| Tokenizer | tokenizers 0.21.0 | tokenizers (latest) | Bug fixes, speed improvements |
+| Transformers | 4.48.3 | latest | New model support, optimizations |
+
+### Phase 1: Enhanced Retrieval Pipeline (Complete)
+Hybrid retrieval combining BM25 + vector search with cross-encoder reranking.
+
+```
+User Query
+    │
+    ├──► Vector Search (pgvector, top 10)
+    │                                      ──► RRF Fusion ──► Reranker (bge-reranker-v2-m3) ──► Top 5 results
+    └──► BM25 Search (ParadeDB, top 10)
+```
+
+- **HybridRetriever** — Reciprocal Rank Fusion of BM25 + dense vector results
+- **Cross-encoder reranker** — `BAAI/bge-reranker-v2-m3` reranks fused results for precision
+- **Chunk tuning** — 512 tokens / 50 overlap optimized for `bge-large-en-v1.5`
+
+### Phase 2: Multi-Modal & Advanced Agents
+- Add vision capabilities using `llava` or `qwen2-vl` via Ollama
+- Improve multi-agent handoff with better routing logic
+- Add agent memory / context persistence across sessions
+
+### Phase 3: Production Hardening
+- Error handling and retry logic
+- Health checks and monitoring
+- Database migrations for schema changes
+
+### Phase 4: User Experience
+- Real-time file change detection (watchdog/inotify)
+- Audio I/O with Whisper transcription
+- Semantic document chunking
+- Human-in-the-loop approval UI improvements

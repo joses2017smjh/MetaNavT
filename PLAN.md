@@ -31,10 +31,25 @@
 ---
 
 ## Phase 1: Enhanced Retrieval Pipeline
-- Implement hybrid BM25 + dense retrieval with RRF fusion
-- Add query rewriting / HyDE for better retrieval
-- Implement reranking with a cross-encoder (e.g., `BAAI/bge-reranker-v2-m3`)
-- Tune chunk sizes and overlap for the new embedding model
+**Goal:** Dramatically improve retrieval quality by combining multiple search strategies and reranking.
+
+### Tasks
+- [x] Create `HybridRetriever` with RRF fusion (`app/engine/retriever.py`)
+- [x] Integrate BM25 (ParadeDB) + dense vector (pgvector) retrieval
+- [x] Add cross-encoder reranking with `BAAI/bge-reranker-v2-m3`
+- [x] Wire hybrid retriever into query engine tool
+- [x] Tune chunk sizes (512 tokens, 50 overlap) for `bge-large-en-v1.5`
+- [x] Update `.env` / `.env.example` with reranker and chunk config
+- [ ] Add query rewriting / HyDE (future improvement)
+
+### Architecture
+```
+User Query
+    │
+    ├──► Vector Search (pgvector, top 10)
+    │                                      ──► RRF Fusion ──► Reranker (bge-reranker-v2-m3) ──► Top 5 results
+    └──► BM25 Search (ParadeDB, top 10)
+```
 
 ## Phase 2: Multi-Modal & Advanced Agents
 - Add vision capabilities using `llava` or `qwen2-vl` via Ollama

@@ -38,6 +38,8 @@ from llama_index.core.types import RESPONSE_TEXT_TYPE
 from llama_index.core.settings import Settings
 
 from app.settings import get_multi_modal_llm
+from app.engine.retriever import create_hybrid_retriever
+from app.database.vector_store import get_vector_store_manager
 
 logger = logging.getLogger(__name__)
 
@@ -51,16 +53,14 @@ def create_query_engine(index, **kwargs) -> BaseQueryEngine:
             - similarity_top_k: Number of similar docs to retrieve
             - filters: Query filters to apply
             - retrieval_mode: How to retrieve results
-    
+
     Returns:
         BaseQueryEngine: Configured query engine instance
     """
-    # Get number of docs to return from env
     top_k = int(os.getenv("TOP_K", 0))
     if top_k != 0 and kwargs.get("filters") is None:
         kwargs["similarity_top_k"] = top_k
 
-    # Configure multimodal support if available
     multimodal_llm = get_multi_modal_llm()
     if multimodal_llm:
         kwargs["response_synthesizer"] = MultiModalSynthesizer(
@@ -77,7 +77,7 @@ def get_query_engine_tool(
     **kwargs,
 ) -> QueryEngineTool:
     """
-    Get a query engine tool for the given index.
+    Get a query engine tool with hybrid BM25+vector retrieval and reranking.
 
     Args:
         index: The index to create a query engine for.
@@ -88,23 +88,32 @@ def get_query_engine_tool(
         name = "query_index"
     if description is None:
         description = (
-            "Use this tool to retrieve information about the text corpus from an index."
+            "Use this tool to retrieve information about the text corpus from an index. "
+            "Uses hybrid BM25 + vector search with cross-encoder reranking for best results."
         )
-    
-    retriever = index.as_retriever(**kwargs)
+
+    try:
+        vsm = get_vector_store_manager()
+        retriever = create_hybrid_retriever(
+            index=index,
+            vector_store_manager=vsm,
+        )
+        logger.info("Using hybrid retriever (BM25 + vector + reranker)")
+    except Exception as e:
+        logger.warning(f"Hybrid retriever init failed, falling back to vector-only: {e}")
+        retriever = index.as_retriever(**kwargs)
 
     query_engine = RetrieverQueryEngine.from_args(
         retriever=retriever,
-        llm=Settings.llm
+        llm=Settings.llm,
     )
     query_engine_tool = QueryEngineTool.from_defaults(
         query_engine=query_engine,
         name=name,
         description=description,
         return_direct=False,
-        
     )
-    
+
     return query_engine_tool
 
 
