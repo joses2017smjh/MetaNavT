@@ -75,8 +75,17 @@
     .k { color: var(--gold); }
     .note { color: var(--muted); font-size: 0.85rem; margin-top: 1.5rem; }
     a { color: var(--lavender); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .split h3 { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--gold); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+    .who { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+    .who .panel { min-height: 8.5rem; }
+    .who .role { color: var(--sky); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-bottom: 0.4rem; }
+    .who q { display: block; font-style: normal; color: var(--text); margin: 0.35rem 0; }
+    .nav { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1.5rem; font-size: 0.85rem; }
+    .nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+    .nav a:hover { color: var(--sky); border-bottom-color: var(--sky); }
     @media (max-width: 720px) {
-      .statrow, .grid { grid-template-columns: 1fr; }
+      .statrow, .grid, .split, .who { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -88,7 +97,16 @@
         <h1>MetaNaviT</h1>
       </div>
     </header>
-    <p class="lede">Click a gold-set question. The trace, the dropped archive, and the cited bytes are what the bench measured — same radial gradient as the app at localhost:8000.</p>
+    <p class="lede">Same radial gradient as localhost:8000. Click a gold question, then scroll: hybrid split, a move that will not execute, the entity graph. These traces are the bench, not copy.</p>
+
+    <nav class="nav">
+      <a href="#ask">Ask</a>
+      <a href="#who">Who types</a>
+      <a href="#hybrid">Hybrid</a>
+      <a href="#move">Move</a>
+      <a href="#graph">Graph</a>
+      <a href="../README.md">README</a>
+    </nav>
 
     <div class="statrow">
       <div class="stat"><b>0.938</b><span>Recall@50 after hybrid RRF</span></div>
@@ -96,7 +114,7 @@
       <div class="stat"><b>136</b><span>hand-built questions, 61 frozen files</span></div>
     </div>
 
-    <h2>Run a gold question</h2>
+    <h2 id="ask">Run a gold question</h2>
     <div class="chips" id="chips"></div>
     <div class="stages" id="stages"></div>
     <div class="grid">
@@ -108,6 +126,72 @@
         <ul class="hits" id="hits"></ul>
       </div>
     </div>
+    <h2 id="who">Who types into it</h2>
+    <div class="who">
+      <div class="panel">
+        <div class="role">researcher</div>
+        <q>what's the current learning rate for DINOv2 run 47</q>
+        <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">Archive still says 1e-5. Live config is 3e-4. The index has to know which file is current.</div>
+      </div>
+      <div class="panel">
+        <div class="role">engineer</div>
+        <q>what does the fusion module do</q>
+        <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">BM25 wants fusion.py. Dense wants “fusion off” in a YAML. RRF keeps both.</div>
+      </div>
+      <div class="panel">
+        <div class="role">content manager</div>
+        <q>move logs/run_040.out into archive/</q>
+        <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">propose_move returns a plan. apply_plan is a no-op until approved=true.</div>
+      </div>
+    </div>
+
+    <h2 id="hybrid">BM25 and dense on the same question</h2>
+    <div class="split">
+      <div class="panel">
+        <h3>BM25</h3>
+        <ul class="hits">
+          <li class="gold"><div class="path">src/fusion.py</div><div class="meta">token “fusion” in the path</div></li>
+          <li><div class="path">configs/run_047.yaml</div><div class="meta">fusion: true</div></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>dense</h3>
+        <ul class="hits">
+          <li><div class="path">configs/run_040.yaml</div><div class="meta">paraphrase of “fusion was off”</div></li>
+          <li class="gold"><div class="path">src/fusion.py</div><div class="meta">RRF keeps this at rank 1</div></li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 id="move">A move that will not execute</h2>
+    <div class="who">
+      <div class="panel">
+        <div class="role">1  propose_move</div>
+        <div class="path" style="font-family:ui-monospace,monospace;font-size:0.8rem;color:var(--sky)">logs/run_040.out → archive/run_040.out</div>
+        <div class="answer" style="font-size:1rem;margin-top:0.6rem">pending_approval</div>
+      </div>
+      <div class="panel">
+        <div class="role">2  apply_plan</div>
+        <div style="color:var(--muted);font-size:0.85rem">approved missing</div>
+        <div class="answer" style="font-size:1rem;margin-top:0.6rem;color:var(--pink)">ApprovalRequired</div>
+      </div>
+      <div class="panel">
+        <div class="role">3  apply_plan</div>
+        <div style="color:var(--muted);font-size:0.85rem">approved=True</div>
+        <div class="answer" style="font-size:1rem;margin-top:0.6rem">applied</div>
+      </div>
+    </div>
+
+    <h2 id="graph">What is in this corpus</h2>
+    <div class="panel">
+      <div class="kv">[community 0] runs 40–55; encoders clip, dinov2, resnet50; 54 files
+relations: documented_in, has_fusion, has_learning_rate, has_num_pairs, has_val_rmse, uses_bark
+
+run:47  —uses_encoder→  dinov2
+run:47  —has_learning_rate→  3e-4
+run:47  —documented_in→  configs/run_047.yaml</div>
+    </div>
+
     <p class="note">Destructive moves still require <code>apply_plan(..., approved=True)</code>. Open this file locally; GitHub will not run the script. <a href="../README.md">Back to the README</a>.</p>
   </main>
   <script>

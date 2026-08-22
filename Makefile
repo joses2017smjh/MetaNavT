@@ -1,4 +1,4 @@
-.PHONY: bench bench-compare freeze-corpus test-eval sweeps figures
+.PHONY: bench bench-compare freeze-corpus test-eval sweeps figures gifs
 
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR):$(CURDIR)/.vendor:$(PYTHONPATH)
@@ -21,5 +21,8 @@ sweeps:
 
 figures:
 	$(PYTHON) -m app.eval.figures
+
+gifs:
+	$(PYTHON) -m app.eval.gifs
 
 

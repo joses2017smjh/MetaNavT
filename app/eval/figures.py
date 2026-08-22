@@ -298,6 +298,75 @@ def write_static_story_svgs(out_dir: Path) -> None:
 </svg>
 '''
     )
+    (out_dir / "corpus-tree.svg").write_text(
+        f'''<svg xmlns="http://www.w3.org/2000/svg" width="860" height="320" viewBox="0 0 860 320">
+  <rect width="860" height="320" fill="{BG}"/>
+  <rect x="12" y="12" width="836" height="296" rx="16" fill="{PANEL}" stroke="{GRID}"/>
+  <text x="32" y="44" fill="{TEXT}" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">The desk  ·  61 frozen files, one experiment tree</text>
+  <text x="32" y="66" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">YAML, Slurm, .out logs, ablation CSV, two paper drafts, source, checkpoint sidecars. Hash f1ba0386…</text>
+  <rect x="32" y="88" width="150" height="88" rx="10" fill="#121212" stroke="{GOLD}"/>
+  <text x="107" y="124" text-anchor="middle" fill="{GOLD}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">configs/</text>
+  <text x="107" y="148" text-anchor="middle" fill="{MUTED}" font-size="11" font-family="ui-monospace, monospace">16 live + 3 archive</text>
+  <rect x="198" y="88" width="150" height="88" rx="10" fill="#121212" stroke="{LAVENDER}"/>
+  <text x="273" y="124" text-anchor="middle" fill="{LAVENDER}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">logs/ + slurm/</text>
+  <text x="273" y="148" text-anchor="middle" fill="{MUTED}" font-size="11" font-family="ui-monospace, monospace">run_040.out … 055</text>
+  <rect x="364" y="88" width="150" height="88" rx="10" fill="#121212" stroke="{BLUE}"/>
+  <text x="439" y="124" text-anchor="middle" fill="{BLUE}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">paper/</text>
+  <text x="439" y="148" text-anchor="middle" fill="{MUTED}" font-size="11" font-family="ui-monospace, monospace">draft_v1  vs  v2</text>
+  <rect x="530" y="88" width="150" height="88" rx="10" fill="#121212" stroke="{PINK}"/>
+  <text x="605" y="124" text-anchor="middle" fill="{PINK}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">src/</text>
+  <text x="605" y="148" text-anchor="middle" fill="{MUTED}" font-size="11" font-family="ui-monospace, monospace">fusion.py</text>
+  <rect x="696" y="88" width="132" height="88" rx="10" fill="#121212" stroke="{SKY}"/>
+  <text x="762" y="124" text-anchor="middle" fill="{SKY}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">results/</text>
+  <text x="762" y="148" text-anchor="middle" fill="{MUTED}" font-size="11" font-family="ui-monospace, monospace">ablation.csv</text>
+  <rect x="32" y="196" width="796" height="88" rx="10" fill="#121212" stroke="{GRID}"/>
+  <text x="52" y="228" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">A researcher types into localhost:8000. A content manager tags the same tree. An engineer asks for fusion.py. Same index.</text>
+  <text x="52" y="256" fill="{GOLD}" font-size="13" font-family="ui-monospace, monospace">136 gold questions  ·  8 categories  ·  no LLM judge required</text>
+</svg>
+'''
+    )
+    (out_dir / "hybrid-split.svg").write_text(
+        f'''<svg xmlns="http://www.w3.org/2000/svg" width="860" height="300" viewBox="0 0 860 300">
+  <rect width="860" height="300" fill="{BG}"/>
+  <rect x="12" y="12" width="836" height="276" rx="16" fill="{PANEL}" stroke="{GRID}"/>
+  <text x="32" y="44" fill="{TEXT}" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Same query  ·  two retrievers  ·  RRF</text>
+  <text x="32" y="66" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">“what does the fusion module do”  —  BM25 wants the filename. Dense wants the idea.</text>
+  <rect x="32" y="84" width="380" height="180" rx="12" fill="#121212" stroke="{LAVENDER}"/>
+  <text x="52" y="112" fill="{LAVENDER}" font-size="12" font-family="ui-monospace, monospace">BM25</text>
+  <text x="52" y="140" fill="{TEXT}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">1  src/fusion.py</text>
+  <text x="52" y="164" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">token “fusion” in the path</text>
+  <text x="52" y="196" fill="{MUTED}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">2  configs/run_047.yaml</text>
+  <text x="52" y="220" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">fusion: true</text>
+  <rect x="448" y="84" width="380" height="180" rx="12" fill="#121212" stroke="{BLUE}"/>
+  <text x="468" y="112" fill="{BLUE}" font-size="12" font-family="ui-monospace, monospace">dense</text>
+  <text x="468" y="140" fill="{TEXT}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">1  configs where fusion is off</text>
+  <text x="468" y="164" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">paraphrase of “fusion was off”</text>
+  <text x="468" y="196" fill="{GOLD}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">RRF keeps fusion.py at rank 1</text>
+  <text x="468" y="220" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Recall@50  0.843 → 0.938</text>
+</svg>
+'''
+    )
+    (out_dir / "stack.svg").write_text(
+        f'''<svg xmlns="http://www.w3.org/2000/svg" width="860" height="280" viewBox="0 0 860 280">
+  <rect width="860" height="280" fill="{BG}"/>
+  <rect x="12" y="12" width="836" height="256" rx="16" fill="{PANEL}" stroke="{GRID}"/>
+  <text x="32" y="44" fill="{TEXT}" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">What you run at localhost:8000</text>
+  <text x="32" y="66" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Same radial gradient. Next.js talks to FastAPI. FastAPI talks to pgvector + ParadeDB.</text>
+  <rect x="32" y="92" width="250" height="140" rx="12" fill="#121212" stroke="{SKY}"/>
+  <text x="157" y="128" text-anchor="middle" fill="{SKY}" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Next.js</text>
+  <text x="157" y="156" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">.frontend/</text>
+  <text x="157" y="180" text-anchor="middle" fill="{TEXT}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">chat, files, approve</text>
+  <rect x="304" y="92" width="250" height="140" rx="12" fill="#121212" stroke="{GOLD}"/>
+  <text x="429" y="128" text-anchor="middle" fill="{GOLD}" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">FastAPI</text>
+  <text x="429" y="156" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">app/</text>
+  <text x="429" y="180" text-anchor="middle" fill="{TEXT}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">route · retrieve · agents</text>
+  <rect x="576" y="92" width="250" height="140" rx="12" fill="#121212" stroke="{LAVENDER}"/>
+  <text x="701" y="128" text-anchor="middle" fill="{LAVENDER}" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Postgres</text>
+  <text x="701" y="156" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">pgvector + ParadeDB</text>
+  <text x="701" y="180" text-anchor="middle" fill="{TEXT}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">dense + BM25 + mtime</text>
+</svg>
+'''
+    )
 
 
 def write_from_results(root: Path) -> None:
