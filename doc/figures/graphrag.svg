@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="280" viewBox="0 0 860 280">
+  <rect width="860" height="280" fill="#121212"/>
+  <rect x="12" y="12" width="836" height="256" rx="16" fill="#1A1A24" stroke="#2A2A38"/>
+  <text x="32" y="44" fill="#F4F4F8" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">GraphRAG-lite  ·  entities from the files, not invented</text>
+  <text x="32" y="66" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">run:47 —uses_encoder→ dinov2. Communities are connected components. Optional LLM adds triples.</text>
+  <rect x="40" y="92" width="140" height="56" rx="28" fill="#121212" stroke="#E8D6A0"/>
+  <text x="110" y="126" text-anchor="middle" fill="#E8D6A0" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">run:47</text>
+  <rect x="40" y="176" width="140" height="56" rx="28" fill="#121212" stroke="#BABAE9"/>
+  <text x="110" y="210" text-anchor="middle" fill="#BABAE9" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">run:46</text>
+  <rect x="360" y="92" width="160" height="56" rx="28" fill="#121212" stroke="#8EB4E8"/>
+  <text x="440" y="126" text-anchor="middle" fill="#8EB4E8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">encoder:dinov2</text>
+  <rect x="360" y="176" width="160" height="56" rx="28" fill="#121212" stroke="#FBDAEF"/>
+  <text x="440" y="210" text-anchor="middle" fill="#FBDAEF" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">src/fusion.py</text>
+  <rect x="640" y="134" width="180" height="56" rx="28" fill="#121212" stroke="#C2D5FF"/>
+  <text x="730" y="168" text-anchor="middle" fill="#C2D5FF" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">lr: 3e-4</text>
+  <line x1="180" y1="120" x2="360" y2="120" stroke="#A8B0C0"/>
+  <line x1="180" y1="204" x2="360" y2="204" stroke="#A8B0C0"/>
+  <line x1="520" y1="120" x2="640" y2="162" stroke="#A8B0C0"/>
+  <text x="210" y="112" fill="#A8B0C0" font-size="11" font-family="ui-monospace, monospace">uses_encoder</text>
+</svg>

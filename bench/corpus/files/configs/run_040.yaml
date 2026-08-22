@@ -1,0 +1,14 @@
+# run 40 config (CURRENT)
+run_id: 40
+encoder: resnet50
+fusion: false
+num_pairs: 2
+bark_type: oak
+learning_rate: 0.0001
+val_rmse: 0.0612
+seed: 7
+baseline_rmse: 0.055
+render:
+  trellis: false
+checkpoint: checkpoints/run_040.ckpt.meta.json
+notes: none

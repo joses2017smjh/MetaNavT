@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="260" viewBox="0 0 860 260">
+  <rect width="860" height="260" fill="#121212"/>
+  <rect x="12" y="12" width="836" height="236" rx="16" fill="#1A1A24" stroke="#2A2A38"/>
+  <text x="32" y="44" fill="#F4F4F8" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">MCP filesystem  ·  human interrupt on mutate</text>
+  <text x="32" y="66" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">propose_move never executes. apply_plan is a no-op until approved=True.</text>
+  <rect x="32" y="88" width="250" height="136" rx="12" fill="#121212" stroke="#8EB4E8"/>
+  <text x="48" y="116" fill="#8EB4E8" font-size="12" font-family="ui-monospace, monospace">1  propose_move</text>
+  <text x="48" y="144" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">logs/run_040.out</text>
+  <text x="48" y="164" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">→ archive/run_040.out</text>
+  <text x="48" y="196" fill="#E8D6A0" font-size="12" font-family="ui-monospace, monospace">pending_approval</text>
+  <rect x="304" y="88" width="250" height="136" rx="12" fill="#121212" stroke="#FBDAEF"/>
+  <text x="320" y="116" fill="#FBDAEF" font-size="12" font-family="ui-monospace, monospace">2  apply_plan</text>
+  <text x="320" y="144" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">approved missing</text>
+  <text x="320" y="196" fill="#FBDAEF" font-size="12" font-family="ui-monospace, monospace">ApprovalRequired</text>
+  <rect x="576" y="88" width="250" height="136" rx="12" fill="#121212" stroke="#E8D6A0"/>
+  <text x="592" y="116" fill="#E8D6A0" font-size="12" font-family="ui-monospace, monospace">3  apply_plan</text>
+  <text x="592" y="144" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">approved=True</text>
+  <text x="592" y="196" fill="#C2D5FF" font-size="12" font-family="ui-monospace, monospace">applied</text>
+</svg>

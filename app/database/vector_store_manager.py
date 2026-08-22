@@ -357,7 +357,7 @@ class VectorStoreManager(DatabaseManager):
         try:
             # More powerful full-text search as fallback
             fallback_sql = sql.SQL("""
-                SELECT node_id, text, ts_rank(to_tsvector('english', text), plainto_tsquery('english', %s)) AS score
+                SELECT node_id, text, ts_rank_cd(to_tsvector('english', text), plainto_tsquery('english', %s)) AS score
                 FROM {table}
                 WHERE to_tsvector('english', text) @@ plainto_tsquery('english', %s)
                 ORDER BY score DESC
@@ -439,6 +439,91 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.warning(f"Error detecting vector dimensions: {e}")
             return None
+
+    def ensure_hnsw(self, m: int = 16, ef_construction: int = 64) -> bool:
+        """Create an HNSW index on the embedding column. No-op if pgvector lacks HNSW."""
+        index_name = f"{self.table_name}_embedding_hnsw"
+        stmt = f"""
+            CREATE INDEX IF NOT EXISTS {index_name}
+            ON {self.schema_name}.{self.table_name}
+            USING hnsw (embedding vector_cosine_ops)
+            WITH (m = {int(m)}, ef_construction = {int(ef_construction)});
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(stmt)
+                conn.commit()
+            logger.info(f"HNSW index {index_name} ready (m={m}, ef_construction={ef_construction})")
+            return True
+        except Exception as e:
+            logger.warning(f"HNSW index not created: {e}")
+            return False
+
+    def set_ef_search(self, ef_search: int) -> None:
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET hnsw.ef_search = %s", (int(ef_search),))
+                try:
+                    cur.execute("SET hnsw.iterative_scan = relaxed_order")
+                except Exception:
+                    pass
+
+    def ensure_halfvec(self) -> bool:
+        """2x storage cut. Requires pgvector with halfvec."""
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        ALTER TABLE {self.schema_name}.{self.table_name}
+                        ADD COLUMN IF NOT EXISTS embedding_half halfvec({self.embed_dim});
+                        """
+                    )
+                    cur.execute(
+                        f"""
+                        UPDATE {self.schema_name}.{self.table_name}
+                        SET embedding_half = embedding::halfvec
+                        WHERE embedding_half IS NULL AND embedding IS NOT NULL;
+                        """
+                    )
+                conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(f"halfvec column not created: {e}")
+            return False
+
+    def ensure_binary(self) -> bool:
+        """1-bit/dim storage + Hamming index. Rescore with float cosine at query time."""
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        ALTER TABLE {self.schema_name}.{self.table_name}
+                        ADD COLUMN IF NOT EXISTS embedding_bit bit({self.embed_dim});
+                        """
+                    )
+                    cur.execute(
+                        f"""
+                        UPDATE {self.schema_name}.{self.table_name}
+                        SET embedding_bit = binary_quantize(embedding)::bit({self.embed_dim})
+                        WHERE embedding_bit IS NULL AND embedding IS NOT NULL;
+                        """
+                    )
+                    cur.execute(
+                        f"""
+                        CREATE INDEX IF NOT EXISTS {self.table_name}_embedding_bit_hnsw
+                        ON {self.schema_name}.{self.table_name}
+                        USING hnsw (embedding_bit bit_hamming_ops);
+                        """
+                    )
+                conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(f"binary quantization column not created: {e}")
+            return False
+
 
 # Global instance - Consider if singleton is truly needed or if explicit instantiation is better
 _vector_store_manager = None

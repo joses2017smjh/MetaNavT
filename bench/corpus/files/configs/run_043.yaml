@@ -1,0 +1,14 @@
+# run 43 config (CURRENT)
+run_id: 43
+encoder: clip
+fusion: false
+num_pairs: 1
+bark_type: maple
+learning_rate: 0.0001
+val_rmse: 0.072
+seed: 3
+baseline_rmse: 0.055
+render:
+  trellis: false
+checkpoint: checkpoints/run_043.ckpt.meta.json
+notes: none

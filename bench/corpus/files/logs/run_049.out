@@ -1,0 +1,6 @@
+Slurm job for run 49
+encoder=dinov2 fusion=False num_pairs=3
+bark_type=pine learning_rate=0.0005
+[epoch 10] val_rmse=0.0559
+finished status=SUCCESS
+config=configs/run_049.yaml

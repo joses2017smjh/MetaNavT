@@ -1,0 +1,258 @@
+{
+  "git_sha": "520699a",
+  "hnsw": [
+    {
+      "ef_search": 10,
+      "recall@10": 0.4906,
+      "p50_ms": 1.275,
+      "p95_ms": 18.356,
+      "bytes_per_vec": 1024,
+      "mode": "float32+hnsw"
+    },
+    {
+      "ef_search": 20,
+      "recall@10": 0.5062,
+      "p50_ms": 1.395,
+      "p95_ms": 20.384,
+      "bytes_per_vec": 1024,
+      "mode": "float32+hnsw"
+    },
+    {
+      "ef_search": 40,
+      "recall@10": 0.5188,
+      "p50_ms": 1.65,
+      "p95_ms": 23.661,
+      "bytes_per_vec": 1024,
+      "mode": "float32+hnsw"
+    },
+    {
+      "ef_search": 80,
+      "recall@10": 0.5188,
+      "p50_ms": 5.559,
+      "p95_ms": 21.753,
+      "bytes_per_vec": 1024,
+      "mode": "float32+hnsw"
+    }
+  ],
+  "storage": [
+    {
+      "ef_search": 0,
+      "recall@10": 1.0,
+      "p50_ms": 0.084,
+      "p95_ms": 0.109,
+      "bytes_per_vec": 1024,
+      "mode": "float32"
+    },
+    {
+      "ef_search": 0,
+      "recall@10": 1.0,
+      "p50_ms": 0.084,
+      "p95_ms": 1.05,
+      "bytes_per_vec": 512,
+      "mode": "halfvec"
+    },
+    {
+      "ef_search": 0,
+      "recall@10": 0.5938,
+      "p50_ms": 0.161,
+      "p95_ms": 0.363,
+      "bytes_per_vec": 32,
+      "mode": "binary+rescore"
+    }
+  ],
+  "graph_hops": [
+    {
+      "config": "hybrid+hops=0",
+      "retrieval": {
+        "recall@50": 0.9382,
+        "ndcg@10": 0.4954,
+        "mrr@10": 0.4874,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9187,
+            "ndcg@10": 0.5236,
+            "mrr@10": 0.5294,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 0.95,
+            "ndcg@10": 0.2313,
+            "mrr@10": 0.1753,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3647,
+            "mrr@10": 0.3785,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3325,
+            "mrr@10": 0.2426,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.4868,
+            "mrr@10": 0.5208,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.5516,
+            "mrr@10": 0.4917,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.6042,
+            "mrr@10": 0.5595,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.8333,
+            "ndcg@10": 0.7073,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        }
+      },
+      "wall_ms": 6228.31
+    },
+    {
+      "config": "hybrid+hops=1",
+      "retrieval": {
+        "recall@50": 0.9863,
+        "ndcg@10": 0.4458,
+        "mrr@10": 0.4248,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.4799,
+            "mrr@10": 0.4461,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.159,
+            "mrr@10": 0.1885,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 0.875,
+            "ndcg@10": 0.3404,
+            "mrr@10": 0.3638,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 0.9639,
+            "ndcg@10": 0.1315,
+            "mrr@10": 0.1438,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.4267,
+            "mrr@10": 0.4524,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.5184,
+            "mrr@10": 0.447,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.656,
+            "mrr@10": 0.5875,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.6855,
+            "mrr@10": 0.7222,
+            "n": 6.0
+          }
+        }
+      },
+      "wall_ms": 38531.44
+    },
+    {
+      "config": "hybrid+hops=2",
+      "retrieval": {
+        "recall@50": 0.954,
+        "ndcg@10": 0.3502,
+        "mrr@10": 0.3661,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9437,
+            "ndcg@10": 0.3629,
+            "mrr@10": 0.3842,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.0666,
+            "mrr@10": 0.0563,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.2703,
+            "mrr@10": 0.2951,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.0685,
+            "mrr@10": 0.0861,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.3954,
+            "mrr@10": 0.4375,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.4474,
+            "mrr@10": 0.4219,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.5445,
+            "mrr@10": 0.5208,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.875,
+            "ndcg@10": 0.6855,
+            "mrr@10": 0.7222,
+            "n": 6.0
+          }
+        }
+      },
+      "wall_ms": 47764.54
+    }
+  ],
+  "graphrag": {
+    "n_communities": 1,
+    "global_answer": "[community 0] runs 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55; encoders clip, dinov2, resnet50; 54 files; relations: documented_in, has_fusion, has_learning_rate, has_num_pairs, has_val_rmse, uses_bark",
+    "communities": [
+      {
+        "id": 0,
+        "n": 107,
+        "summary": "runs 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55; encoders clip, dinov2, resnet50; 54 files; relations: documented_in, has_fusion, has_learning_rate, has_num_pairs, has_val_rmse, uses_bark"
+      }
+    ]
+  },
+  "n_chunks": 71,
+  "embed_dim": 256
+}

@@ -1,0 +1,7 @@
+{
+  "run_id": 48,
+  "val_rmse": 0.0533,
+  "encoder": "dinov2",
+  "path": "checkpoints/run_048.pt",
+  "produced_by": "slurm/run_048.sbatch"
+}

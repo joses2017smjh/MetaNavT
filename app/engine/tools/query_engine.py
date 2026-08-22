@@ -88,8 +88,8 @@ def get_query_engine_tool(
         name = "query_index"
     if description is None:
         description = (
-            "Use this tool to retrieve information about the text corpus from an index. "
-            "Uses hybrid BM25 + vector search with cross-encoder reranking for best results."
+            "Hybrid BM25 + dense retrieval with RRF (k=60), optional query "
+            "router, and cross-encoder rerank of the fused top-50 down to top-8."
         )
 
     try:

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="300" viewBox="0 0 860 300">
+  <rect width="860" height="300" fill="#121212"/>
+  <rect x="12" y="12" width="836" height="276" rx="16" fill="#1A1A24" stroke="#2A2A38"/>
+  <text x="36" y="48" fill="#F4F4F8" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Version cluster  ·  run_047.yaml</text>
+  <rect x="36" y="72" width="380" height="180" rx="12" fill="#121212" stroke="#6B7280"/>
+  <text x="56" y="104" fill="#6B7280" font-size="12" font-family="ui-monospace, monospace">SUPERSEDED</text>
+  <text x="56" y="132" fill="#A8B0C0" font-size="14" font-family="ui-sans-serif, system-ui, sans-serif">configs/archive/run_047_v1.yaml</text>
+  <text x="56" y="160" fill="#A8B0C0" font-size="14" font-family="ui-monospace, monospace">learning_rate: 1e-5</text>
+  <text x="56" y="188" fill="#A8B0C0" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">mtime older  ·  not the retrieval target</text>
+  <rect x="444" y="72" width="380" height="180" rx="12" fill="#121212" stroke="#E8D6A0"/>
+  <text x="464" y="104" fill="#E8D6A0" font-size="12" font-family="ui-monospace, monospace">CURRENT</text>
+  <text x="464" y="132" fill="#F4F4F8" font-size="14" font-family="ui-sans-serif, system-ui, sans-serif">configs/run_047.yaml</text>
+  <text x="464" y="160" fill="#F4F4F8" font-size="14" font-family="ui-monospace, monospace">learning_rate: 3e-4</text>
+  <text x="464" y="188" fill="#C2D5FF" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">default retrieval target  ·  gold for staleness Qs</text>
+</svg>

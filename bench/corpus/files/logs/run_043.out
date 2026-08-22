@@ -1,0 +1,6 @@
+Slurm job for run 43
+encoder=clip fusion=False num_pairs=1
+bark_type=maple learning_rate=0.0001
+[epoch 10] val_rmse=0.072
+finished status=SUCCESS
+config=configs/run_043.yaml

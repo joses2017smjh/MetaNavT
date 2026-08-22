@@ -1,0 +1,6 @@
+Slurm job for run 40
+encoder=resnet50 fusion=False num_pairs=2
+bark_type=oak learning_rate=0.0001
+[epoch 10] val_rmse=0.0612
+finished status=SUCCESS
+config=configs/run_040.yaml

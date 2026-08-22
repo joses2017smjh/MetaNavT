@@ -1,0 +1,6 @@
+Slurm job for run 53
+encoder=dinov2 fusion=True num_pairs=3
+bark_type=maple learning_rate=0.0002
+[epoch 10] val_rmse=0.053
+finished status=SUCCESS
+config=configs/run_053.yaml

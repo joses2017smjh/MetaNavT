@@ -1,0 +1,6 @@
+Slurm job for run 45
+encoder=dinov2 fusion=False num_pairs=2
+bark_type=birch learning_rate=0.0001
+[epoch 10] val_rmse=0.0568
+finished status=SUCCESS
+config=configs/run_045.yaml

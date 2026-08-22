@@ -33,7 +33,6 @@ from llama_index.core.settings import Settings
 from llama_index.core.storage import StorageContext
 from llama_index.core.storage.docstore import SimpleDocumentStore
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 

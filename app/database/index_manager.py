@@ -95,8 +95,13 @@ class IndexManager(DatabaseManager):
                         process_version TEXT NOT NULL,
                         mtime BIGINT NOT NULL,
                         data BYTEA,
+                        content_hash TEXT,
                         PRIMARY KEY (file_path, process_name, process_version)
                     );
+                """)
+                cur.execute("""
+                    ALTER TABLE indexed_files
+                    ADD COLUMN IF NOT EXISTS content_hash TEXT;
                 """)
                 
                 # Create directory_processing_results table
@@ -167,23 +172,37 @@ class IndexManager(DatabaseManager):
             file.get('process_name', 'default'),
             file.get('process_version', '1.0'),
             int(file['modified_time']),
-            file.get('data', None)
+            file.get('data', None),
+            file.get('content_hash'),
         ) for file in batch]
         
         self.execute_query(
             """
             INSERT INTO indexed_files
-            (file_path, process_name, process_version, mtime, data)
-            VALUES (%s, %s, %s, %s, %s)
+            (file_path, process_name, process_version, mtime, data, content_hash)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (file_path, process_name, process_version)
             DO UPDATE SET
                 mtime = EXCLUDED.mtime,
-                data = EXCLUDED.data;
+                data = EXCLUDED.data,
+                content_hash = EXCLUDED.content_hash;
             """,
             params=values,
             fetch=False
         )
         logger.info(f"Inserted batch of {len(batch)} files")
+
+    def hashes_for(self, process_name: str = "default", process_version: str = "1.0") -> dict:
+        """Return {file_path: content_hash} for incremental reindex."""
+        rows = self.execute_query(
+            """
+            SELECT file_path, content_hash FROM indexed_files
+            WHERE process_name = %s AND process_version = %s
+            """,
+            params=(process_name, process_version),
+            fetch=True,
+        ) or []
+        return {row[0]: row[1] for row in rows}
 
     def check_processing_status(self):
         # TODOL: check and remove any files that we dont have processing capabilities for

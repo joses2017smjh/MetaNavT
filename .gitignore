@@ -21,3 +21,5 @@ config/loaders.yaml
 idea/
 .env
 tests/benchmark_tests/results/
+.vendor/
+bench/results/*.triples.jsonl

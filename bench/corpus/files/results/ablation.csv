@@ -1,0 +1,9 @@
+ablation,encoder,fusion,val_rmse,run_id
+fusion_off_resnet,resnet50,False,0.0612,40
+fusion_on_resnet,resnet50,True,0.0588,41
+fusion_off_dino,dinov2,False,0.0568,45
+fusion_on_dino,dinov2,True,0.0542,46
+dino_3pair_fusion,dinov2,True,0.0521,47
+clip_fusion,clip,True,0.0595,44
+resnet_3pair,resnet50,True,0.0571,42
+dino_1pair,dinov2,True,0.0548,52

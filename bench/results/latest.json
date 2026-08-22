@@ -1,0 +1,679 @@
+{
+  "git_sha": "520699a",
+  "timestamp": "2026-08-22T16:40:39.925591+00:00",
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "results": [
+    {
+      "config": "dense_only",
+      "settings": {
+        "name": "dense_only",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "dense",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": true,
+        "log_triples": false
+      },
+      "retrieval": {
+        "recall@50": 0.915,
+        "ndcg@10": 0.2718,
+        "mrr@10": 0.2326,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9,
+            "ndcg@10": 0.2088,
+            "mrr@10": 0.1516,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 0.825,
+            "ndcg@10": 0.0778,
+            "mrr@10": 0.0304,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3143,
+            "mrr@10": 0.2917,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 0.9333,
+            "ndcg@10": 0.2281,
+            "mrr@10": 0.2052,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.3973,
+            "mrr@10": 0.4866,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3714,
+            "mrr@10": 0.316,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.6022,
+            "mrr@10": 0.5563,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.8333,
+            "ndcg@10": 0.6458,
+            "mrr@10": 0.6667,
+            "n": 6.0
+          }
+        }
+      },
+      "latency": {
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.46,
+          "p95_ms": 31.71,
+          "mean_ms": 5.46
+        }
+      },
+      "wall_ms": 1780.11,
+      "routes": {},
+      "n_chunks": 71,
+      "e2e": {
+        "faithfulness": 0.9155,
+        "context_precision": 0.0728,
+        "context_recall": 0.915,
+        "answer_relevancy": 0.0769,
+        "judge": "heuristic"
+      }
+    },
+    {
+      "config": "bm25_only",
+      "settings": {
+        "name": "bm25_only",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "bm25",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": true,
+        "log_triples": false
+      },
+      "retrieval": {
+        "recall@50": 0.8434,
+        "ndcg@10": 0.5052,
+        "mrr@10": 0.4619,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9,
+            "ndcg@10": 0.6387,
+            "mrr@10": 0.5952,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.1326,
+            "mrr@10": 0.0706,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 0.875,
+            "ndcg@10": 0.3557,
+            "mrr@10": 0.2792,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 0.72,
+            "ndcg@10": 0.2049,
+            "mrr@10": 0.1283,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.875,
+            "ndcg@10": 0.3643,
+            "mrr@10": 0.4062,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.5186,
+            "mrr@10": 0.4012,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 0.125,
+            "ndcg@10": 0.0445,
+            "mrr@10": 0.0208,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.75,
+            "ndcg@10": 0.7073,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        }
+      },
+      "latency": {
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.78,
+          "p95_ms": 22.25,
+          "mean_ms": 4.27
+        }
+      },
+      "wall_ms": 1164.31,
+      "routes": {},
+      "n_chunks": 71,
+      "e2e": {
+        "faithfulness": 0.8928,
+        "context_precision": 0.1153,
+        "context_recall": 0.8434,
+        "answer_relevancy": 0.091,
+        "judge": "heuristic"
+      }
+    },
+    {
+      "config": "hybrid",
+      "settings": {
+        "name": "hybrid",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": true,
+        "log_triples": true
+      },
+      "retrieval": {
+        "recall@50": 0.9382,
+        "ndcg@10": 0.4538,
+        "mrr@10": 0.43,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9187,
+            "ndcg@10": 0.4805,
+            "mrr@10": 0.4612,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 0.95,
+            "ndcg@10": 0.173,
+            "mrr@10": 0.1253,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3397,
+            "mrr@10": 0.3097,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3171,
+            "mrr@10": 0.2333,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.4316,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.4428,
+            "mrr@10": 0.3792,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.5955,
+            "mrr@10": 0.5491,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.8333,
+            "ndcg@10": 0.7073,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        }
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.78,
+          "p95_ms": 12.73,
+          "mean_ms": 2.1
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.51,
+          "p95_ms": 20.6,
+          "mean_ms": 2.22
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.06,
+          "p95_ms": 0.07,
+          "mean_ms": 0.06
+        }
+      },
+      "wall_ms": 2925.41,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "e2e": {
+        "faithfulness": 0.9188,
+        "context_precision": 0.1029,
+        "context_recall": 0.9382,
+        "answer_relevancy": 0.0864,
+        "judge": "heuristic"
+      },
+      "n_triples": 6800
+    },
+    {
+      "config": "hybrid+rerank",
+      "settings": {
+        "name": "hybrid+rerank",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": true,
+        "log_triples": true
+      },
+      "retrieval": {
+        "recall@50": 0.9382,
+        "ndcg@10": 0.4517,
+        "mrr@10": 0.3907,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9187,
+            "ndcg@10": 0.4325,
+            "mrr@10": 0.3579,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 0.95,
+            "ndcg@10": 0.2169,
+            "mrr@10": 0.1609,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3778,
+            "mrr@10": 0.3345,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3336,
+            "mrr@10": 0.2744,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.4535,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.4837,
+            "mrr@10": 0.35,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.875,
+            "mrr@10": 0.8333,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.8333,
+            "ndcg@10": 0.7073,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        }
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.88,
+          "p95_ms": 28.67,
+          "mean_ms": 5.9
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.65,
+          "p95_ms": 21.87,
+          "mean_ms": 2.9
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.06,
+          "p95_ms": 0.15,
+          "mean_ms": 0.39
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 24.98,
+          "p95_ms": 52.12,
+          "mean_ms": 23.53
+        }
+      },
+      "wall_ms": 9382.97,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "e2e": {
+        "faithfulness": 0.9212,
+        "context_precision": 0.1125,
+        "context_recall": 0.9382,
+        "answer_relevancy": 0.0908,
+        "judge": "heuristic"
+      },
+      "n_triples": 6800
+    },
+    {
+      "config": "hybrid+rerank+router",
+      "settings": {
+        "name": "hybrid+rerank+router",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": true,
+        "log_triples": true
+      },
+      "retrieval": {
+        "recall@50": 0.9382,
+        "ndcg@10": 0.4563,
+        "mrr@10": 0.4022,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9187,
+            "ndcg@10": 0.4403,
+            "mrr@10": 0.3769,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 0.95,
+            "ndcg@10": 0.2169,
+            "mrr@10": 0.1609,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3353,
+            "mrr@10": 0.3067,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3171,
+            "mrr@10": 0.2333,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.4535,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.4837,
+            "mrr@10": 0.35,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.9375,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.8333,
+            "ndcg@10": 0.7073,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        }
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.04,
+          "p95_ms": 0.08,
+          "mean_ms": 0.04
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.85,
+          "p95_ms": 27.41,
+          "mean_ms": 7.28
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 0.65,
+          "p95_ms": 22.89,
+          "mean_ms": 4.47
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.06,
+          "p95_ms": 0.14,
+          "mean_ms": 0.24
+        },
+        "rerank": {
+          "n": 95,
+          "p50_ms": 25.14,
+          "p95_ms": 60.23,
+          "mean_ms": 29.09
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 11.44,
+          "p95_ms": 23.28,
+          "mean_ms": 11.82
+        }
+      },
+      "wall_ms": 9971.63,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "e2e": {
+        "faithfulness": 0.9228,
+        "context_precision": 0.1375,
+        "context_recall": 0.9382,
+        "answer_relevancy": 0.0894,
+        "judge": "heuristic"
+      },
+      "n_triples": 6466
+    },
+    {
+      "config": "hybrid+rerank+router+staleness",
+      "settings": {
+        "name": "hybrid+rerank+router+staleness",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": true,
+        "e2e": true,
+        "log_triples": true
+      },
+      "retrieval": {
+        "recall@50": 0.9382,
+        "ndcg@10": 0.4926,
+        "mrr@10": 0.4643,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "recall@50": 0.9187,
+            "ndcg@10": 0.4852,
+            "mrr@10": 0.4614,
+            "n": 80.0
+          },
+          "conditional": {
+            "recall@50": 0.95,
+            "ndcg@10": 0.2352,
+            "mrr@10": 0.1656,
+            "n": 8.0
+          },
+          "comparative": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3631,
+            "mrr@10": 0.3785,
+            "n": 8.0
+          },
+          "aggregation": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.3325,
+            "mrr@10": 0.2426,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "recall@50": 0.9375,
+            "ndcg@10": 0.493,
+            "mrr@10": 0.5208,
+            "n": 8.0
+          },
+          "staleness": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.5473,
+            "mrr@10": 0.4323,
+            "n": 8.0
+          },
+          "exact_path": {
+            "recall@50": 1.0,
+            "ndcg@10": 0.9375,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "recall@50": 0.8333,
+            "ndcg@10": 0.7073,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        }
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.04,
+          "p95_ms": 0.07,
+          "mean_ms": 0.2
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.85,
+          "p95_ms": 22.12,
+          "mean_ms": 4.65
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 0.62,
+          "p95_ms": 23.78,
+          "mean_ms": 4.45
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.06,
+          "p95_ms": 0.12,
+          "mean_ms": 1.09
+        },
+        "rerank": {
+          "n": 95,
+          "p50_ms": 25.37,
+          "p95_ms": 51.44,
+          "mean_ms": 27.83
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 1.62,
+          "p95_ms": 22.81,
+          "mean_ms": 9.42
+        }
+      },
+      "wall_ms": 10338.03,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "e2e": {
+        "faithfulness": 0.9228,
+        "context_precision": 0.139,
+        "context_recall": 0.9382,
+        "answer_relevancy": 0.0894,
+        "judge": "heuristic"
+      },
+      "n_triples": 6466
+    }
+  ]
+}

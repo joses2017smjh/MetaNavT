@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="280" viewBox="0 0 860 280">
+  <rect width="860" height="280" fill="#121212"/>
+  <rect x="12" y="12" width="836" height="256" rx="16" fill="#1A1A24" stroke="#2A2A38"/>
+  <text x="32" y="44" fill="#F4F4F8" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Query router  ·  40 lines, no extra LLM</text>
+  <text x="32" y="66" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Gold set: 8 queries skipped embed, 41 skipped rerank. Exact-path nDCG@10 0.596 → 0.938.</text>
+  <rect x="32" y="88" width="250" height="156" rx="12" fill="#121212" stroke="#E8D6A0"/>
+  <text x="48" y="116" fill="#E8D6A0" font-size="13" font-family="ui-monospace, monospace">lexical_path</text>
+  <text x="48" y="144" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">open configs/run_047.yaml</text>
+  <text x="48" y="172" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">skip embed + rerank</text>
+  <text x="48" y="200" fill="#C2D5FF" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">path lookup + BM25</text>
+  <rect x="304" y="88" width="250" height="156" rx="12" fill="#121212" stroke="#BABAE9"/>
+  <text x="320" y="116" fill="#BABAE9" font-size="13" font-family="ui-monospace, monospace">aggregation</text>
+  <text x="320" y="144" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">lowest val RMSE?</text>
+  <text x="320" y="172" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">skip rerank</text>
+  <text x="320" y="200" fill="#C2D5FF" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">BM25 over configs + CSV</text>
+  <rect x="576" y="88" width="250" height="156" rx="12" fill="#121212" stroke="#8EB4E8"/>
+  <text x="592" y="116" fill="#8EB4E8" font-size="13" font-family="ui-monospace, monospace">semantic</text>
+  <text x="592" y="144" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">what does fusion do</text>
+  <text x="592" y="172" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">full pipeline</text>
+  <text x="592" y="200" fill="#C2D5FF" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">BM25 + dense + RRF</text>
+</svg>

@@ -1,0 +1,6 @@
+Slurm job for run 51
+encoder=clip fusion=False num_pairs=2
+bark_type=pine learning_rate=0.0001
+[epoch 10] val_rmse=0.0681
+finished status=SUCCESS
+config=configs/run_051.yaml

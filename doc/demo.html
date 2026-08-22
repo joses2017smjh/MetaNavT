@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MetaNaviT live demo</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --panel: rgba(26, 26, 36, 0.82);
+      --text: #f4f4f8;
+      --muted: #a8b0c0;
+      --blue: #8eb4e8;
+      --lavender: #babae9;
+      --gold: #e8d6a0;
+      --pink: #fbdaef;
+      --sky: #c2d5ff;
+      --line: #2a2a38;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      color: var(--text);
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(at 21% 11%, rgba(186, 186, 233, 0.53) 0, transparent 50%),
+        radial-gradient(at 85% 0, hsla(46, 57%, 78%, 0.52) 0, transparent 50%),
+        radial-gradient(at 91% 36%, rgba(194, 213, 255, 0.68) 0, transparent 50%),
+        radial-gradient(at 8% 40%, rgba(251, 218, 239, 0.46) 0, transparent 50%);
+    }
+    main { max-width: 60rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+    header { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 0.4rem; }
+    header img { width: 52px; height: 52px; border-radius: 12px; }
+    h1 { font-size: 1.65rem; margin: 0; letter-spacing: -0.02em; }
+    .lede { color: var(--muted); margin: 0.35rem 0 1.5rem; max-width: 42rem; line-height: 1.45; }
+    .statrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1rem; }
+    .stat b { display: block; font-size: 1.35rem; color: var(--gold); }
+    .stat span { color: var(--muted); font-size: 0.8rem; }
+    h2 { font-size: 1.05rem; margin: 1.75rem 0 0.6rem; color: var(--sky); }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    button.chip {
+      background: #121212; color: var(--text); border: 1px solid var(--blue);
+      border-radius: 999px; padding: 0.45rem 0.85rem; cursor: pointer; font-size: 0.85rem;
+    }
+    button.chip.active { background: var(--blue); color: #121212; }
+    .stages { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 1rem 0 0.75rem; }
+    .stage {
+      border: 1px solid var(--line); border-radius: 8px; padding: 0.35rem 0.6rem;
+      font-size: 0.75rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .stage.on { color: #121212; }
+    .stage.on.route { background: var(--gold); }
+    .stage.on.search { background: var(--lavender); }
+    .stage.on.rerank { background: var(--blue); }
+    .stage.on.stale { background: var(--pink); }
+    .stage.on.cite { background: var(--sky); }
+    .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 0.85rem; }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 14px; padding: 1rem 1.1rem;
+    }
+    .hits { list-style: none; margin: 0; padding: 0; }
+    .hits li {
+      border: 1px solid var(--line); border-radius: 10px; padding: 0.65rem 0.75rem; margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .hits li.gold { border-color: var(--gold); }
+    .hits li.drop { border-color: var(--pink); opacity: 0.72; }
+    .hits .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; color: var(--sky); }
+    .hits .meta { color: var(--muted); font-size: 0.75rem; margin-top: 0.2rem; }
+    .answer { font-size: 1.35rem; color: var(--gold); margin: 0.2rem 0 0.5rem; }
+    .kv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; }
+    .k { color: var(--gold); }
+    .note { color: var(--muted); font-size: 0.85rem; margin-top: 1.5rem; }
+    a { color: var(--lavender); }
+    @media (max-width: 720px) {
+      .statrow, .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="../.frontend/public/metanavit.jpeg" alt="MetaNaviT mascot" />
+      <div>
+        <h1>MetaNaviT</h1>
+      </div>
+    </header>
+    <p class="lede">Click a gold-set question. The trace, the dropped archive, and the cited bytes are what the bench measured — same radial gradient as the app at localhost:8000.</p>
+
+    <div class="statrow">
+      <div class="stat"><b>0.938</b><span>Recall@50 after hybrid RRF</span></div>
+      <div class="stat"><b>0.493</b><span>nDCG@10 with staleness Tier 1</span></div>
+      <div class="stat"><b>136</b><span>hand-built questions, 61 frozen files</span></div>
+    </div>
+
+    <h2>Run a gold question</h2>
+    <div class="chips" id="chips"></div>
+    <div class="stages" id="stages"></div>
+    <div class="grid">
+      <div class="panel">
+        <div class="kv" id="trace"></div>
+      </div>
+      <div class="panel">
+        <div class="answer" id="answer"></div>
+        <ul class="hits" id="hits"></ul>
+      </div>
+    </div>
+    <p class="note">Destructive moves still require <code>apply_plan(..., approved=True)</code>. Open this file locally; GitHub will not run the script. <a href="../README.md">Back to the README</a>.</p>
+  </main>
+  <script>
+    const STAGE_NAMES = [
+      ["route", "route"],
+      ["search", "search"],
+      ["rerank", "rerank"],
+      ["stale", "staleness"],
+      ["cite", "cite"],
+    ];
+    const traces = {
+      lr: {
+        label: "current LR for DINOv2 run 47",
+        stages: ["route", "search", "rerank", "stale", "cite"],
+        answer: "3e-4",
+        body:
+`query     what's the current learning rate for the DINOv2 run 47
+route     semantic
+search    BM25 + dense  →  RRF k=60  →  top-50
+rerank    overlap teacher (CI) / bge-reranker-v2-m3 when loaded
+staleness drop  configs/archive/run_047_v1.yaml   (1e-5, superseded)
+cite      configs/run_047.yaml   bytes 0–312
+gold      3e-4`,
+        hits: [
+          { path: "configs/run_047.yaml", meta: "learning_rate: 3e-4  ·  cited", cls: "gold" },
+          { path: "configs/archive/run_047_v1.yaml", meta: "learning_rate: 1e-5  ·  dropped by Tier 1", cls: "drop" },
+        ],
+      },
+      rmse: {
+        label: "which run had the lowest val RMSE",
+        stages: ["route", "search", "cite"],
+        answer: "47",
+        body:
+`query     which run had the lowest val RMSE
+route     aggregation_query   (skip rerank)
+search    BM25 over configs/ + results/ablation.csv
+cite      configs/run_047.yaml  ·  results/ablation.csv
+gold      47`,
+        hits: [
+          { path: "configs/run_047.yaml", meta: "val_rmse lowest  ·  cited", cls: "gold" },
+          { path: "results/ablation.csv", meta: "run 47 row  ·  cited", cls: "gold" },
+        ],
+      },
+      fusion: {
+        label: "what does the fusion module do",
+        stages: ["route", "search", "rerank", "cite"],
+        answer: "concatenates per-view features",
+        body:
+`query     what does the fusion module do
+route     semantic
+search    dense catches “fusion off”; BM25 catches fusion.py
+cite      src/fusion.py
+gold      concatenates per-view features, 1x1 projection when fusion is on`,
+        hits: [
+          { path: "src/fusion.py", meta: "1x1 projection when fusion is on", cls: "gold" },
+        ],
+      },
+      path: {
+        label: "open configs/run_047.yaml",
+        stages: ["route", "search", "cite"],
+        answer: "configs/run_047.yaml",
+        body:
+`query     open configs/run_047.yaml
+route     lexical_path   (skip embed + rerank)
+search    path lookup + BM25
+cite      configs/run_047.yaml
+nDCG@10   0.938 on the exact-path slice after routing (was 0.596 without it)`,
+        hits: [
+          { path: "configs/run_047.yaml", meta: "exact path  ·  no embed", cls: "gold" },
+        ],
+      },
+      conflict: {
+        label: "does the current paper draft say fusion helps",
+        stages: ["route", "search", "stale", "cite"],
+        answer: "yes  (draft_v2)",
+        body:
+`query     does the current paper draft say fusion helps
+tier 1    paper/draft_v2.md  current;  draft_v1.md  superseded
+tier 2    CONFLICT  paper_claim/conclusion
+          draft_v1: “fusion does not help”
+          draft_v2: “fusion does help”
+generator must address both; may not silently pick one
+gold      yes`,
+        hits: [
+          { path: "paper/draft_v2.md", meta: "fusion does help  ·  current", cls: "gold" },
+          { path: "paper/draft_v1.md", meta: "fusion does not help  ·  flagged conflict", cls: "drop" },
+        ],
+      },
+    };
+    const chips = document.getElementById("chips");
+    const trace = document.getElementById("trace");
+    const hits = document.getElementById("hits");
+    const answer = document.getElementById("answer");
+    const stages = document.getElementById("stages");
+
+    function render(id) {
+      const t = traces[id];
+      trace.textContent = t.body;
+      answer.textContent = t.answer;
+      hits.innerHTML = "";
+      t.hits.forEach((h) => {
+        const li = document.createElement("li");
+        li.className = h.cls;
+        li.innerHTML = `<div class="path">${h.path}</div><div class="meta">${h.meta}</div>`;
+        hits.appendChild(li);
+      });
+      stages.innerHTML = "";
+      STAGE_NAMES.forEach(([key, label]) => {
+        const el = document.createElement("span");
+        el.className = "stage " + key + (t.stages.includes(key) ? " on" : "");
+        el.textContent = label;
+        stages.appendChild(el);
+      });
+    }
+
+    Object.entries(traces).forEach(([id, t], i) => {
+      const b = document.createElement("button");
+      b.className = "chip" + (i === 0 ? " active" : "");
+      b.textContent = t.label;
+      b.onclick = () => {
+        document.querySelectorAll("button.chip").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        render(id);
+      };
+      chips.appendChild(b);
+    });
+    render("lr");
+  </script>
+</body>
+</html>

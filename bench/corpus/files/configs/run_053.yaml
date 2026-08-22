@@ -1,0 +1,14 @@
+# run 53 config (CURRENT)
+run_id: 53
+encoder: dinov2
+fusion: true
+num_pairs: 3
+bark_type: maple
+learning_rate: 0.0002
+val_rmse: 0.053
+seed: 31
+baseline_rmse: 0.055
+render:
+  trellis: false
+checkpoint: checkpoints/run_053.ckpt.meta.json
+notes: none

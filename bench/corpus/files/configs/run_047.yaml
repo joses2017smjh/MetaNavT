@@ -1,0 +1,14 @@
+# run 47 config (CURRENT)
+run_id: 47
+encoder: dinov2
+fusion: true
+num_pairs: 3
+bark_type: birch
+learning_rate: 0.0003
+val_rmse: 0.0521
+seed: 13
+baseline_rmse: 0.055
+render:
+  trellis: true
+checkpoint: checkpoints/run_047.ckpt.meta.json
+notes: best current
