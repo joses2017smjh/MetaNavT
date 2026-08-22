@@ -1,7 +1,7 @@
 """Minimal MCP stdio server for FilesystemTools (JSON-RPC 2.0).
 
-Any MCP client can drive the corpus: search, read, list, propose_move.
-apply_plan requires approved=true — the destructive action never auto-fires.
+Any MCP client can drive the corpus: search, read, list, propose_move,
+collect_run_artifact, propose_artifact / patch. apply_* requires approved=true.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ class MCPServer:
                 {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "metanavit-filesystem", "version": "2.0.0"},
+                    "serverInfo": {"name": "metanavit-filesystem", "version": "2.1.0"},
                 },
             )
         if method == "notifications/initialized":

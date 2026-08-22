@@ -1,7 +1,11 @@
 """Filesystem MCP tools.
 
 search_semantic, search_lexical, read_file, list_dir, stat,
-propose_move (plan only), apply_plan (human approval required).
+propose_move / apply_plan,
+collect_run_artifact, propose_artifact / apply_artifact,
+propose_patch / apply_patch, exec_sandboxed.
+
+Destructive writes never auto-fire: apply_* requires approved=true.
 """
 
 from __future__ import annotations
@@ -39,6 +43,8 @@ class FilesystemTools:
     root: Path
     index: InMemoryHybridIndex | None = None
     plans: dict[str, MovePlan] = field(default_factory=dict)
+    artifacts: dict = field(default_factory=dict)
+    patches: dict = field(default_factory=dict)
     allow_apply: bool = False
 
     def __post_init__(self) -> None:
@@ -163,6 +169,82 @@ class FilesystemTools:
         plan.applied = True
         return {"plan_id": plan_id, "status": "applied", "src": plan.src, "dst": plan.dst}
 
+    def collect_run_artifact(self, run_id: str) -> dict:
+        from app.artifacts.pipeline import ArtifactAgent
+        from app.artifacts.manifest import collect_run_artifact as collect
+
+        if self.index is not None:
+            return ArtifactAgent(self.index).collect_run(self.root, run_id).as_dict()
+        return collect(self.root, run_id).as_dict()
+
+    def propose_artifact(self, query: str) -> dict:
+        from app.artifacts.pipeline import ArtifactAgent
+
+        if self.index is None:
+            raise RuntimeError("propose_artifact requires an index")
+        prop = ArtifactAgent(self.index).produce(query)
+        self.artifacts[prop.plan_id] = prop
+        return prop.as_dict()
+
+    def apply_artifact(self, plan_id: str, approved: bool = False) -> dict:
+        prop = self.artifacts.get(plan_id)
+        if prop is None:
+            raise KeyError(f"unknown artifact {plan_id}")
+        if prop.applied:
+            return {"plan_id": plan_id, "status": "already_applied"}
+        if not (approved or self.allow_apply):
+            raise ApprovalRequired(plan_id)
+        if not prop.exec_result.ok:
+            raise RuntimeError(
+                f"refusing to write an artifact that failed the sandbox: {prop.exec_result.error}"
+            )
+        dest = self._safe(prop.spec.file_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(prop.code)
+        prop.approved = True
+        prop.applied = True
+        return {
+            "plan_id": plan_id,
+            "status": "applied",
+            "path": str(dest.relative_to(self.root)),
+            "kind": prop.kind,
+        }
+
+    def propose_patch(self, path: str, old: str, new: str) -> dict:
+        from app.artifacts.patch import FilePatch, unified_hunk
+
+        target = self._safe(path)
+        if not target.exists():
+            raise FileNotFoundError(path)
+        plan_id = str(uuid.uuid4())
+        patch = FilePatch(path=str(target.relative_to(self.root)), old=old, new=new)
+        self.patches[plan_id] = patch
+        return {
+            "plan_id": plan_id,
+            "path": patch.path,
+            "status": "pending_approval",
+            "diff": unified_hunk(patch.path, old, new),
+            "note": "Call apply_patch only after human approval. Never auto-applies.",
+        }
+
+    def apply_patch(self, plan_id: str, approved: bool = False) -> dict:
+        from app.artifacts.patch import apply_search_replace
+
+        patch = self.patches.get(plan_id)
+        if patch is None:
+            raise KeyError(f"unknown patch {plan_id}")
+        if not (approved or self.allow_apply):
+            raise ApprovalRequired(plan_id)
+        target = self._safe(patch.path)
+        text = target.read_text(encoding="utf-8")
+        target.write_text(apply_search_replace(text, patch))
+        return {"plan_id": plan_id, "status": "applied", "path": patch.path}
+
+    def exec_sandboxed(self, code: str) -> dict:
+        from app.artifacts.sandbox import run_sandboxed
+
+        return run_sandboxed(code).as_dict()
+
     def tool_specs(self) -> list[dict]:
         return [
             {
@@ -250,6 +332,70 @@ class FilesystemTools:
                     "required": ["plan_id"],
                 },
             },
+            {
+                "name": "collect_run_artifact",
+                "description": "ACM-style reproducibility pack for a run id (config, code, log, paper).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"run_id": {"type": "string"}},
+                    "required": ["run_id"],
+                },
+            },
+            {
+                "name": "propose_artifact",
+                "description": "Spec → generate → sandbox. Returns a plan; never writes.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"query": {"type": "string"}},
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "apply_artifact",
+                "description": "Write a proposed artifact. Requires approved=true. Refuses failed sandbox runs.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "plan_id": {"type": "string"},
+                        "approved": {"type": "boolean", "default": False},
+                    },
+                    "required": ["plan_id"],
+                },
+            },
+            {
+                "name": "propose_patch",
+                "description": "SEARCH/REPLACE patch plan. Never writes.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "old": {"type": "string"},
+                        "new": {"type": "string"},
+                    },
+                    "required": ["path", "old", "new"],
+                },
+            },
+            {
+                "name": "apply_patch",
+                "description": "Apply a patch plan. Requires approved=true.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "plan_id": {"type": "string"},
+                        "approved": {"type": "boolean", "default": False},
+                    },
+                    "required": ["plan_id"],
+                },
+            },
+            {
+                "name": "exec_sandboxed",
+                "description": "AST-gated Python exec. No os/subprocess/pip.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"code": {"type": "string"}},
+                    "required": ["code"],
+                },
+            },
         ]
 
     def call(self, name: str, arguments: dict[str, Any]) -> Any:
@@ -273,4 +419,20 @@ class FilesystemTools:
             return self.apply_plan(
                 arguments["plan_id"], approved=bool(arguments.get("approved", False))
             )
+        if name == "collect_run_artifact":
+            return self.collect_run_artifact(str(arguments["run_id"]))
+        if name == "propose_artifact":
+            return self.propose_artifact(arguments["query"])
+        if name == "apply_artifact":
+            return self.apply_artifact(
+                arguments["plan_id"], approved=bool(arguments.get("approved", False))
+            )
+        if name == "propose_patch":
+            return self.propose_patch(arguments["path"], arguments["old"], arguments["new"])
+        if name == "apply_patch":
+            return self.apply_patch(
+                arguments["plan_id"], approved=bool(arguments.get("approved", False))
+            )
+        if name == "exec_sandboxed":
+            return self.exec_sandboxed(arguments["code"])
         raise KeyError(f"unknown tool {name}")

@@ -193,12 +193,32 @@ Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in t
 | `list_dir` / `stat` | navigate the tree, not just vectors |
 | `propose_move` | returns a plan. never executes |
 | `apply_plan` | requires `approved=true` |
+| `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper) |
+| `propose_artifact` | spec → generate → sandbox. never writes |
+| `apply_artifact` | requires `approved=true`; refuses a failed sandbox |
+| `propose_patch` / `apply_patch` | SEARCH/REPLACE, same HITL |
+| `exec_sandboxed` | AST-gated Python. no `os`, no pip |
 
 ```python
 plan = tools.propose_move("logs/run_040.out", "archive/run_040.out")
 # {'status': 'pending_approval', 'plan_id': '...'}
 tools.apply_plan(plan["plan_id"])                 # ApprovalRequired
 tools.apply_plan(plan["plan_id"], approved=True)  # applied
+```
+
+### Artifacts and code production
+
+The product is a research tree, so “generate code” has to mean two different jobs.
+
+**Academia.** Pack a run the way a lab ships a reproducibility artifact: live YAML, Slurm, `.out` log, `src/fusion.py`, current paper draft. ACM-style badges: Available (files + hashes), Functional (sandbox tests pass), Reusable (env or paper + citations). Paper2Code (Seo et al., ICLR 2026) is plan → analyze → generate over *this* corpus, not a cloned GitHub repo. Claim-support: a generated `learning_rate` / encoder that is not in the citations is an unsupported claim.
+
+**Industry.** Spec card (citations, tests, template) before any file is proposed. SEARCH/REPLACE patches. Restricted exec (no `os`, no pip). Write is HITL, same as `propose_move`. Templates are `python-lib` / `pytest` / `research-repro`, not the 2024 Next.js-13 demo list.
+
+```python
+art = tools.propose_artifact("reproduce run 47 from the paper")
+# sandbox ran; status pending_approval
+tools.apply_artifact(art["plan_id"])                 # ApprovalRequired
+tools.apply_artifact(art["plan_id"], approved=True)  # writes artifacts/reproduce.py
 ```
 
 ```bash
@@ -393,6 +413,7 @@ app/retrieval/     RRF, BM25, router, distill, RankGPT, HNSW / halfvec / binary
 app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters, GraphRAG, HippoRAG PPR, conflicts
 app/agent/         retrieval loop, Deep Research, move-plan schema
+app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox
 app/rl/            Search-R1 env, reward, GRPO dummy step
 app/mcp/           filesystem tools + stdio server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images

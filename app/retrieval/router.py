@@ -1,11 +1,11 @@
 """Rule-based query router.
 
 Routes:
-  lexical_path      — looks like a filename/path; skip embed+rerank
-  aggregation_query — count/min/max/which-run questions; metadata path
-  semantic          — default hybrid+rerank
-
-Zero training cost. Log every decision next to retrieval outcome.
+  lexical_path        — looks like a filename/path; skip embed+rerank
+  aggregation_query   — count/min/max/which-run questions; metadata path
+  research_artifact   — Paper2Code / ACM bundle / reproduce a run
+  code_production     — implement / test / patch; still hybrid retrieve
+  semantic            — default hybrid+rerank
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from enum import Enum
 class RouteType(str, Enum):
     LEXICAL_PATH = "lexical_path"
     AGGREGATION = "aggregation_query"
+    RESEARCH_ARTIFACT = "research_artifact"
+    CODE_PRODUCTION = "code_production"
     SEMANTIC = "semantic"
 
 
@@ -43,6 +45,23 @@ AGG_RE = re.compile(
 
 EXACT_TOKEN_RE = re.compile(
     r"(--[\w\-]+(?:=\S+)?|`[^`]+`|\"[^\"]+\"|'[^']+')"
+)
+
+ARTIFACT_RE = re.compile(
+    r"\b("
+    r"reproduc(?:e|ibility)|paper2code|from the paper|acm badge|"
+    r"artifact bundle|collect run|research artifact"
+    r")\b",
+    re.IGNORECASE,
+)
+
+CODE_RE = re.compile(
+    r"\b("
+    r"implement|refactor|write (?:a )?(?:test|function|patch|script)|"
+    r"generate (?:code|a test)|unit test|add a test|fix the bug|"
+    r"propose a patch|code artifact"
+    r")\b",
+    re.IGNORECASE,
 )
 
 
@@ -75,6 +94,20 @@ class QueryRouter:
                 route=RouteType.AGGREGATION,
                 reason="aggregation verb",
                 matched=agg_match.group(1).lower(),
+            )
+        art_match = ARTIFACT_RE.search(q)
+        if art_match:
+            return RouteDecision(
+                route=RouteType.RESEARCH_ARTIFACT,
+                reason="research artifact / paper2code",
+                matched=art_match.group(1).lower(),
+            )
+        code_match = CODE_RE.search(q)
+        if code_match:
+            return RouteDecision(
+                route=RouteType.CODE_PRODUCTION,
+                reason="code production",
+                matched=code_match.group(0).lower(),
             )
         exact = EXACT_TOKEN_RE.search(q)
         extra = f"; exact-token {exact.group(1)}" if exact else ""

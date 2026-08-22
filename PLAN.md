@@ -46,6 +46,7 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 | 8 | Deep Research multi-query + scratchpad + token budget | done (`app/agent/deep_research.py`) |
 | 9 | HippoRAG PPR | done |
 | 10 | Search-R1 / GRPO (CI dummy step) | done (`app/rl/`) |
+| 11 | Research artifacts + code production | done (`app/artifacts/`, MCP HITL) |
 
 ---
 
@@ -195,6 +196,33 @@ Do not use the overlap teacher as reward. That is how you train a model to quote
 
 Humanoid / GRPO overlap is a reason to *try* this; it is not a reason to skip Phase 6.
 
+### Phase 11 — artifacts and code production (academia + industry)
+
+The 2024 e2b template tool in `app/engine/tools/artifact.py` is still wired to LlamaIndex. The eval/MCP path is `app/artifacts/` and does not auto-write the tree.
+
+**Academic (what a lab actually ships)**
+
+| piece | source | here |
+|---|---|---|
+| ACM Available / Functional / Reusable badges | ACM Artifact Review | `collect_run_artifact` packs config + sbatch + log + code + paper for a run id |
+| Paper2Code plan → analyze → generate | Seo et al., ICLR 2026 | `app/artifacts/paper2code.py` over *this* tree, not a downloaded GitHub repo |
+| Execution-grounded + claim-support | SciCode; AutoResearch 2026 | sandbox must pass; hyperparameters in generated code must appear in citations |
+| Experiment pack, not a Space | NeurIPS/ICLR reproducibility | yaml + slurm + `.out` + `src/` is the artifact |
+
+**Industry (how code actually ships in 2026)**
+
+| piece | source | here |
+|---|---|---|
+| Spec card before code | Codex / Cursor / Tessl | `SpecCard` with citations + tests + template |
+| SEARCH/REPLACE patches | Aider / OpenHands / Cursor apply | `propose_patch` / `apply_patch` |
+| Restricted sandbox, no pip | E2B / Daytona / Modal, CI subset | AST allowlist, timeout, banned `os`/`subprocess` |
+| HITL write | same as `propose_move` | `apply_artifact` needs `approved=True`; refuses failed exec |
+| Templates | Claude Artifacts / v0, updated | `python-lib`, `pytest`, `jupyter-analysis`, `streamlit`, `research-repro` — not Next.js 13 |
+
+Do **not** replace hybrid retrieve with “let the model ls and rewrite the repo.” Generation consumes the same fused hits. `make bench` stays LLM-free.
+
+MCP additions: `collect_run_artifact`, `propose_artifact`, `apply_artifact`, `propose_patch`, `apply_patch`, `exec_sandboxed`.
+
 ### Out of scope unless the gold set grows
 
 - Swapping the personal corpus for web search (Search-R1’s original env). Our product is a **file tree**.
@@ -226,6 +254,7 @@ app/retrieval/     RRF, BM25, router, hybrid index, distill, RankGPT, HNSW / hal
 app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters, hierarchy, GraphRAG, HippoRAG PPR, conflicts
 app/agent/         retrieval loop, Deep Research, move-plan schema
+app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox
 app/rl/            Search-R1 parse/env, reward, GRPO dummy step
 app/mcp/           filesystem tools + stdio MCP server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images, modality RRF

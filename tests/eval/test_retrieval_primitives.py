@@ -52,3 +52,10 @@ def test_router_path_aggregation_semantic():
     sem = r.route("what does the fusion module do")
     assert sem.route == RouteType.SEMANTIC
     assert not sem.skip_embed()
+
+    art = r.route("reproduce run 47 from the paper")
+    assert art.route == RouteType.RESEARCH_ARTIFACT
+    assert not art.skip_embed()
+
+    code = r.route("write a test for the fusion module")
+    assert code.route == RouteType.CODE_PRODUCTION
