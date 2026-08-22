@@ -364,20 +364,36 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-RL-trained search (Search-R1 / GRPO) is future work. The eval harness is the reward; the loop with relevance grading is the production path until there is a reason to spend rollout compute.
+**RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](PLAN.md) Phase 10.
 
-The overlap reranker did not beat RRF. That number is in the table on purpose.
+**The published rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`. Overlap lost to RRF (nDCG@10 0.452 vs 0.454). `make bench-frontier` will load bge-m3 when the weights are local (`reranker_loaded`); otherwise it records `reranker_fallback=overlap`.
+
+**E2E scores on the v2 table are token overlap.** Pointwise / pairwise / jury code is in `app/eval/judge.py` and `app/eval/jury.py`. Do not put a jury number on this README until Cohen’s κ vs gold on simple_factual is ≥ 0.6 (`make bench-jury`). Retrieval metrics stay BEIR-style and LLM-free.
+
+---
+
+## What's next
+
+Phases 6–10 are implemented as code. Remaining work is **measurement on GPU**, not missing modules:
+
+1. Run `make bench-jury` and keep jury scores off the README until κ ≥ 0.6.
+2. Run `make bench-frontier` with `BAAI/bge-reranker-v2-m3` cached; distill the winner with `distill_winner`.
+3. Optional: listwise RankGPT with a real LLM `complete` callable (CI uses overlap-listwise).
+4. Optional: GPU Search-R1 / GRPO using the reward in `app/rl/reward.py`.
+
+Full citations and abort conditions: [PLAN.md](PLAN.md).
 
 ---
 
 ## Layout
 
 ```
-app/eval/          bench harness, metrics, sweeps, SVG figures
-app/retrieval/     RRF, BM25, router, distill, HNSW / halfvec / binary
+app/eval/          bench harness, metrics, jury, sweeps, SVG figures
+app/retrieval/     RRF, BM25, router, distill, RankGPT, HNSW / halfvec / binary
 app/chunking/      structure-aware, late, contextual
-app/graph/         file graph, version clusters, GraphRAG, conflicts
-app/agent/         retrieval loop, move-plan schema
+app/graph/         file graph, version clusters, GraphRAG, HippoRAG PPR, conflicts
+app/agent/         retrieval loop, Deep Research, move-plan schema
+app/rl/            Search-R1 env, reward, GRPO dummy step
 app/mcp/           filesystem tools + stdio server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images
 app/database/      index manager, pgvector, BM25
@@ -406,4 +422,4 @@ doc/figures/       still charts
 
 ravidatd@oregonstate.edu · soma@oregonstate.edu · lauriek@oregonstate.edu · tranj8@oregonstate.edu · nakanika@oregonstate.edu · sanchej7@oregonstate.edu
 
-[PLAN.md](PLAN.md) is the modernization checklist. Issues that predate it: HITL UI [#74](https://github.com/klaurie/MetaNaviT/issues/74), ranking [#58](https://github.com/klaurie/MetaNaviT/issues/58), chunking [#22](https://github.com/klaurie/MetaNaviT/issues/22).
+[PLAN.md](PLAN.md) is the modernization checklist and the v3 frontier plan (LLM jury, bge-m3 row, Search-R1). Issues that predate it: HITL UI [#74](https://github.com/klaurie/MetaNaviT/issues/74), ranking [#58](https://github.com/klaurie/MetaNaviT/issues/58), chunking [#22](https://github.com/klaurie/MetaNaviT/issues/22).

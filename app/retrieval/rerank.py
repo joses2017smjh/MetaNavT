@@ -117,12 +117,52 @@ class OverlapReranker:
 def get_cross_encoder(model_name: str = "BAAI/bge-reranker-v2-m3"):
     if not model_name or model_name.lower() == "none":
         return None
+    import os
+    from pathlib import Path
+
+    allow = os.environ.get("BGE_ALLOW_DOWNLOAD", "").strip().lower() in {"1", "true", "yes"}
+    local = Path(model_name).exists()
+    if not allow and not local and not _hf_cache_has(model_name):
+        return None
     try:
         from sentence_transformers import CrossEncoder
-
-        return CrossEncoder(model_name)
     except Exception:
         return None
+    try:
+        if allow or local:
+            return CrossEncoder(model_name)
+        try:
+            return CrossEncoder(model_name, local_files_only=True)
+        except TypeError:
+            return CrossEncoder(model_name)
+    except Exception:
+        return None
+
+
+def _hf_cache_has(model_name: str) -> bool:
+    """Filesystem-only check. Do not call huggingface_hub (it can hit the network)."""
+    import os
+    from pathlib import Path
+
+    slug = "models--" + model_name.replace("/", "--")
+    roots = [
+        Path.home() / ".cache" / "huggingface" / "hub",
+        Path.home() / ".cache" / "huggingface",
+    ]
+    hf_home = os.environ.get("HF_HOME")
+    if hf_home:
+        roots.insert(0, Path(hf_home) / "hub")
+        roots.insert(0, Path(hf_home))
+    hub_cache = os.environ.get("HUGGINGFACE_HUB_CACHE")
+    if hub_cache:
+        roots.insert(0, Path(hub_cache))
+    for root in roots:
+        try:
+            if (root / slug).exists():
+                return True
+        except Exception:
+            continue
+    return False
 
 
 class CrossEncoderReranker:

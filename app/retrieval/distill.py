@@ -62,6 +62,15 @@ def write_triples(path: str | Path, triples: Iterable[RerankTriple]) -> None:
             )
 
 
+def distill_winner(triples: Sequence[RerankTriple]) -> DistilledReranker:
+    """Fit the CI student on the winning teacher's logged scores."""
+    return DistilledReranker().fit(triples)
+
+
+def distill_from_path(path: str | Path) -> DistilledReranker:
+    return distill_winner(load_triples(path))
+
+
 def load_triples(path: str | Path) -> list[RerankTriple]:
     triples = []
     with Path(path).open() as f:

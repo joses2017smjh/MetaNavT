@@ -1,4 +1,4 @@
-.PHONY: bench bench-compare freeze-corpus test-eval sweeps figures gifs
+.PHONY: bench bench-compare bench-jury bench-frontier freeze-corpus test-eval sweeps figures gifs
 
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR):$(CURDIR)/.vendor:$(PYTHONPATH)
@@ -9,6 +9,12 @@ bench:
 
 bench-compare:
 	$(PYTHON) -m app.eval.compare
+
+bench-jury:
+	$(PYTHON) -m app.eval.harness --jury
+
+bench-frontier:
+	$(PYTHON) -m app.eval.harness --frontier
 
 freeze-corpus:
 	$(PYTHON) bench/corpus/build.py
@@ -24,5 +30,3 @@ figures:
 
 gifs:
 	$(PYTHON) -m app.eval.gifs
-
-

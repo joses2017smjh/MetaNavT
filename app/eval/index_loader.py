@@ -85,15 +85,26 @@ def build_index(
         raise ValueError(f"unknown embedder {embedder_name}")
 
     rerank_fn = None
+    reranker_loaded = False
+    reranker_fallback = None
     if enable_rerank:
         if reranker == "overlap":
             rerank_fn = OverlapReranker()
+            reranker_fallback = None
+        elif reranker in {"rankgpt", "listwise"}:
+            from app.retrieval.rankgpt import RankGPTReranker
+
+            rerank_fn = RankGPTReranker()
+            reranker_loaded = rerank_fn.complete is not None
+            reranker_fallback = None if reranker_loaded else "overlap-listwise"
         elif reranker == "none":
             rerank_fn = None
         else:
             rerank_fn = CrossEncoderReranker(model_name=reranker)
+            reranker_loaded = rerank_fn.model is not None
+            reranker_fallback = None if reranker_loaded else "overlap"
 
-    return InMemoryHybridIndex(
+    index = InMemoryHybridIndex(
         chunks,
         embedder=embedder,
         retrieve_k=retrieve_k,
@@ -103,3 +114,7 @@ def build_index(
         enable_router=enable_router,
         enable_rerank=enable_rerank and rerank_fn is not None,
     )
+    index.reranker_name = reranker
+    index.reranker_loaded = reranker_loaded
+    index.reranker_fallback = reranker_fallback
+    return index
