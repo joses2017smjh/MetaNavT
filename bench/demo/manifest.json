@@ -1,0 +1,73 @@
+{
+  "config": "hybrid+router+staleness",
+  "gold_cases": [
+    {
+      "id": "q115",
+      "title": "Current config vs archived value",
+      "feature": "staleness",
+      "method": "Tier 1 + Tier 2"
+    },
+    {
+      "id": "q117",
+      "title": "Contradictory paper drafts",
+      "feature": "staleness",
+      "method": "Version cluster + claim conflict"
+    },
+    {
+      "id": "q107",
+      "title": "Minimum RMSE to bark type and config",
+      "feature": "graph",
+      "method": "Multi-query + typed PPR"
+    },
+    {
+      "id": "q108",
+      "title": "Best run to Slurm script and encoder",
+      "feature": "graph",
+      "method": "Typed PPR over retrieved candidates"
+    },
+    {
+      "id": "q114",
+      "title": "Source file joined to enabled runs",
+      "feature": "graph",
+      "method": "Lexical evidence + graph rank fusion"
+    },
+    {
+      "id": "q100",
+      "title": "Count runs below the baseline",
+      "feature": "aggregation",
+      "method": "Aggregation route + graph coverage"
+    },
+    {
+      "id": "q120",
+      "title": "Resume an indirectly described run",
+      "feature": "deep-research",
+      "method": "Three queries + RRF + scratchpad"
+    },
+    {
+      "id": "q130",
+      "title": "Exact flag inside a Slurm path",
+      "feature": "router",
+      "method": "Lexical path route"
+    }
+  ],
+  "controls": [
+    {
+      "id": "q036",
+      "title": "Blind graph hops hurt ranking",
+      "feature": "negative-control",
+      "method": "hops=0 vs hops=1 vs hops=2"
+    }
+  ],
+  "synthetic_cases": [
+    {
+      "id": "artifact-run47",
+      "title": "Paper2Code with current evidence",
+      "feature": "artifact"
+    },
+    {
+      "id": "hitl-sandbox",
+      "title": "Sandbox and approval gate",
+      "feature": "safety"
+    }
+  ]
+}

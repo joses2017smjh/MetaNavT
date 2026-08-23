@@ -84,8 +84,45 @@
     .nav { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1.5rem; font-size: 0.85rem; }
     .nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
     .nav a:hover { color: var(--sky); border-bottom-color: var(--sky); }
+    .challenge-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 1rem; margin-bottom: 0.8rem;
+    }
+    .challenge-head p { color: var(--muted); margin: 0; max-width: 43rem; line-height: 1.45; }
+    .badge {
+      border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.6rem;
+      color: var(--muted); font: 0.72rem ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: nowrap;
+    }
+    .badge.pass { border-color: var(--sky); color: var(--sky); }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.8rem; }
+    .method-box { background: #121212; border: 1px solid var(--line); border-radius: 12px; padding: 0.8rem; }
+    .method-box h3 {
+      margin: 0 0 0.55rem; color: var(--gold);
+      font: 0.78rem ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .rankline { color: var(--muted); font-size: 0.78rem; margin-bottom: 0.55rem; }
+    .mini-hit { font: 0.74rem ui-monospace, SFMono-Regular, Menlo, monospace; padding: 0.23rem 0; color: var(--muted); }
+    .mini-hit.gold { color: var(--gold); }
+    .mini-hit.archive, .mini-hit.superseded { color: var(--pink); text-decoration: line-through; }
+    .checks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.75rem; }
+    .check { border-left: 3px solid var(--pink); background: #121212; padding: 0.55rem 0.65rem; font-size: 0.78rem; }
+    .check.pass { border-left-color: var(--sky); }
+    .check b { display: block; color: var(--text); font-size: 0.78rem; margin-bottom: 0.18rem; }
+    .check span { color: var(--muted); overflow-wrap: anywhere; }
+    .case-title { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+    .case-title h3 { margin: 0; font-size: 1.05rem; }
+    .question { color: var(--text); margin: 0.65rem 0 0.35rem; line-height: 1.4; }
+    .gold-answer { color: var(--gold); font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .provenance { color: var(--muted); font-size: 0.73rem; }
+    pre.code-preview {
+      overflow: auto; max-height: 18rem; background: #121212; border: 1px solid var(--line);
+      border-radius: 10px; padding: 0.8rem; color: var(--sky); font-size: 0.72rem;
+    }
     @media (max-width: 720px) {
-      .statrow, .grid, .split, .who { grid-template-columns: 1fr; }
+      .statrow, .grid, .split, .who, .compare, .checks { grid-template-columns: 1fr; }
+      .challenge-head { display: block; }
+      .challenge-head .badge { display: inline-block; margin-top: 0.6rem; }
     }
   </style>
 </head>
@@ -97,10 +134,11 @@
         <h1>MetaNaviT</h1>
       </div>
     </header>
-    <p class="lede">Same radial gradient as localhost:8000. Click a gold question, then scroll: hybrid split, a move that will not execute, the entity graph. These traces are the bench, not copy.</p>
+    <p class="lede">Eleven generated challenge traces: nine frozen-gold questions, two labeled artifact/safety scenarios, and the graph-hop loser. Controls and methods run at the same candidate budget. These traces are generated from code, not copied into the page.</p>
 
     <nav class="nav">
       <a href="#ask">Ask</a>
+      <a href="#hard">Hard cases</a>
       <a href="#who">Who types</a>
       <a href="#hybrid">Hybrid</a>
       <a href="#move">Move</a>
@@ -112,6 +150,26 @@
       <div class="stat"><b>0.938</b><span>Recall@50 after hybrid RRF</span></div>
       <div class="stat"><b>0.493</b><span>nDCG@10 with staleness Tier 1</span></div>
       <div class="stat"><b>136</b><span>hand-built questions, 61 frozen files</span></div>
+    </div>
+
+    <h2 id="hard">Hard benchmark challenge suite</h2>
+    <div class="challenge-head">
+      <p>Staleness conflicts, multi-hop GraphRAG/PPR, Deep Research, exact paths, Paper2Code, sandboxing, and a negative control. Gold and synthetic cases are labeled separately. Select a case to see the original ranking beside the method and every executable check.</p>
+      <span class="badge" id="challenge-summary"></span>
+    </div>
+    <div class="chips" id="challenge-chips"></div>
+    <div class="panel" id="challenge-panel" style="margin-top:0.8rem">
+      <div class="case-title">
+        <h3 id="challenge-title"></h3>
+        <span class="badge" id="challenge-kind"></span>
+        <span class="badge" id="challenge-status"></span>
+      </div>
+      <div class="question" id="challenge-question"></div>
+      <div class="gold-answer" id="challenge-answer"></div>
+      <div class="provenance" id="challenge-provenance"></div>
+      <div class="compare" id="challenge-compare"></div>
+      <div class="checks" id="challenge-checks"></div>
+      <pre class="code-preview" id="challenge-code" hidden></pre>
     </div>
 
     <h2 id="ask">Run a gold question</h2>
@@ -194,7 +252,86 @@ run:47  —documented_in→  configs/run_047.yaml</div>
 
     <p class="note">Destructive moves still require <code>apply_plan(..., approved=True)</code>. Open this file locally; GitHub will not run the script. <a href="../README.md">Back to the README</a>.</p>
   </main>
+  <script src="demo/traces.js"></script>
   <script>
+    const DEMO = window.METANAVIT_DEMO || { cases: [], summary: {} };
+    const esc = (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+
+    function hitLines(rows) {
+      if (!rows || !rows.length) return `<div class="mini-hit">No ranked paths for this control.</div>`;
+      return rows.slice(0, 8).map((row) =>
+        `<div class="mini-hit ${esc(row.status)}">${row.rank}. ${esc(row.path)}</div>`
+      ).join("");
+    }
+
+    function resultBox(result, fallbackLabel) {
+      if (!result) return "";
+      const rank = result.gold_rank == null ? "not in top 50" : `best gold rank ${result.gold_rank}`;
+      return `<div class="method-box">
+        <h3>${esc(result.label || fallbackLabel)}</h3>
+        <div class="rankline">${esc(rank)} · Recall@50 ${esc(result["recall@50"] ?? "—")}</div>
+        ${hitLines(result.hits)}
+      </div>`;
+    }
+
+    function hopBoxes(rows) {
+      return (rows || []).map((row) => `<div class="method-box">
+        <h3>${esc(row.config)}</h3>
+        <div class="rankline">Recall@50 ${esc(row["recall@50"])} · nDCG@10 ${esc(row["ndcg@10"])}</div>
+        <div class="mini-hit">wall ${esc(Math.round(row.wall_ms))} ms</div>
+      </div>`).join("");
+    }
+
+    function renderChallenge(id) {
+      const item = DEMO.cases.find((row) => row.id === id);
+      if (!item) return;
+      document.getElementById("challenge-title").textContent = item.title;
+      document.getElementById("challenge-kind").textContent =
+        item.gold_id ? `${item.gold_id} · ${item.category}` : item.category;
+      const status = document.getElementById("challenge-status");
+      status.textContent = item.status;
+      status.className = "badge " + item.status;
+      document.getElementById("challenge-question").textContent = item.question;
+      document.getElementById("challenge-answer").textContent = `expected: ${item.gold_answer}`;
+      document.getElementById("challenge-provenance").textContent =
+        `${item.method} · source: ${item.answer_source}`;
+      const compare = document.getElementById("challenge-compare");
+      compare.innerHTML = item.rows
+        ? hopBoxes(item.rows)
+        : resultBox(item.control, "control") + resultBox(item.method_result, "method");
+      const checks = document.getElementById("challenge-checks");
+      checks.innerHTML = (item.checks || []).map((row) =>
+        `<div class="check ${row.pass ? "pass" : ""}">
+          <b>${row.pass ? "PASS" : "FAIL"} · ${esc(row.label)}</b>
+          <span>${esc(row.value)}</span>
+        </div>`
+      ).join("");
+      const code = document.getElementById("challenge-code");
+      code.hidden = !item.code_preview;
+      code.textContent = item.code_preview || "";
+      document.querySelectorAll("#challenge-chips button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.case === id);
+      });
+    }
+
+    const challengeChips = document.getElementById("challenge-chips");
+    DEMO.cases.forEach((item, index) => {
+      const button = document.createElement("button");
+      button.className = "chip" + (index === 0 ? " active" : "");
+      button.dataset.case = item.id;
+      button.textContent = `${item.gold_id || "synthetic"} · ${item.feature}`;
+      button.onclick = () => renderChallenge(item.id);
+      challengeChips.appendChild(button);
+    });
+    const summary = DEMO.summary || {};
+    document.getElementById("challenge-summary").textContent =
+      `${summary.passed || 0}/${summary.n_cases || 0} cases pass`;
+    if (DEMO.cases.length) renderChallenge(DEMO.cases[0].id);
+
     const STAGE_NAMES = [
       ["route", "route"],
       ["search", "search"],

@@ -47,6 +47,7 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 | 9 | HippoRAG PPR | done |
 | 10 | Search-R1 / GRPO (CI dummy step) | done (`app/rl/`) |
 | 11 | Research artifacts + code production | done (`app/artifacts/`, MCP HITL) |
+| 12 | Generated hard-case demos + negative controls | done (`bench/demo/manifest.json`, `app/eval/demo_export.py`) |
 
 ---
 
@@ -60,6 +61,7 @@ make bench-jury      # extra Phase 6 jury columns (heuristic; JUDGE=1 uses Ollam
 make bench-frontier  # Phase 7–9 extra configs (bge, RankGPT, multi-query, HippoRAG)
 make sweeps          # HNSW, halfvec/binary, hops, GraphRAG
 make figures         # doc/figures/*.svg for the README
+make demos           # generated hard-case traces + figures + GIFs
 make test-eval       # unit tests for metrics, router, graph, MCP, …
 ```
 
@@ -223,6 +225,21 @@ Do **not** replace hybrid retrieve with “let the model ls and rewrite the repo
 
 MCP additions: `collect_run_artifact`, `propose_artifact`, `apply_artifact`, `propose_patch`, `apply_patch`, `exec_sandboxed`.
 
+### Phase 12 — hard-case demos as executable evaluations
+
+The original README stories were hand-maintained in four places. The challenge suite now starts with curated gold IDs in `bench/demo/manifest.json`, runs the real offline stack, and writes `doc/demo/traces.json` / `.js`. The interactive HTML and three new GIFs consume the same trace artifact.
+
+Cases cover structural and semantic staleness (`q115`, `q117`), multi-hop typed PPR (`q107`, `q108`, `q114`), aggregation coverage (`q100`), Deep Research (`q120`), exact-path routing (`q130`), the committed graph-hop loser (`q036` + sweeps), Paper2Code, and sandbox/HITL.
+
+Methodology changes found while building the demos:
+
+- PPR and retrieval scores were on incompatible scales. HippoRAG now rank-fuses base, graph, and typed-path lists and never adds an unseen candidate.
+- Markdown emphasis hid `does help` / `does not help` from Tier 2. Claim text is normalized before deterministic conflict matching.
+- Paper2Code could cite `draft_v1`. Research evidence now starts with hybrid top-50, expands only through the detected run entity and relevant source terms, applies version filtering, then prioritizes live config → current paper → source.
+- Deep Research applies Tier 1 before its evidence scratchpad.
+
+Synthetic artifact/safety cases are labeled outside the 136-question retrieval gold set. The blind-hop regression remains visible rather than being edited out.
+
 ### Out of scope unless the gold set grows
 
 - Swapping the personal corpus for web search (Search-R1’s original env). Our product is a **file tree**.
@@ -250,6 +267,8 @@ Original later list that **is** implemented:
 
 ```
 app/eval/          harness, metrics, gold, latency, RAGAS-style e2e, jury, SVG figures
+bench/demo/        curated hard-case IDs; no copied trace prose
+doc/demo/          generated JSON/JS consumed by HTML and GIFs
 app/retrieval/     RRF, BM25, router, hybrid index, distill, RankGPT, HNSW / halfvec / binary
 app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters, hierarchy, GraphRAG, HippoRAG PPR, conflicts

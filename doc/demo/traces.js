@@ -1,0 +1,1753 @@
+window.METANAVIT_DEMO = {
+  "meta": {
+    "git_sha": "19fbf7d",
+    "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+    "n_gold": 136,
+    "n_files": 61,
+    "config": "hybrid+router+staleness",
+    "generator": "python -m app.eval.demo_export",
+    "llm_free": true
+  },
+  "methodology": {
+    "principles": [
+      "curated IDs point to the frozen gold set",
+      "control and method run over the same top-50 candidate budget",
+      "PPR fuses ranks and never adds unseen candidates",
+      "synthetic artifact/safety cases are labeled outside retrieval gold",
+      "known losers remain visible"
+    ],
+    "global_graphrag": "[community 0] runs 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55; encoders clip, dinov2, resnet50; 54 files; relations: documented_in, has_fusion, has_learning_rate, has_num_pairs, has_val_rmse, uses_bark"
+  },
+  "cases": [
+    {
+      "id": "q115",
+      "gold_id": "q115",
+      "title": "Current config vs archived value",
+      "feature": "staleness",
+      "method": "Tier 1 + Tier 2",
+      "question": "what's the current learning rate for the DINOv2 run 47",
+      "category": "staleness",
+      "gold_answer": "3e-4",
+      "gold_paths": [
+        "configs/run_047.yaml"
+      ],
+      "route": "semantic",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 5,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "candidate",
+            "score": 1.036037,
+            "rrf": 0.032787
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.747067,
+            "rrf": 0.032258
+          },
+          {
+            "path": "configs/archive/run_047_v1.yaml",
+            "rank": 3,
+            "status": "superseded",
+            "score": 0.603061,
+            "rrf": 0.029139
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.498474,
+            "rrf": 0.03009
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 5,
+            "status": "gold",
+            "score": 0.48622,
+            "rrf": 0.027425
+          },
+          {
+            "path": "paper/draft_v1.md",
+            "rank": 6,
+            "status": "superseded",
+            "score": 0.428981,
+            "rrf": 0.030303
+          },
+          {
+            "path": "logs/run_045.out",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.370952,
+            "rrf": 0.02901
+          },
+          {
+            "path": "logs/run_055.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.370932,
+            "rrf": 0.028612
+          }
+        ]
+      },
+      "method_result": {
+        "label": "current-version filter",
+        "gold_rank": 4,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "candidate",
+            "score": 1.036037,
+            "rrf": 0.032787
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.747067,
+            "rrf": 0.032258
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.498474,
+            "rrf": 0.03009
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 4,
+            "status": "gold",
+            "score": 0.48622,
+            "rrf": 0.027425
+          },
+          {
+            "path": "logs/run_045.out",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.370952,
+            "rrf": 0.02901
+          },
+          {
+            "path": "logs/run_055.out",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.370932,
+            "rrf": 0.028612
+          },
+          {
+            "path": "logs/run_049.out",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.370902,
+            "rrf": 0.028006
+          },
+          {
+            "path": "logs/run_048.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.370891,
+            "rrf": 0.027783
+          }
+        ],
+        "dropped": [
+          "configs/archive/run_047_v1.yaml",
+          "paper/draft_v1.md",
+          "configs/archive/run_046_v1.yaml"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "run:47",
+          "field": "learning_rate",
+          "values": [
+            "0.0003",
+            "1e-05"
+          ],
+          "paths": [
+            "configs/archive/run_047_v1.yaml",
+            "configs/run_047.yaml",
+            "logs/run_047.out"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:47",
+          "field": "val_rmse",
+          "values": [
+            "0.0521",
+            "0.063"
+          ],
+          "paths": [
+            "configs/archive/run_047_v1.yaml",
+            "configs/run_047.yaml",
+            "logs/run_047.out"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "paper_claim",
+          "field": "conclusion",
+          "values": [
+            "does help",
+            "does not help"
+          ],
+          "paths": [
+            "paper/draft_v1.md",
+            "paper/draft_v2.md"
+          ],
+          "kind": "semantic"
+        }
+      ],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "1/1"
+        },
+        {
+          "label": "superseded evidence removed",
+          "pass": true,
+          "value": "configs/archive/run_047_v1.yaml, paper/draft_v1.md, configs/archive/run_046_v1.yaml"
+        },
+        {
+          "label": "conflict surfaced before filtering",
+          "pass": true,
+          "value": "3 conflict(s)"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q117",
+      "gold_id": "q117",
+      "title": "Contradictory paper drafts",
+      "feature": "staleness",
+      "method": "Version cluster + claim conflict",
+      "question": "does the current paper draft say fusion helps",
+      "category": "staleness",
+      "gold_answer": "yes",
+      "gold_paths": [
+        "paper/draft_v2.md"
+      ],
+      "route": "semantic",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.758218,
+            "rrf": 0.032787
+          },
+          {
+            "path": "paper/draft_v1.md",
+            "rank": 2,
+            "status": "superseded",
+            "score": 0.592522,
+            "rrf": 0.032258
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.312122,
+            "rrf": 0.03031
+          },
+          {
+            "path": "configs/run_043.yaml",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.312015,
+            "rrf": 0.028169
+          },
+          {
+            "path": "configs/run_051.yaml",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.31195,
+            "rrf": 0.026876
+          },
+          {
+            "path": "configs/run_049.yaml",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.311939,
+            "rrf": 0.026667
+          },
+          {
+            "path": "configs/run_050.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.311922,
+            "rrf": 0.026316
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.311908,
+            "rrf": 0.026044
+          }
+        ]
+      },
+      "method_result": {
+        "label": "current-version filter",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.758218,
+            "rrf": 0.032787
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.312122,
+            "rrf": 0.03031
+          },
+          {
+            "path": "configs/run_043.yaml",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.312015,
+            "rrf": 0.028169
+          },
+          {
+            "path": "configs/run_051.yaml",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.31195,
+            "rrf": 0.026876
+          },
+          {
+            "path": "configs/run_049.yaml",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.311939,
+            "rrf": 0.026667
+          },
+          {
+            "path": "configs/run_050.yaml",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.311922,
+            "rrf": 0.026316
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.311908,
+            "rrf": 0.026044
+          },
+          {
+            "path": "configs/run_040.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.311903,
+            "rrf": 0.025942
+          }
+        ],
+        "dropped": [
+          "paper/draft_v1.md",
+          "configs/archive/run_046_v1.yaml",
+          "configs/archive/run_048_v1.yaml",
+          "configs/archive/run_047_v1.yaml"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "paper_claim",
+          "field": "conclusion",
+          "values": [
+            "does help",
+            "does not help"
+          ],
+          "paths": [
+            "paper/draft_v1.md",
+            "paper/draft_v2.md"
+          ],
+          "kind": "semantic"
+        }
+      ],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "1/1"
+        },
+        {
+          "label": "superseded evidence removed",
+          "pass": true,
+          "value": "paper/draft_v1.md, configs/archive/run_046_v1.yaml, configs/archive/run_048_v1.yaml"
+        },
+        {
+          "label": "conflict surfaced before filtering",
+          "pass": true,
+          "value": "1 conflict(s)"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q107",
+      "gold_id": "q107",
+      "title": "Minimum RMSE to bark type and config",
+      "feature": "graph",
+      "method": "Multi-query + typed PPR",
+      "question": "which bark type was used in the run that beat the 0.0550 baseline with the lowest RMSE, and where is its config",
+      "category": "multi_hop",
+      "gold_answer": "birch; configs/run_047.yaml",
+      "gold_paths": [
+        "configs/run_047.yaml",
+        "logs/run_047.out"
+      ],
+      "route": "aggregation_query",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 22,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.032787,
+            "rrf": 0.032787
+          },
+          {
+            "path": "src/trellis_wires.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.032258,
+            "rrf": 0.032258
+          },
+          {
+            "path": "paper/draft_v1.md",
+            "rank": 3,
+            "status": "superseded",
+            "score": 0.030579,
+            "rrf": 0.030579
+          },
+          {
+            "path": "src/fusion.py",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.03055,
+            "rrf": 0.03055
+          },
+          {
+            "path": "logs/run_043.out",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.029274,
+            "rrf": 0.029274
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.028543,
+            "rrf": 0.028543
+          },
+          {
+            "path": "logs/run_049.out",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.028446,
+            "rrf": 0.028446
+          },
+          {
+            "path": "logs/run_040.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.028382,
+            "rrf": 0.028382
+          }
+        ]
+      },
+      "method_result": {
+        "label": "typed PPR rank fusion",
+        "gold_rank": 4,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "configs/run_046.yaml",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.045873,
+            "rrf": 0.027972
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.044647,
+            "rrf": 0.02073
+          },
+          {
+            "path": "configs/run_053.yaml",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.044473,
+            "rrf": 0.022321
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 4,
+            "status": "gold",
+            "score": 0.04424,
+            "rrf": 0.022658
+          },
+          {
+            "path": "configs/run_054.yaml",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.043763,
+            "rrf": 0.020619
+          },
+          {
+            "path": "configs/run_048.yaml",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.043541,
+            "rrf": 0.02109
+          },
+          {
+            "path": "configs/run_052.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.043521,
+            "rrf": 0.022721
+          },
+          {
+            "path": "configs/run_049.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.043108,
+            "rrf": 0.022497
+          }
+        ],
+        "dropped": [
+          "paper/draft_v1.md",
+          "configs/archive/run_047_v1.yaml",
+          "configs/archive/run_046_v1.yaml",
+          "configs/archive/run_048_v1.yaml"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "paper_claim",
+          "field": "conclusion",
+          "values": [
+            "does help",
+            "does not help"
+          ],
+          "paths": [
+            "paper/draft_v1.md",
+            "paper/draft_v2.md"
+          ],
+          "kind": "semantic"
+        }
+      ],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "2/2"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q108",
+      "gold_id": "q108",
+      "title": "Best run to Slurm script and encoder",
+      "feature": "graph",
+      "method": "Typed PPR over retrieved candidates",
+      "question": "which slurm script launched the lowest-RMSE run and what encoder did it use",
+      "category": "multi_hop",
+      "gold_answer": "slurm/run_047.sbatch; dinov2",
+      "gold_paths": [
+        "slurm/run_047.sbatch",
+        "configs/run_047.yaml"
+      ],
+      "route": "aggregation_query",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 24,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "src/fusion.py",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.02692,
+            "rrf": 0.02692
+          },
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.025582,
+            "rrf": 0.025582
+          },
+          {
+            "path": "results/ablation.csv",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.025429,
+            "rrf": 0.025429
+          },
+          {
+            "path": "logs/run_043.out",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.025245,
+            "rrf": 0.025245
+          },
+          {
+            "path": "README.md",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.025182,
+            "rrf": 0.025182
+          },
+          {
+            "path": "paper/draft_v1.md",
+            "rank": 6,
+            "status": "superseded",
+            "score": 0.024971,
+            "rrf": 0.024971
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.024909,
+            "rrf": 0.024909
+          },
+          {
+            "path": "configs/run_049.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.024625,
+            "rrf": 0.024625
+          }
+        ]
+      },
+      "method_result": {
+        "label": "typed PPR rank fusion",
+        "gold_rank": 5,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "slurm/run_055.sbatch",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.044173,
+            "rrf": 0.016129
+          },
+          {
+            "path": "slurm/run_053.sbatch",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.044081,
+            "rrf": 0.016393
+          },
+          {
+            "path": "slurm/run_048.sbatch",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.043665,
+            "rrf": 0.015873
+          },
+          {
+            "path": "slurm/run_049.sbatch",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.043186,
+            "rrf": 0.015385
+          },
+          {
+            "path": "slurm/run_047.sbatch",
+            "rank": 5,
+            "status": "gold",
+            "score": 0.043015,
+            "rrf": 0.014925
+          },
+          {
+            "path": "slurm/run_054.sbatch",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.042448,
+            "rrf": 0.014706
+          },
+          {
+            "path": "logs/run_043.out",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.042411,
+            "rrf": 0.025245
+          },
+          {
+            "path": "logs/run_054.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.042179,
+            "rrf": 0.021674
+          }
+        ],
+        "dropped": [
+          "paper/draft_v1.md",
+          "configs/archive/run_048_v1.yaml",
+          "configs/archive/run_047_v1.yaml"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "paper_claim",
+          "field": "conclusion",
+          "values": [
+            "does help",
+            "does not help"
+          ],
+          "paths": [
+            "paper/draft_v1.md",
+            "paper/draft_v2.md"
+          ],
+          "kind": "semantic"
+        }
+      ],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "2/2"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q114",
+      "gold_id": "q114",
+      "title": "Source file joined to enabled runs",
+      "feature": "graph",
+      "method": "Lexical evidence + graph rank fusion",
+      "question": "which source file documents trellis wires and which runs enabled them",
+      "category": "multi_hop",
+      "gold_answer": "src/trellis_wires.py; 46, 47, 48",
+      "gold_paths": [
+        "src/trellis_wires.py",
+        "configs/run_046.yaml",
+        "configs/run_047.yaml",
+        "configs/run_048.yaml"
+      ],
+      "route": "semantic",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "src/trellis_wires.py",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.245958,
+            "rrf": 0.032787
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.139845,
+            "rrf": 0.026333
+          },
+          {
+            "path": "configs/run_048.yaml",
+            "rank": 3,
+            "status": "gold",
+            "score": 0.120032,
+            "rrf": 0.026905
+          },
+          {
+            "path": "configs/archive/run_046_v1.yaml",
+            "rank": 4,
+            "status": "superseded",
+            "score": 0.120024,
+            "rrf": 0.026743
+          },
+          {
+            "path": "configs/run_044.yaml",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.119967,
+            "rrf": 0.025604
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 6,
+            "status": "gold",
+            "score": 0.119954,
+            "rrf": 0.025333
+          },
+          {
+            "path": "configs/run_049.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.119849,
+            "rrf": 0.023235
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.119787,
+            "rrf": 0.021995
+          }
+        ]
+      },
+      "method_result": {
+        "label": "typed PPR rank fusion",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "src/trellis_wires.py",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.034426,
+            "rrf": 0.032787
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.033589,
+            "rrf": 0.026333
+          },
+          {
+            "path": "configs/run_048.yaml",
+            "rank": 3,
+            "status": "gold",
+            "score": 0.032002,
+            "rrf": 0.026905
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 4,
+            "status": "gold",
+            "score": 0.031778,
+            "rrf": 0.025333
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.03055,
+            "rrf": 0.021995
+          },
+          {
+            "path": "src/fusion.py",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.030242,
+            "rrf": 0.031746
+          },
+          {
+            "path": "configs/run_049.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.030077,
+            "rrf": 0.023235
+          },
+          {
+            "path": "configs/run_044.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.029324,
+            "rrf": 0.025604
+          }
+        ],
+        "dropped": [
+          "configs/archive/run_046_v1.yaml",
+          "configs/archive/run_048_v1.yaml",
+          "configs/archive/run_047_v1.yaml",
+          "paper/draft_v1.md"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "run:48",
+          "field": "fusion",
+          "values": [
+            "false",
+            "true"
+          ],
+          "paths": [
+            "configs/archive/run_048_v1.yaml",
+            "configs/run_048.yaml"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:48",
+          "field": "val_rmse",
+          "values": [
+            "0.0533",
+            "0.058"
+          ],
+          "paths": [
+            "configs/archive/run_048_v1.yaml",
+            "configs/run_048.yaml"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:46",
+          "field": "learning_rate",
+          "values": [
+            "0.0001",
+            "0.0005"
+          ],
+          "paths": [
+            "configs/archive/run_046_v1.yaml",
+            "configs/run_046.yaml"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:46",
+          "field": "val_rmse",
+          "values": [
+            "0.0542",
+            "0.0601"
+          ],
+          "paths": [
+            "configs/archive/run_046_v1.yaml",
+            "configs/run_046.yaml"
+          ],
+          "kind": "structural"
+        }
+      ],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "4/4"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q100",
+      "gold_id": "q100",
+      "title": "Count runs below the baseline",
+      "feature": "aggregation",
+      "method": "Aggregation route + graph coverage",
+      "question": "how many runs beat the 0.0550 baseline",
+      "category": "aggregation",
+      "gold_answer": "5",
+      "gold_paths": [
+        "configs/run_046.yaml",
+        "configs/run_047.yaml",
+        "configs/run_048.yaml",
+        "configs/run_052.yaml",
+        "configs/run_053.yaml"
+      ],
+      "route": "aggregation_query",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 2,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.032787,
+            "rrf": 0.032787
+          },
+          {
+            "path": "configs/run_046.yaml",
+            "rank": 2,
+            "status": "gold",
+            "score": 0.031258,
+            "rrf": 0.031258
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.029116,
+            "rrf": 0.029116
+          },
+          {
+            "path": "src/trellis_wires.py",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.028373,
+            "rrf": 0.028373
+          },
+          {
+            "path": "paper/draft_v1.md",
+            "rank": 5,
+            "status": "superseded",
+            "score": 0.027584,
+            "rrf": 0.027584
+          },
+          {
+            "path": "logs/run_044.out",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.016129,
+            "rrf": 0.016129
+          },
+          {
+            "path": "src/fusion.py",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.015625,
+            "rrf": 0.015625
+          },
+          {
+            "path": "logs/run_041.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.015625,
+            "rrf": 0.015625
+          }
+        ]
+      },
+      "method_result": {
+        "label": "typed PPR rank fusion",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "configs/run_046.yaml",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.031281,
+            "rrf": 0.031258
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.030092,
+            "rrf": 0.014493
+          },
+          {
+            "path": "logs/run_055.out",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.02901,
+            "rrf": 0.014925
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 4,
+            "status": "gold",
+            "score": 0.028324,
+            "rrf": 0.011905
+          },
+          {
+            "path": "logs/run_054.out",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.027973,
+            "rrf": 0.014706
+          },
+          {
+            "path": "logs/run_053.out",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.027651,
+            "rrf": 0.013889
+          },
+          {
+            "path": "logs/run_044.out",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.027433,
+            "rrf": 0.016129
+          },
+          {
+            "path": "logs/run_048.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.027109,
+            "rrf": 0.010989
+          }
+        ],
+        "dropped": [
+          "paper/draft_v1.md",
+          "configs/archive/run_046_v1.yaml",
+          "configs/archive/run_047_v1.yaml",
+          "configs/archive/run_048_v1.yaml"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "run:46",
+          "field": "learning_rate",
+          "values": [
+            "0.0001",
+            "0.0005"
+          ],
+          "paths": [
+            "configs/archive/run_046_v1.yaml",
+            "configs/run_046.yaml"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:46",
+          "field": "val_rmse",
+          "values": [
+            "0.0542",
+            "0.0601"
+          ],
+          "paths": [
+            "configs/archive/run_046_v1.yaml",
+            "configs/run_046.yaml"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "paper_claim",
+          "field": "conclusion",
+          "values": [
+            "does help",
+            "does not help"
+          ],
+          "paths": [
+            "paper/draft_v1.md",
+            "paper/draft_v2.md"
+          ],
+          "kind": "semantic"
+        }
+      ],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "5/5"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q120",
+      "gold_id": "q120",
+      "title": "Resume an indirectly described run",
+      "feature": "deep-research",
+      "method": "Three queries + RRF + scratchpad",
+      "question": "what learning rate should I use if I resume the DINOv2 3-pair birch run",
+      "category": "staleness",
+      "gold_answer": "3e-4",
+      "gold_paths": [
+        "configs/run_047.yaml"
+      ],
+      "route": "semantic",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 10,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.573055,
+            "rrf": 0.032522
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.53734,
+            "rrf": 0.032522
+          },
+          {
+            "path": "configs/archive/run_047_v1.yaml",
+            "rank": 3,
+            "status": "superseded",
+            "score": 0.493818,
+            "rrf": 0.030798
+          },
+          {
+            "path": "logs/run_046.out",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.303981,
+            "rrf": 0.029199
+          },
+          {
+            "path": "logs/run_045.out",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.303941,
+            "rrf": 0.028405
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.30394,
+            "rrf": 0.02837
+          },
+          {
+            "path": "logs/run_052.out",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.303901,
+            "rrf": 0.027598
+          },
+          {
+            "path": "configs/archive/run_046_v1.yaml",
+            "rank": 8,
+            "status": "superseded",
+            "score": 0.296683,
+            "rrf": 0.026334
+          }
+        ]
+      },
+      "method_result": {
+        "label": "three-query RRF + staleness",
+        "gold_rank": 7,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "paper/draft_v2.md",
+            "rank": 1,
+            "status": "candidate",
+            "score": 0.04866,
+            "rrf": 0.04866
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.048652,
+            "rrf": 0.048652
+          },
+          {
+            "path": "logs/run_046.out",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.042618,
+            "rrf": 0.042618
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.042053,
+            "rrf": 0.042053
+          },
+          {
+            "path": "logs/run_045.out",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.041719,
+            "rrf": 0.041719
+          },
+          {
+            "path": "configs/run_045.yaml",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.041113,
+            "rrf": 0.041113
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 7,
+            "status": "gold",
+            "score": 0.041022,
+            "rrf": 0.041022
+          },
+          {
+            "path": "logs/run_052.out",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.040915,
+            "rrf": 0.040915
+          }
+        ],
+        "dropped": [
+          "configs/archive/run_047_v1.yaml",
+          "configs/archive/run_046_v1.yaml",
+          "paper/draft_v1.md",
+          "configs/archive/run_048_v1.yaml"
+        ]
+      },
+      "conflicts": [
+        {
+          "entity": "run:47",
+          "field": "learning_rate",
+          "values": [
+            "0.0003",
+            "1e-05"
+          ],
+          "paths": [
+            "configs/archive/run_047_v1.yaml",
+            "configs/run_047.yaml",
+            "logs/run_047.out"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:47",
+          "field": "val_rmse",
+          "values": [
+            "0.0521",
+            "0.063"
+          ],
+          "paths": [
+            "configs/archive/run_047_v1.yaml",
+            "configs/run_047.yaml",
+            "logs/run_047.out"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:46",
+          "field": "learning_rate",
+          "values": [
+            "0.0001",
+            "0.0005"
+          ],
+          "paths": [
+            "configs/archive/run_046_v1.yaml",
+            "configs/run_046.yaml",
+            "logs/run_046.out"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "run:46",
+          "field": "val_rmse",
+          "values": [
+            "0.0542",
+            "0.0601"
+          ],
+          "paths": [
+            "configs/archive/run_046_v1.yaml",
+            "configs/run_046.yaml",
+            "logs/run_046.out"
+          ],
+          "kind": "structural"
+        },
+        {
+          "entity": "paper_claim",
+          "field": "conclusion",
+          "values": [
+            "does help",
+            "does not help"
+          ],
+          "paths": [
+            "paper/draft_v1.md",
+            "paper/draft_v2.md"
+          ],
+          "kind": "semantic"
+        }
+      ],
+      "agent": {
+        "failed": false,
+        "fail_reason": "",
+        "events": [
+          "plan",
+          "search",
+          "staleness",
+          "grade_relevance",
+          "scratchpad",
+          "respond"
+        ],
+        "citations": [
+          "paper/draft_v2.md",
+          "src/dinov2_encoder.py",
+          "logs/run_046.out",
+          "logs/run_047.out",
+          "logs/run_045.out",
+          "configs/run_045.yaml",
+          "configs/run_047.yaml",
+          "logs/run_052.out"
+        ],
+        "current_gold_cited": true
+      },
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "1/1"
+        },
+        {
+          "label": "scratchpad cites a gold path",
+          "pass": true,
+          "value": "paper/draft_v2.md, src/dinov2_encoder.py, logs/run_046.out"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q130",
+      "gold_id": "q130",
+      "title": "Exact flag inside a Slurm path",
+      "feature": "router",
+      "method": "Lexical path route",
+      "question": "--num_pairs=3 in slurm/run_047.sbatch",
+      "category": "exact_path",
+      "gold_answer": "3",
+      "gold_paths": [
+        "slurm/run_047.sbatch"
+      ],
+      "route": "lexical_path",
+      "control": {
+        "label": "single-query hybrid",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "slurm/run_047.sbatch",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.031545,
+            "rrf": 0.031545
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.027921,
+            "rrf": 0.027921
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.026333,
+            "rrf": 0.026333
+          },
+          {
+            "path": "checkpoints/run_047.ckpt.meta.json",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.016393,
+            "rrf": 0.016393
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.016129,
+            "rrf": 0.016129
+          },
+          {
+            "path": "src/trellis_wires.py",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.015873,
+            "rrf": 0.015873
+          },
+          {
+            "path": "slurm/run_042.sbatch",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.015625,
+            "rrf": 0.015625
+          },
+          {
+            "path": "slurm/run_044.sbatch",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.015385,
+            "rrf": 0.015385
+          }
+        ]
+      },
+      "method_result": {
+        "label": "lexical_path",
+        "gold_rank": 1,
+        "recall@50": 1.0,
+        "hits": [
+          {
+            "path": "slurm/run_047.sbatch",
+            "rank": 1,
+            "status": "gold",
+            "score": 0.031545,
+            "rrf": 0.031545
+          },
+          {
+            "path": "logs/run_047.out",
+            "rank": 2,
+            "status": "candidate",
+            "score": 0.027921,
+            "rrf": 0.027921
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 3,
+            "status": "candidate",
+            "score": 0.026333,
+            "rrf": 0.026333
+          },
+          {
+            "path": "checkpoints/run_047.ckpt.meta.json",
+            "rank": 4,
+            "status": "candidate",
+            "score": 0.016393,
+            "rrf": 0.016393
+          },
+          {
+            "path": "src/dinov2_encoder.py",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.016129,
+            "rrf": 0.016129
+          },
+          {
+            "path": "src/trellis_wires.py",
+            "rank": 6,
+            "status": "candidate",
+            "score": 0.015873,
+            "rrf": 0.015873
+          },
+          {
+            "path": "slurm/run_042.sbatch",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.015625,
+            "rrf": 0.015625
+          },
+          {
+            "path": "slurm/run_044.sbatch",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.015385,
+            "rrf": 0.015385
+          }
+        ],
+        "dropped": [
+          "configs/archive/run_048_v1.yaml",
+          "configs/archive/run_047_v1.yaml"
+        ]
+      },
+      "conflicts": [],
+      "agent": null,
+      "checks": [
+        {
+          "label": "gold path coverage @50",
+          "pass": true,
+          "value": "1/1"
+        },
+        {
+          "label": "embedding skipped",
+          "pass": true,
+          "value": "true"
+        },
+        {
+          "label": "reranker skipped",
+          "pass": true,
+          "value": "true"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "frozen gold set"
+    },
+    {
+      "id": "q036",
+      "gold_id": "q036",
+      "title": "Blind graph hops hurt ranking",
+      "feature": "negative-control",
+      "method": "hops=0 vs hops=1 vs hops=2",
+      "question": "what learning rate did run 47 use",
+      "category": "simple_factual",
+      "gold_answer": "3e-04",
+      "gold_paths": [
+        "configs/run_047.yaml"
+      ],
+      "rows": [
+        {
+          "config": "hybrid+hops=0",
+          "recall@50": 0.9382,
+          "ndcg@10": 0.4954,
+          "wall_ms": 6228.31
+        },
+        {
+          "config": "hybrid+hops=1",
+          "recall@50": 0.9863,
+          "ndcg@10": 0.4458,
+          "wall_ms": 38531.44
+        },
+        {
+          "config": "hybrid+hops=2",
+          "recall@50": 0.954,
+          "ndcg@10": 0.3502,
+          "wall_ms": 47764.54
+        }
+      ],
+      "checks": [
+        {
+          "label": "hops=0 ranks better than hops=1",
+          "pass": true,
+          "value": "0.495 > 0.446"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "gold + committed sweep"
+    },
+    {
+      "id": "artifact-run47",
+      "gold_id": null,
+      "title": "Paper2Code with current evidence",
+      "feature": "artifact",
+      "method": "plan \u2192 analyze \u2192 generate \u2192 execute \u2192 approve",
+      "question": "reproduce run 47 from the paper",
+      "category": "synthetic (not in 136-gold retrieval set)",
+      "gold_answer": "executable reproduction with current citations",
+      "gold_paths": [
+        "configs/run_047.yaml",
+        "paper/draft_v2.md",
+        "src/fusion.py"
+      ],
+      "spec": {
+        "goal": "reproduce run 47 from the paper",
+        "template": "research-repro",
+        "citations": [
+          {
+            "path": "configs/run_047.yaml",
+            "start_byte": 0,
+            "end_byte": 256,
+            "chunk_id": "configs/run_047.yaml::387c656a4708"
+          },
+          {
+            "path": "paper/draft_v2.md",
+            "start_byte": 0,
+            "end_byte": 296,
+            "chunk_id": "paper/draft_v2.md::3da067a8ae21"
+          },
+          {
+            "path": "src/trellis_wires.py",
+            "start_byte": 0,
+            "end_byte": 217,
+            "chunk_id": "src/trellis_wires.py::c02dccbbb8c6"
+          },
+          {
+            "path": "src/fusion.py",
+            "start_byte": 0,
+            "end_byte": 286,
+            "chunk_id": "src/fusion.py::52643f8d54f5"
+          }
+        ],
+        "tests": [],
+        "inputs": [
+          "retrieved chunks"
+        ],
+        "outputs": [
+          "executable module",
+          "pytest asserts"
+        ],
+        "file_path": "artifacts/reproduce.py"
+      },
+      "code_preview": "# goal: reproduce run 47 from the paper\n# citations:\n#   configs/run_047.yaml [0:256]\n#   paper/draft_v2.md [0:296]\n#   src/trellis_wires.py [0:217]\n#   src/fusion.py [0:286]\n\nLR = 0.0003\nENCODER = 'dinov2'\nFUSION = True\nSOURCES = ['configs/run_047.yaml', 'paper/draft_v2.md', 'src/trellis_wires.py', 'src/fusion.py']\n\ndef fuse(features, fusion_on):\n    if not fusion_on:\n        return features[0]\n    out = []\n    for item in features:\n        if isinstance(item, list):",
+      "execution": {
+        "ok": true,
+        "stdout": "reproduced dinov2 lr 0.0003 fusion True\n",
+        "stderr": "",
+        "error": "",
+        "timed_out": false
+      },
+      "checks": [
+        {
+          "label": "current config, paper, and source cited",
+          "pass": true,
+          "value": "configs/run_047.yaml, paper/draft_v2.md, src/trellis_wires.py, src/fusion.py"
+        },
+        {
+          "label": "archived evidence excluded",
+          "pass": true,
+          "value": "current-only"
+        },
+        {
+          "label": "generated code executed",
+          "pass": true,
+          "value": "reproduced dinov2 lr 0.0003 fusion True"
+        },
+        {
+          "label": "claim-support audit",
+          "pass": true,
+          "value": "zero unsupported claims"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "deterministic artifact tests"
+    },
+    {
+      "id": "hitl-sandbox",
+      "gold_id": null,
+      "title": "Sandbox and approval gate",
+      "feature": "safety",
+      "method": "AST gate + propose/apply split",
+      "question": "write an artifact, but do not mutate the tree without approval",
+      "category": "synthetic (unit-tested, not retrieval gold)",
+      "gold_answer": "blocked, then applied only in a temporary directory",
+      "gold_paths": [],
+      "checks": [
+        {
+          "label": "unapproved write blocked",
+          "pass": true,
+          "value": "ApprovalRequired"
+        },
+        {
+          "label": "approved temp write succeeds",
+          "pass": true,
+          "value": "artifacts/reproduce.py"
+        },
+        {
+          "label": "unsafe import rejected",
+          "pass": true,
+          "value": "banned import os"
+        }
+      ],
+      "status": "pass",
+      "answer_source": "deterministic MCP/sandbox execution"
+    }
+  ],
+  "summary": {
+    "n_cases": 11,
+    "n_gold_cases": 9,
+    "n_synthetic_cases": 2,
+    "passed": 11,
+    "mixed": 0
+  }
+};

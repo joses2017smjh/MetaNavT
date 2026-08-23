@@ -190,6 +190,36 @@ def test_deep_research_cites_and_refuses_empty_budget():
     assert empty.fail_reason == "empty_scratchpad"
 
 
+def test_deep_research_filters_archived_evidence_before_scratchpad():
+    chunks = [
+        Chunk(
+            "live",
+            "configs/run_047.yaml",
+            "run_id: 47 learning_rate: 3e-4 dinov2",
+            0,
+            50,
+            mtime=20,
+        ),
+        Chunk(
+            "old",
+            "configs/archive/run_047_v1.yaml",
+            "run_id: 47 learning_rate: 1e-5 dinov2",
+            0,
+            50,
+            mtime=10,
+        ),
+    ]
+    idx = InMemoryHybridIndex(chunks, retrieve_k=5, enable_rerank=False)
+    answer = DeepResearchAgent(idx, n_queries=3).run(
+        "what current learning rate did run 47 use"
+    )
+    cited = [citation.path for citation in answer.citations]
+    assert "configs/run_047.yaml" in cited
+    assert "configs/archive/run_047_v1.yaml" not in cited
+    stale_event = next(event for event in answer.events if event.step == "staleness")
+    assert "configs/archive/run_047_v1.yaml" in stale_event.payload["dropped_paths"]
+
+
 def test_rrf_union_merges_paraphrases():
     chunks = [
         Chunk("c1", "configs/run_047.yaml", "run_id: 47 learning_rate: 3e-4", 0, 40),
@@ -221,6 +251,40 @@ def test_hipporag_boosts_aggregation_not_simple_factual():
     assert any("dinov2" in s for s in seeds)
     ppr = personalized_pagerank({"encoder:dinov2": {"run:47": 1.0}, "run:47": {"encoder:dinov2": 1.0}}, seeds)
     assert ppr["encoder:dinov2"] > 0
+
+
+def test_hipporag_rank_fusion_keeps_typed_source_evidence():
+    chunks = [
+        Chunk("noise", "paper/notes.md", "unrelated overview", 0, 20),
+        Chunk(
+            "src",
+            "src/trellis_wires.py",
+            "run_id: 47 encoder: dinov2 source for trellis wires",
+            0,
+            60,
+        ),
+        Chunk(
+            "cfg",
+            "configs/run_047.yaml",
+            "run_id: 47 encoder: dinov2 fusion: true",
+            0,
+            50,
+        ),
+    ]
+    triples = triples_from_chunks(chunks)
+    hits = [
+        RetrievalHit(chunks[0], 10.0, 1),
+        RetrievalHit(chunks[2], 1.0, 2),
+        RetrievalHit(chunks[1], 0.5, 3),
+    ]
+    boosted = apply_hipporag(
+        "which source file documents dinov2",
+        hits,
+        triples,
+        category="multi_hop",
+    )
+    assert boosted[0].chunk.path == "src/trellis_wires.py"
+    assert {h.chunk.path for h in boosted} == {h.chunk.path for h in hits}
 
 
 def test_search_r1_masks_retrieved_tokens_and_rewards():

@@ -91,6 +91,70 @@ def test_paper2code_cites_and_executes():
     assert ran.ok, ran.error
 
 
+def test_research_evidence_prefers_live_config_current_paper_and_source():
+    chunks = [
+        Chunk(
+            "live",
+            "configs/run_047.yaml",
+            "run_id: 47 learning_rate: 3e-4 encoder: dinov2 fusion: true",
+            0,
+            70,
+            mtime=20,
+        ),
+        Chunk(
+            "old-config",
+            "configs/archive/run_047_v1.yaml",
+            "run_id: 47 learning_rate: 1e-5 encoder: dinov2 fusion: false",
+            0,
+            70,
+            mtime=10,
+        ),
+        Chunk(
+            "paper-current",
+            "paper/draft_v2.md",
+            "Run 47 uses DINOv2. Stereo fusion **does** help.",
+            0,
+            60,
+            mtime=20,
+        ),
+        Chunk(
+            "paper-old",
+            "paper/draft_v1.md",
+            "Run 47 uses DINOv2. Stereo fusion does not help.",
+            0,
+            60,
+            mtime=10,
+        ),
+        Chunk(
+            "source",
+            "src/fusion.py",
+            "fusion concatenates per-view features",
+            0,
+            40,
+        ),
+    ]
+    idx = InMemoryHybridIndex(
+        chunks,
+        retrieve_k=10,
+        rerank_n=5,
+        rerank_fn=OverlapReranker(),
+    )
+    agent = ArtifactAgent(idx)
+    evidence = agent.retrieve_research_evidence("reproduce run 47 from the paper")
+    paths = [hit.chunk.path for hit in evidence]
+    assert paths[0] == "configs/run_047.yaml"
+    assert "paper/draft_v2.md" in paths
+    assert "src/fusion.py" in paths
+    assert "configs/archive/run_047_v1.yaml" not in paths
+    assert "paper/draft_v1.md" not in paths
+    prop = agent.produce("reproduce run 47 from the paper")
+    cited = [c["path"] for c in prop.spec.citations]
+    assert "configs/run_047.yaml" in cited
+    assert "paper/draft_v2.md" in cited
+    assert "src/fusion.py" in cited
+    assert prop.exec_result.ok, prop.exec_result.error
+
+
 def test_spec_required_citations_and_agent_hitl(tmp_path):
     idx = _index()
     spec = spec_from_query("write a test for fusion", idx.retrieve("fusion").hits)

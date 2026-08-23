@@ -55,7 +55,7 @@ def test_tier2_flags_conflicting_learning_rates():
     assert any(c.field == "learning_rate" for c in conflicts)
     paper = [
         RetrievalHit(Chunk("p1", "paper/draft_v1.md", "fusion does not help", 0, 20), 1.0, 1),
-        RetrievalHit(Chunk("p2", "paper/draft_v2.md", "stereo fusion does help", 0, 20), 0.8, 2),
+        RetrievalHit(Chunk("p2", "paper/draft_v2.md", "stereo fusion **does** help", 0, 20), 0.8, 2),
     ]
     sem = detect_semantic_conflicts(paper)
     assert sem

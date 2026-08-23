@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import Sequence
 
 import numpy as np
@@ -104,35 +105,76 @@ def path_scores(triples: Sequence[Triple], ppr: dict[str, float]) -> dict[str, f
     return dict(scores)
 
 
+def path_intent_score(query: str, path: str) -> float:
+    """Typed path prior over the already-retrieved candidate set."""
+    q = (query or "").lower()
+    p = path.replace("\\", "/").lower()
+    suffix = Path(p).suffix
+    score = 0.0
+    if re.search(r"\b(slurm|job|launch(?:ed)?)\b", q) and suffix == ".sbatch":
+        score += 2.0
+    if re.search(r"\b(source|module|code|documents?)\b", q) and suffix == ".py":
+        score += 2.0
+    if "checkpoint" in q and ("checkpoint" in p or suffix in {".ckpt", ".pt", ".pth"}):
+        score += 2.0
+    if re.search(r"\b(paper|draft)\b", q) and (p.startswith("paper/") or suffix == ".md"):
+        score += 1.5
+    if "config" in q and p.startswith("configs/"):
+        score += 1.5
+    if re.search(r"\b(log|rmse)\b", q) and (p.startswith("logs/") or suffix in {".log", ".out"}):
+        score += 0.75
+    return score
+
+
 def boost_hits(
     hits: Sequence[RetrievalHit],
     path_ppr: dict[str, float],
     *,
+    query: str = "",
     alpha: float = 1.0,
+    intent_alpha: float = 1.1,
+    rrf_k: int = 60,
 ) -> list[RetrievalHit]:
-    mx = max(path_ppr.values()) if path_ppr else 1.0
-    mx = mx if mx > 0 else 1.0
-    rescored: list[RetrievalHit] = []
-    for hit in hits:
-        extra = path_ppr.get(hit.chunk.path, 0.0) / mx
+    """Fuse base, graph, and typed-intent ranks without adding candidates."""
+    if not hits:
+        return []
+    evidenced_paths = {h.chunk.path for h in hits if path_ppr.get(h.chunk.path, 0.0) > 0}
+    graph_paths = sorted(
+        evidenced_paths,
+        key=lambda path: (
+            path_intent_score(query, path),
+            path_ppr.get(path, 0.0),
+            path,
+        ),
+        reverse=True,
+    )
+    graph_rank = {path: rank for rank, path in enumerate(graph_paths, start=1)}
+    intent_paths = sorted(
+        {h.chunk.path for h in hits if path_intent_score(query, h.chunk.path) > 0},
+        key=lambda path: (path_intent_score(query, path), path),
+        reverse=True,
+    )
+    intent_rank = {path: rank for rank, path in enumerate(intent_paths, start=1)}
+    rescored: list[tuple[RetrievalHit, float]] = []
+    for base_rank, hit in enumerate(hits, start=1):
+        score = 1.0 / (rrf_k + base_rank)
+        if hit.chunk.path in graph_rank:
+            score += alpha / (rrf_k + graph_rank[hit.chunk.path])
+        if hit.chunk.path in intent_rank:
+            score += intent_alpha / (rrf_k + intent_rank[hit.chunk.path])
         rescored.append(
-            RetrievalHit(
-                chunk=hit.chunk,
-                score=float(hit.score) + alpha * extra,
-                rank=hit.rank,
-                bm25=hit.bm25,
-                dense=hit.dense,
-                rrf=hit.rrf,
-                rerank=hit.rerank,
+            (
+                hit,
+                score,
             )
         )
-    rescored.sort(key=lambda h: h.score, reverse=True)
+    rescored.sort(key=lambda pair: pair[1], reverse=True)
     out = []
-    for rank, hit in enumerate(rescored, start=1):
+    for rank, (hit, score) in enumerate(rescored, start=1):
         out.append(
             RetrievalHit(
                 chunk=hit.chunk,
-                score=hit.score,
+                score=score,
                 rank=rank,
                 bm25=hit.bm25,
                 dense=hit.dense,
@@ -164,4 +206,9 @@ def apply_hipporag(
         return list(hits)
     seeds = query_seeds(query)
     ppr = personalized_pagerank(adjacency(triples), seeds)
-    return boost_hits(hits, path_scores(triples, ppr), alpha=alpha)
+    return boost_hits(
+        hits,
+        path_scores(triples, ppr),
+        query=query,
+        alpha=alpha,
+    )

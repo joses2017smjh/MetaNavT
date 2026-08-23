@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -262,6 +263,111 @@ def gif_graph(out: Path) -> None:
     _save(out, frames, durs)
 
 
+def _demo_case(payload: dict, case_id: str) -> dict:
+    return next(case for case in payload["cases"] if case["id"] == case_id)
+
+
+def _rank_panel(
+    draw: ImageDraw.ImageDraw,
+    xy: tuple[int, int, int, int],
+    title: str,
+    result: dict,
+    color,
+) -> None:
+    x0, y0, x1, y1 = xy
+    _round_rect(draw, xy, 12, fill=BG, outline=color, width=2)
+    draw.text((x0 + 14, y0 + 12), title, fill=color, font=_font(MONO_B, 12))
+    gold_rank = result.get("gold_rank")
+    rank_text = f"best gold rank  {gold_rank}" if gold_rank is not None else "gold not in top-50"
+    draw.text((x0 + 14, y0 + 36), rank_text, fill=TEXT, font=_font(MONO, 11))
+    y = y0 + 64
+    for hit in (result.get("hits") or [])[:5]:
+        marker = "*" if hit.get("status") == "gold" else "x" if hit.get("status") == "superseded" else " "
+        fill = GOLD if marker == "*" else PINK if marker == "x" else MUTED
+        label = f"{marker} {hit['rank']:>2}  {hit['path']}"
+        draw.text((x0 + 14, y), label[:43], fill=fill, font=_font(MONO, 10))
+        y += 21
+
+
+def gif_hard_graph(out: Path, payload: dict) -> None:
+    """Generated q107/q108/q114 control-vs-PPR traces."""
+    w, h = 860, 450
+    frames, durs = [], []
+    for case_id in ("q107", "q108", "q114"):
+        case = _demo_case(payload, case_id)
+        img = _chrome(_canvas(w, h), f"hard benchmark  /  {case_id}")
+        d = ImageDraw.Draw(img)
+        d.text((40, 70), case["title"], fill=TEXT, font=_font(SANS_B, 18))
+        d.text((40, 98), case["question"][:92], fill=MUTED, font=_font(SANS, 12))
+        _rank_panel(d, (40, 130, 410, 360), "CONTROL  single-query hybrid", case["control"], LAVENDER)
+        _rank_panel(d, (450, 130, 820, 360), "METHOD  typed PPR rank fusion", case["method_result"], SKY)
+        passed = sum(1 for row in case["checks"] if row["pass"])
+        footer = (
+            f"gold: {case['gold_answer']}    checks: {passed}/{len(case['checks'])} pass"
+        )
+        _round_rect(d, (40, 378, 820, 414), 8, fill=BG, outline=GOLD, width=1)
+        d.text((54, 388), footer[:95], fill=GOLD, font=_font(MONO, 11))
+        frames.append(img.convert("RGB"))
+        durs.append(1900)
+    _save(out, frames, durs)
+
+
+def gif_hard_staleness(out: Path, payload: dict) -> None:
+    """Generated q115/q117 current-vs-superseded traces."""
+    w, h = 860, 430
+    frames, durs = [], []
+    for case_id in ("q115", "q117"):
+        case = _demo_case(payload, case_id)
+        img = _chrome(_canvas(w, h), f"hard benchmark  /  {case_id}")
+        d = ImageDraw.Draw(img)
+        d.text((40, 70), case["title"], fill=TEXT, font=_font(SANS_B, 18))
+        d.text((40, 98), case["question"][:92], fill=MUTED, font=_font(SANS, 12))
+        _rank_panel(d, (40, 130, 410, 350), "BEFORE  hybrid candidates", case["control"], PINK)
+        _rank_panel(d, (450, 130, 820, 350), "AFTER  current-version filter", case["method_result"], SKY)
+        dropped = case["method_result"].get("dropped") or []
+        conflicts = case.get("conflicts") or []
+        footer = f"dropped {len(dropped)} superseded paths  |  surfaced {len(conflicts)} conflict(s)"
+        _round_rect(d, (40, 366, 820, 402), 8, fill=BG, outline=GOLD, width=1)
+        d.text((54, 376), footer, fill=GOLD, font=_font(MONO, 11))
+        frames.append(img.convert("RGB"))
+        durs.append(2200)
+    _save(out, frames, durs)
+
+
+def gif_artifacts(out: Path, payload: dict) -> None:
+    """Generated Paper2Code + sandbox + HITL trace."""
+    artifact = _demo_case(payload, "artifact-run47")
+    safety = _demo_case(payload, "hitl-sandbox")
+    w, h = 860, 430
+    frames, durs = [], []
+    steps = [
+        ("1  PLAN", "research-repro", "current config + current paper + source", LAVENDER),
+        ("2  GENERATE", "claim-support audit", "zero unsupported claims", GOLD),
+        ("3  EXECUTE", "restricted sandbox", artifact["execution"]["stdout"].strip(), SKY),
+        ("4  APPLY", "without approval -> blocked", "approved temp write -> applied", PINK),
+    ]
+    for active in range(len(steps)):
+        img = _chrome(_canvas(w, h), "coding artifact  /  Paper2Code + HITL")
+        d = ImageDraw.Draw(img)
+        d.text((40, 70), artifact["question"], fill=TEXT, font=_font(SANS_B, 18))
+        citations = [row["path"] for row in artifact["spec"]["citations"]]
+        d.text((40, 100), ("cites  " + "  |  ".join(citations))[:105], fill=MUTED, font=_font(MONO, 10))
+        for i, (title, middle, result, color) in enumerate(steps):
+            x = 40 + (i % 2) * 400
+            y = 140 + (i // 2) * 120
+            on = i <= active
+            _round_rect(d, (x, y, x + 370, y + 100), 12, fill=BG, outline=color if on else LINE, width=2)
+            d.text((x + 14, y + 14), title, fill=color if on else MUTED, font=_font(MONO_B, 12))
+            d.text((x + 14, y + 42), middle[:46], fill=TEXT if on else MUTED, font=_font(SANS, 12))
+            if on:
+                d.text((x + 14, y + 68), result[:48], fill=color, font=_font(MONO, 10))
+        passed = sum(1 for row in artifact["checks"] + safety["checks"] if row["pass"])
+        d.text((40, 392), f"{passed}/7 deterministic checks pass  |  no corpus write during demo export", fill=GOLD, font=_font(MONO, 11))
+        frames.append(img.convert("RGB"))
+        durs.append(1100 if active < 3 else 2200)
+    _save(out, frames, durs)
+
+
 def _save(path: Path, frames: list[Image.Image], durations: list[int]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     first, rest = frames[0], frames[1:]
@@ -279,12 +385,21 @@ def _save(path: Path, frames: list[Image.Image], durations: list[int]) -> None:
 def write_all(root: Path | None = None) -> list[Path]:
     root = root or Path(__file__).resolve().parents[2]
     out = root / "doc" / "gifs"
+    traces = root / "doc" / "demo" / "traces.json"
+    if not traces.exists():
+        from app.eval.demo_export import write_demo
+
+        write_demo(root)
+    payload = json.loads(traces.read_text())
     jobs = [
         ("ask.gif", gif_ask),
         ("hybrid.gif", gif_hybrid),
         ("router.gif", gif_router),
         ("mcp.gif", gif_mcp),
         ("graph.gif", gif_graph),
+        ("hard-graph.gif", lambda path: gif_hard_graph(path, payload)),
+        ("hard-staleness.gif", lambda path: gif_hard_staleness(path, payload)),
+        ("artifacts.gif", lambda path: gif_artifacts(path, payload)),
     ]
     written = []
     for name, fn in jobs:

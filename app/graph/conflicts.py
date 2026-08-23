@@ -26,6 +26,13 @@ NEGATION_PAIRS = (
 )
 
 
+def _claim_text(text: str) -> str:
+    """Normalize Markdown and punctuation before deterministic claim matching."""
+    normalized = re.sub(r"[*_`~]+", "", (text or "").lower())
+    normalized = re.sub(r"[^a-z0-9.]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
 @dataclass
 class Conflict:
     entity: str
@@ -80,7 +87,7 @@ def detect_semantic_conflicts(
     hits: Sequence[RetrievalHit],
     llm: Callable[[str], str] | None = None,
 ) -> list[Conflict]:
-    texts = [(h.chunk.path, (h.chunk.text or "").lower()) for h in hits]
+    texts = [(h.chunk.path, _claim_text(h.chunk.text)) for h in hits]
     conflicts: list[Conflict] = []
     for a_path, a in texts:
         for b_path, b in texts:

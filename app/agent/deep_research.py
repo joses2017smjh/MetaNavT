@@ -19,6 +19,7 @@ from app.agent.retrieval_loop import (
     extractive_answer,
     grade_chunk,
 )
+from app.graph.staleness import cluster_versions, prefer_current
 from app.retrieval.bm25 import tokenize
 from app.retrieval.fuse import rrf_score_map
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit, RetrievalResult
@@ -182,6 +183,7 @@ class DeepResearchAgent:
         generator: Callable | None = None,
         router: QueryRouter | None = None,
         grade_threshold: float = 0.12,
+        staleness_tier1: bool = True,
     ):
         self.index = index
         self.n_queries = n_queries
@@ -189,6 +191,10 @@ class DeepResearchAgent:
         self.llm = llm
         self.generator = generator or extractive_answer
         self.grade_threshold = grade_threshold
+        self.staleness_tier1 = staleness_tier1
+        self.version_clusters = (
+            cluster_versions(index.chunks) if staleness_tier1 else {}
+        )
         self.inner = RetrievalAgent(
             index, router=router, generator=self.generator, grade_threshold=grade_threshold
         )
@@ -199,6 +205,12 @@ class DeepResearchAgent:
         events.append(AgentEvent("plan", {"queries": queries}))
         hits = rrf_union_paths(self.index, queries)
         events.append(AgentEvent("search", {"n_hits": len(hits), "n_queries": len(queries)}))
+        if self.version_clusters:
+            before = {h.chunk.chunk_id: h.chunk.path for h in hits}
+            hits = prefer_current(hits, self.version_clusters, query)
+            after = {h.chunk.chunk_id for h in hits}
+            dropped = [path for cid, path in before.items() if cid not in after]
+            events.append(AgentEvent("staleness", {"dropped_paths": dropped}))
         pad = Scratchpad(token_budget=self.token_budget)
         graded = [h for h in hits if grade_chunk(query, h.chunk.text) >= self.grade_threshold]
         events.append(AgentEvent("grade_relevance", {"n_relevant": len(graded)}))

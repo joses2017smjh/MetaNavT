@@ -110,6 +110,50 @@ answer   yes  (draft_v2) — generator must address both
 
 </details>
 
+## Hard benchmark demos, generated
+
+The polished trace above is not the only case. [`bench/demo/manifest.json`](bench/demo/manifest.json) selects nine hard questions from the frozen 136-question gold set, one committed negative control, and two explicitly labeled artifact/safety scenarios. `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](doc/demo/traces.json). The HTML and GIFs consume that file.
+
+### Staleness under contradiction
+
+<p align="center">
+  <img src="doc/gifs/hard-staleness.gif" alt="Hard staleness cases q115 and q117, before and after current-version filtering" width="820"/>
+</p>
+
+- `q115`: the archived `1e-5` config starts above the live config; Tier 1 removes it and surfaces the structural disagreement before answering `3e-4`.
+- `q117`: Markdown-normalized Tier 2 catches `fusion **does** help` versus `fusion does not help`; the current draft remains rank 1.
+
+### Multi-hop graph cases
+
+<p align="center">
+  <img src="doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114 comparing single-query hybrid with typed PPR rank fusion" width="820"/>
+</p>
+
+- `q107`: config/log evidence moves from best gold rank 22 to rank 4 for the baseline→minimum-RMSE→bark→config chain.
+- `q108`: the requested Slurm evidence moves from rank 24 to rank 5 without adding any path outside the fused top-50.
+- `q114`: lexical `src/trellis_wires.py` stays rank 1 while graph evidence brings runs 46/47/48 into the same context.
+- `q100`: all five configs below the `0.0550` baseline remain covered. GraphRAG summarizes the global community; deterministic aggregation still computes the count.
+
+PPR now fuses **ranks**, not raw PPR mass with RRF scores. Raw PPR was on a different scale and could swamp a strong lexical hit. A typed path prior (`source`, `slurm`, `checkpoint`, `paper`, `config`) only reranks candidates already retrieved.
+
+### Research and coding artifacts
+
+<p align="center">
+  <img src="doc/gifs/artifacts.gif" alt="Paper2Code current evidence, claim audit, sandbox execution, and approval-gated apply" width="820"/>
+</p>
+
+`reproduce run 47 from the paper` now cites the live config, current draft, and source code; excludes `archive/` and `draft_v1`; executes in the restricted sandbox; and remains `pending_approval` until a human applies it. This is a deterministic scenario outside the retrieval gold set, so it is labeled synthetic rather than reported as retrieval accuracy.
+
+### The loser stays visible
+
+Blind graph expansion is the negative control: hops=1 raises Recall@50 `0.938 → 0.986` but lowers nDCG@10 `0.495 → 0.446` and takes roughly six times the wall time. Hops=2 falls to `0.350` nDCG@10. The default remains hops=0; PPR is a bounded rerank for aggregation and multi-hop only.
+
+Regenerate everything with:
+
+```bash
+make demos
+```
+
 That is the product. Everything below is how it does that, who sits in front of it, and how to run it.
 
 ---
