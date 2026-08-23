@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.agent.corrective import evaluate_retrieval, determine_correction
+from app.agent.decompose import heuristic_decompose, should_decompose
 from app.agent.deep_research import multi_query_retrieve
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
@@ -31,6 +33,7 @@ from app.graph.hipporag import apply_hipporag, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
 from app.retrieval.distill import triples_from_hits, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
+from app.retrieval.hyde import hyde_embed
 
 
 def git_sha(cwd: Path) -> str:
@@ -67,6 +70,9 @@ class BenchConfig:
     jury: bool = False
     hipporag: bool = False
     multi_query: bool = False
+    hyde: bool = False
+    decompose: bool = False
+    corrective: bool = False
 
 
 def _paths_from_hits(hits: list[RetrievalHit]) -> list[str]:
@@ -88,7 +94,24 @@ def _retrieve(
     category: str = "",
     hippo_triples=None,
 ) -> tuple[list[str], object]:
-    if cfg.mode == "bm25":
+    if cfg.decompose and should_decompose(query):
+        subs = heuristic_decompose(query)
+        if len(subs) > 1:
+            all_hits: list[RetrievalHit] = []
+            for sub_q in subs:
+                sub_result = index.retrieve(sub_q, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+                all_hits.extend(sub_result.hits)
+            seen_ids: dict[str, RetrievalHit] = {}
+            for h in all_hits:
+                if h.chunk.chunk_id not in seen_ids or h.score > seen_ids[h.chunk.chunk_id].score:
+                    seen_ids[h.chunk.chunk_id] = h
+            hits = sorted(seen_ids.values(), key=lambda h: h.score, reverse=True)
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+            result.hits = hits
+        else:
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+            hits = result.hits
+    elif cfg.mode == "bm25":
         with timer.stage("bm25"):
             pairs = index.search_bm25(query, k=cfg.retrieve_k)
         hits = [
@@ -98,7 +121,11 @@ def _retrieve(
         result = None
     elif cfg.mode == "dense":
         with timer.stage("embed"):
-            pairs = index.search_dense(query, k=cfg.retrieve_k)
+            if cfg.hyde:
+                hyde_vec = hyde_embed(query, index.embedder)
+                pairs = index.search_dense(query, k=cfg.retrieve_k, query_vec=hyde_vec)
+            else:
+                pairs = index.search_dense(query, k=cfg.retrieve_k)
         hits = [
             RetrievalHit(chunk=c, score=s, rank=i)
             for i, (c, s) in enumerate(pairs, start=1)
@@ -109,8 +136,43 @@ def _retrieve(
             result = multi_query_retrieve(index, query, n=3, k=cfg.retrieve_k)
         hits = result.hits
     else:
-        result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
-        hits = result.hits
+        if cfg.hyde:
+            with timer.stage("hyde"):
+                hyde_vec = hyde_embed(query, index.embedder)
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+            hyde_dense = index.search_dense(query, k=cfg.retrieve_k, query_vec=hyde_vec)
+            hyde_ids = [c.chunk_id for c, _ in hyde_dense]
+            from app.retrieval.fuse import rrf_score_map
+            orig_ids = [h.chunk.chunk_id for h in result.hits]
+            boosted = rrf_score_map([orig_ids, hyde_ids], k=60)
+            for h in result.hits:
+                if h.chunk.chunk_id in boosted:
+                    h.score = boosted[h.chunk.chunk_id]
+            result.hits.sort(key=lambda h: h.score, reverse=True)
+            hits = result.hits
+        else:
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+            hits = result.hits
+
+    if cfg.corrective and hits:
+        pairs_for_eval = [(h.chunk, h.score) for h in hits[:cfg.rerank_n]]
+        evaluated = evaluate_retrieval(query, pairs_for_eval)
+        action = determine_correction(query, evaluated)
+        if action.strategy == "rewrite" and action.rewritten_query:
+            retry = index.retrieve(action.rewritten_query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+            seen = {h.chunk.chunk_id for h in hits}
+            for rh in retry.hits:
+                if rh.chunk.chunk_id not in seen:
+                    hits.append(rh)
+                    seen.add(rh.chunk.chunk_id)
+        elif action.strategy == "decompose" and action.sub_queries:
+            for sub_q in action.sub_queries:
+                sub_r = index.retrieve(sub_q, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+                seen = {h.chunk.chunk_id for h in hits}
+                for rh in sub_r.hits:
+                    if rh.chunk.chunk_id not in seen:
+                        hits.append(rh)
+                        seen.add(rh.chunk.chunk_id)
 
     if cfg.staleness_tier1 and clusters:
         hits = prefer_current(hits, clusters, query)
@@ -320,6 +382,43 @@ FRONTIER_CONFIGS = [
         staleness_tier1=False,
         hipporag=True,
         log_triples=False,
+    ),
+    BenchConfig(
+        name="hybrid+hyde",
+        mode="hybrid",
+        enable_rerank=True,
+        enable_router=True,
+        staleness_tier1=False,
+        hyde=True,
+        log_triples=True,
+    ),
+    BenchConfig(
+        name="hybrid+decompose",
+        mode="hybrid",
+        enable_rerank=True,
+        enable_router=True,
+        staleness_tier1=False,
+        decompose=True,
+        log_triples=True,
+    ),
+    BenchConfig(
+        name="hybrid+corrective",
+        mode="hybrid",
+        enable_rerank=True,
+        enable_router=True,
+        staleness_tier1=False,
+        corrective=True,
+        log_triples=True,
+    ),
+    BenchConfig(
+        name="hybrid+hyde+corrective",
+        mode="hybrid",
+        enable_rerank=True,
+        enable_router=True,
+        staleness_tier1=False,
+        hyde=True,
+        corrective=True,
+        log_triples=True,
     ),
 ]
 

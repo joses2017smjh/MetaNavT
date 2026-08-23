@@ -49,6 +49,8 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 | 11 | Research artifacts + code production | done (`app/artifacts/`, MCP HITL) |
 | 12 | Generated hard-case demos + negative controls | done (`bench/demo/manifest.json`, `app/eval/demo_export.py`) |
 | 13 | Spreadsheet aggregation + approval-gated MATLAB visualization | done (`app/artifacts/visualization.py`) |
+| 14 | HyDE, Query Decomposition, Corrective RAG | done (`app/retrieval/hyde.py`, `app/agent/decompose.py`, `app/agent/corrective.py`) |
+| 15 | Adaptive Retrieval, Semantic Cache, Citation Verification | done (`app/retrieval/adaptive.py`, `app/retrieval/cache.py`, `app/agent/citation_verify.py`) |
 
 ---
 
@@ -88,6 +90,10 @@ Frontier configs (`make bench-frontier` only):
 8. `hybrid+rankgpt`        (listwise permutation; heuristic listwise in CI)
 9. `hybrid+multiquery`     (3 paraphrases, RRF union)
 10. `hybrid+hipporag`      (PPR boost on aggregation / multi-hop)
+11. `hybrid+hyde`           (HyDE pseudo-doc embedding fused with RRF)
+12. `hybrid+decompose`     (multi-hop sub-query decomposition + merged retrieval)
+13. `hybrid+corrective`    (CRAG post-retrieval quality gate + corrective rewrite)
+14. `hybrid+hyde+corrective` (HyDE + CRAG combined)
 
 Jury is **not** a retrieval config. `make bench-jury` adds e2e columns to whatever configs you run.
 
@@ -257,6 +263,30 @@ The frozen demo asks for average `val_rmse` by `encoder` against the `0.055` bas
 
 `apply_visualization` requires `approved=True`. Paths remain under the configured local root; the execution command is fixed to local MATLAB/Octave rather than model-provided shell text. CSV/TSV is dependency-free; XLSX uses optional `openpyxl`.
 
+### Phase 14 — cutting-edge query processing (HyDE, decomposition, CRAG)
+
+**Why.** State-of-the-art RAG pipelines (2025–2026) interleave query transformation and post-retrieval quality gates to handle complex, ambiguous, and multi-hop queries. Three techniques complement the existing hybrid pipeline:
+
+| step | mechanism | source |
+|---|---|---|
+| 14.1 | **HyDE** (Hypothetical Document Embedding): embed a generated pseudo-document instead of the raw query, then RRF-fuse with original rankings | Gao et al. 2023 |
+| 14.2 | **Query Decomposition**: split compound multi-hop queries into sub-queries, retrieve per sub-query, merge via best-score dedup | Decomposed Prompting (Khot et al. 2023); IRCoT (Trivedi et al. 2023) |
+| 14.3 | **Corrective RAG (CRAG)**: classify each retrieved chunk as Correct / Ambiguous / Incorrect, then trigger corrective actions (refine, rewrite, or decompose) | Yan et al. 2024 |
+
+All three are wired into `_retrieve()` in the bench harness with boolean flags. Heuristic-only in CI (no LLM); LLM-backed callables accepted for production use.
+
+### Phase 15 — latency + safety gates (adaptive retrieval, semantic cache, citation verification)
+
+**Why.** Production RAG systems need three things the research pipeline misses: (1) skipping retrieval entirely for queries that don't need the corpus, (2) caching semantically similar queries to avoid redundant compute, and (3) verifying that generated answers cite real evidence.
+
+| step | mechanism | source |
+|---|---|---|
+| 15.1 | **Adaptive Retrieval**: rule-based classifier decides RETRIEVE / SKIP / UNCERTAIN before the pipeline runs | Self-RAG (Asai et al. 2024); FLARE (Jiang et al. 2023) |
+| 15.2 | **Semantic Query Cache**: LRU cache with cosine-similarity lookup (threshold 0.92), TTL eviction, optional JSON persistence | Gptcache (Zilliz 2023); production pattern |
+| 15.3 | **Citation Verification**: post-generation gate extracts claims, verifies values and paths against evidence, flags hallucinations, rejects answers below a verification ratio threshold | FActScore (Min et al. 2023); SAFE (Wei et al. 2024) |
+
+Adaptive retrieval is neutral on the gold set (every gold question needs retrieval). Citation verification is a generation-time safety gate, not a retrieval metric. The semantic cache is a latency optimization.
+
 ### Out of scope unless the gold set grows
 
 - Swapping the personal corpus for web search (Search-R1’s original env). Our product is a **file tree**.
@@ -286,10 +316,10 @@ Original later list that **is** implemented:
 app/eval/          harness, metrics, gold, latency, RAGAS-style e2e, jury, SVG figures
 bench/demo/        curated hard-case IDs; no copied trace prose
 doc/demo/          generated JSON/JS consumed by HTML and GIFs
-app/retrieval/     RRF, BM25, router, hybrid index, distill, RankGPT, HNSW / halfvec / binary
+app/retrieval/     RRF, BM25, router, hybrid index, distill, RankGPT, HNSW / halfvec / binary, HyDE, adaptive, cache
 app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters, hierarchy, GraphRAG, HippoRAG PPR, conflicts
-app/agent/         retrieval loop, Deep Research, move-plan schema
+app/agent/         retrieval loop, Deep Research, move-plan schema, decompose, corrective RAG, citation verify
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox
 doc/matlab/        generated MATLAB source for checked-in visualization demos
 app/rl/            Search-R1 parse/env, reward, GRPO dummy step

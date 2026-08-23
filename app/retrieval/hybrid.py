@@ -84,9 +84,9 @@ class InMemoryHybridIndex:
             if doc_id in self.by_id
         ]
 
-    def search_dense(self, query: str, k: int | None = None) -> list[tuple[Chunk, float]]:
+    def search_dense(self, query: str, k: int | None = None, query_vec: np.ndarray | None = None) -> list[tuple[Chunk, float]]:
         k = k or self.retrieve_k
-        qv = self.embedder.encode([query])[0]
+        qv = query_vec if query_vec is not None else self.embedder.encode([query])[0]
         scores = cosine_scores(qv, self.doc_mat)
         order = np.argsort(-scores)[:k]
         return [(self.chunks[i], float(scores[i])) for i in order]

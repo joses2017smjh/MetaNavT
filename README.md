@@ -305,6 +305,24 @@ The generated [MATLAB source](doc/matlab/mean_val_rmse_by_encoder.m) reads and a
 python -m app.mcp.server bench/corpus/files
 ```
 
+### Cutting-edge query processing
+
+Six techniques from 2023–2026 RAG research, wired into the bench harness with ablation flags.
+
+**HyDE** (Hypothetical Document Embedding). Instead of embedding the raw query, generate a pseudo-document from the query tokens and embed that. The hypothesis is closer to the answer space, so cosine similarity is more meaningful. Fused with the original ranking via RRF. `app/retrieval/hyde.py`.
+
+**Query Decomposition**. Compound multi-hop queries ("compare the learning rate and encoder between run 40 and run 47") are split into sub-queries, each retrieved independently, then merged by best-score dedup. Heuristic splitter (syntactic cues); LLM decomposition available when a model is loaded. `app/agent/decompose.py`.
+
+**Corrective RAG (CRAG)**. After retrieval, classify each chunk as Correct / Ambiguous / Incorrect. If the correct ratio is below threshold, trigger corrective actions: refine ambiguous chunks to key sentences, rewrite the query with expanded terms, or decompose and retry. `app/agent/corrective.py`.
+
+**Adaptive Retrieval**. Not every query needs the full pipeline. Greetings, meta-questions, and textbook definitions skip retrieval entirely. Corpus-specific signals (run IDs, file extensions, config terms) trigger retrieval. Neutral on the gold set — every gold question needs retrieval. `app/retrieval/adaptive.py`.
+
+**Semantic Query Cache**. Near-duplicate queries ("learning rate run 47" vs "what is the learning rate for run 47") hit an in-memory LRU cache with cosine-similarity lookup (threshold 0.92) instead of re-running the full pipeline. TTL eviction prevents stale results. Optional JSON persistence. `app/retrieval/cache.py`.
+
+**Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`.
+
+All six are in `make bench-frontier` as `hybrid+hyde`, `hybrid+decompose`, `hybrid+corrective`, and `hybrid+hyde+corrective`.
+
 ### Graph + staleness, then GraphRAG
 
 <p align="center">
