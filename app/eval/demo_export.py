@@ -403,6 +403,9 @@ def build_demo(root: Path | None = None) -> dict[str, Any]:
         for spec in manifest["controls"]
     )
     cases.extend(_artifact_cases(index))
+    visualization_path = root / "doc" / "demo" / "visualization.json"
+    if visualization_path.exists():
+        cases.append(json.loads(visualization_path.read_text()))
     communities = build_graphrag(index.chunks, min_community=2)
     return {
         "meta": {

@@ -28,7 +28,7 @@ class MCPServer:
                 {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "metanavit-filesystem", "version": "2.1.0"},
+                    "serverInfo": {"name": "metanavit-filesystem", "version": "2.2.0"},
                 },
             )
         if method == "notifications/initialized":

@@ -3,7 +3,8 @@
 search_semantic, search_lexical, read_file, list_dir, stat,
 propose_move / apply_plan,
 collect_run_artifact, propose_artifact / apply_artifact,
-propose_patch / apply_patch, exec_sandboxed.
+propose_patch / apply_patch, exec_sandboxed,
+inspect_spreadsheet, propose_visualization / apply_visualization.
 
 Destructive writes never auto-fire: apply_* requires approved=true.
 """
@@ -45,6 +46,7 @@ class FilesystemTools:
     plans: dict[str, MovePlan] = field(default_factory=dict)
     artifacts: dict = field(default_factory=dict)
     patches: dict = field(default_factory=dict)
+    visualizations: dict = field(default_factory=dict)
     allow_apply: bool = False
 
     def __post_init__(self) -> None:
@@ -245,6 +247,113 @@ class FilesystemTools:
 
         return run_sandboxed(code).as_dict()
 
+    def inspect_spreadsheet(self, path: str) -> dict:
+        from app.artifacts.visualization import inspect_spreadsheet
+
+        target = self._safe(path)
+        report = inspect_spreadsheet(target)
+        rows = report.pop("rows", [])
+        report["path"] = str(target.relative_to(self.root))
+        report["preview"] = rows[:5]
+        return report
+
+    def propose_visualization(
+        self,
+        path: str,
+        question: str,
+        group_by: str | None = None,
+        value: str | None = None,
+        operation: str | None = None,
+        chart_type: str | None = None,
+    ) -> dict:
+        from app.artifacts.visualization import propose_visualization
+
+        target = self._safe(path)
+        relative = str(target.relative_to(self.root))
+        plan = propose_visualization(
+            self.root,
+            relative,
+            question,
+            group_by=group_by,
+            value=value,
+            operation=operation,
+            chart_type=chart_type,
+        )
+        self.visualizations[plan.plan_id] = plan
+        return plan.as_dict()
+
+    def apply_visualization(
+        self,
+        plan_id: str,
+        approved: bool = False,
+        chart_type: str | None = None,
+        execute: bool = True,
+        backend: str = "auto",
+    ) -> dict:
+        from app.artifacts.visualization import execute_matlab, generate_matlab
+
+        plan = self.visualizations.get(plan_id)
+        if plan is None:
+            raise KeyError(f"unknown visualization {plan_id}")
+        if plan.applied:
+            return {
+                "plan_id": plan_id,
+                "status": "already_applied",
+                "script_path": plan.script_path,
+                "chart_path": plan.chart_path,
+            }
+        if not (approved or self.allow_apply):
+            raise ApprovalRequired(plan_id)
+        selected = chart_type or plan.recommended_chart
+        plan.matlab_code = generate_matlab(
+            source_path=plan.source_path,
+            headers=[column.name for column in plan.columns],
+            columns=plan.columns,
+            group_by=plan.group_by,
+            value=plan.value,
+            operation=plan.operation,
+            chart_type=selected,
+            chart_path=plan.chart_path,
+            baseline=plan.baseline,
+        )
+        script = self._safe(plan.script_path)
+        chart = self._safe(plan.chart_path)
+        script.parent.mkdir(parents=True, exist_ok=True)
+        chart.parent.mkdir(parents=True, exist_ok=True)
+        script.write_text(plan.matlab_code)
+        execution = (
+            execute_matlab(
+                self.root,
+                plan.script_path,
+                chart_path=plan.chart_path,
+                backend=backend,
+            )
+            if execute
+            else {
+                "ok": None,
+                "backend": None,
+                "stdout": "",
+                "stderr": "execution not requested",
+                "returncode": None,
+            }
+        )
+        plan.approved = True
+        plan.applied = True
+        plan.status = (
+            "applied"
+            if not execute or (execution["ok"] and chart.is_file())
+            else "script_written_chart_failed"
+        )
+        return {
+            "plan_id": plan_id,
+            "status": plan.status,
+            "selected_chart": selected,
+            "script_path": str(script.relative_to(self.root)),
+            "chart_path": str(chart.relative_to(self.root)),
+            "chart_exists": chart.is_file(),
+            "execution": execution,
+        }
+
     def tool_specs(self) -> list[dict]:
         return [
             {
@@ -396,6 +505,59 @@ class FilesystemTools:
                     "required": ["code"],
                 },
             },
+            {
+                "name": "inspect_spreadsheet",
+                "description": "Profile spreadsheet columns and return a five-row preview. Never writes.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                    "required": ["path"],
+                },
+            },
+            {
+                "name": "propose_visualization",
+                "description": "Inspect, aggregate, and recommend a MATLAB chart. Returns questions; never writes.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "question": {"type": "string"},
+                        "group_by": {"type": "string"},
+                        "value": {"type": "string"},
+                        "operation": {
+                            "type": "string",
+                            "enum": ["mean", "sum", "min", "max", "count"],
+                        },
+                        "chart_type": {
+                            "type": "string",
+                            "enum": ["bar", "line", "dot", "histogram"],
+                        },
+                    },
+                    "required": ["path", "question"],
+                },
+            },
+            {
+                "name": "apply_visualization",
+                "description": "After user approval/override, write MATLAB code and optionally render the chart.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "plan_id": {"type": "string"},
+                        "approved": {"type": "boolean", "default": False},
+                        "chart_type": {
+                            "type": "string",
+                            "enum": ["bar", "line", "dot", "histogram"],
+                        },
+                        "execute": {"type": "boolean", "default": True},
+                        "backend": {
+                            "type": "string",
+                            "enum": ["auto", "octave", "matlab"],
+                            "default": "auto",
+                        },
+                    },
+                    "required": ["plan_id"],
+                },
+            },
         ]
 
     def call(self, name: str, arguments: dict[str, Any]) -> Any:
@@ -435,4 +597,23 @@ class FilesystemTools:
             )
         if name == "exec_sandboxed":
             return self.exec_sandboxed(arguments["code"])
+        if name == "inspect_spreadsheet":
+            return self.inspect_spreadsheet(arguments["path"])
+        if name == "propose_visualization":
+            return self.propose_visualization(
+                arguments["path"],
+                arguments["question"],
+                group_by=arguments.get("group_by"),
+                value=arguments.get("value"),
+                operation=arguments.get("operation"),
+                chart_type=arguments.get("chart_type"),
+            )
+        if name == "apply_visualization":
+            return self.apply_visualization(
+                arguments["plan_id"],
+                approved=bool(arguments.get("approved", False)),
+                chart_type=arguments.get("chart_type"),
+                execute=bool(arguments.get("execute", True)),
+                backend=arguments.get("backend", "auto"),
+            )
         raise KeyError(f"unknown tool {name}")

@@ -68,6 +68,11 @@
       "id": "hitl-sandbox",
       "title": "Sandbox and approval gate",
       "feature": "safety"
+    },
+    {
+      "id": "matlab-visualization",
+      "title": "Spreadsheet aggregation to MATLAB chart",
+      "feature": "visualization"
     }
   ]
 }

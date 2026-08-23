@@ -20,7 +20,7 @@ def test_demo_manifest_ids_exist_in_frozen_gold():
     assert selected <= gold
     assert len(manifest["gold_cases"]) == 8
     assert len(manifest["controls"]) == 1
-    assert len(manifest["synthetic_cases"]) == 2
+    assert len(manifest["synthetic_cases"]) == 3
 
 
 def test_rank_and_coverage_checks_are_deterministic():
@@ -36,10 +36,10 @@ def test_generated_demo_has_hard_cases_controls_and_current_artifact_evidence():
     payload = json.loads((ROOT / "doc" / "demo" / "traces.json").read_text())
     cases = {case["id"]: case for case in payload["cases"]}
     assert payload["summary"] == {
-        "n_cases": 11,
+        "n_cases": 12,
         "n_gold_cases": 9,
-        "n_synthetic_cases": 2,
-        "passed": 11,
+        "n_synthetic_cases": 3,
+        "passed": 12,
         "mixed": 0,
     }
     assert {"q115", "q117", "q107", "q108", "q114", "q100", "q120", "q130", "q036"} <= cases.keys()
@@ -58,6 +58,8 @@ def test_generated_demo_has_hard_cases_controls_and_current_artifact_evidence():
     } <= artifact_paths
     assert not any("archive/" in path or "draft_v1" in path for path in artifact_paths)
     assert cases["artifact-run47"]["execution"]["ok"] is True
+    assert cases["matlab-visualization"]["execution"]["ok"] is True
+    assert cases["matlab-visualization"]["recommended_chart"] == "dot"
     assert all(check["pass"] for case in cases.values() for check in case["checks"])
 
 
@@ -67,7 +69,12 @@ def test_html_consumes_generated_trace_script():
     assert 'id="challenge-chips"' in html
     script = (ROOT / "doc" / "demo" / "traces.js").read_text()
     assert script.startswith("window.METANAVIT_DEMO = {")
-    for name in ("hard-graph.gif", "hard-staleness.gif", "artifacts.gif"):
+    for name in (
+        "hard-graph.gif",
+        "hard-staleness.gif",
+        "artifacts.gif",
+        "visualization.gif",
+    ):
         path = ROOT / "doc" / "gifs" / name
         assert path.is_file()
         assert path.stat().st_size > 20_000

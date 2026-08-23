@@ -368,6 +368,53 @@ def gif_artifacts(out: Path, payload: dict) -> None:
     _save(out, frames, durs)
 
 
+def gif_visualization(out: Path, payload: dict, root: Path) -> None:
+    """Spreadsheet schema → aggregation → approval → MATLAB chart."""
+    case = _demo_case(payload, "matlab-visualization")
+    chart_path = root / "doc" / case["image_path"]
+    chart = Image.open(chart_path).convert("RGB")
+    chart.thumbnail((360, 230), Image.Resampling.LANCZOS)
+    w, h = 860, 460
+    stages = [
+        ("inspect", "8 rows / 5 columns", LAVENDER),
+        ("aggregate", "mean(val_rmse) by encoder", GOLD),
+        ("recommend", "dot plot; alternatives bar / line", SKY),
+        ("user input", "ApprovalRequired -> approve dot", PINK),
+        ("MATLAB", "write .m -> render PNG", BLUE),
+    ]
+    frames, durs = [], []
+    for active in range(len(stages)):
+        img = _chrome(_canvas(w, h), "local spreadsheet  /  approval-gated MATLAB")
+        d = ImageDraw.Draw(img)
+        d.text((40, 70), case["question"], fill=TEXT, font=_font(SANS_B, 17))
+        d.text((40, 98), "Auditable decision trace, not hidden chain-of-thought.", fill=MUTED, font=_font(SANS, 12))
+        _round_rect(d, (40, 130, 430, 405), 12, fill=BG, outline=LAVENDER, width=1)
+        y = 148
+        for i, (name, detail, color) in enumerate(stages):
+            on = i <= active
+            d.text((58, y), f"{i + 1}  {name}", fill=color if on else MUTED, font=_font(MONO_B, 11))
+            d.text((178, y), detail, fill=TEXT if on else MUTED, font=_font(MONO, 10))
+            y += 40
+        rows = case["aggregation"]["rows"]
+        if active >= 1:
+            y = 350
+            values = "  ".join(
+                f"{row['encoder']}={row['mean_val_rmse']:.6f}" for row in rows
+            )
+            d.text((58, y), values[:56], fill=GOLD, font=_font(MONO, 9))
+        _round_rect(d, (450, 130, 820, 405), 12, fill=(250, 250, 250), outline=SKY if active >= 4 else LINE, width=2)
+        if active >= 4:
+            x = 455 + (360 - chart.width) // 2
+            y_img = 145 + (230 - chart.height) // 2
+            img.paste(chart, (x, y_img))
+            d.text((468, 382), "MATLAB local render  |  baseline 0.055", fill=BG, font=_font(MONO_B, 10))
+        else:
+            d.text((530, 245), "chart waits for user approval", fill=(80, 80, 90), font=_font(MONO, 11))
+        frames.append(img.convert("RGB"))
+        durs.append(1100 if active < 4 else 2300)
+    _save(out, frames, durs)
+
+
 def _save(path: Path, frames: list[Image.Image], durations: list[int]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     first, rest = frames[0], frames[1:]
@@ -400,6 +447,7 @@ def write_all(root: Path | None = None) -> list[Path]:
         ("hard-graph.gif", lambda path: gif_hard_graph(path, payload)),
         ("hard-staleness.gif", lambda path: gif_hard_staleness(path, payload)),
         ("artifacts.gif", lambda path: gif_artifacts(path, payload)),
+        ("visualization.gif", lambda path: gif_visualization(path, payload, root)),
     ]
     written = []
     for name, fn in jobs:

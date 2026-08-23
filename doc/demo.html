@@ -119,6 +119,10 @@
       overflow: auto; max-height: 18rem; background: #121212; border: 1px solid var(--line);
       border-radius: 10px; padding: 0.8rem; color: var(--sky); font-size: 0.72rem;
     }
+    .challenge-image {
+      display: block; width: 100%; margin-top: 0.8rem; border: 1px solid var(--line);
+      border-radius: 10px; background: white;
+    }
     @media (max-width: 720px) {
       .statrow, .grid, .split, .who, .compare, .checks { grid-template-columns: 1fr; }
       .challenge-head { display: block; }
@@ -134,7 +138,7 @@
         <h1>MetaNaviT</h1>
       </div>
     </header>
-    <p class="lede">Eleven generated challenge traces: nine frozen-gold questions, two labeled artifact/safety scenarios, and the graph-hop loser. Controls and methods run at the same candidate budget. These traces are generated from code, not copied into the page.</p>
+    <p class="lede">Twelve generated challenge traces: nine frozen-gold questions, three labeled artifact/safety/visualization scenarios, and the graph-hop loser. Controls and methods run at the same candidate budget. These traces are generated from code, not copied into the page.</p>
 
     <nav class="nav">
       <a href="#ask">Ask</a>
@@ -154,7 +158,7 @@
 
     <h2 id="hard">Hard benchmark challenge suite</h2>
     <div class="challenge-head">
-      <p>Staleness conflicts, multi-hop GraphRAG/PPR, Deep Research, exact paths, Paper2Code, sandboxing, and a negative control. Gold and synthetic cases are labeled separately. Select a case to see the original ranking beside the method and every executable check.</p>
+      <p>Staleness conflicts, multi-hop GraphRAG/PPR, Deep Research, exact paths, Paper2Code, sandboxing, spreadsheet-to-MATLAB visualization, and a negative control. Gold and synthetic cases are labeled separately. Select a case to see the original ranking beside the method and every executable check.</p>
       <span class="badge" id="challenge-summary"></span>
     </div>
     <div class="chips" id="challenge-chips"></div>
@@ -170,6 +174,7 @@
       <div class="compare" id="challenge-compare"></div>
       <div class="checks" id="challenge-checks"></div>
       <pre class="code-preview" id="challenge-code" hidden></pre>
+      <img class="challenge-image" id="challenge-image" alt="Generated visualization" hidden />
     </div>
 
     <h2 id="ask">Run a gold question</h2>
@@ -313,6 +318,10 @@ run:47  —documented_in→  configs/run_047.yaml</div>
       const code = document.getElementById("challenge-code");
       code.hidden = !item.code_preview;
       code.textContent = item.code_preview || "";
+      const image = document.getElementById("challenge-image");
+      image.hidden = !item.image_path;
+      image.src = item.image_path || "";
+      image.alt = item.title ? `Generated chart: ${item.title}` : "Generated chart";
       document.querySelectorAll("#challenge-chips button").forEach((button) => {
         button.classList.toggle("active", button.dataset.case === id);
       });

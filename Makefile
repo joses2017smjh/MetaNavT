@@ -1,4 +1,4 @@
-.PHONY: bench bench-compare bench-jury bench-frontier freeze-corpus test-eval sweeps figures demo-data gifs demos
+.PHONY: bench bench-compare bench-jury bench-frontier freeze-corpus test-eval sweeps figures matlab-demo demo-data gifs demos
 
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR):$(CURDIR)/.vendor:$(PYTHONPATH)
@@ -28,10 +28,13 @@ sweeps:
 figures:
 	$(PYTHON) -m app.eval.figures
 
+matlab-demo:
+	$(PYTHON) -m app.eval.matlab_demo
+
 demo-data:
 	$(PYTHON) -m app.eval.demo_export
 
 gifs: demo-data
 	$(PYTHON) -m app.eval.gifs
 
-demos: demo-data figures gifs
+demos: matlab-demo demo-data figures gifs

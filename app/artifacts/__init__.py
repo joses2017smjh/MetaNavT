@@ -23,6 +23,12 @@ from app.artifacts.patch import FilePatch, apply_search_replace, parse_search_re
 from app.artifacts.pipeline import ArtifactAgent, ProposedArtifact
 from app.artifacts.sandbox import ExecResult, run_sandboxed
 from app.artifacts.spec import SpecCard, spec_from_query
+from app.artifacts.visualization import (
+    VisualizationPlan,
+    execute_matlab,
+    inspect_spreadsheet,
+    propose_visualization,
+)
 
 __all__ = [
     "ArtifactBundle",
@@ -40,4 +46,8 @@ __all__ = [
     "run_sandboxed",
     "SpecCard",
     "spec_from_query",
+    "VisualizationPlan",
+    "inspect_spreadsheet",
+    "propose_visualization",
+    "execute_matlab",
 ]

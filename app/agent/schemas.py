@@ -46,3 +46,23 @@ class ArtifactSpec(BaseModel):
     files: list[ArtifactFileSpec] = Field(default_factory=list)
     requires_approval: Literal[True] = True
     writes_tree: Literal[False] = False
+
+
+class VisualizationSpec(BaseModel):
+    """Approval-gated spreadsheet aggregation and MATLAB chart plan."""
+
+    plan_id: str
+    source_path: str
+    question: str
+    group_by: str
+    value: str
+    operation: Literal["mean", "sum", "min", "max", "count"]
+    recommended_chart: Literal["bar", "line", "dot", "histogram"]
+    alternatives: list[Literal["bar", "line", "dot", "histogram"]] = Field(
+        default_factory=list
+    )
+    script_path: str
+    chart_path: str
+    requires_user_input: Literal[True] = True
+    requires_approval: Literal[True] = True
+    writes_tree: Literal[False] = False

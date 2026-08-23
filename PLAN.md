@@ -48,6 +48,7 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 | 10 | Search-R1 / GRPO (CI dummy step) | done (`app/rl/`) |
 | 11 | Research artifacts + code production | done (`app/artifacts/`, MCP HITL) |
 | 12 | Generated hard-case demos + negative controls | done (`bench/demo/manifest.json`, `app/eval/demo_export.py`) |
+| 13 | Spreadsheet aggregation + approval-gated MATLAB visualization | done (`app/artifacts/visualization.py`) |
 
 ---
 
@@ -61,6 +62,7 @@ make bench-jury      # extra Phase 6 jury columns (heuristic; JUDGE=1 uses Ollam
 make bench-frontier  # Phase 7–9 extra configs (bge, RankGPT, multi-query, HippoRAG)
 make sweeps          # HNSW, halfvec/binary, hops, GraphRAG
 make figures         # doc/figures/*.svg for the README
+make matlab-demo     # approval-gated CSV aggregation → MATLAB .m + PNG
 make demos           # generated hard-case traces + figures + GIFs
 make test-eval       # unit tests for metrics, router, graph, MCP, …
 ```
@@ -223,7 +225,7 @@ The 2024 e2b template tool in `app/engine/tools/artifact.py` is still wired to L
 
 Do **not** replace hybrid retrieve with “let the model ls and rewrite the repo.” Generation consumes the same fused hits. `make bench` stays LLM-free.
 
-MCP additions: `collect_run_artifact`, `propose_artifact`, `apply_artifact`, `propose_patch`, `apply_patch`, `exec_sandboxed`.
+MCP additions: `collect_run_artifact`, `propose_artifact`, `apply_artifact`, `propose_patch`, `apply_patch`, `exec_sandboxed`, `inspect_spreadsheet`, `propose_visualization`, `apply_visualization`.
 
 ### Phase 12 — hard-case demos as executable evaluations
 
@@ -239,6 +241,21 @@ Methodology changes found while building the demos:
 - Deep Research applies Tier 1 before its evidence scratchpad.
 
 Synthetic artifact/safety cases are labeled outside the 136-question retrieval gold set. The blind-hop regression remains visible rather than being edited out.
+
+### Phase 13 — spreadsheet aggregation to MATLAB, with HITL chart choice
+
+Do not show hidden chain-of-thought. Show an auditable decision trace:
+
+1. profile column names/types, missingness, and a five-row preview;
+2. propose `group_by`, numeric metric, and `mean|sum|min|max|count`;
+3. return the aggregated rows;
+4. recommend a chart and list valid alternatives;
+5. wait for the user to approve or override the chart;
+6. generate MATLAB-compatible `.m` code and optionally render locally.
+
+The frozen demo asks for average `val_rmse` by `encoder` against the `0.055` baseline. A dot plot is recommended over a bar chart because this is a point-estimate-to-threshold comparison. The generated MATLAB script reads and aggregates the CSV itself, then writes `doc/figures/mean-val-rmse-by-encoder.png`.
+
+`apply_visualization` requires `approved=True`. Paths remain under the configured local root; the execution command is fixed to local MATLAB/Octave rather than model-provided shell text. CSV/TSV is dependency-free; XLSX uses optional `openpyxl`.
 
 ### Out of scope unless the gold set grows
 
@@ -274,6 +291,7 @@ app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters, hierarchy, GraphRAG, HippoRAG PPR, conflicts
 app/agent/         retrieval loop, Deep Research, move-plan schema
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox
+doc/matlab/        generated MATLAB source for checked-in visualization demos
 app/rl/            Search-R1 parse/env, reward, GRPO dummy step
 app/mcp/           filesystem tools + stdio MCP server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images, modality RRF

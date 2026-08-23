@@ -112,7 +112,7 @@ answer   yes  (draft_v2) — generator must address both
 
 ## Hard benchmark demos, generated
 
-The polished trace above is not the only case. [`bench/demo/manifest.json`](bench/demo/manifest.json) selects nine hard questions from the frozen 136-question gold set, one committed negative control, and two explicitly labeled artifact/safety scenarios. `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](doc/demo/traces.json). The HTML and GIFs consume that file.
+The polished trace above is not the only case. [`bench/demo/manifest.json`](bench/demo/manifest.json) selects nine hard questions from the frozen 136-question gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](doc/demo/traces.json). The HTML and GIFs consume that file.
 
 ### Staleness under contradiction
 
@@ -242,6 +242,9 @@ Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in t
 | `apply_artifact` | requires `approved=true`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE, same HITL |
 | `exec_sandboxed` | AST-gated Python. no `os`, no pip |
+| `inspect_spreadsheet` | schema, types, missingness, five-row preview |
+| `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
+| `apply_visualization` | user approves or overrides chart, then writes/runs MATLAB |
 
 ```python
 plan = tools.propose_move("logs/run_040.out", "archive/run_040.out")
@@ -264,6 +267,39 @@ art = tools.propose_artifact("reproduce run 47 from the paper")
 tools.apply_artifact(art["plan_id"])                 # ApprovalRequired
 tools.apply_artifact(art["plan_id"], approved=True)  # writes artifacts/reproduce.py
 ```
+
+### Spreadsheet to MATLAB, with a user checkpoint
+
+The chatbot does not expose hidden chain-of-thought. It emits an **auditable decision trace**: observed schema → proposed aggregation → visualization rationale → alternatives → approval/override. Nothing is written before that checkpoint.
+
+<p align="center">
+  <img src="doc/gifs/visualization.gif" alt="Spreadsheet inspection, aggregation, chart recommendation, user approval, generated MATLAB code, and local chart" width="820"/>
+</p>
+
+For the frozen `results/ablation.csv`, the local trace finds eight rows and five columns, proposes `mean(val_rmse) by encoder`, and recommends a dot plot because the task compares point estimates with a `0.055` reference threshold. The user may override it with a bar or line chart.
+
+```python
+plan = tools.propose_visualization(
+    "results/ablation.csv",
+    "Compare average val RMSE by encoder against the 0.055 baseline",
+)
+# inspect plan["aggregated_rows"], plan["decision_trace"],
+# plan["recommended_chart"], plan["alternatives"], plan["user_questions"]
+
+tools.apply_visualization(plan["plan_id"])  # ApprovalRequired
+tools.apply_visualization(
+    plan["plan_id"],
+    approved=True,
+    chart_type="dot",  # user can override
+    backend="matlab",
+)
+```
+
+The generated [MATLAB source](doc/matlab/mean_val_rmse_by_encoder.m) reads and aggregates the CSV itself; the checked-in chart below was rendered by local MATLAB.
+
+<p align="center">
+  <img src="doc/figures/mean-val-rmse-by-encoder.png" alt="Mean validation RMSE by encoder with 0.055 baseline, rendered by MATLAB" width="820"/>
+</p>
 
 ```bash
 python -m app.mcp.server bench/corpus/files
