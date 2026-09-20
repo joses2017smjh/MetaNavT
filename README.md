@@ -24,13 +24,15 @@
   <a href="#run-it">Run it</a>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Recall%4050-0.938-8EB4E8?style=for-the-badge&labelColor=121212" alt="Recall@50 0.938"/>
-  <img src="https://img.shields.io/badge/nDCG%4010-0.493-E8D6A0?style=for-the-badge&labelColor=121212" alt="nDCG@10 0.493"/>
-  <img src="https://img.shields.io/badge/gold_set-136_questions-BABAE9?style=for-the-badge&labelColor=121212" alt="136 gold questions"/>
-</p>
+## Engineering overview
 
-Not an LLM file organizer. An agentic retrieval system over a personal corpus, evaluated on a frozen benchmark, where every retrieval component was ablated and measured.
+Hybrid retrieval over research files, with cited source locations and reviewable file operations.
+The committed benchmark covers **136 queries over 61 fixture files**. Its headline
+Recall@50 **0.938** and nDCG@10 **0.493** use **hash embeddings and overlap reranking**;
+they are not measurements of a production corpus or a neural embedding backend.
+
+[Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) ·
+[Benchmark artifact](bench/results/latest.json) · [Run locally](#run-it) · [Architecture](#how-the-app-is-put-together)
 
 GitHub does not run `doc/demo.html` (it shows the source, which is why that link looked dead). The GIFs below are the preview. After clone: `open doc/demo.html`. The chrome is the app: `#121212`, lavender / gold / sky / pink radials from [`globals.css`](.frontend/app/globals.css).
 
@@ -40,7 +42,7 @@ GitHub does not run `doc/demo.html` (it shows the source, which is why that link
 
 > what's the current learning rate for the DINOv2 run 47
 
-Three copies of that config exist. One still says `1e-5`. The live one says `3e-4`. Generic RAG quotes the archive. MetaNaviT has to refuse to.
+Three copies of that config exist. One still says `1e-5`. The live one says `3e-4`. The retrieval trace must identify which version is current and show its source.
 
 <p align="center">
   <img src="doc/gifs/ask.gif" alt="Animated retrieval: type the learning-rate question, drop the archive, cite 3e-4" width="820"/>
@@ -50,10 +52,10 @@ Three copies of that config exist. One still says `1e-5`. The live one says `3e-
   <img src="doc/figures/staleness.svg" alt="Version cluster: archive 1e-5 vs current 3e-4" width="820"/>
 </p>
 
-That loop is the product. Still frames of the same trace:
+This illustrated trace shows the intended interaction. Still frames of the same trace:
 
 <p align="center">
-  <img src="doc/figures/query-trace.svg" alt="Still of the live retrieval trace" width="820"/>
+  <img src="doc/figures/query-trace.svg" alt="Illustrated retrieval trace over the fixture corpus" width="820"/>
 </p>
 
 Click-through version (local only): clone and open [`doc/demo.html`](doc/demo.html) in a browser. GitHub will not play it. Expand a gold item here:
