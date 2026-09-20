@@ -5,9 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Search your own research tree like it has a memory.</strong><br/>
-  Open localhost:8000. Ask what the current learning rate was.<br/>
-  It cites the live YAML, not the archive that still says 1e-5.
+  <strong>Hybrid search and cited answers over research files.</strong><br/>
+  Retrieve current configurations, inspect the sources, and review proposed file changes.
 </p>
 
 <p align="center">
@@ -31,8 +30,31 @@ The committed benchmark covers **136 queries over 61 fixture files**. Its headli
 Recall@50 **0.938** and nDCG@10 **0.493** use **hash embeddings and overlap reranking**;
 they are not measurements of a production corpus or a neural embedding backend.
 
+**Jose Sanchez's contribution:** retrieval and data APIs on the six-person
+[project team](#team). The application combines a FastAPI backend, a Next.js
+interface and PostgreSQL/pgvector; the committed retrieval benchmark runs
+separately on CPU.
+
+The full fixture pipeline improves Recall@50 over BM25 alone (0.938 vs 0.843),
+while BM25 retains higher aggregate nDCG@10 (0.505 vs 0.493). The
+[ablation table](#the-number) reports both coverage and ranking quality.
+
 [Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) ·
-[Benchmark artifact](bench/results/latest.json) · [Run locally](#run-it) · [Architecture](#how-the-app-is-put-together)
+[Benchmark artifact](bench/results/latest.json) · [Run the CPU benchmark](#cpu-benchmark) · [Run the application](#run-it) · [Architecture](#how-the-app-is-put-together)
+
+### CPU benchmark
+
+After the Python dependency setup in [Run it](#run-it), run these commands from
+the repository root. This path uses the committed fixture, hash embeddings and
+overlap reranking; it needs no Ollama server, Postgres instance or GPU.
+
+```bash
+make bench       # writes bench/results/<git-sha>.json and latest.json
+make test-eval   # evaluation tests
+```
+
+Keep the committed corpus when comparing against the published table. Use
+`make freeze-corpus` only when intentionally rebuilding that benchmark input.
 
 GitHub does not run `doc/demo.html` (it shows the source, which is why that link looked dead). The GIFs below are the preview. After clone: `open doc/demo.html`. The chrome is the app: `#121212`, lavender / gold / sky / pink radials from [`globals.css`](.frontend/app/globals.css).
 
@@ -452,15 +474,24 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 
 ## Run it
 
-```bash
-# Ollama
-ollama serve
-ollama pull qwen2.5:14b
+Clone the repository, then install the Python dependencies. The CPU benchmark
+above can run before starting the application services below.
 
+```bash
 # Python
+git clone https://github.com/joses2017smjh/MetaNavT.git
+cd MetaNavT
 conda create --name metanavit python=3.11
 conda activate metanavit
 pip install -r requirements.txt
+```
+
+For the full application:
+
+```bash
+# Ollama (keep the server running in another terminal)
+ollama serve
+ollama pull qwen2.5:14b
 
 # Postgres + pgvector (or)
 docker compose up
@@ -470,10 +501,6 @@ docker compose up
 ./scripts/run.sh dev
 # http://localhost:8000
 
-# Eval only — no GPU, no Postgres
-make freeze-corpus
-make bench
-make test-eval
 ```
 
 `.env.example` already has `RETRIEVE_K=50`, `RERANK_TOP_N=8`, `ENABLE_ROUTER=true`. Copy to `.env`. Set `RERANKER_MODEL=BAAI/bge-reranker-v2-m3` for the real cross-encoder row.
