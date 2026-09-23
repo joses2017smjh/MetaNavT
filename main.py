@@ -31,23 +31,67 @@ load_dotenv()
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 import uvicorn
 from app.api.routers import api_router
 from app.middlewares.frontend import FrontendProxyMiddleware
 from app.settings import init_settings
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from run import dev
-
-# Initialize FastAPI app
-app = FastAPI()
-
-init_settings()
 
 environment = os.getenv("ENVIRONMENT", "dev")
 logger = logging.getLogger("uvicorn")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Build the model settings and the retrieval singletons once, off the event loop.
+
+    A failure (database down, bad DATA_DIR) is recorded in app.state.startup_error:
+    the process stays up so /health can report it and the logs are readable, and
+    /api/retrieve answers 503 until it is fixed.
+    """
+    from app.engine.bootstrap import build_retrieval_state
+
+    app.state.retrieval = None
+    app.state.startup_error = None
+    try:
+        init_settings()
+        app.state.retrieval = await run_in_threadpool(build_retrieval_state)
+        logger.info(f"Retrieval ready: {app.state.retrieval.indexing}")
+    except Exception as exc:  # noqa: BLE001 - surfaced by /health
+        app.state.startup_error = f"{type(exc).__name__}: {exc}"
+        logger.error(f"Retrieval backend failed to start: {app.state.startup_error}", exc_info=True)
+    yield
+
+
+# Initialize FastAPI app
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/health")
+async def health():
+    """200 with index stats once retrieval is ready; 503 with the startup error otherwise."""
+    state = getattr(app.state, "retrieval", None)
+    if state is None:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unavailable", "error": getattr(app.state, "startup_error", None)},
+        )
+    n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    return {
+        "status": "ok",
+        "n_nodes": n_nodes,
+        "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "huggingface"),
+        "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
+        "bm25_backend": state.vsm.last_bm25_backend,
+        "reranker_loaded": state.retriever._reranker is not None,
+        "indexing": state.indexing,
+    }
+
 
 
 def mount_static_files(directory, path, html=False):

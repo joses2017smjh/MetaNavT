@@ -83,7 +83,8 @@ def mock_llama_index(monkeypatch, request):
     }
     mock_modules["llama_index.core.multi_modal_llms"].MultiModalLLM = MagicMock()
     for mod_name, mock in mock_modules.items():
-        sys.modules[mod_name] = mock
+        # via monkeypatch so the real modules come back after the test (tests/api imports them)
+        monkeypatch.setitem(sys.modules, mod_name, mock)
     monkeypatch.setattr("llama_index.core.indices.VectorStoreIndex", MagicMock(), raising=False)
     monkeypatch.setattr("llama_index.core.storage.StorageContext", MagicMock(), raising=False)
     monkeypatch.setattr("llama_index.core.Document", MagicMock(), raising=False)

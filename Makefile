@@ -15,7 +15,7 @@ install-ml:     ## + torch, sentence-transformers, HuggingFace embeddings
 	$(PYTHON) -m pip install -e ".[eval,app,ml]"
 
 lock:           ## regenerate requirements.txt from pyproject.toml (eval + app extras)
-	$(PYTHON) -m piptools compile --extra eval --extra app --strip-extras --no-header -o requirements.txt pyproject.toml
+	$(PYTHON) -m piptools compile --upgrade --extra eval --extra app --strip-extras -o requirements.txt pyproject.toml
 
 # ---- tests -----------------------------------------------------------------
 test: test-eval test-unit
@@ -23,8 +23,8 @@ test: test-eval test-unit
 test-eval:      ## LLM-free eval harness tests (needs .[eval])
 	$(PYTHON) -m pytest tests/eval -q --rootdir=$(CURDIR)
 
-test-unit:      ## legacy unit tests + engine tests (needs .[eval,app], no database)
-	$(PYTHON) -m pytest tests/unit_tests tests/engine -q --rootdir=$(CURDIR)
+test-unit:      ## legacy unit tests + engine + API contract tests (needs .[eval,app], no database)
+	$(PYTHON) -m pytest tests/unit_tests tests/engine tests/api -q --rootdir=$(CURDIR)
 
 # ---- bench -----------------------------------------------------------------
 bench:          ## frozen fixture v1 -> bench/results/<git-sha>.json and latest.json

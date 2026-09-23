@@ -1,50 +1,46 @@
-# ====================================
-# Build the frontend
-# ====================================
-FROM node:20 AS frontend
+# syntax=docker/dockerfile:1
+# API image. Default build is API-only with the `app` extra (no torch) and the
+# deterministic hash embedder; see docker-compose.yml for the knobs.
+#   docker build .                                      # API only
+#   docker build --build-arg EXTRAS=app,ml .            # + torch, sentence-transformers, HF embeddings
+#   docker build --build-arg WITH_FRONTEND=1 .          # + Next.js static export served at /
+ARG WITH_FRONTEND=0
 
-WORKDIR /app/frontend
+# ---- optional Next.js static export (next.config.json: output "export") ----
+FROM node:20-slim AS frontend-1
+WORKDIR /frontend
+COPY .frontend/package.json .frontend/package-lock.json ./
+RUN npm ci
+COPY .frontend/ ./
+RUN npm run build
 
-COPY .frontend /app/frontend
+FROM alpine:3.20 AS frontend-0
+RUN mkdir -p /frontend/out
 
-RUN npm install && npm run build
+FROM frontend-${WITH_FRONTEND} AS frontend
 
-
-# ====================================
-# Backend
-# ====================================
-FROM python:3.11 AS build
-
+# ---- API -------------------------------------------------------------------
+FROM python:3.11-slim AS api
+ARG EXTRAS=app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app
 WORKDIR /app
 
-ENV PYTHONPATH=/app
+# Dependencies first (cached layer), from the single source of truth.
+COPY pyproject.toml scripts/print_deps.py ./scripts/
+RUN mv scripts/pyproject.toml . \
+    && python scripts/print_deps.py "${EXTRAS}" > /tmp/requirements.txt \
+    && pip install -r /tmp/requirements.txt
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python && \
-    cd /usr/local/bin && \
-    ln -s /opt/poetry/bin/poetry && \
-    poetry config virtualenvs.create false
-
-# Install Chromium for web loader
-# Can disable this if you don't use the web loader to reduce the image size
-RUN apt update && apt install -y chromium chromium-driver
-
-# Install dependencies
-COPY ./pyproject.toml ./poetry.lock* /app/
-RUN poetry install --no-root --no-cache --only main
-
-# ====================================
-# Release
-# ====================================
-FROM build AS release
-
-COPY --from=frontend /app/frontend/out /app/static
-
+# Source tree, installed in place so bench/ and app/ resolve from /app.
 COPY . .
+RUN pip install --no-deps -e .
 
-# Remove frontend code
-RUN rm -rf .frontend
+COPY --from=frontend /frontend/out /app/static
 
 EXPOSE 8000
-
-CMD ["poetry", "run", "prod"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=90s --retries=12 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
