@@ -16,8 +16,8 @@ Key Components:
 # flake8: noqa: E402
 from dotenv import load_dotenv
 
-# VSCode caches .env files somewhere, so we need to override the environment variables 
-load_dotenv(override=True)
+# Explicit environment variables win over .env (compose, CI and tests set them on purpose).
+load_dotenv()
 
 import logging
 import os

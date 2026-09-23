@@ -6,6 +6,35 @@ from llama_index.core.multi_modal_llms import MultiModalLLM
 from llama_index.core.settings import Settings
 
 
+def init_embed_model() -> None:
+    """Pick the embedding backend from EMBEDDING_PROVIDER.
+
+    hash        -> app.engine.embeddings.HashEmbedding (deterministic, no downloads;
+                   the CI / docker-compose default, labelled as a fallback)
+    huggingface -> llama_index.embeddings.huggingface.HuggingFaceEmbedding of
+                   EMBEDDING_MODEL (needs the `ml` extra; this is the default when
+                   the variable is unset, matching the pre-M0 behaviour)
+    """
+    provider = os.getenv("EMBEDDING_PROVIDER", "huggingface").strip().lower()
+    if provider == "hash":
+        from app.engine.embeddings import DEFAULT_HASH_DIM, HashEmbedding
+
+        Settings.embed_model = HashEmbedding(dim=int(os.getenv("EMBEDDING_DIM", DEFAULT_HASH_DIM)))
+        return
+    if provider != "huggingface":
+        raise ValueError(f"Unknown EMBEDDING_PROVIDER={provider!r}; expected 'hash' or 'huggingface'")
+    try:
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    except ImportError as exc:
+        raise ImportError(
+            "EMBEDDING_PROVIDER=huggingface needs the `ml` extra (pip install -e '.[app,ml]'); "
+            "set EMBEDDING_PROVIDER=hash for the download-free adapter"
+        ) from exc
+    Settings.embed_model = HuggingFaceEmbedding(
+        model_name=os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"),
+    )
+
+
 # `Settings` does not support setting `MultiModalLLM`
 # so we use a global variable to store it
 _multi_modal_llm: Optional[MultiModalLLM] = None
@@ -44,11 +73,10 @@ def init_settings():
 def init_ollama():
     try:
         from llama_index.llms.ollama import Ollama
-        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
         from llama_index.llms.ollama.base import DEFAULT_REQUEST_TIMEOUT
     except ImportError:
         raise ImportError(
-            "Ollama support is not installed. Please install it with `pip install llama-index-llms-ollama` and `pip install llama-index-embeddings-huggingface`"
+            "Ollama support is not installed. Please install it with `pip install llama-index-llms-ollama`"
         )
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
@@ -65,9 +93,9 @@ def init_ollama():
         request_timeout=request_timeout,
         additional_kwargs={"num_predict": int(max_tokens)} if max_tokens else {},
     )
-    Settings.embed_model = HuggingFaceEmbedding(
-        model_name=os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"),
-    )
+    # The Ollama object does not contact the server until a chat call is made, so
+    # retrieval works with Ollama down; only chat needs it.
+    init_embed_model()
 
 
 def init_openai():

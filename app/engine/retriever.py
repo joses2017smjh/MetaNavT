@@ -26,24 +26,35 @@ def reciprocal_rank_fusion(
     results_lists: List[List[NodeWithScore]],
     k: int = RRF_K,
 ) -> List[NodeWithScore]:
-    """Fuse multiple ranked lists using RRF. Returns nodes sorted by fused score."""
+    """Fuse multiple ranked lists using RRF. Returns nodes sorted by fused score.
+
+    A node that appears in several lists keeps the union of its metadata. The
+    first occurrence's node object is kept; keys it lacks are copied from the
+    later ones. (Before M0 the duplicate with the higher raw score won, so a
+    BM25 node without metadata could replace the vector node carrying file_path.)
+    """
     id_lists: List[List[str]] = []
     node_map: dict[str, NodeWithScore] = {}
+    merged_meta: dict[str, dict] = {}
     for results in results_lists:
         ids = []
         for node_with_score in results:
             node_id = node_with_score.node.node_id
             ids.append(node_id)
-            prev = node_map.get(node_id)
-            if prev is None or (node_with_score.score or 0) > (prev.score or 0):
-                node_map[node_id] = node_with_score
+            node_map.setdefault(node_id, node_with_score)
+            meta = merged_meta.setdefault(node_id, {})
+            for key, value in (node_with_score.node.metadata or {}).items():
+                meta.setdefault(key, value)
         id_lists.append(ids)
 
     fused_scores = rrf_score_map(id_lists, k=k)
     fused = []
     for node_id, score in sorted(fused_scores.items(), key=lambda x: x[1], reverse=True):
-        original = node_map[node_id]
-        fused.append(NodeWithScore(node=original.node, score=score))
+        node = node_map[node_id].node
+        extra = {key: value for key, value in merged_meta[node_id].items() if key not in node.metadata}
+        if extra:
+            node.metadata.update(extra)
+        fused.append(NodeWithScore(node=node, score=score))
     return fused
 
 
@@ -69,8 +80,11 @@ class HybridRetriever(BaseRetriever):
         self._rerank_top_n = rerank_top_n
         self._router = router or QueryRouter()
         self._enable_router = enable_router
+        # Per-call diagnostics from the most recent _retrieve (not thread-safe across
+        # concurrent requests; M3 returns them per request instead).
         self.last_timer: Optional[StageTimer] = None
         self.last_route = None
+        self.last_counts: dict[str, int] = {}
         super().__init__()
 
     def _retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
@@ -107,12 +121,19 @@ class HybridRetriever(BaseRetriever):
 
         logger.info(f"RRF fusion produced {len(fused)} unique results")
 
+        n_fused = len(fused)
         if self._reranker and fused and not skip_rerank:
             with timer.stage("rerank"):
                 fused = self._rerank(query_str, fused)
         elif fused:
             fused = fused[: self._rerank_top_n]
 
+        self.last_counts = {
+            "bm25": len(bm25_nodes),
+            "vector": len(vector_results),
+            "fused": n_fused,
+            "returned": len(fused),
+        }
         return fused
 
     def _bm25_retrieve(self, query_str: str) -> List[NodeWithScore]:
@@ -124,6 +145,7 @@ class HybridRetriever(BaseRetriever):
                 node = TextNode(
                     id_=r["node_id"],
                     text=r["text"],
+                    metadata=dict(r.get("metadata") or {}),  # file_path etc. from metadata_
                 )
                 nodes.append(NodeWithScore(node=node, score=float(r["score"])))
             return nodes
