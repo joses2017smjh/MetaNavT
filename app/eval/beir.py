@@ -6,18 +6,25 @@ Dataset: SciFact (Wadden et al., 2020) in the BEIR packaging (Thakur et al.,
 2021): 5,183 abstracts, 300 test queries with binary qrels. Downloaded once to
 bench/external/ (gitignored); the zip's sha256 is pinned below.
 
-Published reference: the BEIR paper reports BM25 (Anserini; Lucene English
-analyzer = Porter stemming + stopwords; k1=0.9, b=0.4) nDCG@10 = 0.665 on
-SciFact. The `bm25` row uses the same analyzer and parameters so the two are
-comparable. A `bm25@default-tokenizer` row is kept next to it because that
-tokenizer (no stemming, no stopwords, k1=1.5, b=0.75) is what fixture v1 is
-scored with.
+Published reference: Anserini's BEIR regression for SciFact, "flat" BM25 over
+title + text concatenated, Lucene English analyzer (Porter stemming +
+stopwords), k1=0.9, b=0.4: nDCG@10 = 0.6789
+(https://github.com/castorini/anserini/blob/master/docs/regressions/regressions-beir-v1.0.0-scifact.flat.md).
+The `bm25` row uses the same document text, analyzer and parameters, so the
+two are comparable. A `bm25@default-tokenizer` row is kept next to it because
+that tokenizer (no stemming, no stopwords, k1=1.5, b=0.75) is what fixture v1
+is scored with.
 
-Rows: bm25, bm25@default-tokenizer, dense@bge-small, hybrid@bge-small (RRF k=60
-over the two top-100 lists), hybrid+bge-rerank@bge-small (bge-reranker-v2-m3
-over the fused top-`rerank_top`, then the rest of the RRF order). Metrics:
-nDCG@10, Recall@10, Recall@100 and MRR@10 with 95% paired bootstrap CIs; per-query
-latency p50/p95 end to end and per stage; model revisions and device recorded.
+Rows form an explicit ablation chain (each row names its `parent`, and the
+paired delta is against that parent, not against list order): bm25 ->
+dense@bge-small -> hybrid@bge-small -> hybrid+bge-rerank (top 20, fp32,
+uncapped) -> the same reranker in fp16 with max_length 512 -> rerank depth
+50 -> 100. dense@bge-small+instruction is the bge-v1.5 query prefix on the
+query side only (document embeddings are cached). Metrics: nDCG@10,
+Recall@10, Recall@100 and MRR@10 with 95% paired bootstrap CIs; per-query
+latency p50/p95 end to end and per stage, measured after a warm-up query and
+with index / embedding / model build time reported separately (build_ms);
+model revisions, precision, max_length and device recorded.
 """
 
 from __future__ import annotations
@@ -50,12 +57,15 @@ from app.retrieval.types import Chunk
 SCIFACT_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip"
 SCIFACT_SHA256 = "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165"
 PUBLISHED = {
-    "bm25_ndcg@10": 0.665,
-    "source": "Thakur et al., 'BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models', NeurIPS 2021 Datasets and Benchmarks, Table 2, BM25 (Anserini) on SciFact",
+    "bm25_ndcg@10": 0.6789,
+    "source": "Anserini BEIR (v1.0.0) regression, SciFact, 'flat' BM25: title + text concatenated into one field, Lucene English analyzer (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "url": "https://github.com/castorini/anserini/blob/master/docs/regressions/regressions-beir-v1.0.0-scifact.flat.md",
     "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "document_text": "title + ' ' + text (same as our rows)",
 }
 BGE_SMALL = "st:BAAI/bge-small-en-v1.5"
 BGE_RERANKER = "BAAI/bge-reranker-v2-m3"
+BGE_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 REFERENCE = "bm25"
 CI_METRICS = ("ndcg@10", "recall@10", "recall@100")
 
@@ -72,14 +82,24 @@ class BeirConfig:
     rerank_top: int = 20
     k: int = 100
     rrf_k: int = 60
+    parent: str | None = None  # the row this one is a single change away from (paired delta target)
+    precision: str = "fp32"  # reranker weights: fp32 | fp16 (CUDA only)
+    max_length: int | None = None  # reranker token cap; None = the model's own
+    query_instruction: str | None = None  # prefix added to queries only (bge-v1.5 recommends one)
 
 
+RERANK_FP32 = "hybrid+bge-rerank@bge-small"
+RERANK_FP16 = "hybrid+bge-rerank@bge-small/fp16-512/top20"
 DEFAULT_CONFIGS = [
     BeirConfig(name="bm25", mode="bm25"),
-    BeirConfig(name="bm25@default-tokenizer", mode="bm25", analyzer="default", k1=1.5, b=0.75),
-    BeirConfig(name="dense@bge-small", mode="dense", embedder=BGE_SMALL),
-    BeirConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL),
-    BeirConfig(name="hybrid+bge-rerank@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER),
+    BeirConfig(name="bm25@default-tokenizer", mode="bm25", analyzer="default", k1=1.5, b=0.75, parent="bm25"),
+    BeirConfig(name="dense@bge-small", mode="dense", embedder=BGE_SMALL, parent="bm25"),
+    BeirConfig(name="dense@bge-small+instruction", mode="dense", embedder=BGE_SMALL, parent="dense@bge-small", query_instruction=BGE_QUERY_INSTRUCTION),
+    BeirConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL, parent="dense@bge-small"),
+    BeirConfig(name=RERANK_FP32, mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=20, parent="hybrid@bge-small"),
+    BeirConfig(name=RERANK_FP16, mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=20, parent=RERANK_FP32, precision="fp16", max_length=512),
+    BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top50", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=50, parent=RERANK_FP16, precision="fp16", max_length=512),
+    BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top100", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=100, parent="hybrid+bge-rerank@bge-small/fp16-512/top50", precision="fp16", max_length=512),
 ]
 
 
@@ -204,27 +224,62 @@ class Engine:
         self._doc_mats[name] = mat
         return mat
 
-    def reranker(self, name: str):
-        if name not in self._rerankers:
+    @staticmethod
+    def reranker_key(name: str, precision: str = "fp32", max_length: int | None = None) -> str:
+        return f"{name}|{precision}|{max_length or 'uncapped'}"
+
+    def reranker(self, name: str, precision: str = "fp32", max_length: int | None = None):
+        key = self.reranker_key(name, precision, max_length)
+        if key not in self._rerankers:
             if name == "overlap":
-                self._rerankers[name] = OverlapReranker()
-                self.provenance[name] = {**model_provenance("overlap", "reranker"), "loaded": True}
+                self._rerankers[key] = OverlapReranker()
+                self.provenance[key] = {**model_provenance("overlap", "reranker"), "loaded": True}
             else:
-                model = get_cross_encoder(name)
-                self.provenance[name] = {**model_provenance(name, "reranker"), "loaded": model is not None, "device": model_device(model)}
+                model = get_cross_encoder(name, precision=precision, max_length=max_length)
                 if model is None:
                     raise RuntimeError(f"reranker {name} not available (set BGE_ALLOW_DOWNLOAD=1 or cache it)")
-                self._rerankers[name] = model
-        return self._rerankers[name]
+                inner = getattr(model, "model", None)
+                self.provenance[key] = {
+                    **model_provenance(name, "reranker"),
+                    "loaded": True,
+                    "device": model_device(model),
+                    "precision": precision,
+                    "dtype": str(getattr(inner, "dtype", None)) if inner is not None else None,
+                    "max_length": max_length or getattr(model, "max_length", None),
+                    "score_scale": "sigmoid probability in [0, 1]",
+                }
+                self._rerankers[key] = model
+        return self._rerankers[key]
 
-    def rerank(self, name: str, query: str, pairs: list[tuple[Chunk, float]]) -> list[tuple[Chunk, float]]:
-        model = self.reranker(name)
-        if name == "overlap":
+    def rerank(self, cfg, query: str, pairs: list[tuple[Chunk, float]]) -> list[tuple[Chunk, float]]:
+        model = self.reranker(cfg.reranker, cfg.precision, cfg.max_length)
+        if cfg.reranker == "overlap":
             return model(query, pairs)
         scores = cross_encoder_scores(model, [(query, c.text) for c, _ in pairs])
         ranked = [(pairs[i][0], scores[i]) for i in range(len(pairs))]
         ranked.sort(key=lambda item: item[1], reverse=True)
         return ranked
+
+    def build(self, cfg) -> dict[str, float]:
+        """Build everything a config needs before any query is timed; return build ms per part."""
+        parts: dict[str, float] = {}
+        if cfg.mode in {"bm25", "hybrid"}:
+            t = time.perf_counter()
+            self.bm25(cfg.analyzer, cfg.k1, cfg.b)
+            parts["bm25_index_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+        if cfg.mode in {"dense", "hybrid"}:
+            t = time.perf_counter()
+            self.embedder(cfg.embedder)
+            parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+            t = time.perf_counter()
+            self.doc_matrix(cfg.embedder)
+            parts["doc_embeddings_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+        if cfg.reranker:
+            t = time.perf_counter()
+            self.reranker(cfg.reranker, cfg.precision, cfg.max_length)
+            parts["reranker_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+        parts["total_ms"] = round(sum(parts.values()), 2)
+        return parts
 
 
 # ---------------------------------------------------------------- run
@@ -240,7 +295,7 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
         mat = engine.doc_matrix(cfg.embedder)
         with timer.stage("embed"):
-            qv = engine.embedder(cfg.embedder).encode([query])[0]
+            qv = engine.embedder(cfg.embedder).encode([(cfg.query_instruction or "") + query])[0]
         with timer.stage("dense"):
             scores = cosine_scores(qv, mat)
             order = np.argsort(-scores)[: cfg.k]
@@ -256,13 +311,16 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
     if cfg.reranker and ids:
         with timer.stage("rerank"):
             head = [(engine.by_id[d], 0.0) for d in ids[: cfg.rerank_top]]
-            reranked = engine.rerank(cfg.reranker, query, head)
+            reranked = engine.rerank(cfg, query, head)
             ids = [c.chunk_id for c, _ in reranked] + ids[cfg.rerank_top :]
     timer.record("total", (time.perf_counter() - t0) * 1000.0)
     return ids
 
 
 def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]]) -> dict[str, Any]:
+    build = engine.build(cfg)  # index, embeddings, model loads: reported separately, never inside a query
+    first = next(iter(queries.values()))
+    retrieve(engine, cfg, first, StageTimer())  # warm-up (CUDA kernels, caches); excluded from the stats
     timer = StageTimer()
     per_query: list[dict[str, float]] = []
     t0 = time.perf_counter()
@@ -284,14 +342,16 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
     retrieval["n_queries"] = n
     models = {}
     if cfg.embedder:
-        models["embedder"] = engine.provenance.get(cfg.embedder)
+        models["embedder"] = {**(engine.provenance.get(cfg.embedder) or {}), "query_instruction": cfg.query_instruction}
     if cfg.reranker:
-        models["reranker"] = engine.provenance.get(cfg.reranker)
+        models["reranker"] = engine.provenance.get(engine.reranker_key(cfg.reranker, cfg.precision, cfg.max_length))
     return {
         "config": cfg.name,
+        "parent": cfg.parent,
         "settings": asdict(cfg),
         "retrieval": retrieval,
         "latency": timer.summary(),
+        "build_ms": build,
         "wall_ms": round(wall_ms, 2),
         "models": models,
         "_per_query": per_query,
@@ -316,6 +376,15 @@ def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_S
                 delta, lo, hi = paired_delta_ci([r[m] for r in pq], [r[m] for r in ref["_per_query"]], idx)
                 d[m] = {"delta": round(delta, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
             row[f"delta_vs_{REFERENCE}"] = d
+        parent = by_name.get(row.get("parent") or "")
+        if parent is None or parent is row:
+            row["delta_vs_parent"] = None
+        else:
+            dp: dict[str, Any] = {"reference": parent["config"]}
+            for m in CI_METRICS:
+                delta, lo, hi = paired_delta_ci([r[m] for r in pq], [r[m] for r in parent["_per_query"]], idx)
+                dp[m] = {"delta": round(delta, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
+            row["delta_vs_parent"] = dp
         if row["config"] == REFERENCE:
             row["vs_published"] = {
                 "published_bm25_ndcg@10": PUBLISHED["bm25_ndcg@10"],
@@ -349,7 +418,9 @@ def run(
         "zip_sha256": SCIFACT_SHA256,
         "n_docs": len(corpus),
         "n_queries": len(queries),
+        "document_text": "title + ' ' + text",
         "published": PUBLISHED,
+        "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
         "git_sha": git_sha(root),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
@@ -371,15 +442,16 @@ def markdown_table(blob: dict) -> str:
     lines = [
         f"BEIR SciFact test: {blob['n_docs']} docs, {blob['n_queries']} queries. Published BM25 nDCG@10 = {blob['published']['bm25_ndcg@10']:.3f}.",
         "",
-        "| config | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs bm25 [95% CI] | p50 ms | p95 ms |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| config | parent | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25 | p50 / p95 ms | build s |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in blob["results"]:
         ci, lat = row["ci"], row["latency"].get("total", {})
-        delta = (row.get(f"delta_vs_{REFERENCE}") or {}).get("ndcg@10")
+        dp = (row.get("delta_vs_parent") or {}).get("ndcg@10")
+        db = (row.get(f"delta_vs_{REFERENCE}") or {}).get("ndcg@10")
         lines.append(
-            f"| {row['config']} | {_fmt(ci['ndcg@10'])} | {_fmt(ci['recall@10'])} | {_fmt(ci['recall@100'])} | "
-            f"{_fmt(delta, 'delta')} | {lat.get('p50_ms', '')} | {lat.get('p95_ms', '')} |"
+            f"| {row['config']} | {row.get('parent') or '—'} | {_fmt(ci['ndcg@10'])} | {_fmt(ci['recall@10'])} | {_fmt(ci['recall@100'])} | "
+            f"{_fmt(dp, 'delta')} | {_fmt(db, 'delta')} | {lat.get('p50_ms', '')} / {lat.get('p95_ms', '')} | {(row.get('build_ms') or {}).get('total_ms', 0) / 1000:.1f} |"
         )
     return "\n".join(lines)
 
@@ -390,13 +462,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--data-dir", type=Path, default=root / "bench" / "external")
     p.add_argument("--out", type=Path, default=root / "bench" / "results" / "beir_scifact.json")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
-    p.add_argument("--rerank-top", type=int, default=20)
+    p.add_argument("--rerank-top", type=int, default=None, help="override every reranked row's depth (default: each row's own rerank_top)")
     p.add_argument("--only", default=None, help="comma-separated config names")
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    configs = [BeirConfig(**{**asdict(c), "rerank_top": args.rerank_top}) for c in DEFAULT_CONFIGS]
+    configs = list(DEFAULT_CONFIGS)
+    if args.rerank_top is not None:  # the first SciFact sweep silently ran every depth row at 20 because of a default here
+        configs = [BeirConfig(**{**asdict(c), "rerank_top": args.rerank_top}) for c in configs]
     if args.only:
         wanted = {n.strip() for n in args.only.split(",")}
         configs = [c for c in configs if c.name in wanted]

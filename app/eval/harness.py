@@ -75,6 +75,7 @@ class BenchConfig:
     hyde: bool = False
     decompose: bool = False
     corrective: bool = False
+    parent: str | None = None  # the row this one is a single change away from (paired delta target)
 
 
 def _paths_from_hits(hits: list[RetrievalHit]) -> list[str]:
@@ -213,16 +214,25 @@ BGE_RERANKER = "BAAI/bge-reranker-v2-m3"
 # Real models on fixture v1 (make bench-neural). bm25_only is repeated so the
 # paired deltas have the same reference as the hash table; e2e heuristics and
 # triple logging are off because they add nothing to the retrieval question.
+_N = dict(log_triples=False, e2e=False)
 NEURAL_CONFIGS = [
-    BenchConfig(name="bm25_only", mode="bm25", enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
-    BenchConfig(name="dense_only@bge-small", mode="dense", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
-    BenchConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
-    BenchConfig(name="hybrid+bge-rerank@hash", mode="hybrid", embedder="hash", reranker=BGE_RERANKER, enable_rerank=True, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
-    BenchConfig(name="hybrid+bge-rerank@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
-    BenchConfig(name="hybrid+bge-rerank+router+staleness@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=True, staleness_tier1=True, log_triples=False, e2e=False),
-    BenchConfig(name="dense_only@bge-base", mode="dense", embedder=BGE_BASE, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
-    BenchConfig(name="hybrid@bge-base", mode="hybrid", embedder=BGE_BASE, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="bm25_only", mode="bm25", enable_rerank=False, enable_router=False, staleness_tier1=False, **_N),
+    BenchConfig(name="dense_only@bge-small", mode="dense", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, parent="bm25_only", **_N),
+    BenchConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, parent="dense_only@bge-small", **_N),
+    BenchConfig(name="hybrid+bge-rerank@hash", mode="hybrid", embedder="hash", reranker=BGE_RERANKER, enable_rerank=True, enable_router=False, staleness_tier1=False, parent="bm25_only", **_N),
+    BenchConfig(name="hybrid+bge-rerank@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=False, staleness_tier1=False, parent="hybrid@bge-small", **_N),
+    BenchConfig(name="hybrid+bge-rerank+router@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=True, staleness_tier1=False, parent="hybrid+bge-rerank@bge-small", **_N),
+    BenchConfig(name="hybrid+bge-rerank+router+staleness@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=True, staleness_tier1=True, parent="hybrid+bge-rerank+router@bge-small", **_N),
+    BenchConfig(name="dense_only@bge-base", mode="dense", embedder=BGE_BASE, enable_rerank=False, enable_router=False, staleness_tier1=False, parent="bm25_only", **_N),
+    BenchConfig(name="hybrid@bge-base", mode="hybrid", embedder=BGE_BASE, enable_rerank=False, enable_router=False, staleness_tier1=False, parent="dense_only@bge-base", **_N),
 ]
+
+# Extra paired comparisons that are not parent/child rows (row, other): reported in blob["comparisons"].
+NEURAL_COMPARISONS = [("hybrid+bge-rerank@bge-small", "hybrid+bge-rerank@hash")]
+# Per-category paired deltas vs parent for the rows whose mechanism targets a category; n is small and said so.
+CATEGORY_DELTAS = {"hybrid+rerank+router": "exact_path", "hybrid+rerank+router+staleness": "staleness",
+                   "hybrid+bge-rerank+router@bge-small": "exact_path", "hybrid+bge-rerank+router+staleness@bge-small": "staleness"}
+SMALL_N = 30
 
 
 def run_config(
@@ -265,6 +275,8 @@ def run_config(
     jury_sf_golds: list[str] = []
     jury_sf_labels: list[str] = []
 
+    if gold:  # warm-up: caches, CUDA kernels; retrieval is deterministic so results are unaffected
+        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, category=gold[0].category, hippo_triples=hippo_triples)
     t0 = time.perf_counter()
     for q in gold:
         paths, payload = _retrieve(
@@ -369,16 +381,17 @@ def run_config(
 
 DEFAULT_CONFIGS = [
     BenchConfig(name="dense_only", mode="dense", enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False),
-    BenchConfig(name="bm25_only", mode="bm25", enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False),
-    BenchConfig(name="hybrid", mode="hybrid", enable_rerank=False, enable_router=False, staleness_tier1=False),
-    BenchConfig(name="hybrid+rerank", mode="hybrid", enable_rerank=True, enable_router=False, staleness_tier1=False),
-    BenchConfig(name="hybrid+rerank+router", mode="hybrid", enable_rerank=True, enable_router=True, staleness_tier1=False),
+    BenchConfig(name="bm25_only", mode="bm25", enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, parent="dense_only"),
+    BenchConfig(name="hybrid", mode="hybrid", enable_rerank=False, enable_router=False, staleness_tier1=False, parent="bm25_only"),
+    BenchConfig(name="hybrid+rerank", mode="hybrid", enable_rerank=True, enable_router=False, staleness_tier1=False, parent="hybrid"),
+    BenchConfig(name="hybrid+rerank+router", mode="hybrid", enable_rerank=True, enable_router=True, staleness_tier1=False, parent="hybrid+rerank"),
     BenchConfig(
         name="hybrid+rerank+router+staleness",
         mode="hybrid",
         enable_rerank=True,
         enable_router=True,
         staleness_tier1=True,
+        parent="hybrid+rerank+router",
     ),
 ]
 
@@ -499,7 +512,14 @@ def run_bench(
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
         results.append(row)
-    boot = attach_confidence(results, scores_by_config, n_queries=len(gold))
+    names = {c.name for c in configs}
+    boot = attach_confidence(
+        results,
+        scores_by_config,
+        n_queries=len(gold),
+        categories=[q.category for q in gold],
+        comparisons=[pair for pair in NEURAL_COMPARISONS if set(pair) <= names],
+    )
 
     sha = git_sha(root)
     blob = {
@@ -542,12 +562,20 @@ def attach_confidence(
     n_queries: int,
     seed: int = DEFAULT_SEED,
     n_boot: int = DEFAULT_N_BOOT,
+    categories: list[str] | None = None,
+    comparisons: list[tuple[str, str]] | None = None,
 ) -> dict:
-    """Add per-config 95% CIs and paired deltas (vs bm25_only and vs the previous row) in place.
+    """Add per-config 95% CIs and paired deltas in place.
 
-    One index matrix is shared by every config, so deltas are paired. A missing
-    reference (frontier runs have no bm25_only; the first row has no previous)
-    yields None rather than an error.
+    delta_vs_bm25_only: every row against the bm25_only row.
+    delta_vs_previous:  against the row's explicit `parent` (settings.parent); a row
+                        without a parent falls back to the previous list entry, so
+                        older result files and ad-hoc runs still get a delta.
+    delta_vs_parent_by_category: for rows in CATEGORY_DELTAS, the paired delta vs
+                        parent restricted to that category, with n and small_n.
+    One index matrix is shared by every config, so all deltas are paired. Missing
+    references yield None rather than an error. Returns the bootstrap settings;
+    `comparisons` (extra row pairs) are returned under "comparisons".
     """
     if n_queries <= 0 or not results:
         return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
@@ -571,6 +599,24 @@ def attach_confidence(
             out[metric] = {"delta": round(d, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
         return out
 
+    def category_delta(name: str, other: str, category: str) -> dict | None:
+        if not categories or len(categories) != n_queries:
+            return None
+        rows_a, rows_b = scores_by_config.get(name), scores_by_config.get(other)
+        if not rows_a or not rows_b:
+            return None
+        sel = [i for i, c in enumerate(categories) if c == category]
+        if len(sel) < 2:
+            return None
+        sub_idx = resample_indices(len(sel), n_boot=n_boot, seed=seed)
+        out: dict[str, Any] = {"reference": other, "category": category, "n": len(sel), "small_n": len(sel) < SMALL_N}
+        for metric in CI_METRICS:
+            a = [rows_a[i][metric] for i in sel]
+            b = [rows_b[i][metric] for i in sel]
+            d, lo, hi = paired_delta_ci(a, b, sub_idx)
+            out[metric] = {"delta": round(d, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
+        return out
+
     names = [row["config"] for row in results]
     reference = REFERENCE_CONFIG if REFERENCE_CONFIG in scores_by_config else None
     for i, row in enumerate(results):
@@ -584,8 +630,18 @@ def attach_confidence(
             ci[metric] = {"mean": round(mean, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
         row["ci"] = ci
         row["delta_vs_bm25_only"] = deltas(name, reference)
-        row["delta_vs_previous"] = deltas(name, names[i - 1] if i > 0 else None)
-    return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
+        parent = (row.get("settings") or {}).get("parent")
+        previous = parent if parent in scores_by_config else (names[i - 1] if i > 0 and parent is None else None)
+        row["delta_vs_previous"] = deltas(name, previous)
+        category = CATEGORY_DELTAS.get(name)
+        row["delta_vs_parent_by_category"] = category_delta(name, previous, category) if category and previous else None
+    settings = bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
+    if comparisons:
+        settings["comparisons"] = [
+            {"row": a, "other": b, **(deltas(a, b) or {"reference": b, "note": "one side missing"})}
+            for a, b in comparisons
+        ]
+    return settings
 
 
 def _fmt_ci(block: dict | None, key: str = "mean") -> str:

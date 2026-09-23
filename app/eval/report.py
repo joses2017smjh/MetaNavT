@@ -165,6 +165,9 @@ def table(blob: dict) -> str:
         ]
         for cat, sc in full["retrieval"]["by_category"].items():
             lines.append(f"| {cat} | {int(sc['n'])} | {sc['ndcg@10']:.3f} | {sc.get('recall@10', 0):.3f} | {sc['recall@50']:.3f} |")
+    cat_lines = _category_delta_lines(rows)
+    if cat_lines:
+        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice):", ""] + cat_lines
     if boot:
         lines += [
             "",
@@ -172,6 +175,20 @@ def table(blob: dict) -> str:
             f"{boot.get('rng')}. Results file sha {blob.get('git_sha')}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
         ]
     return "\n".join(lines)
+
+
+def _category_delta_lines(rows: list[dict]) -> list[str]:
+    out = []
+    for row in rows:
+        cd = row.get("delta_vs_parent_by_category")
+        if not cd:
+            continue
+        flag = " (small n)" if cd.get("small_n") else ""
+        out.append(
+            f"- `{row['config']}` vs `{cd['reference']}` on `{cd['category']}`, n = {cd['n']}{flag}: "
+            f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}."
+        )
+    return out
 
 
 def demo_stats(blob: dict) -> str:
@@ -216,6 +233,10 @@ def _device(blob: dict) -> str:
     return f"{d.get('device', '?')} ({d.get('device_name', '?')}), torch {d.get('torch', '?')}, sentence-transformers {d.get('sentence_transformers', '?')}"
 
 
+def _parent_of(row: dict) -> str:
+    return (row.get("settings") or {}).get("parent") or (row.get("delta_vs_previous") or {}).get("reference") or "—"
+
+
 def neural_table(blob: dict | None) -> str:
     if not blob:
         return f"_{NEURAL_FILE} is missing; run `make bench-neural`._"
@@ -223,66 +244,104 @@ def neural_table(blob: dict | None) -> str:
     by = _rows(blob)
     lines = [
         f"Fixture v1 with real models (`make bench-neural`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Paired deltas vs the same bm25_only row; same bootstrap as above.",
+        f"Each row names its parent (one change away); the paired delta is against that parent. "
+        f"Wall time is the whole row after a warm-up query.",
         "",
-        "| config | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | Δ nDCG@10 vs bm25_only [95% CI] | beats BM25? | wall s |",
-        "|---|---|---:|---:|---:|---:|:---:|---:|",
+        "| config | parent | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25_only | beats BM25? | wall s |",
+        "|---|---|---|---:|---:|---:|---:|:---:|---:|",
     ]
     for row in rows:
-        r = row["retrieval"]
-        d = (row.get("delta_vs_bm25_only") or {}).get("ndcg@10")
+        dp = (row.get("delta_vs_previous") or {}).get("ndcg@10")
+        db = (row.get("delta_vs_bm25_only") or {}).get("ndcg@10")
         lines.append(
-            f"| {row['config']} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {r['recall@50']:.3f} | "
-            f"{_delta(d)} | {_beats(d)} | {row.get('wall_ms', 0) / 1000:.1f} |"
+            f"| {row['config']} | {_parent_of(row)} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+            f"{_delta(dp)} | {_delta(db)} | {_beats(db)} | {row.get('wall_ms', 0) / 1000:.1f} |"
         )
-    hyb = by.get("hybrid@bge-small")
-    rer = by.get("hybrid+bge-rerank@bge-small")
-    full = next((by[k] for k in by if k.startswith("hybrid+bge-rerank+router+staleness")), None)
     parts = []
-    if hyb:
-        d = (hyb.get("delta_vs_bm25_only") or {}).get("ndcg@10")
-        parts.append(f"Hybrid RRF with bge-small vs BM25 alone: nDCG@10 {_delta(d)} ({_zero_note(d)}).")
-    if rer:
-        d = (rer.get("delta_vs_bm25_only") or {}).get("ndcg@10")
-        parts.append(f"Adding bge-reranker-v2-m3: {_delta(d)} vs BM25 ({_zero_note(d)}).")
-    if full and rer:
-        d = (full.get("delta_vs_previous") or {}).get("ndcg@10")
-        parts.append(f"Router + staleness on top of the reranked hybrid: {_delta(d)} ({_zero_note(d)}).")
+    for name, label in (
+        ("hybrid@bge-small", "Hybrid RRF over dense bge-small"),
+        ("hybrid+bge-rerank@bge-small", "bge-reranker-v2-m3 over that hybrid"),
+        ("hybrid+bge-rerank+router@bge-small", "Router on top of the reranked hybrid"),
+        ("hybrid+bge-rerank+router+staleness@bge-small", "Staleness Tier 1 on top of that"),
+    ):
+        row = by.get(name)
+        if not row:
+            continue
+        d = (row.get("delta_vs_previous") or {}).get("ndcg@10")
+        parts.append(f"{label}: nDCG@10 {_delta(d)} ({_zero_note(d)}).")
+    comps = (blob.get("bootstrap") or {}).get("comparisons") or []
+    for c in comps:
+        if c.get("row") == "hybrid+bge-rerank@bge-small" and c.get("other") == "hybrid+bge-rerank@hash":
+            d = c.get("ndcg@10")
+            a, b = by.get("hybrid+bge-rerank@bge-small"), by.get("hybrid+bge-rerank@hash")
+            if d and a and b:
+                n_chunks = a.get("n_chunks", "?")
+                k = (a.get("settings") or {}).get("retrieve_k", "?")
+                parts.append(
+                    f"With the reranker on, the first stage stops mattering on this fixture: bge-small + reranker "
+                    f"{a['retrieval']['ndcg@10']:.3f} vs hash + reranker {b['retrieval']['ndcg@10']:.3f}, paired delta "
+                    f"{_delta(d)} ({_zero_note(d)}), because the reranker rescores {k} of {n_chunks} chunks."
+                )
     if parts:
         lines += ["", " ".join(parts)]
+    cat_lines = _category_delta_lines(rows)
+    if cat_lines:
+        lines += ["", "Per-category paired deltas vs parent (small n):", ""] + cat_lines
     return "\n".join(lines)
+
+
+def _rerank_settings(row: dict) -> str:
+    st = row.get("settings") or {}
+    if not st.get("reranker"):
+        return "—"
+    ml = st.get("max_length") or "uncapped"
+    return f"{st.get('precision', 'fp32')} / {ml} / top {st.get('rerank_top')}"
 
 
 def beir_table(blob: dict | None) -> str:
     if not blob:
         return f"_{BEIR_FILE} is missing; run `make bench-beir`._"
     pub = blob.get("published", {})
+    url = pub.get("url")
+    cite = f"[Anserini BEIR regression, flat BM25]({url})" if url else pub.get("source", "")
     lines = [
-        f"BEIR SciFact test split (`make bench-beir`): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries; "
-        f"{_device(blob)}; results sha {blob.get('git_sha')}. Published BM25 nDCG@10 = {pub.get('bm25_ndcg@10'):.3f} "
-        f"({pub.get('analyzer')}).",
+        f"BEIR SciFact test split (`make bench-beir`): {blob.get('n_docs')} documents ({blob.get('document_text', 'title + text')}), "
+        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {blob.get('git_sha')}. Published BM25 nDCG@10 = "
+        f"{pub.get('bm25_ndcg@10'):.4f}, {cite}, {pub.get('analyzer')}. Each row names its parent; per-query p50/p95 exclude "
+        f"build (index, document embeddings, model load: the build column) and one warm-up query.",
         "",
-        "| config | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs bm25 [95% CI] | beats BM25? | p50 / p95 ms per query |",
-        "|---|---|---:|---:|---:|---:|:---:|---:|",
+        "| config | parent | models (revision) | reranker precision / max_length / depth | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25 | beats BM25? | p50 / p95 ms | build s |",
+        "|---|---|---|---|---:|---:|---:|---:|---:|:---:|---:|---:|",
     ]
     for row in blob.get("results", []):
-        d = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
+        dp = (row.get("delta_vs_parent") or {}).get("ndcg@10")
+        db = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
         lat = (row.get("latency") or {}).get("total") or {}
+        build = ((row.get("build_ms") or {}).get("total_ms") or 0) / 1000
         lines.append(
-            f"| {row['config']} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {_ci(row, 'recall@100')} | "
-            f"{_delta(d)} | {_beats(d)} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |"
+            f"| {row['config']} | {row.get('parent') or '—'} | {_models(row)} | {_rerank_settings(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+            f"{_ci(row, 'recall@100')} | {_delta(dp)} | {_delta(db)} | {_beats(db)} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} | {build:.1f} |"
         )
     by = _rows(blob)
     parts = []
     bm25 = by.get("bm25")
     if bm25 and bm25.get("vs_published"):
         vp = bm25["vs_published"]
-        parts.append(f"Our BM25 with the BEIR analyzer scores nDCG@10 {bm25['retrieval']['ndcg@10']:.3f} against the published {vp['published_bm25_ndcg@10']:.3f} ({vp['delta']:+.3f}).")
-    for name, label in (("hybrid@bge-small", "Hybrid RRF"), ("hybrid+bge-rerank@bge-small", "Hybrid + bge-reranker-v2-m3")):
+        parts.append(f"Our BM25 with the same analyzer and document text scores nDCG@10 {bm25['retrieval']['ndcg@10']:.3f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f}).")
+    for name, label in (
+        ("dense@bge-small", "Dense bge-small vs BM25"),
+        ("dense@bge-small+instruction", "The bge-v1.5 query instruction vs no instruction"),
+        ("hybrid@bge-small", "Hybrid RRF over dense"),
+        ("hybrid+bge-rerank@bge-small", "bge-reranker-v2-m3 (top 20, fp32, uncapped) over the hybrid"),
+        ("hybrid+bge-rerank@bge-small/fp16-512/top20", "fp16 with max_length 512 vs fp32 uncapped"),
+        ("hybrid+bge-rerank@bge-small/fp16-512/top50", "Rerank depth 50 vs 20"),
+        ("hybrid+bge-rerank@bge-small/fp16-512/top100", "Depth 100 vs 50"),
+    ):
         row = by.get(name)
         if row:
-            d = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
-            parts.append(f"{label} vs BM25: nDCG@10 {_delta(d)} ({_zero_note(d)}).")
+            d = (row.get("delta_vs_parent") or {}).get("ndcg@10")
+            lat = (row.get("latency") or {}).get("total") or {}
+            parts.append(f"{label}: nDCG@10 {_delta(d)} ({_zero_note(d)}), p50 {lat.get('p50_ms', '—')} ms.")
     if parts:
         lines += ["", " ".join(parts)]
     return "\n".join(lines)
