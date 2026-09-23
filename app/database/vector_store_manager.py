@@ -29,7 +29,7 @@ from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
 from psycopg2 import sql
 from dotenv import load_dotenv
-from llama_index.core.schema import TextNode
+from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 import uuid
 import time
 import psycopg2
@@ -196,11 +196,15 @@ class VectorStoreManager(DatabaseManager):
                 # Create a zero vector with the CORRECT dimension
                 zero_embedding = [0.0] * self.embed_dim
                 
+                # PGVectorStore.delete() removes rows by ref_doc_id (stored as doc_id in
+                # metadata_), so the probe node must declare itself as its own source or
+                # the delete below is a no-op and the dummy row stays retrievable.
                 dummy_node = TextNode(
                     id_=dummy_node_id_for_probe,
                     text="dummy_text_content_for_probe_in_precreated_table",
                     embedding=zero_embedding,  # This will now have the correct dimensions
-                    metadata={"text": "dummy_metadata_text_for_probe_in_precreated_table"}
+                    metadata={"text": "dummy_metadata_text_for_probe_in_precreated_table"},
+                    relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=dummy_node_id_for_probe)},
                 )
                 self.vector_store.add([dummy_node])
                 logger.info(f"Probe: Successfully EXECUTED add for dummy node '{dummy_node_id_for_probe}'.")

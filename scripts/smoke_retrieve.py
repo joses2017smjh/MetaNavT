@@ -74,6 +74,9 @@ def main() -> int:
         problems.append(f"{len(null_paths)} hit(s) with a null path")
     if args.require_bm25 and not (body.get("counts") or {}).get("bm25"):
         problems.append("counts.bm25 == 0")
+    indexing = health.get("indexing") or {}
+    if indexing.get("indexed") and health.get("n_nodes") != indexing.get("n_nodes"):
+        problems.append(f"table has {health.get('n_nodes')} rows but indexing wrote {indexing.get('n_nodes')} (stray rows?)")
     if problems:
         print("SMOKE FAILED:", "; ".join(problems))
         return 1
