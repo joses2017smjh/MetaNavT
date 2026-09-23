@@ -37,6 +37,7 @@ bench/results/*.json
 !bench/results/beir_scifact.json
 !bench/results/parity.json
 !bench/results/api_latency_*.json
+!bench/results/jury.json
 
 # editable install metadata
 *.egg-info/
