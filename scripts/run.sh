@@ -1,8 +1,8 @@
 #!/bin/bash
-
-# Ensure we're in the conda environment
-eval "$(conda shell.bash hook)"
-conda activate metanavit
+# Convenience wrapper. Activate whatever Python environment has the `app` extra
+# first (pip install -e ".[eval,app]"); no conda required.
+set -e
+cd "$(dirname "$0")/.."
 
 case $1 in
   "generate")
@@ -11,14 +11,11 @@ case $1 in
   "dev")
     python run.py dev
     ;;
-  "setup")
-    python setup.py
-    ;;
   "build")
     python run.py build
     ;;
   *)
-    echo "Usage: ./run.sh [generate|dev|setup|build|test-fs]"
+    echo "Usage: ./scripts/run.sh [generate|dev|build]"
     exit 1
     ;;
 esac

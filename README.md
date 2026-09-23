@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/joses2017smjh/MetaNavT/actions/workflows/ci.yml"><img src="https://github.com/joses2017smjh/MetaNavT/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"/></a>
+</p>
+
+<p align="center">
   <strong>Hybrid search and cited answers over research files.</strong><br/>
   Retrieve current configurations, inspect the sources, and review proposed file changes.
 </p>
@@ -44,14 +48,22 @@ while BM25 retains higher aggregate nDCG@10 (0.505 vs 0.493). The
 
 ### CPU benchmark
 
-After the Python dependency setup in [Run it](#run-it), run these commands from
-the repository root. This path uses the committed fixture, hash embeddings and
-overlap reranking; it needs no Ollama server, Postgres instance or GPU.
+From a clean clone, with Python 3.11 or 3.12. This path uses the committed
+fixture, hash embeddings and overlap reranking; it needs no Ollama server,
+Postgres instance, GPU or model download, and takes a few seconds.
 
 ```bash
-make bench       # writes bench/results/<git-sha>.json and latest.json
-make test-eval   # evaluation tests
+pip install -e ".[eval]"   # numpy, pydantic, pytest
+make test-eval             # evaluation tests
+make bench                 # writes bench/results/<git-sha>.json and latest.json
+make bench-gate            # latest.json vs the committed baseline bench/results/main.json
 ```
+
+CI runs exactly this on every push and pull request (Python 3.11 and 3.12),
+and fails if any config's nDCG@10 or Recall@50 drops more than 0.002 below
+`main.json`. The bench is deterministic, so that threshold is rounding noise,
+not tolerance. To accept a change on purpose: `make bench-baseline`, review
+`make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use
 `make freeze-corpus` only when intentionally rebuilding that benchmark input.
@@ -423,8 +435,9 @@ The Index Manager tracks path, mtime, and now a content hash on `indexed_files`.
 | + staleness T1 | 0.938 | **0.493** | **0.464** | Prefer current. No recall drop |
 
 ```bash
-make bench            # bench/results/<git-sha>.json
-make bench-compare    # this sha vs main
+make bench            # bench/results/<git-sha>.json and latest.json
+make bench-compare    # latest.json vs bench/results/main.json (report)
+make bench-gate       # same, exit 1 on regression (what CI runs)
 make sweeps           # HNSW, halfvec, hops, GraphRAG
 make figures          # regenerates the SVGs above
 make test-eval
@@ -474,36 +487,57 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 
 ## Run it
 
-Clone the repository, then install the Python dependencies. The CPU benchmark
-above can run before starting the application services below.
+`pyproject.toml` is the single dependency spec. Pick the extra for what you
+want to run (`requirements.txt` is generated from it by `make lock`):
+
+| extra | installs | for |
+|---|---|---|
+| `eval` | numpy, pydantic, pytest | `make bench`, `make test-eval` (the CPU benchmark above) |
+| `app` | FastAPI, LlamaIndex, psycopg2/pgvector | the API and the Postgres path |
+| `ml` | torch, sentence-transformers, HF embeddings | real embedders and the bge reranker |
+
+**Retrieval API with Docker.** One command; no Ollama, no model download.
+The first start indexes `bench/corpus/files` (61 files) into pgvector with
+the deterministic hash embedder, and `/health` reports what is loaded.
 
 ```bash
-# Python
 git clone https://github.com/joses2017smjh/MetaNavT.git
 cd MetaNavT
-conda create --name metanavit python=3.11
-conda activate metanavit
-pip install -r requirements.txt
+docker compose up --build            # Postgres + pgvector, then the API on :8000
+
+curl -s localhost:8000/health
+curl -s -X POST localhost:8000/api/retrieve/ \
+     -H 'content-type: application/json' \
+     -d '{"query": "current learning rate for run 47"}'
+python3 scripts/smoke_retrieve.py     # the check CI runs: hits, every hit has a path
 ```
 
-For the full application:
+The compose stack is labelled honestly: `pgvector/pgvector:pg16` has no
+ParadeDB `pg_search`, so lexical search falls back to Postgres `ts_rank_cd`
+(`bm25_backend` in the response), embeddings are the hash adapter
+(`embedding_provider`), and no reranker is loaded (`reranker_loaded`). For
+real models use the override, which installs the `ml` extra and loads
+bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:
 
 ```bash
-# Ollama (keep the server running in another terminal)
-ollama serve
-ollama pull qwen2.5:14b
-
-# Postgres + pgvector (or)
-docker compose up
-
-# Index the documents in DATA_DIR, then the UI
-./scripts/run.sh generate
-./scripts/run.sh dev
-# http://localhost:8000
-
+docker compose down -v   # the table width changes from 256 to 1024
+docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
 
-`.env.example` already has `RETRIEVE_K=50`, `RERANK_TOP_N=8`, `ENABLE_ROUTER=true`. Copy to `.env`. Set `RERANKER_MODEL=BAAI/bge-reranker-v2-m3` for the real cross-encoder row.
+**Full application locally** (chat needs Ollama; retrieval does not):
+
+```bash
+pip install -e ".[eval,app]"         # add ,ml for real embeddings / reranker
+cp .env.example .env                 # RETRIEVE_K=50, RERANK_TOP_N=8, ENABLE_ROUTER=true
+docker compose up db                 # or any Postgres with pgvector
+ollama serve && ollama pull qwen2.5:14b
+
+./scripts/run.sh generate            # index DATA_DIR (config/loaders.yaml)
+./scripts/run.sh dev                 # API + Next.js dev server, http://localhost:8000
+```
+
+Set `EMBEDDING_PROVIDER=hash` to run the Postgres path without the `ml` extra,
+and `RERANKER_MODEL=BAAI/bge-reranker-v2-m3` for the real cross-encoder row.
 
 To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, draft questions with an LLM, then hand-correct. Do not ship synthetic-only gold over a real corpus.
 

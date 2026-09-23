@@ -99,7 +99,7 @@ def llm_decompose(
 
 def should_decompose(query: str, route_type: RouteType | None = None) -> bool:
     """Decide whether decomposition would help this query."""
-    if route_type in (RouteType.LEXICAL_PATH, RouteType.CODE_GEN):
+    if route_type in (RouteType.LEXICAL_PATH, RouteType.CODE_PRODUCTION):
         return False
     q = (query or "").lower()
     if any(

@@ -29,7 +29,7 @@ from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
 from psycopg2 import sql
 from dotenv import load_dotenv
-from llama_index.core.schema import TextNode
+from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 import uuid
 import time
 import psycopg2
@@ -49,6 +49,14 @@ class VectorStoreManager(DatabaseManager):
         
         self.schema_name = os.getenv("PGVECTOR_SCHEMA", "public")
         self.table_name = os.getenv("PGVECTOR_TABLE", "llamaindex_embedding")
+        # PGVectorStore stores rows in "data_<table_name>". Every raw SQL path here
+        # (BM25 / full-text search, dimension detection, row counts) targets that
+        # table. Before M0 they targeted the bare table_name, which PGVectorStore
+        # never writes to, so production BM25 searched an empty table.
+        self.data_table = f"data_{self.table_name}"
+        # Which lexical backend answered the last search_bm25 call:
+        # paradedb | ts_rank_cd | ilike | none. Surfaced by /health and /api/retrieve.
+        self.last_bm25_backend: str | None = None
         
         # First, detect the actual vector dimensions in the database
         # before setting self.embed_dim
@@ -58,7 +66,7 @@ class VectorStoreManager(DatabaseManager):
             self.embed_dim = detected_dim
         else:
             # If no table exists yet, use the environment variable
-            self.embed_dim = int(os.getenv("EMBEDDING_DIM", 3068))  # Default to 768 instead of 1024
+            self.embed_dim = int(os.getenv("EMBEDDING_DIM", 1024))  # BAAI/bge-large-en-v1.5, as in .env.example
             logger.info(f"Using vector dimension from environment: {self.embed_dim}")
         
         self.vector_store = None
@@ -67,8 +75,7 @@ class VectorStoreManager(DatabaseManager):
         self._ensure_vector_extension()
         self._ensure_pg_search_extension()
         
-        # ==> Explicitly create the LlamaIndex table structure BEFORE PGVectorStore init <==
-        self._create_llamaindex_table_if_not_exists() 
+        # PGVectorStore creates data_<table_name> itself on first use (see get_vector_store).
         
     def _ensure_vector_extension(self) -> None:
         """Create pgvector extension if it doesn't exist."""
@@ -104,15 +111,14 @@ class VectorStoreManager(DatabaseManager):
                         except Exception as e:
                             logger.warning(f"Could not create pg_search extension: {e}")
                     
-                    # Create BM25 index if it doesn't exist
-                    self._create_bm25_index(conn)
+                    # The BM25 index is created in get_vector_store(), once the data table exists.
             logger.info("'pg_search' extension check complete (expected in 'paradedb' schema).")
         except Exception as e:
             logger.warning(f"Unable to verify pg_search extension: {e}")
         
     def _create_bm25_index(self, conn):
         """Create or recreate BM25 index for text column."""
-        logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.table_name}...")
+        logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
         try:
             with conn.cursor() as cur:
                 # Drop existing index if it exists to force refresh
@@ -121,7 +127,7 @@ class VectorStoreManager(DatabaseManager):
                 
                 # Create BM25 index with proper ParadeDB syntax based on docs
                 sql_stmt = f"""
-                CREATE INDEX IF NOT EXISTS {index_name} ON {self.schema_name}.{self.table_name}
+                CREATE INDEX IF NOT EXISTS {index_name} ON {self.schema_name}.{self.data_table}
                 USING bm25 (node_id, text)
                 WITH (
                     key_field='node_id',
@@ -135,7 +141,7 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute(sql_stmt)
                 
                 # Analyze the table to refresh statistics
-                cur.execute(f"ANALYZE {self.schema_name}.{self.table_name};")
+                cur.execute(f"ANALYZE {self.schema_name}.{self.data_table};")
                 
                 logger.info("BM25 index created successfully")
             logger.info("BM25 index creation/verification successful")
@@ -143,50 +149,6 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.warning(f"Error creating BM25 index: {e}")
             return False
-
-    def _create_llamaindex_table_if_not_exists(self) -> None:
-        """
-        Explicitly creates the table structure expected by PGVectorStore.
-        This helps ensure the table exists and is committed before PGVectorStore tries to use it.
-        """
-        table_identifier = sql.Identifier(self.schema_name, self.table_name)
-        # This SQL is based on the typical structure PGVectorStore creates.
-        # It includes: id, node_id, text, metadata_ (jsonb), embedding (vector)
-        # and an index on node_id.
-        # Ensure 'embedding vector({self.embed_dim})' matches your dimension.
-        create_table_sql = sql.SQL("""
-            CREATE TABLE IF NOT EXISTS {table} (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                node_id VARCHAR UNIQUE NOT NULL,
-                text TEXT,
-                metadata_ JSONB,
-                embedding vector({embed_dim})
-            );
-        """).format(table=table_identifier, embed_dim=sql.Literal(self.embed_dim))
-        
-        # PGVectorStore also often creates an index on node_id.
-        create_node_id_index_sql = sql.SQL("""
-            CREATE INDEX IF NOT EXISTS {idx_name} ON {table} (node_id);
-        """).format(
-            idx_name=sql.Identifier(f"idx_{self.table_name}_node_id"), # Example index name
-            table=table_identifier
-        )
-
-        try:
-            with self.get_connection() as conn: # Use your reliable DatabaseManager connection
-                with conn.cursor() as cur:
-                    logger.info(f"Attempting to explicitly create LlamaIndex table '{self.schema_name}.{self.table_name}' if it doesn't exist...")
-                    cur.execute(create_table_sql)
-                    logger.info(f"LlamaIndex table '{self.schema_name}.{self.table_name}' creation command executed.")
-                    
-                    logger.info(f"Attempting to explicitly create index on node_id for LlamaIndex table '{self.schema_name}.{self.table_name}'...")
-                    cur.execute(create_node_id_index_sql)
-                    logger.info(f"Index on node_id for LlamaIndex table creation command executed.")
-                conn.commit() # Crucially, commit these changes
-            logger.info(f"Explicit creation/check of LlamaIndex table '{self.schema_name}.{self.table_name}' and node_id index complete and committed.")
-        except Exception as e:
-            logger.error(f"Error during explicit creation of LlamaIndex table '{self.schema_name}.{self.table_name}': {e}", exc_info=True)
-            raise # If this fails, something is seriously wrong with DB access
 
     def get_vector_store(self) -> PGVectorStore:
         """Get or create PGVectorStore instance."""
@@ -215,7 +177,7 @@ class VectorStoreManager(DatabaseManager):
                 logger.info(f"DatabaseManager's pool is configured for database: '{parsed_main_conn.path.lstrip('/')}' (derived from PG_CONNECTION_STRING)")
 
 
-            logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.table_name}' (expected to exist)...")
+            logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.data_table}' (PGVectorStore creates data_<table> on first use)...")
             self.vector_store = PGVectorStore(
                 connection_string=psycopg2_conn_str,
                 async_connection_string=asyncpg_conn_str,
@@ -223,7 +185,7 @@ class VectorStoreManager(DatabaseManager):
                 table_name=self.table_name,
                 embed_dim=self.embed_dim,
             )
-            logger.info(f"PGVectorStore Python object initialized for table '{self.schema_name}.{self.table_name}'")
+            logger.info(f"PGVectorStore Python object initialized for table '{self.schema_name}.{self.data_table}'")
 
             # Probe (Optional but good for sanity check - can be simplified now)
             dummy_node_id_for_probe = f"test_node_{uuid.uuid4()}"
@@ -234,11 +196,15 @@ class VectorStoreManager(DatabaseManager):
                 # Create a zero vector with the CORRECT dimension
                 zero_embedding = [0.0] * self.embed_dim
                 
+                # PGVectorStore.delete() removes rows by ref_doc_id (stored as doc_id in
+                # metadata_), so the probe node must declare itself as its own source or
+                # the delete below is a no-op and the dummy row stays retrievable.
                 dummy_node = TextNode(
                     id_=dummy_node_id_for_probe,
                     text="dummy_text_content_for_probe_in_precreated_table",
                     embedding=zero_embedding,  # This will now have the correct dimensions
-                    metadata={"text": "dummy_metadata_text_for_probe_in_precreated_table"}
+                    metadata={"text": "dummy_metadata_text_for_probe_in_precreated_table"},
+                    relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=dummy_node_id_for_probe)},
                 )
                 self.vector_store.add([dummy_node])
                 logger.info(f"Probe: Successfully EXECUTED add for dummy node '{dummy_node_id_for_probe}'.")
@@ -262,11 +228,11 @@ class VectorStoreManager(DatabaseManager):
                         pass
                 
                 raise RuntimeError(
-                    f"PGVectorStore failed .add/delete on pre-created table '{self.schema_name}.{self.table_name}'."
+                    f"PGVectorStore failed .add/delete on data table '{self.schema_name}.{self.data_table}'."
                 ) from e
 
             # BM25 Index Creation - attempt it but don't fail if it doesn't work
-            logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.table_name}...")
+            logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
             try:
                 with self.get_connection() as conn:
                     bm25_created = self._create_bm25_index(conn)
@@ -294,11 +260,11 @@ class VectorStoreManager(DatabaseManager):
         
         # Try multiple BM25 query formats
         try:
-            table_identifier = sql.Identifier(self.schema_name, self.table_name)
+            table_identifier = sql.Identifier(self.schema_name, self.data_table)
             
             # Format 1: Standard BM25 search with @@@ operator
             search_sql = sql.SQL("""
-                SELECT node_id, text, paradedb.score(node_id) AS score
+                SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
                 FROM {table}
                 WHERE text @@@ {query}
                 ORDER BY score DESC
@@ -320,12 +286,13 @@ class VectorStoreManager(DatabaseManager):
             
             if results:
                 logger.info(f"BM25 search successful, found {len(results)} results")
-                return [{"node_id": row[0], "text": row[1], "score": row[2]} for row in results]
+                self.last_bm25_backend = "paradedb"
+                return self._bm25_rows(results)
             
             # Format 2: Try more flexible tokenized search
             tokenized_query = " OR ".join(query.split())
             search_sql2 = sql.SQL("""
-                SELECT node_id, text, paradedb.score(node_id) AS score
+                SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
                 FROM {table}
                 WHERE text @@@ {query}
                 ORDER BY score DESC
@@ -347,7 +314,8 @@ class VectorStoreManager(DatabaseManager):
             
             if results:
                 logger.info(f"BM25 tokenized search successful, found {len(results)} results")
-                return [{"node_id": row[0], "text": row[1], "score": row[2]} for row in results]
+                self.last_bm25_backend = "paradedb"
+                return self._bm25_rows(results)
             
         except Exception as e:
             logger.warning(f"BM25 search failed: {e}")
@@ -357,12 +325,12 @@ class VectorStoreManager(DatabaseManager):
         try:
             # More powerful full-text search as fallback
             fallback_sql = sql.SQL("""
-                SELECT node_id, text, ts_rank_cd(to_tsvector('english', text), plainto_tsquery('english', %s)) AS score
+                SELECT node_id, text, metadata_, ts_rank_cd(to_tsvector('english', text), plainto_tsquery('english', %s)) AS score
                 FROM {table}
                 WHERE to_tsvector('english', text) @@ plainto_tsquery('english', %s)
                 ORDER BY score DESC
                 LIMIT %s;
-            """).format(table=sql.Identifier(self.schema_name, self.table_name))
+            """).format(table=sql.Identifier(self.schema_name, self.data_table))
             
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
@@ -371,15 +339,16 @@ class VectorStoreManager(DatabaseManager):
             
             if results:
                 logger.info(f"Fallback full-text search successful, found {len(results)} results")
-                return [{"node_id": row[0], "text": row[1], "score": row[2]} for row in results]
+                self.last_bm25_backend = "ts_rank_cd"
+                return self._bm25_rows(results)
             
             # Last resort: ILIKE search
             basic_sql = sql.SQL("""
-                SELECT node_id, text, 1.0 AS score
+                SELECT node_id, text, metadata_, 1.0 AS score
                 FROM {table}
                 WHERE text ILIKE %s
                 LIMIT %s;
-            """).format(table=sql.Identifier(self.schema_name, self.table_name))
+            """).format(table=sql.Identifier(self.schema_name, self.data_table))
             
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
@@ -388,13 +357,35 @@ class VectorStoreManager(DatabaseManager):
             
             if results:
                 logger.info(f"Basic ILIKE search successful, found {len(results)} results")
-                return [{"node_id": row[0], "text": row[1], "score": row[2]} for row in results]
+                self.last_bm25_backend = "ilike"
+                return self._bm25_rows(results)
             else:
                 logger.info("No results found in any search")
+                self.last_bm25_backend = "none"
                 return []
         except Exception as e:
             logger.error(f"All search methods failed: {e}")
             return []
+
+    @staticmethod
+    def _bm25_rows(results) -> list[dict]:
+        """Rows are (node_id, text, metadata_, score). metadata_ is JSON/JSONB, decoded by psycopg2."""
+        return [
+            {"node_id": row[0], "text": row[1], "metadata": row[2] or {}, "score": row[3]}
+            for row in results
+        ]
+
+    def count_nodes(self) -> int:
+        """Number of rows in the data table (0 when it does not exist yet)."""
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql.SQL("SELECT count(*) FROM {table};").format(
+                        table=sql.Identifier(self.schema_name, self.data_table)))
+                    return int(cur.fetchone()[0])
+        except Exception as e:
+            logger.info(f"count_nodes: data table not readable yet ({e.__class__.__name__})")
+            return 0
 
     def close(self) -> None:
         """Close all connections and cleanup resources."""
@@ -415,7 +406,7 @@ class VectorStoreManager(DatabaseManager):
                         JOIN pg_class c ON a.attrelid = c.oid
                         JOIN pg_namespace n ON c.relnamespace = n.oid
                         WHERE n.nspname = '{self.schema_name}'
-                        AND c.relname = '{self.table_name}'
+                        AND c.relname = '{self.data_table}'
                         AND a.attname = 'embedding'
                         AND a.atttypid = (SELECT oid FROM pg_type WHERE typname = 'vector');
                     """)
@@ -431,7 +422,7 @@ class VectorStoreManager(DatabaseManager):
                         JOIN pg_class ON pg_description.objoid = pg_class.oid
                         JOIN pg_namespace ON pg_class.relnamespace = pg_namespace.oid
                         WHERE pg_namespace.nspname = '{self.schema_name}'
-                        AND pg_class.relname = '{self.table_name}';
+                        AND pg_class.relname = '{self.data_table}';
                     """)
                     # If no result or can't parse dimension, we'll return None
                     
@@ -445,7 +436,7 @@ class VectorStoreManager(DatabaseManager):
         index_name = f"{self.table_name}_embedding_hnsw"
         stmt = f"""
             CREATE INDEX IF NOT EXISTS {index_name}
-            ON {self.schema_name}.{self.table_name}
+            ON {self.schema_name}.{self.data_table}
             USING hnsw (embedding vector_cosine_ops)
             WITH (m = {int(m)}, ef_construction = {int(ef_construction)});
         """
@@ -476,13 +467,13 @@ class VectorStoreManager(DatabaseManager):
                 with conn.cursor() as cur:
                     cur.execute(
                         f"""
-                        ALTER TABLE {self.schema_name}.{self.table_name}
+                        ALTER TABLE {self.schema_name}.{self.data_table}
                         ADD COLUMN IF NOT EXISTS embedding_half halfvec({self.embed_dim});
                         """
                     )
                     cur.execute(
                         f"""
-                        UPDATE {self.schema_name}.{self.table_name}
+                        UPDATE {self.schema_name}.{self.data_table}
                         SET embedding_half = embedding::halfvec
                         WHERE embedding_half IS NULL AND embedding IS NOT NULL;
                         """
@@ -500,13 +491,13 @@ class VectorStoreManager(DatabaseManager):
                 with conn.cursor() as cur:
                     cur.execute(
                         f"""
-                        ALTER TABLE {self.schema_name}.{self.table_name}
+                        ALTER TABLE {self.schema_name}.{self.data_table}
                         ADD COLUMN IF NOT EXISTS embedding_bit bit({self.embed_dim});
                         """
                     )
                     cur.execute(
                         f"""
-                        UPDATE {self.schema_name}.{self.table_name}
+                        UPDATE {self.schema_name}.{self.data_table}
                         SET embedding_bit = binary_quantize(embedding)::bit({self.embed_dim})
                         WHERE embedding_bit IS NULL AND embedding IS NOT NULL;
                         """
@@ -514,7 +505,7 @@ class VectorStoreManager(DatabaseManager):
                     cur.execute(
                         f"""
                         CREATE INDEX IF NOT EXISTS {self.table_name}_embedding_bit_hnsw
-                        ON {self.schema_name}.{self.table_name}
+                        ON {self.schema_name}.{self.data_table}
                         USING hnsw (embedding_bit bit_hamming_ops);
                         """
                     )

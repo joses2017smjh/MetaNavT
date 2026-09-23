@@ -1,0 +1,16 @@
+# Override: real models on CPU or GPU.
+#   docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
+# Installs the `ml` extra (torch, sentence-transformers), embeds with
+# BAAI/bge-large-en-v1.5 (~1.3 GB download at first start, 1024 dims) and loads
+# BAAI/bge-reranker-v2-m3. The pgvector table is created with EMBEDDING_DIM, so
+# drop the volume when switching from the hash stack: docker compose down -v
+services:
+  api:
+    build:
+      args:
+        EXTRAS: app,ml
+    environment:
+      EMBEDDING_PROVIDER: huggingface
+      EMBEDDING_MODEL: BAAI/bge-large-en-v1.5
+      EMBEDDING_DIM: "1024"
+      RERANKER_MODEL: BAAI/bge-reranker-v2-m3

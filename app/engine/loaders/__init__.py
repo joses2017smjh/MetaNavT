@@ -17,7 +17,7 @@ Configuration Example (loaders.yaml):
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import yaml  # type: ignore
 from app.database.index_manager import IndexManager
@@ -27,8 +27,18 @@ from llama_index.core import Document
 
 logger = logging.getLogger(__name__)
 
-# Initialize global index manager
-index_manager: IndexManager = IndexManager()
+# The index manager opens a Postgres connection in its constructor, so it is
+# built on first use rather than at import time (imports must work in CI,
+# in unit tests, and in the API process before the database is reachable).
+_index_manager: Optional[IndexManager] = None
+
+
+def get_index_manager() -> IndexManager:
+    """Return the process-wide IndexManager, creating it on first call."""
+    global _index_manager
+    if _index_manager is None:
+        _index_manager = IndexManager()
+    return _index_manager
 
 def load_configs() -> Dict[str, Any]:
     """Loads loader configurations from YAML file"""
@@ -59,7 +69,7 @@ def get_documents() -> List[Document]:
         )
         match loader_type:
             case "file_system":
-                    documents.extend(get_files(loader_config["path"], index_manager))
+                    documents.extend(get_files(loader_config["path"], get_index_manager()))
 
             case "db":
                 documents.extend(

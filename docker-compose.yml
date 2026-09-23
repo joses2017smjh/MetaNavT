@@ -1,5 +1,15 @@
+# docker compose up --build   -> Postgres + pgvector, then the API on :8000.
+# First start indexes bench/corpus/files (61 files) with the deterministic hash
+# embedder, so no model download is needed and retrieval works without Ollama.
+# Only /api/chat needs an Ollama server (OLLAMA_BASE_URL).
+#
+# Nothing here is interpolated from .env on purpose: `cp .env.example .env` (the
+# local-app setup) must not change what this stack runs. Real models:
+#   docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 services:
   db:
+    # pgvector only. ParadeDB's pg_search (true BM25) is not in this image, so lexical
+    # search falls back to Postgres ts_rank_cd; /health reports bm25_backend.
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: postgres
@@ -16,24 +26,40 @@ services:
       retries: 10
 
   api:
-    build: .
+    build:
+      context: .
+      args:
+        EXTRAS: app          # no torch; docker-compose.ml.yml sets app,ml
+        WITH_FRONTEND: "0"   # API only; "1" builds the Next.js export
     depends_on:
       db:
         condition: service_healthy
     environment:
       PG_CONNECTION_STRING: postgresql://postgres:password@db:5432/metanavit
       PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=postgres password=password host=db port=5432
+      # chat only; retrieval never calls the LLM
       MODEL_PROVIDER: ollama
       MODEL: qwen2.5:14b
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      # retrieval: deterministic hash embedder, no reranker (both labelled in responses)
+      EMBEDDING_PROVIDER: hash
+      EMBEDDING_DIM: "256"
+      RERANKER_MODEL: none
       DATA_DIR: bench/corpus/files
-      EMBEDDING_MODEL: BAAI/bge-large-en-v1.5
-      EMBEDDING_DIM: 1024
+      INDEX_ON_START: "true"
+      CHUNK_SIZE: "512"
+      CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
       RERANK_TOP_N: "8"
       ENABLE_ROUTER: "true"
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

@@ -135,7 +135,7 @@ def crawl_file_system(
             yield current_batch
 
 
-def get_files(path: str, index_manager: IndexManager(), max_workers: int = 4, batch_size: int = 1000) -> List[Document]:
+def get_files(path: str, index_manager: IndexManager, max_workers: int = 4, batch_size: int = 1000) -> List[Document]:
     """ This function runs the pipeline to get all files from a directory,
         add them to the database, process if applicable, remove if not applicable,
         and return the list of documents.

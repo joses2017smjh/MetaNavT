@@ -8,16 +8,20 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-def _is_eval_test(request) -> bool:
-    path = str(getattr(request, "fspath", ""))
-    return "/tests/eval" in path.replace("\\", "/") or path.endswith("/eval")
+LEGACY_SUITES = ("/tests/unit_tests/", "/tests/database_tests/")
+
+
+def _is_legacy_test(request) -> bool:
+    """Only the legacy suites get the llama_index / psycopg2 MagicMock modules.
+
+    tests/eval, tests/engine and tests/api import the real packages.
+    """
+    path = str(getattr(request, "fspath", "")).replace("\\", "/")
+    return any(marker in path for marker in LEGACY_SUITES)
 
 
 def pytest_configure(config):
-    """Mock llama_index/psycopg2 for legacy unit tests only.
-
-    Eval harness tests import real numpy modules and must not see these mocks.
-    """
+    """Mock llama_index/psycopg2 for the legacy unit tests only (see _is_legacy_test)."""
     # Defer sys.modules mutation until collection knows the path is awkward,
     # so we mock lazily in a fixture instead of at import time.
     return
@@ -43,7 +47,7 @@ def mock_database_reader(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch, request):
-    if _is_eval_test(request):
+    if not _is_legacy_test(request):
         return
     monkeypatch.setenv("PG_CONNECTION_STRING", "postgresql://user:pass@localhost:5432/test")
     monkeypatch.setenv("STORAGE_DIR", "test_storage")
@@ -52,7 +56,7 @@ def mock_env_vars(monkeypatch, request):
 
 @pytest.fixture(autouse=True)
 def mock_llama_index(monkeypatch, request):
-    if _is_eval_test(request):
+    if not _is_legacy_test(request):
         return
     mock_modules = {
         "psycopg2": MagicMock(),
@@ -79,7 +83,8 @@ def mock_llama_index(monkeypatch, request):
     }
     mock_modules["llama_index.core.multi_modal_llms"].MultiModalLLM = MagicMock()
     for mod_name, mock in mock_modules.items():
-        sys.modules[mod_name] = mock
+        # via monkeypatch so the real modules come back after the test (tests/api imports them)
+        monkeypatch.setitem(sys.modules, mod_name, mock)
     monkeypatch.setattr("llama_index.core.indices.VectorStoreIndex", MagicMock(), raising=False)
     monkeypatch.setattr("llama_index.core.storage.StorageContext", MagicMock(), raising=False)
     monkeypatch.setattr("llama_index.core.Document", MagicMock(), raising=False)

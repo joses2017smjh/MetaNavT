@@ -9,7 +9,7 @@ from app.retrieval.types import Chunk
 # --- HyDE ---
 
 def _make_chunk(cid, text, path="test.txt"):
-    return Chunk(chunk_id=cid, path=path, text=text)
+    return Chunk(chunk_id=cid, path=path, text=text, start_byte=0, end_byte=len(text.encode("utf-8")))
 
 
 class TestHyDE:

@@ -23,3 +23,15 @@ idea/
 tests/benchmark_tests/results/
 .vendor/
 bench/results/*.triples.jsonl
+
+# make bench writes bench/results/<git-sha>.json on every run; only the
+# baseline (main.json), the newest run (latest.json) and the committed
+# reference runs are tracked. `git add -f` to keep a specific run.
+bench/results/*.json
+!bench/results/latest.json
+!bench/results/main.json
+!bench/results/sweeps.json
+!bench/results/520699a.json
+
+# editable install metadata
+*.egg-info/
