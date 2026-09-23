@@ -1,0 +1,477 @@
+{
+  "dataset": "BEIR/scifact",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
+  "zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "n_docs": 5183,
+  "n_queries": 300,
+  "published": {
+    "bm25_ndcg@10": 0.665,
+    "source": "Thakur et al., 'BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models', NeurIPS 2021 Datasets and Benchmarks, Table 2, BM25 (Anserini) on SciFact",
+    "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4"
+  },
+  "git_sha": "2c4a9c9",
+  "timestamp": "2026-09-23T15:20:20.905423+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/scratch/sanchej7/hf_cache CUDA_VISIBLE_DEVICES=1 python -m app.eval.beir --out bench/results/beir_scifact.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.13",
+    "platform": "Linux-5.14.0-611.55.1.el9_7.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "hostname": "cn-gpu6.hpc.engr.oregonstate.edu",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 2,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 300,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "bm25",
+      "settings": {
+        "name": "bm25",
+        "mode": "bm25",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60
+      },
+      "retrieval": {
+        "ndcg@10": 0.6767,
+        "recall@10": 0.803,
+        "recall@100": 0.9287,
+        "mrr@10": 0.642,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 23.69,
+          "p95_ms": 48.31,
+          "mean_ms": 85.45
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 23.71,
+          "p95_ms": 48.33,
+          "mean_ms": 85.47
+        }
+      },
+      "wall_ms": 25655.44,
+      "models": {},
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6767,
+          "lo": 0.6299,
+          "hi": 0.719
+        },
+        "recall@10": {
+          "mean": 0.803,
+          "lo": 0.7573,
+          "hi": 0.845
+        },
+        "recall@100": {
+          "mean": 0.9287,
+          "lo": 0.8993,
+          "hi": 0.9557
+        }
+      },
+      "delta_vs_bm25": null,
+      "vs_published": {
+        "published_bm25_ndcg@10": 0.665,
+        "delta": 0.0117
+      }
+    },
+    {
+      "config": "bm25@default-tokenizer",
+      "settings": {
+        "name": "bm25@default-tokenizer",
+        "mode": "bm25",
+        "analyzer": "default",
+        "k1": 1.5,
+        "b": 0.75,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60
+      },
+      "retrieval": {
+        "ndcg@10": 0.6009,
+        "recall@10": 0.7178,
+        "recall@100": 0.8212,
+        "mrr@10": 0.5679,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 38.26,
+          "p95_ms": 82.21,
+          "mean_ms": 45.0
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 38.51,
+          "p95_ms": 82.23,
+          "mean_ms": 45.05
+        }
+      },
+      "wall_ms": 13528.79,
+      "models": {},
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6009,
+          "lo": 0.552,
+          "hi": 0.6489
+        },
+        "recall@10": {
+          "mean": 0.7178,
+          "lo": 0.6648,
+          "hi": 0.7662
+        },
+        "recall@100": {
+          "mean": 0.8212,
+          "lo": 0.776,
+          "hi": 0.862
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": -0.0757,
+          "lo": -0.1045,
+          "hi": -0.0466
+        },
+        "recall@10": {
+          "delta": -0.0852,
+          "lo": -0.1227,
+          "hi": -0.0493
+        },
+        "recall@100": {
+          "delta": -0.1074,
+          "lo": -0.1451,
+          "hi": -0.0741
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60
+      },
+      "retrieval": {
+        "ndcg@10": 0.72,
+        "recall@10": 0.8452,
+        "recall@100": 0.9533,
+        "mrr@10": 0.6845,
+        "n_queries": 300
+      },
+      "latency": {
+        "embed": {
+          "n": 300,
+          "p50_ms": 9.84,
+          "p95_ms": 26.05,
+          "mean_ms": 14.37
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 25.1,
+          "p95_ms": 50.21,
+          "mean_ms": 27.59
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 39.97,
+          "p95_ms": 64.13,
+          "mean_ms": 74.41
+        }
+      },
+      "wall_ms": 22341.1,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.72,
+          "lo": 0.6739,
+          "hi": 0.7612
+        },
+        "recall@10": {
+          "mean": 0.8452,
+          "lo": 0.8024,
+          "hi": 0.885
+        },
+        "recall@100": {
+          "mean": 0.9533,
+          "lo": 0.9267,
+          "hi": 0.9733
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0433,
+          "lo": 0.0108,
+          "hi": 0.0769
+        },
+        "recall@10": {
+          "delta": 0.0422,
+          "lo": 0.0017,
+          "hi": 0.0837
+        },
+        "recall@100": {
+          "delta": 0.0247,
+          "lo": -0.005,
+          "hi": 0.0577
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60
+      },
+      "retrieval": {
+        "ndcg@10": 0.7379,
+        "recall@10": 0.8596,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7065,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 30.42,
+          "p95_ms": 65.18,
+          "mean_ms": 33.53
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 9.55,
+          "p95_ms": 27.68,
+          "mean_ms": 13.69
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 10.66,
+          "p95_ms": 36.32,
+          "mean_ms": 14.29
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.15,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 54.98,
+          "p95_ms": 107.29,
+          "mean_ms": 61.68
+        }
+      },
+      "wall_ms": 18521.03,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7379,
+          "lo": 0.6935,
+          "hi": 0.7783
+        },
+        "recall@10": {
+          "mean": 0.8596,
+          "lo": 0.82,
+          "hi": 0.895
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0612,
+          "lo": 0.0391,
+          "hi": 0.0833
+        },
+        "recall@10": {
+          "delta": 0.0566,
+          "lo": 0.0266,
+          "hi": 0.0882
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60
+      },
+      "retrieval": {
+        "ndcg@10": 0.7522,
+        "recall@10": 0.8646,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7248,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 22.4,
+          "p95_ms": 33.12,
+          "mean_ms": 23.56
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 9.01,
+          "p95_ms": 10.89,
+          "mean_ms": 9.59
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 5.31,
+          "p95_ms": 26.36,
+          "mean_ms": 8.86
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.12,
+          "p95_ms": 0.14,
+          "mean_ms": 0.12
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 887.06,
+          "p95_ms": 1807.86,
+          "mean_ms": 1009.19
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 925.1,
+          "p95_ms": 1850.64,
+          "mean_ms": 1051.37
+        }
+      },
+      "wall_ms": 315439.57,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7522,
+          "lo": 0.7083,
+          "hi": 0.7924
+        },
+        "recall@10": {
+          "mean": 0.8646,
+          "lo": 0.8238,
+          "hi": 0.9016
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0755,
+          "lo": 0.0528,
+          "hi": 0.1009
+        },
+        "recall@10": {
+          "delta": 0.0616,
+          "lo": 0.0374,
+          "hi": 0.0888
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      }
+    }
+  ]
+}

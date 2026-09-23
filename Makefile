@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-table bench-table-write bench-table-check bench-jury bench-frontier freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-table bench-table-write bench-table-check bench-jury bench-frontier bench-neural bench-beir freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
@@ -59,6 +59,13 @@ freeze-corpus:
 
 sweeps:
 	$(PYTHON) -m app.eval.sweeps
+
+# ---- neural rows (needs .[ml]; downloads bge-small / bge-base / bge-reranker-v2-m3 once) ----
+bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
+
+bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --out bench/results/beir_scifact.json
 
 # ---- demos / figures -------------------------------------------------------
 figures:

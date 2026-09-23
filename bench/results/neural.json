@@ -1,0 +1,1563 @@
+{
+  "git_sha": "2c4a9c9",
+  "timestamp": "2026-09-23T15:16:38.648604+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/scratch/sanchej7/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.harness --neural --out bench/results/neural.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.13",
+    "platform": "Linux-5.14.0-611.55.1.el9_7.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "hostname": "cn-gpu6.hpc.engr.oregonstate.edu",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 2,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 136,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "bm25_only",
+      "settings": {
+        "name": "bm25_only",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "bm25",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.5052,
+        "recall@5": 0.6553,
+        "recall@10": 0.7301,
+        "recall@50": 0.8434,
+        "mrr@10": 0.4619,
+        "mean_unique_paths@50": 35.81,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.6387,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.5952,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1326,
+            "recall@10": 0.3375,
+            "recall@50": 1.0,
+            "mrr@10": 0.0706,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3557,
+            "recall@10": 0.6042,
+            "recall@50": 0.875,
+            "mrr@10": 0.2792,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.2049,
+            "recall@10": 0.2506,
+            "recall@50": 0.72,
+            "mrr@10": 0.1283,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.3643,
+            "recall@10": 0.5938,
+            "recall@50": 0.875,
+            "mrr@10": 0.4062,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.5186,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.4012,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.0445,
+            "recall@10": 0.125,
+            "recall@50": 0.125,
+            "mrr@10": 0.0208,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.75,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0779,
+        "random_recall@10": 0.1525,
+        "random_recall@50": 0.587
+      },
+      "latency": {
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.19,
+          "p95_ms": 0.34,
+          "mean_ms": 0.21
+        }
+      },
+      "wall_ms": 32.98,
+      "routes": {},
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.5052,
+          "lo": 0.4542,
+          "hi": 0.5549
+        },
+        "recall@10": {
+          "mean": 0.7301,
+          "lo": 0.6636,
+          "hi": 0.7934
+        },
+        "recall@50": {
+          "mean": 0.8434,
+          "lo": 0.7919,
+          "hi": 0.8949
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": null
+    },
+    {
+      "config": "dense_only@bge-small",
+      "settings": {
+        "name": "dense_only@bge-small",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "dense",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.5651,
+        "recall@5": 0.6142,
+        "recall@10": 0.7511,
+        "recall@50": 0.9375,
+        "mrr@10": 0.5413,
+        "mean_unique_paths@50": 43.9,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.5746,
+            "recall@10": 0.8063,
+            "recall@50": 0.9062,
+            "mrr@10": 0.5327,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.5201,
+            "recall@10": 0.925,
+            "recall@50": 1.0,
+            "mrr@10": 0.3229,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6066,
+            "recall@10": 0.7083,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.5803,
+            "recall@10": 0.6078,
+            "recall@50": 1.0,
+            "mrr@10": 0.645,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.5709,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6583,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7016,
+            "recall@10": 0.8125,
+            "recall@50": 1.0,
+            "mrr@10": 0.7083,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.2359,
+            "recall@10": 0.375,
+            "recall@50": 1.0,
+            "mrr@10": 0.1917,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.6667,
+            "recall@10": 0.6667,
+            "recall@50": 0.9167,
+            "mrr@10": 0.6667,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7196
+      },
+      "latency": {
+        "embed": {
+          "n": 136,
+          "p50_ms": 18.91,
+          "p95_ms": 29.8,
+          "mean_ms": 19.4
+        }
+      },
+      "wall_ms": 2665.1,
+      "routes": {},
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.5651,
+          "lo": 0.5089,
+          "hi": 0.6194
+        },
+        "recall@10": {
+          "mean": 0.7511,
+          "lo": 0.6919,
+          "hi": 0.8057
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.0598,
+          "lo": 0.0019,
+          "hi": 0.1176
+        },
+        "recall@10": {
+          "delta": 0.021,
+          "lo": -0.042,
+          "hi": 0.0883
+        },
+        "recall@50": {
+          "delta": 0.0941,
+          "lo": 0.05,
+          "hi": 0.1419
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.0598,
+          "lo": 0.0019,
+          "hi": 0.1176
+        },
+        "recall@10": {
+          "delta": 0.021,
+          "lo": -0.042,
+          "hi": 0.0883
+        },
+        "recall@50": {
+          "delta": 0.0941,
+          "lo": 0.05,
+          "hi": 0.1419
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.6956,
+        "recall@5": 0.7395,
+        "recall@10": 0.8201,
+        "recall@50": 0.9375,
+        "mrr@10": 0.7049,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.7712,
+            "recall@10": 0.8875,
+            "recall@50": 0.9,
+            "mrr@10": 0.7898,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.5988,
+            "recall@10": 0.9,
+            "recall@50": 1.0,
+            "mrr@10": 0.4948,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6239,
+            "recall@10": 0.6667,
+            "recall@50": 1.0,
+            "mrr@10": 0.7054,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.5667,
+            "recall@10": 0.6496,
+            "recall@50": 1.0,
+            "mrr@10": 0.5601,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.5675,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7117,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6458,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.3542,
+            "recall@10": 0.5,
+            "recall@50": 1.0,
+            "mrr@10": 0.3095,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7311,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.01,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.3,
+          "p95_ms": 0.45,
+          "mean_ms": 0.31
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 9.08,
+          "p95_ms": 18.46,
+          "mean_ms": 11.08
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.03
+        }
+      },
+      "wall_ms": 1586.86,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6956,
+          "lo": 0.6456,
+          "hi": 0.7451
+        },
+        "recall@10": {
+          "mean": 0.8201,
+          "lo": 0.7676,
+          "hi": 0.8721
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.1903,
+          "lo": 0.1438,
+          "hi": 0.2341
+        },
+        "recall@10": {
+          "delta": 0.09,
+          "lo": 0.0434,
+          "hi": 0.1408
+        },
+        "recall@50": {
+          "delta": 0.0941,
+          "lo": 0.05,
+          "hi": 0.1419
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "dense_only@bge-small",
+        "ndcg@10": {
+          "delta": 0.1305,
+          "lo": 0.0875,
+          "hi": 0.1755
+        },
+        "recall@10": {
+          "delta": 0.069,
+          "lo": 0.0312,
+          "hi": 0.1085
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": -0.011,
+          "hi": 0.011
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@hash",
+      "settings": {
+        "name": "hybrid+bge-rerank@hash",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.8136,
+        "recall@5": 0.8353,
+        "recall@10": 0.8811,
+        "recall@50": 0.9382,
+        "mrr@10": 0.829,
+        "mean_unique_paths@50": 45.82,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.9002,
+            "recall@10": 0.9125,
+            "recall@50": 0.9187,
+            "mrr@10": 0.9604,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6272,
+            "recall@10": 0.85,
+            "recall@50": 0.95,
+            "mrr@10": 0.4896,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6207,
+            "recall@10": 0.7708,
+            "recall@50": 1.0,
+            "mrr@10": 0.6146,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.6927,
+            "recall@10": 0.6863,
+            "recall@50": 1.0,
+            "mrr@10": 0.65,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6086,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6146,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7685,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.7366,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6458,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8029,
+            "recall@10": 0.8333,
+            "recall@50": 0.8333,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7512
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.27,
+          "p95_ms": 0.37,
+          "mean_ms": 0.28
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.28,
+          "p95_ms": 0.46,
+          "mean_ms": 0.37
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 311.43,
+          "p95_ms": 348.8,
+          "mean_ms": 317.2
+        }
+      },
+      "wall_ms": 43271.1,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8136,
+          "lo": 0.7678,
+          "hi": 0.858
+        },
+        "recall@10": {
+          "mean": 0.8811,
+          "lo": 0.835,
+          "hi": 0.9237
+        },
+        "recall@50": {
+          "mean": 0.9382,
+          "lo": 0.9081,
+          "hi": 0.9669
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.3084,
+          "lo": 0.2622,
+          "hi": 0.3541
+        },
+        "recall@10": {
+          "delta": 0.151,
+          "lo": 0.0999,
+          "hi": 0.208
+        },
+        "recall@50": {
+          "delta": 0.0949,
+          "lo": 0.0493,
+          "hi": 0.1426
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.1181,
+          "lo": 0.078,
+          "hi": 0.1622
+        },
+        "recall@10": {
+          "delta": 0.061,
+          "lo": 0.0238,
+          "hi": 0.1017
+        },
+        "recall@50": {
+          "delta": 0.0007,
+          "lo": -0.0235,
+          "hi": 0.0228
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.8119,
+        "recall@5": 0.8316,
+        "recall@10": 0.8789,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8292,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8926,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9604,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6394,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.5021,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6198,
+            "recall@10": 0.7708,
+            "recall@50": 1.0,
+            "mrr@10": 0.6146,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.6897,
+            "recall@10": 0.6863,
+            "recall@50": 1.0,
+            "mrr@10": 0.6417,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6469,
+            "recall@10": 0.8125,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6146,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7685,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.7366,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6458,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8053,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.27,
+          "p95_ms": 0.43,
+          "mean_ms": 0.33
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 9.25,
+          "p95_ms": 23.48,
+          "mean_ms": 11.77
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 312.39,
+          "p95_ms": 350.17,
+          "mean_ms": 319.01
+        }
+      },
+      "wall_ms": 45083.35,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8119,
+          "lo": 0.7653,
+          "hi": 0.856
+        },
+        "recall@10": {
+          "mean": 0.8789,
+          "lo": 0.8351,
+          "hi": 0.921
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.3067,
+          "lo": 0.2591,
+          "hi": 0.3527
+        },
+        "recall@10": {
+          "delta": 0.1488,
+          "lo": 0.0991,
+          "hi": 0.2044
+        },
+        "recall@50": {
+          "delta": 0.0941,
+          "lo": 0.05,
+          "hi": 0.1419
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank@hash",
+        "ndcg@10": {
+          "delta": -0.0017,
+          "lo": -0.0094,
+          "hi": 0.006
+        },
+        "recall@10": {
+          "delta": -0.0022,
+          "lo": -0.0147,
+          "hi": 0.0103
+        },
+        "recall@50": {
+          "delta": -0.0007,
+          "lo": -0.0228,
+          "hi": 0.0235
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank+router+staleness@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank+router+staleness@bge-small",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": true,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.8241,
+        "recall@5": 0.8238,
+        "recall@10": 0.8727,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8496,
+        "mean_unique_paths@50": 38.1,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8921,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9563,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6827,
+            "recall@10": 0.925,
+            "recall@50": 1.0,
+            "mrr@10": 0.5104,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6388,
+            "recall@10": 0.7083,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.584,
+            "recall@10": 0.6621,
+            "recall@50": 1.0,
+            "mrr@10": 0.5792,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6773,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.818,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8053,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.6245
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.27,
+          "p95_ms": 0.44,
+          "mean_ms": 0.29
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 9.83,
+          "p95_ms": 30.43,
+          "mean_ms": 13.63
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 95,
+          "p50_ms": 316.93,
+          "p95_ms": 368.04,
+          "mean_ms": 324.6
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 0.34,
+          "p95_ms": 6.32,
+          "mean_ms": 1.49
+        }
+      },
+      "wall_ms": 32787.69,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8241,
+          "lo": 0.781,
+          "hi": 0.8653
+        },
+        "recall@10": {
+          "mean": 0.8727,
+          "lo": 0.8291,
+          "hi": 0.9151
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.3189,
+          "lo": 0.2716,
+          "hi": 0.3643
+        },
+        "recall@10": {
+          "delta": 0.1426,
+          "lo": 0.0918,
+          "hi": 0.1997
+        },
+        "recall@50": {
+          "delta": 0.0941,
+          "lo": 0.05,
+          "hi": 0.1419
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank@bge-small",
+        "ndcg@10": {
+          "delta": 0.0122,
+          "lo": -0.0087,
+          "hi": 0.0334
+        },
+        "recall@10": {
+          "delta": -0.0062,
+          "lo": -0.023,
+          "hi": 0.0093
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "dense_only@bge-base",
+      "settings": {
+        "name": "dense_only@bge-base",
+        "embedder": "st:BAAI/bge-base-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "dense",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.7011,
+        "recall@5": 0.7216,
+        "recall@10": 0.8421,
+        "recall@50": 0.9596,
+        "mrr@10": 0.7165,
+        "mean_unique_paths@50": 43.88,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.7778,
+            "recall@10": 0.8938,
+            "recall@50": 0.9437,
+            "mrr@10": 0.8152,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.4415,
+            "recall@10": 0.725,
+            "recall@50": 1.0,
+            "mrr@10": 0.3616,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.5848,
+            "recall@10": 0.7083,
+            "recall@50": 1.0,
+            "mrr@10": 0.625,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.636,
+            "recall@10": 0.6065,
+            "recall@50": 1.0,
+            "mrr@10": 0.7033,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6109,
+            "recall@10": 0.6875,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7291,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6741,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5418,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.4045,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.5833,
+            "recall@10": 0.6667,
+            "recall@50": 0.9167,
+            "mrr@10": 0.5556,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7194
+      },
+      "latency": {
+        "embed": {
+          "n": 136,
+          "p50_ms": 32.04,
+          "p95_ms": 48.99,
+          "mean_ms": 30.92
+        }
+      },
+      "wall_ms": 4257.36,
+      "routes": {},
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-base-en-v1.5",
+          "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "neural": true,
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7011,
+          "lo": 0.6475,
+          "hi": 0.7492
+        },
+        "recall@10": {
+          "mean": 0.8421,
+          "lo": 0.7906,
+          "hi": 0.8899
+        },
+        "recall@50": {
+          "mean": 0.9596,
+          "lo": 0.9375,
+          "hi": 0.9816
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.1958,
+          "lo": 0.1405,
+          "hi": 0.2492
+        },
+        "recall@10": {
+          "delta": 0.1121,
+          "lo": 0.051,
+          "hi": 0.1758
+        },
+        "recall@50": {
+          "delta": 0.1162,
+          "lo": 0.0699,
+          "hi": 0.1655
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank+router+staleness@bge-small",
+        "ndcg@10": {
+          "delta": -0.123,
+          "lo": -0.1694,
+          "hi": -0.0792
+        },
+        "recall@10": {
+          "delta": -0.0306,
+          "lo": -0.0626,
+          "hi": -0.0034
+        },
+        "recall@50": {
+          "delta": 0.0221,
+          "lo": 0.0037,
+          "hi": 0.0441
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-base",
+      "settings": {
+        "name": "hybrid@bge-base",
+        "embedder": "st:BAAI/bge-base-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false
+      },
+      "retrieval": {
+        "ndcg@10": 0.7565,
+        "recall@5": 0.7579,
+        "recall@10": 0.846,
+        "recall@50": 0.9375,
+        "mrr@10": 0.7848,
+        "mean_unique_paths@50": 43.81,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8721,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9271,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.4161,
+            "recall@10": 0.7875,
+            "recall@50": 1.0,
+            "mrr@10": 0.322,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.5708,
+            "recall@10": 0.6667,
+            "recall@50": 1.0,
+            "mrr@10": 0.6292,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.5815,
+            "recall@10": 0.6176,
+            "recall@50": 1.0,
+            "mrr@10": 0.5976,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.5691,
+            "recall@10": 0.5938,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7905,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.7448,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5183,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.3774,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7311,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7182
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.26,
+          "p95_ms": 0.45,
+          "mean_ms": 0.39
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 8.21,
+          "p95_ms": 17.32,
+          "mean_ms": 9.59
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        }
+      },
+      "wall_ms": 1378.62,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-base-en-v1.5",
+          "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "neural": true,
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7565,
+          "lo": 0.7044,
+          "hi": 0.8039
+        },
+        "recall@10": {
+          "mean": 0.846,
+          "lo": 0.8006,
+          "hi": 0.8911
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": 0.2513,
+          "lo": 0.2138,
+          "hi": 0.2898
+        },
+        "recall@10": {
+          "delta": 0.116,
+          "lo": 0.0678,
+          "hi": 0.1707
+        },
+        "recall@50": {
+          "delta": 0.0941,
+          "lo": 0.05,
+          "hi": 0.1419
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "dense_only@bge-base",
+        "ndcg@10": {
+          "delta": 0.0555,
+          "lo": 0.0222,
+          "hi": 0.0895
+        },
+        "recall@10": {
+          "delta": 0.0039,
+          "lo": -0.0225,
+          "hi": 0.0331
+        },
+        "recall@50": {
+          "delta": -0.0221,
+          "lo": -0.0441,
+          "hi": -0.0037
+        }
+      }
+    }
+  ]
+}

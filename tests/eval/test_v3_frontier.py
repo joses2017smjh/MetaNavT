@@ -367,3 +367,16 @@ def test_frontier_configs_do_not_replace_default_six():
 def test_extract_triples_for_hipporag_seed():
     t = extract_triples("configs/run_047.yaml", "run_id: 47 encoder: dinov2")
     assert any(isinstance(x, Triple) and x.dst == "encoder:dinov2" for x in t)
+
+
+def test_neural_configs_are_labelled_and_leave_the_default_six_alone():
+    from app.eval.harness import BGE_RERANKER, BGE_SMALL, NEURAL_CONFIGS
+
+    names = [c.name for c in NEURAL_CONFIGS]
+    assert len(names) == len(set(names)) and "bm25_only" in names
+    assert not (set(names) - {"bm25_only"}) & {c.name for c in DEFAULT_CONFIGS}
+    neural = [c for c in NEURAL_CONFIGS if c.name != "bm25_only"]
+    assert all(c.embedder.startswith("st:") or c.reranker == BGE_RERANKER for c in neural)
+    assert all(c.log_triples is False and c.e2e is False for c in NEURAL_CONFIGS)
+    full = next(c for c in NEURAL_CONFIGS if c.name.endswith("router+staleness@bge-small"))
+    assert full.embedder == BGE_SMALL and full.reranker == BGE_RERANKER and full.staleness_tier1

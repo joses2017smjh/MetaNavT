@@ -165,6 +165,27 @@ def _hf_cache_has(model_name: str) -> bool:
     return False
 
 
+def cross_encoder_scores(model, pairs: Sequence[Sequence[str]], batch_size: int = 32) -> list[float]:
+    """Score (query, text) pairs with either cross-encoder API.
+
+    sentence-transformers' CrossEncoder exposes predict(); FlagEmbedding's
+    FlagReranker exposes compute_score(). Before M2 only compute_score was
+    called, so the sentence-transformers model that get_cross_encoder() loads
+    raised AttributeError and every "bge-rerank" row silently fell back.
+    """
+    if not pairs:
+        return []
+    if hasattr(model, "predict"):
+        scores = model.predict([list(p) for p in pairs], batch_size=batch_size, show_progress_bar=False)
+    elif hasattr(model, "compute_score"):
+        scores = model.compute_score([list(p) for p in pairs])
+    else:
+        raise TypeError(f"{type(model).__name__} has neither predict() nor compute_score()")
+    if isinstance(scores, (int, float)):
+        scores = [scores]
+    return [float(x) for x in scores]
+
+
 class CrossEncoderReranker:
     def __init__(self, model=None, model_name: str = "BAAI/bge-reranker-v2-m3"):
         self.model = model if model is not None else get_cross_encoder(model_name)
@@ -174,10 +195,7 @@ class CrossEncoderReranker:
     ) -> list[tuple[Chunk, float]]:
         if self.model is None:
             return OverlapReranker()(query, pairs)
-        texts = [[query, chunk.text] for chunk, _ in pairs]
-        scores = self.model.compute_score(texts)
-        if isinstance(scores, (int, float)):
-            scores = [scores]
-        ranked = [(pairs[i][0], float(scores[i])) for i in range(len(pairs))]
+        scores = cross_encoder_scores(self.model, [(query, chunk.text) for chunk, _ in pairs])
+        ranked = [(pairs[i][0], scores[i]) for i in range(len(pairs))]
         ranked.sort(key=lambda item: item[1], reverse=True)
         return ranked

@@ -96,3 +96,34 @@ def test_counts_and_bm25_limit():
 
     assert vsm.calls == [("anything", 50)]
     assert retriever.last_counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": len(nodes)}
+
+
+class _ReversingCrossEncoder:
+    """sentence-transformers CrossEncoder shape: predict() scores pairs; here later pairs score higher."""
+
+    def __init__(self):
+        self.calls = []
+
+    def predict(self, pairs, batch_size=32, show_progress_bar=False):
+        self.calls.append(list(pairs))
+        return [float(i) for i in range(len(pairs))]
+
+
+def test_production_rerank_uses_predict_and_truncates_to_rerank_top_n():
+    model = _ReversingCrossEncoder()
+    retriever = HybridRetriever(
+        vector_retriever=_FakeVectorRetriever(),
+        vector_store_manager=_FakeVSM(),
+        reranker=model,
+        rerank_top_n=2,
+        enable_router=False,
+    )
+
+    nodes = retriever.retrieve("anything")
+
+    assert len(model.calls) == 1 and len(model.calls[0]) == 3  # every fused node was scored
+    assert [n.node.node_id for n in nodes] == [n.node.node_id for n in nodes][:2] and len(nodes) == 2
+    fused_order = [p[1] for p in model.calls[0]]
+    assert nodes[0].node.get_content() == fused_order[-1]  # highest score = last pair
+    assert nodes[0].score == 2.0 and nodes[1].score == 1.0
+    assert retriever.last_counts["returned"] == 2 and retriever.last_counts["fused"] == 3

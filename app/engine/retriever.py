@@ -156,12 +156,10 @@ class HybridRetriever(BaseRetriever):
     def _rerank(self, query_str: str, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
         """Rerank nodes using the cross-encoder model."""
         try:
-            texts = [n.node.get_content() for n in nodes]
-            pairs = [[query_str, text] for text in texts]
-            scores = self._reranker.compute_score(pairs)
+            from app.retrieval.rerank import cross_encoder_scores
 
-            if isinstance(scores, (int, float)):
-                scores = [scores]
+            pairs = [(query_str, n.node.get_content()) for n in nodes]
+            scores = cross_encoder_scores(self._reranker, pairs)  # predict() or compute_score()
 
             scored = list(zip(nodes, scores))
             scored.sort(key=lambda x: x[1], reverse=True)

@@ -32,6 +32,12 @@ bench/results/*.json
 !bench/results/main.json
 !bench/results/sweeps.json
 !bench/results/520699a.json
+# neural / external results are committed artifacts (see their headers for the command)
+!bench/results/neural.json
+!bench/results/beir_scifact.json
 
 # editable install metadata
 *.egg-info/
+
+# external benchmark downloads (BEIR SciFact) and embedding caches; results are committed
+bench/external/
