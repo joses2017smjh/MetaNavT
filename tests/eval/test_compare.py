@@ -12,7 +12,7 @@ def _blob(sha, **per_config):
         "results": [
             {
                 "config": name,
-                "retrieval": {"recall@50": r50, "ndcg@10": n10, "mrr@10": 0.4},
+                "retrieval": {"recall@50": r50, "recall@10": r50 - 0.2, "ndcg@10": n10, "mrr@10": 0.4},
                 "latency": {"bm25": {"p95_ms": 1.0}},
             }
             for name, (r50, n10) in per_config.items()
@@ -53,6 +53,22 @@ def test_missing_config_fails_and_new_config_is_ignored():
     cur = _blob("bbbbbbb", bm25_only=(0.843, 0.505), brand_new=(0.1, 0.1))
     problems = regressions(cur, BASE)
     assert problems == ["hybrid: present in baseline but missing from current result"]
+
+
+def test_recall_at_10_is_gated():
+    cur = json.loads(json.dumps(BASE))
+    cur["results"][1]["retrieval"]["recall@10"] -= 0.05
+    assert any("hybrid: recall@10 dropped" in p for p in regressions(cur, BASE))
+
+
+def test_metric_missing_from_baseline_is_skipped_with_a_note():
+    base = json.loads(json.dumps(BASE))
+    for row in base["results"]:
+        del row["retrieval"]["recall@10"]
+    notes = []
+    assert regressions(BASE, base, notes=notes) == []
+    assert notes and "recall@10 not in baseline" in notes[0]
+    assert "recall@10" in compare(BASE, base)  # reported as — rather than raising
 
 
 def test_mrr_is_reported_but_not_gated():

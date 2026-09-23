@@ -19,7 +19,18 @@ SKY = "#C2D5FF"
 LOSS = "#6B7280"
 
 
-def _bar_chart(path: Path, title: str, subtitle: str, series: list[tuple[str, float, str]], ymax: float = 1.0) -> None:
+def _bar_chart(
+    path: Path,
+    title: str,
+    subtitle: str,
+    series: list[tuple[str, float, str]],
+    ymax: float = 1.0,
+    ci: list[tuple[float, float] | None] | None = None,
+    marker: list[float | None] | None = None,
+    marker_label: str = "",
+) -> None:
+    """Horizontal bars. `ci` draws a 95% interval whisker per bar; `marker` draws a
+    dashed tick per bar (used for the random-list baseline) labelled once."""
     w, h = 860, 420
     left, right, top, bottom = 210, 40, 72, 48
     plot_w = w - left - right
@@ -31,13 +42,42 @@ def _bar_chart(path: Path, title: str, subtitle: str, series: list[tuple[str, fl
     for i, (label, value, color) in enumerate(series):
         y = top + i * (bar_h + gap)
         bw = max(2, plot_w * (value / ymax))
+        value_txt = f"{value:.3f}"
+        label_x = left + bw + 8
         bars.append(
             f'<rect x="{left}" y="{y}" width="{bw:.1f}" height="{bar_h:.1f}" rx="4" fill="{color}"/>'
             f'<text x="{left - 12}" y="{y + bar_h * 0.68:.1f}" text-anchor="end" fill="{TEXT}" '
             f'font-family="ui-sans-serif, system-ui, sans-serif" font-size="13">{_esc(label)}</text>'
-            f'<text x="{left + bw + 8:.1f}" y="{y + bar_h * 0.68:.1f}" fill="{GOLD}" '
+        )
+        interval = ci[i] if ci and i < len(ci) else None
+        if interval is not None:
+            lo, hi = interval
+            x_lo = left + plot_w * (lo / ymax)
+            x_hi = left + plot_w * (hi / ymax)
+            ym = y + bar_h / 2
+            bars.append(
+                f'<line x1="{x_lo:.1f}" y1="{ym:.1f}" x2="{x_hi:.1f}" y2="{ym:.1f}" stroke="{TEXT}" stroke-width="2" opacity="0.9"/>'
+                f'<line x1="{x_lo:.1f}" y1="{ym - 6:.1f}" x2="{x_lo:.1f}" y2="{ym + 6:.1f}" stroke="{TEXT}" stroke-width="2" opacity="0.9"/>'
+                f'<line x1="{x_hi:.1f}" y1="{ym - 6:.1f}" x2="{x_hi:.1f}" y2="{ym + 6:.1f}" stroke="{TEXT}" stroke-width="2" opacity="0.9"/>'
+            )
+            value_txt = f"{value:.3f}  [{lo:.3f}, {hi:.3f}]"
+            label_x = max(label_x, x_hi + 8)
+        tick = marker[i] if marker and i < len(marker) else None
+        if tick is not None:
+            x_t = left + plot_w * (tick / ymax)
+            bars.append(
+                f'<line x1="{x_t:.1f}" y1="{y - 2:.1f}" x2="{x_t:.1f}" y2="{y + bar_h + 2:.1f}" stroke="{PINK}" '
+                f'stroke-width="2" stroke-dasharray="4 3"/>'
+            )
+        bars.append(
+            f'<text x="{label_x:.1f}" y="{y + bar_h * 0.68:.1f}" fill="{GOLD}" '
             f'font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="600">'
-            f"{value:.3f}</text>"
+            f"{_esc(value_txt)}</text>"
+        )
+    if marker and marker_label:
+        bars.append(
+            f'<line x1="{w - right - 150}" y1="{h - 22}" x2="{w - right - 130}" y2="{h - 22}" stroke="{PINK}" stroke-width="2" stroke-dasharray="4 3"/>'
+            f'<text x="{w - right - 124}" y="{h - 18}" fill="{MUTED}" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">{_esc(marker_label)}</text>'
         )
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" aria-label="{_esc(title)}">
   <rect width="{w}" height="{h}" fill="{BG}"/>
@@ -372,26 +412,63 @@ def write_static_story_svgs(out_dir: Path) -> None:
 def write_from_results(root: Path) -> None:
     out_dir = root / "doc" / "figures"
     write_static_story_svgs(out_dir)
-    latest = root / "bench" / "results" / "latest.json"
-    if latest.exists():
-        blob = json.loads(latest.read_text())
-        rec, ndcg = [], []
+    # The committed baseline is the artifact the README table is rendered from, so the
+    # figures read it too (falling back to latest.json before a baseline exists).
+    results_dir = root / "bench" / "results"
+    source = results_dir / "main.json"
+    if not source.exists():
+        source = results_dir / "latest.json"
+    if source.exists():
+        blob = json.loads(source.read_text())
+        ndcg, rec10, rec50 = [], [], []
+        ndcg_ci, rec10_ci, rec50_ci, rand50 = [], [], [], []
         colors = [GOLD, LAVENDER, BLUE, LOSS, SKY, PINK]
         for i, row in enumerate(blob.get("results", [])):
             name = row["config"]
-            rec.append((name, row["retrieval"]["recall@50"], colors[i % len(colors)]))
-            ndcg.append((name, row["retrieval"]["ndcg@10"], colors[i % len(colors)]))
-        _bar_chart(
-            out_dir / "recall.svg",
-            "Recall@50  ·  frozen 136-question gold set",
-            "Hash dense + in-memory BM25. Hybrid RRF is the jump. Losers stay in the table.",
-            rec,
-        )
+            r = row["retrieval"]
+            ci = row.get("ci") or {}
+            color = colors[i % len(colors)]
+
+            def interval(metric: str):
+                block = ci.get(metric)
+                return (block["lo"], block["hi"]) if block else None
+
+            ndcg.append((name, r["ndcg@10"], color))
+            ndcg_ci.append(interval("ndcg@10"))
+            rec10.append((name, r.get("recall@10", 0.0), color))
+            rec10_ci.append(interval("recall@10"))
+            rec50.append((name, r["recall@50"], color))
+            rec50_ci.append(interval("recall@50"))
+            rand50.append(r.get("random_recall@50"))
+        n_gold = blob.get("n_gold", "")
+        n_files = blob.get("n_files", "")
+        boot = blob.get("bootstrap") or {}
+        ci_note = f"95% CI: paired percentile bootstrap over queries, {boot.get('n_boot', '')} resamples, seed {boot.get('seed', '')}." if boot else ""
+        from app.eval.report import components_excluding_zero
+
+        excl = components_excluding_zero(blob)
         _bar_chart(
             out_dir / "ndcg.svg",
-            "nDCG@10  ·  same gold set, same budget",
-            "Staleness Tier 1 is the ranking win. Overlap reranker did not beat RRF.",
+            f"nDCG@10  ·  {n_gold} questions, {n_files} files, hash embeddings, overlap reranker",
+            f"Added components whose gain over the previous row excludes zero: {', '.join(excl) if excl else 'none'}. {ci_note}",
             ndcg,
+            ci=ndcg_ci,
+        )
+        _bar_chart(
+            out_dir / "recall.svg",
+            f"Recall@10  ·  {n_gold} questions, {n_files} files",
+            f"The recall number that is not saturated by list length. {ci_note}",
+            rec10,
+            ci=rec10_ci,
+        )
+        _bar_chart(
+            out_dir / "recall50.svg",
+            f"Recall@50 next to a random list of the same length  ·  {n_files} files",
+            "Dashed tick per bar: expected Recall@50 of a random list with that bar's number of unique files. A bar near its tick is measuring list length.",
+            rec50,
+            ci=rec50_ci,
+            marker=rand50,
+            marker_label="random list, same length",
         )
     sweeps = root / "bench" / "results" / "sweeps.json"
     if sweeps.exists():

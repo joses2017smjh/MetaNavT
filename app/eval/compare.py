@@ -3,12 +3,14 @@
     python -m app.eval.compare                       # report latest.json vs main.json
     python -m app.eval.compare --fail-on-regression  # exit 1 if a gated metric drops
 
-Gate: for every config in the baseline, each metric in GATED_METRICS must not be
-lower than the baseline by more than --threshold. The default threshold is 0.002:
-the bench is deterministic (hash embeddings, overlap reranker, fixed corpus) and
-reproduced to four decimals on Python 3.11 / numpy 1.26 and 3.12 / numpy 2.5, so
-a drop of 0.002 on nDCG@10 or Recall@50 is a real change, not rounding noise.
-Improvements never fail the gate; promote them with `make bench-baseline`.
+Gate: for every config in the baseline, each metric in GATED_METRICS (nDCG@10,
+Recall@10, Recall@50) must not be lower than the baseline by more than
+--threshold. The default threshold is 0.002: the bench is deterministic (hash
+embeddings, overlap reranker, fixed corpus) and reproduced to four decimals on
+Python 3.11 / numpy 1.26 and 3.12 / numpy 2.5, so a drop of 0.002 is a real
+change, not rounding noise. A gated metric missing from the baseline (older
+result files) is skipped with a note. Improvements never fail the gate; promote
+them with `make bench-baseline`.
 
 Only the retrieval metrics are compared. Timestamps, latencies and the heuristic
 e2e block differ from run to run and are ignored.
@@ -20,8 +22,8 @@ import argparse
 import json
 from pathlib import Path
 
-REPORTED_METRICS = ("recall@50", "ndcg@10", "mrr@10")
-GATED_METRICS = ("ndcg@10", "recall@50")
+REPORTED_METRICS = ("ndcg@10", "recall@10", "recall@50", "mrr@10")
+GATED_METRICS = ("ndcg@10", "recall@10", "recall@50")
 DEFAULT_THRESHOLD = 0.002
 
 
@@ -49,8 +51,11 @@ def compare(current: dict, baseline: dict, metrics=REPORTED_METRICS) -> str:
             lines.append(f"| {name} | — | missing | missing | — |")
             continue
         for metric in metrics:
-            b = base_map[name]["retrieval"][metric]
-            c = cur_map[name]["retrieval"][metric]
+            b = base_map[name]["retrieval"].get(metric)
+            c = cur_map[name]["retrieval"].get(metric)
+            if b is None or c is None:
+                lines.append(f"| {name} | {metric} | {'—' if b is None else f'{b:.3f}'} | {'—' if c is None else f'{c:.3f}'} | — |")
+                continue
             delta = c - b
             sign = "+" if delta >= 0 else ""
             lines.append(f"| {name} | {metric} | {b:.3f} | {c:.3f} | {sign}{delta:.3f} |")
@@ -62,12 +67,14 @@ def regressions(
     baseline: dict,
     threshold: float = DEFAULT_THRESHOLD,
     metrics=GATED_METRICS,
+    notes: list[str] | None = None,
 ) -> list[str]:
     """Human-readable reasons the current result fails the gate (empty = pass).
 
     Every config in the baseline must exist in the current result, and each gated
     metric must not drop by more than `threshold`. Configs that only exist in the
-    current result are new rows and are not gated.
+    current result are new rows and are not gated. A gated metric the baseline
+    does not have is skipped and mentioned in `notes`.
     """
     cur_map = _by_config(current)
     base_map = _by_config(baseline)
@@ -78,8 +85,15 @@ def regressions(
             problems.append(f"{name}: present in baseline but missing from current result")
             continue
         for metric in metrics:
-            b = base_row["retrieval"][metric]
-            c = cur_row["retrieval"][metric]
+            b = base_row["retrieval"].get(metric)
+            c = cur_row["retrieval"].get(metric)
+            if b is None:
+                if notes is not None:
+                    notes.append(f"{name}: {metric} not in baseline; not gated (run `make bench-baseline`)")
+                continue
+            if c is None:
+                problems.append(f"{name}: {metric} missing from current result")
+                continue
             if b - c > threshold + 1e-9:  # metrics are rounded to 4 dp; absorb float error at the boundary
                 problems.append(
                     f"{name}: {metric} dropped {b:.4f} -> {c:.4f} (delta {c - b:+.4f}, threshold {threshold})"
@@ -112,7 +126,10 @@ def main(argv: list[str] | None = None) -> int:
     current = load_result(args.current)
     baseline = load_result(args.baseline)
     print(compare(current, baseline))
-    problems = regressions(current, baseline, threshold=args.threshold)
+    notes: list[str] = []
+    problems = regressions(current, baseline, threshold=args.threshold, notes=notes)
+    for line in notes:
+        print(f"note: {line}")
     if not problems:
         print(f"\ngate: OK ({', '.join(GATED_METRICS)} within {args.threshold} of baseline for {len(_by_config(baseline))} configs)")
         return 0

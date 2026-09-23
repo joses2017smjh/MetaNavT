@@ -105,7 +105,7 @@ Keep the losers in the table. The commit history of `bench/results/*.json` is th
 
 First measured row (hash dense + in-memory BM25, 136 questions, 61-file frozen tree):
 
-> Rebuilt retrieval as hybrid BM25 + dense search fused with reciprocal rank fusion, raising Recall@50 from 0.843 (BM25) / 0.915 (dense) to 0.938 on a 136-question frozen benchmark. Query routing lifted exact-path nDCG@10 from 0.596 to 0.938. Deterministic version-clustering raised nDCG@10 from 0.456 to 0.493 with no recall drop. The overlap reranker did not beat RRF (0.452 vs 0.454) and stays in the table until `bge-reranker-v2-m3` is loaded.
+> Superseded (2026-09-23). This draft led with Recall@50, which on a 61-file corpus mostly measures list length, and credited the router with an exact-path gain (0.596 → 0.938) that compared against plain RRF; the router's own ablation is the reranked hybrid → router row on n = 8. The current numbers, with 95% confidence intervals, are the generated headline in README.md (`make bench-table`, from `bench/results/main.json`); the resume bullets will be written from that file in docs/RESUME_EVIDENCE.md.
 
 After routing + distillation:
 
