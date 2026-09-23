@@ -19,8 +19,12 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency"), "doc/demo.html": ("demo-stats",)}
+LATENCY_FILES = {
+    "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
+    "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
+}
 NEURAL_FILE = "bench/results/neural.json"
 BEIR_FILE = "bench/results/beir_scifact.json"
 PARITY_FILE = "bench/results/parity.json"
@@ -31,6 +35,7 @@ SOURCES = {
     "bench-neural": NEURAL_FILE,
     "bench-beir": BEIR_FILE,
     "bench-parity": PARITY_FILE,
+    "api-latency": "bench/results/api_latency_*.json",
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -382,6 +387,34 @@ def parity_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
+def latency_table(root: Path | None) -> str:
+    rows = []
+    for label, rel in LATENCY_FILES.items():
+        blob = _load(root, rel)
+        if not blob:
+            continue
+        h = blob.get("health") or {}
+        rr = h.get("reranker") or {}
+        st = blob.get("stages_p50_ms") or {}
+        rows.append(
+            f"| {label} | {h.get('embed_model') or h.get('embedding_provider')} | {rr.get('model') or '—'}@{(rr.get('revision') or '?')[:7]} on {rr.get('device') or '?'} "
+            f"({rr.get('precision')}, max_length {rr.get('max_length')}, depth {rr.get('depth')}) | {'none' if not (h.get('degraded')) else h.get('degraded')} | "
+            f"{blob['server_total_ms']['p50']} / {blob['server_total_ms']['p95']} | {blob['e2e_ms']['p50']} / {blob['e2e_ms']['p95']} | "
+            f"{st.get('embed', '—')} / {st.get('hybrid_sql', '—')} / {st.get('rerank', '—')} | {blob.get('n')} |"
+        )
+    if not rows:
+        return "_no api_latency_*.json yet; run `scripts/smoke_retrieve.py --latency bench/gold/questions.jsonl --latency-out ...` against a running API._"
+    return "\n".join(
+        [
+            "| stack | embedder | reranker | degraded | server total p50 / p95 ms | e2e p50 / p95 ms | embed / hybrid_sql / rerank p50 ms | questions |",
+            "|---|---|---|---|---:|---:|---:|---:|",
+            *rows,
+            "",
+            "Per-query, k = 8, one warm-up excluded; server total is the sum of the API's own stage timers, e2e includes HTTP.",
+        ]
+    )
+
+
 def _load(root: Path | None, rel: str) -> dict | None:
     if root is None:
         return None
@@ -398,6 +431,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-neural": neural_table(_load(root, NEURAL_FILE)),
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE)),
+        "api-latency": latency_table(root),
     }
 
 

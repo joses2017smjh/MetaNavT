@@ -60,6 +60,23 @@ class Staleness(BaseModel):
     dropped: int
 
 
+class RerankerInfo(BaseModel):
+    configured: bool = False
+    loaded: bool = False
+    model: Optional[str] = None
+    revision: Optional[str] = None
+    device: Optional[str] = None
+    precision: Optional[str] = None
+    max_length: Optional[int] = None
+    depth: Optional[int] = None
+    error: Optional[str] = None
+
+
+class Degraded(BaseModel):
+    component: str
+    error: str
+
+
 class RetrieveResponse(BaseModel):
     query: str
     k: int
@@ -68,6 +85,8 @@ class RetrieveResponse(BaseModel):
     bm25_backend: Optional[str]
     embedding_provider: str
     reranker_loaded: bool
+    reranker: RerankerInfo
+    degraded: list[Degraded]
     staleness: Staleness
     counts: dict[str, int]
     latency_ms: dict[str, float]
@@ -121,6 +140,8 @@ async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
         bm25_backend=outcome.bm25_backend,
         embedding_provider=os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         reranker_loaded=getattr(state.retriever, "_reranker", None) is not None,
+        reranker=RerankerInfo(**{k: v for k, v in (getattr(state.retriever, "reranker_info", None) or {}).items() if k in RerankerInfo.model_fields}),
+        degraded=[Degraded(**d) for d in getattr(outcome, "degraded", [])],
         staleness=Staleness(**outcome.staleness),
         counts=outcome.counts,
         latency_ms=outcome.stages_ms,

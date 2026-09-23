@@ -43,7 +43,12 @@ class RetrievalOutcome:
     bm25_backend: Optional[str] = None
     skipped_embed: bool = False
     skipped_rerank: bool = False
+    degraded: List[dict] = field(default_factory=list)  # [{"component": "rerank", "error": "..."}], never silent
     timer: StageTimer = field(default_factory=StageTimer)
+
+
+class RerankerUnavailable(RuntimeError):
+    """A reranker was configured but could not be loaded (and RERANKER_REQUIRED is true)."""
 
 
 def node_to_chunk(node: NodeWithScore) -> Chunk:
@@ -125,6 +130,8 @@ class HybridRetriever(BaseRetriever):
         embed_fn: Optional[Callable[[str], list]] = None,
         clusters: Optional[dict] = None,
         rrf_k: int = RRF_K,
+        rerank_depth: Optional[int] = None,
+        reranker_info: Optional[dict] = None,
     ):
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of {RETRIEVAL_MODES}, got {mode!r}")
@@ -144,6 +151,8 @@ class HybridRetriever(BaseRetriever):
         self._embed_fn = embed_fn
         self._clusters = clusters or {}
         self._rrf_k = rrf_k
+        self._rerank_depth = rerank_depth  # rerank the fused top-N only; the rest keep RRF order
+        self.reranker_info = dict(reranker_info or {"configured": reranker is not None, "loaded": reranker is not None})
         # Compatibility mirrors of the last outcome (single-threaded callers only).
         self.last_timer: Optional[StageTimer] = None
         self.last_route = None
@@ -183,13 +192,20 @@ class HybridRetriever(BaseRetriever):
                 fused = self._prefer_current(query_str, fused)
                 staleness.update(applied=True, dropped=before - len(fused))
 
+        degraded: List[dict] = []
         if self._reranker and fused and not skip_rerank:
             with timer.stage("rerank"):
-                fused = self._rerank(query_str, fused, n=n)
-            for node in fused:
-                scores.setdefault(node.node.node_id, {})["rerank"] = node.score
+                fused, rerank_error = self._rerank(query_str, fused, n=n)
+            if rerank_error:
+                degraded.append({"component": "rerank", "error": rerank_error})
+            else:
+                head = self._rerank_depth or len(fused)
+                for node in fused[:head]:
+                    scores.setdefault(node.node.node_id, {})["rerank"] = node.score
         elif fused:
             fused = fused[:n]
+        if self.reranker_info.get("configured") and not self.reranker_info.get("loaded"):
+            degraded.append({"component": "rerank", "error": self.reranker_info.get("error") or "configured but not loaded"})
         counts["returned"] = len(fused)
 
         stages_ms = {name: round(stats.samples_ms[-1], 3) for name, stats in timer.stages.items() if stats.samples_ms}
@@ -205,6 +221,7 @@ class HybridRetriever(BaseRetriever):
             bm25_backend=backend,
             skipped_embed=skip_embed,
             skipped_rerank=skip_rerank or self._reranker is None,
+            degraded=degraded + self._bm25_degraded,
             timer=timer,
         )
         self.last_timer, self.last_route, self.last_counts = timer, route, counts
@@ -215,7 +232,10 @@ class HybridRetriever(BaseRetriever):
 
     # ------------------------------------------------------------------ fusion backends
 
+    _bm25_degraded: List[dict] = []
+
     def _fuse_sql(self, query_str: str, timer: StageTimer, skip_embed: bool):
+        self._bm25_degraded = []
         qvec = None
         if not skip_embed:
             with timer.stage("embed"):
@@ -236,6 +256,7 @@ class HybridRetriever(BaseRetriever):
         return fused, scores, counts, getattr(self._vsm, "last_bm25_backend", None)
 
     def _fuse_python(self, query_str: str, timer: StageTimer, skip_embed: bool):
+        self._bm25_degraded = []
         with timer.stage("bm25"):
             bm25_nodes = self._bm25_retrieve(query_str)
         vector_results: List[NodeWithScore] = []
@@ -278,58 +299,111 @@ class HybridRetriever(BaseRetriever):
                 )
                 nodes.append(NodeWithScore(node=node, score=float(r["score"])))
             return nodes
-        except Exception as e:
-            logger.warning(f"BM25 retrieval failed, falling back to vector-only: {e}")
+        except Exception as e:  # noqa: BLE001 - recorded on the outcome, never silent
+            logger.warning(f"BM25 retrieval failed; this request is degraded to vector-only: {e}")
+            self._bm25_degraded = [{"component": "bm25", "error": f"{type(e).__name__}: {e}"}]
             return []
 
-    def _rerank(self, query_str: str, nodes: List[NodeWithScore], n: Optional[int] = None) -> List[NodeWithScore]:
-        """Rerank nodes using the cross-encoder model; keep the top n (default rerank_top_n)."""
+    def _rerank(self, query_str: str, nodes: List[NodeWithScore], n: Optional[int] = None):
+        """Rerank the fused top-`rerank_depth` with the cross-encoder; the rest keep RRF order.
+
+        Returns (nodes[:n], error). A failure is returned, not hidden: the caller
+        records it on the outcome as a degraded component and the unreranked
+        RRF order is served for that request.
+        """
         n = n or self._rerank_top_n
+        depth = self._rerank_depth or len(nodes)
+        head, tail = nodes[:depth], nodes[depth:]
         try:
             from app.retrieval.rerank import cross_encoder_scores
 
-            pairs = [(query_str, n.node.get_content()) for n in nodes]
-            scores = cross_encoder_scores(self._reranker, pairs)  # predict() or compute_score()
-
-            scored = list(zip(nodes, scores))
-            scored.sort(key=lambda x: x[1], reverse=True)
-
-            reranked = []
-            for node, score in scored[:n]:
-                reranked.append(NodeWithScore(node=node.node, score=float(score)))
-
-            logger.info(f"Reranker selected top {len(reranked)} results")
-            return reranked
-        except Exception as e:
-            logger.warning(f"Reranking failed, returning RRF results: {e}")
-            return nodes[:n]
+            scores = cross_encoder_scores(self._reranker, [(query_str, h.node.get_content()) for h in head])
+        except Exception as e:  # noqa: BLE001 - surfaced as degraded
+            logger.warning(f"Reranking failed for this request; serving RRF order: {e}")
+            return nodes[:n], f"{type(e).__name__}: {e}"
+        scored = sorted(zip(head, scores), key=lambda x: x[1], reverse=True)
+        reranked = [NodeWithScore(node=node.node, score=float(score)) for node, score in scored]
+        return (reranked + tail)[:n], None
 
 
-_reranker_model = None
+_reranker_cache: dict[str, tuple] = {}
+
+
+def reranker_settings() -> dict:
+    """The served reranker configuration, from the environment.
+
+    Defaults come from the measured SciFact sweep (bench/results/beir_scifact.json):
+    fp16 with max_length 512 is a quality tie with fp32 uncapped at a fraction of
+    the latency, and reranking deeper than 20 loses nDCG@10 while costing more.
+    """
+    try:
+        import torch  # type: ignore
+
+        cuda = bool(torch.cuda.is_available())
+    except Exception:
+        cuda = False
+    precision = os.getenv("RERANKER_PRECISION", "fp16" if cuda else "fp32").strip().lower()
+    return {
+        "model": os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
+        "precision": precision if precision in {"fp16", "fp32"} else "fp32",
+        "max_length": int(os.getenv("RERANKER_MAX_LENGTH", "512")),
+        "depth": int(os.getenv("RERANK_DEPTH", "20")),
+        "required": os.getenv("RERANKER_REQUIRED", "true").strip().lower() != "false",
+        "device": os.getenv("RERANKER_DEVICE") or ("cuda" if cuda else "cpu"),
+    }
+
+
+def load_reranker(settings: Optional[dict] = None):
+    """Load the configured cross-encoder; return (model_or_None, info).
+
+    RERANKER_MODEL=none means "not configured" (info.configured False). A
+    configured model that cannot be loaded raises RerankerUnavailable unless
+    RERANKER_REQUIRED=false, in which case the info block says loaded=False with
+    the error and every response lists the component as degraded. Nothing
+    falls back silently.
+    """
+    st = settings or reranker_settings()
+    name = st["model"]
+    info = {
+        "configured": bool(name) and name.lower() != "none",
+        "loaded": False,
+        "model": None if not name or name.lower() == "none" else name,
+        "revision": None,
+        "device": None,
+        "precision": st["precision"],
+        "max_length": st["max_length"],
+        "depth": st["depth"],
+        "error": None,
+    }
+    if not info["configured"]:
+        return None, info
+    key = f"{name}|{st['precision']}|{st['max_length']}|{st['device']}"
+    if key in _reranker_cache:
+        return _reranker_cache[key]
+    from app.eval.provenance import hf_revision, model_device
+    from app.retrieval.rerank import get_cross_encoder
+
+    error = None
+    model = None
+    try:
+        model = get_cross_encoder(name, precision=st["precision"], max_length=st["max_length"], device=st["device"])
+        if model is None:
+            error = "not loadable: sentence-transformers missing, or weights not cached and BGE_ALLOW_DOWNLOAD unset"
+    except Exception as e:  # noqa: BLE001 - reported, not swallowed
+        error = f"{type(e).__name__}: {e}"
+    info.update(loaded=model is not None, revision=hf_revision(name), device=model_device(model) if model else None, error=error)
+    if model is not None:
+        inner = getattr(model, "model", None)
+        info["dtype"] = str(getattr(inner, "dtype", None)) if inner is not None else None
+    elif st["required"]:
+        raise RerankerUnavailable(f"RERANKER_MODEL={name} is configured but could not be loaded ({error}); set RERANKER_MODEL=none or RERANKER_REQUIRED=false")
+    _reranker_cache[key] = (model, info)
+    return model, info
 
 
 def get_reranker():
-    """Lazy-load the cross-encoder reranker model."""
-    global _reranker_model
-    if _reranker_model is not None:
-        return _reranker_model
-
-    reranker_name = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
-    if reranker_name.lower() == "none":
-        return None
-
-    try:
-        from sentence_transformers import CrossEncoder
-
-        logger.info(f"Loading reranker model: {reranker_name}")
-        _reranker_model = CrossEncoder(reranker_name)
-        return _reranker_model
-    except ImportError:
-        logger.warning("sentence-transformers not installed; reranking disabled")
-        return None
-    except Exception as e:
-        logger.warning(f"Failed to load reranker model '{reranker_name}': {e}")
-        return None
+    """Compatibility wrapper: the model only."""
+    return load_reranker()[0]
 
 
 def create_hybrid_retriever(
@@ -358,7 +432,10 @@ def create_hybrid_retriever(
 
         embed_fn = Settings.embed_model.get_query_embedding
 
-    reranker = get_reranker() if use_reranker else None
+    if use_reranker:
+        reranker, info = load_reranker()
+    else:
+        reranker, info = None, {"configured": False, "loaded": False, "model": None}
 
     return HybridRetriever(
         vector_retriever=vector_retriever,
@@ -371,4 +448,6 @@ def create_hybrid_retriever(
         mode=mode,
         embed_fn=embed_fn,
         clusters=clusters,
+        rerank_depth=info.get("depth"),
+        reranker_info=info,
     )

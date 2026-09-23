@@ -6,6 +6,7 @@ raw score, so a BM25 score above a cosine score replaced the node that carried
 file_path. Real llama_index node types, fake vector store + retriever.
 """
 
+import pytest
 from llama_index.core.schema import NodeWithScore, TextNode
 
 from app.engine.retriever import HybridRetriever, reciprocal_rank_fusion
@@ -214,3 +215,77 @@ def test_mode_validation():
         HybridRetriever(None, _FakeSQLVSM(), mode="python")  # no vector retriever
     with pytest.raises(ValueError):
         HybridRetriever(_FakeVectorRetriever(), _FakeSQLVSM(), mode="graphql")
+
+
+# ---------------------------------------------------------------- M3: no silent fallbacks, served reranker config
+
+
+class _BrokenCrossEncoder:
+    def predict(self, pairs, batch_size=32, show_progress_bar=False, activation_fn=None):
+        raise RuntimeError("CUDA out of memory (simulated)")
+
+
+def test_rerank_failure_is_reported_as_degraded_not_hidden():
+    retriever = HybridRetriever(_FakeVectorRetriever(), _FakeVSM(), reranker=_BrokenCrossEncoder(), rerank_top_n=8, enable_router=False,
+                                reranker_info={"configured": True, "loaded": True, "model": "x"})
+
+    out = retriever.retrieve_detailed("anything")
+
+    assert len(out.nodes) == 3  # RRF order served for this request
+    assert out.degraded == [{"component": "rerank", "error": "RuntimeError: CUDA out of memory (simulated)"}]
+    assert all(out.scores[n.node.node_id]["rerank"] is None for n in out.nodes)
+
+
+def test_rerank_depth_reranks_the_head_and_keeps_the_tail_in_rrf_order():
+    model = _ReversingCrossEncoder()
+    retriever = HybridRetriever(_FakeVectorRetriever(), _FakeVSM(), reranker=model, rerank_top_n=8, enable_router=False, rerank_depth=2)
+
+    out = retriever.retrieve_detailed("anything", top_n=3)
+
+    assert len(model.calls[0]) == 2  # only the fused top-2 were scored
+    fused_order = [p[1] for p in model.calls[0]]
+    assert out.nodes[0].node.get_content() == fused_order[1] and out.nodes[1].node.get_content() == fused_order[0]  # head reversed
+    assert out.scores[out.nodes[2].node.node_id]["rerank"] is None  # tail untouched
+    assert out.degraded == []
+
+
+def test_configured_but_unloaded_reranker_is_listed_as_degraded_on_every_response():
+    retriever = HybridRetriever(_FakeVectorRetriever(), _FakeVSM(), reranker=None, enable_router=False,
+                                reranker_info={"configured": True, "loaded": False, "model": "BAAI/bge-reranker-v2-m3", "error": "weights not cached"})
+
+    out = retriever.retrieve_detailed("anything")
+
+    assert out.degraded == [{"component": "rerank", "error": "weights not cached"}]
+
+
+def test_bm25_failure_in_python_mode_is_degraded_not_silent():
+    class _FailingVSM:
+        last_bm25_backend = None
+
+        def search_bm25(self, query, limit):
+            raise ConnectionError("db gone")
+
+    retriever = HybridRetriever(_FakeVectorRetriever(), _FailingVSM(), reranker=None, enable_router=False)
+    out = retriever.retrieve_detailed("anything")
+    assert out.degraded[0]["component"] == "bm25" and "db gone" in out.degraded[0]["error"]
+    assert len(out.nodes) == 2  # vector-only for this request
+
+
+def test_load_reranker_never_falls_back_silently(monkeypatch):
+    from app.engine import retriever as mod
+
+    mod._reranker_cache.clear()
+    monkeypatch.setattr(mod, "reranker_settings", lambda: {"model": "nope/does-not-exist", "precision": "fp32", "max_length": 512, "depth": 20, "required": True, "device": "cpu"})
+    monkeypatch.setattr("app.retrieval.rerank.get_cross_encoder", lambda *a, **k: None)
+    with pytest.raises(mod.RerankerUnavailable):
+        mod.load_reranker()
+
+    mod._reranker_cache.clear()
+    monkeypatch.setattr(mod, "reranker_settings", lambda: {"model": "nope/does-not-exist", "precision": "fp32", "max_length": 512, "depth": 20, "required": False, "device": "cpu"})
+    model, info = mod.load_reranker()
+    assert model is None and info["configured"] and not info["loaded"] and "not loadable" in info["error"]
+
+    mod._reranker_cache.clear()
+    monkeypatch.setattr(mod, "reranker_settings", lambda: {"model": "none", "precision": "fp32", "max_length": 512, "depth": 20, "required": True, "device": "cpu"})
+    model, info = mod.load_reranker()
+    assert model is None and info == {"configured": False, "loaded": False, "model": None, "revision": None, "device": None, "precision": "fp32", "max_length": 512, "depth": 20, "error": None}

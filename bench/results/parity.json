@@ -1,6 +1,6 @@
 {
-  "git_sha": "ee782ab",
-  "timestamp": "2026-09-23T15:37:53.415191+00:00",
+  "git_sha": "90ce661",
+  "timestamp": "2026-09-23T16:20:50.955206+00:00",
   "command": "CUDA_VISIBLE_DEVICES=0,1 python -m app.eval.harness --backend api --url http://127.0.0.1:8001 --out bench/results/parity.json",
   "device": {
     "requested": "cpu",
@@ -24,12 +24,24 @@
     "embedding_provider": "hash",
     "embed_model": "HashEmbedding",
     "bm25_backend": "ts_rank_cd",
+    "retrieval_mode": "sql",
     "reranker_loaded": false,
+    "reranker": {
+      "configured": false,
+      "loaded": false,
+      "model": null,
+      "revision": null,
+      "device": null,
+      "precision": "fp32",
+      "max_length": 512,
+      "depth": 20,
+      "error": null
+    },
+    "degraded": [],
     "indexing": {
-      "indexed": true,
-      "n_documents": 61,
+      "indexed": false,
       "n_nodes": 61,
-      "data_dir": "bench/corpus/files"
+      "reason": "table already populated"
     }
   },
   "bootstrap": {
@@ -75,7 +87,8 @@
         "multi_query": false,
         "hyde": false,
         "decompose": false,
-        "corrective": false
+        "corrective": false,
+        "parent": null
       },
       "retrieval": {
         "ndcg@10": 0.515,
@@ -152,35 +165,35 @@
         "route": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.03,
+          "p95_ms": 0.02,
           "mean_ms": 0.02
         },
         "bm25": {
           "n": 136,
           "p50_ms": 0.22,
-          "p95_ms": 0.3,
-          "mean_ms": 0.22
+          "p95_ms": 1.25,
+          "mean_ms": 0.79
         },
         "embed": {
           "n": 128,
-          "p50_ms": 0.17,
-          "p95_ms": 0.28,
-          "mean_ms": 0.19
+          "p50_ms": 0.18,
+          "p95_ms": 0.46,
+          "mean_ms": 0.49
         },
         "vector_search": {
           "n": 128,
           "p50_ms": 0.02,
           "p95_ms": 0.02,
-          "mean_ms": 0.02
+          "mean_ms": 0.1
         },
         "lexical": {
           "n": 8,
-          "p50_ms": 0.4,
-          "p95_ms": 0.47,
-          "mean_ms": 0.42
+          "p50_ms": 0.43,
+          "p95_ms": 0.94,
+          "mean_ms": 0.53
         }
       },
-      "wall_ms": 87.48,
+      "wall_ms": 249.33,
       "routes": {
         "semantic": 95,
         "aggregation_query": 33,
@@ -226,7 +239,8 @@
         }
       },
       "delta_vs_bm25_only": null,
-      "delta_vs_previous": null
+      "delta_vs_previous": null,
+      "delta_vs_parent_by_category": null
     },
     {
       "config": "api:postgres",
@@ -318,9 +332,9 @@
       "latency": {
         "e2e": {
           "n": 136,
-          "p50_ms": 8.19,
-          "p95_ms": 17.32,
-          "mean_ms": 9.8
+          "p50_ms": 9.89,
+          "p95_ms": 33.3,
+          "mean_ms": 13.49
         },
         "server:route": {
           "n": 136,
@@ -330,30 +344,30 @@
         },
         "server:embed": {
           "n": 128,
-          "p50_ms": 0.35,
-          "p95_ms": 0.43,
-          "mean_ms": 0.36
+          "p50_ms": 0.38,
+          "p95_ms": 0.47,
+          "mean_ms": 0.4
         },
         "server:hybrid_sql": {
           "n": 136,
-          "p50_ms": 5.3,
-          "p95_ms": 14.14,
-          "mean_ms": 6.81
+          "p50_ms": 6.84,
+          "p95_ms": 28.5,
+          "mean_ms": 10.11
         },
         "server:staleness": {
           "n": 136,
           "p50_ms": 0.23,
-          "p95_ms": 0.25,
-          "mean_ms": 0.22
+          "p95_ms": 0.26,
+          "mean_ms": 0.23
         },
         "server:total": {
           "n": 136,
-          "p50_ms": 6.34,
-          "p95_ms": 15.27,
-          "mean_ms": 7.82
+          "p50_ms": 7.87,
+          "p95_ms": 29.62,
+          "mean_ms": 11.17
         }
       },
-      "wall_ms": 1335.75,
+      "wall_ms": 1837.31,
       "n_queries": 136,
       "ci": {
         "ndcg@10": {
@@ -390,7 +404,8 @@
           "lo": -0.0265,
           "hi": 0.0493
         }
-      }
+      },
+      "delta_vs_parent_by_category": null
     }
   ]
 }

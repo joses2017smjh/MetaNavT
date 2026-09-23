@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      ml_smoke:
+        description: "also build docker-compose.ml.yml (CPU torch + bge-small + bge-reranker) and measure CPU latency"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -138,3 +144,30 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  docker-ml-smoke:
+    # Manual: builds the CPU real-model stack once, confirms the reranker loads on CPU
+    # (/health.reranker.loaded, no degraded components) and records per-query latency
+    # over the 136 gold questions as an artifact. Not part of every push: it downloads
+    # about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
+    name: docker compose ml smoke (CPU, manual)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ml_smoke }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the CPU real-model stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build -d --wait --wait-timeout 1800
+      - name: Reranker loaded, no degraded components, latency over the gold set
+        run: python3 scripts/smoke_retrieve.py --require-bm25 --require-reranker --latency bench/gold/questions.jsonl --latency-out bench/results/api_latency_docker_cpu_ml.json
+      - name: API log
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ml.yml logs --no-color api | tail -n 120
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-latency-docker-cpu-ml
+          path: bench/results/api_latency_docker_cpu_ml.json
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ml.yml down -v

@@ -75,10 +75,14 @@ class _FakeOutcome:
         self.staleness = {"enabled": True, "applied": True, "dropped": 0}
         self.mode = "sql"
         self.bm25_backend = "ts_rank_cd"
+        self.degraded = [{"component": "rerank", "error": "weights not cached"}]
 
 
 class _FakeRetriever:
     _reranker = None
+    mode = "sql"
+    reranker_info = {"configured": True, "loaded": False, "model": "BAAI/bge-reranker-v2-m3", "revision": None, "device": None,
+                     "precision": "fp16", "max_length": 512, "depth": 20, "error": "weights not cached"}
 
     def __init__(self):
         self.calls = []
@@ -91,7 +95,17 @@ class _FakeRetriever:
 class _FakeState:
     def __init__(self):
         self.retriever = _FakeRetriever()
-        self.vsm = None
+        self.vsm = _FakeVSM()
+        self.index = None
+        self.indexing = {"indexed": False}
+
+
+class _FakeVSM:
+    hybrid_backend = "ts_rank_cd"
+    last_bm25_backend = None
+
+    def count_nodes(self):
+        return 61
 
 
 @pytest.fixture
@@ -123,3 +137,16 @@ def test_k_and_query_are_validated(ready_client):
     assert ready_client.post("/api/retrieve/", json={"query": "   "}).status_code == 422
     assert ready_client.post("/api/retrieve/", json={"query": "y" * 2001}).status_code == 422
     assert ready_client.post("/api/retrieve/", json={"query": "ok"}).status_code == 200
+
+
+def test_response_and_health_list_degraded_components_and_the_reranker(ready_client):
+    body = ready_client.post("/api/retrieve/", json={"query": "q"}).json()
+    assert body["degraded"] == [{"component": "rerank", "error": "weights not cached"}]
+    assert body["reranker"]["configured"] is True and body["reranker"]["loaded"] is False
+    assert body["reranker"]["precision"] == "fp16" and body["reranker"]["depth"] == 20 and body["reranker_loaded"] is False
+
+    health = ready_client.get("/health")
+    assert health.status_code == 200
+    h = health.json()
+    assert h["status"] == "degraded" and h["degraded"][0]["component"] == "rerank"
+    assert h["reranker"]["model"] == "BAAI/bge-reranker-v2-m3" and h["retrieval_mode"] == "sql" and h["n_nodes"] == 61
