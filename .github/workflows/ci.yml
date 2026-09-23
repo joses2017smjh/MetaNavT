@@ -66,10 +66,12 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Reproduce the documented setup (.env must not change what the stack runs)
+        run: cp .env.example .env
       - name: Build and start the stack
         run: docker compose up --build -d --wait --wait-timeout 420
-      - name: POST /api/retrieve/
-        run: python3 scripts/smoke_retrieve.py
+      - name: POST /api/retrieve/ (hits with paths; at least one lexical hit)
+        run: python3 scripts/smoke_retrieve.py --require-bm25
       - name: API logs
         if: always()
         run: docker compose logs --no-color api | tail -n 150

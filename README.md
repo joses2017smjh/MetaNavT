@@ -516,9 +516,13 @@ The compose stack is labelled honestly: `pgvector/pgvector:pg16` has no
 ParadeDB `pg_search`, so lexical search falls back to Postgres `ts_rank_cd`
 (`bm25_backend` in the response), embeddings are the hash adapter
 (`embedding_provider`), and no reranker is loaded (`reranker_loaded`). For
-real models: `EXTRAS=app,ml EMBEDDING_PROVIDER=huggingface EMBEDDING_DIM=1024
-RERANKER_MODEL=BAAI/bge-reranker-v2-m3 docker compose up --build`
-(bge-large-en-v1.5 is a ~1.3 GB download).
+real models use the override, which installs the `ml` extra and loads
+bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:
+
+```bash
+docker compose down -v   # the table width changes from 256 to 1024
+docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
+```
 
 **Full application locally** (chat needs Ollama; retrieval does not):
 
