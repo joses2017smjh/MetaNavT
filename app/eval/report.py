@@ -428,8 +428,11 @@ def jury_table(blob: dict | None) -> str:
     cfg = blob.get("config") or {}
     rr = (blob.get("models") or {}).get("reranker") or {}
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
+    rs = blob.get("rescore") or {}
+    sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
+                f"`make bench-jury-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
     lines = [
-        f"Generated answers on fixture v1 (`make bench-jury`, results sha {blob.get('git_sha')}): {blob['n_gold']} questions, "
+        f"Generated answers on fixture v1 (`make bench-jury`, {sha_note}): {blob['n_gold']} questions, "
         f"retrieval `{cfg.get('name')}` ({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "
         f"judges {', '.join(judges)}; wall {blob.get('wall_s')} s. The generator is also one of the judges, so that judge's "
         f"scores carry self-preference risk.",
@@ -440,10 +443,13 @@ def jury_table(blob: dict | None) -> str:
         "|---|---:|---:|",
         f"| answers with no valid citation (failed loud, excluded from judging) | {c['uncited_answers']['count']} | {c['uncited_answers']['n']} |",
         f"| abstentions (NOT IN SOURCES) | {c['abstained']['count']} | {c['abstained']['n']} |",
-        f"| every cited path is in the retrieved set | {c['cited_in_retrieved']['rate']} | {c['cited_in_retrieved']['n']} |",
-        f"| every number / config value appears in the cited bytes | {c['values_in_cited_bytes']['rate']} | {c['values_in_cited_bytes']['n']} |",
+        f"| every cited path is in the retrieved set (answers with at least one citation) | {c['cited_in_retrieved']['rate']} | {c['cited_in_retrieved']['n']} |",
+        f"| every number / config value appears in the cited bytes (answers that state a value) | {c['values_in_cited_bytes']['rate']} | {c['values_in_cited_bytes']['n']} |",
         f"| ... appears anywhere in the retrieved evidence (looser) | {c['values_in_any_evidence']['rate']} | {c['values_in_any_evidence']['n']} |",
         f"| exact match vs gold (numeric-equivalent), simple_factual | {c['exact_match_simple_factual']['rate']} | {c['exact_match_simple_factual']['n']} |",
+        "",
+        "Value checks are string containment, case-insensitive; a value written in a different numeric format than the file "
+        "(0.0003 for 3e-4) counts as missing, and a value the model computed (an average) is missing by design.",
         "",
         f"Does the judge agree with the gold labels? Cohen's kappa between each judge's label and the exact-match label on simple_factual; "
         f"the gate is kappa >= {blob.get('kappa_gate')}.",
@@ -451,13 +457,23 @@ def jury_table(blob: dict | None) -> str:
         "| judge | kappa vs exact match | n | passes gate | labels correct / partial / wrong |",
         "|---|---:|---:|:---:|---|",
     ]
+    ref = s.get("reference") or {}
+    evaluable = ref.get("gate_evaluable", True)
+    gate_cell = lambda ok: "yes" if ok else ("no (not evaluable)" if not evaluable else "no")  # noqa: E731
     for name, k in s["kappa"].items():
         if name == "jury_majority":
-            lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {'yes' if k['readme_ok'] else 'no'} | — |")
+            lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {gate_cell(k['readme_ok'])} | — |")
         else:
             lc = k["label_counts"]
             label = f"{name} (heuristic token overlap, not an LLM)" if k.get("heuristic") else name
-            lines.append(f"| {label} | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {'yes' if k['readme_ok'] else 'no'} | {lc['correct']} / {lc['partial']} / {lc['wrong']} |")
+            lines.append(f"| {label} | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {gate_cell(k['readme_ok'])} | {lc['correct']} / {lc['partial']} / {lc['wrong']} |")
+    if ref and not evaluable:
+        rc = ref["label_counts"]
+        lines += ["", f"The gate could not be evaluated on this run. The exact-match reference is one class ({rc['correct']} correct, "
+                  f"{rc['partial']} partial, {rc['wrong']} wrong of {ref['n']}): the generator answered every simple-factual question with "
+                  "the gold value, so Cohen's kappa is 0 by construction for any judge that ever varies and 1 for a judge that never "
+                  "does. The gate therefore stays closed and no judge score is printed; the computed kappa and each judge's labels "
+                  "are kept above. The slice is saturated for this generator; the gate needs a reference with variance."]
     agree = s.get("judge_agreement")
     if agree:
         lines += ["", f"Judge-judge agreement ({agree['judges'][0]} vs {agree['judges'][1]}): kappa {agree['kappa']}, n = {agree['n']}."]

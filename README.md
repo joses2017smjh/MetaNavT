@@ -674,10 +674,12 @@ Deterministic checks (no model involved):
 |---|---:|---:|
 | answers with no valid citation (failed loud, excluded from judging) | 2 | 136 |
 | abstentions (NOT IN SOURCES) | 7 | 136 |
-| every cited path is in the retrieved set | 0.9403 | 134 |
-| every number / config value appears in the cited bytes | 0.8889 | 90 |
+| every cited path is in the retrieved set (answers with at least one citation) | 0.9403 | 134 |
+| every number / config value appears in the cited bytes (answers that state a value) | 0.8889 | 90 |
 | ... appears anywhere in the retrieved evidence (looser) | 0.9778 | 90 |
 | exact match vs gold (numeric-equivalent), simple_factual | 1.0 | 80 |
+
+Value checks are string containment, case-insensitive; a value written in a different numeric format than the file (0.0003 for 3e-4) counts as missing, and a value the model computed (an average) is missing by design.
 
 Does the judge agree with the gold labels? Cohen's kappa between each judge's label and the exact-match label on simple_factual; the gate is kappa >= 0.6.
 

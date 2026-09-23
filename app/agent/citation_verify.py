@@ -158,6 +158,7 @@ def verify_claims(
     else:
         scope = list(evidence)
     evidence_text = " ".join(c.text for c in scope)
+    evidence_lower = evidence_text.lower()  # values match case-insensitively (DINOv2 vs `encoder: dinov2`)
 
     missing_citations: list[str] = []
     hallucinated_values: list[str] = []
@@ -171,10 +172,10 @@ def verify_claims(
                 continue
 
         if claim.value:
-            if claim.value in evidence_text:
+            if claim.value.lower() in evidence_lower:
                 claim.verified = True
                 for chunk in scope:
-                    if claim.value in chunk.text:
+                    if claim.value.lower() in chunk.text.lower():
                         claim.evidence_snippet = chunk.text[:200]
                         break
             else:
