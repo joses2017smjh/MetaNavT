@@ -380,3 +380,8 @@ def test_neural_configs_are_labelled_and_leave_the_default_six_alone():
     assert all(c.log_triples is False and c.e2e is False for c in NEURAL_CONFIGS)
     full = next(c for c in NEURAL_CONFIGS if c.name.endswith("router+staleness@bge-small"))
     assert full.embedder == BGE_SMALL and full.reranker == BGE_RERANKER and full.staleness_tier1
+    by = {c.name: c for c in NEURAL_CONFIGS}
+    assert full.parent == "hybrid+bge-rerank+router@bge-small" and by[full.parent].parent == "hybrid+bge-rerank@bge-small"
+    assert by["dense_only@bge-base"].parent == "bm25_only" and by["hybrid@bge-base"].parent == "dense_only@bge-base"
+    assert all(c.parent in by for c in NEURAL_CONFIGS if c.parent)
+    assert [c.parent for c in DEFAULT_CONFIGS] == [None, "dense_only", "bm25_only", "hybrid", "hybrid+rerank", "hybrid+rerank+router"]
