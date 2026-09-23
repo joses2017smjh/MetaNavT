@@ -35,6 +35,7 @@ bench/results/*.json
 # neural / external results are committed artifacts (see their headers for the command)
 !bench/results/neural.json
 !bench/results/beir_scifact.json
+!bench/results/parity.json
 
 # editable install metadata
 *.egg-info/

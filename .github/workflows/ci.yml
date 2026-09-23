@@ -58,6 +58,66 @@ jobs:
       - name: Unit, engine and API contract tests
         run: make test-unit
 
+  parity:
+    # Postgres + pgvector service, fixture v1 indexed with the hash embedder, the API
+    # started in the background, then the 136 gold questions replayed through
+    # POST /api/retrieve/ and scored like the bench. Fails if nDCG@10 differs from
+    # the in-memory harness by more than the tolerance (app/eval/parity.py).
+    name: parity (API over Postgres vs in-memory bench)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: metanavit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d metanavit"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PG_CONNECTION_STRING: postgresql://postgres:password@localhost:5432/metanavit
+      PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=postgres password=password host=localhost port=5432
+      PG_TEST_DSN: postgresql://postgres:password@localhost:5432/metanavit
+      MODEL_PROVIDER: ollama
+      EMBEDDING_PROVIDER: hash
+      EMBEDDING_DIM: "256"
+      RERANKER_MODEL: none
+      DATA_DIR: bench/corpus/files
+      INDEX_ON_START: "true"
+      CHUNK_SIZE: "512"
+      CHUNK_OVERLAP: "50"
+      RETRIEVE_K: "50"
+      RERANK_TOP_N: "8"
+      ENABLE_ROUTER: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install (eval + app extras)
+        run: python -m pip install -e ".[eval,app]"
+      - name: SQL RRF == Python RRF (tests/database, live Postgres)
+        run: python -m pytest tests/database/test_hybrid_sql.py -q
+      - name: Start the API (indexes bench/corpus/files on first start)
+        run: |
+          nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
+          python scripts/smoke_retrieve.py --require-bm25
+      - name: Parity eval
+        run: make parity
+      - name: API log
+        if: always()
+        run: tail -n 60 api.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parity-results
+          path: bench/results/parity.json
+
   docker-smoke:
     # docker compose up --build, wait for /health (indexes bench/corpus/files with the
     # hash embedder on first start), POST one query, require hits with non-null paths.
