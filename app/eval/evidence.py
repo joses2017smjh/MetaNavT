@@ -177,23 +177,41 @@ def claims(root: Path = ROOT) -> list[dict]:
     if jury:
         s = jury["summary"]
         c = s["checks"]
-        src = f"{FILES['jury']} @ {jury['git_sha']}"
+        rs = jury.get("rescore") or {}
+        src = f"{FILES['jury']} @ {jury['git_sha']}" + (f" (answers generated at {rs['rows_git_sha']}, checks recomputed by `make bench-jury-rescore`)" if rs else "")
+        gate = jury.get("kappa_gate", 0.6)
+        ref = s.get("reference") or {}
+        evaluable = ref.get("gate_evaluable", True)
         out.append({"claim": "Generated answers (Ollama, fixture v1): answers with no valid citation (failed loud)", "value": f"{c['uncited_answers']['count']} of {c['uncited_answers']['n']}", "ci": "—", "n": c["uncited_answers"]["n"], "command": "make bench-jury", "source": src,
                     "not_shown": "a deterministic check of the citation contract, not answer quality"})
+        cr = c["cited_in_retrieved"]
+        out.append({"claim": "Generated answers: every cited path is in the retrieved set (answers with at least one citation)", "value": f"{cr['rate']}", "ci": "—", "n": cr["n"], "command": "make bench-jury", "source": src,
+                    "not_shown": f"{round((1 - cr['rate']) * cr['n'])} answers cited a path the retrieval had not returned (a fabricated or malformed path); abstentions are not counted"})
         out.append({"claim": "Generated answers: every number / config value appears in the cited bytes", "value": f"{c['values_in_cited_bytes']['rate']}", "ci": "—", "n": c["values_in_cited_bytes"]["n"], "command": "make bench-jury", "source": src,
-                    "not_shown": "only answers that state a value are counted; regex-extracted values"})
-        out.append({"claim": "Generated answers: exact match vs gold (numeric-equivalent), simple_factual", "value": f"{c['exact_match_simple_factual']['rate']}", "ci": "—", "n": c["exact_match_simple_factual"]["n"], "command": "make bench-jury", "source": src,
-                    "not_shown": "string / numeric match; paraphrased correct answers count as non-matches"})
+                    "not_shown": "only answers that state a value are counted; string containment, case-insensitive; a value in a different numeric format, or one the model computed, counts as missing"})
+        em = c["exact_match_simple_factual"]
+        out.append({"claim": "Generated answers: exact match vs gold (numeric-equivalent), simple_factual", "value": f"{em['rate']}", "ci": "—", "n": em["n"], "command": "make bench-jury", "source": src,
+                    "not_shown": "string / numeric match; paraphrased correct answers count as non-matches"
+                    + ("; the slice (the templated questions) is saturated for this generator, which is why the kappa gate below could not be evaluated" if em["rate"] == 1.0 else "")})
         for name, k in s["kappa"].items():
             if name == "jury_majority" or k.get("heuristic"):
                 continue
+            if not evaluable:
+                rc = ref["label_counts"]
+                status = (f"gate not evaluable: the exact-match reference is one class ({rc['correct']} correct of {ref['n']}), so kappa is 0 by construction "
+                          f"for any judge that varies and 1 for one that never does; this judge's scores are not published")
+            else:
+                status = f"passes the {gate} gate; the judge's mean score may be published" if k["readme_ok"] else f"below the {gate} gate; this judge's scores are not published"
             out.append({"claim": f"Judge {name}: Cohen's kappa vs exact-match labels, simple_factual", "value": f"{k['kappa_vs_exact_match_simple_factual']}", "ci": "—", "n": k["n"], "command": "make bench-jury", "source": src,
-                        "not_shown": ("passes the 0.6 gate; the judge's mean score may be published" if k["readme_ok"] else "below the 0.6 gate; this judge's scores are not published")
-                        + "; the reference is an exact-match label: a negated or hedged answer that still quotes the gold value counts as correct, a correct paraphrase does not"})
+                        "not_shown": status + "; the reference is an exact-match label: a negated or hedged answer that still quotes the gold value counts as correct, a correct paraphrase does not"})
         jm = s["kappa"].get("jury_majority")
         if jm:
             out.append({"claim": "Jury majority (two judge models): Cohen's kappa vs exact-match labels, simple_factual", "value": f"{jm['kappa_vs_exact_match_simple_factual']}", "ci": "—", "n": jm["n"], "command": "make bench-jury", "source": src,
-                        "not_shown": "the generator is one of the judges (self-preference risk); gate 0.6"})
+                        "not_shown": ("gate not evaluable on this run (one-class reference); " if not evaluable else "") + f"the generator is one of the judges (self-preference risk); gate {gate}"})
+        ja = s.get("judge_agreement")
+        if ja:
+            out.append({"claim": f"Judge-judge agreement ({ja['judges'][0]} vs {ja['judges'][1]}): Cohen's kappa over all judged answers", "value": f"{ja['kappa']}", "ci": "—", "n": ja["n"], "command": "make bench-jury", "source": src,
+                        "not_shown": "agreement between two judges says nothing about agreement with the truth; both judged the same generator's answers"})
         for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
             out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"], "command": "make bench-jury", "source": src,
                         "not_shown": "a measure of order bias, not of answer quality"})
@@ -211,7 +229,7 @@ Solo work in this fork, 2026:
 - Designed an LLM-free retrieval benchmark (frozen 61-file fixture, 136 scripted questions in eight categories whose answers and relevant paths are computed from the corpus registry) with paired-bootstrap confidence intervals, a random-list baseline for recall, and a CI regression gate; the README's numbers are generated from the committed results files and a test fails on drift.
 - Measured hybrid BM25 + dense retrieval with reciprocal rank fusion and a cross-encoder reranker on the fixture and on BEIR SciFact: with real models, hybrid and the reranker beat BM25 with intervals above zero, and our BM25 reproduces Anserini's published SciFact baseline within noise; found and fixed a reranker API bug that had made every earlier reranker row a silent fallback.
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and gates the gap against the in-memory bench; no silent fallbacks, per-request stage latency and scores.
-- Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published.
+- Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published; on the first full run the reference slice was saturated, so the gate stayed closed and no judge score was published.
 '''
 
 QA = '''## Likely interview questions, with honest answers
@@ -232,7 +250,9 @@ QA = '''## Likely interview questions, with honest answers
 
 **How do you know the numbers in the README are real?** Every benchmark block in the README is rendered from a committed results file by one command, and a test fails if the text drifts. Each results file records the command, the git sha, the model revisions and the device. Losers stay in the tables.
 
-**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and a judge whose kappa against gold clears the gate on more than the simple-factual slice.
+**What did the LLM answer evaluation show?** The generator answered every simple-factual question with the gold value, which saturated the reference the judges are measured against: with a one-class reference Cohen's kappa is zero by construction, so the gate could not be evaluated and no judge score is published. The deterministic checks are the usable result: nearly every cited path was in the retrieved set, most stated values sit inside the cited bytes, and the two answers with no citation failed loud. The kept losers are that both judges preferred the extractive answer to the LLM answer, showed strong position bias in the AB/BA swap, and agreed with each other only moderately. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching); the fixes and the rescored file are separate commits, so the before and after are both in the history.
+
+**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and a kappa reference with variance: the simple-factual slice is saturated for this generator, so the gate needs a harder slice or harder questions before it can say anything about a judge.
 '''
 
 
