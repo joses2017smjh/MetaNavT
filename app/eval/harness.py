@@ -21,7 +21,7 @@ from app.eval.index_loader import build_index
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
-from app.eval.provenance import command_line, device_info, model_provenance
+from app.eval.provenance import command_line, device_info, model_device, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
     answer_relevancy,
@@ -326,9 +326,19 @@ def run_config(
     payload["_per_query_scores"] = retrieval.per_query  # gold order; used for the bootstrap, then dropped
     payload["reranker_name"] = getattr(index, "reranker_name", cfg.reranker)
     payload["reranker_loaded"] = bool(getattr(index, "reranker_loaded", False))
+    rerank_model = getattr(getattr(index, "rerank_fn", None), "model", None)
     payload["models"] = {
-        "embedder": {**model_provenance(cfg.embedder, "embedder"), "dim": int(getattr(index.embedder, "dim", 0))},
-        "reranker": {**model_provenance(cfg.reranker, "reranker"), "loaded": payload["reranker_loaded"]},
+        "embedder": {
+            **model_provenance(cfg.embedder, "embedder"),
+            "dim": int(getattr(index.embedder, "dim", 0)),
+            "device": model_device(getattr(index.embedder, "_model", None)),
+            "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used, same text both sides
+        },
+        "reranker": {
+            **model_provenance(cfg.reranker, "reranker"),
+            "loaded": payload["reranker_loaded"],
+            "device": model_device(rerank_model) if payload["reranker_loaded"] else None,
+        },
     }
     fallback = getattr(index, "reranker_fallback", None)
     if fallback:

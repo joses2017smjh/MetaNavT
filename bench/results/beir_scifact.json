@@ -10,8 +10,8 @@
     "source": "Thakur et al., 'BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models', NeurIPS 2021 Datasets and Benchmarks, Table 2, BM25 (Anserini) on SciFact",
     "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4"
   },
-  "git_sha": "29a3bef",
-  "timestamp": "2026-09-23T15:06:42.055769+00:00",
+  "git_sha": "2c4a9c9",
+  "timestamp": "2026-09-23T15:20:20.905423+00:00",
   "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/scratch/sanchej7/hf_cache CUDA_VISIBLE_DEVICES=1 python -m app.eval.beir --out bench/results/beir_scifact.json",
   "device": {
     "requested": "auto",
@@ -59,18 +59,18 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 19.79,
-          "p95_ms": 29.39,
-          "mean_ms": 73.14
+          "p50_ms": 23.69,
+          "p95_ms": 48.31,
+          "mean_ms": 85.45
         },
         "total": {
           "n": 300,
-          "p50_ms": 19.81,
-          "p95_ms": 29.41,
-          "mean_ms": 73.15
+          "p50_ms": 23.71,
+          "p95_ms": 48.33,
+          "mean_ms": 85.47
         }
       },
-      "wall_ms": 21956.41,
+      "wall_ms": 25655.44,
       "models": {},
       "ci": {
         "ndcg@10": {
@@ -119,18 +119,18 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 29.58,
-          "p95_ms": 42.99,
-          "mean_ms": 31.18
+          "p50_ms": 38.26,
+          "p95_ms": 82.21,
+          "mean_ms": 45.0
         },
         "total": {
           "n": 300,
-          "p50_ms": 29.6,
-          "p95_ms": 43.01,
-          "mean_ms": 31.2
+          "p50_ms": 38.51,
+          "p95_ms": 82.23,
+          "mean_ms": 45.05
         }
       },
-      "wall_ms": 9370.41,
+      "wall_ms": 13528.79,
       "models": {},
       "ci": {
         "ndcg@10": {
@@ -192,31 +192,33 @@
       "latency": {
         "embed": {
           "n": 300,
-          "p50_ms": 9.83,
-          "p95_ms": 27.55,
-          "mean_ms": 13.79
+          "p50_ms": 9.84,
+          "p95_ms": 26.05,
+          "mean_ms": 14.37
         },
         "dense": {
           "n": 300,
-          "p50_ms": 4.41,
-          "p95_ms": 27.58,
-          "mean_ms": 8.61
+          "p50_ms": 25.1,
+          "p95_ms": 50.21,
+          "mean_ms": 27.59
         },
         "total": {
           "n": 300,
-          "p50_ms": 16.39,
-          "p95_ms": 48.04,
-          "mean_ms": 109.6
+          "p50_ms": 39.97,
+          "p95_ms": 64.13,
+          "mean_ms": 74.41
         }
       },
-      "wall_ms": 32903.85,
+      "wall_ms": 22341.1,
       "models": {
         "embedder": {
           "role": "embedder",
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         }
       },
       "ci": {
@@ -279,21 +281,21 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 24.07,
-          "p95_ms": 44.64,
-          "mean_ms": 26.86
+          "p50_ms": 30.42,
+          "p95_ms": 65.18,
+          "mean_ms": 33.53
         },
         "embed": {
           "n": 300,
-          "p50_ms": 9.03,
-          "p95_ms": 19.75,
-          "mean_ms": 10.64
+          "p50_ms": 9.55,
+          "p95_ms": 27.68,
+          "mean_ms": 13.69
         },
         "dense": {
           "n": 300,
-          "p50_ms": 7.54,
-          "p95_ms": 31.08,
-          "mean_ms": 11.06
+          "p50_ms": 10.66,
+          "p95_ms": 36.32,
+          "mean_ms": 14.29
         },
         "fuse": {
           "n": 300,
@@ -303,19 +305,21 @@
         },
         "total": {
           "n": 300,
-          "p50_ms": 42.33,
-          "p95_ms": 92.17,
-          "mean_ms": 48.73
+          "p50_ms": 54.98,
+          "p95_ms": 107.29,
+          "mean_ms": 61.68
         }
       },
-      "wall_ms": 14636.02,
+      "wall_ms": 18521.03,
       "models": {
         "embedder": {
           "role": "embedder",
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         }
       },
       "ci": {
@@ -378,56 +382,59 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 22.76,
-          "p95_ms": 36.46,
-          "mean_ms": 26.17
+          "p50_ms": 22.4,
+          "p95_ms": 33.12,
+          "mean_ms": 23.56
         },
         "embed": {
           "n": 300,
-          "p50_ms": 9.09,
-          "p95_ms": 18.03,
-          "mean_ms": 10.68
+          "p50_ms": 9.01,
+          "p95_ms": 10.89,
+          "mean_ms": 9.59
         },
         "dense": {
           "n": 300,
-          "p50_ms": 5.54,
-          "p95_ms": 26.86,
-          "mean_ms": 10.39
+          "p50_ms": 5.31,
+          "p95_ms": 26.36,
+          "mean_ms": 8.86
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.13,
-          "p95_ms": 0.15,
-          "mean_ms": 0.16
+          "p50_ms": 0.12,
+          "p95_ms": 0.14,
+          "mean_ms": 0.12
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 891.36,
-          "p95_ms": 1810.16,
-          "mean_ms": 1014.52
+          "p50_ms": 887.06,
+          "p95_ms": 1807.86,
+          "mean_ms": 1009.19
         },
         "total": {
           "n": 300,
-          "p50_ms": 959.28,
-          "p95_ms": 1852.2,
-          "mean_ms": 1061.99
+          "p50_ms": 925.1,
+          "p95_ms": 1850.64,
+          "mean_ms": 1051.37
         }
       },
-      "wall_ms": 318625.22,
+      "wall_ms": 315439.57,
       "models": {
         "embedder": {
           "role": "embedder",
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "BAAI/bge-reranker-v2-m3",
           "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
           "neural": true,
-          "loaded": true
+          "loaded": true,
+          "device": "cuda:0"
         }
       },
       "ci": {

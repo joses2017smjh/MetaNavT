@@ -87,6 +87,18 @@ def device_info(requested: str = "auto") -> dict:
     return info
 
 
+def model_device(model) -> str | None:
+    """Where a loaded model's weights are (SentenceTransformer / CrossEncoder expose .device)."""
+    for attr in ("device", "_target_device"):
+        dev = getattr(model, attr, None)
+        if dev is not None:
+            return str(dev)
+    inner = getattr(model, "model", None)  # CrossEncoder wraps a transformers model
+    if inner is not None and getattr(inner, "device", None) is not None:
+        return str(inner.device)
+    return None
+
+
 def command_line() -> str:
     """The command that produced a results file, with the env flags that change it."""
     flags = {k: os.environ[k] for k in ("BGE_ALLOW_DOWNLOAD", "HF_HOME", "CUDA_VISIBLE_DEVICES") if k in os.environ}

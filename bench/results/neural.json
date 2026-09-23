@@ -1,6 +1,6 @@
 {
-  "git_sha": "29a3bef",
-  "timestamp": "2026-09-23T15:03:41.097430+00:00",
+  "git_sha": "2c4a9c9",
+  "timestamp": "2026-09-23T15:16:38.648604+00:00",
   "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/scratch/sanchej7/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.harness --neural --out bench/results/neural.json",
   "device": {
     "requested": "auto",
@@ -125,11 +125,11 @@
         "bm25": {
           "n": 136,
           "p50_ms": 0.19,
-          "p95_ms": 0.38,
-          "mean_ms": 0.74
+          "p95_ms": 0.34,
+          "mean_ms": 0.21
         }
       },
-      "wall_ms": 105.15,
+      "wall_ms": 32.98,
       "routes": {},
       "n_chunks": 71,
       "reranker_name": "overlap",
@@ -140,14 +140,17 @@
           "model": "hash",
           "revision": null,
           "neural": false,
-          "dim": 256
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "overlap",
           "revision": null,
           "neural": false,
-          "loaded": false
+          "loaded": false,
+          "device": null
         }
       },
       "ci": {
@@ -267,12 +270,12 @@
       "latency": {
         "embed": {
           "n": 136,
-          "p50_ms": 8.67,
-          "p95_ms": 17.73,
-          "mean_ms": 10.13
+          "p50_ms": 18.91,
+          "p95_ms": 29.8,
+          "mean_ms": 19.4
         }
       },
-      "wall_ms": 1393.7,
+      "wall_ms": 2665.1,
       "routes": {},
       "n_chunks": 71,
       "reranker_name": "overlap",
@@ -283,14 +286,17 @@
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "overlap",
           "revision": null,
           "neural": false,
-          "loaded": false
+          "loaded": false,
+          "device": null
         }
       },
       "ci": {
@@ -450,24 +456,24 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.29,
-          "p95_ms": 0.57,
-          "mean_ms": 0.59
+          "p50_ms": 0.3,
+          "p95_ms": 0.45,
+          "mean_ms": 0.31
         },
         "embed": {
           "n": 136,
-          "p50_ms": 10.92,
-          "p95_ms": 29.72,
-          "mean_ms": 14.4
+          "p50_ms": 9.08,
+          "p95_ms": 18.46,
+          "mean_ms": 11.08
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.02,
-          "mean_ms": 0.02
+          "p95_ms": 0.03,
+          "mean_ms": 0.03
         }
       },
-      "wall_ms": 2106.93,
+      "wall_ms": 1586.86,
       "routes": {
         "semantic": 136
       },
@@ -480,14 +486,17 @@
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "overlap",
           "revision": null,
           "neural": false,
-          "loaded": false
+          "loaded": false,
+          "device": null
         }
       },
       "ci": {
@@ -649,28 +658,28 @@
           "n": 136,
           "p50_ms": 0.27,
           "p95_ms": 0.37,
-          "mean_ms": 0.34
+          "mean_ms": 0.28
         },
         "embed": {
           "n": 136,
           "p50_ms": 0.28,
-          "p95_ms": 0.37,
-          "mean_ms": 0.29
+          "p95_ms": 0.46,
+          "mean_ms": 0.37
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.02,
-          "mean_ms": 0.03
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 310.99,
-          "p95_ms": 349.02,
-          "mean_ms": 316.7
+          "p50_ms": 311.43,
+          "p95_ms": 348.8,
+          "mean_ms": 317.2
         }
       },
-      "wall_ms": 43229.15,
+      "wall_ms": 43271.1,
       "routes": {
         "semantic": 136
       },
@@ -683,14 +692,17 @@
           "model": "hash",
           "revision": null,
           "neural": false,
-          "dim": 256
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "BAAI/bge-reranker-v2-m3",
           "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
           "neural": true,
-          "loaded": true
+          "loaded": true,
+          "device": "cuda:0"
         }
       },
       "ci": {
@@ -850,30 +862,30 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.28,
-          "p95_ms": 0.38,
-          "mean_ms": 0.34
+          "p50_ms": 0.27,
+          "p95_ms": 0.43,
+          "mean_ms": 0.33
         },
         "embed": {
           "n": 136,
-          "p50_ms": 9.57,
-          "p95_ms": 28.15,
-          "mean_ms": 12.77
+          "p50_ms": 9.25,
+          "p95_ms": 23.48,
+          "mean_ms": 11.77
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
           "p95_ms": 0.03,
-          "mean_ms": 0.03
+          "mean_ms": 0.02
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 314.13,
-          "p95_ms": 359.65,
-          "mean_ms": 323.35
+          "p50_ms": 312.39,
+          "p95_ms": 350.17,
+          "mean_ms": 319.01
         }
       },
-      "wall_ms": 45807.43,
+      "wall_ms": 45083.35,
       "routes": {
         "semantic": 136
       },
@@ -886,14 +898,17 @@
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "BAAI/bge-reranker-v2-m3",
           "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
           "neural": true,
-          "loaded": true
+          "loaded": true,
+          "device": "cuda:0"
         }
       },
       "ci": {
@@ -1049,19 +1064,19 @@
           "n": 136,
           "p50_ms": 0.02,
           "p95_ms": 0.03,
-          "mean_ms": 0.04
+          "mean_ms": 0.02
         },
         "bm25": {
           "n": 136,
           "p50_ms": 0.27,
-          "p95_ms": 0.45,
-          "mean_ms": 0.3
+          "p95_ms": 0.44,
+          "mean_ms": 0.29
         },
         "embed": {
           "n": 128,
-          "p50_ms": 9.32,
-          "p95_ms": 25.5,
-          "mean_ms": 12.09
+          "p50_ms": 9.83,
+          "p95_ms": 30.43,
+          "mean_ms": 13.63
         },
         "vector_search": {
           "n": 128,
@@ -1071,18 +1086,18 @@
         },
         "rerank": {
           "n": 95,
-          "p50_ms": 314.14,
-          "p95_ms": 361.03,
-          "mean_ms": 322.51
+          "p50_ms": 316.93,
+          "p95_ms": 368.04,
+          "mean_ms": 324.6
         },
         "lexical": {
           "n": 8,
-          "p50_ms": 0.35,
-          "p95_ms": 0.69,
-          "mean_ms": 0.42
+          "p50_ms": 0.34,
+          "p95_ms": 6.32,
+          "mean_ms": 1.49
         }
       },
-      "wall_ms": 32291.99,
+      "wall_ms": 32787.69,
       "routes": {
         "semantic": 95,
         "aggregation_query": 33,
@@ -1097,14 +1112,17 @@
           "model": "BAAI/bge-small-en-v1.5",
           "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
           "neural": true,
-          "dim": 384
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "BAAI/bge-reranker-v2-m3",
           "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
           "neural": true,
-          "loaded": true
+          "loaded": true,
+          "device": "cuda:0"
         }
       },
       "ci": {
@@ -1258,12 +1276,12 @@
       "latency": {
         "embed": {
           "n": 136,
-          "p50_ms": 8.52,
-          "p95_ms": 14.92,
-          "mean_ms": 9.79
+          "p50_ms": 32.04,
+          "p95_ms": 48.99,
+          "mean_ms": 30.92
         }
       },
-      "wall_ms": 1341.24,
+      "wall_ms": 4257.36,
       "routes": {},
       "n_chunks": 71,
       "reranker_name": "overlap",
@@ -1274,14 +1292,17 @@
           "model": "BAAI/bge-base-en-v1.5",
           "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
           "neural": true,
-          "dim": 768
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "overlap",
           "revision": null,
           "neural": false,
-          "loaded": false
+          "loaded": false,
+          "device": null
         }
       },
       "ci": {
@@ -1436,29 +1457,29 @@
         "route": {
           "n": 136,
           "p50_ms": 0.0,
-          "p95_ms": 0.01,
+          "p95_ms": 0.0,
           "mean_ms": 0.0
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.29,
-          "p95_ms": 0.53,
-          "mean_ms": 0.47
+          "p50_ms": 0.26,
+          "p95_ms": 0.45,
+          "mean_ms": 0.39
         },
         "embed": {
           "n": 136,
-          "p50_ms": 10.69,
-          "p95_ms": 29.95,
-          "mean_ms": 15.4
+          "p50_ms": 8.21,
+          "p95_ms": 17.32,
+          "mean_ms": 9.59
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.03,
+          "p95_ms": 0.02,
           "mean_ms": 0.02
         }
       },
-      "wall_ms": 2186.35,
+      "wall_ms": 1378.62,
       "routes": {
         "semantic": 136
       },
@@ -1471,14 +1492,17 @@
           "model": "BAAI/bge-base-en-v1.5",
           "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
           "neural": true,
-          "dim": 768
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null
         },
         "reranker": {
           "role": "reranker",
           "model": "overlap",
           "revision": null,
           "neural": false,
-          "loaded": false
+          "loaded": false,
+          "device": null
         }
       },
       "ci": {

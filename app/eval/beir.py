@@ -39,7 +39,7 @@ import numpy as np
 
 from app.eval.latency import StageTimer
 from app.eval.metrics import mrr_at_k, ndcg_at_k, recall_at_k
-from app.eval.provenance import command_line, device_info, git_sha, model_provenance
+from app.eval.provenance import command_line, device_info, git_sha, model_device, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
 from app.retrieval.embedders import HashEmbedder, cosine_scores
@@ -180,7 +180,12 @@ class Engine:
                 self._embedders[name] = SentenceTransformerEmbedder(name.split(":", 1)[1])
             else:
                 raise ValueError(f"unknown embedder {name!r}")
-            self.provenance[name] = {**model_provenance(name, "embedder"), "dim": int(self._embedders[name].dim)}
+            self.provenance[name] = {
+                **model_provenance(name, "embedder"),
+                "dim": int(self._embedders[name].dim),
+                "device": model_device(getattr(self._embedders[name], "_model", None)),
+                "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used
+            }
         return self._embedders[name]
 
     def doc_matrix(self, name: str) -> np.ndarray:
@@ -206,7 +211,7 @@ class Engine:
                 self.provenance[name] = {**model_provenance("overlap", "reranker"), "loaded": True}
             else:
                 model = get_cross_encoder(name)
-                self.provenance[name] = {**model_provenance(name, "reranker"), "loaded": model is not None}
+                self.provenance[name] = {**model_provenance(name, "reranker"), "loaded": model is not None, "device": model_device(model)}
                 if model is None:
                     raise RuntimeError(f"reranker {name} not available (set BGE_ALLOW_DOWNLOAD=1 or cache it)")
                 self._rerankers[name] = model
