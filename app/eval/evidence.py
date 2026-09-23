@@ -147,12 +147,12 @@ def claims(root: Path = ROOT) -> list[dict]:
             d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             l16 = (f16.get("latency") or {}).get("total") or {}
             l32 = (rer.get("latency") or {}).get("total") or {}
-            out.append({"claim": "BEIR SciFact, reranker fp16 + max_length 512 vs fp32 uncapped (served setting), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
+            out.append({"claim": "BEIR SciFact, reranker fp16 + max_length 512 vs fp32 uncapped (the served setting on CUDA; the CPU stack serves fp32), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": f"p50 {l16.get('p50_ms')} ms vs {l32.get('p50_ms')} ms on the GPU; CPU latency is a different table"})
         d50 = by.get("hybrid+bge-rerank@bge-small/fp16-512/top50")
         if d50:
             d, ci = _ci((d50.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
-            out.append({"claim": "BEIR SciFact, rerank depth 50 vs 20, paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
+            out.append({"claim": "BEIR SciFact, rerank depth 50 vs 20 (both fp16, max_length 512), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": "deeper reranking loses here; depth 100 loses further (rows in the file)"})
     parity = _load(FILES["parity"], root)
     if parity:
@@ -163,7 +163,7 @@ def claims(root: Path = ROOT) -> list[dict]:
             d = g.get("paired_delta_api_minus_in_memory") or {}
             dv, ci = _ci(d, "delta") if d else ("—", "—")
             out.append({"claim": "API over Postgres + pgvector vs the in-memory bench (same switches), nDCG@10 gap", "value": dv, "ci": ci, "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
-                        "not_shown": f"tolerance {g.get('tolerance')}; different lexical leg (ts_rank_cd vs Okapi BM25) and chunker; CI re-runs it on every push"})
+                        "not_shown": f"tolerance {g.get('tolerance')}; different lexical leg (ts_rank_cd vs Okapi BM25) and chunker; CI re-runs it on every push to main and every pull request"})
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
