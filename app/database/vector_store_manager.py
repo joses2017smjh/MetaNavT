@@ -25,6 +25,8 @@ Dependencies:
 """
 import os
 import logging
+import re
+from pathlib import Path
 from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
 from psycopg2 import sql
@@ -366,6 +368,123 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.error(f"All search methods failed: {e}")
             return []
+
+    # ------------------------------------------------------------------ hybrid (one query)
+    SQL_DIR = Path(__file__).resolve().parent / "sql"
+    _sql_cache: dict[str, str] = {}
+
+    @property
+    def hybrid_backend(self) -> str:
+        """'paradedb' when pg_search is installed, else 'ts_rank_cd'. Checked once."""
+        cached = getattr(self, "_hybrid_backend", None)
+        if cached:
+            return cached
+        backend = "ts_rank_cd"
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1 FROM pg_extension WHERE extname = 'pg_search';")
+                    if cur.fetchone() is not None:
+                        backend = "paradedb"
+        except Exception as e:
+            logger.info(f"hybrid_backend: could not check pg_search ({e.__class__.__name__}); using ts_rank_cd")
+        self._hybrid_backend = backend
+        return backend
+
+    def hybrid_sql(self, backend: str | None = None) -> str:
+        backend = backend or self.hybrid_backend
+        name = "hybrid_paradedb.sql" if backend == "paradedb" else "hybrid_tsrank.sql"
+        if name not in self._sql_cache:
+            self._sql_cache[name] = (self.SQL_DIR / name).read_text()
+        return self._sql_cache[name].replace("{table}", f'"{self.schema_name}"."{self.data_table}"')
+
+    @staticmethod
+    def lexical_query(query: str) -> str:
+        """OR-join the query terms for websearch_to_tsquery, so the lexical list has
+        BM25-like OR semantics instead of websearch's default AND. Stopwords are
+        dropped by the 'english' configuration on the Postgres side."""
+        terms = []
+        for tok in re.findall(r"[A-Za-z0-9_]+", query or ""):
+            t = tok.lower()
+            if t not in terms:
+                terms.append(t)
+        return " or ".join(terms)
+
+    @staticmethod
+    def vector_literal(embedding) -> str | None:
+        if embedding is None:
+            return None
+        return "[" + ",".join(f"{float(x):.8g}" for x in embedding) + "]"
+
+    def hybrid_search(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> list[dict]:
+        """One round trip: dense top-k + lexical top-k + RRF in SQL (see sql/hybrid_*.sql).
+
+        query_embedding=None runs the lexical list only (router skip_embed). Each row:
+        node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf.
+        """
+        backend = self.hybrid_backend
+        params = {
+            "qvec": self.vector_literal(query_embedding),
+            "query": query if backend == "paradedb" else self.lexical_query(query),
+            "k": int(k),
+            "rrf_k": float(rrf_k),
+        }
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(self.hybrid_sql(backend), params)
+                rows = cur.fetchall()
+        self.last_bm25_backend = backend if any(r[3] is not None for r in rows) else "none"
+        return [
+            {
+                "node_id": r[0],
+                "text": r[1],
+                "metadata": r[2] or {},
+                "bm25_score": None if r[3] is None else float(r[3]),
+                "bm25_rank": None if r[4] is None else int(r[4]),
+                "dense_score": None if r[5] is None else float(r[5]),
+                "dense_rank": None if r[6] is None else int(r[6]),
+                "rrf_score": float(r[7]),
+            }
+            for r in rows
+        ]
+
+    def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> str:
+        """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query, for doc/sql/."""
+        backend = self.hybrid_backend
+        params = {
+            "qvec": self.vector_literal(query_embedding),
+            "query": query if backend == "paradedb" else self.lexical_query(query),
+            "k": int(k),
+            "rrf_k": float(rrf_k),
+        }
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), params)
+                return "\n".join(r[0] for r in cur.fetchall())
+
+    def ensure_text_index(self) -> bool:
+        """GIN index on to_tsvector('english', text): the expression the lexical CTE filters on."""
+        index_name = f"{self.data_table}_text_tsv_gin"
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f'CREATE INDEX IF NOT EXISTS "{index_name}" ON "{self.schema_name}"."{self.data_table}" '
+                        f"USING GIN (to_tsvector('english', text));"
+                    )
+                conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(f"ensure_text_index failed: {e}")
+            return False
+
+    def fetch_all_chunks(self) -> list[dict]:
+        """node_id, text, metadata for every row (staleness clusters at startup)."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT node_id, text, metadata_ FROM {table};").format(
+                    table=sql.Identifier(self.schema_name, self.data_table)))
+                return [{"node_id": r[0], "text": r[1], "metadata": r[2] or {}} for r in cur.fetchall()]
 
     @staticmethod
     def _bm25_rows(results) -> list[dict]:

@@ -1,0 +1,74 @@
+-- EXPLAIN (ANALYZE, BUFFERS) of app/database/sql/hybrid_tsrank.sql
+-- generated 2026-09-23T15:38:53.073175+00:00 at git ee782ab by scripts/explain_hybrid.py
+-- PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+-- pgvector 0.8.6; lexical backend ts_rank_cd; table public.data_llamaindex_embedding (61 rows, fixture v1)
+-- query: 'current learning rate for run 47', k=50, rrf_k=60, hash embedder dim 256
+-- indexes:
+--   data_llamaindex_embedding_pkey: CREATE UNIQUE INDEX data_llamaindex_embedding_pkey ON public.data_llamaindex_embedding USING btree (id)
+--   data_llamaindex_embedding_text_tsv_gin: CREATE INDEX data_llamaindex_embedding_text_tsv_gin ON public.data_llamaindex_embedding USING gin (to_tsvector('english'::regconfig, (text)::text))
+--   llamaindex_embedding_embedding_hnsw: CREATE INDEX llamaindex_embedding_embedding_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')
+--   llamaindex_embedding_idx_1: CREATE INDEX llamaindex_embedding_idx_1 ON public.data_llamaindex_embedding USING btree (((metadata_ ->> 'ref_doc_id'::text)))
+Limit  (cost=40.36..40.40 rows=15 width=1099) (actual time=14.144..14.153 rows=50 loops=1)
+  Buffers: shared hit=317
+  CTE params
+    ->  Result  (cost=0.00..0.01 rows=1 width=64) (actual time=0.001..0.001 rows=1 loops=1)
+  ->  Sort  (cost=40.35..40.39 rows=15 width=1099) (actual time=14.143..14.149 rows=50 loops=1)
+        Sort Key: ((COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric) + COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric))) DESC, (COALESCE(s.node_id, t_2.node_id))
+        Sort Method: quicksort  Memory: 137kB
+        Buffers: shared hit=317
+        ->  Hash Join  (cost=29.50..40.06 rows=15 width=1099) (actual time=13.999..14.067 rows=56 loops=1)
+              Hash Cond: ((t.node_id)::text = (COALESCE(s.node_id, t_2.node_id))::text)
+              Buffers: shared hit=311
+              ->  Seq Scan on data_llamaindex_embedding t  (cost=0.00..9.61 rows=61 width=1044) (actual time=0.002..0.009 rows=61 loops=1)
+                    Buffers: shared hit=9
+              ->  Hash  (cost=28.88..28.88 rows=50 width=102) (actual time=13.981..13.984 rows=56 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 16kB
+                    Buffers: shared hit=302
+                    ->  Hash Full Join  (cost=27.68..28.88 rows=50 width=102) (actual time=13.933..13.967 rows=56 loops=1)
+                          Hash Cond: ((s.node_id)::text = (t_2.node_id)::text)
+                          Buffers: shared hit=302
+                          ->  WindowAgg  (cost=14.54..15.54 rows=50 width=53) (actual time=0.372..0.387 rows=50 loops=1)
+                                Buffers: shared hit=279
+                                ->  Sort  (cost=14.54..14.67 rows=50 width=45) (actual time=0.370..0.373 rows=50 loops=1)
+                                      Sort Key: s.dense_score DESC, s.node_id
+                                      Sort Method: quicksort  Memory: 28kB
+                                      Buffers: shared hit=279
+                                      ->  Subquery Scan on s  (cost=12.51..13.13 rows=50 width=45) (actual time=0.336..0.347 rows=50 loops=1)
+                                            Buffers: shared hit=276
+                                            ->  Limit  (cost=12.51..12.63 rows=50 width=53) (actual time=0.335..0.341 rows=50 loops=1)
+                                                  Buffers: shared hit=276
+                                                  ->  Sort  (cost=12.51..12.66 rows=61 width=53) (actual time=0.334..0.337 rows=50 loops=1)
+                                                        Sort Key: ((t_1.embedding <=> p.qvec))
+                                                        Sort Method: quicksort  Memory: 33kB
+                                                        Buffers: shared hit=276
+                                                        ->  Nested Loop  (cost=0.00..10.70 rows=61 width=53) (actual time=0.058..0.318 rows=61 loops=1)
+                                                              Buffers: shared hit=276
+                                                              ->  CTE Scan on params p  (cost=0.00..0.02 rows=1 width=32) (actual time=0.001..0.001 rows=1 loops=1)
+                                                                    Filter: (qvec IS NOT NULL)
+                                                              ->  Seq Scan on data_llamaindex_embedding t_1  (cost=0.00..9.61 rows=61 width=55) (actual time=0.004..0.015 rows=61 loops=1)
+                                                                    Buffers: shared hit=9
+                          ->  Hash  (cost=13.13..13.13 rows=1 width=49) (actual time=13.545..13.546 rows=50 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 13kB
+                                Buffers: shared hit=23
+                                ->  WindowAgg  (cost=13.10..13.13 rows=1 width=49) (actual time=13.516..13.533 rows=50 loops=1)
+                                      Buffers: shared hit=23
+                                      ->  Limit  (cost=13.10..13.11 rows=1 width=41) (actual time=13.509..13.515 rows=50 loops=1)
+                                            Buffers: shared hit=23
+                                            ->  Sort  (cost=13.10..13.11 rows=1 width=41) (actual time=13.508..13.511 rows=50 loops=1)
+                                                  Sort Key: (ts_rank_cd(to_tsvector('english'::regconfig, (t_2.text)::text), p_1.tsq)) DESC, t_2.node_id
+                                                  Sort Method: quicksort  Memory: 29kB
+                                                  Buffers: shared hit=23
+                                                  ->  Nested Loop  (cost=8.55..13.09 rows=1 width=41) (actual time=0.248..13.456 rows=59 loops=1)
+                                                        Buffers: shared hit=20
+                                                        ->  CTE Scan on params p_1  (cost=0.00..0.02 rows=1 width=32) (actual time=0.004..0.005 rows=1 loops=1)
+                                                        ->  Bitmap Heap Scan on data_llamaindex_embedding t_2  (cost=8.55..12.81 rows=1 width=246) (actual time=0.032..0.059 rows=59 loops=1)
+                                                              Recheck Cond: (to_tsvector('english'::regconfig, (text)::text) @@ p_1.tsq)
+                                                              Heap Blocks: exact=9
+                                                              Buffers: shared hit=20
+                                                              ->  Bitmap Index Scan on data_llamaindex_embedding_text_tsv_gin  (cost=0.00..8.55 rows=1 width=0) (actual time=0.028..0.029 rows=59 loops=1)
+                                                                    Index Cond: (to_tsvector('english'::regconfig, (text)::text) @@ p_1.tsq)
+                                                                    Buffers: shared hit=11
+Planning:
+  Buffers: shared hit=317
+Planning Time: 2.532 ms
+Execution Time: 14.287 ms
