@@ -1,7 +1,7 @@
 {
-  "git_sha": "09c2d68",
+  "git_sha": "750ec45",
   "timestamp": "2026-09-23T22:03:30.590669+00:00",
-  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/nfs/hpc/share/sanchej7/mnt_work/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --out bench/results/jury.json",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/nfs/hpc/share/sanchej7/mnt_work/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --rescore bench/results/jury.json",
   "device": {
     "requested": "auto",
     "python": "3.11.13",
@@ -127,21 +127,32 @@
         "n": 136
       },
       "cited_in_retrieved": {
-        "rate": 0.9403,
-        "n": 134
+        "rate": 0.9844,
+        "n": 128
       },
       "values_in_cited_bytes": {
-        "rate": 0.8889,
+        "rate": 0.9222,
         "n": 90
       },
       "values_in_any_evidence": {
-        "rate": 0.9778,
+        "rate": 0.9889,
         "n": 90
       },
       "exact_match_simple_factual": {
         "rate": 1.0,
         "n": 80
       }
+    },
+    "reference": {
+      "labels": "exact_match_label on simple_factual",
+      "n": 80,
+      "label_counts": {
+        "correct": 80,
+        "partial": 0,
+        "wrong": 0
+      },
+      "single_class": true,
+      "gate_evaluable": false
     },
     "kappa": {
       "heuristic": {
@@ -213,7 +224,7 @@
       }
     },
     "publishable_judges": [],
-    "verdict": "no judge reached kappa >= 0.6 vs exact-match labels on simple_factual; judge scores stay off the README"
+    "verdict": "gate not evaluable: the exact-match reference on simple_factual is one class (80 correct, 0 partial, 0 wrong of 80), so Cohen's kappa is 0 by construction for any judge with variance and 1 for a judge that never varies; judge scores stay off the README"
   },
   "rows": [
     {
@@ -6246,12 +6257,10 @@
         "n_citations": 1,
         "unknown_citations": [],
         "n_values": 4,
-        "values_in_cited_bytes": false,
-        "values_not_in_cited_bytes": [
-          "DINOv2"
-        ],
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
         "values_in_any_evidence": true,
-        "verification_ratio_cited": 0.75
+        "verification_ratio_cited": 1.0
       },
       "judges": {
         "heuristic": {
@@ -6463,7 +6472,7 @@
       "checks": {
         "uncited": false,
         "abstained": true,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 0,
@@ -6540,12 +6549,10 @@
         "n_citations": 2,
         "unknown_citations": [],
         "n_values": 2,
-        "values_in_cited_bytes": false,
-        "values_not_in_cited_bytes": [
-          "CLIP"
-        ],
-        "values_in_any_evidence": false,
-        "verification_ratio_cited": 0.5
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0
       },
       "judges": {
         "heuristic": {
@@ -7206,8 +7213,8 @@
         "n_values": 4,
         "values_in_cited_bytes": false,
         "values_not_in_cited_bytes": [
-          "40",
-          "0.0612"
+          "0.0612",
+          "40"
         ],
         "values_in_any_evidence": true,
         "verification_ratio_cited": 0.5
@@ -7424,17 +7431,17 @@
       "checks": {
         "uncited": true,
         "abstained": false,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 5,
         "values_in_cited_bytes": false,
         "values_not_in_cited_bytes": [
+          "53",
           "48",
-          "47",
           "42",
-          "44",
-          "53"
+          "47",
+          "44"
         ],
         "values_in_any_evidence": true,
         "verification_ratio_cited": 0.0
@@ -8072,7 +8079,7 @@
       "checks": {
         "uncited": false,
         "abstained": true,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 0,
@@ -8293,7 +8300,7 @@
       "checks": {
         "uncited": false,
         "abstained": true,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 0,
@@ -8735,12 +8742,10 @@
         "n_citations": 1,
         "unknown_citations": [],
         "n_values": 3,
-        "values_in_cited_bytes": false,
-        "values_not_in_cited_bytes": [
-          "DINOv2"
-        ],
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
         "values_in_any_evidence": true,
-        "verification_ratio_cited": 0.6667
+        "verification_ratio_cited": 1.0
       },
       "judges": {
         "heuristic": {
@@ -9312,7 +9317,7 @@
       "checks": {
         "uncited": false,
         "abstained": true,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 0,
@@ -9448,7 +9453,7 @@
       "checks": {
         "uncited": true,
         "abstained": false,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 16,
@@ -9456,17 +9461,17 @@
         "values_not_in_cited_bytes": [
           "0.0612",
           "resnet50",
-          "resnet50",
           "0.0588",
-          "dinov2",
+          "resnet50",
           "0.0568",
+          "dinov2",
           "0.0542",
           "dinov2",
-          "0.0521",
           "3",
+          "0.0521",
           "dinov2",
-          "0.0595",
           "clip",
+          "0.0595",
           "0.0571",
           "3",
           "resnet50"
@@ -10064,7 +10069,7 @@
       "checks": {
         "uncited": false,
         "abstained": true,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 0,
@@ -10137,7 +10142,7 @@
       "checks": {
         "uncited": false,
         "abstained": true,
-        "cited_in_retrieved": false,
+        "cited_in_retrieved": null,
         "n_citations": 0,
         "unknown_citations": [],
         "n_values": 0,
@@ -10260,5 +10265,14 @@
         }
       }
     }
-  ]
+  ],
+  "rescore": {
+    "rows_git_sha": "09c2d68",
+    "rows_command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/nfs/hpc/share/sanchej7/mnt_work/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --out bench/results/jury.json",
+    "rows_timestamp": "2026-09-23T22:03:30.590669+00:00",
+    "checks_git_sha": "750ec45",
+    "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/nfs/hpc/share/sanchej7/mnt_work/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --rescore bench/results/jury.json",
+    "timestamp": "2026-09-23T22:16:37.743684+00:00",
+    "what": "deterministic checks and summary recomputed from the stored answers and judge labels; generation, judge labels and pairwise verdicts untouched"
+  }
 }
