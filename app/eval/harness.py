@@ -21,6 +21,7 @@ from app.eval.index_loader import build_index
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
+from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
     answer_relevancy,
     aggregate_e2e,
@@ -208,6 +209,7 @@ def run_config(
     cfg: BenchConfig,
     gold: list[GoldQuestion],
     files_root: Path,
+    n_files: int | None = None,
 ) -> dict[str, Any]:
     index = build_index(
         files_root,
@@ -289,7 +291,7 @@ def run_config(
                     jury_sf_labels.append(verdict.label)
             e2e_rows.append(row)
     wall_ms = (time.perf_counter() - t0) * 1000.0
-    retrieval = aggregate_retrieval(per_query)
+    retrieval = aggregate_retrieval(per_query, n_files=n_files)
     payload: dict[str, Any] = {
         "config": cfg.name,
         "settings": cfg.__dict__,
@@ -301,6 +303,7 @@ def run_config(
     }
     if cfg.e2e:
         payload["e2e"] = aggregate_e2e(e2e_rows).as_dict()
+    payload["_per_query_scores"] = retrieval.per_query  # gold order; used for the bootstrap, then dropped
     payload["reranker_name"] = getattr(index, "reranker_name", cfg.reranker)
     payload["reranker_loaded"] = bool(getattr(index, "reranker_loaded", False))
     fallback = getattr(index, "reranker_fallback", None)
@@ -447,11 +450,14 @@ def run_bench(
 
     results = []
     all_triples = []
+    scores_by_config: dict[str, list[dict[str, float]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root)
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"])
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
+        scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
         results.append(row)
+    boot = attach_confidence(results, scores_by_config, n_queries=len(gold))
 
     sha = git_sha(root)
     blob = {
@@ -460,6 +466,7 @@ def run_bench(
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
+        "bootstrap": boot,
         "results": results,
     }
     out_dir = root / "bench" / "results"
@@ -474,21 +481,90 @@ def run_bench(
     return blob
 
 
+CI_METRICS = ("ndcg@10", "recall@10", "recall@50")
+REFERENCE_CONFIG = "bm25_only"
+
+
+def attach_confidence(
+    results: list[dict[str, Any]],
+    scores_by_config: dict[str, list[dict[str, float]]],
+    *,
+    n_queries: int,
+    seed: int = DEFAULT_SEED,
+    n_boot: int = DEFAULT_N_BOOT,
+) -> dict:
+    """Add per-config 95% CIs and paired deltas (vs bm25_only and vs the previous row) in place.
+
+    One index matrix is shared by every config, so deltas are paired. A missing
+    reference (frontier runs have no bm25_only; the first row has no previous)
+    yields None rather than an error.
+    """
+    if n_queries <= 0 or not results:
+        return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
+    idx = resample_indices(n_queries, n_boot=n_boot, seed=seed)
+
+    def column(name: str, metric: str) -> list[float] | None:
+        rows = scores_by_config.get(name)
+        if not rows or len(rows) != n_queries:
+            return None
+        return [r[metric] for r in rows]
+
+    def deltas(name: str, other: str | None) -> dict | None:
+        if other is None or other == name:
+            return None
+        out: dict[str, Any] = {"reference": other}
+        for metric in CI_METRICS:
+            a, b = column(name, metric), column(other, metric)
+            if a is None or b is None:
+                return None
+            d, lo, hi = paired_delta_ci(a, b, idx)
+            out[metric] = {"delta": round(d, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
+        return out
+
+    names = [row["config"] for row in results]
+    reference = REFERENCE_CONFIG if REFERENCE_CONFIG in scores_by_config else None
+    for i, row in enumerate(results):
+        name = row["config"]
+        ci: dict[str, Any] = {}
+        for metric in CI_METRICS:
+            values = column(name, metric)
+            if values is None:
+                continue
+            mean, lo, hi = mean_ci(values, idx)
+            ci[metric] = {"mean": round(mean, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
+        row["ci"] = ci
+        row["delta_vs_bm25_only"] = deltas(name, reference)
+        row["delta_vs_previous"] = deltas(name, names[i - 1] if i > 0 else None)
+    return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
+
+
+def _fmt_ci(block: dict | None, key: str = "mean") -> str:
+    if not block:
+        return "—"
+    sign = "+" if key == "delta" and block[key] >= 0 else ""
+    return f"{sign}{block[key]:.3f} [{block['lo']:+.3f}, {block['hi']:+.3f}]" if key == "delta" else f"{block[key]:.3f} [{block['lo']:.3f}, {block['hi']:.3f}]"
+
+
 def markdown_table(blob: dict) -> str:
     lines = [
-        "| config | Recall@50 | nDCG@10 | MRR@10 | p95 search ms |",
-        "|---|---:|---:|---:|---:|",
+        "| config | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 (random list, same length) | unique files in top 50 | MRR@10 | Δ nDCG@10 vs bm25_only [95% CI] | p95 search ms |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in blob["results"]:
         lat = row.get("latency") or {}
         search = lat.get("vector_search") or lat.get("bm25") or {}
         p95 = search.get("p95_ms", "")
         r = row["retrieval"]
+        ci = row.get("ci") or {}
         extra = ""
         if row.get("reranker_fallback"):
             extra = f" (fallback={row['reranker_fallback']})"
+        rand = r.get("random_recall@50")
+        rand_txt = f"{r['recall@50']:.3f} ({rand:.3f})" if rand is not None else f"{r['recall@50']:.3f}"
+        delta = (row.get("delta_vs_bm25_only") or {}).get("ndcg@10")
         lines.append(
-            f"| {row['config']}{extra} | {r['recall@50']:.3f} | {r['ndcg@10']:.3f} | {r['mrr@10']:.3f} | {p95} |"
+            f"| {row['config']}{extra} | {_fmt_ci(ci.get('ndcg@10'))} | {_fmt_ci(ci.get('recall@10'))} | {rand_txt} | "
+            f"{r.get('mean_unique_paths@50', 0):.1f} | {r['mrr@10']:.3f} | {_fmt_ci(delta, 'delta')} | {p95} |"
         )
     return "\n".join(lines)
 
