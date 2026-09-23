@@ -154,7 +154,7 @@ answer   yes  (draft_v2) — generator must address both
 
 ## Hard benchmark demos, generated
 
-The polished trace above is not the only case. [`bench/demo/manifest.json`](bench/demo/manifest.json) selects nine hard questions from the frozen 136-question gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](doc/demo/traces.json). The HTML and GIFs consume that file.
+The polished trace above is not the only case. [`bench/demo/manifest.json`](bench/demo/manifest.json) selects nine hard questions from the frozen 136-question gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. The staleness cases below are measured mechanisms; the multi-hop graph, artifact, MATLAB and multimodal demos now sit under [Prototypes (not evaluated)](#prototypes-not-evaluated). `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](doc/demo/traces.json). The HTML and GIFs consume that file.
 
 ### Staleness under contradiction
 
@@ -164,27 +164,6 @@ The polished trace above is not the only case. [`bench/demo/manifest.json`](benc
 
 - `q115`: the archived `1e-5` config starts above the live config; Tier 1 removes it and surfaces the structural disagreement before answering `3e-4`.
 - `q117`: Markdown-normalized Tier 2 catches `fusion **does** help` versus `fusion does not help`; the current draft remains rank 1.
-
-### Multi-hop graph cases
-
-<p align="center">
-  <img src="doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114 comparing single-query hybrid with typed PPR rank fusion" width="820"/>
-</p>
-
-- `q107`: config/log evidence moves from best gold rank 22 to rank 4 for the baseline→minimum-RMSE→bark→config chain.
-- `q108`: the requested Slurm evidence moves from rank 24 to rank 5 without adding any path outside the fused top-50.
-- `q114`: lexical `src/trellis_wires.py` stays rank 1 while graph evidence brings runs 46/47/48 into the same context.
-- `q100`: all five configs below the `0.0550` baseline remain covered. GraphRAG summarizes the global community; deterministic aggregation still computes the count.
-
-PPR now fuses **ranks**, not raw PPR mass with RRF scores. Raw PPR was on a different scale and could swamp a strong lexical hit. A typed path prior (`source`, `slurm`, `checkpoint`, `paper`, `config`) only reranks candidates already retrieved.
-
-### Research and coding artifacts
-
-<p align="center">
-  <img src="doc/gifs/artifacts.gif" alt="Paper2Code current evidence, claim audit, sandbox execution, and approval-gated apply" width="820"/>
-</p>
-
-`reproduce run 47 from the paper` now cites the live config, current draft, and source code; excludes `archive/` and `draft_v1`; executes in the restricted sandbox; and remains `pending_approval` until a human applies it. This is a deterministic scenario outside the retrieval gold set, so it is labeled synthetic rather than reported as retrieval accuracy.
 
 ### The loser stays visible
 
@@ -266,6 +245,8 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 ### MCP filesystem, with a human interrupt
 
+The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
+
 <p align="center">
   <img src="doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
@@ -295,58 +276,6 @@ tools.apply_plan(plan["plan_id"])                 # ApprovalRequired
 tools.apply_plan(plan["plan_id"], approved=True)  # applied
 ```
 
-### Artifacts and code production
-
-The product is a research tree, so “generate code” has to mean two different jobs.
-
-**Academia.** Pack a run the way a lab ships a reproducibility artifact: live YAML, Slurm, `.out` log, `src/fusion.py`, current paper draft. ACM-style badges: Available (files + hashes), Functional (sandbox tests pass), Reusable (env or paper + citations). Paper2Code (Seo et al., ICLR 2026) is plan → analyze → generate over *this* corpus, not a cloned GitHub repo. Claim-support: a generated `learning_rate` / encoder that is not in the citations is an unsupported claim.
-
-**Industry.** Spec card (citations, tests, template) before any file is proposed. SEARCH/REPLACE patches. Restricted exec (no `os`, no pip). Write is HITL, same as `propose_move`. Templates are `python-lib` / `pytest` / `research-repro`, not the 2024 Next.js-13 demo list.
-
-```python
-art = tools.propose_artifact("reproduce run 47 from the paper")
-# sandbox ran; status pending_approval
-tools.apply_artifact(art["plan_id"])                 # ApprovalRequired
-tools.apply_artifact(art["plan_id"], approved=True)  # writes artifacts/reproduce.py
-```
-
-### Spreadsheet to MATLAB, with a user checkpoint
-
-The chatbot does not expose hidden chain-of-thought. It emits an **auditable decision trace**: observed schema → proposed aggregation → visualization rationale → alternatives → approval/override. Nothing is written before that checkpoint.
-
-<p align="center">
-  <img src="doc/gifs/visualization.gif" alt="Spreadsheet inspection, aggregation, chart recommendation, user approval, generated MATLAB code, and local chart" width="820"/>
-</p>
-
-For the frozen `results/ablation.csv`, the local trace finds eight rows and five columns, proposes `mean(val_rmse) by encoder`, and recommends a dot plot because the task compares point estimates with a `0.055` reference threshold. The user may override it with a bar or line chart.
-
-```python
-plan = tools.propose_visualization(
-    "results/ablation.csv",
-    "Compare average val RMSE by encoder against the 0.055 baseline",
-)
-# inspect plan["aggregated_rows"], plan["decision_trace"],
-# plan["recommended_chart"], plan["alternatives"], plan["user_questions"]
-
-tools.apply_visualization(plan["plan_id"])  # ApprovalRequired
-tools.apply_visualization(
-    plan["plan_id"],
-    approved=True,
-    chart_type="dot",  # user can override
-    backend="matlab",
-)
-```
-
-The generated [MATLAB source](doc/matlab/mean_val_rmse_by_encoder.m) reads and aggregates the CSV itself; the checked-in chart below was rendered by local MATLAB.
-
-<p align="center">
-  <img src="doc/figures/mean-val-rmse-by-encoder.png" alt="Mean validation RMSE by encoder with 0.055 baseline, rendered by MATLAB" width="820"/>
-</p>
-
-```bash
-python -m app.mcp.server bench/corpus/files
-```
-
 ### Cutting-edge query processing
 
 Six techniques from 2023–2026 RAG research, wired into the bench harness with ablation flags.
@@ -365,19 +294,7 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 All six are in `make bench-frontier` as `hybrid+hyde`, `hybrid+decompose`, `hybrid+corrective`, and `hybrid+hyde+corrective`.
 
-### Graph + staleness, then GraphRAG
-
-<p align="center">
-  <img src="doc/gifs/graph.gif" alt="GraphRAG community summary typing out" width="820"/>
-</p>
-
-Asked “what is in this corpus”:
-
-```
-[community 0] runs 40–55; encoders clip, dinov2, resnet50; 54 files
-run:47  —uses_encoder→  dinov2
-run:47  —has_learning_rate→  3e-4
-```
+### Graph + staleness
 
 The file system already is a graph: containment, imports, config→checkpoint, same run id, co-modification. No invented edges.
 
@@ -390,16 +307,6 @@ Tier 2 runs at query time on the top-k only: same entity, disagreeing `learning_
 </p>
 
 One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446**, at ~6x wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding.
-
-### Pages still look like pages
-
-<p align="center">
-  <img src="doc/figures/colpali.svg" alt="PDF page patches to MaxSim to RRF fusion" width="820"/>
-</p>
-
-PDFs are indexed as page images, not smashed-to-text. Patch grid → MaxSim. Tables and figures stay pixels. Storage is 10–20x a single-vector index, so this is an available mode, not the default path.
-
-Renders and plots go through CLIP/SigLIP when the model is local, pixel-hash otherwise. One query, three retrievers (text, page, image), fused with RRF.
 
 ### Indexing that does not redo the whole tree
 
@@ -671,6 +578,137 @@ page.
 
 ---
 
+## Prototypes (not evaluated)
+
+Everything in this section runs and is shown in the GIFs, but none of it has a
+measured result on the gold set or on an external benchmark. It is kept out of
+the tables above on purpose: no number in this README describes these modules.
+What is measured is the retrieval pipeline (the sections above); these are
+demos of mechanisms built on top of it. Modules: `app/graph/graphrag.py`,
+`app/graph/hipporag.py`, `app/artifacts/` (Paper2Code, spec / patch / sandbox),
+`app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`.
+
+### GraphRAG community summaries and HippoRAG PPR
+
+_The community summary and the PPR rerank are demos; the measured graph result is the hops sweep in the Graph + staleness section, where blind expansion lost._
+
+
+<p align="center">
+  <img src="doc/gifs/graph.gif" alt="GraphRAG community summary typing out" width="820"/>
+</p>
+
+Asked “what is in this corpus”:
+
+```
+[community 0] runs 40–55; encoders clip, dinov2, resnet50; 54 files
+run:47  —uses_encoder→  dinov2
+run:47  —has_learning_rate→  3e-4
+```
+
+### Multi-hop graph cases
+
+_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion; not a category-level result._
+
+
+<p align="center">
+  <img src="doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114 comparing single-query hybrid with typed PPR rank fusion" width="820"/>
+</p>
+
+- `q107`: config/log evidence moves from best gold rank 22 to rank 4 for the baseline→minimum-RMSE→bark→config chain.
+- `q108`: the requested Slurm evidence moves from rank 24 to rank 5 without adding any path outside the fused top-50.
+- `q114`: lexical `src/trellis_wires.py` stays rank 1 while graph evidence brings runs 46/47/48 into the same context.
+- `q100`: all five configs below the `0.0550` baseline remain covered. GraphRAG summarizes the global community; deterministic aggregation still computes the count.
+
+PPR now fuses **ranks**, not raw PPR mass with RRF scores. Raw PPR was on a different scale and could swamp a strong lexical hit. A typed path prior (`source`, `slurm`, `checkpoint`, `paper`, `config`) only reranks candidates already retrieved.
+
+### Research and coding artifacts
+
+_A deterministic scenario outside the retrieval gold set; labelled synthetic, not retrieval accuracy._
+
+
+<p align="center">
+  <img src="doc/gifs/artifacts.gif" alt="Paper2Code current evidence, claim audit, sandbox execution, and approval-gated apply" width="820"/>
+</p>
+
+`reproduce run 47 from the paper` now cites the live config, current draft, and source code; excludes `archive/` and `draft_v1`; executes in the restricted sandbox; and remains `pending_approval` until a human applies it. This is a deterministic scenario outside the retrieval gold set, so it is labeled synthetic rather than reported as retrieval accuracy.
+
+### Artifacts and code production
+
+_Paper2Code-style plan / analyze / generate over this corpus; no quality measurement exists for the generated artifacts._
+
+
+The product is a research tree, so “generate code” has to mean two different jobs.
+
+**Academia.** Pack a run the way a lab ships a reproducibility artifact: live YAML, Slurm, `.out` log, `src/fusion.py`, current paper draft. ACM-style badges: Available (files + hashes), Functional (sandbox tests pass), Reusable (env or paper + citations). Paper2Code (Seo et al., ICLR 2026) is plan → analyze → generate over *this* corpus, not a cloned GitHub repo. Claim-support: a generated `learning_rate` / encoder that is not in the citations is an unsupported claim.
+
+**Industry.** Spec card (citations, tests, template) before any file is proposed. SEARCH/REPLACE patches. Restricted exec (no `os`, no pip). Write is HITL, same as `propose_move`. Templates are `python-lib` / `pytest` / `research-repro`, not the 2024 Next.js-13 demo list.
+
+```python
+art = tools.propose_artifact("reproduce run 47 from the paper")
+# sandbox ran; status pending_approval
+tools.apply_artifact(art["plan_id"])                 # ApprovalRequired
+tools.apply_artifact(art["plan_id"], approved=True)  # writes artifacts/reproduce.py
+```
+
+### Spreadsheet to MATLAB, with a user checkpoint
+
+_One frozen CSV, one trace, one chart; a demo of the approval checkpoint, not an evaluation._
+
+
+The chatbot does not expose hidden chain-of-thought. It emits an **auditable decision trace**: observed schema → proposed aggregation → visualization rationale → alternatives → approval/override. Nothing is written before that checkpoint.
+
+<p align="center">
+  <img src="doc/gifs/visualization.gif" alt="Spreadsheet inspection, aggregation, chart recommendation, user approval, generated MATLAB code, and local chart" width="820"/>
+</p>
+
+For the frozen `results/ablation.csv`, the local trace finds eight rows and five columns, proposes `mean(val_rmse) by encoder`, and recommends a dot plot because the task compares point estimates with a `0.055` reference threshold. The user may override it with a bar or line chart.
+
+```python
+plan = tools.propose_visualization(
+    "results/ablation.csv",
+    "Compare average val RMSE by encoder against the 0.055 baseline",
+)
+# inspect plan["aggregated_rows"], plan["decision_trace"],
+# plan["recommended_chart"], plan["alternatives"], plan["user_questions"]
+
+tools.apply_visualization(plan["plan_id"])  # ApprovalRequired
+tools.apply_visualization(
+    plan["plan_id"],
+    approved=True,
+    chart_type="dot",  # user can override
+    backend="matlab",
+)
+```
+
+The generated [MATLAB source](doc/matlab/mean_val_rmse_by_encoder.m) reads and aggregates the CSV itself; the checked-in chart below was rendered by local MATLAB.
+
+<p align="center">
+  <img src="doc/figures/mean-val-rmse-by-encoder.png" alt="Mean validation RMSE by encoder with 0.055 baseline, rendered by MATLAB" width="820"/>
+</p>
+
+```bash
+python -m app.mcp.server bench/corpus/files
+```
+
+### Pages still look like pages
+
+_ColPali-style page patches and CLIP / SigLIP images (`app/multimodal/`); no image or PDF questions exist in the gold set._
+
+
+<p align="center">
+  <img src="doc/figures/colpali.svg" alt="PDF page patches to MaxSim to RRF fusion" width="820"/>
+</p>
+
+PDFs are indexed as page images, not smashed-to-text. Patch grid → MaxSim. Tables and figures stay pixels. Storage is 10–20x a single-vector index, so this is an available mode, not the default path.
+
+Renders and plots go through CLIP/SigLIP when the model is local, pixel-hash otherwise. One query, three retrievers (text, page, image), fused with RRF.
+
+### Search-R1 / GRPO
+
+_The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in `app/rl/`; nothing is trained. See "What we are not claiming"._
+
+---
+
 ## How the app is put together
 
 <p align="center">
@@ -695,7 +733,7 @@ page.
                                               or fail loud
 ```
 
-**Frontend.** Next.js in `.frontend/`. Chat, file browser, human-in-the-loop approve/reject. The page background is the four-stop radial gradient in `globals.css`.
+**Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). The page background is the four-stop radial gradient in `globals.css`.
 
 **Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, Python exec, artifacts). Agents hand off through a task router. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
@@ -798,12 +836,12 @@ Full citations and abort conditions: [PLAN.md](PLAN.md).
 app/eval/          bench harness, metrics, jury, sweeps, SVG figures
 app/retrieval/     RRF, BM25, router, distill, RankGPT, HNSW / halfvec / binary
 app/chunking/      structure-aware, late, contextual
-app/graph/         file graph, version clusters, GraphRAG, HippoRAG PPR, conflicts
+app/graph/         file graph, version clusters (measured), conflicts; GraphRAG, HippoRAG PPR (prototypes)
 app/agent/         retrieval loop, Deep Research, move-plan schema
-app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox
-app/rl/            Search-R1 env, reward, GRPO dummy step
+app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox (prototype, not evaluated)
+app/rl/            Search-R1 env, reward, GRPO dummy step (prototype, not evaluated)
 app/mcp/           filesystem tools + stdio server
-app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images
+app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images (prototype, not evaluated)
 app/database/      index manager, pgvector, BM25
 app/engine/        LlamaIndex agents, loaders, sandbox
 .frontend/         Next.js UI

@@ -19,6 +19,7 @@ from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 
 from app.eval.latency import StageTimer
 from app.graph.staleness import prefer_current
+from app.observability import span
 from app.retrieval.fuse import RRF_K, rrf_score_map
 from app.retrieval.router import QueryRouter, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
@@ -173,7 +174,7 @@ class HybridRetriever(BaseRetriever):
         """Route, retrieve, fuse, prefer current versions, rerank; return everything per request."""
         timer = StageTimer()
         t0 = time.perf_counter()
-        with timer.stage("route"):
+        with span("retrieve", mode=self._mode), timer.stage("route"), span("route"):
             route = self._router.route(query_str) if self._enable_router else None
         skip_embed = bool(route and route.skip_embed())
         skip_rerank = bool(route and route.skip_rerank())
@@ -187,14 +188,14 @@ class HybridRetriever(BaseRetriever):
 
         staleness = {"enabled": self.staleness_enabled, "applied": False, "dropped": 0}
         if self._clusters and fused:
-            with timer.stage("staleness"):
+            with timer.stage("staleness"), span("staleness"):
                 before = len(fused)
                 fused = self._prefer_current(query_str, fused)
                 staleness.update(applied=True, dropped=before - len(fused))
 
         degraded: List[dict] = []
         if self._reranker and fused and not skip_rerank:
-            with timer.stage("rerank"):
+            with timer.stage("rerank"), span("rerank", depth=self._rerank_depth, n=len(fused)):
                 fused, rerank_error = self._rerank(query_str, fused, n=n)
             if rerank_error:
                 degraded.append({"component": "rerank", "error": rerank_error})
@@ -238,9 +239,9 @@ class HybridRetriever(BaseRetriever):
         self._bm25_degraded = []
         qvec = None
         if not skip_embed:
-            with timer.stage("embed"):
+            with timer.stage("embed"), span("embed"):
                 qvec = self._embed_fn(query_str)
-        with timer.stage("hybrid_sql"):
+        with timer.stage("hybrid_sql"), span("hybrid_sql", k=self._similarity_top_k):
             rows = self._vsm.hybrid_search(query_str, qvec, k=self._similarity_top_k, rrf_k=self._rrf_k)
         fused: List[NodeWithScore] = []
         scores: dict[str, dict[str, Optional[float]]] = {}
@@ -257,13 +258,13 @@ class HybridRetriever(BaseRetriever):
 
     def _fuse_python(self, query_str: str, timer: StageTimer, skip_embed: bool):
         self._bm25_degraded = []
-        with timer.stage("bm25"):
+        with timer.stage("bm25"), span("bm25"):
             bm25_nodes = self._bm25_retrieve(query_str)
         vector_results: List[NodeWithScore] = []
         if not skip_embed:
-            with timer.stage("embed"):
+            with timer.stage("embed"), span("embed"):
                 vector_results = self._vector_retriever.retrieve(query_str)
-        with timer.stage("vector_search"):
+        with timer.stage("vector_search"), span("vector_search"):
             if not bm25_nodes:
                 fused = list(vector_results)
             elif not vector_results:

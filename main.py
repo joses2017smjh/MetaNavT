@@ -36,6 +36,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from app.api.routers import api_router
 from app.middlewares.frontend import FrontendProxyMiddleware
+from app.observability import configure_logging, tracing_status
 from app.settings import init_settings
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
@@ -43,6 +44,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 environment = os.getenv("ENVIRONMENT", "dev")
+LOG_FORMAT_USED = configure_logging()  # LOG_FORMAT=json -> one JSON object per line
 logger = logging.getLogger("uvicorn")
 
 
@@ -102,6 +104,7 @@ async def health():
         "reranker": reranker,
         "degraded": degraded,
         "indexing": state.indexing,
+        "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
     }
 
 

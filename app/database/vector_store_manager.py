@@ -139,7 +139,7 @@ class VectorStoreManager(DatabaseManager):
                 );
                 """
                 logger.info(f"Creating BM25 index '{index_name}' using ParadeDB documentation syntax")
-                logger.info(f"Executing SQL:\n{sql_stmt}\n")
+                logger.debug(f"Executing SQL:\n{sql_stmt}\n")
                 cur.execute(sql_stmt)
                 
                 # Analyze the table to refresh statistics
@@ -282,7 +282,7 @@ class VectorStoreManager(DatabaseManager):
                     cur.execute("SET search_path TO paradedb, public;")
                     
                     # Execute search and log the actual SQL
-                    logger.info(f"BM25 search query: {search_sql.as_string(conn)}")
+                    logger.debug(f"BM25 search query: {search_sql.as_string(conn)}")
                     cur.execute(search_sql, (limit,))
                     results = cur.fetchall()
             
@@ -310,7 +310,7 @@ class VectorStoreManager(DatabaseManager):
                     cur.execute("SET search_path TO paradedb, public;")
                     
                     # Execute tokenized search
-                    logger.info(f"BM25 tokenized search query: {search_sql2.as_string(conn)}")
+                    logger.debug(f"BM25 tokenized search query: {search_sql2.as_string(conn)}")
                     cur.execute(search_sql2, (limit,))
                     results = cur.fetchall()
             

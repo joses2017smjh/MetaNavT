@@ -52,6 +52,9 @@ services:
       RETRIEVE_K: "50"
       RERANK_TOP_N: "8"
       ENABLE_ROUTER: "true"
+      # observability (both optional): LOG_FORMAT=json for structured logs;
+      # OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces with --profile otel
+      LOG_FORMAT: text
     ports:
       - "8000:8000"
     healthcheck:
@@ -62,6 +65,16 @@ services:
       start_period: 60s
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  jaeger:
+    # docker compose --profile otel up --build : Jaeger UI on :16686, OTLP/HTTP on :4318.
+    # The API exports spans only when OTEL_EXPORTER_OTLP_ENDPOINT is set and the image
+    # was built with EXTRAS=app,otel; otherwise spans are no-ops (/health.observability).
+    image: jaegertracing/all-in-one:1.60
+    profiles: ["otel"]
+    ports:
+      - "16686:16686"
+      - "4318:4318"
 
 volumes:
   metanavit_pg:

@@ -24,7 +24,7 @@ test-eval:      ## LLM-free eval harness tests (needs .[eval])
 	$(PYTHON) -m pytest tests/eval -q --rootdir=$(CURDIR)
 
 test-unit:      ## legacy unit tests + engine + API contract tests (needs .[eval,app], no database)
-	$(PYTHON) -m pytest tests/unit_tests tests/engine tests/api -q --rootdir=$(CURDIR)
+	$(PYTHON) -m pytest tests/unit_tests tests/engine tests/api tests/mcp -q --rootdir=$(CURDIR)
 
 # ---- bench -----------------------------------------------------------------
 bench:          ## frozen fixture v1 -> bench/results/<git-sha>.json and latest.json
