@@ -25,6 +25,7 @@ export interface CodeFile {
 
 export interface CodeArtifact {
   files: CodeFile[];
+  name?: string;
 }
 
 type OutputUrl = {
@@ -41,7 +42,7 @@ type ArtifactResult = {
   url: string;
 };
 
-export function Artifact({ artifact }: { artifact: CodeArtifact }) {
+export function Artifact({ artifact }: { artifact: CodeArtifact; version?: number }) {
   const fileIds = useMemo(
     () => artifact.files.map((file) => file.name.replace(/[^a-zA-Z0-9]/g, "_")),
     [artifact]

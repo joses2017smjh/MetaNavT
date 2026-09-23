@@ -45,6 +45,7 @@ services:
       EMBEDDING_PROVIDER: hash
       EMBEDDING_DIM: "256"
       RERANKER_MODEL: none
+      RETRIEVAL_MODE: sql          # one SQL round trip (app/database/sql/); python = the reference path
       DATA_DIR: bench/corpus/files
       INDEX_ON_START: "true"
       CHUNK_SIZE: "512"

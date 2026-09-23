@@ -22,5 +22,8 @@ def test_prose_sections_type_no_metric_digits():
     from app.eval.evidence import BULLETS, QA
     import re
 
+    # a metric typed by hand looks like a decimal with two or more places, a signed delta, or scientific notation
+    metric = re.compile(r"(?<![\w.])[-+]?\d*\.\d{2,}(?![\w.])|(?<![\w.])\d+(?:\.\d+)?[eE][-+]?\d+(?![\w.])")
     for text in (BULLETS, QA):
-        assert not re.search(r"\b0\.\d{2,}\b", text), "metric-like number typed by hand in prose"
+        found = metric.findall(text)
+        assert not found, f"metric-like numbers typed by hand in prose: {found}"

@@ -10,6 +10,11 @@ over DATA_DIR, and by a Postgres decision log (table plan_decisions): every
 approve / reject is written before the action runs and updated with its
 result. If the log cannot be written, the action is refused (503) rather than
 run unrecorded.
+
+Scope: pending plans live in this process's memory (one worker, one
+FilesystemTools); a restart or a second worker does not see them. The
+decision log is the durable record, read back through
+GET /api/plans/decisions/recent.
 """
 
 from __future__ import annotations

@@ -172,7 +172,8 @@ def claims(root: Path = ROOT) -> list[dict]:
             if name == "jury_majority" or k.get("heuristic"):
                 continue
             out.append({"claim": f"Judge {name}: Cohen's kappa vs exact-match labels, simple_factual", "value": f"{k['kappa_vs_exact_match_simple_factual']}", "ci": "—", "n": k["n"], "command": "make bench-jury", "source": src,
-                        "not_shown": ("passes the 0.6 gate; the judge's mean score may be published" if k["readme_ok"] else "below the 0.6 gate; this judge's scores are not published")})
+                        "not_shown": ("passes the 0.6 gate; the judge's mean score may be published" if k["readme_ok"] else "below the 0.6 gate; this judge's scores are not published")
+                        + "; the reference is an exact-match label: a negated or hedged answer that still quotes the gold value counts as correct, a correct paraphrase does not"})
         jm = s["kappa"].get("jury_majority")
         if jm:
             out.append({"claim": "Jury majority (two judge models): Cohen's kappa vs exact-match labels, simple_factual", "value": f"{jm['kappa_vs_exact_match_simple_factual']}", "ci": "—", "n": jm["n"], "command": "make bench-jury", "source": src,
