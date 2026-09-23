@@ -21,6 +21,7 @@ from app.eval.index_loader import build_index
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
+from app.eval.provenance import command_line, device_info, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
     answer_relevancy,
@@ -205,6 +206,25 @@ def _jury_complete():
     return lambda prompt: ollama_complete(prompt) or ""
 
 
+BGE_SMALL = "st:BAAI/bge-small-en-v1.5"
+BGE_BASE = "st:BAAI/bge-base-en-v1.5"
+BGE_RERANKER = "BAAI/bge-reranker-v2-m3"
+
+# Real models on fixture v1 (make bench-neural). bm25_only is repeated so the
+# paired deltas have the same reference as the hash table; e2e heuristics and
+# triple logging are off because they add nothing to the retrieval question.
+NEURAL_CONFIGS = [
+    BenchConfig(name="bm25_only", mode="bm25", enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="dense_only@bge-small", mode="dense", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="hybrid+bge-rerank@hash", mode="hybrid", embedder="hash", reranker=BGE_RERANKER, enable_rerank=True, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="hybrid+bge-rerank@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="hybrid+bge-rerank+router+staleness@bge-small", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, enable_router=True, staleness_tier1=True, log_triples=False, e2e=False),
+    BenchConfig(name="dense_only@bge-base", mode="dense", embedder=BGE_BASE, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+    BenchConfig(name="hybrid@bge-base", mode="hybrid", embedder=BGE_BASE, enable_rerank=False, enable_router=False, staleness_tier1=False, log_triples=False, e2e=False),
+]
+
+
 def run_config(
     cfg: BenchConfig,
     gold: list[GoldQuestion],
@@ -306,6 +326,10 @@ def run_config(
     payload["_per_query_scores"] = retrieval.per_query  # gold order; used for the bootstrap, then dropped
     payload["reranker_name"] = getattr(index, "reranker_name", cfg.reranker)
     payload["reranker_loaded"] = bool(getattr(index, "reranker_loaded", False))
+    payload["models"] = {
+        "embedder": {**model_provenance(cfg.embedder, "embedder"), "dim": int(getattr(index.embedder, "dim", 0))},
+        "reranker": {**model_provenance(cfg.reranker, "reranker"), "loaded": payload["reranker_loaded"]},
+    }
     fallback = getattr(index, "reranker_fallback", None)
     if fallback:
         payload["reranker_fallback"] = fallback
@@ -431,7 +455,15 @@ def run_bench(
     root: Path | None = None,
     configs: list[BenchConfig] | None = None,
     e2e: bool | None = None,
+    out: Path | None = None,
+    device: str = "auto",
 ) -> dict[str, Any]:
+    """Score every config on fixture v1.
+
+    Without `out`, results go to bench/results/<sha>.json and latest.json (the
+    default bench). With `out`, only that file is written, so neural runs never
+    touch the CI baseline.
+    """
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
     gold_path = root / "bench" / "gold" / "questions.jsonl"
@@ -463,6 +495,8 @@ def run_bench(
     blob = {
         "git_sha": sha,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "command": command_line(),
+        "device": device_info(device),
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
@@ -471,6 +505,12 @@ def run_bench(
     }
     out_dir = root / "bench" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
+    if out is not None:
+        out = out if out.is_absolute() else root / out
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(blob, indent=2) + "\n")
+        blob["output"] = str(out)
+        return blob
     out_path = out_dir / f"{sha}.json"
     out_path.write_text(json.dumps(blob, indent=2) + "\n")
     latest = out_dir / "latest.json"
@@ -583,16 +623,34 @@ def _parse_args(argv: list[str] | None = None):
         action="store_true",
         help="Phase 7–9 extra configs only (bge, RankGPT, multi-query, HippoRAG)",
     )
+    p.add_argument(
+        "--neural",
+        action="store_true",
+        help="real embedders (bge-small, bge-base) and the real bge-reranker-v2-m3 on fixture v1 (needs .[ml])",
+    )
+    p.add_argument("--out", type=Path, default=None, help="write only this file (latest.json and the sha file are left alone)")
+    p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"], help="recorded in the results header; cpu forces CPU for torch models")
+    p.add_argument("--only", default=None, help="comma-separated config names to run (subset of the selected list)")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     jury = args.jury or os.environ.get("JUDGE", "").strip().lower() in {"1", "true", "yes"}
-    configs = list(FRONTIER_CONFIGS) if args.frontier else list(DEFAULT_CONFIGS)
+    if args.neural:
+        configs = list(NEURAL_CONFIGS)
+    elif args.frontier:
+        configs = list(FRONTIER_CONFIGS)
+    else:
+        configs = list(DEFAULT_CONFIGS)
+    if args.only:
+        wanted = {n.strip() for n in args.only.split(",") if n.strip()}
+        configs = [c for c in configs if c.name in wanted]
     if jury:
         configs = [replace(c, jury=True) for c in configs]
-    blob = run_bench(configs=configs)
+    if args.device == "cpu":
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    blob = run_bench(configs=configs, out=args.out, device=args.device)
     print(markdown_table(blob))
     print(f"wrote {blob['output']}")
 

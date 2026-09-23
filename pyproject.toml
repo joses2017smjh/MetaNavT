@@ -19,6 +19,7 @@ dependencies = [
 eval = [
     "pytest>=8,<10",
     "pytest-mock>=3.12",
+    "snowballstemmer>=2.2",  # Porter stemming for the BEIR-style BM25 analyzer (pure python)
 ]
 # The FastAPI service and the Postgres/pgvector path (what the Docker image installs).
 # HuggingFace embeddings live in `ml` because they pull torch; the image uses the

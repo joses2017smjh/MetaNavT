@@ -35,3 +35,6 @@ bench/results/*.json
 
 # editable install metadata
 *.egg-info/
+
+# external benchmark downloads (BEIR SciFact) and embedding caches; results are committed
+bench/external/
