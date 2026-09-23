@@ -1,9 +1,17 @@
 {
-  "git_sha": "2920fef",
-  "timestamp": "2026-09-23T07:17:31.179283+00:00",
+  "git_sha": "6402412",
+  "timestamp": "2026-09-23T14:29:22.053265+00:00",
   "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
   "n_gold": 136,
   "n_files": 61,
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 136,
+    "level": 0.95
+  },
   "results": [
     {
       "config": "dense_only",
@@ -29,70 +37,85 @@
         "corrective": false
       },
       "retrieval": {
-        "recall@50": 0.915,
         "ndcg@10": 0.2718,
+        "recall@5": 0.3185,
+        "recall@10": 0.4804,
+        "recall@50": 0.915,
         "mrr@10": 0.2326,
+        "mean_unique_paths@50": 45.24,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "recall@50": 0.9,
             "ndcg@10": 0.2088,
+            "recall@10": 0.4562,
+            "recall@50": 0.9,
             "mrr@10": 0.1516,
             "n": 80.0
           },
           "conditional": {
-            "recall@50": 0.825,
             "ndcg@10": 0.0778,
+            "recall@10": 0.25,
+            "recall@50": 0.825,
             "mrr@10": 0.0304,
             "n": 8.0
           },
           "comparative": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3143,
+            "recall@10": 0.4792,
+            "recall@50": 1.0,
             "mrr@10": 0.2917,
             "n": 8.0
           },
           "aggregation": {
-            "recall@50": 0.9333,
             "ndcg@10": 0.2281,
+            "recall@10": 0.3247,
+            "recall@50": 0.9333,
             "mrr@10": 0.2052,
             "n": 10.0
           },
           "multi_hop": {
-            "recall@50": 0.9375,
             "ndcg@10": 0.3973,
+            "recall@10": 0.5938,
+            "recall@50": 0.9375,
             "mrr@10": 0.4866,
             "n": 8.0
           },
           "staleness": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3714,
+            "recall@10": 0.5625,
+            "recall@50": 1.0,
             "mrr@10": 0.316,
             "n": 8.0
           },
           "exact_path": {
-            "recall@50": 1.0,
             "ndcg@10": 0.6022,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
             "mrr@10": 0.5563,
             "n": 8.0
           },
           "semantic": {
-            "recall@50": 0.8333,
             "ndcg@10": 0.6458,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
             "mrr@10": 0.6667,
             "n": 6.0
           }
-        }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7417
       },
       "latency": {
         "embed": {
           "n": 136,
-          "p50_ms": 0.17,
-          "p95_ms": 0.26,
-          "mean_ms": 0.18
+          "p50_ms": 0.28,
+          "p95_ms": 3.11,
+          "mean_ms": 0.7
         }
       },
-      "wall_ms": 122.51,
+      "wall_ms": 206.51,
       "routes": {},
       "n_chunks": 71,
       "e2e": {
@@ -103,7 +126,43 @@
         "judge": "heuristic"
       },
       "reranker_name": "overlap",
-      "reranker_loaded": false
+      "reranker_loaded": false,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.2718,
+          "lo": 0.2256,
+          "hi": 0.3224
+        },
+        "recall@10": {
+          "mean": 0.4804,
+          "lo": 0.4079,
+          "hi": 0.5528
+        },
+        "recall@50": {
+          "mean": 0.915,
+          "lo": 0.8784,
+          "hi": 0.9485
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": -0.2334,
+          "lo": -0.2926,
+          "hi": -0.1729
+        },
+        "recall@10": {
+          "delta": -0.2497,
+          "lo": -0.3344,
+          "hi": -0.1609
+        },
+        "recall@50": {
+          "delta": 0.0716,
+          "lo": 0.0189,
+          "hi": 0.126
+        }
+      },
+      "delta_vs_previous": null
     },
     {
       "config": "bm25_only",
@@ -129,70 +188,85 @@
         "corrective": false
       },
       "retrieval": {
-        "recall@50": 0.8434,
         "ndcg@10": 0.5052,
+        "recall@5": 0.6553,
+        "recall@10": 0.7301,
+        "recall@50": 0.8434,
         "mrr@10": 0.4619,
+        "mean_unique_paths@50": 35.81,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "recall@50": 0.9,
             "ndcg@10": 0.6387,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
             "mrr@10": 0.5952,
             "n": 80.0
           },
           "conditional": {
-            "recall@50": 1.0,
             "ndcg@10": 0.1326,
+            "recall@10": 0.3375,
+            "recall@50": 1.0,
             "mrr@10": 0.0706,
             "n": 8.0
           },
           "comparative": {
-            "recall@50": 0.875,
             "ndcg@10": 0.3557,
+            "recall@10": 0.6042,
+            "recall@50": 0.875,
             "mrr@10": 0.2792,
             "n": 8.0
           },
           "aggregation": {
-            "recall@50": 0.72,
             "ndcg@10": 0.2049,
+            "recall@10": 0.2506,
+            "recall@50": 0.72,
             "mrr@10": 0.1283,
             "n": 10.0
           },
           "multi_hop": {
-            "recall@50": 0.875,
             "ndcg@10": 0.3643,
+            "recall@10": 0.5938,
+            "recall@50": 0.875,
             "mrr@10": 0.4062,
             "n": 8.0
           },
           "staleness": {
-            "recall@50": 1.0,
             "ndcg@10": 0.5186,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
             "mrr@10": 0.4012,
             "n": 8.0
           },
           "exact_path": {
-            "recall@50": 0.125,
             "ndcg@10": 0.0445,
+            "recall@10": 0.125,
+            "recall@50": 0.125,
             "mrr@10": 0.0208,
             "n": 8.0
           },
           "semantic": {
-            "recall@50": 0.75,
             "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.75,
             "mrr@10": 0.75,
             "n": 6.0
           }
-        }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0779,
+        "random_recall@10": 0.1525,
+        "random_recall@50": 0.587
       },
       "latency": {
         "bm25": {
           "n": 136,
-          "p50_ms": 0.18,
-          "p95_ms": 0.26,
-          "mean_ms": 0.19
+          "p50_ms": 0.2,
+          "p95_ms": 0.33,
+          "mean_ms": 0.24
         }
       },
-      "wall_ms": 103.76,
+      "wall_ms": 148.09,
       "routes": {},
       "n_chunks": 71,
       "e2e": {
@@ -203,7 +277,43 @@
         "judge": "heuristic"
       },
       "reranker_name": "overlap",
-      "reranker_loaded": false
+      "reranker_loaded": false,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.5052,
+          "lo": 0.4542,
+          "hi": 0.5549
+        },
+        "recall@10": {
+          "mean": 0.7301,
+          "lo": 0.6636,
+          "hi": 0.7934
+        },
+        "recall@50": {
+          "mean": 0.8434,
+          "lo": 0.7919,
+          "hi": 0.8949
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "dense_only",
+        "ndcg@10": {
+          "delta": 0.2334,
+          "lo": 0.1729,
+          "hi": 0.2926
+        },
+        "recall@10": {
+          "delta": 0.2497,
+          "lo": 0.1609,
+          "hi": 0.3344
+        },
+        "recall@50": {
+          "delta": -0.0716,
+          "lo": -0.126,
+          "hi": -0.0189
+        }
+      }
     },
     {
       "config": "hybrid",
@@ -229,60 +339,75 @@
         "corrective": false
       },
       "retrieval": {
-        "recall@50": 0.9382,
         "ndcg@10": 0.4538,
+        "recall@5": 0.5415,
+        "recall@10": 0.6623,
+        "recall@50": 0.9382,
         "mrr@10": 0.43,
+        "mean_unique_paths@50": 45.82,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "recall@50": 0.9187,
             "ndcg@10": 0.4805,
+            "recall@10": 0.7188,
+            "recall@50": 0.9187,
             "mrr@10": 0.4612,
             "n": 80.0
           },
           "conditional": {
-            "recall@50": 0.95,
             "ndcg@10": 0.173,
+            "recall@10": 0.4,
+            "recall@50": 0.95,
             "mrr@10": 0.1253,
             "n": 8.0
           },
           "comparative": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3397,
+            "recall@10": 0.5417,
+            "recall@50": 1.0,
             "mrr@10": 0.3097,
             "n": 8.0
           },
           "aggregation": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3171,
+            "recall@10": 0.4535,
+            "recall@50": 1.0,
             "mrr@10": 0.2333,
             "n": 10.0
           },
           "multi_hop": {
-            "recall@50": 0.9375,
             "ndcg@10": 0.4316,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
             "mrr@10": 0.4792,
             "n": 8.0
           },
           "staleness": {
-            "recall@50": 1.0,
             "ndcg@10": 0.4428,
+            "recall@10": 0.625,
+            "recall@50": 1.0,
             "mrr@10": 0.3792,
             "n": 8.0
           },
           "exact_path": {
-            "recall@50": 1.0,
             "ndcg@10": 0.5955,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
             "mrr@10": 0.5491,
             "n": 8.0
           },
           "semantic": {
-            "recall@50": 0.8333,
             "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
             "mrr@10": 0.75,
             "n": 6.0
           }
-        }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7512
       },
       "latency": {
         "route": {
@@ -293,24 +418,24 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.19,
-          "p95_ms": 0.27,
-          "mean_ms": 0.2
+          "p50_ms": 0.22,
+          "p95_ms": 0.3,
+          "mean_ms": 0.22
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.18,
-          "p95_ms": 0.25,
-          "mean_ms": 0.19
+          "p50_ms": 0.31,
+          "p95_ms": 7.77,
+          "mean_ms": 1.56
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.02,
+          "p95_ms": 0.03,
           "mean_ms": 0.02
         }
       },
-      "wall_ms": 372.52,
+      "wall_ms": 606.52,
       "routes": {
         "semantic": 136
       },
@@ -324,7 +449,60 @@
       },
       "reranker_name": "overlap",
       "reranker_loaded": false,
-      "n_triples": 6800
+      "n_triples": 6800,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4538,
+          "lo": 0.4019,
+          "hi": 0.5109
+        },
+        "recall@10": {
+          "mean": 0.6623,
+          "lo": 0.5999,
+          "hi": 0.7265
+        },
+        "recall@50": {
+          "mean": 0.9382,
+          "lo": 0.9081,
+          "hi": 0.9669
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": -0.0514,
+          "lo": -0.0932,
+          "hi": -0.0065
+        },
+        "recall@10": {
+          "delta": -0.0678,
+          "lo": -0.1328,
+          "hi": 0.0037
+        },
+        "recall@50": {
+          "delta": 0.0949,
+          "lo": 0.0493,
+          "hi": 0.1426
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": -0.0514,
+          "lo": -0.0932,
+          "hi": -0.0065
+        },
+        "recall@10": {
+          "delta": -0.0678,
+          "lo": -0.1328,
+          "hi": 0.0037
+        },
+        "recall@50": {
+          "delta": 0.0949,
+          "lo": 0.0493,
+          "hi": 0.1426
+        }
+      }
     },
     {
       "config": "hybrid+rerank",
@@ -350,94 +528,109 @@
         "corrective": false
       },
       "retrieval": {
-        "recall@50": 0.9382,
         "ndcg@10": 0.4517,
+        "recall@5": 0.6851,
+        "recall@10": 0.747,
+        "recall@50": 0.9382,
         "mrr@10": 0.3907,
+        "mean_unique_paths@50": 45.82,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "recall@50": 0.9187,
             "ndcg@10": 0.4325,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
             "mrr@10": 0.3579,
             "n": 80.0
           },
           "conditional": {
-            "recall@50": 0.95,
             "ndcg@10": 0.2169,
+            "recall@10": 0.4625,
+            "recall@50": 0.95,
             "mrr@10": 0.1609,
             "n": 8.0
           },
           "comparative": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3778,
+            "recall@10": 0.6042,
+            "recall@50": 1.0,
             "mrr@10": 0.3345,
             "n": 8.0
           },
           "aggregation": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3336,
+            "recall@10": 0.4304,
+            "recall@50": 1.0,
             "mrr@10": 0.2744,
             "n": 10.0
           },
           "multi_hop": {
-            "recall@50": 0.9375,
             "ndcg@10": 0.4535,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
             "mrr@10": 0.4792,
             "n": 8.0
           },
           "staleness": {
-            "recall@50": 1.0,
             "ndcg@10": 0.4837,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
             "mrr@10": 0.35,
             "n": 8.0
           },
           "exact_path": {
-            "recall@50": 1.0,
             "ndcg@10": 0.875,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
             "mrr@10": 0.8333,
             "n": 8.0
           },
           "semantic": {
-            "recall@50": 0.8333,
             "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
             "mrr@10": 0.75,
             "n": 6.0
           }
-        }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7512
       },
       "latency": {
         "route": {
           "n": 136,
           "p50_ms": 0.0,
-          "p95_ms": 0.0,
+          "p95_ms": 0.01,
           "mean_ms": 0.0
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.2,
-          "p95_ms": 0.27,
-          "mean_ms": 0.2
+          "p50_ms": 0.23,
+          "p95_ms": 0.37,
+          "mean_ms": 0.3
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.18,
-          "p95_ms": 0.26,
-          "mean_ms": 0.19
+          "p50_ms": 0.34,
+          "p95_ms": 10.4,
+          "mean_ms": 2.47
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.02,
-          "mean_ms": 0.02
+          "p95_ms": 0.03,
+          "mean_ms": 0.03
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 1.37,
-          "p95_ms": 1.53,
-          "mean_ms": 1.38
+          "p50_ms": 1.45,
+          "p95_ms": 4.4,
+          "mean_ms": 2.28
         }
       },
-      "wall_ms": 542.76,
+      "wall_ms": 1054.45,
       "routes": {
         "semantic": 136
       },
@@ -451,7 +644,60 @@
       },
       "reranker_name": "overlap",
       "reranker_loaded": false,
-      "n_triples": 6800
+      "n_triples": 6800,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4517,
+          "lo": 0.4117,
+          "hi": 0.4965
+        },
+        "recall@10": {
+          "mean": 0.747,
+          "lo": 0.6904,
+          "hi": 0.8028
+        },
+        "recall@50": {
+          "mean": 0.9382,
+          "lo": 0.9081,
+          "hi": 0.9669
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": -0.0535,
+          "lo": -0.1015,
+          "hi": -0.0028
+        },
+        "recall@10": {
+          "delta": 0.0169,
+          "lo": -0.0387,
+          "hi": 0.0775
+        },
+        "recall@50": {
+          "delta": 0.0949,
+          "lo": 0.0493,
+          "hi": 0.1426
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": -0.0021,
+          "lo": -0.0404,
+          "hi": 0.0358
+        },
+        "recall@10": {
+          "delta": 0.0847,
+          "lo": 0.0339,
+          "hi": 0.1372
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
     },
     {
       "config": "hybrid+rerank+router",
@@ -477,100 +723,115 @@
         "corrective": false
       },
       "retrieval": {
-        "recall@50": 0.9382,
         "ndcg@10": 0.4563,
+        "recall@5": 0.6702,
+        "recall@10": 0.745,
+        "recall@50": 0.9382,
         "mrr@10": 0.4022,
+        "mean_unique_paths@50": 43.53,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "recall@50": 0.9187,
             "ndcg@10": 0.4403,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
             "mrr@10": 0.3769,
             "n": 80.0
           },
           "conditional": {
-            "recall@50": 0.95,
             "ndcg@10": 0.2169,
+            "recall@10": 0.4625,
+            "recall@50": 0.95,
             "mrr@10": 0.1609,
             "n": 8.0
           },
           "comparative": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3353,
+            "recall@10": 0.5417,
+            "recall@50": 1.0,
             "mrr@10": 0.3067,
             "n": 8.0
           },
           "aggregation": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3171,
+            "recall@10": 0.4535,
+            "recall@50": 1.0,
             "mrr@10": 0.2333,
             "n": 10.0
           },
           "multi_hop": {
-            "recall@50": 0.9375,
             "ndcg@10": 0.4535,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
             "mrr@10": 0.4792,
             "n": 8.0
           },
           "staleness": {
-            "recall@50": 1.0,
             "ndcg@10": 0.4837,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
             "mrr@10": 0.35,
             "n": 8.0
           },
           "exact_path": {
-            "recall@50": 1.0,
             "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
             "mrr@10": 0.9167,
             "n": 8.0
           },
           "semantic": {
-            "recall@50": 0.8333,
             "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
             "mrr@10": 0.75,
             "n": 6.0
           }
-        }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.7136
       },
       "latency": {
         "route": {
           "n": 136,
-          "p50_ms": 0.01,
-          "p95_ms": 0.02,
-          "mean_ms": 0.01
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.2,
-          "p95_ms": 0.26,
-          "mean_ms": 0.2
+          "p50_ms": 0.23,
+          "p95_ms": 0.36,
+          "mean_ms": 0.24
         },
         "embed": {
           "n": 128,
-          "p50_ms": 0.18,
-          "p95_ms": 0.25,
-          "mean_ms": 0.19
+          "p50_ms": 0.4,
+          "p95_ms": 8.83,
+          "mean_ms": 2.06
         },
         "vector_search": {
           "n": 128,
           "p50_ms": 0.02,
-          "p95_ms": 0.02,
+          "p95_ms": 0.03,
           "mean_ms": 0.02
         },
         "rerank": {
           "n": 95,
-          "p50_ms": 1.38,
-          "p95_ms": 1.55,
-          "mean_ms": 1.38
+          "p50_ms": 1.43,
+          "p95_ms": 1.78,
+          "mean_ms": 1.51
         },
         "lexical": {
           "n": 8,
-          "p50_ms": 0.4,
-          "p95_ms": 0.41,
-          "mean_ms": 0.4
+          "p50_ms": 0.33,
+          "p95_ms": 0.35,
+          "mean_ms": 0.34
         }
       },
-      "wall_ms": 484.48,
+      "wall_ms": 816.54,
       "routes": {
         "semantic": 95,
         "aggregation_query": 33,
@@ -586,7 +847,60 @@
       },
       "reranker_name": "overlap",
       "reranker_loaded": false,
-      "n_triples": 6466
+      "n_triples": 6466,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4563,
+          "lo": 0.4152,
+          "hi": 0.5021
+        },
+        "recall@10": {
+          "mean": 0.745,
+          "lo": 0.6885,
+          "hi": 0.8009
+        },
+        "recall@50": {
+          "mean": 0.9382,
+          "lo": 0.9081,
+          "hi": 0.9669
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": -0.049,
+          "lo": -0.0977,
+          "hi": 0.0042
+        },
+        "recall@10": {
+          "delta": 0.0149,
+          "lo": -0.039,
+          "hi": 0.077
+        },
+        "recall@50": {
+          "delta": 0.0949,
+          "lo": 0.0493,
+          "hi": 0.1426
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": 0.0046,
+          "lo": -0.0094,
+          "hi": 0.0195
+        },
+        "recall@10": {
+          "delta": -0.002,
+          "lo": -0.0126,
+          "hi": 0.0072
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
     },
     {
       "config": "hybrid+rerank+router+staleness",
@@ -612,100 +926,115 @@
         "corrective": false
       },
       "retrieval": {
-        "recall@50": 0.9382,
         "ndcg@10": 0.4926,
+        "recall@5": 0.6908,
+        "recall@10": 0.7476,
+        "recall@50": 0.9382,
         "mrr@10": 0.4643,
+        "mean_unique_paths@50": 40.36,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "recall@50": 0.9187,
             "ndcg@10": 0.4852,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
             "mrr@10": 0.4614,
             "n": 80.0
           },
           "conditional": {
-            "recall@50": 0.95,
             "ndcg@10": 0.2352,
+            "recall@10": 0.4938,
+            "recall@50": 0.95,
             "mrr@10": 0.1656,
             "n": 8.0
           },
           "comparative": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3631,
+            "recall@10": 0.5417,
+            "recall@50": 1.0,
             "mrr@10": 0.3785,
             "n": 8.0
           },
           "aggregation": {
-            "recall@50": 1.0,
             "ndcg@10": 0.3325,
+            "recall@10": 0.4646,
+            "recall@50": 1.0,
             "mrr@10": 0.2426,
             "n": 10.0
           },
           "multi_hop": {
-            "recall@50": 0.9375,
             "ndcg@10": 0.493,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
             "mrr@10": 0.5208,
             "n": 8.0
           },
           "staleness": {
-            "recall@50": 1.0,
             "ndcg@10": 0.5473,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
             "mrr@10": 0.4323,
             "n": 8.0
           },
           "exact_path": {
-            "recall@50": 1.0,
             "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
             "mrr@10": 0.9167,
             "n": 8.0
           },
           "semantic": {
-            "recall@50": 0.8333,
             "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
             "mrr@10": 0.75,
             "n": 6.0
           }
-        }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.6616
       },
       "latency": {
         "route": {
           "n": 136,
-          "p50_ms": 0.01,
-          "p95_ms": 0.02,
-          "mean_ms": 0.01
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.2,
-          "p95_ms": 0.28,
-          "mean_ms": 0.22
+          "p50_ms": 0.23,
+          "p95_ms": 0.32,
+          "mean_ms": 0.26
         },
         "embed": {
           "n": 128,
-          "p50_ms": 0.18,
-          "p95_ms": 0.26,
-          "mean_ms": 0.27
+          "p50_ms": 0.32,
+          "p95_ms": 9.3,
+          "mean_ms": 1.7
         },
         "vector_search": {
           "n": 128,
           "p50_ms": 0.02,
-          "p95_ms": 0.02,
+          "p95_ms": 0.03,
           "mean_ms": 0.02
         },
         "rerank": {
           "n": 95,
-          "p50_ms": 1.37,
-          "p95_ms": 1.66,
-          "mean_ms": 1.44
+          "p50_ms": 1.4,
+          "p95_ms": 2.73,
+          "mean_ms": 1.59
         },
         "lexical": {
           "n": 8,
-          "p50_ms": 0.4,
-          "p95_ms": 0.41,
-          "mean_ms": 0.4
+          "p50_ms": 0.34,
+          "p95_ms": 0.34,
+          "mean_ms": 0.33
         }
       },
-      "wall_ms": 545.67,
+      "wall_ms": 768.36,
       "routes": {
         "semantic": 95,
         "aggregation_query": 33,
@@ -721,7 +1050,60 @@
       },
       "reranker_name": "overlap",
       "reranker_loaded": false,
-      "n_triples": 6466
+      "n_triples": 6466,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4926,
+          "lo": 0.452,
+          "hi": 0.5376
+        },
+        "recall@10": {
+          "mean": 0.7476,
+          "lo": 0.6914,
+          "hi": 0.8038
+        },
+        "recall@50": {
+          "mean": 0.9382,
+          "lo": 0.9081,
+          "hi": 0.9669
+        }
+      },
+      "delta_vs_bm25_only": {
+        "reference": "bm25_only",
+        "ndcg@10": {
+          "delta": -0.0126,
+          "lo": -0.0629,
+          "hi": 0.0394
+        },
+        "recall@10": {
+          "delta": 0.0176,
+          "lo": -0.0373,
+          "hi": 0.0798
+        },
+        "recall@50": {
+          "delta": 0.0949,
+          "lo": 0.0493,
+          "hi": 0.1426
+        }
+      },
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank+router",
+        "ndcg@10": {
+          "delta": 0.0364,
+          "lo": 0.0273,
+          "hi": 0.0466
+        },
+        "recall@10": {
+          "delta": 0.0027,
+          "lo": 0.0,
+          "hi": 0.0071
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
     }
   ]
 }
