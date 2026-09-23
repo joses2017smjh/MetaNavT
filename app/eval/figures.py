@@ -444,10 +444,13 @@ def write_from_results(root: Path) -> None:
         n_files = blob.get("n_files", "")
         boot = blob.get("bootstrap") or {}
         ci_note = f"95% CI: paired percentile bootstrap over queries, {boot.get('n_boot', '')} resamples, seed {boot.get('seed', '')}." if boot else ""
+        from app.eval.report import components_excluding_zero
+
+        excl = components_excluding_zero(blob)
         _bar_chart(
             out_dir / "ndcg.svg",
             f"nDCG@10  ·  {n_gold} questions, {n_files} files, hash embeddings, overlap reranker",
-            f"Staleness Tier 1 is the only change with a clear ranking gain; the overlap reranker loses to RRF. {ci_note}",
+            f"Added components whose gain over the previous row excludes zero: {', '.join(excl) if excl else 'none'}. {ci_note}",
             ndcg,
             ci=ndcg_ci,
         )
@@ -461,7 +464,7 @@ def write_from_results(root: Path) -> None:
         _bar_chart(
             out_dir / "recall50.svg",
             f"Recall@50 next to a random list of the same length  ·  {n_files} files",
-            "With ~46 unique files in a top-50 over 61, a random list already scores ~0.75. Read the bar against its tick.",
+            "Dashed tick per bar: expected Recall@50 of a random list with that bar's number of unique files. A bar near its tick is measuring list length.",
             rec50,
             ci=rec50_ci,
             marker=rand50,

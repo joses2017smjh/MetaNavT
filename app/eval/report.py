@@ -1,12 +1,13 @@
 """Render the README's benchmark blocks from the committed baseline.
 
-    python -m app.eval.report                    # print the blocks
-    python -m app.eval.report --check README.md  # exit 1 if the README's blocks differ
+    python -m app.eval.report            # print the blocks
+    python -m app.eval.report --write    # replace the marked blocks in README.md and doc/demo.html
+    python -m app.eval.report --check    # exit 1 if any marked block differs
 
-Every number the README states about the fixture benchmark comes from
-bench/results/main.json through this module. The blocks are delimited by HTML
-comments so tests/eval/test_readme_numbers.py can assert the README never drifts
-from the results file.
+Every number the README and the demo page state about the fixture benchmark
+comes from bench/results/main.json through this module. The blocks are
+delimited by HTML comments so tests/eval/test_readme_numbers.py can assert the
+files never drift from the results file.
 """
 
 from __future__ import annotations
@@ -18,7 +19,9 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table")
+BLOCKS = ("bench-headline", "bench-table", "demo-stats")
+FILES = {"README.md": ("bench-headline", "bench-table"), "doc/demo.html": ("demo-stats",)}
+ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
 
 
 def _start(name: str) -> str:
@@ -52,6 +55,17 @@ def _zero_note(block: dict | None) -> str:
     return "the interval covers zero" if block["lo"] <= 0.0 <= block["hi"] else "the interval excludes zero"
 
 
+def components_excluding_zero(blob: dict) -> list[str]:
+    """Added components whose nDCG@10 gain over the previous row has a CI above zero."""
+    rows = _rows(blob)
+    out = []
+    for name in ADDED_COMPONENTS:
+        block = ((rows.get(name) or {}).get("delta_vs_previous") or {}).get("ndcg@10")
+        if block and block["lo"] > 0.0:
+            out.append(name.split("+")[-1])
+    return out
+
+
 def headline(blob: dict) -> str:
     rows = _rows(blob)
     full, bm25 = rows.get(FULL), rows.get(REFERENCE)
@@ -74,6 +88,11 @@ def headline(blob: dict) -> str:
             f"Staleness Tier 1 on vs off: nDCG@10 {_delta(d_prev.get('ndcg@10'))} "
             f"({_zero_note(d_prev.get('ndcg@10'))})."
         )
+    excl = components_excluding_zero(blob)
+    parts.append(
+        "Of the added components (rerank, router, staleness), the nDCG@10 gain over the previous row "
+        f"that excludes zero: {', '.join(excl) if excl else 'none'}."
+    )
     off, on = rows.get(ROUTER_OFF), rows.get(ROUTER_ON)
     if off and on:
         cat_off = off["retrieval"]["by_category"].get("exact_path", {})
@@ -97,15 +116,17 @@ def table(blob: dict) -> str:
     rows = list(blob.get("results", []))
     boot = blob.get("bootstrap") or {}
     lines = [
-        "| config | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | random list, same length | unique files in top 50 | MRR@10 |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| config | nDCG@10 [95% CI] | Recall@10 [95% CI] | random list @10 | Recall@50 | random list @50 | unique files in top 50 | MRR@10 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in rows:
         r = row["retrieval"]
-        rand = r.get("random_recall@50")
+        rand50 = r.get("random_recall@50")
+        rand10 = r.get("random_recall@10")
+        fmt = lambda v: "—" if v is None else f"{v:.3f}"  # noqa: E731
         lines.append(
-            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {r['recall@50']:.3f} | "
-            f"{'—' if rand is None else f'{rand:.3f}'} | {r.get('mean_unique_paths@50', 0):.1f} | {r['mrr@10']:.3f} |"
+            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {fmt(rand10)} | {r['recall@50']:.3f} | "
+            f"{fmt(rand50)} | {r.get('mean_unique_paths@50', 0):.1f} | {r['mrr@10']:.3f} |"
         )
     lines += [
         "",
@@ -141,25 +162,58 @@ def table(blob: dict) -> str:
     return "\n".join(lines)
 
 
+def demo_stats(blob: dict) -> str:
+    """Stat tiles for doc/demo.html: the two headline metrics of the full pipeline, and the fixture size."""
+    full = _rows(blob).get(FULL)
+    if full is None:
+        return '<div class="stat"><b>—</b><span>no full-pipeline row in main.json</span></div>'
+    return "\n".join(
+        [
+            f'      <div class="stat"><b>{_ci(full, "ndcg@10")}</b><span>nDCG@10, full pipeline (95% CI)</span></div>',
+            f'      <div class="stat"><b>{_ci(full, "recall@10")}</b><span>Recall@10, full pipeline (95% CI)</span></div>',
+            f'      <div class="stat"><b>{blob["n_gold"]}</b><span>hand-built questions, {blob["n_files"]} frozen files</span></div>',
+        ]
+    )
+
+
 def render(blob: dict) -> dict[str, str]:
-    return {"bench-headline": headline(blob), "bench-table": table(blob)}
+    return {"bench-headline": headline(blob), "bench-table": table(blob), "demo-stats": demo_stats(blob)}
 
 
 def wrap(name: str, body: str) -> str:
     return f"{_start(name)}\n{body}\n{_end(name)}"
 
 
-def check(readme_text: str, blob: dict) -> list[str]:
-    """Problems with the README's generated blocks (empty = in sync)."""
+def check(text: str, blob: dict, names: tuple[str, ...] = ("bench-headline", "bench-table")) -> list[str]:
+    """Problems with a file's generated blocks (empty = in sync)."""
     problems: list[str] = []
-    for name, body in render(blob).items():
-        expected = wrap(name, body)
-        if expected in readme_text:
+    rendered = render(blob)
+    for name in names:
+        expected = wrap(name, rendered[name])
+        if expected in text:
             continue
-        if _start(name) not in readme_text or _end(name) not in readme_text:
-            problems.append(f"{name}: markers missing from README")
+        if _start(name) not in text or _end(name) not in text:
+            problems.append(f"{name}: markers missing")
         else:
-            problems.append(f"{name}: README block differs from `make bench-table` output")
+            problems.append(f"{name}: block differs from `make bench-table` output")
+    return problems
+
+
+def write(text: str, blob: dict, names: tuple[str, ...]) -> str:
+    """Replace each marked block in `text` with its rendered version (markers must exist)."""
+    rendered = render(blob)
+    for name in names:
+        start, end = text.find(_start(name)), text.find(_end(name))
+        if start < 0 or end < 0 or end < start:
+            raise ValueError(f"{name}: markers missing; add them once by hand")
+        text = text[:start] + wrap(name, rendered[name]) + text[end + len(_end(name)):]
+    return text
+
+
+def check_files(root: Path, blob: dict) -> list[str]:
+    problems: list[str] = []
+    for rel, names in FILES.items():
+        problems += [f"{rel}: {p}" for p in check((root / rel).read_text(), blob, names)]
     return problems
 
 
@@ -167,19 +221,27 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--results", type=Path, default=root / "bench" / "results" / "main.json")
-    p.add_argument("--check", type=Path, default=None, help="README to verify instead of printing")
+    p.add_argument("--check", action="store_true", help="verify README.md and doc/demo.html instead of printing")
+    p.add_argument("--write", action="store_true", help="replace the marked blocks in README.md and doc/demo.html")
     args = p.parse_args(argv)
     blob = json.loads(args.results.read_text())
-    if args.check is None:
-        for name, body in render(blob).items():
-            print(wrap(name, body))
-            print()
+    if args.write:
+        for rel, names in FILES.items():
+            path = root / rel
+            path.write_text(write(path.read_text(), blob, names))
+            print(f"updated {rel}: {', '.join(names)}")
         return 0
-    problems = check(args.check.read_text(), blob)
-    for line in problems:
-        print(f"drift: {line}")
-    print("README blocks in sync with", args.results) if not problems else None
-    return 1 if problems else 0
+    if args.check:
+        problems = check_files(root, blob)
+        for line in problems:
+            print(f"drift: {line}")
+        if not problems:
+            print(f"generated blocks in {', '.join(FILES)} are in sync with {args.results}")
+        return 1 if problems else 0
+    for name, body in render(blob).items():
+        print(wrap(name, body))
+        print()
+    return 0
 
 
 if __name__ == "__main__":
