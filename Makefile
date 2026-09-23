@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-jury bench-frontier freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-table bench-table-check bench-jury bench-frontier freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
@@ -38,6 +38,12 @@ bench-gate:     ## same, but exit 1 if nDCG@10 or Recall@50 drops more than the 
 
 bench-baseline: ## promote latest.json to main.json (review `make bench-compare` first)
 	cp bench/results/latest.json bench/results/main.json
+
+bench-table:    ## render the README benchmark blocks from bench/results/main.json
+	$(PYTHON) -m app.eval.report
+
+bench-table-check: ## exit 1 if the README's generated blocks drifted from main.json
+	$(PYTHON) -m app.eval.report --check README.md
 
 bench-jury:
 	$(PYTHON) -m app.eval.harness --jury
