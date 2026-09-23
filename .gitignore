@@ -32,3 +32,6 @@ bench/results/*.json
 !bench/results/main.json
 !bench/results/sweeps.json
 !bench/results/520699a.json
+
+# editable install metadata
+*.egg-info/
