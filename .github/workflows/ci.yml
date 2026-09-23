@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      ml_smoke:
+        description: "also build docker-compose.ml.yml (CPU torch + bge-small + bge-reranker) and measure CPU latency"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -58,6 +64,66 @@ jobs:
       - name: Unit, engine and API contract tests
         run: make test-unit
 
+  parity:
+    # Postgres + pgvector service, fixture v1 indexed with the hash embedder, the API
+    # started in the background, then the 136 gold questions replayed through
+    # POST /api/retrieve/ and scored like the bench. Fails if nDCG@10 differs from
+    # the in-memory harness by more than the tolerance (app/eval/parity.py).
+    name: parity (API over Postgres vs in-memory bench)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: metanavit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d metanavit"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PG_CONNECTION_STRING: postgresql://postgres:password@localhost:5432/metanavit
+      PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=postgres password=password host=localhost port=5432
+      PG_TEST_DSN: postgresql://postgres:password@localhost:5432/metanavit
+      MODEL_PROVIDER: ollama
+      EMBEDDING_PROVIDER: hash
+      EMBEDDING_DIM: "256"
+      RERANKER_MODEL: none
+      DATA_DIR: bench/corpus/files
+      INDEX_ON_START: "true"
+      CHUNK_SIZE: "512"
+      CHUNK_OVERLAP: "50"
+      RETRIEVE_K: "50"
+      RERANK_TOP_N: "8"
+      ENABLE_ROUTER: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install (eval + app extras)
+        run: python -m pip install -e ".[eval,app]"
+      - name: SQL RRF == Python RRF (tests/database, live Postgres)
+        run: python -m pytest tests/database/test_hybrid_sql.py -q
+      - name: Start the API (indexes bench/corpus/files on first start)
+        run: |
+          nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
+          python scripts/smoke_retrieve.py --require-bm25
+      - name: Parity eval
+        run: make parity
+      - name: API log
+        if: always()
+        run: tail -n 60 api.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parity-results
+          path: bench/results/parity.json
+
   docker-smoke:
     # docker compose up --build, wait for /health (indexes bench/corpus/files with the
     # hash embedder on first start), POST one query, require hits with non-null paths.
@@ -78,3 +144,30 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  docker-ml-smoke:
+    # Manual: builds the CPU real-model stack once, confirms the reranker loads on CPU
+    # (/health.reranker.loaded, no degraded components) and records per-query latency
+    # over the 136 gold questions as an artifact. Not part of every push: it downloads
+    # about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
+    name: docker compose ml smoke (CPU, manual)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ml_smoke }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the CPU real-model stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build -d --wait --wait-timeout 1800
+      - name: Reranker loaded, no degraded components, latency over the gold set
+        run: python3 scripts/smoke_retrieve.py --require-bm25 --require-reranker --latency bench/gold/questions.jsonl --latency-out bench/results/api_latency_docker_cpu_ml.json
+      - name: API log
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ml.yml logs --no-color api | tail -n 120
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-latency-docker-cpu-ml
+          path: bench/results/api_latency_docker_cpu_ml.json
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ml.yml down -v

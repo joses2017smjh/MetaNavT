@@ -19,16 +19,23 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency"), "doc/demo.html": ("demo-stats",)}
+LATENCY_FILES = {
+    "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
+    "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
+}
 NEURAL_FILE = "bench/results/neural.json"
 BEIR_FILE = "bench/results/beir_scifact.json"
+PARITY_FILE = "bench/results/parity.json"
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
     "demo-stats": "bench/results/main.json",
     "bench-neural": NEURAL_FILE,
     "bench-beir": BEIR_FILE,
+    "bench-parity": PARITY_FILE,
+    "api-latency": "bench/results/api_latency_*.json",
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -345,6 +352,69 @@ def beir_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
+def parity_table(blob: dict | None) -> str:
+    if not blob:
+        return f"_{PARITY_FILE} is missing; run `make parity` against a running API._"
+    lines = [
+        f"Same 136 questions, same metrics, same paired bootstrap (`make parity`, results sha {blob.get('git_sha')}). "
+        f"The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
+        f"staleness Tier 1 on, no reranker, hash embeddings. The API row is POST /api/retrieve/ over Postgres + pgvector "
+        f"(one SQL round trip, app/database/sql/hybrid_tsrank.sql).",
+        "",
+        "| row | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | lexical leg | chunker | p50 / p95 ms per query |",
+        "|---|---:|---:|---:|---|---|---:|",
+    ]
+    for row in blob.get("results", []):
+        lat = row.get("latency") or {}
+        e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
+        is_api = row["config"].startswith("api")
+        lex = (row.get("settings") or {}).get("bm25_backend") if is_api else "in-memory Okapi BM25"
+        chunker = "SentenceSplitter(512, 50)" if is_api else "app/chunking (structure-aware)"
+        lines.append(
+            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
+            f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"
+        )
+    g = blob.get("gate") or {}
+    d = g.get("paired_delta_api_minus_in_memory") or {}
+    if g:
+        lines += [
+            "",
+            f"Gate: nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI "
+            f"{_delta(d) if d else '—'} ({_zero_note(d) if d else 'no interval'}); tolerance {g.get('tolerance')}; "
+            f"{'passes' if g.get('ok') else 'FAILS'}. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; "
+            f"the in-memory figure is the search stage only.",
+        ]
+    return "\n".join(lines)
+
+
+def latency_table(root: Path | None) -> str:
+    rows = []
+    for label, rel in LATENCY_FILES.items():
+        blob = _load(root, rel)
+        if not blob:
+            continue
+        h = blob.get("health") or {}
+        rr = h.get("reranker") or {}
+        st = blob.get("stages_p50_ms") or {}
+        rows.append(
+            f"| {label} | {h.get('embed_model') or h.get('embedding_provider')} | {rr.get('model') or '—'}@{(rr.get('revision') or '?')[:7]} on {rr.get('device') or '?'} "
+            f"({rr.get('precision')}, max_length {rr.get('max_length')}, depth {rr.get('depth')}) | {'none' if not (h.get('degraded')) else h.get('degraded')} | "
+            f"{blob['server_total_ms']['p50']} / {blob['server_total_ms']['p95']} | {blob['e2e_ms']['p50']} / {blob['e2e_ms']['p95']} | "
+            f"{st.get('embed', '—')} / {st.get('hybrid_sql', '—')} / {st.get('rerank', '—')} | {blob.get('n')} |"
+        )
+    if not rows:
+        return "_no api_latency_*.json yet; run `scripts/smoke_retrieve.py --latency bench/gold/questions.jsonl --latency-out ...` against a running API._"
+    return "\n".join(
+        [
+            "| stack | embedder | reranker | degraded | server total p50 / p95 ms | e2e p50 / p95 ms | embed / hybrid_sql / rerank p50 ms | questions |",
+            "|---|---|---|---|---:|---:|---:|---:|",
+            *rows,
+            "",
+            "Per-query, k = 8, one warm-up excluded; server total is the sum of the API's own stage timers, e2e includes HTTP.",
+        ]
+    )
+
+
 def _load(root: Path | None, rel: str) -> dict | None:
     if root is None:
         return None
@@ -360,6 +430,8 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "demo-stats": demo_stats(blob),
         "bench-neural": neural_table(_load(root, NEURAL_FILE)),
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
+        "bench-parity": parity_table(_load(root, PARITY_FILE)),
+        "api-latency": latency_table(root),
     }
 
 

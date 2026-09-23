@@ -1,0 +1,411 @@
+{
+  "git_sha": "90ce661",
+  "timestamp": "2026-09-23T16:20:50.955206+00:00",
+  "command": "CUDA_VISIBLE_DEVICES=0,1 python -m app.eval.harness --backend api --url http://127.0.0.1:8001 --out bench/results/parity.json",
+  "device": {
+    "requested": "cpu",
+    "python": "3.12.12",
+    "platform": "Linux-5.14.0-611.55.1.el9_7.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "hostname": "cn-gpu6.hpc.engr.oregonstate.edu",
+    "torch": null,
+    "cuda_available": false,
+    "device": "cpu",
+    "device_name": "cpu",
+    "threads": null,
+    "sentence_transformers": null
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "api_health": {
+    "status": "ok",
+    "n_nodes": 61,
+    "embedding_provider": "hash",
+    "embed_model": "HashEmbedding",
+    "bm25_backend": "ts_rank_cd",
+    "retrieval_mode": "sql",
+    "reranker_loaded": false,
+    "reranker": {
+      "configured": false,
+      "loaded": false,
+      "model": null,
+      "revision": null,
+      "device": null,
+      "precision": "fp32",
+      "max_length": 512,
+      "depth": 20,
+      "error": null
+    },
+    "degraded": [],
+    "indexing": {
+      "indexed": false,
+      "n_nodes": 61,
+      "reason": "table already populated"
+    }
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 136,
+    "level": 0.95
+  },
+  "gate": {
+    "metric": "ndcg@10",
+    "in_memory": 0.515,
+    "api": 0.5353,
+    "gap": 0.0203,
+    "tolerance": 0.06,
+    "paired_delta_api_minus_in_memory": {
+      "delta": 0.0204,
+      "lo": -0.0261,
+      "hi": 0.065
+    },
+    "ok": true
+  },
+  "results": [
+    {
+      "config": "in_memory:hybrid+router+staleness",
+      "settings": {
+        "name": "in_memory:hybrid+router+staleness",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": true,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "parent": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.515,
+        "recall@5": 0.5714,
+        "recall@10": 0.7054,
+        "recall@50": 0.9382,
+        "mrr@10": 0.5084,
+        "mean_unique_paths@50": 40.36,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.5236,
+            "recall@10": 0.7438,
+            "recall@50": 0.9187,
+            "mrr@10": 0.5294,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2313,
+            "recall@10": 0.4625,
+            "recall@50": 0.95,
+            "mrr@10": 0.1753,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3647,
+            "recall@10": 0.5417,
+            "recall@50": 1.0,
+            "mrr@10": 0.3785,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3325,
+            "recall@10": 0.4646,
+            "recall@50": 1.0,
+            "mrr@10": 0.2426,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4868,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5208,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.5516,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.4917,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.6616
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.22,
+          "p95_ms": 1.25,
+          "mean_ms": 0.79
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 0.18,
+          "p95_ms": 0.46,
+          "mean_ms": 0.49
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.1
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 0.43,
+          "p95_ms": 0.94,
+          "mean_ms": 0.53
+        }
+      },
+      "wall_ms": 249.33,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.515,
+          "lo": 0.4624,
+          "hi": 0.5697
+        },
+        "recall@10": {
+          "mean": 0.7054,
+          "lo": 0.6433,
+          "hi": 0.7654
+        },
+        "recall@50": {
+          "mean": 0.9382,
+          "lo": 0.9081,
+          "hi": 0.9669
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": null,
+      "delta_vs_parent_by_category": null
+    },
+    {
+      "config": "api:postgres",
+      "settings": {
+        "url": "http://127.0.0.1:8001",
+        "k": 50,
+        "route": "semantic",
+        "retrieval_mode": "sql",
+        "bm25_backend": "ts_rank_cd",
+        "embedding_provider": "hash",
+        "reranker_loaded": false,
+        "staleness": {
+          "enabled": true,
+          "applied": true,
+          "dropped": 4
+        }
+      },
+      "retrieval": {
+        "ndcg@10": 0.5353,
+        "recall@5": 0.6926,
+        "recall@10": 0.786,
+        "recall@50": 0.9504,
+        "mrr@10": 0.4832,
+        "mean_unique_paths@50": 44.64,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.5525,
+            "recall@10": 0.8562,
+            "recall@50": 0.9688,
+            "mrr@10": 0.4939,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2856,
+            "recall@10": 0.5125,
+            "recall@50": 1.0,
+            "mrr@10": 0.2031,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.5058,
+            "recall@10": 0.6667,
+            "recall@50": 0.875,
+            "mrr@10": 0.5625,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.459,
+            "recall@10": 0.5219,
+            "recall@50": 1.0,
+            "mrr@10": 0.3778,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.5346,
+            "recall@10": 0.7812,
+            "recall@50": 1.0,
+            "mrr@10": 0.5109,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.6942,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.5979,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.49,
+            "recall@10": 0.625,
+            "recall@50": 0.625,
+            "mrr@10": 0.45,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.6563,
+            "recall@10": 0.75,
+            "recall@50": 0.9583,
+            "mrr@10": 0.6389,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0803,
+        "random_recall@10": 0.1598,
+        "random_recall@50": 0.7318
+      },
+      "latency": {
+        "e2e": {
+          "n": 136,
+          "p50_ms": 9.89,
+          "p95_ms": 33.3,
+          "mean_ms": 13.49
+        },
+        "server:route": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "server:embed": {
+          "n": 128,
+          "p50_ms": 0.38,
+          "p95_ms": 0.47,
+          "mean_ms": 0.4
+        },
+        "server:hybrid_sql": {
+          "n": 136,
+          "p50_ms": 6.84,
+          "p95_ms": 28.5,
+          "mean_ms": 10.11
+        },
+        "server:staleness": {
+          "n": 136,
+          "p50_ms": 0.23,
+          "p95_ms": 0.26,
+          "mean_ms": 0.23
+        },
+        "server:total": {
+          "n": 136,
+          "p50_ms": 7.87,
+          "p95_ms": 29.62,
+          "mean_ms": 11.17
+        }
+      },
+      "wall_ms": 1837.31,
+      "n_queries": 136,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.5353,
+          "lo": 0.4934,
+          "hi": 0.5807
+        },
+        "recall@10": {
+          "mean": 0.786,
+          "lo": 0.7358,
+          "hi": 0.837
+        },
+        "recall@50": {
+          "mean": 0.9504,
+          "lo": 0.9191,
+          "hi": 0.9779
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "in_memory:hybrid+router+staleness",
+        "ndcg@10": {
+          "delta": 0.0204,
+          "lo": -0.0261,
+          "hi": 0.065
+        },
+        "recall@10": {
+          "delta": 0.0807,
+          "lo": 0.025,
+          "hi": 0.1343
+        },
+        "recall@50": {
+          "delta": 0.0121,
+          "lo": -0.0265,
+          "hi": 0.0493
+        }
+      },
+      "delta_vs_parent_by_category": null
+    }
+  ]
+}

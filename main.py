@@ -82,13 +82,20 @@ async def health():
             content={"status": "unavailable", "error": getattr(app.state, "startup_error", None)},
         )
     n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    reranker = getattr(state.retriever, "reranker_info", None) or {}
+    degraded = []
+    if reranker.get("configured") and not reranker.get("loaded"):
+        degraded.append({"component": "rerank", "error": reranker.get("error") or "configured but not loaded"})
     return {
-        "status": "ok",
+        "status": "ok" if not degraded else "degraded",
         "n_nodes": n_nodes,
         "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
-        "bm25_backend": state.vsm.last_bm25_backend,
+        "bm25_backend": getattr(state.vsm, "hybrid_backend", None) or state.vsm.last_bm25_backend,
+        "retrieval_mode": getattr(state.retriever, "mode", None),
         "reranker_loaded": state.retriever._reranker is not None,
+        "reranker": reranker,
+        "degraded": degraded,
         "indexing": state.indexing,
     }
 

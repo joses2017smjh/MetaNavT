@@ -30,8 +30,11 @@ WORKDIR /app
 
 # Dependencies first (cached layer), from the single source of truth.
 COPY pyproject.toml scripts/print_deps.py ./scripts/
+# When the ml extra is requested, take torch from the CPU wheel index first so the
+# image does not pull the CUDA build (the API's CPU path is what the image serves).
 RUN mv scripts/pyproject.toml . \
     && python scripts/print_deps.py "${EXTRAS}" > /tmp/requirements.txt \
+    && (case ",${EXTRAS}," in *,ml,*) pip install torch --index-url https://download.pytorch.org/whl/cpu ;; esac) \
     && pip install -r /tmp/requirements.txt
 
 # Source tree, installed in place so bench/ and app/ resolve from /app.
