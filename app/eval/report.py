@@ -426,9 +426,11 @@ def jury_table(blob: dict | None) -> str:
     gen = blob["models"]["generator"]
     judges = [j["model"] for j in blob["models"]["judges"]]
     cfg = blob.get("config") or {}
+    rr = (blob.get("models") or {}).get("reranker") or {}
+    rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
     lines = [
         f"Generated answers on fixture v1 (`make bench-jury`, results sha {blob.get('git_sha')}): {blob['n_gold']} questions, "
-        f"retrieval `{cfg.get('name')}`, top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "
+        f"retrieval `{cfg.get('name')}` ({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "
         f"judges {', '.join(judges)}; wall {blob.get('wall_s')} s. The generator is also one of the judges, so that judge's "
         f"scores carry self-preference risk.",
         "",
@@ -461,9 +463,12 @@ def jury_table(blob: dict | None) -> str:
         lines += ["", f"Judge-judge agreement ({agree['judges'][0]} vs {agree['judges'][1]}): kappa {agree['kappa']}, n = {agree['n']}."]
     pw = s.get("pairwise_llm_vs_extractive") or {}
     if pw:
-        lines += ["", "Position bias, AB/BA swap (LLM answer vs the extractive answer, same judge, both orders):", "", "| judge | P(LLM answer better) | mean position gap | order flips | n |", "|---|---:|---:|---:|---:|"]
+        lines += ["", "Position bias, AB/BA swap (LLM answer vs the extractive answer, same judge, both orders). A flip means the judge "
+                  "picked whichever answer was listed first, i.e. it was not comparing content; the mean position gap is the "
+                  "share of the verdict explained by order (0 = none, 1 = all).", "",
+                  "| judge | P(LLM answer better) | mean position gap | order flips | n |", "|---|---:|---:|---:|---:|"]
         for name, p_ in pw.items():
-            lines.append(f"| {name} | {p_['p_llm_better_mean']} | {p_['position_gap_mean']} | {p_['position_flips']} | {p_['n']} |")
+            lines.append(f"| {name} | {p_['p_llm_better_mean']} | {p_['position_gap_mean']} | {p_['position_flips']} / {p_['n']} | {p_['n']} |")
     pub = s.get("publishable_judges") or []
     if pub:
         lines += ["", "Judge scores (published because the gate passed):", "", "| judge | mean score over all judged answers |", "|---|---:|"]
@@ -471,6 +476,10 @@ def jury_table(blob: dict | None) -> str:
             lines.append(f"| {name} | {s['kappa'][name]['mean_score_all']} |")
     else:
         lines += ["", f"Verdict: {s['verdict']} Mean judge scores are in the results file but are not printed here."]
+    lines += ["", "The reference the judges are measured against is itself limited: the exact-match label counts an answer as "
+              "correct when it contains the gold string or an equal number, so a negated or hedged answer that still quotes "
+              "the value passes, and a correct paraphrase fails. A low kappa is a disagreement with that reference, not proof "
+              "that a judge is wrong; the deterministic checks above are the part that does not depend on either."]
     return "\n".join(lines)
 
 
