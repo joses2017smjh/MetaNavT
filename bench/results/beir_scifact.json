@@ -5,13 +5,17 @@
   "zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
   "n_docs": 5183,
   "n_queries": 300,
+  "document_text": "title + ' ' + text",
   "published": {
-    "bm25_ndcg@10": 0.665,
-    "source": "Thakur et al., 'BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models', NeurIPS 2021 Datasets and Benchmarks, Table 2, BM25 (Anserini) on SciFact",
-    "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4"
+    "bm25_ndcg@10": 0.6789,
+    "source": "Anserini BEIR (v1.0.0) regression, SciFact, 'flat' BM25: title + text concatenated into one field, Lucene English analyzer (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "url": "https://github.com/castorini/anserini/blob/master/docs/regressions/regressions-beir-v1.0.0-scifact.flat.md",
+    "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "document_text": "title + ' ' + text (same as our rows)"
   },
-  "git_sha": "2c4a9c9",
-  "timestamp": "2026-09-23T15:20:20.905423+00:00",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "ee782ab",
+  "timestamp": "2026-09-23T16:12:07.911793+00:00",
   "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/scratch/sanchej7/hf_cache CUDA_VISIBLE_DEVICES=1 python -m app.eval.beir --out bench/results/beir_scifact.json",
   "device": {
     "requested": "auto",
@@ -37,6 +41,7 @@
   "results": [
     {
       "config": "bm25",
+      "parent": null,
       "settings": {
         "name": "bm25",
         "mode": "bm25",
@@ -47,7 +52,11 @@
         "reranker": null,
         "rerank_top": 20,
         "k": 100,
-        "rrf_k": 60
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
       },
       "retrieval": {
         "ndcg@10": 0.6767,
@@ -59,18 +68,22 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 23.69,
-          "p95_ms": 48.31,
-          "mean_ms": 85.45
+          "p50_ms": 19.42,
+          "p95_ms": 29.23,
+          "mean_ms": 20.09
         },
         "total": {
           "n": 300,
-          "p50_ms": 23.71,
-          "p95_ms": 48.33,
-          "mean_ms": 85.47
+          "p50_ms": 19.43,
+          "p95_ms": 29.24,
+          "mean_ms": 20.11
         }
       },
-      "wall_ms": 25655.44,
+      "build_ms": {
+        "bm25_index_ms": 16299.96,
+        "total_ms": 16299.96
+      },
+      "wall_ms": 6041.85,
       "models": {},
       "ci": {
         "ndcg@10": {
@@ -90,13 +103,15 @@
         }
       },
       "delta_vs_bm25": null,
+      "delta_vs_parent": null,
       "vs_published": {
-        "published_bm25_ndcg@10": 0.665,
-        "delta": 0.0117
+        "published_bm25_ndcg@10": 0.6789,
+        "delta": -0.0022
       }
     },
     {
       "config": "bm25@default-tokenizer",
+      "parent": "bm25",
       "settings": {
         "name": "bm25@default-tokenizer",
         "mode": "bm25",
@@ -107,7 +122,11 @@
         "reranker": null,
         "rerank_top": 20,
         "k": 100,
-        "rrf_k": 60
+        "rrf_k": 60,
+        "parent": "bm25",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
       },
       "retrieval": {
         "ndcg@10": 0.6009,
@@ -119,18 +138,22 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 38.26,
-          "p95_ms": 82.21,
-          "mean_ms": 45.0
+          "p50_ms": 28.46,
+          "p95_ms": 41.54,
+          "mean_ms": 28.71
         },
         "total": {
           "n": 300,
-          "p50_ms": 38.51,
-          "p95_ms": 82.23,
-          "mean_ms": 45.05
+          "p50_ms": 28.48,
+          "p95_ms": 41.56,
+          "mean_ms": 28.72
         }
       },
-      "wall_ms": 13528.79,
+      "build_ms": {
+        "bm25_index_ms": 501.64,
+        "total_ms": 501.64
+      },
+      "wall_ms": 8627.59,
       "models": {},
       "ci": {
         "ndcg@10": {
@@ -166,10 +189,29 @@
           "lo": -0.1451,
           "hi": -0.0741
         }
+      },
+      "delta_vs_parent": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": -0.0757,
+          "lo": -0.1045,
+          "hi": -0.0466
+        },
+        "recall@10": {
+          "delta": -0.0852,
+          "lo": -0.1227,
+          "hi": -0.0493
+        },
+        "recall@100": {
+          "delta": -0.1074,
+          "lo": -0.1451,
+          "hi": -0.0741
+        }
       }
     },
     {
       "config": "dense@bge-small",
+      "parent": "bm25",
       "settings": {
         "name": "dense@bge-small",
         "mode": "dense",
@@ -180,7 +222,11 @@
         "reranker": null,
         "rerank_top": 20,
         "k": 100,
-        "rrf_k": 60
+        "rrf_k": 60,
+        "parent": "bm25",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
       },
       "retrieval": {
         "ndcg@10": 0.72,
@@ -192,24 +238,29 @@
       "latency": {
         "embed": {
           "n": 300,
-          "p50_ms": 9.84,
-          "p95_ms": 26.05,
-          "mean_ms": 14.37
+          "p50_ms": 8.65,
+          "p95_ms": 13.68,
+          "mean_ms": 9.29
         },
         "dense": {
           "n": 300,
-          "p50_ms": 25.1,
-          "p95_ms": 50.21,
-          "mean_ms": 27.59
+          "p50_ms": 7.52,
+          "p95_ms": 27.46,
+          "mean_ms": 10.74
         },
         "total": {
           "n": 300,
-          "p50_ms": 39.97,
-          "p95_ms": 64.13,
-          "mean_ms": 74.41
+          "p50_ms": 17.09,
+          "p95_ms": 37.12,
+          "mean_ms": 20.06
         }
       },
-      "wall_ms": 22341.1,
+      "build_ms": {
+        "embedder_load_ms": 9826.47,
+        "doc_embeddings_ms": 28.15,
+        "total_ms": 9854.62
+      },
+      "wall_ms": 6034.57,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -255,10 +306,146 @@
           "lo": -0.005,
           "hi": 0.0577
         }
+      },
+      "delta_vs_parent": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0433,
+          "lo": 0.0108,
+          "hi": 0.0769
+        },
+        "recall@10": {
+          "delta": 0.0422,
+          "lo": 0.0017,
+          "hi": 0.0837
+        },
+        "recall@100": {
+          "delta": 0.0247,
+          "lo": -0.005,
+          "hi": 0.0577
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small+instruction",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small+instruction",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": "Represent this sentence for searching relevant passages: "
+      },
+      "retrieval": {
+        "ndcg@10": 0.7127,
+        "recall@10": 0.8362,
+        "recall@100": 0.9417,
+        "mrr@10": 0.6822,
+        "n_queries": 300
+      },
+      "latency": {
+        "embed": {
+          "n": 300,
+          "p50_ms": 8.74,
+          "p95_ms": 19.48,
+          "mean_ms": 10.56
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 8.35,
+          "p95_ms": 28.27,
+          "mean_ms": 11.8
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 19.07,
+          "p95_ms": 41.98,
+          "mean_ms": 22.39
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.0
+      },
+      "wall_ms": 6736.77,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": "Represent this sentence for searching relevant passages: "
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7127,
+          "lo": 0.6677,
+          "hi": 0.7562
+        },
+        "recall@10": {
+          "mean": 0.8362,
+          "lo": 0.7922,
+          "hi": 0.8773
+        },
+        "recall@100": {
+          "mean": 0.9417,
+          "lo": 0.9133,
+          "hi": 0.965
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0361,
+          "lo": 0.0034,
+          "hi": 0.0681
+        },
+        "recall@10": {
+          "delta": 0.0332,
+          "lo": -0.0041,
+          "hi": 0.0704
+        },
+        "recall@100": {
+          "delta": 0.013,
+          "lo": -0.017,
+          "hi": 0.0447
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0073,
+          "lo": -0.0206,
+          "hi": 0.0053
+        },
+        "recall@10": {
+          "delta": -0.009,
+          "lo": -0.0313,
+          "hi": 0.0117
+        },
+        "recall@100": {
+          "delta": -0.0117,
+          "lo": -0.0283,
+          "hi": 0.0017
+        }
       }
     },
     {
       "config": "hybrid@bge-small",
+      "parent": "dense@bge-small",
       "settings": {
         "name": "hybrid@bge-small",
         "mode": "hybrid",
@@ -269,7 +456,11 @@
         "reranker": null,
         "rerank_top": 20,
         "k": 100,
-        "rrf_k": 60
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
       },
       "retrieval": {
         "ndcg@10": 0.7379,
@@ -281,36 +472,42 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 30.42,
-          "p95_ms": 65.18,
-          "mean_ms": 33.53
+          "p50_ms": 21.72,
+          "p95_ms": 32.01,
+          "mean_ms": 22.41
         },
         "embed": {
           "n": 300,
-          "p50_ms": 9.55,
-          "p95_ms": 27.68,
-          "mean_ms": 13.69
+          "p50_ms": 8.73,
+          "p95_ms": 9.86,
+          "mean_ms": 8.89
         },
         "dense": {
           "n": 300,
-          "p50_ms": 10.66,
-          "p95_ms": 36.32,
-          "mean_ms": 14.29
+          "p50_ms": 4.48,
+          "p95_ms": 21.62,
+          "mean_ms": 7.35
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.13,
-          "p95_ms": 0.15,
-          "mean_ms": 0.13
+          "p50_ms": 0.11,
+          "p95_ms": 0.14,
+          "mean_ms": 0.12
         },
         "total": {
           "n": 300,
-          "p50_ms": 54.98,
-          "p95_ms": 107.29,
-          "mean_ms": 61.68
+          "p50_ms": 36.81,
+          "p95_ms": 53.48,
+          "mean_ms": 38.8
         }
       },
-      "wall_ms": 18521.03,
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 11655.31,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -356,10 +553,29 @@
           "lo": 0.014,
           "hi": 0.056
         }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": 0.0179,
+          "lo": -0.0068,
+          "hi": 0.0414
+        },
+        "recall@10": {
+          "delta": 0.0143,
+          "lo": -0.019,
+          "hi": 0.0468
+        },
+        "recall@100": {
+          "delta": 0.0083,
+          "lo": -0.015,
+          "hi": 0.0317
+        }
       }
     },
     {
       "config": "hybrid+bge-rerank@bge-small",
+      "parent": "hybrid@bge-small",
       "settings": {
         "name": "hybrid+bge-rerank@bge-small",
         "mode": "hybrid",
@@ -370,7 +586,11 @@
         "reranker": "BAAI/bge-reranker-v2-m3",
         "rerank_top": 20,
         "k": 100,
-        "rrf_k": 60
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
       },
       "retrieval": {
         "ndcg@10": 0.7522,
@@ -382,21 +602,21 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 22.4,
-          "p95_ms": 33.12,
-          "mean_ms": 23.56
+          "p50_ms": 21.58,
+          "p95_ms": 30.84,
+          "mean_ms": 22.24
         },
         "embed": {
           "n": 300,
-          "p50_ms": 9.01,
-          "p95_ms": 10.89,
-          "mean_ms": 9.59
+          "p50_ms": 8.89,
+          "p95_ms": 9.59,
+          "mean_ms": 9.38
         },
         "dense": {
           "n": 300,
-          "p50_ms": 5.31,
-          "p95_ms": 26.36,
-          "mean_ms": 8.86
+          "p50_ms": 5.25,
+          "p95_ms": 18.1,
+          "mean_ms": 6.5
         },
         "fuse": {
           "n": 300,
@@ -406,18 +626,25 @@
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 887.06,
-          "p95_ms": 1807.86,
-          "mean_ms": 1009.19
+          "p50_ms": 884.98,
+          "p95_ms": 1704.02,
+          "mean_ms": 992.7
         },
         "total": {
           "n": 300,
-          "p50_ms": 925.1,
-          "p95_ms": 1850.64,
-          "mean_ms": 1051.37
+          "p50_ms": 923.21,
+          "p95_ms": 1745.23,
+          "mean_ms": 1030.99
         }
       },
-      "wall_ms": 315439.57,
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 5554.34,
+        "total_ms": 5554.34
+      },
+      "wall_ms": 309325.89,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -434,7 +661,11 @@
           "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
           "neural": true,
           "loaded": true,
-          "device": "cuda:0"
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 8192,
+          "score_scale": "sigmoid probability in [0, 1]"
         }
       },
       "ci": {
@@ -470,6 +701,471 @@
           "delta": 0.033,
           "lo": 0.014,
           "hi": 0.056
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.0143,
+          "lo": -0.0104,
+          "hi": 0.0406
+        },
+        "recall@10": {
+          "delta": 0.005,
+          "lo": -0.0223,
+          "hi": 0.0332
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+      "parent": "hybrid+bge-rerank@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid+bge-rerank@bge-small",
+        "precision": "fp16",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7538,
+        "recall@10": 0.8712,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7232,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 21.77,
+          "p95_ms": 35.0,
+          "mean_ms": 25.91
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 8.84,
+          "p95_ms": 13.25,
+          "mean_ms": 10.69
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 5.44,
+          "p95_ms": 21.31,
+          "mean_ms": 7.8
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.12,
+          "p95_ms": 0.22,
+          "mean_ms": 0.17
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 154.75,
+          "p95_ms": 188.97,
+          "mean_ms": 159.17
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 191.21,
+          "p95_ms": 244.41,
+          "mean_ms": 203.8
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 5156.34,
+        "total_ms": 5156.34
+      },
+      "wall_ms": 61169.88,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp16",
+          "dtype": "torch.float16",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7538,
+          "lo": 0.7107,
+          "hi": 0.794
+        },
+        "recall@10": {
+          "mean": 0.8712,
+          "lo": 0.8324,
+          "hi": 0.9083
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0772,
+          "lo": 0.0538,
+          "hi": 0.1021
+        },
+        "recall@10": {
+          "delta": 0.0682,
+          "lo": 0.0408,
+          "hi": 0.0977
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid+bge-rerank@bge-small",
+        "ndcg@10": {
+          "delta": 0.0016,
+          "lo": -0.0078,
+          "hi": 0.0102
+        },
+        "recall@10": {
+          "delta": 0.0067,
+          "lo": -0.0067,
+          "hi": 0.02
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp16-512/top50",
+      "parent": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp16-512/top50",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 50,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "precision": "fp16",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7415,
+        "recall@10": 0.8562,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7109,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 21.54,
+          "p95_ms": 30.96,
+          "mean_ms": 22.19
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 8.8,
+          "p95_ms": 9.3,
+          "mean_ms": 8.87
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 5.5,
+          "p95_ms": 6.26,
+          "mean_ms": 5.57
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.12,
+          "p95_ms": 0.14,
+          "mean_ms": 0.12
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 340.8,
+          "p95_ms": 375.04,
+          "mean_ms": 343.53
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 378.08,
+          "p95_ms": 413.1,
+          "mean_ms": 380.34
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 0.0,
+        "total_ms": 0.0
+      },
+      "wall_ms": 114131.1,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp16",
+          "dtype": "torch.float16",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7415,
+          "lo": 0.6971,
+          "hi": 0.783
+        },
+        "recall@10": {
+          "mean": 0.8562,
+          "lo": 0.8143,
+          "hi": 0.892
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0649,
+          "lo": 0.0411,
+          "hi": 0.0905
+        },
+        "recall@10": {
+          "delta": 0.0532,
+          "lo": 0.023,
+          "hi": 0.0857
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "ndcg@10": {
+          "delta": -0.0123,
+          "lo": -0.0202,
+          "hi": -0.0047
+        },
+        "recall@10": {
+          "delta": -0.015,
+          "lo": -0.0367,
+          "hi": 0.0033
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp16-512/top100",
+      "parent": "hybrid+bge-rerank@bge-small/fp16-512/top50",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp16-512/top100",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 100,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid+bge-rerank@bge-small/fp16-512/top50",
+        "precision": "fp16",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7363,
+        "recall@10": 0.8496,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7061,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 21.65,
+          "p95_ms": 31.25,
+          "mean_ms": 22.34
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 8.65,
+          "p95_ms": 9.28,
+          "mean_ms": 8.68
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 5.27,
+          "p95_ms": 7.19,
+          "mean_ms": 5.74
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.12,
+          "p95_ms": 0.14,
+          "mean_ms": 0.12
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 629.19,
+          "p95_ms": 689.03,
+          "mean_ms": 631.34
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 668.4,
+          "p95_ms": 729.87,
+          "mean_ms": 668.28
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 0.0,
+        "total_ms": 0.0
+      },
+      "wall_ms": 200512.39,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp16",
+          "dtype": "torch.float16",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7363,
+          "lo": 0.6917,
+          "hi": 0.7787
+        },
+        "recall@10": {
+          "mean": 0.8496,
+          "lo": 0.8073,
+          "hi": 0.8868
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0597,
+          "lo": 0.0353,
+          "hi": 0.0854
+        },
+        "recall@10": {
+          "delta": 0.0466,
+          "lo": 0.0172,
+          "hi": 0.0782
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid+bge-rerank@bge-small/fp16-512/top50",
+        "ndcg@10": {
+          "delta": -0.0052,
+          "lo": -0.0107,
+          "hi": -0.0012
+        },
+        "recall@10": {
+          "delta": -0.0067,
+          "lo": -0.0167,
+          "hi": 0.0
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
         }
       }
     }

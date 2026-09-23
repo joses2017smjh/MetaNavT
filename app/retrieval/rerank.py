@@ -114,7 +114,21 @@ class OverlapReranker:
         return scored
 
 
-def get_cross_encoder(model_name: str = "BAAI/bge-reranker-v2-m3"):
+SCORE_SCALE = "sigmoid probability in [0, 1]"
+
+
+def get_cross_encoder(
+    model_name: str = "BAAI/bge-reranker-v2-m3",
+    precision: str = "fp32",
+    max_length: int | None = None,
+    device: str | None = None,
+):
+    """Load a sentence-transformers CrossEncoder, or None when it cannot be loaded.
+
+    precision="fp16" loads the weights in torch.float16 (CUDA only; ignored on CPU),
+    max_length caps the tokenized (query, passage) pair. Both are recorded next to
+    every result that used them.
+    """
     if not model_name or model_name.lower() == "none":
         return None
     import os
@@ -128,13 +142,26 @@ def get_cross_encoder(model_name: str = "BAAI/bge-reranker-v2-m3"):
         from sentence_transformers import CrossEncoder
     except Exception:
         return None
+    kwargs: dict = {}
+    if max_length is not None:
+        kwargs["max_length"] = int(max_length)
+    if device:
+        kwargs["device"] = device
+    if precision == "fp16":
+        try:
+            import torch
+
+            if device != "cpu" and torch.cuda.is_available():
+                kwargs["model_kwargs"] = {"torch_dtype": torch.float16}
+        except Exception:
+            pass
     try:
         if allow or local:
-            return CrossEncoder(model_name)
+            return CrossEncoder(model_name, **kwargs)
         try:
-            return CrossEncoder(model_name, local_files_only=True)
+            return CrossEncoder(model_name, local_files_only=True, **kwargs)
         except TypeError:
-            return CrossEncoder(model_name)
+            return CrossEncoder(model_name, **kwargs)
     except Exception:
         return None
 
@@ -165,25 +192,53 @@ def _hf_cache_has(model_name: str) -> bool:
     return False
 
 
-def cross_encoder_scores(model, pairs: Sequence[Sequence[str]], batch_size: int = 32) -> list[float]:
-    """Score (query, text) pairs with either cross-encoder API.
+def _sigmoid(x: float) -> float:
+    import math
 
-    sentence-transformers' CrossEncoder exposes predict(); FlagEmbedding's
-    FlagReranker exposes compute_score(). Before M2 only compute_score was
-    called, so the sentence-transformers model that get_cross_encoder() loads
-    raised AttributeError and every "bge-rerank" row silently fell back.
+    if x >= 0:
+        return 1.0 / (1.0 + math.exp(-x))
+    e = math.exp(x)
+    return e / (1.0 + e)
+
+
+def _identity(x):
+    return x
+
+
+def cross_encoder_scores(model, pairs: Sequence[Sequence[str]], batch_size: int = 32) -> list[float]:
+    """Score (query, text) pairs with either cross-encoder API, on one scale (SCORE_SCALE).
+
+    sentence-transformers' CrossEncoder.predict() applies the model's default
+    activation (Sigmoid for one-label rerankers, so probabilities); FlagEmbedding's
+    FlagReranker.compute_score() returns raw logits unless normalize=True. Raw
+    logits are requested from both where the API allows it and passed through a
+    sigmoid here, so a score is always the sigmoid probability in [0, 1] whatever
+    library loaded the model. Ranking is unchanged by the monotone map.
     """
     if not pairs:
         return []
+    batch = [list(p) for p in pairs]
     if hasattr(model, "predict"):
-        scores = model.predict([list(p) for p in pairs], batch_size=batch_size, show_progress_bar=False)
-    elif hasattr(model, "compute_score"):
-        scores = model.compute_score([list(p) for p in pairs])
-    else:
-        raise TypeError(f"{type(model).__name__} has neither predict() nor compute_score()")
-    if isinstance(scores, (int, float)):
-        scores = [scores]
-    return [float(x) for x in scores]
+        raw = None
+        for kw in ("activation_fn", "activation_fct"):  # sentence-transformers >= 5 / < 5
+            try:
+                raw = model.predict(batch, batch_size=batch_size, show_progress_bar=False, **{kw: _identity})
+                break
+            except TypeError:
+                continue
+        if raw is None:  # no activation override: assume the library returned probabilities
+            probs = model.predict(batch, batch_size=batch_size, show_progress_bar=False)
+            return [float(x) for x in (probs if not isinstance(probs, (int, float)) else [probs])]
+        scores = [_sigmoid(float(x)) for x in (raw if not isinstance(raw, (int, float)) else [raw])]
+        return scores
+    if hasattr(model, "compute_score"):
+        try:
+            probs = model.compute_score(batch, normalize=True)
+            return [float(x) for x in (probs if not isinstance(probs, (int, float)) else [probs])]
+        except TypeError:
+            raw = model.compute_score(batch)
+            return [_sigmoid(float(x)) for x in (raw if not isinstance(raw, (int, float)) else [raw])]
+    raise TypeError(f"{type(model).__name__} has neither predict() nor compute_score()")
 
 
 class CrossEncoderReranker:
