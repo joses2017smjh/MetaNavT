@@ -18,21 +18,29 @@ def test_generated_blocks_match_the_committed_baseline():
 def test_write_replaces_blocks_in_place():
     blob = json.loads((ROOT / "bench" / "results" / "main.json").read_text())
     stale = "\n".join(wrap(name, "STALE") for name in BLOCKS) + "\ntrailing text"
-    fresh = write(stale, blob, BLOCKS)
+    fresh = write(stale, blob, BLOCKS, ROOT)
     assert "STALE" not in fresh and fresh.endswith("trailing text")
-    assert check(fresh, blob, BLOCKS) == []
+    assert check(fresh, blob, BLOCKS, ROOT) == []
 
 
 def test_render_covers_every_block_and_names_the_seed():
     blob = json.loads((ROOT / "bench" / "results" / "main.json").read_text())
-    blocks = render(blob)
+    blocks = render(blob, ROOT)
     assert set(blocks) == set(BLOCKS)
     assert "seed" in blocks["bench-table"] and "bm25_only" in blocks["bench-table"]
     assert wrap("bench-table", "x").startswith("<!-- bench-table:start")
+    assert "beats BM25?" in blocks["bench-neural"] and "bge-reranker-v2-m3" in blocks["bench-neural"]
+    assert "Published BM25" in blocks["bench-beir"] and "beats BM25?" in blocks["bench-beir"]
+
+
+def test_missing_neural_files_render_a_pointer_not_a_crash(tmp_path):
+    blob = json.loads((ROOT / "bench" / "results" / "main.json").read_text())
+    blocks = render(blob, tmp_path)
+    assert "make bench-neural" in blocks["bench-neural"] and "make bench-beir" in blocks["bench-beir"]
 
 
 def test_check_reports_missing_markers_and_drift():
     blob = json.loads((ROOT / "bench" / "results" / "main.json").read_text())
     assert any("markers missing" in p for p in check("no blocks here", blob))
     drifted = "\n".join(wrap(name, body + " EDITED") for name, body in render(blob).items())
-    assert any("differs" in p for p in check(drifted, blob, BLOCKS))
+    assert any("differs" in p for p in check(drifted, blob, BLOCKS, ROOT))

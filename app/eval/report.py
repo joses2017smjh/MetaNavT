@@ -19,8 +19,11 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats")
-FILES = {"README.md": ("bench-headline", "bench-table"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir"), "doc/demo.html": ("demo-stats",)}
+NEURAL_FILE = "bench/results/neural.json"
+BEIR_FILE = "bench/results/beir_scifact.json"
+NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
 
 
@@ -176,18 +179,132 @@ def demo_stats(blob: dict) -> str:
     )
 
 
-def render(blob: dict) -> dict[str, str]:
-    return {"bench-headline": headline(blob), "bench-table": table(blob), "demo-stats": demo_stats(blob)}
+def _beats(block: dict | None) -> str:
+    """'yes' when the paired delta's interval is above zero, 'no' when below, 'tie' when it covers zero."""
+    if not block:
+        return "n/a"
+    if block["lo"] > 0.0:
+        return "yes"
+    if block["hi"] < 0.0:
+        return "no"
+    return "tie"
+
+
+def _models(row: dict) -> str:
+    m = row.get("models") or {}
+    parts = []
+    e = m.get("embedder") or {}
+    if e.get("neural"):
+        parts.append(f"{e['model']}@{(e.get('revision') or '?')[:7]}")
+    r = m.get("reranker") or {}
+    if r.get("neural") and r.get("loaded"):
+        parts.append(f"{r['model']}@{(r.get('revision') or '?')[:7]}")
+    return ", ".join(parts) if parts else "hash / overlap"
+
+
+def _device(blob: dict) -> str:
+    d = blob.get("device") or {}
+    return f"{d.get('device', '?')} ({d.get('device_name', '?')}), torch {d.get('torch', '?')}, sentence-transformers {d.get('sentence_transformers', '?')}"
+
+
+def neural_table(blob: dict | None) -> str:
+    if not blob:
+        return f"_{NEURAL_FILE} is missing; run `make bench-neural`._"
+    rows = list(blob.get("results", []))
+    by = _rows(blob)
+    lines = [
+        f"Fixture v1 with real models (`make bench-neural`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Paired deltas vs the same bm25_only row; same bootstrap as above.",
+        "",
+        "| config | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | Δ nDCG@10 vs bm25_only [95% CI] | beats BM25? | wall s |",
+        "|---|---|---:|---:|---:|---:|:---:|---:|",
+    ]
+    for row in rows:
+        r = row["retrieval"]
+        d = (row.get("delta_vs_bm25_only") or {}).get("ndcg@10")
+        lines.append(
+            f"| {row['config']} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {r['recall@50']:.3f} | "
+            f"{_delta(d)} | {_beats(d)} | {row.get('wall_ms', 0) / 1000:.1f} |"
+        )
+    hyb = by.get("hybrid@bge-small")
+    rer = by.get("hybrid+bge-rerank@bge-small")
+    full = next((by[k] for k in by if k.startswith("hybrid+bge-rerank+router+staleness")), None)
+    parts = []
+    if hyb:
+        d = (hyb.get("delta_vs_bm25_only") or {}).get("ndcg@10")
+        parts.append(f"Hybrid RRF with bge-small vs BM25 alone: nDCG@10 {_delta(d)} ({_zero_note(d)}).")
+    if rer:
+        d = (rer.get("delta_vs_bm25_only") or {}).get("ndcg@10")
+        parts.append(f"Adding bge-reranker-v2-m3: {_delta(d)} vs BM25 ({_zero_note(d)}).")
+    if full and rer:
+        d = (full.get("delta_vs_previous") or {}).get("ndcg@10")
+        parts.append(f"Router + staleness on top of the reranked hybrid: {_delta(d)} ({_zero_note(d)}).")
+    if parts:
+        lines += ["", " ".join(parts)]
+    return "\n".join(lines)
+
+
+def beir_table(blob: dict | None) -> str:
+    if not blob:
+        return f"_{BEIR_FILE} is missing; run `make bench-beir`._"
+    pub = blob.get("published", {})
+    lines = [
+        f"BEIR SciFact test split (`make bench-beir`): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries; "
+        f"{_device(blob)}; results sha {blob.get('git_sha')}. Published BM25 nDCG@10 = {pub.get('bm25_ndcg@10'):.3f} "
+        f"({pub.get('analyzer')}).",
+        "",
+        "| config | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs bm25 [95% CI] | beats BM25? | p50 / p95 ms per query |",
+        "|---|---|---:|---:|---:|---:|:---:|---:|",
+    ]
+    for row in blob.get("results", []):
+        d = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
+        lat = (row.get("latency") or {}).get("total") or {}
+        lines.append(
+            f"| {row['config']} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {_ci(row, 'recall@100')} | "
+            f"{_delta(d)} | {_beats(d)} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |"
+        )
+    by = _rows(blob)
+    parts = []
+    bm25 = by.get("bm25")
+    if bm25 and bm25.get("vs_published"):
+        vp = bm25["vs_published"]
+        parts.append(f"Our BM25 with the BEIR analyzer scores nDCG@10 {bm25['retrieval']['ndcg@10']:.3f} against the published {vp['published_bm25_ndcg@10']:.3f} ({vp['delta']:+.3f}).")
+    for name, label in (("hybrid@bge-small", "Hybrid RRF"), ("hybrid+bge-rerank@bge-small", "Hybrid + bge-reranker-v2-m3")):
+        row = by.get(name)
+        if row:
+            d = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
+            parts.append(f"{label} vs BM25: nDCG@10 {_delta(d)} ({_zero_note(d)}).")
+    if parts:
+        lines += ["", " ".join(parts)]
+    return "\n".join(lines)
+
+
+def _load(root: Path | None, rel: str) -> dict | None:
+    if root is None:
+        return None
+    path = root / rel
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def render(blob: dict, root: Path | None = None) -> dict[str, str]:
+    root = root if root is not None else Path(__file__).resolve().parents[2]
+    return {
+        "bench-headline": headline(blob),
+        "bench-table": table(blob),
+        "demo-stats": demo_stats(blob),
+        "bench-neural": neural_table(_load(root, NEURAL_FILE)),
+        "bench-beir": beir_table(_load(root, BEIR_FILE)),
+    }
 
 
 def wrap(name: str, body: str) -> str:
     return f"{_start(name)}\n{body}\n{_end(name)}"
 
 
-def check(text: str, blob: dict, names: tuple[str, ...] = ("bench-headline", "bench-table")) -> list[str]:
+def check(text: str, blob: dict, names: tuple[str, ...] = ("bench-headline", "bench-table"), root: Path | None = None) -> list[str]:
     """Problems with a file's generated blocks (empty = in sync)."""
     problems: list[str] = []
-    rendered = render(blob)
+    rendered = render(blob, root)
     for name in names:
         expected = wrap(name, rendered[name])
         if expected in text:
@@ -199,9 +316,9 @@ def check(text: str, blob: dict, names: tuple[str, ...] = ("bench-headline", "be
     return problems
 
 
-def write(text: str, blob: dict, names: tuple[str, ...]) -> str:
+def write(text: str, blob: dict, names: tuple[str, ...], root: Path | None = None) -> str:
     """Replace each marked block in `text` with its rendered version (markers must exist)."""
-    rendered = render(blob)
+    rendered = render(blob, root)
     for name in names:
         start, end = text.find(_start(name)), text.find(_end(name))
         if start < 0 or end < 0 or end < start:
@@ -213,7 +330,7 @@ def write(text: str, blob: dict, names: tuple[str, ...]) -> str:
 def check_files(root: Path, blob: dict) -> list[str]:
     problems: list[str] = []
     for rel, names in FILES.items():
-        problems += [f"{rel}: {p}" for p in check((root / rel).read_text(), blob, names)]
+        problems += [f"{rel}: {p}" for p in check((root / rel).read_text(), blob, names, root=root)]
     return problems
 
 
@@ -228,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.write:
         for rel, names in FILES.items():
             path = root / rel
-            path.write_text(write(path.read_text(), blob, names))
+            path.write_text(write(path.read_text(), blob, names, root=root))
             print(f"updated {rel}: {', '.join(names)}")
         return 0
     if args.check:
@@ -238,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         if not problems:
             print(f"generated blocks in {', '.join(FILES)} are in sync with {args.results}")
         return 1 if problems else 0
-    for name, body in render(blob).items():
+    for name, body in render(blob, root).items():
         print(wrap(name, body))
         print()
     return 0
