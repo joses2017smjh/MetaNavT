@@ -870,12 +870,13 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What's next
 
-Phases 6–10 are implemented as code. Remaining work is **measurement on GPU**, not missing modules:
+Status: M0 to M5 are merged. Open items, in priority order:
 
-1. Done in M4: `make bench-jury` runs the deterministic checks and the two-model jury; scores print only past the κ gate.
-2. Done in M2: `make bench-neural` and `make bench-beir` measure bge-small / bge-base and the real reranker. Still open: distill the winner with `distill_winner`.
-3. Optional: listwise RankGPT with a real LLM `complete` callable (CI uses overlap-listwise).
-4. Optional: GPU Search-R1 / GRPO using the reward in `app/rl/reward.py`.
+1. **Kappa reference with variance.** The generator matched gold on all simple-factual questions, so the judge gate is not evaluable. This needs a harder slice as fixture v2; v1 stays frozen.
+2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
+3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
+4. **ParadeDB BM25 in the production path**, gated by the same parity job.
+5. Optional: distill the winning retriever (`distill_winner`), listwise RankGPT with a real LLM, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](PLAN.md).
 
