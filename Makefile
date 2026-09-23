@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
@@ -24,7 +24,7 @@ test-eval:      ## LLM-free eval harness tests (needs .[eval])
 	$(PYTHON) -m pytest tests/eval -q --rootdir=$(CURDIR)
 
 test-unit:      ## legacy unit tests + engine + API contract tests (needs .[eval,app], no database)
-	$(PYTHON) -m pytest tests/unit_tests tests/engine tests/api -q --rootdir=$(CURDIR)
+	$(PYTHON) -m pytest tests/unit_tests tests/engine tests/api tests/mcp -q --rootdir=$(CURDIR)
 
 # ---- bench -----------------------------------------------------------------
 bench:          ## frozen fixture v1 -> bench/results/<git-sha>.json and latest.json
@@ -47,6 +47,12 @@ bench-table-write: ## replace the generated blocks in README.md and doc/demo.htm
 
 bench-table-check: ## exit 1 if a generated block in README.md or doc/demo.html drifted from main.json
 	$(PYTHON) -m app.eval.report --check
+
+evidence:       ## render docs/RESUME_EVIDENCE.md from the committed results files
+	$(PYTHON) -m app.eval.evidence
+
+evidence-check: ## exit 1 if docs/RESUME_EVIDENCE.md drifted from the results files
+	$(PYTHON) -m app.eval.evidence --check
 
 bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml])
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out bench/results/jury.json

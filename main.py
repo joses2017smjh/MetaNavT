@@ -36,6 +36,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from app.api.routers import api_router
 from app.middlewares.frontend import FrontendProxyMiddleware
+from app.observability import configure_logging, tracing_status
 from app.settings import init_settings
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
@@ -43,6 +44,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 environment = os.getenv("ENVIRONMENT", "dev")
+LOG_FORMAT_USED = configure_logging()  # LOG_FORMAT=json -> one JSON object per line
 logger = logging.getLogger("uvicorn")
 
 
@@ -58,10 +60,15 @@ async def lifespan(app: FastAPI):
 
     app.state.retrieval = None
     app.state.startup_error = None
+    app.state.plans = None
     try:
         init_settings()
         app.state.retrieval = await run_in_threadpool(build_retrieval_state)
         logger.info(f"Retrieval ready: {app.state.retrieval.indexing}")
+        from app.api.routers.plans import build_plan_store
+
+        app.state.plans = await run_in_threadpool(build_plan_store, app.state.retrieval.vsm, DATA_DIR)
+        logger.info(f"Plan store ready over {DATA_DIR} (decisions logged to Postgres)")
     except Exception as exc:  # noqa: BLE001 - surfaced by /health
         app.state.startup_error = f"{type(exc).__name__}: {exc}"
         logger.error(f"Retrieval backend failed to start: {app.state.startup_error}", exc_info=True)
@@ -97,6 +104,7 @@ async def health():
         "reranker": reranker,
         "degraded": degraded,
         "indexing": state.indexing,
+        "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
     }
 
 

@@ -6,11 +6,14 @@
 # pgvector table is created with EMBEDDING_DIM, so drop the volume when
 # switching from the hash stack: docker compose down -v. The reranker is
 # required: if it cannot load, /health is 503 and says why (no silent fallback).
+# First start downloads about 2.5 GB (CPU torch wheels at build, then both
+# models); the base docker-compose.yml downloads nothing.
 services:
   api:
     build:
       args:
         EXTRAS: app,ml
+        WITH_FRONTEND: "1"   # the Next.js export is built and served at / in this stack (manual CI job)
     environment:
       EMBEDDING_PROVIDER: huggingface
       EMBEDDING_MODEL: BAAI/bge-small-en-v1.5

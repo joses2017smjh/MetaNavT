@@ -52,7 +52,7 @@ function ChatTools({
     case "artifact":
       return (
         <Artifact
-          artifact={toolOutput.output as CodeArtifact}
+          artifact={toolOutput.output as unknown as CodeArtifact}
           version={artifactVersion}
         />
       );

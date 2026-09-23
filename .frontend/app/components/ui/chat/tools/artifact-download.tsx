@@ -49,7 +49,7 @@ const onDownload = async (item: ArtifactItem) => {
     const content = await zip.generateAsync({ type: 'blob' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(content);
-    link.download = `${item.artifact.name}.zip`;
+    link.download = `${item.artifact.name ?? "artifact"}.zip`;
     link.click();
   } catch (error) {
     console.error('Error downloading artifact:', error);

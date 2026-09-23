@@ -41,6 +41,7 @@ app = [
     "llama-index-vector-stores-postgres>=0.4",
     "llama-index-llms-ollama>=0.5",
     "llama-index-readers-file>=0.4",
+    "mcp>=2,<3",  # official MCP SDK for app/mcp/server_sdk.py
 ]
 # Real models on CPU or GPU: sentence-transformers embedders, the bge reranker,
 # HuggingFace embeddings for LlamaIndex, and the demo/figure extras.
@@ -53,6 +54,12 @@ ml = [
 ]
 dev = [
     "pip-tools>=7.4",
+]
+# OpenTelemetry spans for the retrieval stages (app/observability.py); optional.
+otel = [
+    "opentelemetry-api>=1.25",
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp-proto-http>=1.25",
 ]
 
 [project.urls]

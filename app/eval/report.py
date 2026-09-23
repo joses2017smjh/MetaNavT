@@ -207,7 +207,7 @@ def demo_stats(blob: dict) -> str:
         [
             f'      <div class="stat"><b>{_ci(full, "ndcg@10")}</b><span>nDCG@10, full pipeline (95% CI)</span></div>',
             f'      <div class="stat"><b>{_ci(full, "recall@10")}</b><span>Recall@10, full pipeline (95% CI)</span></div>',
-            f'      <div class="stat"><b>{blob["n_gold"]}</b><span>hand-built questions, {blob["n_files"]} frozen files</span></div>',
+            f'      <div class="stat"><b>{blob["n_gold"]}</b><span>scripted questions, {blob["n_files"]} frozen files</span></div>',
         ]
     )
 
