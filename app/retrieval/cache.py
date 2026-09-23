@@ -89,7 +89,7 @@ class SemanticCache:
             return None
 
         mat = np.stack(self._embeddings)
-        sims = cosine_scores(q_embed.reshape(1, -1), mat)[0]
+        sims = cosine_scores(q_embed, mat)  # 1-D, one score per cached entry
         best_idx = int(np.argmax(sims))
         best_sim = float(sims[best_idx])
 

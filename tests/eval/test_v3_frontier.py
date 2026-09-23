@@ -349,12 +349,15 @@ def test_search_r1_env_heuristic_rollout():
 def test_frontier_configs_do_not_replace_default_six():
     assert len(DEFAULT_CONFIGS) == 6
     names = [c.name for c in FRONTIER_CONFIGS]
-    assert names == [
+    # The v3 rows come first; Phase 14-15 appended HyDE / decompose / corrective rows after them.
+    assert names[:4] == [
         "hybrid+bge-rerank",
         "hybrid+rankgpt",
         "hybrid+multiquery",
         "hybrid+hipporag",
     ]
+    assert len(names) == len(set(names)), "frontier config names must be unique"
+    assert not set(names) & {c.name for c in DEFAULT_CONFIGS}
     assert DEFAULT_CONFIGS[0].jury is False
     bge = FRONTIER_CONFIGS[0]
     assert isinstance(bge, BenchConfig)
