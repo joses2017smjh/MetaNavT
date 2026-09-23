@@ -13,6 +13,7 @@ services:
     build:
       args:
         EXTRAS: app,ml
+        WITH_FRONTEND: "1"   # the Next.js export is built and served at / in this stack (manual CI job)
     environment:
       EMBEDDING_PROVIDER: huggingface
       EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
