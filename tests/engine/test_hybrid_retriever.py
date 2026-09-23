@@ -127,3 +127,90 @@ def test_production_rerank_uses_predict_and_truncates_to_rerank_top_n():
     assert nodes[0].node.get_content() == fused_order[-1]  # highest score = last pair
     assert nodes[0].score == 2.0 and nodes[1].score == 1.0
     assert retriever.last_counts["returned"] == 2 and retriever.last_counts["fused"] == 3
+
+
+# ---------------------------------------------------------------- M3: SQL mode, staleness, per-request outcome
+
+
+class _FakeSQLVSM:
+    """hybrid_search rows as VectorStoreManager returns them (one round trip, RRF in SQL)."""
+
+    def __init__(self):
+        self.calls = []
+        self.last_bm25_backend = "ts_rank_cd"
+
+    def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60):
+        self.calls.append((query, query_embedding, k, rrf_k))
+        rows = [
+            ("cur", "learning_rate: 3e-4", {"path": "configs/run_047.yaml", "mtime": 2.0, "start_byte": 0, "end_byte": 19}, 0.9, 1, 0.8, 1, 1 / 61 + 1 / 61),
+            ("old", "learning_rate: 1e-4", {"path": "configs/archive/run_047_v1.yaml", "mtime": 1.0, "start_byte": 0, "end_byte": 19}, 0.5, 2, None, None, 1 / 62),
+            ("log", "run 47 val_rmse 0.055", {"path": "logs/run_047.out", "mtime": 2.0, "_node_content": "{...}"}, None, None, 0.4, 2, 1 / 62),
+        ]
+        return [
+            {"node_id": n, "text": t, "metadata": m, "bm25_score": bs, "bm25_rank": br, "dense_score": ds, "dense_rank": dr, "rrf_score": rrf}
+            for n, t, m, bs, br, ds, dr, rrf in rows
+        ]
+
+
+def _clusters_for_fake_rows():
+    from app.graph.staleness import cluster_versions
+    from app.retrieval.types import Chunk
+
+    return cluster_versions(
+        [
+            Chunk(chunk_id="cur", path="configs/run_047.yaml", text="learning_rate: 3e-4", start_byte=0, end_byte=19, mtime=2.0),
+            Chunk(chunk_id="old", path="configs/archive/run_047_v1.yaml", text="learning_rate: 1e-4", start_byte=0, end_byte=19, mtime=1.0),
+        ]
+    )
+
+
+def test_sql_mode_one_round_trip_with_scores_and_staleness():
+    vsm = _FakeSQLVSM()
+    embed = lambda q: [0.1, 0.2]  # noqa: E731
+    retriever = HybridRetriever(None, vsm, reranker=None, rerank_top_n=8, enable_router=False, mode="sql", embed_fn=embed, clusters=_clusters_for_fake_rows())
+
+    out = retriever.retrieve_detailed("current learning rate for run 47", top_n=10)
+
+    assert vsm.calls == [("current learning rate for run 47", [0.1, 0.2], 50, 60)]
+    assert out.mode == "sql" and out.bm25_backend == "ts_rank_cd"
+    assert out.counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": 2}
+    assert [n.node.node_id for n in out.nodes] == ["cur", "log"]  # superseded archive copy dropped
+    assert out.staleness == {"enabled": True, "applied": True, "dropped": 1}
+    assert out.scores["cur"] == {"bm25": 0.9, "dense": 0.8, "rrf": 1 / 61 + 1 / 61, "rerank": None}
+    assert out.scores["log"]["bm25"] is None and out.scores["log"]["dense"] == 0.4
+    assert "_node_content" not in out.nodes[1].node.metadata
+    assert set(out.stages_ms) >= {"route", "embed", "hybrid_sql", "staleness", "total"}
+
+
+def test_sql_mode_comparative_query_keeps_both_versions_and_lexical_route_skips_embed():
+    vsm = _FakeSQLVSM()
+    calls = []
+    retriever = HybridRetriever(None, vsm, reranker=None, enable_router=True, mode="sql", embed_fn=lambda q: calls.append(q) or [0.0], clusters=_clusters_for_fake_rows())
+
+    out = retriever.retrieve_detailed("compare run_047.yaml with configs/archive/run_047_v1.yaml", top_n=10)
+
+    assert out.staleness["dropped"] == 0 and len(out.nodes) == 3
+    assert out.route is not None and out.skipped_embed is True and calls == []  # lexical_path: no embedding
+    assert vsm.calls[-1][1] is None  # SQL ran lexical-only
+
+
+def test_python_mode_still_reports_scores_and_top_n():
+    retriever = _retriever()
+
+    out = retriever.retrieve_detailed("anything", top_n=2)
+
+    assert out.mode == "python" and len(out.nodes) == 2 and out.counts["returned"] == 2
+    a = out.scores["a"]
+    assert a["dense"] == 0.9 and a["bm25"] is None and a["rrf"] is not None and a["rerank"] is None
+    assert out.staleness == {"enabled": False, "applied": False, "dropped": 0}
+
+
+def test_mode_validation():
+    import pytest
+
+    with pytest.raises(ValueError):
+        HybridRetriever(None, _FakeSQLVSM(), mode="sql")  # no embed_fn
+    with pytest.raises(ValueError):
+        HybridRetriever(None, _FakeSQLVSM(), mode="python")  # no vector retriever
+    with pytest.raises(ValueError):
+        HybridRetriever(_FakeVectorRetriever(), _FakeSQLVSM(), mode="graphql")
