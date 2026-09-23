@@ -118,3 +118,95 @@ def test_exact_match_label_treats_equal_numbers_as_equal():
     assert exact_match_label("bark_type: oak", "oak") == "correct"
     assert exact_match_label("encoder dinov2", "resnet50") == "wrong"
     assert exact_match_label("the encoder is a resnet", "resnet50 encoder") == "partial"
+
+
+def test_value_match_is_case_insensitive():
+    hits = [_hit("configs/run_047.yaml", "learning_rate: 3e-4\nencoder: dinov2\nrun_id: 47")]
+    claims = extract_claims("The encoder was DINOv2 for run 47.")
+    assert any(c.value == "DINOv2" for c in claims), [c.value for c in claims]
+    res = verify_claims(claims, [h.chunk for h in hits], citations=[{"path": "configs/run_047.yaml", "start_byte": 0, "end_byte": hits[0].chunk.end_byte}], cited_only=True)
+    assert res.hallucinated_values == []
+    res = verify_claims(extract_claims("The encoder was CLIP for run 47."), [h.chunk for h in hits])
+    assert res.hallucinated_values == ["CLIP"]
+
+
+def _row(qid, category, checks, labels, failed=None):
+    row = {"id": qid, "category": category, "question": "q", "gold": "g", "retrieved_paths": [], "answer": "a", "generation": {},
+           "checks": checks, "judges": {name: {"label": lab, "score": 1.0} for name, lab in labels.items()}, "pairwise_llm_vs_extractive": {}}
+    if failed:
+        row["failed"] = failed
+    return row
+
+
+def test_abstention_is_left_out_of_cited_in_retrieved():
+    from app.eval.llm_eval import deterministic_checks, summarize
+    from app.eval.gold import GoldQuestion
+
+    q = GoldQuestion(id="q1", question="?", category="semantic", answer="x")
+    abstain = deterministic_checks(q, NOT_IN_SOURCES, HITS)
+    assert abstain["abstained"] and not abstain["uncited"] and abstain["cited_in_retrieved"] is None
+    cited = deterministic_checks(q, f"3e-4 {source_tag(HITS[0])}", HITS)
+    assert cited["cited_in_retrieved"] is True
+    rows = [
+        _row("q1", "semantic", abstain, {"heuristic": "wrong", "j": "wrong"}),
+        _row("q2", "semantic", cited, {"heuristic": "correct", "j": "correct"}),
+        _row("q3", "semantic", {**cited, "cited_in_retrieved": False, "unknown_citations": [{"path": "configs/run_40.yaml"}]}, {"heuristic": "correct", "j": "correct"}),
+    ]
+    s = summarize(rows, ["j"])
+    assert s["checks"]["cited_in_retrieved"] == {"rate": 0.5, "n": 2}  # the abstention is not a citation failure
+    assert s["checks"]["abstained"] == {"count": 1, "n": 3}
+
+
+def test_single_class_reference_closes_the_gate():
+    from app.eval import report
+    from app.eval.llm_eval import summarize
+
+    def sf(qid, judge_a, judge_b):
+        checks = {"uncited": False, "abstained": False, "cited_in_retrieved": True, "n_citations": 1, "unknown_citations": [], "n_values": 1,
+                  "values_in_cited_bytes": True, "values_not_in_cited_bytes": [], "values_in_any_evidence": True, "verification_ratio_cited": 1.0,
+                  "exact_match_label": "correct", "exact_match": True}
+        return _row(qid, "simple_factual", checks, {"heuristic": "wrong", "yes-man": judge_a, "varies": judge_b})
+
+    rows = [sf(f"q{i}", "correct", "correct" if i % 2 else "partial") for i in range(8)]
+    s = summarize(rows, ["yes-man", "varies"])
+    assert s["reference"]["single_class"] and not s["reference"]["gate_evaluable"]
+    assert s["reference"]["label_counts"] == {"correct": 8, "partial": 0, "wrong": 0}
+    assert s["kappa"]["yes-man"]["kappa_vs_exact_match_simple_factual"] == 1.0  # agreement by never varying
+    assert s["kappa"]["varies"]["kappa_vs_exact_match_simple_factual"] == 0.0
+    assert not any(k["readme_ok"] for k in s["kappa"].values())
+    assert s["publishable_judges"] == [] and "not evaluable" in s["verdict"]
+    blob = {"n_gold": 8, "git_sha": "abc1234", "wall_s": 1.0, "kappa_gate": 0.6, "config": {"name": "cfg"},
+            "models": {"generator": {"model": "gen"}, "judges": [{"model": "yes-man"}, {"model": "varies"}], "reranker": {"loaded": True}},
+            "rescore": {"rows_git_sha": "abc1234", "checks_git_sha": "def5678"}, "summary": s}
+    text = report.jury_table(blob)
+    assert "no (not evaluable)" in text and "could not be evaluated" in text and "recomputed by `make bench-jury-rescore` at sha def5678" in text
+    assert "Judge scores (published" not in text
+
+
+def test_rescore_recomputes_checks_from_stored_answers(tmp_path):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    def fake_complete(prompt: str) -> str:
+        if "Rules:" in prompt:
+            tag = re.search(r"Source 1 (\[[^\]]+\])\n(.*?)(?:\n\n|$)", prompt, re.S)
+            return f"See {tag.group(1)}."
+        if "Which is better" in prompt:
+            return "TIE"
+        return json.dumps({"score": 0.5, "label": "partial"})
+
+    cfg = BenchConfig(name="hybrid+router@hash", mode="hybrid", embedder="hash", enable_rerank=False, enable_router=True, staleness_tier1=True, log_triples=False, e2e=False)
+    blob = llm_eval.run(config=cfg, generator_model="fake-gen", judge_models=["fake-a", "fake-b"], limit=4, complete_fn=fake_complete)
+    path = tmp_path / "jury.json"
+    path.write_text(json.dumps(blob))
+    out = llm_eval.rescore(path)
+    assert out["summary"]["checks"] == blob["summary"]["checks"]  # same code, same answers: same checks
+    assert out["summary"]["kappa"] == blob["summary"]["kappa"]
+    assert [r["judges"] for r in out["rows"]] == [r["judges"] for r in blob["rows"]]
+    assert out["rescore"]["rows_git_sha"] == blob["git_sha"] and out["rescore"]["rows_command"] == blob["command"]
+    assert out["git_sha"] == out["rescore"]["checks_git_sha"]
+    tampered = json.loads(path.read_text())
+    tampered["rows"][0]["retrieved_paths"] = ["nope.txt"]
+    path.write_text(json.dumps(tampered))
+    with pytest.raises(SystemExit, match="retrieval differs"):
+        llm_eval.rescore(path)

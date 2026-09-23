@@ -12,9 +12,11 @@ For every gold question, on fixture v1:
    ("uncited"), counted and excluded from judging; a NOT IN SOURCES reply is an
    abstention.
 3. Deterministic checks, no model involved:
-   - cited_in_retrieved: every cited path is in the retrieved set
+   - cited_in_retrieved: every cited path is in the retrieved set (None for an
+     answer with no citation, e.g. an abstention, so it is left out of the rate)
    - values_in_cited_bytes: every number / config value in the answer appears
-     inside the cited chunks (app/agent/citation_verify.py, cited_only=True)
+     inside the cited chunks (app/agent/citation_verify.py, cited_only=True;
+     string containment, case-insensitive, numeric formats not normalised)
    - exact_match: the gold answer string is in the answer (simple_factual only)
 4. Jury: one LlmJudge per judge model (pointwise faithfulness / relevancy /
    groundedness -> label), plus the heuristic judge kept as a labelled column;
@@ -22,9 +24,19 @@ For every gold question, on fixture v1:
    extractive answer, so position bias is measured (position_gap).
 5. Cohen's kappa between each judge's labels and the exact-match labels on
    simple_factual (n = 80). Judge scores may be published only when kappa >=
-   KAPPA_GATE (0.6); the results file says so either way (readme_ok).
+   KAPPA_GATE (0.6); the results file says so either way (readme_ok). If the
+   exact-match reference is a single class (every answer matched, or none did)
+   kappa is 0 by construction for any judge with variance and 1 for a judge
+   that never varies, so the gate is marked not evaluable and stays closed.
 
 Heuristic columns are labelled "heuristic" and stay out of README tables.
+
+    python -m app.eval.llm_eval --rescore bench/results/jury.json
+
+recomputes the deterministic checks and the summary from the stored answers
+and judge labels (no model call), after re-running retrieval and checking that
+every question's retrieved paths equal the stored ones; the file records both
+the sha that generated the rows and the sha that rescored them.
 """
 
 from __future__ import annotations
@@ -75,7 +87,7 @@ def deterministic_checks(question: GoldQuestion, text: str, hits: Sequence[Retri
     checks = {
         "uncited": info["uncited"],
         "abstained": info["abstained"],
-        "cited_in_retrieved": bool(info["citations"]) and not info["unknown_citations"],
+        "cited_in_retrieved": (not info["unknown_citations"]) if info["citations"] else None,
         "n_citations": len(info["citations"]),
         "unknown_citations": info["unknown_citations"],
         "n_values": sum(1 for c in claims if c.value),
@@ -215,7 +227,7 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
     sf = [r for r in judged if r["category"] == "simple_factual"]
 
     def rate(items, key):
-        vals = [bool(r["checks"].get(key)) for r in items if key in r["checks"]]
+        vals = [bool(r["checks"][key]) for r in items if r["checks"].get(key) is not None]
         return {"rate": round(sum(vals) / len(vals), 4) if vals else None, "n": len(vals)}
 
     checks = {
@@ -227,6 +239,12 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
         "exact_match_simple_factual": rate(sf, "exact_match"),
     }
     gold_labels = [r["checks"]["exact_match_label"] for r in sf]
+    ref_counts = {lab: gold_labels.count(lab) for lab in ("correct", "partial", "wrong")}
+    # A one-class reference makes kappa meaningless: 0 for any judge with variance, 1 for a
+    # judge that never varies (cohens_kappa's pe == 1 branch). The gate cannot be evaluated.
+    single_class = bool(gold_labels) and len(set(gold_labels)) == 1
+    reference = {"labels": "exact_match_label on simple_factual", "n": len(gold_labels), "label_counts": ref_counts,
+                 "single_class": single_class, "gate_evaluable": bool(gold_labels) and not single_class}
     kappa: dict[str, Any] = {}
     members = ["heuristic", *judge_models]
     for name in members:
@@ -236,7 +254,7 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
         kappa[name] = {
             "kappa_vs_exact_match_simple_factual": round(k, 4),
             "n": len(labels),
-            "readme_ok": k >= KAPPA_GATE,
+            "readme_ok": reference["gate_evaluable"] and k >= KAPPA_GATE,
             "mean_score_all": round(sum(scores) / len(scores), 4) if scores else None,
             "label_counts": {lab: labels.count(lab) for lab in ("correct", "partial", "wrong")},
             "heuristic": name == "heuristic",
@@ -251,7 +269,8 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
         top = sorted(counts.items(), key=lambda kv: -kv[1])
         maj.append("partial" if len(top) > 1 and top[0][1] == top[1][1] else top[0][0])
     k_j = cohens_kappa(gold_labels[: len(maj)], maj)
-    kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4), "n": len(maj), "readme_ok": k_j >= KAPPA_GATE}
+    kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4), "n": len(maj),
+                              "readme_ok": reference["gate_evaluable"] and k_j >= KAPPA_GATE}
     agreement = None
     if len(judge_models) >= 2:
         a, b = judge_models[0], judge_models[1]
@@ -269,21 +288,93 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
                 "n": len(ps),
             }
     publishable = [m for m in judge_models if kappa[m]["readme_ok"]]
+    if not reference["gate_evaluable"]:
+        counts = ", ".join(f"{v} {k}" for k, v in ref_counts.items())
+        verdict = (f"gate not evaluable: the exact-match reference on simple_factual is one class ({counts} of {len(gold_labels)}), "
+                   f"so Cohen's kappa is 0 by construction for any judge with variance and 1 for a judge that never varies; "
+                   f"judge scores stay off the README")
+    elif publishable:
+        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: their scores may be published"
+    else:
+        verdict = f"no judge reached kappa >= {KAPPA_GATE} vs exact-match labels on simple_factual; judge scores stay off the README"
     return {
         "n": n,
         "n_judged": len(judged),
         "n_simple_factual": len(sf),
         "checks": checks,
+        "reference": reference,
         "kappa": kappa,
         "judge_agreement": agreement,
         "pairwise_llm_vs_extractive": pairwise,
         "publishable_judges": publishable,
-        "verdict": (
-            f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: their scores may be published"
-            if publishable
-            else f"no judge reached kappa >= {KAPPA_GATE} vs exact-match labels on simple_factual; judge scores stay off the README"
-        ),
+        "verdict": verdict,
     }
+
+
+def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
+    """Recompute the deterministic checks and the summary of an existing jury file.
+
+    Generation, judge labels and pairwise verdicts are kept as stored. Retrieval is
+    re-run with the stored configuration and must return the same paths for every
+    question, and the reranker must load as it did; otherwise nothing is written.
+    """
+    root = root or project_root()
+    blob = json.loads(path.read_text())
+    files_root = root / "bench" / "corpus" / "files"
+    manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
+    if verify_manifest(files_root, manifest):
+        raise RuntimeError("corpus drift")
+    if manifest["aggregate_sha256"] != blob["corpus_sha256"]:
+        raise SystemExit("the file was produced on a different corpus; re-run make bench-jury")
+    gold = {q.id: q for q in load_gold(root / "bench" / "gold" / "questions.jsonl")}
+    config = BenchConfig(**blob["config"])
+    index = build_index(
+        files_root,
+        embedder_name=config.embedder,
+        retrieve_k=config.retrieve_k,
+        rerank_n=config.rerank_n,
+        enable_router=config.enable_router,
+        enable_rerank=config.enable_rerank,
+        reranker=config.reranker,
+        chunk_strategy=config.chunk_strategy,
+    )
+    loaded = bool(getattr(index, "reranker_loaded", False))
+    if loaded != bool(blob["models"]["reranker"].get("loaded")):
+        raise SystemExit(f"reranker loaded={loaded} now, {blob['models']['reranker'].get('loaded')} in the file; re-run make bench-jury")
+    clusters = cluster_versions(index.chunks) if config.staleness_tier1 else {}
+    mismatched: list[str] = []
+    new_checks: dict[str, dict[str, Any]] = {}
+    for row in blob["rows"]:
+        q = gold[row["id"]]
+        paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None, category=q.category)
+        hits = list(payload.hits[:TOP_N]) if hasattr(payload, "hits") else list(payload[:TOP_N])
+        if paths[:TOP_N] != row["retrieved_paths"]:
+            mismatched.append(row["id"])
+            continue
+        checks = deterministic_checks(q, row["answer"], hits)
+        old = row["checks"]
+        if checks["uncited"] != old["uncited"] or checks["abstained"] != old["abstained"]:
+            raise SystemExit(f"{row['id']}: the judged set would change (uncited/abstained); re-run make bench-jury")
+        new_checks[row["id"]] = checks
+    if mismatched:
+        raise SystemExit(f"retrieval differs from the stored paths for {mismatched}; re-run make bench-jury")
+    for row in blob["rows"]:
+        row["checks"] = new_checks[row["id"]]
+    judge_models = [j["model"] for j in blob["models"]["judges"]]
+    blob["summary"] = summarize(blob["rows"], judge_models)
+    prior = blob.get("rescore") or {}
+    blob["rescore"] = {
+        "rows_git_sha": prior.get("rows_git_sha") or blob["git_sha"],
+        "rows_command": prior.get("rows_command") or blob["command"],
+        "rows_timestamp": prior.get("rows_timestamp") or blob["timestamp"],
+        "checks_git_sha": git_sha(root),
+        "command": command_line(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "what": "deterministic checks and summary recomputed from the stored answers and judge labels; generation, judge labels and pairwise verdicts untouched",
+    }
+    blob["git_sha"] = blob["rescore"]["checks_git_sha"]
+    blob["command"] = blob["rescore"]["command"]
+    return blob
 
 
 def markdown_table(blob: dict) -> str:
@@ -312,6 +403,9 @@ def markdown_table(blob: dict) -> str:
         lines.append(f"\nJudge-judge agreement ({a['judges'][0]} vs {a['judges'][1]}): kappa {a['kappa']}, n {a['n']}.")
     for name, p in s["pairwise_llm_vs_extractive"].items():
         lines.append(f"Pairwise AB/BA, {name}: P(LLM answer better than extractive) {p['p_llm_better_mean']}, position gap {p['position_gap_mean']}, flips {p['position_flips']}/{p['n']}.")
+    ref = s.get("reference") or {}
+    if ref and not ref.get("gate_evaluable", True):
+        lines.append(f"\nReference is one class ({ref['label_counts']}): the kappa gate is not evaluable on this run.")
     lines.append(f"\nVerdict: {s['verdict']}")
     return "\n".join(lines)
 
@@ -327,7 +421,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--reranker", default=DEFAULT_CONFIG.reranker)
     p.add_argument("--no-router", action="store_true")
     p.add_argument("--no-staleness", action="store_true")
+    p.add_argument("--rescore", type=Path, default=None, metavar="FILE",
+                   help="recompute the deterministic checks and summary of FILE from its stored answers (no model call) and write it back")
     args = p.parse_args(argv)
+    if args.rescore is not None:
+        target = args.rescore if args.rescore.is_absolute() else root / args.rescore
+        blob = rescore(target, root)
+        target.write_text(json.dumps(blob, indent=2) + "\n")
+        print(markdown_table(blob))
+        print(f"rescored {target} (rows from {blob['rescore']['rows_git_sha']}, checks at {blob['rescore']['checks_git_sha']})")
+        return 0
     config = replace(
         DEFAULT_CONFIG,
         embedder=args.embedder,
