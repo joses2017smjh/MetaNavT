@@ -19,8 +19,9 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury"), "doc/demo.html": ("demo-stats",)}
+JURY_FILE = "bench/results/jury.json"
 LATENCY_FILES = {
     "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
     "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
@@ -36,6 +37,7 @@ SOURCES = {
     "bench-beir": BEIR_FILE,
     "bench-parity": PARITY_FILE,
     "api-latency": "bench/results/api_latency_*.json",
+    "bench-jury": JURY_FILE,
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -415,6 +417,63 @@ def latency_table(root: Path | None) -> str:
     )
 
 
+def jury_table(blob: dict | None) -> str:
+    """M4: deterministic checks always; judge scores only when a judge passed the kappa gate."""
+    if not blob:
+        return f"_{JURY_FILE} is missing; run `make bench-jury` (needs Ollama)._"
+    s = blob["summary"]
+    c = s["checks"]
+    gen = blob["models"]["generator"]
+    judges = [j["model"] for j in blob["models"]["judges"]]
+    cfg = blob.get("config") or {}
+    lines = [
+        f"Generated answers on fixture v1 (`make bench-jury`, results sha {blob.get('git_sha')}): {blob['n_gold']} questions, "
+        f"retrieval `{cfg.get('name')}`, top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "
+        f"judges {', '.join(judges)}; wall {blob.get('wall_s')} s. The generator is also one of the judges, so that judge's "
+        f"scores carry self-preference risk.",
+        "",
+        "Deterministic checks (no model involved):",
+        "",
+        "| check | result | n |",
+        "|---|---:|---:|",
+        f"| answers with no valid citation (failed loud, excluded from judging) | {c['uncited_answers']['count']} | {c['uncited_answers']['n']} |",
+        f"| abstentions (NOT IN SOURCES) | {c['abstained']['count']} | {c['abstained']['n']} |",
+        f"| every cited path is in the retrieved set | {c['cited_in_retrieved']['rate']} | {c['cited_in_retrieved']['n']} |",
+        f"| every number / config value appears in the cited bytes | {c['values_in_cited_bytes']['rate']} | {c['values_in_cited_bytes']['n']} |",
+        f"| ... appears anywhere in the retrieved evidence (looser) | {c['values_in_any_evidence']['rate']} | {c['values_in_any_evidence']['n']} |",
+        f"| exact match vs gold (numeric-equivalent), simple_factual | {c['exact_match_simple_factual']['rate']} | {c['exact_match_simple_factual']['n']} |",
+        "",
+        f"Does the judge agree with the gold labels? Cohen's kappa between each judge's label and the exact-match label on simple_factual; "
+        f"the gate is kappa >= {blob.get('kappa_gate')}.",
+        "",
+        "| judge | kappa vs exact match | n | passes gate | labels correct / partial / wrong |",
+        "|---|---:|---:|:---:|---|",
+    ]
+    for name, k in s["kappa"].items():
+        if name == "jury_majority":
+            lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {'yes' if k['readme_ok'] else 'no'} | — |")
+        else:
+            lc = k["label_counts"]
+            label = f"{name} (heuristic token overlap, not an LLM)" if k.get("heuristic") else name
+            lines.append(f"| {label} | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {'yes' if k['readme_ok'] else 'no'} | {lc['correct']} / {lc['partial']} / {lc['wrong']} |")
+    agree = s.get("judge_agreement")
+    if agree:
+        lines += ["", f"Judge-judge agreement ({agree['judges'][0]} vs {agree['judges'][1]}): kappa {agree['kappa']}, n = {agree['n']}."]
+    pw = s.get("pairwise_llm_vs_extractive") or {}
+    if pw:
+        lines += ["", "Position bias, AB/BA swap (LLM answer vs the extractive answer, same judge, both orders):", "", "| judge | P(LLM answer better) | mean position gap | order flips | n |", "|---|---:|---:|---:|---:|"]
+        for name, p_ in pw.items():
+            lines.append(f"| {name} | {p_['p_llm_better_mean']} | {p_['position_gap_mean']} | {p_['position_flips']} | {p_['n']} |")
+    pub = s.get("publishable_judges") or []
+    if pub:
+        lines += ["", "Judge scores (published because the gate passed):", "", "| judge | mean score over all judged answers |", "|---|---:|"]
+        for name in pub:
+            lines.append(f"| {name} | {s['kappa'][name]['mean_score_all']} |")
+    else:
+        lines += ["", f"Verdict: {s['verdict']} Mean judge scores are in the results file but are not printed here."]
+    return "\n".join(lines)
+
+
 def _load(root: Path | None, rel: str) -> dict | None:
     if root is None:
         return None
@@ -432,6 +491,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE)),
         "api-latency": latency_table(root),
+        "bench-jury": jury_table(_load(root, JURY_FILE)),
     }
 
 

@@ -124,16 +124,18 @@ def ollama_complete(
     model: str | None = None,
     temperature: float = 0.0,
 ) -> str | None:
-    model = model or os.environ.get("JUDGE_MODEL", "qwen2.5:14b")
-    url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/generate"
+    model = model or os.environ.get("JUDGE_MODEL", "qwen2.5:7b")
+    url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/generate"
+    # Same option keys as app/agent/generate.OllamaGenerator: a different num_ctx would
+    # make Ollama reload the model on every alternation between generator and judge.
     body = json.dumps(
-        {"model": model, "prompt": prompt, "stream": False, "options": {"temperature": temperature}}
+        {"model": model, "prompt": prompt, "stream": False, "keep_alive": "30m", "options": {"temperature": temperature, "seed": 0}}
     ).encode()
     try:
         import urllib.request
 
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=float(os.environ.get("OLLAMA_TIMEOUT", "600"))) as resp:
             payload = json.loads(resp.read().decode())
         return payload.get("response") or payload.get("text")
     except Exception:
@@ -238,12 +240,32 @@ def self_consistency_vote(
     }
 
 
+_NUM_RE = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
+
+
+def _numbers(text: str) -> set[float]:
+    out = set()
+    for m in _NUM_RE.findall(text or ""):
+        try:
+            out.add(float(m))
+        except ValueError:
+            continue
+    return out
+
+
 def exact_match_label(answer: str, gold: str) -> str:
+    """correct: the gold string is in the answer, or the gold is a number and the answer
+    states the same number in any format (1e-04 == 0.0001); partial: token overlap;
+    wrong: none. This is the deterministic label the judges are measured against."""
     if not gold.strip():
         return "partial"
     a, g = answer.lower(), gold.lower()
     if g in a or a.strip() == g.strip():
         return "correct"
+    gold_nums = _numbers(gold)
+    if gold_nums and len(_NUM_RE.findall(gold)) == 1 and gold.strip() == _NUM_RE.findall(gold)[0]:
+        if any(abs(x - y) <= 1e-9 * max(1.0, abs(y)) for y in gold_nums for x in _numbers(answer)):
+            return "correct"
     if set(tokenize(gold)) & set(tokenize(answer)):
         return "partial"
     return "wrong"

@@ -7,6 +7,7 @@ on the simple_factual slice.
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Callable, Sequence
@@ -46,6 +47,7 @@ class JuryVerdict:
     votes: dict
     members: list[str]
     as_readme: bool = False
+    labels_by_member: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {
@@ -53,12 +55,13 @@ class JuryVerdict:
             "score": round(self.score, 4),
             "votes": self.votes,
             "members": self.members,
+            "labels_by_member": self.labels_by_member,
             "as_readme": self.as_readme,
         }
 
 
 class Jury:
-    """Majority vote over named judges. Tie → partial."""
+    """Majority vote over named judges. Tie → partial. vote() also keeps each member's label."""
 
     def __init__(self, members: list[tuple[str, object]] | None = None):
         self.members = members or [("heuristic", HeuristicJudge())]
@@ -87,17 +90,42 @@ class Jury:
             winner = "partial"
         else:
             winner = top[0][0]
-        return JuryVerdict(
+        verdict = JuryVerdict(
             label=winner,
             score=label_to_score(winner),
             votes=dict(counts),
             members=names,
         )
+        verdict.labels_by_member = dict(zip(names, labels))
+        return verdict
 
 
-def default_jury(llm_complete: Callable[[str], str] | None = None) -> Jury:
-    members: list[tuple[str, object]] = [("heuristic", HeuristicJudge())]
-    if llm_complete:
+DEFAULT_JUDGE_MODELS = ("qwen2.5:7b", "llama3.1:8b")
+
+
+def judge_models_from_env() -> list[str]:
+    raw = os.environ.get("JUDGE_MODELS", ",".join(DEFAULT_JUDGE_MODELS))
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def default_jury(
+    llm_complete: Callable[[str], str] | None = None,
+    models: Sequence[str] | None = None,
+    *,
+    heuristic: bool = True,
+) -> Jury:
+    """Heuristic judge (always labelled "heuristic") plus one LlmJudge per model.
+
+    `models` are Ollama model names, each its own member, so a two-model jury
+    really is two different judges. `llm_complete` (one callable for every
+    member) is kept for tests and for callers that bring their own backend;
+    with it, members are named llm-a / llm-b as before.
+    """
+    members: list[tuple[str, object]] = [("heuristic", HeuristicJudge())] if heuristic else []
+    if models:
+        for name in models:
+            members.append((name, LlmJudge(model=name, name=name)))
+    elif llm_complete:
         members.append(("llm-a", LlmJudge(complete=llm_complete, name="llm-a")))
         members.append(("llm-b", LlmJudge(complete=llm_complete, name="llm-b")))
     return Jury(members)

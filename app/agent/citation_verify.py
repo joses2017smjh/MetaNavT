@@ -7,6 +7,14 @@ After the agent produces an answer with citations, this module verifies:
 
 Unverified claims are flagged. If the ratio of verified claims is below
 the threshold, the answer is rejected (fail-loud).
+
+Two strictness levels:
+- verify_claims(..., cited_only=False): a value counts as verified when it appears
+  anywhere in the retrieved evidence (the pre-M4 behaviour).
+- verify_claims(..., cited_only=True): a value counts only when it appears inside
+  a chunk the answer actually cites (path, and byte range when the citation
+  carries one). This is what M4's deterministic check uses: "every number or
+  config value in the answer appears in the cited bytes".
 """
 
 from __future__ import annotations
@@ -67,7 +75,9 @@ def extract_claims(answer: str) -> list[Claim]:
     name, path, or configuration detail.
     """
     claims: list[Claim] = []
-    sentences = re.split(r"[.\n]+", answer or "")
+    # Sentence boundaries only: a period followed by whitespace or a newline. Splitting on
+    # every period cut decimals like 0.055 in half, so those values were never checked.
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", answer or "")
 
     for sent in sentences:
         sent = sent.strip()
@@ -95,16 +105,59 @@ def extract_claims(answer: str) -> list[Claim]:
     return claims
 
 
+def cited_chunks(
+    evidence: Sequence[Chunk],
+    citations: Sequence[dict | tuple | str] | None,
+) -> list[Chunk]:
+    """The evidence chunks an answer cites.
+
+    A citation may be a path (str), a (path, start, end) tuple or a dict with
+    path / start_byte / end_byte. With a byte range, the chunk must cover it;
+    with a bare path, every chunk of that path counts.
+    """
+    if not citations:
+        return []
+    keep: list[Chunk] = []
+    for cit in citations:
+        if isinstance(cit, str):
+            path, start, end = cit, None, None
+        elif isinstance(cit, dict):
+            path, start, end = cit.get("path"), cit.get("start_byte"), cit.get("end_byte")
+        else:
+            path, start, end = (list(cit) + [None, None])[:3]
+        for chunk in evidence:
+            if chunk.path != path:
+                continue
+            if start is not None and end is not None and not (chunk.start_byte <= int(start) and int(end) <= chunk.end_byte):
+                continue
+            if chunk not in keep:
+                keep.append(chunk)
+    return keep
+
+
 def verify_claims(
     claims: list[Claim],
     evidence: Sequence[Chunk],
     cited_paths: Sequence[str] | None = None,
     threshold: float = 0.5,
+    *,
+    citations: Sequence[dict | tuple | str] | None = None,
+    cited_only: bool = False,
 ) -> VerificationResult:
-    """Verify each claim against the retrieved evidence chunks."""
-    evidence_text = " ".join(c.text for c in evidence)
+    """Verify each claim against the retrieved evidence chunks.
+
+    cited_only=True restricts value checks to the chunks named in `citations`
+    (falling back to `cited_paths`): a number that is in the evidence but not in
+    the cited bytes is reported as hallucinated_values, because the citation
+    does not support it.
+    """
     evidence_paths = {c.path for c in evidence}
     cited_set = set(cited_paths or [])
+    if cited_only:
+        scope = cited_chunks(evidence, citations) or cited_chunks(evidence, list(cited_set))
+    else:
+        scope = list(evidence)
+    evidence_text = " ".join(c.text for c in scope)
 
     missing_citations: list[str] = []
     hallucinated_values: list[str] = []
@@ -120,7 +173,7 @@ def verify_claims(
         if claim.value:
             if claim.value in evidence_text:
                 claim.verified = True
-                for chunk in evidence:
+                for chunk in scope:
                     if claim.value in chunk.text:
                         claim.evidence_snippet = chunk.text[:200]
                         break
@@ -150,11 +203,17 @@ def verify_claims(
 
 
 def _extract_values(text: str) -> list[str]:
-    """Extract specific values (numbers, configs, identifiers) from text."""
+    """Extract specific values (numbers, configs, identifiers) from text.
+
+    Citation tags ([path:start-end]) are removed first so their byte offsets are
+    not mistaken for claimed values.
+    """
+    text = re.sub(r"\[[^\[\]\s]+?:\d+-\d+\]", " ", text or "")
     values: list[str] = []
-    values.extend(re.findall(r"\b\d+[eE][+-]?\d+\b", text))
+    values.extend(re.findall(r"\b\d+(?:\.\d+)?[eE][+-]?\d+\b", text))
     values.extend(re.findall(r"\b0\.\d+\b", text))
-    values.extend(re.findall(r"\b(?:run[_\s]?\d+)\b", text, re.I))
+    values.extend(re.findall(r"\b\d+\.\d+\b", text))
+    values.extend(m.group(1) for m in re.finditer(r"\brun[_\s]?(\d+)\b", text, re.I))  # the run number, not "Run 47" literally
     values.extend(re.findall(r"\b(?:dinov2|resnet\d+|clip|vit\w*)\b", text, re.I))
     for m in re.finditer(r"(\d+)\s*(?:epochs?|iterations?|steps?|pairs?)", text, re.I):
         values.append(m.group(1))
