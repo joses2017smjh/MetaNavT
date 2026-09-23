@@ -32,9 +32,12 @@ def test_get_doc_store_with_storage_dir(mocker):
 def test_run_pipeline_success(mocker):
     # Arrange
     # Mock the imports and Settings
-    mocker.patch('app.engine.generate.Settings.embed_model', MagicMock())
-    mocker.patch('app.engine.generate.Settings.chunk_size', 1000)
-    mocker.patch('app.engine.generate.Settings.chunk_overlap', 200)
+    # Patch the whole Settings singleton: patching Settings.embed_model directly
+    # reads the real property first, which resolves the default OpenAI embedder.
+    settings = mocker.patch('app.engine.generate.Settings')
+    settings.embed_model = MagicMock()
+    settings.chunk_size = 1000
+    settings.chunk_overlap = 200
     
     # Mock the pipeline
     mock_pipeline = mocker.patch('app.engine.generate.IngestionPipeline')
