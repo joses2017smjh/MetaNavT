@@ -95,13 +95,13 @@ def claims(root: Path = ROOT) -> list[dict]:
         n = neural["n_gold"]
         src = f"{FILES['neural']} @ {neural['git_sha']}"
         dev = neural.get("device", {}).get("device_name", "?")
-        for name, label in (("hybrid@bge-small", "Fixture v1, hybrid RRF with bge-small-en-v1.5 vs BM25 alone, paired delta in nDCG@10"),
-                            ("hybrid+bge-rerank@bge-small", "Fixture v1, hybrid + bge-reranker-v2-m3 vs BM25 alone, paired delta in nDCG@10")):
+        for name, label, extra in (("hybrid@bge-small", "Fixture v1, hybrid RRF with bge-small-en-v1.5 vs BM25 alone, paired delta in nDCG@10", "no reranker on either side"),
+                                   ("hybrid+bge-rerank@bge-small", "Fixture v1, hybrid (bge-small-en-v1.5) + bge-reranker-v2-m3 vs BM25 alone, paired delta in nDCG@10", "the reranker rescores most of the corpus")):
             row = by.get(name)
             if row:
                 d, ci = _ci((row.get("delta_vs_bm25_only") or {}).get("ndcg@10"), "delta")
                 out.append({"claim": label, "value": d, "ci": ci, "n": n, "command": "make bench-neural", "source": src,
-                            "not_shown": f"run on a {dev} (GPU); 71 chunks, so the reranker rescores most of the corpus; not a production-corpus number"})
+                            "not_shown": f"run on a {dev} (GPU); {row.get('n_chunks', '?')} chunks in the fixture, {extra}; not a production-corpus number"})
         full = by.get("hybrid+bge-rerank+router+staleness@bge-small")
         if full:
             v, ci = _ci(full["ci"]["ndcg@10"])
@@ -117,7 +117,7 @@ def claims(root: Path = ROOT) -> list[dict]:
             if c.get("row") == "hybrid+bge-rerank@bge-small":
                 d, ci = _ci(c.get("ndcg@10"), "delta")
                 out.append({"claim": "Fixture v1: bge-small + reranker vs hash + reranker (does the first stage matter once the reranker is on?), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-neural", "source": src,
-                            "not_shown": "a tie because the reranker rescores 50 of 71 chunks; it says nothing about corpora where the first stage is a real filter"})
+                            "not_shown": f"a tie because the reranker rescores {by[c['row']]['settings']['retrieve_k']} of {by[c['row']]['n_chunks']} chunks; it says nothing about corpora where the first stage is a real filter"})
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
