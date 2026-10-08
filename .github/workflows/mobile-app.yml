@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: mobile-app-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   web:
