@@ -66,6 +66,10 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          # Google's repository no longer provides the obsolete `tools`
+          # package that this action includes in its default package list.
+          packages: platform-tools
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - run: npm ci
       - run: npm run build
