@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "description": "Byte-identical subset of the existing generated MetaNavT benchmark fixture; these are demo values, not measured robotics results.",
+  "source_repository": "https://github.com/joses2017smjh/MetaNavT",
+  "source_commit": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+  "source_root": "bench/corpus/files",
+  "source_manifest_sha256": "9a6dcac9462d9e6ad82989d12374d008820a17b98f7879e327779a63971836af",
+  "generator": "bench/corpus/build.py and bench/corpus/registry.py",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 324,
+      "sha256": "b9c71d2cd5640fcd816a9dcf793b25f0df7646a5175b0075cb39aebedd1f0cbd"
+    },
+    {
+      "path": "checkpoints/run_047.ckpt.meta.json",
+      "bytes": 140,
+      "sha256": "0cf9be11ff0068ae8df54d0e6c17ceb48d097f08003251768c110eaba07bdb00"
+    },
+    {
+      "path": "configs/run_047.yaml",
+      "bytes": 256,
+      "sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c"
+    },
+    {
+      "path": "logs/run_047.out",
+      "bytes": 176,
+      "sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938"
+    },
+    {
+      "path": "slurm/run_047.sbatch",
+      "bytes": 161,
+      "sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a"
+    }
+  ]
+}

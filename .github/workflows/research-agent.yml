@@ -1,0 +1,27 @@
+name: Read-only research agent
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/agent/companion*', 'app/mcp/research_companion.py', 'app/mobile/**', 'app/api/routers/**', 'tests/eval/test_companion_agent.py', 'tests/mcp/test_research_companion.py', 'pyproject.toml', '.github/workflows/research-agent.yml']
+  pull_request:
+    paths: ['app/agent/companion*', 'app/mcp/research_companion.py', 'app/mobile/**', 'app/api/routers/**', 'tests/eval/test_companion_agent.py', 'tests/mcp/test_research_companion.py', 'pyproject.toml', '.github/workflows/research-agent.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tools-and-contracts:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e '.[eval,mobile,agent]'
+      - run: python -m pytest -q tests/eval/test_companion_agent.py tests/mcp/test_research_companion.py

@@ -1,0 +1,17 @@
+{
+  "captured_at": "2026-10-08T08:48:13.638Z",
+  "scope": "Actual app in Chromium at a 390×844 mobile viewport; not a native-device recording.",
+  "mode": "Bundled offline synthetic fixtures",
+  "steps": [
+    "Research search",
+    "Inspect source and byte span",
+    "Save source",
+    "Match probabilities and expected goals",
+    "Recorded agent tool trace",
+    "Operator-review pause",
+    "Persistent saved library",
+    "Connection settings",
+    "Read-only scripted research agent and cited excerpts"
+  ],
+  "page_errors": []
+}

@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "mode": "demo",
+  "synthetic": true,
+  "captured_at": "2026-10-08T02:26:36.457305+00:00",
+  "timing_notice": "Server-stage times from this fixture capture, not a phone or production benchmark.",
+  "provenance": {
+    "schema_version": 1,
+    "synthetic": true,
+    "description": "Byte-identical subset of the existing generated MetaNavT benchmark fixture; these are demo values, not measured robotics results.",
+    "source_repository": "https://github.com/joses2017smjh/MetaNavT",
+    "source_commit": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+    "source_root": "bench/corpus/files",
+    "source_manifest_sha256": "9a6dcac9462d9e6ad82989d12374d008820a17b98f7879e327779a63971836af",
+    "generator": "bench/corpus/build.py and bench/corpus/registry.py",
+    "files": [
+      {
+        "path": "README.md",
+        "bytes": 324,
+        "sha256": "b9c71d2cd5640fcd816a9dcf793b25f0df7646a5175b0075cb39aebedd1f0cbd"
+      },
+      {
+        "path": "checkpoints/run_047.ckpt.meta.json",
+        "bytes": 140,
+        "sha256": "0cf9be11ff0068ae8df54d0e6c17ceb48d097f08003251768c110eaba07bdb00"
+      },
+      {
+        "path": "configs/run_047.yaml",
+        "bytes": 256,
+        "sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c"
+      },
+      {
+        "path": "logs/run_047.out",
+        "bytes": 176,
+        "sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938"
+      },
+      {
+        "path": "slurm/run_047.sbatch",
+        "bytes": 161,
+        "sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a"
+      }
+    ]
+  },
+  "health": {
+    "status": "ok",
+    "mode": "demo",
+    "synthetic": true,
+    "n_nodes": 5,
+    "n_files": 5,
+    "embedding_provider": "hash-demo-fixture",
+    "retrieval_mode": "mobile_demo_hash",
+    "bm25_backend": "python_bm25_demo",
+    "reranker_loaded": false,
+    "reranker": {
+      "configured": false,
+      "loaded": false
+    },
+    "degraded": [],
+    "starter_queries": [
+      "What is the learning rate in run_047.yaml?",
+      "What checkpoint belongs to run_047.ckpt.meta.json?",
+      "What GPU resources does run_047.sbatch request?"
+    ],
+    "notice": "Synthetic read-only fixture. Connect main:app for your indexed research files."
+  },
+  "examples": [
+    {
+      "id": "demo-1",
+      "query": "What is the learning rate in run_047.yaml?",
+      "response": {
+        "query": "What is the learning rate in run_047.yaml?",
+        "k": 3,
+        "route": "lexical_path",
+        "retrieval_mode": "mobile_demo_hash",
+        "bm25_backend": "python_bm25_demo",
+        "embedding_provider": "hash-demo-fixture",
+        "reranker_loaded": false,
+        "reranker": {
+          "configured": false,
+          "loaded": false,
+          "model": null,
+          "revision": null,
+          "device": null,
+          "precision": null,
+          "max_length": null,
+          "depth": null,
+          "error": null
+        },
+        "degraded": [],
+        "staleness": {
+          "enabled": false,
+          "applied": false,
+          "dropped": 0
+        },
+        "counts": {
+          "returned": 3,
+          "indexed": 5
+        },
+        "latency_ms": {
+          "route": 0.01379998866468668,
+          "lexical": 0.050318019930273294,
+          "bm25": 0.03963499329984188,
+          "total": 0.14932797057554126
+        },
+        "hits": [
+          {
+            "rank": 1,
+            "chunk_id": "configs/run_047.yaml::387c656a4708",
+            "path": "configs/run_047.yaml",
+            "start_byte": 0,
+            "end_byte": 256,
+            "score": 0.01639344262295082,
+            "scores": {
+              "bm25": null,
+              "dense": null,
+              "rrf": 0.01639344262295082,
+              "rerank": null
+            },
+            "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n"
+          },
+          {
+            "rank": 2,
+            "chunk_id": "logs/run_047.out::f8766aa6405e",
+            "path": "logs/run_047.out",
+            "start_byte": 0,
+            "end_byte": 176,
+            "score": 0.016129032258064516,
+            "scores": {
+              "bm25": null,
+              "dense": null,
+              "rrf": 0.016129032258064516,
+              "rerank": null
+            },
+            "text": "Slurm job for run 47\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0521\nfinished status=SUCCESS\nconfig=configs/run_047.yaml\n"
+          },
+          {
+            "rank": 3,
+            "chunk_id": "slurm/run_047.sbatch::8d885ef6d9bc",
+            "path": "slurm/run_047.sbatch",
+            "start_byte": 0,
+            "end_byte": 161,
+            "score": 0.015873015873015872,
+            "scores": {
+              "bm25": null,
+              "dense": null,
+              "rrf": 0.015873015873015872,
+              "rerank": null
+            },
+            "text": "#!/bin/bash\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "demo-2",
+      "query": "What checkpoint belongs to run_047.ckpt.meta.json?",
+      "response": {
+        "query": "What checkpoint belongs to run_047.ckpt.meta.json?",
+        "k": 3,
+        "route": "lexical_path",
+        "retrieval_mode": "mobile_demo_hash",
+        "bm25_backend": "python_bm25_demo",
+        "embedding_provider": "hash-demo-fixture",
+        "reranker_loaded": false,
+        "reranker": {
+          "configured": false,
+          "loaded": false,
+          "model": null,
+          "revision": null,
+          "device": null,
+          "precision": null,
+          "max_length": null,
+          "depth": null,
+          "error": null
+        },
+        "degraded": [],
+        "staleness": {
+          "enabled": false,
+          "applied": false,
+          "dropped": 0
+        },
+        "counts": {
+          "returned": 3,
+          "indexed": 5
+        },
+        "latency_ms": {
+          "route": 0.011741009075194597,
+          "lexical": 0.04798499867320061,
+          "bm25": 0.036043988075107336,
+          "total": 0.14316797023639083
+        },
+        "hits": [
+          {
+            "rank": 1,
+            "chunk_id": "configs/run_047.yaml::387c656a4708",
+            "path": "configs/run_047.yaml",
+            "start_byte": 0,
+            "end_byte": 256,
+            "score": 0.03252247488101534,
+            "scores": {
+              "bm25": 0.829107406067857,
+              "dense": null,
+              "rrf": 0.03252247488101534,
+              "rerank": null
+            },
+            "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n"
+          },
+          {
+            "rank": 2,
+            "chunk_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+            "path": "checkpoints/run_047.ckpt.meta.json",
+            "start_byte": 0,
+            "end_byte": 140,
+            "score": 0.01639344262295082,
+            "scores": {
+              "bm25": null,
+              "dense": null,
+              "rrf": 0.01639344262295082,
+              "rerank": null
+            },
+            "text": "{\n  \"run_id\": 47,\n  \"val_rmse\": 0.0521,\n  \"encoder\": \"dinov2\",\n  \"path\": \"checkpoints/run_047.pt\",\n  \"produced_by\": \"slurm/run_047.sbatch\"\n}"
+          },
+          {
+            "rank": 3,
+            "chunk_id": "README.md::d723f36093ec",
+            "path": "README.md",
+            "start_byte": 0,
+            "end_byte": 324,
+            "score": 0.016129032258064516,
+            "scores": {
+              "bm25": 0.7201470752631253,
+              "dense": null,
+              "rrf": 0.016129032258064516,
+              "rerank": null
+            },
+            "text": "# Frozen research corpus (demo)\n\nSnapshot of a heterogeneous experiment tree: YAML configs, Slurm scripts,\n`.out` logs, ablation CSVs, paper drafts, Python modules, checkpoint metadata.\n\nDo not edit files here by hand. Rebuild with `python -m bench.corpus.build`.\nGold answers are generated from `bench/corpus/registry.py`.\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "demo-3",
+      "query": "What GPU resources does run_047.sbatch request?",
+      "response": {
+        "query": "What GPU resources does run_047.sbatch request?",
+        "k": 3,
+        "route": "lexical_path",
+        "retrieval_mode": "mobile_demo_hash",
+        "bm25_backend": "python_bm25_demo",
+        "embedding_provider": "hash-demo-fixture",
+        "reranker_loaded": false,
+        "reranker": {
+          "configured": false,
+          "loaded": false,
+          "model": null,
+          "revision": null,
+          "device": null,
+          "precision": null,
+          "max_length": null,
+          "depth": null,
+          "error": null
+        },
+        "degraded": [],
+        "staleness": {
+          "enabled": false,
+          "applied": false,
+          "dropped": 0
+        },
+        "counts": {
+          "returned": 3,
+          "indexed": 5
+        },
+        "latency_ms": {
+          "route": 0.009322015102952719,
+          "lexical": 0.03998598549515009,
+          "bm25": 0.030055001843720675,
+          "total": 0.12040295405313373
+        },
+        "hits": [
+          {
+            "rank": 1,
+            "chunk_id": "slurm/run_047.sbatch::8d885ef6d9bc",
+            "path": "slurm/run_047.sbatch",
+            "start_byte": 0,
+            "end_byte": 161,
+            "score": 0.03278688524590164,
+            "scores": {
+              "bm25": 1.4809339255958374,
+              "dense": null,
+              "rrf": 0.03278688524590164,
+              "rerank": null
+            },
+            "text": "#!/bin/bash\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n"
+          },
+          {
+            "rank": 2,
+            "chunk_id": "configs/run_047.yaml::387c656a4708",
+            "path": "configs/run_047.yaml",
+            "start_byte": 0,
+            "end_byte": 256,
+            "score": 0.016129032258064516,
+            "scores": {
+              "bm25": null,
+              "dense": null,
+              "rrf": 0.016129032258064516,
+              "rerank": null
+            },
+            "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n"
+          },
+          {
+            "rank": 3,
+            "chunk_id": "logs/run_047.out::f8766aa6405e",
+            "path": "logs/run_047.out",
+            "start_byte": 0,
+            "end_byte": 176,
+            "score": 0.015873015873015872,
+            "scores": {
+              "bm25": null,
+              "dense": null,
+              "rrf": 0.015873015873015872,
+              "rerank": null
+            },
+            "text": "Slurm job for run 47\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0521\nfinished status=SUCCESS\nconfig=configs/run_047.yaml\n"
+          }
+        ]
+      }
+    }
+  ]
+}

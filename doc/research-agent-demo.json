@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "notice": "Actual demo API responses from a scripted policy with real retrieval tools; no LLM inference.",
+  "examples": [
+    {
+      "schema_version": 1,
+      "service": "metanavt-agent",
+      "mode": "demo",
+      "model": "scripted-extractive-demo-v1",
+      "synthetic": true,
+      "status": "complete",
+      "question": "What is the learning rate in run_047.yaml?",
+      "answer": "The inspected excerpt contains:\nlearning_rate: 0.0003 [S1]",
+      "citations": [
+        {
+          "source_id": "S1",
+          "path": "configs/run_047.yaml",
+          "start_byte": 0,
+          "end_byte": 256,
+          "excerpt_sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c"
+        }
+      ],
+      "sources": [
+        {
+          "source_id": "S1",
+          "chunk_id": "configs/run_047.yaml::387c656a4708",
+          "path": "configs/run_047.yaml",
+          "start_byte": 0,
+          "end_byte": 256,
+          "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n",
+          "excerpt_sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c",
+          "inspected": true
+        },
+        {
+          "source_id": "S2",
+          "chunk_id": "logs/run_047.out::f8766aa6405e",
+          "path": "logs/run_047.out",
+          "start_byte": 0,
+          "end_byte": 176,
+          "text": "Slurm job for run 47\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0521\nfinished status=SUCCESS\nconfig=configs/run_047.yaml\n",
+          "excerpt_sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938",
+          "inspected": false
+        },
+        {
+          "source_id": "S3",
+          "chunk_id": "slurm/run_047.sbatch::8d885ef6d9bc",
+          "path": "slurm/run_047.sbatch",
+          "start_byte": 0,
+          "end_byte": 161,
+          "text": "#!/bin/bash\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n",
+          "excerpt_sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a",
+          "inspected": false
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "search_research",
+          "arguments": {
+            "query": "What is the learning rate in run_047.yaml?"
+          },
+          "status": "ok",
+          "duration_ms": 21.68,
+          "source_ids": [
+            "S1",
+            "S2",
+            "S3"
+          ],
+          "error": null
+        },
+        {
+          "step": 2,
+          "tool": "inspect_source",
+          "arguments": {
+            "source_id": "S1"
+          },
+          "status": "ok",
+          "duration_ms": 0.115,
+          "source_ids": [
+            "S1"
+          ],
+          "error": null
+        }
+      ],
+      "limits": {
+        "max_model_rounds": 4,
+        "max_tool_calls": 6,
+        "model_rounds": 3,
+        "tool_calls": 2
+      },
+      "citation_check": {
+        "passed": true,
+        "scope": "inspected_excerpt_references",
+        "unknown_ids": []
+      },
+      "stop_reason": "answered",
+      "notice": "Synthetic fixture; scripted demo decision model with real retrieval tools. No LLM inference or measured answer accuracy."
+    },
+    {
+      "schema_version": 1,
+      "service": "metanavt-agent",
+      "mode": "demo",
+      "model": "scripted-extractive-demo-v1",
+      "synthetic": true,
+      "status": "complete",
+      "question": "What checkpoint belongs to run_047.ckpt.meta.json?",
+      "answer": "The inspected excerpt contains:\n\"val_rmse\": 0.0521,\n\"path\": \"checkpoints/run_047.pt\",\n\"produced_by\": \"slurm/run_047.sbatch\" [S2]",
+      "citations": [
+        {
+          "source_id": "S2",
+          "path": "checkpoints/run_047.ckpt.meta.json",
+          "start_byte": 0,
+          "end_byte": 140,
+          "excerpt_sha256": "0cf9be11ff0068ae8df54d0e6c17ceb48d097f08003251768c110eaba07bdb00"
+        }
+      ],
+      "sources": [
+        {
+          "source_id": "S1",
+          "chunk_id": "configs/run_047.yaml::387c656a4708",
+          "path": "configs/run_047.yaml",
+          "start_byte": 0,
+          "end_byte": 256,
+          "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n",
+          "excerpt_sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c",
+          "inspected": false
+        },
+        {
+          "source_id": "S2",
+          "chunk_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+          "path": "checkpoints/run_047.ckpt.meta.json",
+          "start_byte": 0,
+          "end_byte": 140,
+          "text": "{\n  \"run_id\": 47,\n  \"val_rmse\": 0.0521,\n  \"encoder\": \"dinov2\",\n  \"path\": \"checkpoints/run_047.pt\",\n  \"produced_by\": \"slurm/run_047.sbatch\"\n}",
+          "excerpt_sha256": "0cf9be11ff0068ae8df54d0e6c17ceb48d097f08003251768c110eaba07bdb00",
+          "inspected": true
+        },
+        {
+          "source_id": "S3",
+          "chunk_id": "README.md::d723f36093ec",
+          "path": "README.md",
+          "start_byte": 0,
+          "end_byte": 324,
+          "text": "# Frozen research corpus (demo)\n\nSnapshot of a heterogeneous experiment tree: YAML configs, Slurm scripts,\n`.out` logs, ablation CSVs, paper drafts, Python modules, checkpoint metadata.\n\nDo not edit files here by hand. Rebuild with `python -m bench.corpus.build`.\nGold answers are generated from `bench/corpus/registry.py`.\n",
+          "excerpt_sha256": "b9c71d2cd5640fcd816a9dcf793b25f0df7646a5175b0075cb39aebedd1f0cbd",
+          "inspected": false
+        },
+        {
+          "source_id": "S4",
+          "chunk_id": "logs/run_047.out::f8766aa6405e",
+          "path": "logs/run_047.out",
+          "start_byte": 0,
+          "end_byte": 176,
+          "text": "Slurm job for run 47\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0521\nfinished status=SUCCESS\nconfig=configs/run_047.yaml\n",
+          "excerpt_sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938",
+          "inspected": false
+        },
+        {
+          "source_id": "S5",
+          "chunk_id": "slurm/run_047.sbatch::8d885ef6d9bc",
+          "path": "slurm/run_047.sbatch",
+          "start_byte": 0,
+          "end_byte": 161,
+          "text": "#!/bin/bash\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n",
+          "excerpt_sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a",
+          "inspected": false
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "search_research",
+          "arguments": {
+            "query": "What checkpoint belongs to run_047.ckpt.meta.json?"
+          },
+          "status": "ok",
+          "duration_ms": 0.918,
+          "source_ids": [
+            "S1",
+            "S2",
+            "S3",
+            "S4",
+            "S5"
+          ],
+          "error": null
+        },
+        {
+          "step": 2,
+          "tool": "inspect_source",
+          "arguments": {
+            "source_id": "S2"
+          },
+          "status": "ok",
+          "duration_ms": 0.042,
+          "source_ids": [
+            "S2"
+          ],
+          "error": null
+        }
+      ],
+      "limits": {
+        "max_model_rounds": 4,
+        "max_tool_calls": 6,
+        "model_rounds": 3,
+        "tool_calls": 2
+      },
+      "citation_check": {
+        "passed": true,
+        "scope": "inspected_excerpt_references",
+        "unknown_ids": []
+      },
+      "stop_reason": "answered",
+      "notice": "Synthetic fixture; scripted demo decision model with real retrieval tools. No LLM inference or measured answer accuracy."
+    },
+    {
+      "schema_version": 1,
+      "service": "metanavt-agent",
+      "mode": "demo",
+      "model": "scripted-extractive-demo-v1",
+      "synthetic": true,
+      "status": "complete",
+      "question": "What GPU resources does run_047.sbatch request?",
+      "answer": "The inspected excerpt contains:\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00 [S1]",
+      "citations": [
+        {
+          "source_id": "S1",
+          "path": "slurm/run_047.sbatch",
+          "start_byte": 0,
+          "end_byte": 161,
+          "excerpt_sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a"
+        }
+      ],
+      "sources": [
+        {
+          "source_id": "S1",
+          "chunk_id": "slurm/run_047.sbatch::8d885ef6d9bc",
+          "path": "slurm/run_047.sbatch",
+          "start_byte": 0,
+          "end_byte": 161,
+          "text": "#!/bin/bash\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n",
+          "excerpt_sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a",
+          "inspected": true
+        },
+        {
+          "source_id": "S2",
+          "chunk_id": "configs/run_047.yaml::387c656a4708",
+          "path": "configs/run_047.yaml",
+          "start_byte": 0,
+          "end_byte": 256,
+          "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n",
+          "excerpt_sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c",
+          "inspected": false
+        },
+        {
+          "source_id": "S3",
+          "chunk_id": "logs/run_047.out::f8766aa6405e",
+          "path": "logs/run_047.out",
+          "start_byte": 0,
+          "end_byte": 176,
+          "text": "Slurm job for run 47\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0521\nfinished status=SUCCESS\nconfig=configs/run_047.yaml\n",
+          "excerpt_sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938",
+          "inspected": false
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "search_research",
+          "arguments": {
+            "query": "What GPU resources does run_047.sbatch request?"
+          },
+          "status": "ok",
+          "duration_ms": 0.704,
+          "source_ids": [
+            "S1",
+            "S2",
+            "S3"
+          ],
+          "error": null
+        },
+        {
+          "step": 2,
+          "tool": "inspect_source",
+          "arguments": {
+            "source_id": "S1"
+          },
+          "status": "ok",
+          "duration_ms": 0.034,
+          "source_ids": [
+            "S1"
+          ],
+          "error": null
+        }
+      ],
+      "limits": {
+        "max_model_rounds": 4,
+        "max_tool_calls": 6,
+        "model_rounds": 3,
+        "tool_calls": 2
+      },
+      "citation_check": {
+        "passed": true,
+        "scope": "inspected_excerpt_references",
+        "unknown_ids": []
+      },
+      "stop_reason": "answered",
+      "notice": "Synthetic fixture; scripted demo decision model with real retrieval tools. No LLM inference or measured answer accuracy."
+    }
+  ]
+}

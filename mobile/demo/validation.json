@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "verified_at_utc": "2026-10-08T09:02:36.997020+00:00",
+  "scope": "Frontend unit checks, Chromium mobile-viewport checks, and actual synthetic backend integration. This receipt does not verify native devices or real-model answer/match accuracy.",
+  "runtime": {
+    "python": "3.11.15",
+    "node": "v20.9.0",
+    "chrome": "Google Chrome 150.0.7871.46",
+    "vitest": "4.1.11",
+    "playwright": "1.56.1"
+  },
+  "checks": [
+    {
+      "name": "frontend_unit",
+      "command": "npm test",
+      "working_directory": "mobile",
+      "passed": 51,
+      "failed": 0,
+      "files": 5,
+      "coverage": [
+        "UTF-8 source fingerprints and physical spans",
+        "Response schema/probability validation",
+        "Research agent search, inspection, citations and execution limits",
+        "Actual companion HTTP response capture compatibility",
+        "Missing evidence abstention",
+        "URL and transport boundaries",
+        "Settings migration and session-token exclusion"
+      ]
+    },
+    {
+      "name": "mobile_browser_features",
+      "command": "npm run test:e2e -- e2e/companion.spec.ts",
+      "working_directory": "mobile",
+      "passed": 18,
+      "failed": 0,
+      "projects": [
+        "Chromium 390x844 touch/mobile viewport",
+        "Chromium 412x915 touch/mobile viewport"
+      ],
+      "coverage": [
+        "Research source inspection, duplicate-save prevention and persistent library",
+        "Soccer probabilities, xG and eleven-call recorded trace",
+        "Operator-review pause with forecast hidden",
+        "Scripted research agent, inspected citations, saved evidence and no-source abstention",
+        "Both session tokens absent from device storage",
+        "Malformed service responses clear evidence; corrupted storage recovery"
+      ]
+    },
+    {
+      "name": "actual_backend_browser_integration",
+      "command": "python e2e/run-connected.py --soccer-repo /path/to/Agentic-Soccer-Match-Prediction-MCP --meta-python /path/to/meta-venv/bin/python --soccer-python /path/to/soccer-venv/bin/python",
+      "working_directory": "mobile",
+      "passed": 4,
+      "failed": 0,
+      "setup": [
+        "MetaNavT: python -m pip install -e \".[eval,mobile]\"",
+        "Soccer: python -m pip install -e \".[dev]\"",
+        "mobile: npm ci; Chrome or Playwright Chromium installed"
+      ],
+      "research_agent_scope": "Actual HTTP companion demo with request mode rewritten by test harness; scripted decisions, actual retrieval/inspection tools, no LLM inference",
+      "soccer_scope": "Live adapter forwards to actual deterministic in-process workflow and seeded model trained on synthetic data; no paid providers or real match accuracy claims.",
+      "all_owned_python_servers_stopped": true,
+      "source_unchanged_during_run": true
+    },
+    {
+      "name": "metanavt_backend_contract",
+      "command": "python -m pytest tests/api/test_mobile_demo.py tests/api/test_retrieve_contract.py -q",
+      "working_directory": "MetaNavT",
+      "setup": "python -m pip install -e \".[eval,mobile,app]\"",
+      "passed": 28,
+      "failed": 0,
+      "scope": "Mobile fixture API and main API routing/error/happy-path contracts; no live Postgres or downloaded embedding models."
+    },
+    {
+      "name": "soccer_mobile_adapter_contract",
+      "command": "python -m pytest tests/test_mobile.py -q",
+      "working_directory": "Agentic-Soccer-Match-Prediction-MCP",
+      "setup": "python -m pip install -e \".[dev]\"",
+      "passed": 29,
+      "failed": 0
+    },
+    {
+      "name": "dependency_checks",
+      "commands": [
+        "npm audit --audit-level=moderate --json",
+        "MetaNavT venv: python -m pip check",
+        "Soccer venv: python -m pip check"
+      ],
+      "npm_reported_vulnerabilities": 0,
+      "python_broken_requirements": 0
+    }
+  ],
+  "frontend_files_sha256": {
+    "e2e/companion.spec.ts": "426b5e8bdfdd65b1304bb7cc463d7d28202ca0d063340b946386821e05a6f815",
+    "e2e/connected.spec.ts": "26f65cb1843907e70dbe77b6f8f4c08b32688c056a71fe7f452a2e72e6dd26ee",
+    "e2e/run-connected.py": "ad9eb8f056bb34bd89cca866d9bb7c104ec4540ac2d91d1a7b1d393c94d723a0",
+    "package-lock.json": "8b8895f3dd0dd6d40f75edf5e11b2e438221b1f7c3ae223ea0abacf2d3132239",
+    "package.json": "a8bf43ca583f9e25aba72d51b4963c606ca1422808ac070e89d38970f1d88c26",
+    "playwright.config.ts": "bdc95ad4fc40051f3c48fff0d4475b66086237807508b44c444ef41854c6ea0e",
+    "src/App.tsx": "646a7bb4056d80f4145cb37680f5befb01bac96ca5e391b87cab0ef1f94b33c2",
+    "src/components/ResearchAgent.tsx": "94e2916f9f12a92238043d6086e973ad3b8df4e51fb20efc7dde40ab96e4f59c",
+    "src/fixtures/meta.json": "f8ef816ceb174cc3c3241b95744cabd7ad74368b6421824b8b498ce79a90a8f8",
+    "src/fixtures/soccer.json": "feac2220520f295c255533d45920dbef97aeaddf4ecbd36efe09727022f4f5fb",
+    "src/lib/agent.test.ts": "aa9dc19f8073b2a2112f619111877749771df2d3852731b9dba0b07eb12d1e70",
+    "src/lib/agent.ts": "56da272319f03eabfb0ab83054c5968b9d5807ae425d15d9d9bc7658e3cbf32e",
+    "src/lib/client.test.ts": "c3f954ff7381e6a1060e778d87cb0ca6165d1727fcf4f4051e5a70e086c29ea0",
+    "src/lib/client.ts": "4756b298f6987dbbcc7d055652dd586c5a9a0c455802d17ad1c5f2ce24c43de2",
+    "src/lib/contracts.test.ts": "315651c5182791f5051d0af13b4c85bc525ba225419d51f9f43e5e26381693ba",
+    "src/lib/contracts.ts": "699e32a2d97457ce52630493c6b35f6fb7ca30f843e09bcb277ee7041e09d492",
+    "src/lib/demo.test.ts": "ad6702d29d9e17ee20ae2f9bbcf0ffb369834fedb2b819d7a108210750f9d1b8",
+    "src/lib/demo.ts": "97fd1cc7984f63eaadd98aea5bd6440c8b2121a2a0059365ec2be57f02b1565b",
+    "src/lib/storage.test.ts": "9a60841d1a5b26ef9d293255569d9470f41a7a863302a663560f90bb0029e189",
+    "src/lib/storage.ts": "8538c0391fefbf5436c5910647a03e3bb989bf383916030d3f02d524d9257721",
+    "src/main.tsx": "c38f163cbf18a0510005035e310ecea474d345688ad4dec68523d05fb4d1262a",
+    "src/styles.css": "05b80f0b46ef2575713e144c7ca7dddcf2a5faba5ecab84ea606ec9163121986",
+    "vite.config.ts": "51231a655a29f040024bc4218ba47d8ae408dfd5b209c4c92a38e00fb34aae60"
+  },
+  "recorded_soccer_fixture": {
+    "base_commit": "f5699deca4b4be08297293fa1770929f1cd168bc",
+    "generated_at_utc": "2026-10-07T12:00:00+00:00",
+    "sha256": "feac2220520f295c255533d45920dbef97aeaddf4ecbd36efe09727022f4f5fb",
+    "notice": "Bundled offline reports retain the revision that generated them. Actual connected integration uses the current source revision recorded separately below."
+  },
+  "connected_integration": {
+    "started_at_utc": "2026-10-08T08:58:31.060724+00:00",
+    "synthetic_data": true,
+    "gateway_model": "v0-mobile-demo",
+    "services": {
+      "metanavt": {
+        "status": "ok",
+        "mode": "demo",
+        "synthetic": true,
+        "n_nodes": 5,
+        "n_files": 5,
+        "embedding_provider": "hash-demo-fixture",
+        "retrieval_mode": "mobile_demo_hash",
+        "bm25_backend": "python_bm25_demo",
+        "reranker_loaded": false,
+        "reranker": {
+          "configured": false,
+          "loaded": false
+        },
+        "degraded": [],
+        "starter_queries": [
+          "What is the learning rate in run_047.yaml?",
+          "What checkpoint belongs to run_047.ckpt.meta.json?",
+          "What GPU resources does run_047.sbatch request?"
+        ],
+        "notice": "Synthetic read-only fixture. Connect main:app for your indexed research files."
+      },
+      "research_agent": {
+        "service": "metanavt-agent",
+        "demo_ready": true,
+        "live_configured": false,
+        "live_readiness": "not_probed",
+        "demo_model": "scripted-extractive-demo-v1",
+        "live_model": null,
+        "notice": "Configured does not mean that the model is installed, supports tools, or is ready. Live capability is validated by an actual request."
+      },
+      "soccer_gateway": {
+        "ok": true,
+        "model_version": "v0-mobile-demo"
+      },
+      "soccer_adapter": {
+        "ok": true,
+        "service": "soccer",
+        "schema_version": "1.0",
+        "demo_available": true,
+        "live_configured": true,
+        "upstream_reachability": "not_probed",
+        "fixture_sha256": "feac2220520f295c255533d45920dbef97aeaddf4ecbd36efe09727022f4f5fb",
+        "capabilities": [
+          "prediction",
+          "probabilities",
+          "scorelines",
+          "agent_trace"
+        ]
+      }
+    },
+    "browser_exit_code": 0,
+    "browser_scope": "Chromium mobile viewports; not native device testing",
+    "research_agent_scope": "Actual HTTP companion demo with request mode rewritten by test harness; scripted decisions, actual retrieval/inspection tools, no LLM inference",
+    "source_before": {
+      "metanavt": {
+        "commit": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+        "files_sha256": {
+          "app/mobile/demo.py": "9af7139468b9538b74690acc58fc68fada32160e7b62493a55e63857986d98eb",
+          "app/api/routers/retrieve.py": "a20bb9cd832ee71371aea24a8105888b92b8f7ce015e98600863b9d4bd757fa3",
+          "app/agent/companion.py": "f81461f80b32399599b81a4c43a69a0d84a5dd9be66c01e2048d0b8a94d69d7a",
+          "app/agent/companion_api.py": "6254e2b98e847becaafa66dbcac7703fd015e35f487f67cf87d1242b22ed97c5",
+          "mobile/src/App.tsx": "646a7bb4056d80f4145cb37680f5befb01bac96ca5e391b87cab0ef1f94b33c2",
+          "mobile/src/components/ResearchAgent.tsx": "94e2916f9f12a92238043d6086e973ad3b8df4e51fb20efc7dde40ab96e4f59c",
+          "mobile/src/lib/agent.ts": "56da272319f03eabfb0ab83054c5968b9d5807ae425d15d9d9bc7658e3cbf32e",
+          "mobile/src/lib/client.ts": "4756b298f6987dbbcc7d055652dd586c5a9a0c455802d17ad1c5f2ce24c43de2",
+          "mobile/src/lib/contracts.ts": "699e32a2d97457ce52630493c6b35f6fb7ca30f843e09bcb277ee7041e09d492",
+          "mobile/src/fixtures/meta.json": "f8ef816ceb174cc3c3241b95744cabd7ad74368b6421824b8b498ce79a90a8f8",
+          "mobile/src/fixtures/soccer.json": "feac2220520f295c255533d45920dbef97aeaddf4ecbd36efe09727022f4f5fb",
+          "doc/research-agent-demo.json": "ee931b3873a43e76f0c590f779fdb31f621e056607d838f0754c75cabef6de93",
+          "mobile/e2e/connected.spec.ts": "26f65cb1843907e70dbe77b6f8f4c08b32688c056a71fe7f452a2e72e6dd26ee",
+          "mobile/e2e/run-connected.py": "ad9eb8f056bb34bd89cca866d9bb7c104ec4540ac2d91d1a7b1d393c94d723a0"
+        }
+      },
+      "soccer": {
+        "commit": "8f2406702315d4e8915d9399e46f8aba0f629646",
+        "files_sha256": {
+          "gateway/app.py": "34b4f9f6270433938bbb3cd6bf8b83e7a33f5d0c8db83d28e5dd183473fa1fae",
+          "gateway/mobile.py": "288a646d2e96dbe8b62a2ac4c2a3d6ab488e2a1a41a49f9ab80677465159be72",
+          "agent/graph.py": "bd8a5499f7447a72869a5b18eabb96141e7f2cd71ed6540cb10820b1737d91b9",
+          "agent/parse.py": "4f15d56596a95ad5d2ddc064e10e6756a53d42c133d72792f937fa852d14e38d",
+          "agent/tooling.py": "6110a0dc74ceeee445d713f252a10c537b076febcb1e15e9053bece0672618cc",
+          "src/models/predict.py": "a143a96079f2c49578c1f74a8a1253c03db0bf3073faac1fbc662a2c18c67ee6",
+          "scripts/build_demo_artifacts.py": "0907d6f0e2e0a58b5e5e276ed88bd44e2a1511bd220403b777676e9deee27ba4"
+        }
+      }
+    },
+    "artifact_build": {
+      "method": "scripts.build_demo_artifacts.build(version='v0-mobile-demo', seed=42)",
+      "scope": "synthetic training data; no real-match accuracy claim",
+      "files_sha256": {
+        "v0-mobile-demo/card.json": "7d69708e364315746576d6d898bf44a2d8741987e3f58159723b7d5fcaf9398c",
+        "v0-mobile-demo/outcome.ubj": "a4208314b5f8e6c8fa60b5af7d156d6b38e5e03854941534691ac8361fae3bbd",
+        "v0-mobile-demo/outcome_head.pkl": "06bb0fa970123037b24bfb6c90e3b751830b0e638c8d50d9188556a0da4e224b",
+        "v0-mobile-demo/outcome_meta.json": "dc1452748a92d9fcd1a91e5e25ef295e97570d6ea877effce61d874a0968f1ee",
+        "v0-mobile-demo/timing.json": "69940f9171d8b3868860f33bf925818c45beb0b84de69501d5ba95bb64f587d5",
+        "v0-mobile-demo/xg_away.ubj": "c989f234828c875872e1a20c9c27b2803297cd6f01d65ea99846d5a15aa75916",
+        "v0-mobile-demo/xg_home.ubj": "0291de7dc3ad05f8affa2144db627f75e834f526449dc2660a9d5be2511a6537",
+        "v0-mobile-demo/xg_meta.json": "f224ed657d884f6863ea7950c21bd0c61add762a183428bedc3e9e052a4d8353"
+      }
+    },
+    "all_test_servers_stopped": true,
+    "source_after": {
+      "metanavt": {
+        "commit": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+        "files_sha256": {
+          "app/mobile/demo.py": "9af7139468b9538b74690acc58fc68fada32160e7b62493a55e63857986d98eb",
+          "app/api/routers/retrieve.py": "a20bb9cd832ee71371aea24a8105888b92b8f7ce015e98600863b9d4bd757fa3",
+          "app/agent/companion.py": "f81461f80b32399599b81a4c43a69a0d84a5dd9be66c01e2048d0b8a94d69d7a",
+          "app/agent/companion_api.py": "6254e2b98e847becaafa66dbcac7703fd015e35f487f67cf87d1242b22ed97c5",
+          "mobile/src/App.tsx": "646a7bb4056d80f4145cb37680f5befb01bac96ca5e391b87cab0ef1f94b33c2",
+          "mobile/src/components/ResearchAgent.tsx": "94e2916f9f12a92238043d6086e973ad3b8df4e51fb20efc7dde40ab96e4f59c",
+          "mobile/src/lib/agent.ts": "56da272319f03eabfb0ab83054c5968b9d5807ae425d15d9d9bc7658e3cbf32e",
+          "mobile/src/lib/client.ts": "4756b298f6987dbbcc7d055652dd586c5a9a0c455802d17ad1c5f2ce24c43de2",
+          "mobile/src/lib/contracts.ts": "699e32a2d97457ce52630493c6b35f6fb7ca30f843e09bcb277ee7041e09d492",
+          "mobile/src/fixtures/meta.json": "f8ef816ceb174cc3c3241b95744cabd7ad74368b6421824b8b498ce79a90a8f8",
+          "mobile/src/fixtures/soccer.json": "feac2220520f295c255533d45920dbef97aeaddf4ecbd36efe09727022f4f5fb",
+          "doc/research-agent-demo.json": "ee931b3873a43e76f0c590f779fdb31f621e056607d838f0754c75cabef6de93",
+          "mobile/e2e/connected.spec.ts": "26f65cb1843907e70dbe77b6f8f4c08b32688c056a71fe7f452a2e72e6dd26ee",
+          "mobile/e2e/run-connected.py": "ad9eb8f056bb34bd89cca866d9bb7c104ec4540ac2d91d1a7b1d393c94d723a0"
+        }
+      },
+      "soccer": {
+        "commit": "8f2406702315d4e8915d9399e46f8aba0f629646",
+        "files_sha256": {
+          "gateway/app.py": "34b4f9f6270433938bbb3cd6bf8b83e7a33f5d0c8db83d28e5dd183473fa1fae",
+          "gateway/mobile.py": "288a646d2e96dbe8b62a2ac4c2a3d6ab488e2a1a41a49f9ab80677465159be72",
+          "agent/graph.py": "bd8a5499f7447a72869a5b18eabb96141e7f2cd71ed6540cb10820b1737d91b9",
+          "agent/parse.py": "4f15d56596a95ad5d2ddc064e10e6756a53d42c133d72792f937fa852d14e38d",
+          "agent/tooling.py": "6110a0dc74ceeee445d713f252a10c537b076febcb1e15e9053bece0672618cc",
+          "src/models/predict.py": "a143a96079f2c49578c1f74a8a1253c03db0bf3073faac1fbc662a2c18c67ee6",
+          "scripts/build_demo_artifacts.py": "0907d6f0e2e0a58b5e5e276ed88bd44e2a1511bd220403b777676e9deee27ba4"
+        }
+      }
+    },
+    "source_unchanged_during_run": true,
+    "finished_at_utc": "2026-10-08T09:00:01.263734+00:00"
+  },
+  "demo_capture": {
+    "captured_at": "2026-10-08T08:48:13.638Z",
+    "scope": "Actual app in Chromium at a 390\u00d7844 mobile viewport; not a native-device recording.",
+    "mode": "Bundled offline synthetic fixtures",
+    "steps": [
+      "Research search",
+      "Inspect source and byte span",
+      "Save source",
+      "Match probabilities and expected goals",
+      "Recorded agent tool trace",
+      "Operator-review pause",
+      "Persistent saved library",
+      "Connection settings",
+      "Read-only scripted research agent and cited excerpts"
+    ],
+    "page_errors": []
+  }
+}

@@ -1,0 +1,117 @@
+name: Agent Field mobile app
+
+on:
+  push:
+    branches: [main]
+    paths: ["mobile/**", ".github/workflows/mobile-app.yml", "!mobile/demo/**", "!mobile/README.md", "!mobile/RESUME.md", "!mobile/THIRD_PARTY_NOTICES.md"]
+  pull_request:
+    paths: ["mobile/**", ".github/workflows/mobile-app.yml", "!mobile/demo/**", "!mobile/README.md", "!mobile/RESUME.md", "!mobile/THIRD_PARTY_NOTICES.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-field-browser-tests
+          path: |
+            mobile/playwright-report/
+            mobile/test-results/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-field-web-preview
+          path: mobile/dist/
+
+  android:
+    needs: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Build debug APK
+        run: ./gradlew --no-daemon assembleDebug
+        working-directory: mobile/android
+      - name: Record APK checksum
+        run: sha256sum android/app/build/outputs/apk/debug/app-debug.apk > android/app/build/outputs/apk/debug/SHA256SUMS.txt
+      - name: Verify APK signature
+        run: '"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose android/app/build/outputs/apk/debug/app-debug.apk'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-field-android-debug
+          path: |
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            mobile/android/app/build/outputs/apk/debug/SHA256SUMS.txt
+
+  ios-simulator:
+    needs: web
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: xcodebuild -version
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+      - name: Build unsigned iOS simulator app
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Debug -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath ios/DerivedData
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Archive simulator app with executable permissions
+        run: ditto -c -k --sequesterRsrc --keepParent ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app agent-field-ios-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-field-ios-simulator
+          path: mobile/agent-field-ios-simulator.zip

@@ -53,6 +53,54 @@ intervals, and the number of gold questions behind each category.
 [Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) ·
 [Benchmark artifact](bench/results/latest.json) · [Run the CPU benchmark](#cpu-benchmark) · [Run the application](#run-it) · [Architecture](#how-the-app-is-put-together)
 
+### Read-only research agents
+
+The [research companion](doc/research-companion.md) exposes search and source-inspection
+tools through HTTP and MCP. Agent Field can ask this service for cited research evidence
+and open its tool trace. Demo mode is explicitly scripted; live mode uses a server-hosted
+Ollama tool-calling model. Requests are bounded and mutations are unavailable.
+
+### Android and iOS companion backend
+
+**Agent Field** brings research retrieval and Agentic Soccer into one native companion.
+[Feature demo and setup](mobile/README.md) · [Android and iPhone source](mobile/)
+
+
+The [companion app](mobile/) searches MetaNavT and inspects retrieved source
+paths, byte ranges, stage scores and server health. It uses the existing
+`GET /health` and `POST /api/retrieve/` contracts in live mode. Retrieval results
+are source excerpts (up to 800 characters), rather than generated answers.
+
+A small read-only server demonstrates the same contract without Postgres,
+LlamaIndex or model downloads:
+
+```bash
+python -m pip install -e ".[mobile]"
+MOBILE_DEMO_ORIGINS=http://localhost:8081,http://127.0.0.1:8081 \
+  python -m uvicorn app.mobile.demo:app --host 127.0.0.1 --port 8000
+# In the app's connection settings, set the MetaNavT URL to http://localhost:8000.
+```
+
+This server runs actual local BM25/hash retrieval over five byte-identical
+files from the existing **synthetic benchmark fixture**. `/health` reports
+`mode: demo`, and responses report `retrieval_mode: mobile_demo_hash` and
+`embedding_provider: hash-demo-fixture`. It exposes health and search only.
+The [fixture provenance](app/mobile/fixture-provenance.json) records the source
+commit and every file hash; [captured HTTP examples](app/mobile/demo-response.json)
+are available for offline demo validation. Their timing values describe one
+fixture capture, not phone performance or a production benchmark.
+
+```bash
+# Capture fresh real fixture responses through the shared HTTP router.
+python -m app.mobile.export --output /tmp/metanavt-mobile-response.json
+```
+
+To search your indexed research corpus, connect the app to the normal
+`main:app` service described under [Run it](#run-it). Native connections require a reachable HTTPS service URL; a physical phone's
+localhost refers to the phone. HTTP loopback URLs are available only in the web preview. The companion's bundled offline mode remains visibly labeled
+as a fixture replay. The web demo allows only origins configured with
+`MOBILE_DEMO_ORIGINS`.
+
 ### Measured neural HTTP service
 
 The original FastAPI/PostgreSQL 16/pgvector service now has explicit device
