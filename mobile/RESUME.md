@@ -3,18 +3,21 @@
 Use these as engineering statements; adapt them to your actual contribution and
 the validation receipts linked from the app README.
 
-- Built a React/Capacitor companion integrating MetaNavT research retrieval and
-  Agentic Soccer inference, with Android/iOS native projects, persistent source
-  notes, match reports, and visible agent tool traces.
-- Implemented a read-only research-agent interface with search and excerpt
-  inspection tools, bounded execution, source fingerprints, and citation checks;
-  kept model/provider credentials on the server and access tokens out of device storage.
-- Validated response contracts, failure states, approval pauses, and saved-item
-  persistence through unit checks and browser flows at two mobile viewport sizes;
-  compiled and verified the Android debug package.
+- Built a React/Capacitor Android/iOS companion integrating **2 AI project
+  backends**, with persistent research notes, source inspection, match reports,
+  and visible agent tool traces.
+- Implemented an MCP research-agent interface bounded to **4 model rounds and
+  6 tool calls**, with excerpt fingerprints and checked source references;
+  validated behavior through **36 agent/MCP tests**, including SDK stdio calls.
+- Passed **51 frontend unit checks and 22 browser checks** across two mobile
+  viewport sizes, covering response contracts, failure states, approval pauses,
+  and saved-item persistence; compiled a signed Android debug APK and an unsigned
+  iOS simulator app.
 
-The receipts provide exact passing test counts and build hashes. Add an iOS
-simulator build claim only after its macOS CI job passes. Do not claim App Store
+Evidence: [app checks](demo/validation.json), [agent/MCP checks](../doc/research-agent-validation.json),
+[native builds](demo/native-validation.json), and [passing native CI](https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391).
+The 22 browser checks comprise 18 feature/error cases and 4 actual-server
+integration cases, all in Chromium mobile viewports. Do not claim App Store
 distribution, physical-device testing, real-match accuracy, or robotics gains
 from these synthetic examples. A working provider connector is distinct from a
 measured live-model evaluation; the demo uses a labeled scripted policy.

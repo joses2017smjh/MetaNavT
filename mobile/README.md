@@ -6,7 +6,7 @@ The same React interface is packaged in native Capacitor projects for both platf
 
 ## Try the features
 
-[Download the Android debug app](https://github.com/joses2017smjh/MetaNavT/releases/download/agent-field-v0.1.0/agent-field-0.1.0-android-debug.apk) · [Release and recordings](https://github.com/joses2017smjh/MetaNavT/releases/tag/agent-field-v0.1.0) · [Supported resume statements](RESUME.md)
+[Android debug app](https://github.com/joses2017smjh/MetaNavT/releases/download/agent-field-v0.1.0/agent-field-0.1.0-android-debug.apk) · [iPhone simulator app](https://github.com/joses2017smjh/MetaNavT/releases/download/agent-field-v0.1.0/agent-field-0.1.0-ios-simulator.zip) · [Release and recordings](https://github.com/joses2017smjh/MetaNavT/releases/tag/agent-field-v0.1.0) · [Supported resume statements](RESUME.md)
 
 ![Agent Field feature demo](demo/feature-demo.gif)
 
@@ -118,8 +118,17 @@ Select the **App** scheme and an iPhone simulator. For a physical iPhone, select
 Apple development team in Signing & Capabilities and use a unique bundle identifier
 if needed. The repository uses `com.josesanchez.agentfield`.
 
-The macOS CI job builds an unsigned iOS simulator app. An App Store/TestFlight package
-requires Apple signing and account access; a simulator build does not provide an installable IPA.
+The macOS CI job passed an unsigned iOS simulator build. To try the release on a
+Mac, download and unzip `agent-field-0.1.0-ios-simulator.zip`, open an iPhone in
+Xcode's Simulator, then run from the folder containing `App.app`:
+
+```bash
+xcrun simctl install booted App.app
+xcrun simctl launch booted com.josesanchez.agentfield
+```
+
+An App Store/TestFlight package or physical iPhone installation requires Apple
+signing and account access; the simulator app is not an installable IPA.
 
 ## Reproduce the recording
 

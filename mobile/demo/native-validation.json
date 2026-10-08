@@ -72,6 +72,72 @@
       "url": "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip",
       "sha256": "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583",
       "sha256_source": "https://developer.android.com/studio#command-tools"
+    },
+    "hosted_ci": {
+      "schema_version": 1,
+      "recorded_at_utc": "2026-10-08T09:27:47.417946+00:00",
+      "repository": "joses2017smjh/MetaNavT",
+      "run_id": 37754858391,
+      "run_url": "https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391",
+      "head_sha": "7997252f4491bd1799e7f5f1ab64a1c92c9bf043",
+      "job_id": 113240177460,
+      "job_url": "https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391/job/113240177460",
+      "job_conclusion": "success",
+      "started_at": "2026-10-08T09:19:48Z",
+      "completed_at": "2026-10-08T09:25:34Z",
+      "apk": {
+        "artifact_name": "agent-field-android-debug",
+        "artifact_id": 11539794420,
+        "size_bytes": 4213758,
+        "sha256": "abfe033c34d3cf9680be47175a23e1eb4b900f7e3d0d5a19ec32044cf4c3bb77",
+        "checksum_matches_uploaded_SHA256SUMS": true,
+        "signature_verification": [
+          "Verifies",
+          "Verified using v1 scheme (JAR signing): true",
+          "Verified using v2 scheme (APK Signature Scheme v2): true",
+          "Verified using v3 scheme (APK Signature Scheme v3): false",
+          "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+          "Verified using v4 scheme (APK Signature Scheme v4): false",
+          "Verified for SourceStamp: false",
+          "Number of signers: 1"
+        ],
+        "package_metadata": [
+          "package: name='com.josesanchez.agentfield' versionCode='1' versionName='0.1.0' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'",
+          "sdkVersion:'23'",
+          "targetSdkVersion:'35'",
+          "launchable-activity: name='com.josesanchez.agentfield.MainActivity'  label='Agent Field' icon=''"
+        ],
+        "v1_unsigned_metadata_warning_count": 37,
+        "full_verification_log_url": "https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391/job/113240177460"
+      },
+      "same_run_web_artifact": {
+        "artifact_name": "agent-field-web-preview",
+        "file_count": 12,
+        "byte_identical_to_APK_bundled_assets": true,
+        "sha256": {
+          "assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2": "a5d38fe99f930275684999b462c7123faa063d9e44e73b4b241723d884aa0f49",
+          "assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2": "9fea608a947e67020c33cad9a6fe3d60c54119dfb8cff87768a8117a15ed7543",
+          "assets/index-Dw7oiuVs.css": "9a0480726c848a97b73f2b34ced48c6b411163310ec8804c9f573b8da3ccc038",
+          "assets/index-mwYhoBeh.js": "0d356903348025c48aec89943cf6c504bf17a87036ce2ab4ad705790483d3b6a",
+          "assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2": "c268b459a9329e59fecf39a17618efd44c71735532048d60b12aab76a8c14914",
+          "assets/manrope-greek-wght-normal-DL7QRZyv.woff2": "2fb2e8cbfd52ae46179a8b6024eb162f1f9c6de3d22d6e3a30d8f395de7220be",
+          "assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2": "3911b66d9f2e005a4b989223405d0e5032619c668597ba467cc76a23c8fffcfb",
+          "assets/manrope-latin-wght-normal-DHIcAJRg.woff2": "a30ddcd349703aff7464c34bef3fffdff405ee50c113440d7c8693c02d210972",
+          "assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2": "6bbb044ab420e07edb0a3042d2eb314b85e83a0182e945a15ab3b9092668dfd5",
+          "assets/web-BdY5-gsT.js": "e20523594f55199ef237a8c11af2520965da7b6122fe83f280cb5009392220c5",
+          "icon.svg": "e84d0e1b59b47c92d0f313fadb447f0627c4be64a41d680be6c03dae43407675",
+          "index.html": "5aff8e0b5dc0a92772c8519e39c8af9fe00172938656f74a85ea74f8309fc446"
+        }
+      },
+      "research_agent_ui_in_packaged_javascript": true,
+      "compiled_on_github_hosted_ubuntu": true,
+      "native_runtime_tested": false,
+      "local_published_apk_sha256": "3f39b76a82546819a1c56cb671757290af1f7cc83d1d5fa1c7aad2e5c15fc855",
+      "scope": "Independent hosted debug compilation, APK signature verification, and packaged web asset validation. No emulator or physical-device execution.",
+      "gradle_build_summary": [
+        "BUILD SUCCESSFUL in 1m 24s",
+        "112 actionable tasks: 112 executed"
+      ]
     }
   },
   "ios": {
@@ -80,7 +146,140 @@
     "minimum_ios": "14.0",
     "build_verified_locally": false,
     "native_runtime_tested": false,
-    "scope": "Native source synced on Linux. Unsigned simulator build configured in mobile-app.yml on macOS; no local Xcode or App Store signing."
+    "scope": "Unsigned universal arm64/x86_64 iOS simulator app compiled by Xcode 16.4 on macOS CI and statically verified; no simulator execution, physical-device testing, or App Store signing.",
+    "ci_build_verified": true,
+    "hosted_ci": {
+      "schema_version": 1,
+      "verified_at_utc": "2026-10-08T09:28:10.740984+00:00",
+      "scope": "Actual macOS CI unsigned iOS Simulator build and static artifact verification; no physical-iPhone execution or App Store signing claimed.",
+      "repository": "joses2017smjh/MetaNavT",
+      "workflow_run_id": 37754858391,
+      "workflow_url": "https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391",
+      "source_sha": "7997252f4491bd1799e7f5f1ab64a1c92c9bf043",
+      "job_id": 113240177395,
+      "job_url": "https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391/job/113240177395",
+      "job_conclusion": "success",
+      "hosted_web_checks": {
+        "job_id": 113237118687,
+        "job_url": "https://github.com/joses2017smjh/MetaNavT/actions/runs/37754858391/job/113237118687",
+        "job_conclusion": "success",
+        "unit_tests_passed": 51,
+        "browser_tests_passed": 18,
+        "browser_tests_skipped": 4,
+        "skipped_scope": "Four optional actual-server cases require configured test backends; those four cases passed separately in mobile/demo/validation.json.",
+        "log_sha256": "ada82bdc9513d68e8ebcce79cc7679d97dca4f1b30c1bc3f388ece14d9992760"
+      },
+      "xcode_version": "16.4",
+      "xcode_build_version": "16F6",
+      "build_command": "xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build",
+      "archive_method": "ditto -c -k --sequesterRsrc --keepParent",
+      "archive": {
+        "filename": "agent-field-ios-simulator.zip",
+        "bytes": 1572043,
+        "sha256": "a00c3f3150dae7198ab3e9cc663f9e6f74b644496e39ac2b5a0ac619ea171536",
+        "crc_verified": true
+      },
+      "bundle": {
+        "identifier": "com.josesanchez.agentfield",
+        "display_name": "Agent Field",
+        "bundle_name": "App",
+        "version": "0.1.0",
+        "build_number": "1",
+        "minimum_os_version": "14.0",
+        "executable": "App",
+        "executable_bytes": 105232,
+        "executable_sha256": "83566f8841ea1e4e0721d30d2c65485fad0f52d9fb138d125785f5a5b64f2b75",
+        "zip_executable_mode": "0o755",
+        "owner_execute_permission_preserved": true,
+        "mach_o_slices": [
+          {
+            "architecture": "x86_64",
+            "cpu_type": 16777223,
+            "filetype": "MH_EXECUTE",
+            "build_platform": "iOS Simulator",
+            "build_platform_id": 7
+          },
+          {
+            "architecture": "arm64",
+            "cpu_type": 16777228,
+            "filetype": "MH_EXECUTE",
+            "build_platform": "iOS Simulator",
+            "build_platform_id": 7
+          }
+        ]
+      },
+      "web_preview": {
+        "artifact_name": "agent-field-web-preview",
+        "source_run_id": 37754858391,
+        "files_compared_byte_for_byte": 12,
+        "files": {
+          "assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2": {
+            "bytes": 18228,
+            "sha256": "a5d38fe99f930275684999b462c7123faa063d9e44e73b4b241723d884aa0f49"
+          },
+          "assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2": {
+            "bytes": 36932,
+            "sha256": "9fea608a947e67020c33cad9a6fe3d60c54119dfb8cff87768a8117a15ed7543"
+          },
+          "assets/index-Dw7oiuVs.css": {
+            "bytes": 28616,
+            "sha256": "9a0480726c848a97b73f2b34ced48c6b411163310ec8804c9f573b8da3ccc038"
+          },
+          "assets/index-mwYhoBeh.js": {
+            "bytes": 335143,
+            "sha256": "0d356903348025c48aec89943cf6c504bf17a87036ce2ab4ad705790483d3b6a"
+          },
+          "assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2": {
+            "bytes": 14500,
+            "sha256": "c268b459a9329e59fecf39a17618efd44c71735532048d60b12aab76a8c14914"
+          },
+          "assets/manrope-greek-wght-normal-DL7QRZyv.woff2": {
+            "bytes": 9444,
+            "sha256": "2fb2e8cbfd52ae46179a8b6024eb162f1f9c6de3d22d6e3a30d8f395de7220be"
+          },
+          "assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2": {
+            "bytes": 15120,
+            "sha256": "3911b66d9f2e005a4b989223405d0e5032619c668597ba467cc76a23c8fffcfb"
+          },
+          "assets/manrope-latin-wght-normal-DHIcAJRg.woff2": {
+            "bytes": 24836,
+            "sha256": "a30ddcd349703aff7464c34bef3fffdff405ee50c113440d7c8693c02d210972"
+          },
+          "assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2": {
+            "bytes": 8520,
+            "sha256": "6bbb044ab420e07edb0a3042d2eb314b85e83a0182e945a15ab3b9092668dfd5"
+          },
+          "assets/web-BdY5-gsT.js": {
+            "bytes": 361,
+            "sha256": "e20523594f55199ef237a8c11af2520965da7b6122fe83f280cb5009392220c5"
+          },
+          "icon.svg": {
+            "bytes": 315,
+            "sha256": "e84d0e1b59b47c92d0f313fadb447f0627c4be64a41d680be6c03dae43407675"
+          },
+          "index.html": {
+            "bytes": 632,
+            "sha256": "5aff8e0b5dc0a92772c8519e39c8af9fe00172938656f74a85ea74f8309fc446"
+          }
+        },
+        "native_generated_extra_files": [
+          "cordova.js",
+          "cordova_plugins.js"
+        ]
+      },
+      "research_agent_bundle_markers_verified": [
+        "metanavt-agent",
+        "/agent/ask",
+        "scripted-browser-demo",
+        "Ask agent about this question"
+      ]
+    },
+    "release_artifact": {
+      "filename": "agent-field-0.1.0-ios-simulator.zip",
+      "size_bytes": 1572043,
+      "sha256": "a00c3f3150dae7198ab3e9cc663f9e6f74b644496e39ac2b5a0ac619ea171536",
+      "url": "https://github.com/joses2017smjh/MetaNavT/releases/download/agent-field-v0.1.0/agent-field-0.1.0-ios-simulator.zip"
+    }
   },
   "capacitor_version": "7.6.9",
   "source_sha256": {
@@ -106,5 +305,6 @@
     "assets/web-BdY5-gsT.js": "e20523594f55199ef237a8c11af2520965da7b6122fe83f280cb5009392220c5",
     "icon.svg": "e84d0e1b59b47c92d0f313fadb447f0627c4be64a41d680be6c03dae43407675",
     "index.html": "5aff8e0b5dc0a92772c8519e39c8af9fe00172938656f74a85ea74f8309fc446"
-  }
+  },
+  "updated_at_utc": "2026-10-08T09:29:56.246554+00:00"
 }
