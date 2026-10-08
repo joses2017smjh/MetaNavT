@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "recorded_at_utc": "2026-10-08T08:47:24.642152+00:00",
+  "recorded_at_utc": "2026-10-08T09:05:33.055660+00:00",
   "host_os": "Linux",
   "app_id": "com.josesanchez.agentfield",
   "version": "0.1.0",
   "android": {
     "build_command": "./gradlew --no-daemon assembleDebug",
     "artifact": "android/app/build/outputs/apk/debug/app-debug.apk",
-    "size_bytes": 4208117,
-    "sha256": "d269530b4782b2b46ef7ae21408d9d004827f0d1d43b92d01e2f312796b20f51",
+    "size_bytes": 4324239,
+    "sha256": "3f39b76a82546819a1c56cb671757290af1f7cc83d1d5fa1c7aad2e5c15fc855",
     "compile_sdk": 35,
     "min_sdk": 23,
     "target_sdk": 35,
@@ -86,23 +86,25 @@
   "source_sha256": {
     "package-lock.json": "8b8895f3dd0dd6d40f75edf5e11b2e438221b1f7c3ae223ea0abacf2d3132239",
     "capacitor.config.ts": "625702d6fcac3da4cdaf40b4e7ae2191e633b95cc80bc592f0f169cce3fcd067",
+    "android/gradle/wrapper/gradle-wrapper.properties": "99875e8152dd2740f86a776ac00e3149e94177984c31c7c63db2c3a28fa2c635",
     "android/app/build.gradle": "ad14ae8d9da1edde16fa1ea9ea33421a9596255b7f5d084ba88bc74d5c22171f",
     "android/app/src/main/AndroidManifest.xml": "b4e7a57e08c1d160d5667b76917d9c3096a49702a2f7875f2fa2459168b114e0",
+    "android/app/src/main/res/values/styles.xml": "e6fb25473c104c08ad99eeae7402f7bd496e7eaf0e7939562dc1185c403bb3e9",
     "ios/App/App.xcodeproj/project.pbxproj": "b6d8cb6cfc5874dff8368ad1b6ad31b1fbe6405f232fe1901dd7a359271a42dd",
     "ios/App/CapApp-SPM/Package.swift": "3d9bec2d8f3447e129291a2d86352e23401ee451a9e32c43cc315cfee49b06fa"
   },
   "production_web_sha256": {
     "assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2": "a5d38fe99f930275684999b462c7123faa063d9e44e73b4b241723d884aa0f49",
     "assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2": "9fea608a947e67020c33cad9a6fe3d60c54119dfb8cff87768a8117a15ed7543",
-    "assets/index-BuG7ahHu.js": "c794c46d4c3af1731e4ad512ae6c8578d5dba56e4e6975e9327c509a061dff4d",
-    "assets/index-C7EMLTl3.css": "3ccc9e87da0cb245845cfa062c9597cf18a533abf7b5645b223e986e9a4f0ecf",
+    "assets/index-Dw7oiuVs.css": "9a0480726c848a97b73f2b34ced48c6b411163310ec8804c9f573b8da3ccc038",
+    "assets/index-mwYhoBeh.js": "0d356903348025c48aec89943cf6c504bf17a87036ce2ab4ad705790483d3b6a",
     "assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2": "c268b459a9329e59fecf39a17618efd44c71735532048d60b12aab76a8c14914",
     "assets/manrope-greek-wght-normal-DL7QRZyv.woff2": "2fb2e8cbfd52ae46179a8b6024eb162f1f9c6de3d22d6e3a30d8f395de7220be",
     "assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2": "3911b66d9f2e005a4b989223405d0e5032619c668597ba467cc76a23c8fffcfb",
     "assets/manrope-latin-wght-normal-DHIcAJRg.woff2": "a30ddcd349703aff7464c34bef3fffdff405ee50c113440d7c8693c02d210972",
     "assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2": "6bbb044ab420e07edb0a3042d2eb314b85e83a0182e945a15ab3b9092668dfd5",
-    "assets/web-DzNFNRj-.js": "39701cfa4797fce12c525399dba70155b5c1b95f54b1a1cdba01697c42f96c74",
+    "assets/web-BdY5-gsT.js": "e20523594f55199ef237a8c11af2520965da7b6122fe83f280cb5009392220c5",
     "icon.svg": "e84d0e1b59b47c92d0f313fadb447f0627c4be64a41d680be6c03dae43407675",
-    "index.html": "d4ca96a324042c3a7e07a38bb804441e3648857069dbe5f5338cfc59494166dc"
+    "index.html": "5aff8e0b5dc0a92772c8519e39c8af9fe00172938656f74a85ea74f8309fc446"
   }
 }

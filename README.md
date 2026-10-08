@@ -63,7 +63,7 @@ Ollama tool-calling model. Requests are bounded and mutations are unavailable.
 ### Android and iOS companion backend
 
 **Agent Field** brings research retrieval and Agentic Soccer into one native companion.
-[Feature demo and setup](mobile/README.md) · [Android and iPhone source](mobile/)
+[Feature demo and setup](mobile/README.md) · [Android download](https://github.com/joses2017smjh/MetaNavT/releases/tag/agent-field-v0.1.0) · [Android and iPhone source](mobile/)
 
 
 The [companion app](mobile/) searches MetaNavT and inspects retrieved source

@@ -6,6 +6,8 @@ The same React interface is packaged in native Capacitor projects for both platf
 
 ## Try the features
 
+[Download the Android debug app](https://github.com/joses2017smjh/MetaNavT/releases/download/agent-field-v0.1.0/agent-field-0.1.0-android-debug.apk) · [Release and recordings](https://github.com/joses2017smjh/MetaNavT/releases/tag/agent-field-v0.1.0) · [Supported resume statements](RESUME.md)
+
 ![Agent Field feature demo](demo/feature-demo.gif)
 
 [Watch the recording](demo/feature-demo.mp4) · [Demo screenshots](demo/)
