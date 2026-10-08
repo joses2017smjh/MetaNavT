@@ -1,0 +1,8 @@
+NODE | host=cn-gpu7.hpc.engr.oregonstate.edu gpu=Quadro RTX 8000 46080 MiB job=21405534 stack=v51 head=c1c92e6 dirty=no worktree=clean main_depth_dirty=yes
+STEP | name=import_check rc=0
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | flat plane: camera height 0.291 m, finite 1.000
+CHECK  | as-returned : mean relative error 0.0954 over 3136 px
+CHECK  | row-flipped : mean relative error 1.0395 over 2240 px
+FAIL   | flat-ground depth matches closed form to 0.0954 (as-returned, tol 0.03)
+STEP | name=validate_res64_n16 rc=137 secs=1531 timeout_s=1500 salvaged_stdout_lines=5

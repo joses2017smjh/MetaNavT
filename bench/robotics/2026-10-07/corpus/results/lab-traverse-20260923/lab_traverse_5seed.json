@@ -1,0 +1,515 @@
+{
+  "protocol": "scripts/bench/lab_traverse.py, vx 0.40, 24 s, finish line x=4.70, carpet/cable/threshold/ramp course; seeds 0-4 (seed only changes the initial-state noise and push RNG of the harness); one rollout per policy per seed",
+  "jobs": {
+    "humanoid": 21402037,
+    "biped": 21402038
+  },
+  "rows": [
+    {
+      "variant": "humanoid",
+      "seed": 0,
+      "policy": "randomized",
+      "peak_x_m": 8.84,
+      "progress_m": 8.84,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 0,
+      "policy": "no_randomization",
+      "peak_x_m": 0.85,
+      "progress_m": 0.85,
+      "outcome": "upright, stalled past carpet",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "humanoid",
+      "seed": 0,
+      "policy": "push_trained",
+      "peak_x_m": 1.64,
+      "progress_m": 1.64,
+      "outcome": "FELL t=  5.9s x= 1.61 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 0,
+      "policy": "terrain_trained",
+      "peak_x_m": 5.61,
+      "progress_m": 5.61,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 1,
+      "policy": "randomized",
+      "peak_x_m": 1.71,
+      "progress_m": 1.71,
+      "outcome": "FELL t=  5.2s x= 1.65 (on threshold)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 1,
+      "policy": "no_randomization",
+      "peak_x_m": 0.85,
+      "progress_m": 0.85,
+      "outcome": "upright, stalled past carpet",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "humanoid",
+      "seed": 1,
+      "policy": "push_trained",
+      "peak_x_m": 8.03,
+      "progress_m": 8.03,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 1,
+      "policy": "terrain_trained",
+      "peak_x_m": 5.71,
+      "progress_m": 5.71,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 2,
+      "policy": "randomized",
+      "peak_x_m": 3.58,
+      "progress_m": 3.58,
+      "outcome": "FELL t= 10.4s x= 3.35 (on ramp)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 2,
+      "policy": "no_randomization",
+      "peak_x_m": 0.85,
+      "progress_m": 0.85,
+      "outcome": "upright, stalled past carpet",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "humanoid",
+      "seed": 2,
+      "policy": "push_trained",
+      "peak_x_m": 4.93,
+      "progress_m": 4.93,
+      "outcome": "FELL t= 13.2s x= 4.80 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 2,
+      "policy": "terrain_trained",
+      "peak_x_m": 5.47,
+      "progress_m": 5.47,
+      "outcome": "FELL t= 17.4s x= 4.79 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 3,
+      "policy": "randomized",
+      "peak_x_m": 3.77,
+      "progress_m": 3.77,
+      "outcome": "FELL t= 11.0s x= 3.46 (on ramp)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 3,
+      "policy": "no_randomization",
+      "peak_x_m": 0.86,
+      "progress_m": 0.86,
+      "outcome": "upright, stalled past carpet",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "humanoid",
+      "seed": 3,
+      "policy": "push_trained",
+      "peak_x_m": 4.92,
+      "progress_m": 4.92,
+      "outcome": "FELL t= 15.0s x= 4.76 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 3,
+      "policy": "terrain_trained",
+      "peak_x_m": 4.91,
+      "progress_m": 4.91,
+      "outcome": "FELL t= 15.3s x= 4.77 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 4,
+      "policy": "randomized",
+      "peak_x_m": 5.15,
+      "progress_m": 5.15,
+      "outcome": "FELL t= 13.0s x= 4.92 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 4,
+      "policy": "no_randomization",
+      "peak_x_m": 0.85,
+      "progress_m": 0.85,
+      "outcome": "upright, stalled past carpet",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "humanoid",
+      "seed": 4,
+      "policy": "push_trained",
+      "peak_x_m": 9.31,
+      "progress_m": 9.31,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    },
+    {
+      "variant": "humanoid",
+      "seed": 4,
+      "policy": "terrain_trained",
+      "peak_x_m": 4.42,
+      "progress_m": 4.42,
+      "outcome": "upright, stalled past landing",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "biped",
+      "seed": 0,
+      "policy": "randomized",
+      "peak_x_m": 1.66,
+      "progress_m": 1.66,
+      "outcome": "FELL t=  6.0s x= 1.43 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 0,
+      "policy": "no_randomization",
+      "peak_x_m": 1.18,
+      "progress_m": 1.18,
+      "outcome": "FELL t=  3.4s x= 0.90 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 0,
+      "policy": "push_trained",
+      "peak_x_m": 1.46,
+      "progress_m": 1.46,
+      "outcome": "FELL t= 13.8s x= 1.01 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 0,
+      "policy": "terrain_trained",
+      "peak_x_m": 5.31,
+      "progress_m": 5.31,
+      "outcome": "FELL t= 17.4s x= 4.98 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 1,
+      "policy": "randomized",
+      "peak_x_m": 1.74,
+      "progress_m": 1.74,
+      "outcome": "FELL t=  6.2s x= 1.60 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 1,
+      "policy": "no_randomization",
+      "peak_x_m": 1.82,
+      "progress_m": 1.82,
+      "outcome": "FELL t=  3.4s x= 0.91 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 1,
+      "policy": "push_trained",
+      "peak_x_m": 1.65,
+      "progress_m": 1.65,
+      "outcome": "FELL t=  6.3s x= 1.36 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 1,
+      "policy": "terrain_trained",
+      "peak_x_m": 3.68,
+      "progress_m": 3.68,
+      "outcome": "FELL t= 11.6s x= 3.36 (on ramp)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 2,
+      "policy": "randomized",
+      "peak_x_m": 1.78,
+      "progress_m": 1.78,
+      "outcome": "FELL t=  9.2s x= 1.65 (on threshold)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 2,
+      "policy": "no_randomization",
+      "peak_x_m": 1.01,
+      "progress_m": 1.01,
+      "outcome": "FELL t=  3.5s x= 1.01 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 2,
+      "policy": "push_trained",
+      "peak_x_m": 1.65,
+      "progress_m": 1.65,
+      "outcome": "FELL t=  8.8s x= 1.56 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 2,
+      "policy": "terrain_trained",
+      "peak_x_m": 6.86,
+      "progress_m": 6.86,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 3,
+      "policy": "randomized",
+      "peak_x_m": 1.67,
+      "progress_m": 1.67,
+      "outcome": "FELL t=  6.4s x= 1.43 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 3,
+      "policy": "no_randomization",
+      "peak_x_m": 1.1,
+      "progress_m": 1.1,
+      "outcome": "FELL t=  3.4s x= 0.88 (on carpet)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 3,
+      "policy": "push_trained",
+      "peak_x_m": 1.55,
+      "progress_m": 1.55,
+      "outcome": "upright, stalled past cable",
+      "finished": false,
+      "fell": false,
+      "stalled": true
+    },
+    {
+      "variant": "biped",
+      "seed": 3,
+      "policy": "terrain_trained",
+      "peak_x_m": 5.0,
+      "progress_m": 5.0,
+      "outcome": "FELL t= 20.0s x= 4.89 (on landing)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 4,
+      "policy": "randomized",
+      "peak_x_m": 1.68,
+      "progress_m": 1.68,
+      "outcome": "FELL t=  8.0s x= 1.48 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 4,
+      "policy": "no_randomization",
+      "peak_x_m": 1.08,
+      "progress_m": 1.08,
+      "outcome": "FELL t=  3.4s x= 0.91 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 4,
+      "policy": "push_trained",
+      "peak_x_m": 1.63,
+      "progress_m": 1.63,
+      "outcome": "FELL t= 10.2s x= 1.17 (on cable)",
+      "finished": false,
+      "fell": true,
+      "stalled": false
+    },
+    {
+      "variant": "biped",
+      "seed": 4,
+      "policy": "terrain_trained",
+      "peak_x_m": 6.15,
+      "progress_m": 6.15,
+      "outcome": "FINISHED the course",
+      "finished": true,
+      "fell": false,
+      "stalled": false
+    }
+  ],
+  "summary": [
+    {
+      "variant": "humanoid",
+      "policy": "randomized",
+      "finished": 1,
+      "fell": 4,
+      "stalled": 0,
+      "n": 5
+    },
+    {
+      "variant": "humanoid",
+      "policy": "no_randomization",
+      "finished": 0,
+      "fell": 0,
+      "stalled": 5,
+      "n": 5
+    },
+    {
+      "variant": "humanoid",
+      "policy": "push_trained",
+      "finished": 2,
+      "fell": 3,
+      "stalled": 0,
+      "n": 5
+    },
+    {
+      "variant": "humanoid",
+      "policy": "terrain_trained",
+      "finished": 2,
+      "fell": 2,
+      "stalled": 1,
+      "n": 5
+    },
+    {
+      "variant": "biped",
+      "policy": "randomized",
+      "finished": 0,
+      "fell": 5,
+      "stalled": 0,
+      "n": 5
+    },
+    {
+      "variant": "biped",
+      "policy": "no_randomization",
+      "finished": 0,
+      "fell": 5,
+      "stalled": 0,
+      "n": 5
+    },
+    {
+      "variant": "biped",
+      "policy": "push_trained",
+      "finished": 0,
+      "fell": 4,
+      "stalled": 1,
+      "n": 5
+    },
+    {
+      "variant": "biped",
+      "policy": "terrain_trained",
+      "finished": 2,
+      "fell": 3,
+      "stalled": 0,
+      "n": 5
+    }
+  ]
+}

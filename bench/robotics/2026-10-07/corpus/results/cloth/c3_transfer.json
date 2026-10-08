@@ -1,0 +1,6 @@
+{
+  "rigid_success": 1.0,
+  "zero_shot_deformable_success": null,
+  "transfer_gap": null,
+  "note": "deformable cell not yet measured; refuse to invent it"
+}

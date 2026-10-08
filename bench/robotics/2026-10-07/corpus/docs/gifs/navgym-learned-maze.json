@@ -1,0 +1,81 @@
+{
+  "output": "docs/gifs/navgym-learned-maze.gif",
+  "output_sha256": "2cf35c634f2cf157444316f08befb00c021c7bb38e58442fc3aaebbeeea24837",
+  "output_mb": 0.82,
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/navgym-learned-maze.gif",
+    "bytes": 819207,
+    "mb": 0.82,
+    "fps": 8,
+    "width": 860,
+    "ffmpeg": "ffmpeg",
+    "max_colors": 128,
+    "speed": 4.0,
+    "badge": "GIF 4x",
+    "within_budget": true
+  },
+  "source_clip": "results/navgym-transfer-20260927/armA-s1-actor_best/seed8_render.mp4",
+  "source_sha256": "2543ede17613975fe43bc4b7aab86e8cefee41d0592ffa5febd614bab591f61c",
+  "evidence": "results/navgym-transfer-20260927/armA-s1-actor_best/seed8_render.json",
+  "episode": {
+    "seed": 8,
+    "outcome": "goal",
+    "success": true,
+    "clean_success": true,
+    "completion_s": 51.28,
+    "wall_contact_steps": 0,
+    "path_length_m": 20.98,
+    "turns": 0,
+    "replans": 0,
+    "mapped_fraction_end": 0.54
+  },
+  "maze": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "cells_on_shortest_route": 17,
+    "walls": 48,
+    "layout_sha256": "ac2161d87f7b9612"
+  },
+  "playback_speed": 4.0,
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  },
+  "scope": "MuJoCo 3.3.5 | frozen learned biped gait (dr-default-s0) | (vx, wz) commands from the LEARNED NavGym policy (results/navgym-v2-20260926/armA-s1/actor_best.onnx; PPO trained in the 2-D NavGym proxy, deployed here unchanged, deterministic mean) | its observation: 36 lidar sector minima + a 0.2 m egocentric log-odds map built from the robot's own 108 lidar rays | oracle pose and goal coordinate; the maze walls are seen only through the lidar | no planner, no scripted controller; the team_sensors speed brake still filters the commands | one seed = one maze; the multi-seed transfer table is the evidence, this clip the illustration",
+  "policy": {
+    "onnx": "results/navgym-v2-20260926/armA-s1/actor_best.onnx",
+    "onnx_sha256": "f648b39b32b6622922ff088448190e30efc7f4296046497cb9ba08b3d51ac125",
+    "label": "LEARNED (PPO in NavGym, deployed on the physics robot); oracle pose + goal"
+  },
+  "status": "EXPLORATORY: the NavGym v2 arm did not pass its predeclared gym bar, so this transfer was not due; the multi-seed table is results/navgym-transfer-20260927/transfer_table.json",
+  "labels": {
+    "learned": "biped gait (frozen PPO) and the (vx, wz) navigation commands (NavGym v2 PPO actor, trained in the 2-D gym)",
+    "scripted": "nothing in the loop",
+    "oracle": "pose and goal coordinate"
+  },
+  "maze_seed_in_gym_training_range": true,
+  "transfer_table": "results/navgym-transfer-20260927/transfer_table.json",
+  "render_rule": {
+    "rule": "most set-1 successes (ties: clean, then median time, then declared order); render iff >= 8/12; seed = median_seed_by_time",
+    "actor": "armA-s1-actor_best",
+    "onnx": "results/navgym-v2-20260926/armA-s1/actor_best.onnx",
+    "success": 11,
+    "eligible": true,
+    "seed": 8,
+    "table_completion_s": 51.28
+  },
+  "episode_matches_table": {
+    "table": {
+      "outcome": "goal",
+      "completion_s": 51.28
+    },
+    "rendered": {
+      "outcome": "goal",
+      "completion_s": 51.28
+    },
+    "match": true
+  },
+  "gif_written": "login node, from job 21442351's mp4 (the job's episode ran and matched; its GIF step failed on the bundled ffmpeg's missing drawtext filter, fixed in panels.write_gif by a PIL badge overlay)"
+}

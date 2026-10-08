@@ -1,0 +1,108 @@
+[
+ {
+  "variant": "base_noslip",
+  "pads": [
+   {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   },
+   {
+    "name": "r0_arm_right_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   },
+   {
+    "name": "r1_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   },
+   {
+    "name": "r1_arm_right_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   }
+  ],
+  "solver": {
+   "cone": 0,
+   "impratio": 1.0,
+   "noslip_iterations": 10
+  },
+  "rows": [
+   {
+    "variant": "base_noslip",
+    "seed": 100,
+    "wall_s": 26.8,
+    "lift_peak_m": 0.2201,
+    "lift_hold_s": 3.2,
+    "hold_end_s": 9.32,
+    "floor": true,
+    "max_robot_tilt": 0.1808,
+    "success_lift_hold_rule": false,
+    "cube_tilt_at_t": {
+     "5s": 0.138,
+     "6s": 1.087,
+     "7s": 1.968,
+     "8s": 1.982,
+     "10s": 1.567,
+     "12s": 1.571,
+     "15s": 1.571,
+     "19s": 1.571
+    },
+    "max_cube_tilt_rad_before_9s": 2.01,
+    "pad_contact_z_rel_cube_centre_5to9s": {
+     "p10": -0.006,
+     "p50": 0.038,
+     "p90": 0.114
+    },
+    "pad_contact_points_per_frame_5to9s_median": 2.0,
+    "total_normal_N_5to9s_median": 16.23
+   },
+   {
+    "variant": "base_noslip",
+    "seed": 101,
+    "wall_s": 26.4,
+    "lift_peak_m": 0.072,
+    "lift_hold_s": 13.36,
+    "hold_end_s": 20.0,
+    "floor": false,
+    "max_robot_tilt": 0.1681,
+    "success_lift_hold_rule": false,
+    "cube_tilt_at_t": {
+     "5s": 0.086,
+     "6s": 1.016,
+     "7s": 1.945,
+     "8s": 1.949,
+     "10s": 1.946,
+     "12s": 1.926,
+     "15s": 1.869,
+     "19s": 1.738
+    },
+    "max_cube_tilt_rad_before_9s": 1.998,
+    "pad_contact_z_rel_cube_centre_5to9s": {
+     "p10": 0.006,
+     "p50": 0.06,
+     "p90": 0.09
+    },
+    "pad_contact_points_per_frame_5to9s_median": 2.0,
+    "total_normal_N_5to9s_median": 16.65
+   }
+  ]
+ }
+]

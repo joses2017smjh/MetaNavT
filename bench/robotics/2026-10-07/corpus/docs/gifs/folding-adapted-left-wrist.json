@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "source_repository": "https://github.com/joses2017smjh/IsaacSimFolding",
+  "source_clip": "campaigns/20260920-media-root-fix/outputs/adapt_s0_Top_Short_Seen_0_pose2/rollout_policy_failure_left_wrist.gif",
+  "source_sha256": "28b38e75a1b3c22827d5ac3e46e0dde83716574a63ed1f8323e1a44c337343c9",
+  "evidence": "campaigns/20260920-media-root-fix/outputs/adapt_s0_Top_Short_Seen_0_pose2/rollout.json",
+  "evidence_sha256": "0b727b271ec7a5182ac923d71d3d49f17255d4666f6652f8d771b3bfcbbaab1d",
+  "source_scope": "Source paths are relative to the IsaacSimFolding project; original artifacts are not bundled here.",
+  "source_size": [
+    640,
+    480
+  ],
+  "source_frame_count": 101,
+  "source_camera": "left_wrist",
+  "source_triptych_order": null,
+  "crop_box_xyxy": null,
+  "mode": "policy",
+  "replayed_demonstration_actions": false,
+  "policy_variant": "adapt_s0",
+  "garment": "Top_Short_Seen_0",
+  "pose_source_episode": 2,
+  "reported_actions": 600,
+  "completed_actions_explicitly_recorded": 600,
+  "checker": "LeHome success_checker_garment_fold",
+  "success": false,
+  "terminal_success": false,
+  "first_success_step": null,
+  "success_scope": "The checker never passed during the fixed 600-action budget and also failed at the terminal state.",
+  "benchmark_scope": "One selected development rollout, not a success-rate estimate or a comparison between policy generations.",
+  "renderer": "Storm rasterized RGB",
+  "simulation_seconds": 6.666666666666667,
+  "cloth_max_particle_displacement_m": 0.21514752507209778,
+  "playback": {
+    "description": "0.5x simulation playback + end hold",
+    "simulation_speed_factor": 0.5,
+    "source_timing": "Simulation-based GIF timestamps, 60/70 milliseconds between captured frames.",
+    "historical_assigned_frame_ms": null,
+    "extra_final_hold_ms": 1000,
+    "output_duration_seconds": 14.46,
+    "all_source_frames_processed": true,
+    "identical_frames_may_be_merged": true
+  },
+  "transformations": [
+    "Native simulator footage; no generated or interpolated action frames.",
+    "Lanczos spatial resizing; static caption footer; fixed 96-color GIF palette.",
+    "Entire native camera frame retained."
+  ],
+  "caption": "CHECKER FAILURE | Left wrist",
+  "scope_caption": "Adapted policy, seed 0 | Short-sleeve top",
+  "output": "docs/gifs/folding-adapted-left-wrist.gif",
+  "output_sha256": "7b294af074bcf11ded9fe247802ce69911036bac798f25399a7af7ad8ea48245",
+  "output_bytes": 1915990,
+  "output_size": [
+    384,
+    360
+  ],
+  "output_frame_count": 101,
+  "poster": "docs/gifs/folding-adapted-left-wrist.png",
+  "poster_sha256": "b7f2591978544a828b331ae05ca1c93f0f485c65d579e36c42defac95d7c7641",
+  "poster_source_frame_index": 50
+}

@@ -21,6 +21,7 @@ from app.artifacts.pipeline import ArtifactAgent
 from app.artifacts.sandbox import run_sandboxed
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
+from app.eval.demo_operator import operator_fixture
 from app.eval.harness import git_sha, project_root
 from app.eval.index_loader import build_index
 from app.eval.metrics import recall_at_k
@@ -308,16 +309,16 @@ def _artifact_cases(index) -> list[dict[str, Any]]:
             "value": str(prop.extra.get("unsupported_claims") or "zero unsupported claims"),
         },
     ]
-    with tempfile.TemporaryDirectory(prefix="metanavit-demo-") as tmp:
-        tools = FilesystemTools(root=Path(tmp), index=index)
+    with operator_fixture(index=index) as (tools, issue):
         tools.artifacts[prop.plan_id] = prop
+        tools._register_review(prop.plan_id)
         blocked = False
         try:
             tools.apply_artifact(prop.plan_id, approved=False)
         except ApprovalRequired:
             blocked = True
-        applied = tools.apply_artifact(prop.plan_id, approved=True)
-        wrote = (Path(tmp) / prop.spec.file_path).is_file()
+        applied = tools.apply_artifact(prop.plan_id, approval_token=issue(prop.plan_id))
+        wrote = (tools.root / prop.spec.file_path).is_file()
 
     denied = run_sandboxed("import os\nos.system('echo should-not-run')")
     artifact = {
@@ -344,7 +345,7 @@ def _artifact_cases(index) -> list[dict[str, Any]]:
             "value": "ApprovalRequired" if blocked else "not blocked",
         },
         {
-            "label": "approved temp write succeeds",
+            "label": "operator fixture capability authorizes a temp write",
             "pass": applied["status"] == "applied" and wrote,
             "value": applied["path"],
         },
@@ -359,10 +360,10 @@ def _artifact_cases(index) -> list[dict[str, Any]]:
         "gold_id": None,
         "title": "Sandbox and approval gate",
         "feature": "safety",
-        "method": "AST gate + propose/apply split",
+        "method": "AST correctness check + content-bound operator fixture capability",
         "question": "write an artifact, but do not mutate the tree without approval",
         "category": "synthetic (unit-tested, not retrieval gold)",
-        "gold_answer": "blocked, then applied only in a temporary directory",
+        "gold_answer": "blocked, then applied with an explicit disposable operator capability",
         "gold_paths": [],
         "checks": safety_checks,
         "status": "pass" if all(row["pass"] for row in safety_checks) else "mixed",

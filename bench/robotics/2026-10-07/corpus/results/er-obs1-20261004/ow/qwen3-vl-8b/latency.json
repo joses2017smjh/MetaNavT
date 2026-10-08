@@ -1,0 +1,1829 @@
+{
+ "arm": "ER-OBS-1-OW",
+ "label": "LEARNED gait (frozen arms-dr1.0-s0) + SCRIPTED arms + OPEN-WEIGHT VLM observer (local GPU, rendered RGB, offline)",
+ "prompt_text": "This image is one frame from a fixed camera watching a physics simulation. Two humanoid robots (orange and black) stand side by side on a checkered floor. Between them is a small grey plinth (a box-shaped stand, 0.19 m tall). A blue cube, 0.28 m on each side, starts on top of the plinth; the robots may squeeze it between their hands, lift it, hold it, lower it, release it or drop it.\nReport the state of the blue cube in this frame only, as JSON with these fields:\n- cube_point: one point on the blue cube as [y, x], each normalized to 0-1000 (y from the top edge of the image, x from the left edge).\n- lifted_clear: true if the cube is lifted clear: its lowest corner is at least 2 cm above every surface directly below it (the floor, and the plinth top when the cube is over the plinth), so it rests on neither.\n- on_floor: true if any part of the cube touches the floor.\n- robot_contact: true if the robots press on the cube: the total contact force from the robots on the cube is more than 1 newton.\n- seated_flat: true if the cube sits on the plinth: it touches the plinth with its centre over the plinth top, and one of its faces (any face) is flat down, within 8 degrees of level.\nAnswer with the JSON object only.\nJSON schema of the answer: {\"properties\": {\"cube_point\": {\"description\": \"[y, x] of one point on the blue cube, each normalized to 0-1000\", \"items\": {\"type\": \"integer\"}, \"maxItems\": 2, \"minItems\": 2, \"type\": \"array\"}, \"lifted_clear\": {\"type\": \"boolean\"}, \"on_floor\": {\"type\": \"boolean\"}, \"robot_contact\": {\"type\": \"boolean\"}, \"seated_flat\": {\"type\": \"boolean\"}}, \"required\": [\"cube_point\", \"lifted_clear\", \"on_floor\", \"robot_contact\", \"seated_flat\"], \"type\": \"object\"}",
+ "prompt_schema_sha256": "873d16aed67f87f36fff88dbe7deb2ad6ec55abd0ce71c1a9e581f059191c20b",
+ "decoding": {
+  "do_sample": false,
+  "max_new_tokens": 256,
+  "dtype": "bfloat16",
+  "batch": 1
+ },
+ "source_sha256": {
+  "scripts/bench/er_obs_local.py": "733e863bb044aab09a2e10ccd7ee139a64608799cfa01dbc85577dafb9fec722",
+  "src/bhl_robust/eval/er_obs/client.py": "b49f4f8bbc822129a4da074603f8c9cabd7fbd97df1c6a050db0341606a43c80",
+  "src/bhl_robust/eval/er_obs/verdict.py": "32b2c3d6de458af30a88a8fd5015c021832eb2b7ab60b082f2c390adcbfdf223",
+  "scripts/bench/er_obs.py": "42875a21503df347c390b12994c1847e9109e5fa573f8dfadb7a12162f52d3ae"
+ },
+ "host": "cn-r-6.hpc.engr.oregonstate.edu",
+ "slurm_job_id": "21549480",
+ "written_at": "2026-10-04T22:07:09-0700",
+ "schema": "er_obs1_ow_latency_v1",
+ "mode": "run",
+ "model": "Qwen/Qwen3-VL-8B-Instruct",
+ "revision": "0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+ "gpu": "NVIDIA A40",
+ "warmup_calls": 1,
+ "records": [
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 448], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 448], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     448.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.9312,
+   "frame_id": "s300_t01"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 448], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 448], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     448.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7592,
+   "frame_id": "s300_t02"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 448], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 448], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     448.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.8575,
+   "frame_id": "s300_t03"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 448], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 448], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     448.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.8371,
+   "frame_id": "s300_t04"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 217,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7526,
+   "frame_id": "s300_t05"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [500, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 217,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [500, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     500.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7949,
+   "frame_id": "s300_t06"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [450, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [450, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     450.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7927,
+   "frame_id": "s300_t07"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [450, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [450, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     450.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.789,
+   "frame_id": "s300_t08"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [450, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [450, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     450.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7568,
+   "frame_id": "s300_t09"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [477, 437], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [477, 437], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     477.0,
+     437.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.757,
+   "frame_id": "s300_t10"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [450, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 217,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [450, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     450.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.9918,
+   "frame_id": "s300_t11"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [400, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [400, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     400.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7685,
+   "frame_id": "s300_t12"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [400, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [400, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     400.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7098,
+   "frame_id": "s300_t13"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [400, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [400, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     400.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7332,
+   "frame_id": "s300_t14"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [420, 520], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [420, 520], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     420.0,
+     520.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7076,
+   "frame_id": "s300_t15"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [400, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [400, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     400.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7089,
+   "frame_id": "s300_t16"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [420, 520], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [420, 520], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     420.0,
+     520.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7065,
+   "frame_id": "s300_t17"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [420, 520], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [420, 520], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     420.0,
+     520.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.709,
+   "frame_id": "s300_t18"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [400, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [400, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     400.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.709,
+   "frame_id": "s300_t19"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [400, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [400, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     400.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.716,
+   "frame_id": "s300_t20"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7138,
+   "frame_id": "s301_t01"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 448], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 448], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     448.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7075,
+   "frame_id": "s301_t02"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 437], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 437], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     437.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7151,
+   "frame_id": "s301_t03"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [478, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [478, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     478.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7234,
+   "frame_id": "s301_t04"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7189,
+   "frame_id": "s301_t05"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [500, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 217,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [500, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     500.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7072,
+   "frame_id": "s301_t06"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [477, 477], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [477, 477], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     477.0,
+     477.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7093,
+   "frame_id": "s301_t07"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 472], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 472], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     472.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7042,
+   "frame_id": "s301_t08"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [450, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [450, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     450.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7113,
+   "frame_id": "s301_t09"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [477, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [477, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     477.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7115,
+   "frame_id": "s301_t10"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [520, 570], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [520, 570], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     520.0,
+     570.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.729,
+   "frame_id": "s301_t11"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7027,
+   "frame_id": "s301_t12"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7067,
+   "frame_id": "s301_t13"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7068,
+   "frame_id": "s301_t14"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7126,
+   "frame_id": "s301_t15"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.709,
+   "frame_id": "s301_t16"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [542, 578], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [542, 578], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     542.0,
+     578.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7103,
+   "frame_id": "s301_t17"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7067,
+   "frame_id": "s301_t18"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7101,
+   "frame_id": "s301_t19"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [550, 550], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [550, 550], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     550.0,
+     550.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7158,
+   "frame_id": "s301_t20"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [477, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [477, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     477.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.712,
+   "frame_id": "s302_t01"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [477, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [477, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     477.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7118,
+   "frame_id": "s302_t02"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [478, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [478, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     478.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7106,
+   "frame_id": "s302_t03"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": false, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": false, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": false,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7124,
+   "frame_id": "s302_t04"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 472], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 217,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 472], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     472.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7148,
+   "frame_id": "s302_t05"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [500, 500], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": true}\"}",
+   "raw_bytes": 217,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [500, 500], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": true}",
+   "answer": {
+    "cube_point": [
+     500.0,
+     500.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": true
+   },
+   "kind": "ok",
+   "latency_s": 1.7139,
+   "frame_id": "s302_t06"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 472], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 472], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     472.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7216,
+   "frame_id": "s302_t07"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [478, 478], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [478, 478], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     478.0,
+     478.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7055,
+   "frame_id": "s302_t08"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 487], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 487], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     487.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.7003,
+   "frame_id": "s302_t09"
+  },
+  {
+   "http_status": 200,
+   "booleans": {
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "raw": "{\"id\": \"local\", \"model\": \"Qwen/Qwen3-VL-8B-Instruct\", \"status\": \"completed\", \"output_text\": \"{\\\"cube_point\\\": [472, 450], \\\"lifted_clear\\\": false, \\\"on_floor\\\": false, \\\"robot_contact\\\": true, \\\"seated_flat\\\": false}\"}",
+   "raw_bytes": 218,
+   "usage": null,
+   "thought_tokens": [],
+   "response_keys": [
+    "id",
+    "model",
+    "output_text",
+    "status"
+   ],
+   "response_id": "local",
+   "response_model": "Qwen/Qwen3-VL-8B-Instruct",
+   "response_status": "completed",
+   "text": "{\"cube_point\": [472, 450], \"lifted_clear\": false, \"on_floor\": false, \"robot_contact\": true, \"seated_flat\": false}",
+   "answer": {
+    "cube_point": [
+     472.0,
+     450.0
+    ],
+    "lifted_clear": false,
+    "on_floor": false,
+    "robot_contact": true,
+    "seated_flat": false
+   },
+   "kind": "ok",
+   "latency_s": 1.6882,
+   "frame_id": "s302_t10"
+  }
+ ]
+}

@@ -1,0 +1,183 @@
+{
+  "task": "Velocity-BHL-MazeRecovery-Full-Both-v0",
+  "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-19_16-25-50_wknd-full-both-s0/model_5997.pt",
+  "checkpoint_sha256": "82889d05589f053cba0ecb7351287187fcc215aa75b33eabdc1e19f027b5a5d4",
+  "num_envs": 1,
+  "max_steps": 600,
+  "sim_dt": 0.005,
+  "step_dt": 0.04,
+  "decimation": 8,
+  "observation_corruption": true,
+  "stack": "v60",
+  "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+  "git_commit": "8639efd2a2b50a8477a0ecc9844fda9e4f59171f",
+  "clip_overlays": 10,
+  "capture_path_used_for_gif": "camera_sensor",
+  "capture_note": "viewport = gym RecordVideo on the Kit perspective camera (draws the stale USD pose under fabric on this stack, docs/ISAAC_RENDER.md s10); camera_sensor = CameraCfg following the robot root, the recorder behind every published Isaac clip",
+  "sensor_eye_offset_m": [
+    -2.0,
+    0.0,
+    1.5
+  ],
+  "sensor_lookat_offset_m": [
+    0.5,
+    0.0,
+    0.1
+  ],
+  "viewport_eye_world_m": [
+    -34.6,
+    -79.5,
+    2.5
+  ],
+  "viewport_lookat_world_m": [
+    -34.6,
+    -76.0,
+    0.2
+  ],
+  "viewport_camera": "default",
+  "viewport_error": null,
+  "env0_origin_m": [
+    -36.0,
+    -76.0,
+    0.0
+  ],
+  "frame_size": [
+    640,
+    360
+  ],
+  "video_fps": 25.0,
+  "playback_speed": 1.0,
+  "panels_enabled": true,
+  "render_quality": "pathtrace",
+  "light_scale": 0.3,
+  "lights_scaled": {
+    "light": [
+      3000.0,
+      900.0
+    ],
+    "sky_light": [
+      1000.0,
+      300.0
+    ]
+  },
+  "floor_checker_tiles": 140,
+  "render_settings": {
+    "rtx.rendermode": "PathTracing",
+    "rtx.pathtracing.spp": 16,
+    "rtx.pathtracing.totalSpp": 16,
+    "rtx.pathtracing.clampSpp": 16,
+    "rtx.pathtracing.optixDenoiser.enabled": true,
+    "rtx.pathtracing.optixDenoiser.blendFactor": 0.0
+  },
+  "top_eye_offset_m": [
+    1.5,
+    -0.25,
+    3.9
+  ],
+  "top_lookat_offset_m": [
+    1.5,
+    0.0,
+    0.0
+  ],
+  "rtx_effective": {
+    "/rtx/rendermode": "PathTracing",
+    "/rtx/post/aa/op": 3,
+    "/rtx/post/dlss/execMode": 0,
+    "/rtx/directLighting/sampledLighting/enabled": true,
+    "/rtx/directLighting/sampledLighting/samplesPerPixel": 1,
+    "/rtx/ambientOcclusion/enabled": false,
+    "/rtx/indirectDiffuse/enabled": false,
+    "/rtx/pathtracing/spp": 16,
+    "/rtx/pathtracing/totalSpp": 16,
+    "/rtx/pathtracing/optixDenoiser/enabled": true,
+    "/rtx-transient/dldenoiser/enabled": null
+  },
+  "seed": 100,
+  "imu_delay_steps": 0,
+  "outcome": "success",
+  "success": true,
+  "terminated": true,
+  "terminations_fired": [
+    "button_reached"
+  ],
+  "steps": 161,
+  "sim_seconds": 6.44,
+  "wall_seconds": 146.87,
+  "sim_time_per_step": null,
+  "final_button_distance_m": 0.33972814679145813,
+  "min_button_distance_m": 0.3322230875492096,
+  "max_displacement_from_spawn_m": 2.8138587474823,
+  "camera_sensor": {
+    "frames": 161,
+    "mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-panels/both-s0-panels-pathtrace-s100.mp4",
+    "codec": "libx264",
+    "png_dir": "/scratch/sanchej7/tmp/maze-panels-frames-21408718/both-s0-panels-pathtrace-s100",
+    "writer_error": null
+  },
+  "viewport": {
+    "recorded": false,
+    "frames": 0,
+    "mp4": null,
+    "error": null
+  },
+  "mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-panels/both-s0-panels-pathtrace-s100.mp4",
+  "viewport_mp4": null,
+  "episode": "both-s0-panels-pathtrace-s100",
+  "panels": {
+    "npz": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-panels/both-s0-panels-pathtrace-s100.panels.npz",
+    "top_png_dir": "/scratch/sanchej7/tmp/maze-panels-frames-21408718/both-s0-panels-pathtrace-s100-top",
+    "top_frames": 161,
+    "sensor_rows": 161,
+    "grain_spatial": 0.49200448393821716,
+    "exposure": {
+      "target_luma": 122.0,
+      "steps": [
+        {
+          "mean_luma": 174.2,
+          "factor": 0.7,
+          "intensities": [
+            900.0,
+            300.0
+          ]
+        },
+        {
+          "mean_luma": 151.0,
+          "factor": 0.808,
+          "intensities": [
+            630.2791137695312,
+            210.09304809570312
+          ]
+        },
+        {
+          "mean_luma": 136.0,
+          "factor": 0.897,
+          "intensities": [
+            509.123779296875,
+            169.7079315185547
+          ]
+        },
+        {
+          "mean_luma": 128.4,
+          "factor": 0.95,
+          "intensities": [
+            456.7786560058594,
+            152.25955200195312
+          ]
+        }
+      ],
+      "final_intensities": [
+        456.7786560058594,
+        152.25955200195312
+      ]
+    },
+    "grain_temporal_mad": 0.0,
+    "grain_baseline": {
+      "stock_clip_spatial": 36.1,
+      "stock_clip_temporal_mad": 47.3,
+      "mujoco_spatial": 0.4
+    },
+    "needs_denoise": false,
+    "errors": [],
+    "n_errors": 0
+  }
+}

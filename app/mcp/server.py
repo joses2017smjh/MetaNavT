@@ -1,7 +1,7 @@
 """Minimal MCP stdio server for FilesystemTools (JSON-RPC 2.0).
 
 Any MCP client can drive the corpus: search, read, list, propose_move,
-collect_run_artifact, propose_artifact / patch. apply_* requires approved=true.
+collect_run_artifact, propose_artifact / patch. apply_* requires a separately issued operator capability.
 """
 
 from __future__ import annotations

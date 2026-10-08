@@ -10,6 +10,7 @@ from app.retrieval.embedders import HashEmbedder, TfidfEmbedder
 from app.retrieval.hybrid import Chunk, InMemoryHybridIndex, chunk_id_for
 from app.retrieval.rerank import CrossEncoderReranker, OverlapReranker
 from app.retrieval.router import QueryRouter
+from app.retrieval.context import path_context
 
 
 SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
@@ -26,13 +27,14 @@ def iter_corpus_files(root: Path) -> list[Path]:
     return files
 
 
-def load_chunks(root: Path, strategy: str = "auto") -> list[Chunk]:
+def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False) -> list[Chunk]:
     root = Path(root)
     chunks: list[Chunk] = []
     for path in iter_corpus_files(root):
         rel = str(path.relative_to(root)).replace("\\", "/")
         try:
-            text = path.read_text(encoding="utf-8")
+            # Preserve physical CRLF bytes as well as Unicode for citations.
+            text = path.read_bytes().decode("utf-8")
         except UnicodeDecodeError:
             continue
         st = path.stat()
@@ -41,17 +43,23 @@ def load_chunks(root: Path, strategy: str = "auto") -> list[Chunk]:
         if not spans:
             spans = chunk_text(text, path=rel, strategy="fixed")
         for span in spans:
-            cid = chunk_id_for(rel, span.start, span.end)
+            # Structure chunkers report character positions; citations use UTF-8 bytes.
+            start_byte = len(text[:span.start].encode("utf-8"))
+            end_byte = len(text[:span.end].encode("utf-8"))
+            raw_span = text[span.start:span.end]
+            cid = chunk_id_for(rel, start_byte, end_byte)
             chunks.append(
                 Chunk(
                     chunk_id=cid,
                     path=rel,
                     text=span.text,
-                    start_byte=span.start,
-                    end_byte=span.end,
+                    start_byte=start_byte,
+                    end_byte=end_byte,
                     mtime=st.st_mtime,
                     content_hash=digest,
-                    metadata={"kind": span.kind},
+                    metadata={"kind": span.kind, "evidence_raw": raw_span, "source_span_sha256": content_hash(raw_span),
+                              "text_is_verbatim": span.text == raw_span,
+                              **({"search_context": path_context(rel)} if include_path_context else {})},
                 )
             )
     return chunks
@@ -67,8 +75,9 @@ def build_index(
     enable_rerank: bool = True,
     reranker: str = "overlap",
     chunk_strategy: str = "auto",
+    include_path_context: bool = False,
 ) -> InMemoryHybridIndex:
-    chunks = load_chunks(root, strategy=chunk_strategy)
+    chunks = load_chunks(root, strategy=chunk_strategy, include_path_context=include_path_context)
     if embedder_name == "hash":
         embedder = HashEmbedder()
     elif embedder_name == "tfidf":

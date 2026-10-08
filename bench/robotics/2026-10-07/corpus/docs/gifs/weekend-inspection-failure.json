@@ -1,0 +1,14 @@
+{
+  "source_clip": "results/weekend-20260919/inspection-maze-failure.mp4",
+  "source_sha256": "66e6124f63de6a95edeed9d1852638b65776bbbf2dabe0dd1934688cc863a128",
+  "evidence": "results/weekend-20260919/inspection-maze-failure-video.json",
+  "evidence_sha256": "ddf0423fac821cf973d53262589af77d3fa5fd407636e17fb90899461a942693",
+  "output": "docs/gifs/weekend-inspection-failure.gif",
+  "output_sha256": "0d94fea4a0998df2ba7936afdb58060d4060e72339dd1a844f3db049558e821c",
+  "expected_success": false,
+  "failure": "dead_end_entered",
+  "completion_s": null,
+  "playback_speed": 1.0,
+  "caption": "REJECTED - wrong branch enters the dead end",
+  "scope": "Negative control | intentional route error, not a policy crash | 1x"
+}

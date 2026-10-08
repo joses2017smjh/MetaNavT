@@ -1,0 +1,184 @@
+{
+  "note": "Predeclared held-out replication of the Approach -x controller on 23 world -x layouts that no controller in the programme touched (7 validation outside the balanced selection + first 16 train-split -x). Same spawn (0.65 m), predicates, seed stream. center_bias was tuned on the 16 test-split -x layouts of the gate matrix.",
+  "layouts": [
+    [
+      "train",
+      1
+    ],
+    [
+      "train",
+      7
+    ],
+    [
+      "train",
+      10
+    ],
+    [
+      "train",
+      11
+    ],
+    [
+      "train",
+      17
+    ],
+    [
+      "train",
+      19
+    ],
+    [
+      "train",
+      21
+    ],
+    [
+      "train",
+      22
+    ],
+    [
+      "train",
+      24
+    ],
+    [
+      "train",
+      26
+    ],
+    [
+      "train",
+      27
+    ],
+    [
+      "train",
+      31
+    ],
+    [
+      "train",
+      35
+    ],
+    [
+      "train",
+      40
+    ],
+    [
+      "train",
+      42
+    ],
+    [
+      "train",
+      43
+    ],
+    [
+      "validation",
+      2
+    ],
+    [
+      "validation",
+      5
+    ],
+    [
+      "validation",
+      13
+    ],
+    [
+      "validation",
+      18
+    ],
+    [
+      "validation",
+      22
+    ],
+    [
+      "validation",
+      23
+    ],
+    [
+      "validation",
+      27
+    ]
+  ],
+  "recovery": {
+    "success": 12,
+    "n": 23
+  },
+  "center_bias": {
+    "success": 21,
+    "n": 23
+  },
+  "by_split": {
+    "validation": {
+      "recovery": [
+        4,
+        7
+      ],
+      "center_bias": [
+        7,
+        7
+      ]
+    },
+    "train": {
+      "recovery": [
+        8,
+        16
+      ],
+      "center_bias": [
+        14,
+        16
+      ]
+    }
+  },
+  "improved": [
+    [
+      "validation",
+      22
+    ],
+    [
+      "validation",
+      23
+    ],
+    [
+      "validation",
+      27
+    ],
+    [
+      "train",
+      17
+    ],
+    [
+      "train",
+      19
+    ],
+    [
+      "train",
+      21
+    ],
+    [
+      "train",
+      24
+    ],
+    [
+      "train",
+      27
+    ],
+    [
+      "train",
+      35
+    ],
+    [
+      "train",
+      43
+    ]
+  ],
+  "regressed": [
+    [
+      "train",
+      26
+    ]
+  ],
+  "sign_test_p": 0.01171875,
+  "center_bias_wilson95": [
+    0.732,
+    0.976
+  ],
+  "jobs": {
+    "recovery": 21402017,
+    "center_bias": 21402018
+  }
+}

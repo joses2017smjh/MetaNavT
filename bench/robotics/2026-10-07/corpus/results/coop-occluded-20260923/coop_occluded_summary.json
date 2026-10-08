@@ -1,0 +1,138 @@
+{
+  "protocol": "coop_sim2sim.py, 8 seeds x 200 steps, crews 2 and 3, MuJoCo, model_15999.pt, depth rendered via EGL for the depth arms",
+  "job": 21402060,
+  "rows": [
+    {
+      "arm": "02-01-51_coop-occluded-blind-s0",
+      "crew": 2,
+      "n": 8,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": -0.00027821475898096026,
+      "peak_lift_m_mean": 0.018334743645716228,
+      "in_pinch_frac_mean": 0.45625,
+      "closest_pinch_m_mean": 0.16399015418970578,
+      "solo_rate": 0.0
+    },
+    {
+      "arm": "02-01-51_coop-occluded-blind-s0",
+      "crew": 3,
+      "n": 16,
+      "fell_rate": 0.5,
+      "held_lift_m_mean": -0.000231169137051181,
+      "peak_lift_m_mean": 0.00916737182239597,
+      "in_pinch_frac_mean": 0.228125,
+      "closest_pinch_m_mean": 0.31199742634842936,
+      "solo_rate": 0.5
+    },
+    {
+      "arm": "23-55-08_coop-occluded-blind-s0",
+      "crew": 2,
+      "n": 8,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": -0.00026409248022930126,
+      "peak_lift_m_mean": 0.0814796125867297,
+      "in_pinch_frac_mean": 0.115625,
+      "closest_pinch_m_mean": 0.13825087411719028,
+      "solo_rate": 0.0
+    },
+    {
+      "arm": "23-55-08_coop-occluded-blind-s0",
+      "crew": 3,
+      "n": 16,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": 0.0028854235915208165,
+      "peak_lift_m_mean": 0.07365324896402294,
+      "in_pinch_frac_mean": 0.0578125,
+      "closest_pinch_m_mean": 0.24186121303222435,
+      "solo_rate": 0.5
+    },
+    {
+      "arm": "23-37-38_coop-occluded-blind-s1",
+      "crew": 2,
+      "n": 8,
+      "fell_rate": 0.0,
+      "held_lift_m_mean": -0.0001841235175181477,
+      "peak_lift_m_mean": 0.0,
+      "in_pinch_frac_mean": 0.954375,
+      "closest_pinch_m_mean": 0.1702433730490406,
+      "solo_rate": 0.0
+    },
+    {
+      "arm": "23-37-38_coop-occluded-blind-s1",
+      "crew": 3,
+      "n": 16,
+      "fell_rate": 0.0,
+      "held_lift_m_mean": -0.0001841235175181477,
+      "peak_lift_m_mean": 0.0,
+      "in_pinch_frac_mean": 0.4771875,
+      "closest_pinch_m_mean": 0.31117402969491187,
+      "solo_rate": 0.5
+    },
+    {
+      "arm": "00-31-40_coop-occluded-blind-s2",
+      "crew": 2,
+      "n": 8,
+      "fell_rate": 0.0,
+      "held_lift_m_mean": -0.0001841235175181269,
+      "peak_lift_m_mean": 0.0,
+      "in_pinch_frac_mean": 0.950625,
+      "closest_pinch_m_mean": 0.14000355858823174,
+      "solo_rate": 0.0
+    },
+    {
+      "arm": "00-31-40_coop-occluded-blind-s2",
+      "crew": 3,
+      "n": 16,
+      "fell_rate": 0.0,
+      "held_lift_m_mean": -0.00018412351751814597,
+      "peak_lift_m_mean": 0.0,
+      "in_pinch_frac_mean": 0.4753125,
+      "closest_pinch_m_mean": 0.29331860024137224,
+      "solo_rate": 0.5
+    },
+    {
+      "arm": "08-17-01_coop-occluded-depth-s0",
+      "crew": 2,
+      "n": 8,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": -0.0001848935429126404,
+      "peak_lift_m_mean": 0.017073248443875373,
+      "in_pinch_frac_mean": 0.0,
+      "closest_pinch_m_mean": 0.3276141974030138,
+      "solo_rate": 0.0
+    },
+    {
+      "arm": "08-17-01_coop-occluded-depth-s0",
+      "crew": 3,
+      "n": 16,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": -0.00018505309819086962,
+      "peak_lift_m_mean": 0.007998317315412106,
+      "in_pinch_frac_mean": 0.0,
+      "closest_pinch_m_mean": 0.4344518483807756,
+      "solo_rate": 0.5
+    },
+    {
+      "arm": "17-42-26_coop-occluded-depth-s0",
+      "crew": 2,
+      "n": 8,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": 0.004820193919368419,
+      "peak_lift_m_mean": 0.009192587189200685,
+      "in_pinch_frac_mean": 0.0,
+      "closest_pinch_m_mean": 0.3383506712938143,
+      "solo_rate": 0.0
+    },
+    {
+      "arm": "17-42-26_coop-occluded-depth-s0",
+      "crew": 3,
+      "n": 16,
+      "fell_rate": 1.0,
+      "held_lift_m_mean": 0.0017194800344188,
+      "peak_lift_m_mean": 0.017403632513978428,
+      "in_pinch_frac_mean": 0.0,
+      "closest_pinch_m_mean": 0.4386702921655003,
+      "solo_rate": 0.5
+    }
+  ]
+}

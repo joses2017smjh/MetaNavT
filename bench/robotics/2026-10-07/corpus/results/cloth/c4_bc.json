@@ -1,0 +1,24 @@
+{
+  "rung": "C4",
+  "backend": "kinematic",
+  "policy": "bc_linear",
+  "n_demo_steps": 64,
+  "eval": {
+    "success_rate": 1.0,
+    "wrong_basket_rate": 0.0,
+    "mean_sweeps": 1.140625,
+    "mean_steps_to_success": 1.140625,
+    "fall_rate": 0.0,
+    "invalid_trajectory_rate": 0.0,
+    "env_steps_per_s": null,
+    "real_time_factor": null,
+    "gpu_mem_mb": null,
+    "n_episodes": 64,
+    "physics": "kinematic_rigid",
+    "policy": "bc_linear",
+    "num_envs": 1,
+    "cloth_resolution": "n/a",
+    "n_deformables": 0,
+    "n_vertices": 0
+  }
+}

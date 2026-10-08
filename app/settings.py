@@ -6,6 +6,16 @@ from llama_index.core.multi_modal_llms import MultiModalLLM
 from llama_index.core.settings import Settings
 
 
+def embedding_device(model=None) -> Optional[str]:
+    """Actual loaded embedding weights, not the requested env value."""
+    from app.eval.provenance import model_device
+
+    model = model if model is not None else Settings.embed_model
+    if type(model).__name__ == "HashEmbedding":
+        return "cpu"
+    return model_device(getattr(model, "_model", None)) or model_device(model)
+
+
 def init_embed_model() -> None:
     """Pick the embedding backend from EMBEDDING_PROVIDER.
 
@@ -30,9 +40,21 @@ def init_embed_model() -> None:
             "EMBEDDING_PROVIDER=huggingface needs the `ml` extra (pip install -e '.[app,ml]'); "
             "set EMBEDDING_PROVIDER=hash for the download-free adapter"
         ) from exc
+    device = os.getenv("EMBEDDING_DEVICE")
+    required = os.getenv("RETRIEVAL_REQUIRE_DEVICE")
+    if required and required not in {"cpu", "cuda"}:
+        raise ValueError("RETRIEVAL_REQUIRE_DEVICE must be cpu or cuda")
+    if (required or device or "").startswith("cuda"):
+        import torch
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA embedding requested but torch.cuda.is_available() is false")
     Settings.embed_model = HuggingFaceEmbedding(
         model_name=os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"),
+        **({"device": device} if device else {}),
     )
+    actual = embedding_device()
+    if required and not str(actual or "").startswith(required):
+        raise RuntimeError(f"required embedding device {required}; loaded weights on {actual!r}")
 
 
 # `Settings` does not support setting `MultiModalLLM`

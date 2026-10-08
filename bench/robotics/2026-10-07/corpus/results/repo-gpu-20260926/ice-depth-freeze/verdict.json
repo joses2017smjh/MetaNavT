@@ -1,0 +1,312 @@
+{
+ "schema": "ice_depth_freeze/verdict/v1",
+ "labels": {
+  "learned": "actor MLP from model_5999.pt (deterministic mean action)",
+  "scripted": "velocity commands (harness set); arm B frozen t=0 image; arm C analytic image",
+  "oracle": "arm C and the analytic nominal use the simulator's ground-truth camera pose to ray-cast the z=0 floor plane (privileged state)",
+  "sim": "MuJoCo flat biped scene, uniform friction (no ice patches); pushes off"
+ },
+ "predeclared": {
+  "decided": "2026-09-26",
+  "gate": "A fall rate > 0.5 -> INCONCLUSIVE (sim2sim gap if matched blind fall rate <= 0.2, else harness)",
+  "i": "fall(B)-fall(A) >= 0.3 or disp(B) <= 0.5*disp(A)",
+  "ii": "|fall(B)-fall(A)| <= 0.1 and |disp(B)-disp(A)| <= 0.2*disp(A)",
+  "iii": "otherwise",
+  "C_secondary": "C within 0.1 fall and 20% disp of A",
+  "Bsettle_secondary": "(i)/(ii)/(iii) rules applied to Bsettle in place of B; reported, never replaces the primary B outcome",
+  "pooled": "episodes of gate-passing checkpoints only; none -> INCONCLUSIVE",
+  "onnx_parity_tol": 0.001,
+  "render_check_tol": 0.02,
+  "matched_blind": "same ring (placed/control), same training seed"
+ },
+ "per_checkpoint": [
+  {
+   "run": "2026-09-24_16-48-43_ppo-ice-control-depth-s0",
+   "ring": "control",
+   "train_seed": 0,
+   "blind_run": "2026-09-24_09-53-42_ppo-ice-control-blind-s0",
+   "nominal_source": "rendered",
+   "arms": {
+    "A": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.2331441608379015,
+     "mean_lin_vel_err": 0.23393102186660159,
+     "mean_yaw_rate_err": 0.17544073356953457
+    },
+    "B": {
+     "n": 60,
+     "fall_rate": 0.6,
+     "mean_disp_m": 0.39577254874190704,
+     "mean_lin_vel_err": 0.3015189373980859,
+     "mean_yaw_rate_err": 0.5323564091302511
+    },
+    "Bsettle": {
+     "n": 60,
+     "fall_rate": 0.9166666666666666,
+     "mean_disp_m": 0.5219301097846228,
+     "mean_lin_vel_err": 0.35483234386985696,
+     "mean_yaw_rate_err": 0.37427163116846063
+    },
+    "C": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.2280820346844687,
+     "mean_lin_vel_err": 0.23374323208158604,
+     "mean_yaw_rate_err": 0.17169540590979518
+    }
+   },
+   "blind": {
+    "n": 60,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.237849588440227,
+    "mean_lin_vel_err": 0.23136051122523296
+   },
+   "render_check": {
+    "t0_max_abs": 0.03225484490394592,
+    "t0_within_tol": false,
+    "mean_frac_steps_gt_tol": 1.0,
+    "tol": 0.02
+   },
+   "rule_version": "2026-09-26",
+   "C_vs_A": "height/tilt image reproduces live depth",
+   "blind_walks": true,
+   "gate": "PASS",
+   "d_fall_B_minus_A": 0.6,
+   "disp_ratio_B_over_A": 0.17722660080906225,
+   "outcome": "(i)",
+   "reason": "uses depth as a live sensor",
+   "Bsettle_outcome": "(i) (uses depth as a live sensor)"
+  },
+  {
+   "run": "2026-09-24_17-15-06_ppo-ice-control-depth-s1",
+   "ring": "control",
+   "train_seed": 1,
+   "blind_run": "2026-09-24_09-56-19_ppo-ice-control-blind-s1",
+   "nominal_source": "rendered",
+   "arms": {
+    "A": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.27108775609217,
+     "mean_lin_vel_err": 0.26378819799909764,
+     "mean_yaw_rate_err": 0.10121530496817223
+    },
+    "B": {
+     "n": 60,
+     "fall_rate": 1.0,
+     "mean_disp_m": 0.21433277870622322,
+     "mean_lin_vel_err": 0.3713297310860605,
+     "mean_yaw_rate_err": 0.49390827493398626
+    },
+    "Bsettle": {
+     "n": 60,
+     "fall_rate": 0.8166666666666667,
+     "mean_disp_m": 0.5715323708720934,
+     "mean_lin_vel_err": 0.3446053358938878,
+     "mean_yaw_rate_err": 0.3357756593630602
+    },
+    "C": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.267725642774565,
+     "mean_lin_vel_err": 0.2645426005450818,
+     "mean_yaw_rate_err": 0.10397561253315196
+    }
+   },
+   "blind": {
+    "n": 60,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.3089813500995033,
+    "mean_lin_vel_err": 0.25802804284276404
+   },
+   "render_check": {
+    "t0_max_abs": 0.03225484490394592,
+    "t0_within_tol": false,
+    "mean_frac_steps_gt_tol": 1.0,
+    "tol": 0.02
+   },
+   "rule_version": "2026-09-26",
+   "C_vs_A": "height/tilt image reproduces live depth",
+   "blind_walks": true,
+   "gate": "PASS",
+   "d_fall_B_minus_A": 1.0,
+   "disp_ratio_B_over_A": 0.0943745032006261,
+   "outcome": "(i)",
+   "reason": "uses depth as a live sensor",
+   "Bsettle_outcome": "(i) (uses depth as a live sensor)"
+  },
+  {
+   "run": "2026-09-16_14-41-36_ppo-ice-placed-depth-s0",
+   "ring": "placed",
+   "train_seed": 0,
+   "blind_run": "2026-09-16_07-46-31_ppo-ice-placed-blind-s0",
+   "nominal_source": "rendered",
+   "arms": {
+    "A": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.299228483241805,
+     "mean_lin_vel_err": 0.24163695063829793,
+     "mean_yaw_rate_err": 0.1427493185975338
+    },
+    "B": {
+     "n": 60,
+     "fall_rate": 0.8333333333333334,
+     "mean_disp_m": 0.3066003509207268,
+     "mean_lin_vel_err": 0.27611045942642637,
+     "mean_yaw_rate_err": 0.3607549592768903
+    },
+    "Bsettle": {
+     "n": 60,
+     "fall_rate": 0.7333333333333333,
+     "mean_disp_m": 0.6364711504567182,
+     "mean_lin_vel_err": 0.3130720225567408,
+     "mean_yaw_rate_err": 0.24170351009391772
+    },
+    "C": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.2922530749062497,
+     "mean_lin_vel_err": 0.23914824786622757,
+     "mean_yaw_rate_err": 0.13662558929607413
+    }
+   },
+   "blind": {
+    "n": 60,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.3811196956197005,
+    "mean_lin_vel_err": 0.25544417721288476
+   },
+   "render_check": {
+    "t0_max_abs": 0.03225484490394592,
+    "t0_within_tol": false,
+    "mean_frac_steps_gt_tol": 1.0,
+    "tol": 0.02
+   },
+   "rule_version": "2026-09-26",
+   "C_vs_A": "height/tilt image reproduces live depth",
+   "blind_walks": true,
+   "gate": "PASS",
+   "d_fall_B_minus_A": 0.8333333333333334,
+   "disp_ratio_B_over_A": 0.13334923134234775,
+   "outcome": "(i)",
+   "reason": "uses depth as a live sensor",
+   "Bsettle_outcome": "(i) (uses depth as a live sensor)"
+  },
+  {
+   "run": "2026-09-16_14-43-57_ppo-ice-placed-depth-s1",
+   "ring": "placed",
+   "train_seed": 1,
+   "blind_run": "2026-09-16_07-49-05_ppo-ice-placed-blind-s1",
+   "nominal_source": "rendered",
+   "arms": {
+    "A": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.137854646927859,
+     "mean_lin_vel_err": 0.2545159304973819,
+     "mean_yaw_rate_err": 0.11976778243409693
+    },
+    "B": {
+     "n": 60,
+     "fall_rate": 0.9833333333333333,
+     "mean_disp_m": 0.11196939852075372,
+     "mean_lin_vel_err": 0.2658494320291213,
+     "mean_yaw_rate_err": 0.258011818250544
+    },
+    "Bsettle": {
+     "n": 60,
+     "fall_rate": 0.8666666666666667,
+     "mean_disp_m": 0.4275200796150423,
+     "mean_lin_vel_err": 0.3602380740879899,
+     "mean_yaw_rate_err": 0.32031147544782657
+    },
+    "C": {
+     "n": 60,
+     "fall_rate": 0.0,
+     "mean_disp_m": 2.1354697775052744,
+     "mean_lin_vel_err": 0.2546119477546346,
+     "mean_yaw_rate_err": 0.12114980569599121
+    }
+   },
+   "blind": {
+    "n": 60,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.389118303539794,
+    "mean_lin_vel_err": 0.24347427063759877
+   },
+   "render_check": {
+    "t0_max_abs": 0.03225484490394592,
+    "t0_within_tol": false,
+    "mean_frac_steps_gt_tol": 1.0,
+    "tol": 0.02
+   },
+   "rule_version": "2026-09-26",
+   "C_vs_A": "height/tilt image reproduces live depth",
+   "blind_walks": true,
+   "gate": "PASS",
+   "d_fall_B_minus_A": 0.9833333333333333,
+   "disp_ratio_B_over_A": 0.05237465450780577,
+   "outcome": "(i)",
+   "reason": "uses depth as a live sensor",
+   "Bsettle_outcome": "(i) (uses depth as a live sensor)"
+  }
+ ],
+ "pooled": {
+  "n_checkpoints": 4,
+  "arms": {
+   "A": {
+    "n": 240,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.2353287617749342,
+    "mean_lin_vel_err": 0.24846802525034478
+   },
+   "B": {
+    "n": 240,
+    "fall_rate": 0.8541666666666666,
+    "mean_disp_m": 0.25716876922240267,
+    "mean_lin_vel_err": 0.3046727222402005
+   },
+   "Bsettle": {
+    "n": 240,
+    "fall_rate": 0.8333333333333334,
+    "mean_disp_m": 0.5393634276821192,
+    "mean_lin_vel_err": 0.34318694410211886
+   },
+   "C": {
+    "n": 240,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.2308826324676394,
+    "mean_lin_vel_err": 0.2480115070618825
+   },
+   "blind": {
+    "n": 240,
+    "fall_rate": 0.0,
+    "mean_disp_m": 2.3292672344248055,
+    "mean_lin_vel_err": 0.24707675047962016
+   }
+  },
+  "rule_version": "2026-09-26",
+  "C_vs_A": "height/tilt image reproduces live depth",
+  "blind_walks": true,
+  "gate": "PASS",
+  "d_fall_B_minus_A": 0.8541666666666666,
+  "disp_ratio_B_over_A": 0.11504740314717782,
+  "outcome": "(i)",
+  "reason": "uses depth as a live sensor",
+  "Bsettle_outcome": "(i) (uses depth as a live sensor)"
+ },
+ "cpu_preview_B_vs_C": [],
+ "cannot_discriminate": "the critic also saw depth in training; this actor-only closed-loop test does not separate H1 from a critic effect",
+ "parts": [
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-16_07-46-31_ppo-ice-placed-blind-s0.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-16_07-49-05_ppo-ice-placed-blind-s1.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-16_14-41-36_ppo-ice-placed-depth-s0.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-16_14-43-57_ppo-ice-placed-depth-s1.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-24_09-53-42_ppo-ice-control-blind-s0.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-24_09-56-19_ppo-ice-control-blind-s1.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-24_16-48-43_ppo-ice-control-depth-s0.json",
+  "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260926/ice-depth-freeze/parts/2026-09-24_17-15-06_ppo-ice-control-depth-s1.json"
+ ]
+}

@@ -1,0 +1,74 @@
+[
+ {
+  "variant": "base",
+  "pads": [
+   {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   },
+   {
+    "name": "r0_arm_right_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   },
+   {
+    "name": "r1_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   },
+   {
+    "name": "r1_arm_right_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   }
+  ],
+  "rows": [
+   {
+    "variant": "base",
+    "seed": 100,
+    "wall_s": 15.4,
+    "lift_peak_m": 0.1834,
+    "lift_hold_s": 8.16,
+    "hold_end_s": 14.36,
+    "floor": true,
+    "max_robot_tilt": 0.1795,
+    "success_lift_hold_rule": false,
+    "cube_tilt_at_t": {
+     "5s": 0.116,
+     "6s": 1.092,
+     "7s": 1.203,
+     "8s": 1.307,
+     "10s": 1.434,
+     "12s": 1.492,
+     "15s": 1.571,
+     "19s": 1.571
+    },
+    "max_cube_tilt_rad_before_9s": 1.783,
+    "pad_contact_z_rel_cube_centre_5to9s": {
+     "p10": 0.01,
+     "p50": 0.057,
+     "p90": 0.1
+    },
+    "pad_contact_points_per_frame_5to9s_median": 2.0,
+    "total_normal_N_5to9s_median": 14.61
+   }
+  ]
+ }
+]

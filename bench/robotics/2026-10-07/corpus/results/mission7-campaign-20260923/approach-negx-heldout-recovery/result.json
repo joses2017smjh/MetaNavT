@@ -1,0 +1,144 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "selection": {
+    "-1,+0": [
+      {
+        "split": "validation",
+        "index": 2
+      },
+      {
+        "split": "validation",
+        "index": 5
+      },
+      {
+        "split": "validation",
+        "index": 13
+      },
+      {
+        "split": "validation",
+        "index": 18
+      },
+      {
+        "split": "validation",
+        "index": 22
+      },
+      {
+        "split": "validation",
+        "index": 23
+      },
+      {
+        "split": "validation",
+        "index": 27
+      },
+      {
+        "split": "train",
+        "index": 1
+      },
+      {
+        "split": "train",
+        "index": 7
+      },
+      {
+        "split": "train",
+        "index": 10
+      },
+      {
+        "split": "train",
+        "index": 11
+      },
+      {
+        "split": "train",
+        "index": 17
+      },
+      {
+        "split": "train",
+        "index": 19
+      },
+      {
+        "split": "train",
+        "index": 21
+      },
+      {
+        "split": "train",
+        "index": 22
+      },
+      {
+        "split": "train",
+        "index": 24
+      },
+      {
+        "split": "train",
+        "index": 26
+      },
+      {
+        "split": "train",
+        "index": 27
+      },
+      {
+        "split": "train",
+        "index": 31
+      },
+      {
+        "split": "train",
+        "index": 35
+      },
+      {
+        "split": "train",
+        "index": 40
+      },
+      {
+        "split": "train",
+        "index": 42
+      },
+      {
+        "split": "train",
+        "index": 43
+      }
+    ]
+  },
+  "controller_arm": "recovery",
+  "directions": [
+    "-1,+0"
+  ],
+  "controller": {
+    "speed_m_s": 0.5,
+    "stall_pulse_m_s": 0.3,
+    "stall_pulse_s": 0.4,
+    "stop_radius_m": 0.28,
+    "heading_gain": 1.2
+  },
+  "pulse": {
+    "episodes": 23,
+    "successes": 12,
+    "success_rate": 0.5217391304347826,
+    "falls": 0,
+    "failures": {
+      "success": 12,
+      "failed_to_rotate_or_align_or_stopped_early": 11
+    },
+    "by_direction": {
+      "-1,+0": {
+        "episodes": 23,
+        "successes": 12,
+        "success_rate": 0.5217391304347826,
+        "falls": 0,
+        "failures": {
+          "success": 12,
+          "failed_to_rotate_or_align_or_stopped_early": 11
+        }
+      }
+    }
+  },
+  "controls": {},
+  "layout_list": "validation:2,5,13,18,22,23,27;train:1,7,10,11,17,19,21,22,24,26,27,31,35,40,42,43",
+  "gate": {
+    "full_matrix": false,
+    "minimum_episodes": false,
+    "successes_at_least_60": false,
+    "zero_falls": true,
+    "per_direction_at_least_14": false
+  },
+  "benchmark_geometry_unchanged": true,
+  "note": "Test split is used for a balanced 16-per-direction matrix; all four directions have matched pulse and standstill controls."
+}

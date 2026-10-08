@@ -1,0 +1,25 @@
+{
+  "variant": "humanoid",
+  "total_mass_urdf_kg": 16.331157519000005,
+  "total_mass_mjcf_kg": 16.331157518000005,
+  "mass_delta_kg": 1.000000082740371e-09,
+  "mass_mismatches": 0,
+  "inertia_mismatches": 0,
+  "joint_limit_mismatches_mjcf": 0,
+  "joint_limit_mismatches_usd": 0,
+  "damping_mismatches": 0,
+  "urdf_collision_kinds": [
+    "box",
+    "cylinder"
+  ],
+  "mjcf_collision_kinds": [
+    "box",
+    "cylinder"
+  ],
+  "urdf_collision_geoms": 11,
+  "mjcf_collision_geoms": 11,
+  "urdf_joints": 22,
+  "mjcf_joints": 22,
+  "usd_joints": 22,
+  "agrees": true
+}

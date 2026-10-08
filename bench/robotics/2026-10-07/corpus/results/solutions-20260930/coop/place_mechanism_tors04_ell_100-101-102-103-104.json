@@ -1,0 +1,107 @@
+[
+ {
+  "variant": "tors04_ell",
+  "seed": 100,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2604,
+  "hold_s": 5.76,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0819,
+   -0.3574
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1649,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.6,
+   "phase": "release"
+  },
+  "wall_s": 17.6
+ },
+ {
+  "variant": "tors04_ell",
+  "seed": 101,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1971,
+  "hold_s": 4.56,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0183,
+   -0.3257
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1683,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.72,
+   "phase": "retract"
+  },
+  "wall_s": 17.4
+ },
+ {
+  "variant": "tors04_ell",
+  "seed": 102,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2125,
+  "hold_s": 4.76,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   0.0284,
+   -0.2894
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1647,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.72,
+   "phase": "retract"
+  },
+  "wall_s": 17.4
+ },
+ {
+  "variant": "tors04_ell",
+  "seed": 103,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2114,
+  "hold_s": 4.72,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   0.0002,
+   -0.294
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1727,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.76,
+   "phase": "retract"
+  },
+  "wall_s": 18.2
+ },
+ {
+  "variant": "tors04_ell",
+  "seed": 104,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2088,
+  "hold_s": 4.72,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   0.023,
+   -0.2963
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1657,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.72,
+   "phase": "retract"
+  },
+  "wall_s": 16.9
+ }
+]

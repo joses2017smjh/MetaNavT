@@ -58,7 +58,7 @@ def test_inspect_and_propose_mean_rmse_threshold_dot_plot(tmp_path):
     assert "0.055" in plan.matlab_code
 
 
-def test_visualization_requires_input_then_accepts_chart_override(tmp_path):
+def test_visualization_requires_input_then_accepts_chart_override(tmp_path, operator_grant):
     _sheet(tmp_path)
     tools = FilesystemTools(root=tmp_path)
     pending = tools.propose_visualization(
@@ -72,7 +72,7 @@ def test_visualization_requires_input_then_accepts_chart_override(tmp_path):
 
     result = tools.apply_visualization(
         pending["plan_id"],
-        approved=True,
+        approval_token=operator_grant(tools, pending["plan_id"], chart_type="bar", execute=False),
         chart_type="bar",
         execute=False,
     )
@@ -84,7 +84,7 @@ def test_visualization_requires_input_then_accepts_chart_override(tmp_path):
     assert result["chart_exists"] is False
 
 
-def test_octave_renders_generated_matlab_chart_when_available(tmp_path):
+def test_octave_renders_generated_matlab_chart_when_available(tmp_path, operator_grant):
     _sheet(tmp_path)
     backend, _ = available_backend("octave")
     if backend is None:
@@ -96,7 +96,7 @@ def test_octave_renders_generated_matlab_chart_when_available(tmp_path):
     )
     result = tools.apply_visualization(
         pending["plan_id"],
-        approved=True,
+        approval_token=operator_grant(tools, pending["plan_id"], execute=True, backend="octave"),
         execute=True,
         backend="octave",
     )

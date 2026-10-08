@@ -1,0 +1,95 @@
+{
+  "MetaNavT": {
+    "tests_passed": 299,
+    "skipped": 3,
+    "warnings": 6,
+    "seconds": 10.3,
+    "suite": "eval+unit_tests+engine+api+mcp",
+    "junit": "metanavt-tests.xml",
+    "note": "compiled optional TREC crosscheck tested separately; Octave native libraries unavailable",
+    "fixture_gate": {
+      "status": "PASS",
+      "configs": 6,
+      "gated_metrics": [
+        "ndcg@10",
+        "recall@10",
+        "recall@50"
+      ],
+      "all_ranking_metric_deltas": 0
+    },
+    "trec_optional_recheck": {
+      "passed": 12,
+      "skipped": 0
+    },
+    "frontend": {
+      "production_build": "PASS",
+      "lint_and_types": "PASS",
+      "static_export": "PASS",
+      "lockfile_changed": false
+    },
+    "M4_final_focused": {
+      "passed": 118,
+      "skipped": 1,
+      "api_sdk_passed_separately": 7,
+      "skip": "Octave runtime shared libraries unavailable"
+    },
+    "integrity_recheck": {
+      "passed": 89,
+      "skipped": 1,
+      "suite": "robotics+capabilities+visualization+llm_eval+cutting_edge",
+      "receipt": "metanavt-integrity-recheck.xml",
+      "skip": "Octave native shared libraries"
+    }
+  },
+  "Humanoid": {
+    "final_source_files_sha256": {
+      "src/bhl_robust/eval/replay_gate.py": "f75645fb2fc72812c4d032989736daeea14eb7638dcc07d9f43a2b91a9df0be7",
+      "scripts/bench/sim_regression.py": "34b63e8b1aeb878a423ac7c7c43134789ce1c038a805435bda023b028b03e88b",
+      "scripts/bench/verify_replay_bundle.py": "ab41800ea8fbe2e4b3c679489a5e163b79d4d00a25b61a8791a9376d9acedb6b",
+      "scripts/bench/navigation_development.py": "1472a9f5f1d37b877a750df31e316fe6ff81c9e07822693e7322217f7955e4c4",
+      "slurm/navigation_development.sbatch": "9b9e43ec571d76864f97d2d61290c6e9d3c8562354452e5f14202ee791dea4ea",
+      "ci/replay-workflow.yml.example": "dc7d852a2ee805aebb1bd0f5f87bad51fdfb2f5f3df1d0daefd603d5832ad341",
+      "ci/REPLAY_USAGE.txt": "68974b7f51ace4843091474979b7c407f726aa61d90749e3b9ea876c5ab4583b",
+      "tests/test_mission7_clocks2.py": "1c007014c7a66caab649f0a478473f6131b506ab33fc26729cc38437577ec952",
+      "tests/test_platecross2.py": "b7f46a0f99a09cdf069abe9287d0a7db0a95a23d3b28896948e3a1a9dd532ae6"
+    },
+    "historical_full_cpu_suite": {
+      "passed": 2105,
+      "failed": 2,
+      "skipped": 3,
+      "warnings": 5,
+      "seconds": 395.68,
+      "receipt": "test-receipt.json",
+      "note": "Two failures came from unchanged HEAD source/tests before narrow assertion fixes. Historical full suite was not rerun."
+    },
+    "focused_corrected_tests": {
+      "status": "PASS",
+      "tests": 2,
+      "seconds": 2.23,
+      "junit_attributes": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "2",
+        "time": "2.222",
+        "timestamp": "2026-10-07T18:26:06.828876-07:00",
+        "hostname": "dgxh-2.hpc.engr.oregonstate.edu"
+      },
+      "receipt": "focused-test-fixes.xml",
+      "behavior_coverage": "Frozen helper/class source preserved; factory plain75 and clock77 paths compared against pinned reference for24updates plusreset. Platecross2 registration AST checks exactid,environment,config,runner and guardblock while allowing following unrelated registrations."
+    },
+    "feature_integration": {
+      "tests_passed": 9,
+      "skipped": 0,
+      "receipt": "integration-tests.json"
+    },
+    "ci_artifact_intake": {
+      "tests_passed": 3,
+      "download_mocked": true,
+      "workflow_executed_on_GitHub": false,
+      "receipt": "ci-intake-tests.json"
+    },
+    "frozen_artifact_note": "Frozen measured bundle/snapshot not overwritten. Later source-only receipt additions capture hardware and temporary cache-dir paths for future runs. No extra benchmark or full-suite rerun performed after focused fixes."
+  }
+}

@@ -1,0 +1,313 @@
+{
+  "task": "bimanual_so101_garment_folding",
+  "policy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/weekend-20260919/fold-adapt-s0/step_001200",
+  "garment_type": "pant_long",
+  "seed": 100,
+  "renderer": "Storm RGB (synthetic depth unused by RGB policy)",
+  "physics": "Isaac Sim 5.1 GPU PhysX particle cloth",
+  "scorer": "unmodified official LeHome run_evaluation_loop returned metrics",
+  "expected_episodes": 24,
+  "max_steps": 600,
+  "completed": true,
+  "garments": [
+    {
+      "garment": "Pant_Long_Seen_0",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.3424905836582184,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 106.80710007777657,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_0"
+        },
+        {
+          "return": 107.59958211268513,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_0"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_1",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.24439823627471924,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 264.8839251327822,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_1"
+        },
+        {
+          "return": 191.86252108796322,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_1"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_2",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.38641971349716187,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 109.13284045097487,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_2"
+        },
+        {
+          "return": 106.41237298083516,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_2"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_3",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.25823265314102173,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 109.59470896846419,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_3"
+        },
+        {
+          "return": 110.63267105654646,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_3"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_4",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.24214941263198853,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 104.02604722846398,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_4"
+        },
+        {
+          "return": 108.15903292620645,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_4"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_5",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.3195785582065582,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 108.04890491181209,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_5"
+        },
+        {
+          "return": 107.54984640970892,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_5"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_6",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2673473060131073,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 110.74159710873772,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_6"
+        },
+        {
+          "return": 104.02578729828575,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_6"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_7",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2699311077594757,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 117.12797563637238,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_7"
+        },
+        {
+          "return": 108.01965117972539,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_7"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_8",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.28893640637397766,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 65.36363485934798,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_8"
+        },
+        {
+          "return": 83.3434449486104,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_8"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Seen_9",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2539631426334381,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 104.27541421478736,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_9"
+        },
+        {
+          "return": 119.90649405252084,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Seen_9"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Unseen_0",
+      "split": "unseen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.28609898686408997,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 107.12046963729303,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Unseen_0"
+        },
+        {
+          "return": 107.51024522723382,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Unseen_0"
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Long_Unseen_1",
+      "split": "unseen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2914382219314575,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 140.5317019825766,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Unseen_1"
+        },
+        {
+          "return": 140.35985495651167,
+          "length": 600,
+          "success": false,
+          "garment_name": "Pant_Long_Unseen_1"
+        }
+      ]
+    }
+  ],
+  "rendered_observations": 29363,
+  "seen": {
+    "episodes": 20,
+    "successes": 0,
+    "success_rate": 0.0
+  },
+  "unseen": {
+    "episodes": 4,
+    "successes": 0,
+    "success_rate": 0.0
+  }
+}

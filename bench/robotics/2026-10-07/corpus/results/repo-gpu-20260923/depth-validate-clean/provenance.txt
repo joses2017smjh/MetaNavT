@@ -1,0 +1,15 @@
+job 21405534 host cn-gpu7.hpc.engr.oregonstate.edu gpu Quadro RTX 8000 46080 MiB stack v51 date 2026-09-23T22:33:02-07:00
+worktree /scratch/sanchej7/depth-clean-21405534 HEAD c1c92e6 (detached) src+scripts-dirty no
+main checkout /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder HEAD c1c92e6 branch mission7-approach-followup depth-code-dirty yes
+upstream /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite HEAD 984741a (symlinked into the worktree; used by both runs)
+--- main checkout: uncommitted depth/terrain changes EXCLUDED from this run (git status --short)
+ M src/bhl_robust/tasks/depth_env_cfg.py
+ M src/bhl_robust/tasks/terrain_env_cfg.py
+ M src/bhl_robust/terrains/bumpy.py
+ M src/bhl_robust/terrains/ice.py
+?? src/bhl_robust/terrains/maze_viz.py
+--- worktree: git status --short before the submodule symlink (expect empty)
+(clean)
+IMPORT_ORIGIN | bhl_robust = /scratch/sanchej7/depth-clean-21405534/src/bhl_robust/__init__.py
+IMPORT_ORIGIN | berkeley_humanoid_lite = (editable finder, no origin)
+IMPORT_ORIGIN | ok

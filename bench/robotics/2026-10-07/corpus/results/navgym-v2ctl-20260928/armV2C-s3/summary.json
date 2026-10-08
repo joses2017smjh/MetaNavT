@@ -1,0 +1,164 @@
+{
+  "total_steps": 30000000,
+  "wall_hours": 9.75,
+  "final_eval_heldout_48": {
+    "4x4": {
+      "success": 0.8333333333333334,
+      "collision": 0.0625,
+      "time_out": 0.10416666666666667,
+      "mean_steps": 877.6458333333334,
+      "n": 48
+    },
+    "5x5": {
+      "success": 0.6458333333333334,
+      "collision": 0.0625,
+      "time_out": 0.2916666666666667,
+      "mean_steps": 1732.7291666666667,
+      "n": 48
+    },
+    "6x6": {
+      "success": 0.75,
+      "collision": 0.0625,
+      "time_out": 0.1875,
+      "mean_steps": 1888.9166666666667,
+      "n": 48
+    }
+  },
+  "curriculum_stage": 3,
+  "onnx": {
+    "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v2ctl-20260928/armV2C-s3/actor.onnx",
+    "inputs": [
+      "lidar",
+      "near",
+      "map",
+      "goal"
+    ],
+    "max_abs_diff_vs_torch": 3.814697265625e-06
+  },
+  "env_version": 2,
+  "ppo": "v2",
+  "train_std_last_update": 4.869904041290283,
+  "policy_std_final": 4.869904041290283,
+  "std_floor_clamps": 0,
+  "best": {
+    "timesteps": 20000000,
+    "eval": {
+      "5x5": {
+        "success": 0.7916666666666666,
+        "collision": 0.125,
+        "time_out": 0.08333333333333333,
+        "mean_steps": 1297.25,
+        "n": 24
+      },
+      "6x6": {
+        "success": 0.9166666666666666,
+        "collision": 0.0,
+        "time_out": 0.08333333333333333,
+        "mean_steps": 1846.2916666666667,
+        "n": 24
+      }
+    },
+    "key": [
+      0.9166666666666666,
+      0.7916666666666666
+    ],
+    "note": "selected on held-out seeds 0-23 (a subset of the 48): its 48-maze numbers are selection-biased",
+    "final_eval_heldout_48": {
+      "4x4": {
+        "success": 0.8958333333333334,
+        "collision": 0.041666666666666664,
+        "time_out": 0.0625,
+        "mean_steps": 881.0208333333334,
+        "n": 48
+      },
+      "5x5": {
+        "success": 0.6458333333333334,
+        "collision": 0.14583333333333334,
+        "time_out": 0.20833333333333334,
+        "mean_steps": 1684.0625,
+        "n": 48
+      },
+      "6x6": {
+        "success": 0.7916666666666666,
+        "collision": 0.0625,
+        "time_out": 0.14583333333333334,
+        "mean_steps": 1963.8333333333333,
+        "n": 48
+      }
+    },
+    "onnx": {
+      "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v2ctl-20260928/armV2C-s3/actor_best.onnx",
+      "inputs": [
+        "lidar",
+        "near",
+        "map",
+        "goal"
+      ],
+      "max_abs_diff_vs_torch": 2.384185791015625e-06
+    },
+    "final_eval_fresh_48": {
+      "4x4": {
+        "success": 0.8333333333333334,
+        "collision": 0.08333333333333333,
+        "time_out": 0.08333333333333333,
+        "mean_steps": 893.7708333333334,
+        "n": 48
+      },
+      "5x5": {
+        "success": 0.7916666666666666,
+        "collision": 0.020833333333333332,
+        "time_out": 0.1875,
+        "mean_steps": 1616.9166666666667,
+        "n": 48
+      },
+      "6x6": {
+        "success": 0.75,
+        "collision": 0.08333333333333333,
+        "time_out": 0.16666666666666666,
+        "mean_steps": 2137.5416666666665,
+        "n": 48
+      }
+    }
+  },
+  "eval_mode": "parallel_pool",
+  "num_timesteps": 30003200,
+  "reached_last_step": true,
+  "std_pre_clamp_per_dim_last_update": [
+    6.324129581451416,
+    3.4156785011291504
+  ],
+  "std_ceiling": null,
+  "std_ceiling_clamps": 0,
+  "policy_std_final_per_dim": [
+    6.324129581451416,
+    3.4156785011291504
+  ],
+  "final_eval_fresh_48": {
+    "4x4": {
+      "success": 0.8541666666666666,
+      "collision": 0.041666666666666664,
+      "time_out": 0.10416666666666667,
+      "mean_steps": 904.2291666666666,
+      "n": 48
+    },
+    "5x5": {
+      "success": 0.7916666666666666,
+      "collision": 0.041666666666666664,
+      "time_out": 0.16666666666666666,
+      "mean_steps": 1436.4166666666667,
+      "n": 48
+    },
+    "6x6": {
+      "success": 0.7083333333333334,
+      "collision": 0.0625,
+      "time_out": 0.22916666666666666,
+      "mean_steps": 2002.2708333333333,
+      "n": 48
+    }
+  },
+  "fresh_set": {
+    "maze_seeds": "40000 + k, k = 0..47",
+    "dynamics": "reset(seed=40000 + k)",
+    "note": "never used for training, periodic evaluation, best-checkpoint selection or diagnosis"
+  }
+}

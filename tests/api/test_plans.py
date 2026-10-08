@@ -55,7 +55,7 @@ def test_plans_are_503_when_the_store_is_missing(client):
     assert client.get("/api/plans/").status_code == 503
 
 
-def test_propose_reject_and_approve_with_a_log(client, corpus):
+def test_propose_reject_and_approve_with_a_log(client, corpus, operator_grant):
     created = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "configs/archive/run_047.yaml"})
     assert created.status_code == 201, created.text
     plan = created.json()
@@ -70,7 +70,8 @@ def test_propose_reject_and_approve_with_a_log(client, corpus):
     assert client.post(f"/api/plans/{plan['plan_id']}/approve").status_code == 409  # decided plans are final
 
     second = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "configs/archive/run_047.yaml"}).json()
-    approved = client.post(f"/api/plans/{second['plan_id']}/approve", json={"actor": "jose"}).json()
+    token = operator_grant(client.app.state.plans.tools, second["plan_id"])
+    approved = client.post(f"/api/plans/{second['plan_id']}/approve", json={"actor": "jose", "approval_token": token}).json()
     assert approved["status"] == "applied"
     assert not (corpus / "configs" / "run_047.yaml").exists() and (corpus / "configs" / "archive" / "run_047.yaml").exists()
 
@@ -99,3 +100,16 @@ def test_action_is_refused_when_the_decision_log_is_down(client, corpus):
 def test_build_plan_store_without_a_database_has_no_log(tmp_path):
     store = build_plan_store(None, str(tmp_path))
     assert store.log is None and store.tools.allow_apply is False
+
+
+def test_actor_or_boolean_cannot_authorize_and_review_is_immutable(client, corpus, operator_grant):
+    plan = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "archive/config.yaml"}).json()
+    review = plan["review"]
+    assert review["payload"] == {"src": "configs/run_047.yaml", "dst": "archive/config.yaml"}
+    for body in ({"actor": "operator"}, {"actor": "operator", "approved": True}, {"approval_token": "forged"}):
+        assert client.post(f"/api/plans/{plan['plan_id']}/approve", json=body).status_code == 403
+    token = operator_grant(client.app.state.plans.tools, plan["plan_id"])
+    (corpus / "configs/run_047.yaml").write_text("changed after review")
+    assert client.get(f"/api/plans/{plan['plan_id']}").json()["review"] == review
+    assert client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": token}).status_code == 403
+    assert not (corpus / "archive/config.yaml").exists()

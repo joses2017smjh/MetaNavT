@@ -1,0 +1,10 @@
+{
+ "run": "waiter-wbc-s0",
+ "seed": 0,
+ "job": "21585959_0",
+ "node": "cn-gpu6",
+ "status": "FAILED",
+ "reason": "training diverged: RuntimeError: normal expects all elements of std >= 0.0 (the policy's action std left the valid range); no model_5999.pt",
+ "last_logged": "Learning iteration 2951/6000",
+ "verdict_effect": "cannot qualify (no final checkpoint, no export, no gates)"
+}

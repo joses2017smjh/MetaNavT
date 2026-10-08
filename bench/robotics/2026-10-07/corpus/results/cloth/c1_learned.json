@@ -1,0 +1,47 @@
+{
+  "train": {
+    "success_rate": 0.98,
+    "wrong_basket_rate": 0.015,
+    "mean_sweeps": 2.935,
+    "mean_steps_to_success": 2.872448979591837,
+    "fall_rate": 0.0,
+    "invalid_trajectory_rate": 0.0,
+    "env_steps_per_s": 554.2760591647999,
+    "real_time_factor": null,
+    "gpu_mem_mb": null,
+    "n_episodes": 200,
+    "physics": "kinematic_rigid",
+    "policy": "learned_residual",
+    "num_envs": 1,
+    "cloth_resolution": "n/a",
+    "n_deformables": 0,
+    "n_vertices": 0
+  },
+  "eval": {
+    "success_rate": 1.0,
+    "wrong_basket_rate": 0.0,
+    "mean_sweeps": 3.453125,
+    "mean_steps_to_success": 3.453125,
+    "fall_rate": 0.0,
+    "invalid_trajectory_rate": 0.0,
+    "env_steps_per_s": null,
+    "real_time_factor": null,
+    "gpu_mem_mb": null,
+    "n_episodes": 64,
+    "physics": "kinematic_rigid",
+    "policy": "learned_residual",
+    "num_envs": 1,
+    "cloth_resolution": "n/a",
+    "n_deformables": 0,
+    "n_vertices": 0
+  },
+  "theta": [
+    -0.47103608676174114,
+    -0.5874260884523174,
+    -0.21618098815629247,
+    -0.590334144666464,
+    0.5237277379581609
+  ],
+  "backend": "kinematic",
+  "rung": "C1"
+}

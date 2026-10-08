@@ -1,0 +1,169 @@
+{
+  "task": "bimanual_so101_garment_folding",
+  "policy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/weekend-20260919/fold-adapt-s0/step_001200",
+  "garment_type": "pant_short",
+  "seed": 100,
+  "renderer": "Storm RGB (synthetic depth unused by RGB policy)",
+  "physics": "Isaac Sim 5.1 GPU PhysX particle cloth",
+  "scorer": "unmodified official LeHome run_evaluation_loop returned metrics",
+  "expected_episodes": 24,
+  "max_steps": 600,
+  "completed": false,
+  "garments": [
+    {
+      "garment": "Pant_Short_Seen_0",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2339102178812027,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 233.41711381498448,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 201.60800999319756,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Short_Seen_1",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2414788007736206,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 202.04633656533184,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 236.08364597393597,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Short_Seen_2",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.26290810108184814,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 285.78699787910153,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 155.24227785086947,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Short_Seen_3",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.24044710397720337,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 187.38436524151183,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 277.0421378379328,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Short_Seen_4",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.23624205589294434,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 381.61014634124257,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 303.5757055548245,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Short_Seen_5",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.2338559627532959,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 280.97844061388247,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 333.65125223768075,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Pant_Short_Seen_6",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.21751947700977325,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 251.57323774043303,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 233.79998852367137,
+          "length": 600,
+          "success": false
+        }
+      ]
+    }
+  ],
+  "rendered_observations": 17128
+}

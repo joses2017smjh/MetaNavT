@@ -1,0 +1,284 @@
+{
+  "rule": {
+    "5x5_success_min": 0.8,
+    "6x6_success_min": 0.7,
+    "6x6_collision_max": 0.15,
+    "n": 48,
+    "total_steps": 30000000,
+    "seeds": [
+      5,
+      6,
+      7
+    ],
+    "min_seeds_passing": 2,
+    "set": "final_eval_fresh_48",
+    "fresh_base": 40000,
+    "stall_price": {
+      "lever": "idle_cost",
+      "idle_cost": 0.008,
+      "idle_a0_max": -0.9,
+      "idle_far_m": 0.5,
+      "step_cost": -0.002
+    },
+    "text": "PASS iff >= 2 of 3 NEW training seeds (5, 6, 7) meet every clause with their FINAL actor (deterministic) on the NEVER-USED set (maze seeds 40000-40047, dynamics reset(seed=40000 + k), v2 time limit): 5x5 success >= 0.80, 6x6 success >= 0.70, 6x6 collision <= 0.15, n = 48 per size, the run reached its last step (num_timesteps >= 30 000 000), and it is the declared v4 configuration (--ppo v2, --env-version 2, no std ceiling, the frozen stall price). Anything else is NEGATIVE. Seeds 10000-10047 and the best checkpoint are reported, not gated."
+  },
+  "label": "learned actors (deterministic mean); pose and goal are oracle inputs",
+  "final": false,
+  "seeds_passing": 1,
+  "verdict": "PENDING",
+  "per_seed": {
+    "5": {
+      "meets": false,
+      "checks": {
+        "summary_exists": false
+      },
+      "numbers": null
+    },
+    "6": {
+      "meets": true,
+      "checks": {
+        "summary_exists": true,
+        "config_v4": true,
+        "reached_last_step": true,
+        "never_used_set_is_40000": true,
+        "n48": true,
+        "5x5_success": true,
+        "6x6_success": true,
+        "6x6_collision": true
+      },
+      "numbers": {
+        "never_used_40000": {
+          "4x4": {
+            "success": 0.9791666666666666,
+            "collision": 0.0,
+            "time_out": 0.020833333333333332,
+            "mean_steps": 684.75,
+            "n": 48
+          },
+          "5x5": {
+            "success": 0.9583333333333334,
+            "collision": 0.041666666666666664,
+            "time_out": 0.0,
+            "mean_steps": 1073.2291666666667,
+            "n": 48
+          },
+          "6x6": {
+            "success": 0.9166666666666666,
+            "collision": 0.020833333333333332,
+            "time_out": 0.0625,
+            "mean_steps": 1542.1458333333333,
+            "n": 48
+          }
+        },
+        "heldout_10000_for_comparability": {
+          "4x4": {
+            "success": 1.0,
+            "collision": 0.0,
+            "time_out": 0.0,
+            "mean_steps": 657.7916666666666,
+            "n": 48
+          },
+          "5x5": {
+            "success": 0.8958333333333334,
+            "collision": 0.08333333333333333,
+            "time_out": 0.020833333333333332,
+            "mean_steps": 1176.6458333333333,
+            "n": 48
+          },
+          "6x6": {
+            "success": 0.9791666666666666,
+            "collision": 0.020833333333333332,
+            "time_out": 0.0,
+            "mean_steps": 1414.2916666666667,
+            "n": 48
+          }
+        },
+        "num_timesteps": 30003200,
+        "stall_price": {
+          "lever": "idle_cost",
+          "idle_cost": 0.008,
+          "idle_a0_max": -0.9,
+          "idle_far_m": 0.5,
+          "step_cost": -0.002
+        },
+        "std_pre_clamp_last": [
+          14.170568466186523,
+          13.203035354614258
+        ],
+        "std_floor_clamps": 0,
+        "best_checkpoint_not_gated": {
+          "timesteps": 30000000,
+          "never_used_40000": {
+            "4x4": {
+              "success": 1.0,
+              "collision": 0.0,
+              "time_out": 0.0,
+              "mean_steps": 695.4791666666666,
+              "n": 48
+            },
+            "5x5": {
+              "success": 0.9583333333333334,
+              "collision": 0.020833333333333332,
+              "time_out": 0.020833333333333332,
+              "mean_steps": 1118.4583333333333,
+              "n": 48
+            },
+            "6x6": {
+              "success": 0.9166666666666666,
+              "collision": 0.041666666666666664,
+              "time_out": 0.041666666666666664,
+              "mean_steps": 1549.0833333333333,
+              "n": 48
+            }
+          },
+          "heldout_10000_selection_biased": {
+            "4x4": {
+              "success": 1.0,
+              "collision": 0.0,
+              "time_out": 0.0,
+              "mean_steps": 660.6666666666666,
+              "n": 48
+            },
+            "5x5": {
+              "success": 0.8541666666666666,
+              "collision": 0.10416666666666667,
+              "time_out": 0.041666666666666664,
+              "mean_steps": 1212.8125,
+              "n": 48
+            },
+            "6x6": {
+              "success": 0.9583333333333334,
+              "collision": 0.041666666666666664,
+              "time_out": 0.0,
+              "mean_steps": 1450.2708333333333,
+              "n": 48
+            }
+          }
+        }
+      }
+    },
+    "7": {
+      "meets": false,
+      "checks": {
+        "summary_exists": true,
+        "config_v4": true,
+        "reached_last_step": true,
+        "never_used_set_is_40000": true,
+        "n48": true,
+        "5x5_success": false,
+        "6x6_success": false,
+        "6x6_collision": false
+      },
+      "numbers": {
+        "never_used_40000": {
+          "4x4": {
+            "success": 0.7083333333333334,
+            "collision": 0.10416666666666667,
+            "time_out": 0.1875,
+            "mean_steps": 1047.3125,
+            "n": 48
+          },
+          "5x5": {
+            "success": 0.5208333333333334,
+            "collision": 0.08333333333333333,
+            "time_out": 0.3958333333333333,
+            "mean_steps": 1878.4791666666667,
+            "n": 48
+          },
+          "6x6": {
+            "success": 0.3958333333333333,
+            "collision": 0.2916666666666667,
+            "time_out": 0.3125,
+            "mean_steps": 2222.0,
+            "n": 48
+          }
+        },
+        "heldout_10000_for_comparability": {
+          "4x4": {
+            "success": 0.7083333333333334,
+            "collision": 0.10416666666666667,
+            "time_out": 0.1875,
+            "mean_steps": 1021.4166666666666,
+            "n": 48
+          },
+          "5x5": {
+            "success": 0.6458333333333334,
+            "collision": 0.16666666666666666,
+            "time_out": 0.1875,
+            "mean_steps": 1461.5625,
+            "n": 48
+          },
+          "6x6": {
+            "success": 0.4791666666666667,
+            "collision": 0.4791666666666667,
+            "time_out": 0.041666666666666664,
+            "mean_steps": 1492.0,
+            "n": 48
+          }
+        },
+        "num_timesteps": 30003200,
+        "stall_price": {
+          "lever": "idle_cost",
+          "idle_cost": 0.008,
+          "idle_a0_max": -0.9,
+          "idle_far_m": 0.5,
+          "step_cost": -0.002
+        },
+        "std_pre_clamp_last": [
+          9.503941535949707,
+          6.042787551879883
+        ],
+        "std_floor_clamps": 0,
+        "best_checkpoint_not_gated": {
+          "timesteps": 8000000,
+          "never_used_40000": {
+            "4x4": {
+              "success": 0.9791666666666666,
+              "collision": 0.020833333333333332,
+              "time_out": 0.0,
+              "mean_steps": 690.125,
+              "n": 48
+            },
+            "5x5": {
+              "success": 0.8333333333333334,
+              "collision": 0.0625,
+              "time_out": 0.10416666666666667,
+              "mean_steps": 1276.1041666666667,
+              "n": 48
+            },
+            "6x6": {
+              "success": 0.8333333333333334,
+              "collision": 0.0625,
+              "time_out": 0.10416666666666667,
+              "mean_steps": 1685.125,
+              "n": 48
+            }
+          },
+          "heldout_10000_selection_biased": {
+            "4x4": {
+              "success": 0.9583333333333334,
+              "collision": 0.020833333333333332,
+              "time_out": 0.020833333333333332,
+              "mean_steps": 751.8125,
+              "n": 48
+            },
+            "5x5": {
+              "success": 0.875,
+              "collision": 0.020833333333333332,
+              "time_out": 0.10416666666666667,
+              "mean_steps": 1369.2083333333333,
+              "n": 48
+            },
+            "6x6": {
+              "success": 0.875,
+              "collision": 0.0,
+              "time_out": 0.125,
+              "mean_steps": 1721.8541666666667,
+              "n": 48
+            }
+          }
+        }
+      }
+    }
+  }
+}

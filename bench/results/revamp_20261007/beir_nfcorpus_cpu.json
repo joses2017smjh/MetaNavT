@@ -1,0 +1,130 @@
+{
+  "dataset": "BEIR/nfcorpus",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip",
+  "zip_sha256": "efe5be03f8c5b86a5870102d0599d227c8c6e2484328e68c6522560385671b0b",
+  "expected_zip_sha256": null,
+  "files_sha256": {
+    "corpus.jsonl": "10cc83ef1826b1425e6a87090b5140b39b27755d5a27e48215a88611c899991f",
+    "queries.jsonl": "d024e6621b84925d485ae473d316a0c3af31c62c8068a59fb29d22f7613aef2a",
+    "qrels/test.tsv": "f8fba6ef3d4dd9c3a242a8ba4ae38276fc3622fce7dcbae764766d564542fd2a"
+  },
+  "corpus_sha256": "38a3242fd28a8bf39ef90bb78b442d95389fce3d7cdf1861528273f890f1c1cb",
+  "n_docs": 3633,
+  "n_queries": 323,
+  "full_split_queries": 323,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": null,
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "55811b6",
+  "timestamp": "2026-10-08T01:10:22.122842+00:00",
+  "command": "CUDA_VISIBLE_DEVICES= python -m app.eval.beir --dataset nfcorpus --device cpu --only bm25 --n-boot 1000 --require-trec-eval --trec-dir bench/results/revamp_20261007/trec_nfcorpus_cpu --out bench/results/revamp_20261007/beir_nfcorpus_cpu.json",
+  "device": {
+    "requested": "cpu",
+    "python": "3.11.13",
+    "platform": "Linux-4.18.0-477.27.1.el8_8.x86_64-x86_64-with-glibc2.28",
+    "cpu_count": 16,
+    "hostname": "cn-b03.hpc.engr.oregonstate.edu",
+    "torch": null,
+    "cuda_available": false,
+    "device": "cpu",
+    "device_name": "cpu",
+    "threads": null,
+    "sentence_transformers": null
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 1000,
+    "n_queries": 323,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "bm25",
+      "parent": null,
+      "settings": {
+        "name": "bm25",
+        "mode": "bm25",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3207,
+        "recall@10": 0.1521,
+        "recall@100": 0.2462,
+        "mrr@10": 0.5228,
+        "n_queries": 323
+      },
+      "latency": {
+        "bm25": {
+          "n": 323,
+          "p50_ms": 11.34,
+          "p95_ms": 18.82,
+          "mean_ms": 12.28
+        },
+        "total": {
+          "n": 323,
+          "p50_ms": 11.36,
+          "p95_ms": 18.84,
+          "mean_ms": 12.29
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 21639.61,
+        "total_ms": 21639.61
+      },
+      "wall_ms": 3988.88,
+      "models": {},
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 323,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_nfcorpus_cpu/bm25.run",
+        "run_sha256": "f5040054dcde1795b338a17915dced1ed08b36c2d424714dda18375532f1152d",
+        "qrels": "bench/results/revamp_20261007/trec_nfcorpus_cpu/qrels.txt",
+        "qrels_sha256": "9d822ee3fc9e3b395d7fe25a13d81686f54b2a056992574daa825e792800c959"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3207,
+          "lo": 0.2852,
+          "hi": 0.3544
+        },
+        "recall@10": {
+          "mean": 0.1521,
+          "lo": 0.1276,
+          "hi": 0.1788
+        },
+        "recall@100": {
+          "mean": 0.2462,
+          "lo": 0.2165,
+          "hi": 0.2739
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    }
+  ]
+}

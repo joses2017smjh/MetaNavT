@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.artifacts.visualization import propose_visualization
 from app.eval.harness import project_root
+from app.eval.demo_operator import operator_fixture
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 
 
@@ -18,23 +19,31 @@ CHART = "doc/figures/mean-val-rmse-by-encoder.png"
 
 def build(root: Path | None = None, *, backend: str = "matlab") -> dict:
     root = root or project_root()
-    plan = propose_visualization(root, SOURCE, QUESTION)
-    plan.script_path = SCRIPT
-    plan.chart_path = CHART
-    tools = FilesystemTools(root=root)
-    tools.visualizations[plan.plan_id] = plan
-    blocked = False
-    try:
-        tools.apply_visualization(plan.plan_id, approved=False)
-    except ApprovalRequired:
-        blocked = True
-    result = tools.apply_visualization(
-        plan.plan_id,
-        approved=True,
-        chart_type=plan.recommended_chart,
-        execute=True,
-        backend=backend,
-    )
+    # Never overwrite real files through an agent approval bypass. Execution
+    # runs in an explicitly authorized disposable operator fixture; publishing
+    # its generated demo output below is an ordinary host demo export.
+    with operator_fixture() as (tools, issue):
+        copied = tools.root / SOURCE
+        copied.parent.mkdir(parents=True, exist_ok=True)
+        copied.write_bytes((root / SOURCE).read_bytes())
+        plan = propose_visualization(tools.root, SOURCE, QUESTION)
+        plan.script_path = SCRIPT
+        plan.chart_path = CHART
+        tools.visualizations[plan.plan_id] = plan
+        tools._register_review(plan.plan_id)
+        blocked = False
+        try:
+            tools.apply_visualization(plan.plan_id)
+        except ApprovalRequired:
+            blocked = True
+        options = {"chart_type": plan.recommended_chart, "execute": True, "backend": backend}
+        result = tools.apply_visualization(plan.plan_id, approval_token=issue(plan.plan_id, **options), **options)
+        for path in (SCRIPT, CHART):
+            generated = tools.root / path
+            if generated.is_file():
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(generated.read_bytes())
     checks = [
         {
             "label": "schema inferred before aggregation",
@@ -62,9 +71,9 @@ def build(root: Path | None = None, *, backend: str = "matlab") -> dict:
         "gold_id": None,
         "title": "Spreadsheet aggregation to MATLAB chart",
         "feature": "visualization",
-        "method": "inspect → aggregate → recommend → user approve → MATLAB",
+        "method": "inspect → aggregate → recommend → disposable operator fixture → MATLAB",
         "question": QUESTION,
-        "category": "synthetic (approval-gated artifact, not retrieval gold)",
+        "category": "synthetic disposable operator fixture (not human approval, retrieval gold or OS sandbox)",
         "gold_answer": "mean val RMSE by encoder with a 0.055 baseline",
         "gold_paths": [SOURCE],
         "aggregation": {

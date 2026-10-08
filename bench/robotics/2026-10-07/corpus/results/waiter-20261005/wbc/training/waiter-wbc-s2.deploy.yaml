@@ -1,0 +1,186 @@
+policy_checkpoint_path: "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-05_18-43-44_waiter-wbc-s2/exported/policy.onnx"
+ip_robot_addr: 127.0.0.1
+ip_policy_obs_port: 10000
+ip_host_addr: 127.0.0.1
+ip_policy_acs_port: 10001
+control_dt: 0.004
+policy_dt: 0.04
+physics_dt: 0.0005
+cutoff_freq: 1000
+num_joints: 24
+joints:
+- arm_left_shoulder_pitch_joint
+- arm_left_shoulder_roll_joint
+- arm_left_shoulder_yaw_joint
+- arm_left_elbow_pitch_joint
+- arm_left_elbow_roll_joint
+- arm_right_shoulder_pitch_joint
+- arm_right_shoulder_roll_joint
+- arm_right_shoulder_yaw_joint
+- arm_right_elbow_pitch_joint
+- arm_right_elbow_roll_joint
+- leg_left_hip_roll_joint
+- leg_left_hip_yaw_joint
+- leg_left_hip_pitch_joint
+- leg_left_knee_pitch_joint
+- leg_left_ankle_pitch_joint
+- leg_left_ankle_roll_joint
+- leg_right_hip_roll_joint
+- leg_right_hip_yaw_joint
+- leg_right_hip_pitch_joint
+- leg_right_knee_pitch_joint
+- leg_right_ankle_pitch_joint
+- leg_right_ankle_roll_joint
+- arm_left_gripper_joint
+- arm_right_gripper_joint
+joint_kp:
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+- 20.0
+joint_kd:
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 2.0
+- 1.0
+- 1.0
+effort_limits:
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 8.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 6.0
+- 2.0
+- 2.0
+default_base_position:
+- 0.0
+- 0.0
+- 0.0
+default_joint_positions:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- -0.2
+- 0.4
+- -0.3
+- 0.0
+- 0.0
+- 0.0
+- -0.2
+- 0.4
+- -0.3
+- 0.0
+- 0.0
+- 0.0
+num_observations: 83
+history_length: 0
+command_velocity:
+- 0.2424556016921997
+- -0.23695728182792664
+- -0.30870679020881653
+num_actions: 12
+action_scale: 0.25
+action_indices:
+- 10
+- 11
+- 12
+- 13
+- 14
+- 15
+- 16
+- 17
+- 18
+- 19
+- 20
+- 21
+action_limit_lower: -10000
+action_limit_upper: 10000
+gait_clock:
+  period_s: 0.8
+  phase_offset: 0.0
+  layout: sin_cos_appended_last
+  source: /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-05_18-43-44_waiter-wbc-s2/params/env.yaml
+waiter_wbc:
+  task: Velocity-BHL-Waiter-WBC-v0
+  upper_body_joints:
+    - arm_left_shoulder_pitch_joint
+    - arm_left_shoulder_roll_joint
+    - arm_left_shoulder_yaw_joint
+    - arm_left_elbow_pitch_joint
+    - arm_left_elbow_roll_joint
+    - arm_right_shoulder_pitch_joint
+    - arm_right_shoulder_roll_joint
+    - arm_right_shoulder_yaw_joint
+    - arm_right_elbow_pitch_joint
+    - arm_right_elbow_roll_joint
+    - arm_left_gripper_joint
+    - arm_right_gripper_joint
+  upper_body_indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 22, 23]
+  gripper_closed_rad: 1.2
+  policy_terms: ['velocity_commands', 'base_ang_vel', 'projected_gravity', 'joint_pos', 'joint_vel', 'actions', 'upper_body', 'gait_clock']
+  source: /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-05_18-43-44_waiter-wbc-s2/params/env.yaml

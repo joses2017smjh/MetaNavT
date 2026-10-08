@@ -1,0 +1,112 @@
+[
+ {
+  "variant": "tors04_ell",
+  "lower": "0.0:1.1:0.0:1.0:0.0",
+  "seed": 100,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2604,
+  "hold_s": 5.84,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0134,
+   0.3602
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1649,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.6,
+   "phase": "release"
+  },
+  "wall_s": 15.6
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "0.0:1.1:0.0:1.0:0.0",
+  "seed": 101,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1971,
+  "hold_s": 5.84,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0273,
+   0.3247
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1683,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.72,
+   "phase": "retract"
+  },
+  "wall_s": 14.9
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "0.0:1.1:0.0:1.0:0.0",
+  "seed": 102,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2126,
+  "hold_s": 5.8,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0024,
+   0.3809
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1647,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.68,
+   "phase": "release"
+  },
+  "wall_s": 15.1
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "0.0:1.1:0.0:1.0:0.0",
+  "seed": 103,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2114,
+  "hold_s": 5.88,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0089,
+   0.3611
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1726,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.68,
+   "phase": "release"
+  },
+  "wall_s": 14.9
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "0.0:1.1:0.0:1.0:0.0",
+  "seed": 104,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2088,
+  "hold_s": 5.8,
+  "final_dz_m": -0.1899,
+  "final_offset_xy_m": [
+   -0.0294,
+   0.3791
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1657,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.64,
+   "phase": "release"
+  },
+  "wall_s": 15.0
+ }
+]

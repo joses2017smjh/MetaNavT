@@ -89,3 +89,60 @@ def test_default_rows_keep_their_own_rerank_depth():
     assert depths["hybrid+bge-rerank@bge-small/fp16-512/top50"] == 50
     assert depths["hybrid+bge-rerank@bge-small/fp16-512/top100"] == 100
     assert {c.name: c.parent for c in beir.DEFAULT_CONFIGS}["hybrid+bge-rerank@bge-small/fp16-512/top100"] == "hybrid+bge-rerank@bge-small/fp16-512/top50"
+
+
+def test_graded_relevance_and_trec_output_are_preserved(tmp_path):
+    import math
+    root = _write_dataset(tmp_path)
+    root.rename(tmp_path / "nfcorpus")
+    root = tmp_path / "nfcorpus"
+    (root / "qrels" / "test.tsv").write_text("query-id\tcorpus-id\tscore\nq1\td1\t2\nq1\td2\t1\nq2\td3\t1\n")
+    _, _, qrels = beir.load_beir(root)
+    assert qrels["q1"] == {"d1": 2, "d2": 1}
+    expected = (1 + 2 / math.log2(3)) / (2 + 1 / math.log2(3))
+    assert beir.graded_ndcg_at_k(["d2", "d1"], qrels["q1"], 10) == pytest.approx(expected)
+    blob = beir.run(tmp_path, [beir.BeirConfig(name="bm25", mode="bm25")], dataset="nfcorpus", download=False, device="cpu", n_boot=20, trec_dir=tmp_path / "trec")
+    assert blob["dataset"] == "BEIR/nfcorpus" and blob["published"] is None
+    assert "vs_published" not in blob["results"][0]
+    assert blob["results"][0]["trec"]["run_sha256"]
+    assert (tmp_path / "trec" / "qrels.txt").read_text().startswith("q1 0 d1 2")
+
+
+def test_cache_identity_changes_with_corpus_content_and_order(tmp_path):
+    corpus_a = beir.chunks_from_corpus({"d1": "cats", "d2": "dogs"})
+    corpus_b = beir.chunks_from_corpus({"d1": "boats", "d2": "trucks"})
+    a = beir.Engine(corpus_a, tmp_path)
+    b = beir.Engine(corpus_b, tmp_path)
+    assert a.corpus_sha256 != b.corpus_sha256
+    assert a.corpus_sha256 != beir.Engine(list(reversed(corpus_a))).corpus_sha256
+    a.doc_matrix("hash")
+    b.doc_matrix("hash")
+    assert len(list(tmp_path.glob("*.npy"))) == 2
+
+
+def test_cap_and_precision_are_isolated_ablations():
+    from dataclasses import asdict
+    configs = {cfg.name: cfg for cfg in beir.DEFAULT_CONFIGS}
+    for name, factor in [(beir.RERANK_FP32_512, "max_length"), (beir.RERANK_FP16, "precision")]:
+        cfg = configs[name]
+        parent = configs[cfg.parent]
+        differences = {key for key, value in asdict(cfg).items() if key not in {"name", "parent"} and value != asdict(parent)[key]}
+        assert differences == {factor}
+
+
+def test_independent_trec_eval_metrics_if_available():
+    pytest.importorskip("pytrec_eval")
+    qrels = {"q": {"high": 2, "low": 1}}
+    rankings = {"q": ["low", "noise", "high"]}
+    pq = [{"id": "q", "ndcg@10": beir.graded_ndcg_at_k(rankings["q"], qrels["q"], 10), "recall@10": 1.0, "recall@100": 1.0}]
+    checked = beir.cross_check_metrics(rankings, qrels, pq, required=True)
+    assert checked["status"] == "passed" and checked["max_absolute_difference"] < 1e-9
+
+
+def test_empty_config_selection_and_subset_published_claim_refused(tmp_path):
+    _write_dataset(tmp_path)
+    with pytest.raises(ValueError, match="config"):
+        beir.run(tmp_path, [], download=False)
+    blob = beir.run(tmp_path, [beir.BeirConfig(name="bm25", mode="bm25")], download=False, max_queries=1, n_boot=10)
+    assert blob["n_queries"] == 1 and blob["full_split_queries"] == 2
+    assert blob["published"] is None and "subset" in blob["query_selection"]

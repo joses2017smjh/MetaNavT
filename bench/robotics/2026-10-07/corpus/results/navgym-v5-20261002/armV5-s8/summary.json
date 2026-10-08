@@ -1,0 +1,345 @@
+{
+  "total_steps": 30000000,
+  "wall_hours": 11.61,
+  "final_eval_heldout_48": {
+    "4x4": {
+      "success": 0.8333333333333334,
+      "collision": 0.041666666666666664,
+      "time_out": 0.125,
+      "mean_steps": 980.875,
+      "n": 48
+    },
+    "5x5": {
+      "success": 0.7916666666666666,
+      "collision": 0.0625,
+      "time_out": 0.14583333333333334,
+      "mean_steps": 1491.9583333333333,
+      "n": 48
+    },
+    "6x6": {
+      "success": 0.8958333333333334,
+      "collision": 0.041666666666666664,
+      "time_out": 0.0625,
+      "mean_steps": 1694.6458333333333,
+      "n": 48
+    }
+  },
+  "curriculum_stage": 3,
+  "onnx": {
+    "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v5-20261002/armV5-s8/actor.onnx",
+    "inputs": [
+      "lidar",
+      "near",
+      "map_visit",
+      "map_coarse",
+      "goal"
+    ],
+    "max_abs_diff_vs_torch": 1.33514404296875e-05
+  },
+  "env_version": 3,
+  "ppo": "v2",
+  "train_std_last_update": 3.1202306747436523,
+  "policy_std_final": 3.1202306747436523,
+  "std_floor_clamps": 0,
+  "best": {
+    "timesteps": 17000000,
+    "eval": {
+      "5x5": {
+        "success": 0.8333333333333334,
+        "collision": 0.0,
+        "time_out": 0.16666666666666666,
+        "mean_steps": 1358.2916666666667,
+        "n": 24
+      },
+      "6x6": {
+        "success": 0.9583333333333334,
+        "collision": 0.0,
+        "time_out": 0.041666666666666664,
+        "mean_steps": 1732.0,
+        "n": 24
+      }
+    },
+    "key": [
+      0.9583333333333334,
+      0.8333333333333334
+    ],
+    "note": "selected on held-out seeds 0-23 (a subset of the 48): its 48-maze numbers are selection-biased",
+    "final_eval_heldout_48": {
+      "4x4": {
+        "success": 0.8125,
+        "collision": 0.0,
+        "time_out": 0.1875,
+        "mean_steps": 1078.2083333333333,
+        "n": 48
+      },
+      "5x5": {
+        "success": 0.8333333333333334,
+        "collision": 0.0,
+        "time_out": 0.16666666666666666,
+        "mean_steps": 1475.625,
+        "n": 48
+      },
+      "6x6": {
+        "success": 0.9166666666666666,
+        "collision": 0.0,
+        "time_out": 0.08333333333333333,
+        "mean_steps": 1791.2916666666667,
+        "n": 48
+      }
+    },
+    "onnx": {
+      "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v5-20261002/armV5-s8/actor_best.onnx",
+      "inputs": [
+        "lidar",
+        "near",
+        "map_visit",
+        "map_coarse",
+        "goal"
+      ],
+      "max_abs_diff_vs_torch": 3.814697265625e-06
+    },
+    "final_eval_fresh_48": {
+      "4x4": {
+        "success": 0.9166666666666666,
+        "collision": 0.020833333333333332,
+        "time_out": 0.0625,
+        "mean_steps": 916.3125,
+        "n": 48
+      },
+      "5x5": {
+        "success": 0.9166666666666666,
+        "collision": 0.0,
+        "time_out": 0.08333333333333333,
+        "mean_steps": 1352.0208333333333,
+        "n": 48
+      },
+      "6x6": {
+        "success": 0.8541666666666666,
+        "collision": 0.020833333333333332,
+        "time_out": 0.125,
+        "mean_steps": 2128.1875,
+        "n": 48
+      }
+    }
+  },
+  "eval_mode": "parallel_pool",
+  "num_timesteps": 30003200,
+  "reached_last_step": true,
+  "std_pre_clamp_per_dim_last_update": [
+    2.784848690032959,
+    3.4556126594543457
+  ],
+  "std_ceiling": null,
+  "std_ceiling_clamps": 0,
+  "policy_std_final_per_dim": [
+    2.784848690032959,
+    3.4556126594543457
+  ],
+  "stall_price": {
+    "lever": "idle_cost",
+    "idle_cost": 0.008,
+    "idle_a0_max": -0.9,
+    "idle_far_m": 0.5,
+    "step_cost": -0.002
+  },
+  "idle_charged_frac_training": 0.01936013491894198,
+  "v5_config": {
+    "env_version": 3,
+    "obs_keys": [
+      "lidar",
+      "near",
+      "map_visit",
+      "map_coarse",
+      "goal"
+    ],
+    "map_visit_shape": [
+      4,
+      24,
+      24
+    ],
+    "map_coarse_shape": [
+      4,
+      24,
+      24
+    ],
+    "visitation": {
+      "res_m": 0.2,
+      "tau_s": 60.0,
+      "radius_m": 0.22,
+      "rule": "every step r *= exp(-dt / tau), then cells with centre within radius = 1"
+    },
+    "coarse_map": {
+      "block": 3,
+      "res_m": 0.6,
+      "crop": 24,
+      "pool": "block mean of occupied, free, unknown, visitation; outside = unknown"
+    },
+    "yaw_change_cost": 0.005,
+    "brake": {
+      "lo_m": 0.42,
+      "span_m": 0.48,
+      "half_angle_deg": 25.0,
+      "period_s": 0.1
+    },
+    "extractor": "NavExtractorV5"
+  },
+  "yaw_stats_not_gated": {
+    "note": "REPORTED, NOT GATED. Per maze size, pooled over the evaluation episodes of that set: yaw_flips_per_s = the number of steps whose clipped yaw action a_yaw has the opposite sign to the previous step's (sign product < 0) divided by the episodes' total duration (steps x 0.04 s); wz_saturation_share = the share of steps with |a_yaw| >= 0.99; braked_share = the share of steps the speed brake cut a non-zero forward command.",
+    "final_actor_heldout_10000": {
+      "4x4": {
+        "episodes": 48,
+        "steps": 47082,
+        "yaw_flips": 1935,
+        "yaw_sat_steps": 46748,
+        "braked_steps": 11221,
+        "yaw_flips_per_s": 1.0274627246081305,
+        "wz_saturation_share": 0.9929059937980544,
+        "braked_share": 0.2383288730300327
+      },
+      "5x5": {
+        "episodes": 48,
+        "steps": 71614,
+        "yaw_flips": 2972,
+        "yaw_sat_steps": 71104,
+        "braked_steps": 18794,
+        "yaw_flips_per_s": 1.0375066327812998,
+        "wz_saturation_share": 0.9928784874465887,
+        "braked_share": 0.2624347194682604
+      },
+      "6x6": {
+        "episodes": 48,
+        "steps": 81343,
+        "yaw_flips": 3645,
+        "yaw_sat_steps": 80742,
+        "braked_steps": 16546,
+        "yaw_flips_per_s": 1.1202561990583086,
+        "wz_saturation_share": 0.9926115338750722,
+        "braked_share": 0.2034102504210565
+      }
+    },
+    "final_actor_fresh": {
+      "4x4": {
+        "episodes": 48,
+        "steps": 54410,
+        "yaw_flips": 1827,
+        "yaw_sat_steps": 54080,
+        "braked_steps": 16632,
+        "yaw_flips_per_s": 0.8394596581510751,
+        "wz_saturation_share": 0.9939349384304356,
+        "braked_share": 0.3056791031060467
+      },
+      "5x5": {
+        "episodes": 48,
+        "steps": 64859,
+        "yaw_flips": 2525,
+        "yaw_sat_steps": 64462,
+        "braked_steps": 12213,
+        "yaw_flips_per_s": 0.9732650827178957,
+        "wz_saturation_share": 0.9938790298956197,
+        "braked_share": 0.18830077552845403
+      },
+      "6x6": {
+        "episodes": 48,
+        "steps": 101048,
+        "yaw_flips": 3961,
+        "yaw_sat_steps": 100381,
+        "braked_steps": 26762,
+        "yaw_flips_per_s": 0.9799798115746972,
+        "wz_saturation_share": 0.9933991766289288,
+        "braked_share": 0.26484443036972527
+      }
+    },
+    "best_actor_heldout_10000": {
+      "4x4": {
+        "episodes": 48,
+        "steps": 51754,
+        "yaw_flips": 2427,
+        "yaw_sat_steps": 51000,
+        "braked_steps": 11965,
+        "yaw_flips_per_s": 1.172373149901457,
+        "wz_saturation_share": 0.9854310777910886,
+        "braked_share": 0.23118985972098774
+      },
+      "5x5": {
+        "episodes": 48,
+        "steps": 70830,
+        "yaw_flips": 3483,
+        "yaw_sat_steps": 69784,
+        "braked_steps": 17325,
+        "yaw_flips_per_s": 1.2293519695044473,
+        "wz_saturation_share": 0.9852322462233517,
+        "braked_share": 0.2445997458703939
+      },
+      "6x6": {
+        "episodes": 48,
+        "steps": 85982,
+        "yaw_flips": 4247,
+        "yaw_sat_steps": 84779,
+        "braked_steps": 19265,
+        "yaw_flips_per_s": 1.234851480542439,
+        "wz_saturation_share": 0.9860086994952432,
+        "braked_share": 0.22405852387709055
+      }
+    },
+    "best_actor_fresh": {
+      "4x4": {
+        "episodes": 48,
+        "steps": 43983,
+        "yaw_flips": 1937,
+        "yaw_sat_steps": 43405,
+        "braked_steps": 8694,
+        "yaw_flips_per_s": 1.1009935656958372,
+        "wz_saturation_share": 0.9868585589887002,
+        "braked_share": 0.1976672805402087
+      },
+      "5x5": {
+        "episodes": 48,
+        "steps": 64897,
+        "yaw_flips": 2837,
+        "yaw_sat_steps": 64058,
+        "braked_steps": 14366,
+        "yaw_flips_per_s": 1.0928856495677766,
+        "wz_saturation_share": 0.9870718215017643,
+        "braked_share": 0.22136616484583263
+      },
+      "6x6": {
+        "episodes": 48,
+        "steps": 102153,
+        "yaw_flips": 4319,
+        "yaw_sat_steps": 100775,
+        "braked_steps": 26516,
+        "yaw_flips_per_s": 1.0569929419596096,
+        "wz_saturation_share": 0.9865104304327822,
+        "braked_share": 0.25957142717296605
+      }
+    }
+  },
+  "final_eval_fresh_48": {
+    "4x4": {
+      "success": 0.6458333333333334,
+      "collision": 0.125,
+      "time_out": 0.22916666666666666,
+      "mean_steps": 1133.5416666666667,
+      "n": 48
+    },
+    "5x5": {
+      "success": 0.8541666666666666,
+      "collision": 0.0625,
+      "time_out": 0.08333333333333333,
+      "mean_steps": 1351.2291666666667,
+      "n": 48
+    },
+    "6x6": {
+      "success": 0.7708333333333334,
+      "collision": 0.08333333333333333,
+      "time_out": 0.14583333333333334,
+      "mean_steps": 2105.1666666666665,
+      "n": 48
+    }
+  },
+  "fresh_set": {
+    "maze_seeds": "61000 + k, k = 0..47",
+    "dynamics": "reset(seed=61000 + k)",
+    "note": "never used for training, periodic evaluation, best-checkpoint selection or diagnosis"
+  }
+}

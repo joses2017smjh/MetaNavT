@@ -1,0 +1,39 @@
+{
+  "task": "Velocity-BHL-MazeRecovery-Full-Stereo-v0",
+  "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-19_16-05-18_wknd-full-stereo-s0/model_5997.pt",
+  "seed": 100,
+  "steps": 600,
+  "num_envs": 32,
+  "completed_episodes": 210,
+  "successful_episodes": 209,
+  "success_rate": 0.9952380952380953,
+  "first_episodes_completed": 32,
+  "first_episode_success_rate": 0.96875,
+  "dead_end_episodes": 0,
+  "timeout_episodes": 0,
+  "mean_minimum_button_distance_m": 0.15305492281913757,
+  "mean_max_displacement_from_initial_spawn_m": 2.876422643661499,
+  "sensors": {
+    "stereo_l": {
+      "shape": [
+        32,
+        16
+      ],
+      "min": 0.050598856061697006,
+      "max": 0.9006301164627075
+    },
+    "stereo_r": {
+      "shape": [
+        32,
+        16
+      ],
+      "min": 0.052699070423841476,
+      "max": 0.8941351771354675
+    }
+  },
+  "gate_kind": "policy_evaluation",
+  "navigation_source": "oracle_waypoint_teacher",
+  "camera_source": "raycast_depth_not_rgb_stereo",
+  "observation_corruption": true,
+  "passed": true
+}

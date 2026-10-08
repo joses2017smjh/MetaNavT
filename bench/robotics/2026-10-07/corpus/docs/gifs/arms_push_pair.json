@@ -1,0 +1,36 @@
+{
+  "output": "docs/gifs/arms_push_pair.gif",
+  "output_sha256": "7fa24e1970ee4a724c214513e2a5d78b51d2608ab581102c70532f55bed026fe",
+  "source_clip": [
+    "results/demo_arms/push/arms-push-s0__vx+0.3_vy+0.0_wz+0.5__OK.mp4",
+    "results/demo_arms/push/arms-dr1.0-s0__vx+0.3_vy+0.0_wz+0.5__FELL.mp4"
+  ],
+  "source_sha256": [
+    "e0cff260d96ea7e2f697543b9ac35e20b8d2b9134df63685dacde56413faf155",
+    "ec53f9b797ad2c5981ef676bb9d4c1ba649732ea9918dda2d6926e4525b30807"
+  ],
+  "labels_drawn": [
+    "push-trained: 0.15 falls (n=60)",
+    "DR only: 0.10 falls (n=60)"
+  ],
+  "evidence": [
+    "results/demo_arms/push/arms-push-s0.csv",
+    "results/demo_arms/push/arms-dr1.0-s0.csv"
+  ],
+  "evidence_sha256": [
+    "00208befe8b9cc322b279355840573d65592566498c99e282e250cb421465cd5",
+    "2eb57988a39e74e93185f66cd0704fecca1b40c02137f6d10cdaeff58ea04a7b"
+  ],
+  "aggregate": {
+    "n": 60,
+    "push_trained_fall_rate": 0.15,
+    "dr_only_fall_rate": 0.1,
+    "source": "results/arms CSVs (REPORT section 2)"
+  },
+  "filming_run": "push-trained fell 2/6 commands, DR-only 1/6; this clip is the one command where the ordering favours push training",
+  "correction": "2026-09-23: labels previously read 'push-trained - RECOVERS' / 'no push training - FALLS' and the caption claimed a free 0.2 m/s shove rejection; that inverted the n=60 result.",
+  "labels": "learned PPO gait (Isaac v51 trained), 22-DoF, free base, native MuJoCo transfer",
+  "playback_speed": 1.0,
+  "git_commit": "95101105e2ee996b1ca776445e2aa485383388ed",
+  "clip_outcome": "in this single command the push-trained policy stays up and the DR-only policy falls (red outline); the drawn labels give the n=60 aggregate, which runs the other way"
+}

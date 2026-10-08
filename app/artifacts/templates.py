@@ -14,9 +14,13 @@ from app.retrieval.types import RetrievalHit
 
 
 def _cite_header(spec: SpecCard) -> str:
-    lines = [f"# goal: {spec.goal}", "# citations:"]
+    # Queries and source filenames are untrusted. Prefix every physical line
+    # so a newline in a goal/path can never become executable template code.
+    lines = [f"# {line}" for line in f"goal: {spec.goal}".splitlines()]
+    lines.append("# citations:")
     for c in spec.citations:
-        lines.append(f"#   {c['path']} [{c.get('start_byte', 0)}:{c.get('end_byte', 0)}]")
+        citation = f"  {c['path']} [{c.get('start_byte', 0)}:{c.get('end_byte', 0)}]"
+        lines.extend(f"# {line}" for line in citation.splitlines())
     return "\n".join(lines)
 
 

@@ -1,0 +1,59 @@
+{
+  "task": "bimanual_so101_garment_folding",
+  "policy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/outputs/train/bc_smolvla_raster_ft_full",
+  "garment_type": "top_long",
+  "seed": 100,
+  "renderer": "Storm RGB (synthetic depth unused by RGB policy)",
+  "physics": "Isaac Sim 5.1 GPU PhysX particle cloth",
+  "scorer": "unmodified official LeHome run_evaluation_loop returned metrics",
+  "expected_episodes": 24,
+  "max_steps": 600,
+  "completed": false,
+  "garments": [
+    {
+      "garment": "Top_Long_Seen_0",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.47104722261428833,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 113.46164049095132,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 109.72866153943694,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Top_Long_Seen_1",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.5246514081954956,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 119.08306491972107,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 149.6271814294481,
+          "length": 600,
+          "success": false
+        }
+      ]
+    }
+  ],
+  "rendered_observations": 4893
+}

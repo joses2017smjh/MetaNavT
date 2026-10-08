@@ -1,0 +1,154 @@
+{
+  "rule": {
+    "5x5_success_min": 0.8,
+    "6x6_success_min": 0.7,
+    "6x6_collision_max": 0.15,
+    "n": 48,
+    "total_steps": 30000000,
+    "seeds": [
+      2,
+      3,
+      4
+    ],
+    "min_seeds_passing": 2,
+    "set": "final_eval_fresh_48",
+    "fresh_base": 20000,
+    "text": "PASS iff >= 2 of 3 fresh seeds (2, 3, 4) meet every clause on the FRESH held-out set (maze seeds 20000-20047, final actor, deterministic): 5x5 success >= 0.80, 6x6 success >= 0.70, 6x6 collision <= 0.15, n = 48 per size, and the run reached its last step (num_timesteps >= 30 000 000). Seeds 10000-10047 are reported for comparability, not gated."
+  },
+  "final": false,
+  "seeds_passing": 0,
+  "verdict": "PENDING",
+  "per_seed": {
+    "2": {
+      "meets": false,
+      "checks": {
+        "summary_exists": false
+      },
+      "numbers": null
+    },
+    "3": {
+      "meets": false,
+      "checks": {
+        "summary_exists": false
+      },
+      "numbers": null
+    },
+    "4": {
+      "meets": false,
+      "checks": {
+        "summary_exists": true,
+        "config_v3": true,
+        "reached_last_step": true,
+        "fresh_set_is_20000": true,
+        "n48": true,
+        "5x5_success": false,
+        "6x6_success": false,
+        "6x6_collision": false
+      },
+      "numbers": {
+        "fresh": {
+          "4x4": {
+            "success": 0.8958333333333334,
+            "collision": 0.041666666666666664,
+            "time_out": 0.0625,
+            "mean_steps": 795.0208333333334,
+            "n": 48
+          },
+          "5x5": {
+            "success": 0.6666666666666666,
+            "collision": 0.16666666666666666,
+            "time_out": 0.16666666666666666,
+            "mean_steps": 1340.5208333333333,
+            "n": 48
+          },
+          "6x6": {
+            "success": 0.5833333333333334,
+            "collision": 0.20833333333333334,
+            "time_out": 0.20833333333333334,
+            "mean_steps": 1849.6458333333333,
+            "n": 48
+          }
+        },
+        "heldout_10000_for_comparability": {
+          "4x4": {
+            "success": 0.8541666666666666,
+            "collision": 0.08333333333333333,
+            "time_out": 0.0625,
+            "mean_steps": 788.7916666666666,
+            "n": 48
+          },
+          "5x5": {
+            "success": 0.5625,
+            "collision": 0.125,
+            "time_out": 0.3125,
+            "mean_steps": 1811.1875,
+            "n": 48
+          },
+          "6x6": {
+            "success": 0.6041666666666666,
+            "collision": 0.2708333333333333,
+            "time_out": 0.125,
+            "mean_steps": 1554.8958333333333,
+            "n": 48
+          }
+        },
+        "num_timesteps": 30003200,
+        "std_pre_clamp_last": [
+          0.9997143745422363,
+          0.9999706149101257
+        ],
+        "std_ceiling_clamps": 4430,
+        "std_floor_clamps": 0,
+        "best_checkpoint_not_gated": {
+          "timesteps": 8000000,
+          "fresh": {
+            "4x4": {
+              "success": 0.875,
+              "collision": 0.08333333333333333,
+              "time_out": 0.041666666666666664,
+              "mean_steps": 826.6458333333334,
+              "n": 48
+            },
+            "5x5": {
+              "success": 0.8333333333333334,
+              "collision": 0.0625,
+              "time_out": 0.10416666666666667,
+              "mean_steps": 1426.7291666666667,
+              "n": 48
+            },
+            "6x6": {
+              "success": 0.7291666666666666,
+              "collision": 0.10416666666666667,
+              "time_out": 0.16666666666666666,
+              "mean_steps": 2073.4583333333335,
+              "n": 48
+            }
+          },
+          "heldout_10000_selection_biased": {
+            "4x4": {
+              "success": 0.875,
+              "collision": 0.0625,
+              "time_out": 0.0625,
+              "mean_steps": 820.4375,
+              "n": 48
+            },
+            "5x5": {
+              "success": 0.8333333333333334,
+              "collision": 0.08333333333333333,
+              "time_out": 0.08333333333333333,
+              "mean_steps": 1502.8333333333333,
+              "n": 48
+            },
+            "6x6": {
+              "success": 0.9166666666666666,
+              "collision": 0.041666666666666664,
+              "time_out": 0.041666666666666664,
+              "mean_steps": 1603.3333333333333,
+              "n": 48
+            }
+          }
+        }
+      }
+    }
+  }
+}

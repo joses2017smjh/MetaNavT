@@ -1,0 +1,3 @@
+
+# Frozen benchmark evidence keeps its exact source bytes and legacy whitespace.
+bench/robotics/** -text -whitespace

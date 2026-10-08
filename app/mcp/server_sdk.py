@@ -6,7 +6,7 @@ Every FilesystemTools tool spec (search, read, list, propose_move, apply_plan,
 artifacts, patches, visualizations) is registered from tool_specs(), so the
 tool list is the same as the hand-rolled server in app/mcp/server.py, which is
 kept for clients pinned to its 2024-11-05 framing. The approval gate is
-unchanged: apply_* refuses without approved=true.
+content-bound: apply_* refuses without an operator-issued capability.
 
 tests/mcp/test_server_sdk.py spawns this module over stdio with the SDK's
 client, lists the tools and calls them.
@@ -26,7 +26,7 @@ from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 
 def build_server(root: str | Path, name: str = "metanavit-filesystem") -> MCPServer:
     tools = FilesystemTools(root=Path(root))
-    server = MCPServer(name=name, instructions="Search, read and propose changes to a research file tree. apply_* needs approved=true.")
+    server = MCPServer(name=name, instructions="Search, read and propose changes to a research file tree. apply_* needs an operator-issued capability; caller approval flags never authorize.")
 
     for spec in tools.tool_specs():
         tool_name = spec["name"]

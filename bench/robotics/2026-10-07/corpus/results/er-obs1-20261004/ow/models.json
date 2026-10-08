@@ -1,0 +1,59 @@
+{
+ "allenai/Molmo2-ER": {
+  "revision": "dab22564403d2607855bb1fffb0721285b445081",
+  "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/.cache/huggingface/hub/models--allenai--Molmo2-ER/snapshots/dab22564403d2607855bb1fffb0721285b445081",
+  "bytes_listed": 19419842694,
+  "seconds": 152,
+  "files": [
+   ".gitattributes",
+   "README.md",
+   "added_tokens.json",
+   "assets",
+   "chat_template.jinja",
+   "config.json",
+   "configuration_molmo2.py",
+   "generation_config.json",
+   "image_processing_molmo2.py",
+   "merges.txt",
+   "model-00001-of-00004.safetensors",
+   "model-00002-of-00004.safetensors",
+   "model-00003-of-00004.safetensors",
+   "model-00004-of-00004.safetensors",
+   "model.safetensors.index.json",
+   "modeling_molmo2.py",
+   "preprocessor_config.json",
+   "processing_molmo2.py",
+   "processor_config.json",
+   "special_tokens_map.json",
+   "tokenizer.json",
+   "tokenizer_config.json",
+   "video_preprocessor_config.json",
+   "video_processing_molmo2.py",
+   "vocab.json"
+  ]
+ },
+ "Qwen/Qwen3-VL-8B-Instruct": {
+  "revision": "0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/.cache/huggingface/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "bytes_listed": 17545915883,
+  "seconds": 132,
+  "files": [
+   ".gitattributes",
+   "README.md",
+   "chat_template.json",
+   "config.json",
+   "generation_config.json",
+   "merges.txt",
+   "model-00001-of-00004.safetensors",
+   "model-00002-of-00004.safetensors",
+   "model-00003-of-00004.safetensors",
+   "model-00004-of-00004.safetensors",
+   "model.safetensors.index.json",
+   "preprocessor_config.json",
+   "tokenizer.json",
+   "tokenizer_config.json",
+   "video_preprocessor_config.json",
+   "vocab.json"
+  ]
+ }
+}

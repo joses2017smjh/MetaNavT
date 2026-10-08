@@ -1,0 +1,1734 @@
+{
+  "completed": "2026-10-08T01:39:30.957774+00:00",
+  "scope": "M2 actual original FastAPI/PostgreSQL retrieval service and M3 external BEIR validation; no training or model fine-tuning",
+  "http": {
+    "http_cpu_fp32_512_paired16": {
+      "path": "bench/results/revamp_20261007/http_cpu_fp32_512_paired16/http_load.json",
+      "sha256": "3525778e30f1dcd6104f1221ee132f894b6bc73b37733d3d866b607f249b45f3",
+      "outcome": "requests_failed",
+      "all_attempts": {
+        "attempted": 51,
+        "completed": 51,
+        "in_flight": 0,
+        "succeeded": 38,
+        "failed": 13
+      },
+      "cold_e2e_ms": 15457.075,
+      "workload": {
+        "concurrency_levels": [
+          1,
+          4,
+          16
+        ],
+        "requests_per_level": 16,
+        "warmup_requests": 2
+      },
+      "query_sha256": "49d2b6a7c9695d49df3c521b9cb6f913763f078495f402a1bee3baa57838234a",
+      "data_files": 61,
+      "n_nodes": 61,
+      "corpus_sha256": "9cfc24ce2eff3e1cf2fe4bbe0dfd848aadfab823b5ce12fbc17bc9a14b9a39de",
+      "precision": "fp32",
+      "max_length": 512,
+      "rerank_depth": 20,
+      "slurm_job_id": "21658603",
+      "hostname": "cn-b04.hpc.engr.oregonstate.edu",
+      "bm25_backend": "ts_rank_cd",
+      "models_device": {
+        "embedding": "cpu",
+        "reranker": "cpu"
+      },
+      "loads": [
+        {
+          "concurrency": 1,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 15400.648,
+            "p95_ms": 15557.068,
+            "mean_ms": 12534.092
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 15400.648,
+            "p95_ms": 15557.068,
+            "mean_ms": 12534.092
+          },
+          "successful_requests_per_second": 0.07974723572668785,
+          "route_counts": {
+            "semantic": 13,
+            "aggregation_query": 3
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 3,
+              "p50_ms": 42.198,
+              "p95_ms": 42.355,
+              "mean_ms": 41.989
+            },
+            "semantic": {
+              "n": 13,
+              "p50_ms": 15425.236,
+              "p95_ms": 15561.281,
+              "mean_ms": 15416.885
+            }
+          }
+        },
+        {
+          "concurrency": 4,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 60554.889,
+            "p95_ms": 63321.766,
+            "mean_ms": 47114.032
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 60554.889,
+            "p95_ms": 63321.766,
+            "mean_ms": 47114.032
+          },
+          "successful_requests_per_second": 0.08005798472821245,
+          "route_counts": {
+            "semantic": 13,
+            "aggregation_query": 3
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 3,
+              "p50_ms": 139.585,
+              "p95_ms": 172.938,
+              "mean_ms": 143.223
+            },
+            "semantic": {
+              "n": 13,
+              "p50_ms": 61465.244,
+              "p95_ms": 63331.353,
+              "mean_ms": 57953.449
+            }
+          }
+        },
+        {
+          "concurrency": 16,
+          "attempted": 16,
+          "succeeded": 3,
+          "failed": 13,
+          "error_rate": 0.8125,
+          "status_counts": {
+            "no_response": 13,
+            "200": 3
+          },
+          "error_counts": {
+            "timeout": 13
+          },
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 120324.88,
+            "p95_ms": 120653.01,
+            "mean_ms": 97917.865
+          },
+          "e2e_successful": {
+            "n": 3,
+            "p50_ms": 507.995,
+            "p95_ms": 561.082,
+            "mean_ms": 506.528
+          },
+          "successful_requests_per_second": 0.02483563467994546,
+          "route_counts": {
+            "aggregation_query": 3
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 3,
+              "p50_ms": 507.995,
+              "p95_ms": 561.082,
+              "mean_ms": 506.528
+            }
+          }
+        }
+      ]
+    },
+    "http_gpu_fp32_512_paired16": {
+      "path": "bench/results/revamp_20261007/http_gpu_fp32_512_paired16/http_load.json",
+      "sha256": "7e4e49125bdc0666f646f2087ab804fe51c6a9996d9e6db6328a17fd33486d49",
+      "outcome": "ok",
+      "all_attempts": {
+        "attempted": 51,
+        "completed": 51,
+        "in_flight": 0,
+        "succeeded": 51,
+        "failed": 0
+      },
+      "cold_e2e_ms": 92.366,
+      "workload": {
+        "concurrency_levels": [
+          1,
+          4,
+          16
+        ],
+        "requests_per_level": 16,
+        "warmup_requests": 2
+      },
+      "query_sha256": "49d2b6a7c9695d49df3c521b9cb6f913763f078495f402a1bee3baa57838234a",
+      "data_files": 61,
+      "n_nodes": 61,
+      "corpus_sha256": "9cfc24ce2eff3e1cf2fe4bbe0dfd848aadfab823b5ce12fbc17bc9a14b9a39de",
+      "precision": "fp32",
+      "max_length": 512,
+      "rerank_depth": 20,
+      "slurm_job_id": "21658631",
+      "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+      "bm25_backend": "ts_rank_cd",
+      "models_device": {
+        "embedding": "cuda:0",
+        "reranker": "cuda:0"
+      },
+      "loads": [
+        {
+          "concurrency": 1,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 61.44,
+            "p95_ms": 61.943,
+            "mean_ms": 52.182
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 61.44,
+            "p95_ms": 61.943,
+            "mean_ms": 52.182
+          },
+          "successful_requests_per_second": 17.73152033918504,
+          "route_counts": {
+            "semantic": 13,
+            "aggregation_query": 3
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 3,
+              "p50_ms": 11.612,
+              "p95_ms": 11.923,
+              "mean_ms": 11.566
+            },
+            "semantic": {
+              "n": 13,
+              "p50_ms": 61.468,
+              "p95_ms": 61.946,
+              "mean_ms": 61.555
+            }
+          }
+        },
+        {
+          "concurrency": 4,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 191.847,
+            "p95_ms": 235.454,
+            "mean_ms": 169.309
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 191.847,
+            "p95_ms": 235.454,
+            "mean_ms": 169.309
+          },
+          "successful_requests_per_second": 21.35467069163095,
+          "route_counts": {
+            "semantic": 13,
+            "aggregation_query": 3
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 3,
+              "p50_ms": 59.283,
+              "p95_ms": 100.845,
+              "mean_ms": 70.589
+            },
+            "semantic": {
+              "n": 13,
+              "p50_ms": 196.585,
+              "p95_ms": 235.478,
+              "mean_ms": 192.091
+            }
+          }
+        },
+        {
+          "concurrency": 16,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 815.501,
+            "p95_ms": 889.253,
+            "mean_ms": 680.772
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 815.501,
+            "p95_ms": 889.253,
+            "mean_ms": 680.772
+          },
+          "successful_requests_per_second": 17.286906707815184,
+          "route_counts": {
+            "semantic": 13,
+            "aggregation_query": 3
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 3,
+              "p50_ms": 195.677,
+              "p95_ms": 207.175,
+              "mean_ms": 196.533
+            },
+            "semantic": {
+              "n": 13,
+              "p50_ms": 822.083,
+              "p95_ms": 890.508,
+              "mean_ms": 792.519
+            }
+          }
+        }
+      ]
+    },
+    "http_gpu_fp16_512": {
+      "path": "bench/results/revamp_20261007/http_gpu_fp16_512/http_load.json",
+      "sha256": "81ffaf133ea62fcf465b6db6f28f8e71fc4a73bdb989f6eb630495f4d3c7362d",
+      "outcome": "ok",
+      "all_attempts": {
+        "attempted": 99,
+        "succeeded": 99,
+        "failed": 0
+      },
+      "cold_e2e_ms": 331.68,
+      "workload": {
+        "requests_per_level": 32,
+        "concurrency_levels": [
+          1,
+          4,
+          16
+        ],
+        "warmup_requests": 2
+      },
+      "query_sha256": "49d2b6a7c9695d49df3c521b9cb6f913763f078495f402a1bee3baa57838234a",
+      "data_files": 61,
+      "n_nodes": 61,
+      "corpus_sha256": "9cfc24ce2eff3e1cf2fe4bbe0dfd848aadfab823b5ce12fbc17bc9a14b9a39de",
+      "precision": "fp16",
+      "max_length": 512,
+      "rerank_depth": 20,
+      "slurm_job_id": "21657979",
+      "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+      "bm25_backend": "ts_rank_cd",
+      "models_device": {
+        "embedding": "cuda:0",
+        "reranker": "cuda:0"
+      },
+      "loads": [
+        {
+          "concurrency": 1,
+          "attempted": 32,
+          "succeeded": 32,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 32
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 32,
+            "p50_ms": 22.114,
+            "p95_ms": 23.459,
+            "mean_ms": 19.952
+          },
+          "e2e_successful": {
+            "n": 32,
+            "p50_ms": 22.114,
+            "p95_ms": 23.459,
+            "mean_ms": 19.952
+          },
+          "successful_requests_per_second": 50.05643761889803,
+          "route_counts": {
+            "semantic": 25,
+            "aggregation_query": 7
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 7,
+              "p50_ms": 10.776,
+              "p95_ms": 11.373,
+              "mean_ms": 10.888
+            },
+            "semantic": {
+              "n": 25,
+              "p50_ms": 22.269,
+              "p95_ms": 23.469,
+              "mean_ms": 22.49
+            }
+          }
+        },
+        {
+          "concurrency": 4,
+          "attempted": 32,
+          "succeeded": 32,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 32
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 32,
+            "p50_ms": 100.161,
+            "p95_ms": 110.421,
+            "mean_ms": 88.056
+          },
+          "e2e_successful": {
+            "n": 32,
+            "p50_ms": 100.161,
+            "p95_ms": 110.421,
+            "mean_ms": 88.056
+          },
+          "successful_requests_per_second": 45.21217448114532,
+          "route_counts": {
+            "semantic": 25,
+            "aggregation_query": 7
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 7,
+              "p50_ms": 38.479,
+              "p95_ms": 50.012,
+              "mean_ms": 38.459
+            },
+            "semantic": {
+              "n": 25,
+              "p50_ms": 101.442,
+              "p95_ms": 110.48,
+              "mean_ms": 101.944
+            }
+          }
+        },
+        {
+          "concurrency": 16,
+          "attempted": 32,
+          "succeeded": 32,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 32
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 32,
+            "p50_ms": 428.687,
+            "p95_ms": 556.032,
+            "mean_ms": 410.281
+          },
+          "e2e_successful": {
+            "n": 32,
+            "p50_ms": 428.687,
+            "p95_ms": 556.032,
+            "mean_ms": 410.281
+          },
+          "successful_requests_per_second": 35.0366441698487,
+          "route_counts": {
+            "semantic": 25,
+            "aggregation_query": 7
+          },
+          "e2e_successful_by_route": {
+            "aggregation_query": {
+              "n": 7,
+              "p50_ms": 175.661,
+              "p95_ms": 237.635,
+              "mean_ms": 189.177
+            },
+            "semantic": {
+              "n": 25,
+              "p50_ms": 502.285,
+              "p95_ms": 557.116,
+              "mean_ms": 472.19
+            }
+          }
+        }
+      ]
+    },
+    "http_robotics_gpu_fp16_512": {
+      "path": "bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json",
+      "sha256": "24828cecda26ee7bafb7840064f4306831204d413cb330ff6d783e45352b1c36",
+      "outcome": "ok",
+      "all_attempts": {
+        "attempted": 51,
+        "completed": 51,
+        "in_flight": 0,
+        "succeeded": 51,
+        "failed": 0
+      },
+      "cold_e2e_ms": 410.616,
+      "workload": {
+        "concurrency_levels": [
+          1,
+          4,
+          16
+        ],
+        "requests_per_level": 16,
+        "warmup_requests": 2
+      },
+      "query_sha256": "dc751608e7ed28af40b2be3ae91d2c57c5f8dcd82b778873b37948dd511fd974",
+      "data_files": 600,
+      "n_nodes": 5633,
+      "corpus_sha256": "2c4dbec8d708e501949ad8ffbb514c689334f55cead9d799d551ee2d3ee95ddf",
+      "precision": "fp16",
+      "max_length": 512,
+      "rerank_depth": 20,
+      "slurm_job_id": "21658762",
+      "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+      "bm25_backend": "ts_rank_cd",
+      "models_device": {
+        "embedding": "cuda:0",
+        "reranker": "cuda:0"
+      },
+      "loads": [
+        {
+          "concurrency": 1,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 155.071,
+            "p95_ms": 251.686,
+            "mean_ms": 162.871
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 155.071,
+            "p95_ms": 251.686,
+            "mean_ms": 162.871
+          },
+          "successful_requests_per_second": 5.982488283188763,
+          "route_counts": {
+            "semantic": 16
+          },
+          "e2e_successful_by_route": {
+            "semantic": {
+              "n": 16,
+              "p50_ms": 155.071,
+              "p95_ms": 251.686,
+              "mean_ms": 162.871
+            }
+          }
+        },
+        {
+          "concurrency": 4,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 234.077,
+            "p95_ms": 422.11,
+            "mean_ms": 276.302
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 234.077,
+            "p95_ms": 422.11,
+            "mean_ms": 276.302
+          },
+          "successful_requests_per_second": 13.044224500353195,
+          "route_counts": {
+            "semantic": 16
+          },
+          "e2e_successful_by_route": {
+            "semantic": {
+              "n": 16,
+              "p50_ms": 234.077,
+              "p95_ms": 422.11,
+              "mean_ms": 276.302
+            }
+          }
+        },
+        {
+          "concurrency": 16,
+          "attempted": 16,
+          "succeeded": 16,
+          "failed": 0,
+          "error_rate": 0.0,
+          "status_counts": {
+            "200": 16
+          },
+          "error_counts": {},
+          "e2e_all_attempts": {
+            "n": 16,
+            "p50_ms": 1015.119,
+            "p95_ms": 1318.985,
+            "mean_ms": 1022.458
+          },
+          "e2e_successful": {
+            "n": 16,
+            "p50_ms": 1015.119,
+            "p95_ms": 1318.985,
+            "mean_ms": 1022.458
+          },
+          "successful_requests_per_second": 11.913937409113615,
+          "route_counts": {
+            "semantic": 16
+          },
+          "e2e_successful_by_route": {
+            "semantic": {
+              "n": 16,
+              "p50_ms": 1015.119,
+              "p95_ms": 1318.985,
+              "mean_ms": 1022.458
+            }
+          }
+        }
+      ]
+    }
+  },
+  "beir": {
+    "beir_scifact_cpu.json": {
+      "path": "bench/results/revamp_20261007/beir_scifact_cpu.json",
+      "sha256": "3231427932fac0a765eecb30b1070fc256825d3ab14fa7154a8f5ceaedea2945",
+      "n_docs": 5183,
+      "n_queries": 300,
+      "full_split_queries": 300,
+      "dataset": "BEIR/scifact",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.13",
+        "platform": "Linux-4.18.0-477.27.1.el8_8.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 16,
+        "hostname": "cn-b03.hpc.engr.oregonstate.edu",
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "bootstrap": {
+        "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+        "rng": "numpy.random.RandomState.randint",
+        "seed": 0,
+        "n_boot": 1000,
+        "n_queries": 300,
+        "level": 0.95
+      },
+      "configs": [
+        {
+          "config": "bm25",
+          "parent": null,
+          "retrieval": {
+            "ndcg@10": 0.6767,
+            "recall@10": 0.803,
+            "recall@100": 0.9287,
+            "mrr@10": 0.642,
+            "n_queries": 300
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.6767,
+              "lo": 0.63,
+              "hi": 0.7193
+            },
+            "recall@10": {
+              "mean": 0.803,
+              "lo": 0.7598,
+              "hi": 0.8457
+            },
+            "recall@100": {
+              "mean": 0.9287,
+              "lo": 0.8993,
+              "hi": 0.9563
+            }
+          },
+          "delta_vs_parent": null,
+          "delta_vs_bm25": null,
+          "latency_total": {
+            "n": 300,
+            "p50_ms": 30.6,
+            "p95_ms": 44.55,
+            "mean_ms": 31.54
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 300,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {}
+        }
+      ]
+    },
+    "beir_nfcorpus_gpu_rescored.json": {
+      "path": "bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json",
+      "sha256": "2be27284bc0bffe6ddcf0f06d0f28414cd36b571dceeb39ab64986bd3598092c",
+      "n_docs": 3633,
+      "n_queries": 323,
+      "full_split_queries": 323,
+      "dataset": "BEIR/nfcorpus",
+      "device": {
+        "requested": "cuda",
+        "python": "3.11.13",
+        "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+        "cpu_count": 224,
+        "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+        "torch": "2.5.1+cu121",
+        "cuda_available": true,
+        "device": "cuda",
+        "device_name": "NVIDIA H100 80GB HBM3",
+        "threads": 4,
+        "sentence_transformers": "6.1.0"
+      },
+      "bootstrap": {
+        "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+        "rng": "numpy.random.RandomState.randint",
+        "seed": 0,
+        "n_boot": 1000,
+        "n_queries": 323,
+        "level": 0.95
+      },
+      "configs": [
+        {
+          "config": "bm25",
+          "parent": null,
+          "retrieval": {
+            "ndcg@10": 0.3207,
+            "recall@10": 0.1521,
+            "recall@100": 0.2462,
+            "mrr@10": 0.5228,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3207,
+              "lo": 0.2852,
+              "hi": 0.3544
+            },
+            "recall@10": {
+              "mean": 0.1521,
+              "lo": 0.1276,
+              "hi": 0.1788
+            },
+            "recall@100": {
+              "mean": 0.2462,
+              "lo": 0.2165,
+              "hi": 0.2739
+            }
+          },
+          "delta_vs_parent": null,
+          "delta_vs_bm25": null,
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 5.56,
+            "p95_ms": 8.75,
+            "mean_ms": 5.84
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {}
+        },
+        {
+          "config": "dense@bge-small",
+          "parent": "bm25",
+          "retrieval": {
+            "ndcg@10": 0.3373,
+            "recall@10": 0.1583,
+            "recall@100": 0.3058,
+            "mrr@10": 0.5284,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3373,
+              "lo": 0.3022,
+              "hi": 0.3669
+            },
+            "recall@10": {
+              "mean": 0.1583,
+              "lo": 0.1342,
+              "hi": 0.1827
+            },
+            "recall@100": {
+              "mean": 0.3058,
+              "lo": 0.2778,
+              "hi": 0.3338
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.0166,
+              "lo": -0.0044,
+              "hi": 0.037
+            },
+            "recall@10": {
+              "delta": 0.0062,
+              "lo": -0.0067,
+              "hi": 0.0191
+            },
+            "recall@100": {
+              "delta": 0.0596,
+              "lo": 0.0402,
+              "hi": 0.0793
+            }
+          },
+          "delta_vs_bm25": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.0166,
+              "lo": -0.0044,
+              "hi": 0.037
+            },
+            "recall@10": {
+              "delta": 0.0062,
+              "lo": -0.0067,
+              "hi": 0.0191
+            },
+            "recall@100": {
+              "delta": 0.0596,
+              "lo": 0.0402,
+              "hi": 0.0793
+            }
+          },
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 7.98,
+            "p95_ms": 8.26,
+            "mean_ms": 8.01
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            }
+          }
+        },
+        {
+          "config": "hybrid@bge-small",
+          "parent": "dense@bge-small",
+          "retrieval": {
+            "ndcg@10": 0.3637,
+            "recall@10": 0.1734,
+            "recall@100": 0.3134,
+            "mrr@10": 0.5739,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3637,
+              "lo": 0.3262,
+              "hi": 0.3956
+            },
+            "recall@10": {
+              "mean": 0.1734,
+              "lo": 0.1468,
+              "hi": 0.2004
+            },
+            "recall@100": {
+              "mean": 0.3134,
+              "lo": 0.2853,
+              "hi": 0.3419
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "dense@bge-small",
+            "ndcg@10": {
+              "delta": 0.0264,
+              "lo": 0.0125,
+              "hi": 0.0407
+            },
+            "recall@10": {
+              "delta": 0.0151,
+              "lo": 0.0057,
+              "hi": 0.0255
+            },
+            "recall@100": {
+              "delta": 0.0076,
+              "lo": -0.0034,
+              "hi": 0.0178
+            }
+          },
+          "delta_vs_bm25": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.043,
+              "lo": 0.0299,
+              "hi": 0.0573
+            },
+            "recall@10": {
+              "delta": 0.0213,
+              "lo": 0.0116,
+              "hi": 0.0322
+            },
+            "recall@100": {
+              "delta": 0.0672,
+              "lo": 0.0522,
+              "hi": 0.0829
+            }
+          },
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 15.32,
+            "p95_ms": 20.68,
+            "mean_ms": 16.07
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            }
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "parent": "hybrid@bge-small",
+          "retrieval": {
+            "ndcg@10": 0.3555,
+            "recall@10": 0.1746,
+            "recall@100": 0.3134,
+            "mrr@10": 0.5636,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3555,
+              "lo": 0.3206,
+              "hi": 0.3882
+            },
+            "recall@10": {
+              "mean": 0.1746,
+              "lo": 0.1472,
+              "hi": 0.2018
+            },
+            "recall@100": {
+              "mean": 0.3134,
+              "lo": 0.2853,
+              "hi": 0.3419
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0082,
+              "lo": -0.0208,
+              "hi": 0.004
+            },
+            "recall@10": {
+              "delta": 0.0012,
+              "lo": -0.0085,
+              "hi": 0.0114
+            },
+            "recall@100": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          },
+          "delta_vs_bm25": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.0349,
+              "lo": 0.0212,
+              "hi": 0.0492
+            },
+            "recall@10": {
+              "delta": 0.0226,
+              "lo": 0.0101,
+              "hi": 0.0354
+            },
+            "recall@100": {
+              "delta": 0.0672,
+              "lo": 0.0522,
+              "hi": 0.0829
+            }
+          },
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 206.88,
+            "p95_ms": 216.52,
+            "mean_ms": 207.73
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            },
+            "reranker": {
+              "role": "reranker",
+              "model": "BAAI/bge-reranker-v2-m3",
+              "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+              "neural": true,
+              "loaded": true,
+              "device": "cuda:0",
+              "precision": "fp32",
+              "dtype": "torch.float32",
+              "max_length": 512,
+              "score_scale": "sigmoid probability in [0, 1]"
+            }
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+          "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "retrieval": {
+            "ndcg@10": 0.3554,
+            "recall@10": 0.1746,
+            "recall@100": 0.3134,
+            "mrr@10": 0.5636,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3554,
+              "lo": 0.3205,
+              "hi": 0.388
+            },
+            "recall@10": {
+              "mean": 0.1746,
+              "lo": 0.1472,
+              "hi": 0.2018
+            },
+            "recall@100": {
+              "mean": 0.3134,
+              "lo": 0.2853,
+              "hi": 0.3419
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.0002,
+              "lo": -0.0004,
+              "hi": -0.0
+            },
+            "recall@10": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "recall@100": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          },
+          "delta_vs_bm25": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.0347,
+              "lo": 0.0211,
+              "hi": 0.0489
+            },
+            "recall@10": {
+              "delta": 0.0226,
+              "lo": 0.0101,
+              "hi": 0.0354
+            },
+            "recall@100": {
+              "delta": 0.0672,
+              "lo": 0.0522,
+              "hi": 0.0829
+            }
+          },
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 64.47,
+            "p95_ms": 77.15,
+            "mean_ms": 65.67
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            },
+            "reranker": {
+              "role": "reranker",
+              "model": "BAAI/bge-reranker-v2-m3",
+              "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+              "neural": true,
+              "loaded": true,
+              "device": "cuda:0",
+              "precision": "fp16",
+              "dtype": "torch.float16",
+              "max_length": 512,
+              "score_scale": "sigmoid probability in [0, 1]"
+            }
+          }
+        }
+      ]
+    },
+    "beir_fiqa_gpu.json": {
+      "path": "bench/results/revamp_20261007/beir_fiqa_gpu.json",
+      "sha256": "2cc59f0b7a163c3a8f37233e55d6461013b50490c88b5a07b92fac17ee879684",
+      "n_docs": 57638,
+      "n_queries": 648,
+      "full_split_queries": 648,
+      "dataset": "BEIR/fiqa",
+      "device": {
+        "requested": "cuda",
+        "python": "3.11.13",
+        "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+        "cpu_count": 224,
+        "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+        "torch": "2.5.1+cu121",
+        "cuda_available": true,
+        "device": "cuda",
+        "device_name": "NVIDIA H100 80GB HBM3",
+        "threads": 4,
+        "sentence_transformers": "6.1.0"
+      },
+      "bootstrap": {
+        "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+        "rng": "numpy.random.RandomState.randint",
+        "seed": 0,
+        "n_boot": 1000,
+        "n_queries": 648,
+        "level": 0.95
+      },
+      "configs": [
+        {
+          "config": "bm25",
+          "parent": null,
+          "retrieval": {
+            "ndcg@10": 0.2369,
+            "recall@10": 0.2988,
+            "recall@100": 0.5402,
+            "mrr@10": 0.2963,
+            "n_queries": 648
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.2369,
+              "lo": 0.2124,
+              "hi": 0.2585
+            },
+            "recall@10": {
+              "mean": 0.2988,
+              "lo": 0.2694,
+              "hi": 0.3251
+            },
+            "recall@100": {
+              "mean": 0.5402,
+              "lo": 0.5092,
+              "hi": 0.5698
+            }
+          },
+          "delta_vs_parent": null,
+          "delta_vs_bm25": null,
+          "latency_total": {
+            "n": 648,
+            "p50_ms": 161.49,
+            "p95_ms": 230.94,
+            "mean_ms": 165.22
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 648,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {}
+        },
+        {
+          "config": "dense@bge-small",
+          "parent": "bm25",
+          "retrieval": {
+            "ndcg@10": 0.3848,
+            "recall@10": 0.4396,
+            "recall@100": 0.6866,
+            "mrr@10": 0.465,
+            "n_queries": 648
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3848,
+              "lo": 0.3562,
+              "hi": 0.4123
+            },
+            "recall@10": {
+              "mean": 0.4396,
+              "lo": 0.4089,
+              "hi": 0.4692
+            },
+            "recall@100": {
+              "mean": 0.6866,
+              "lo": 0.6584,
+              "hi": 0.7144
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.1479,
+              "lo": 0.1239,
+              "hi": 0.1737
+            },
+            "recall@10": {
+              "delta": 0.1408,
+              "lo": 0.1117,
+              "hi": 0.1716
+            },
+            "recall@100": {
+              "delta": 0.1463,
+              "lo": 0.1159,
+              "hi": 0.1763
+            }
+          },
+          "delta_vs_bm25": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.1479,
+              "lo": 0.1239,
+              "hi": 0.1737
+            },
+            "recall@10": {
+              "delta": 0.1408,
+              "lo": 0.1117,
+              "hi": 0.1716
+            },
+            "recall@100": {
+              "delta": 0.1463,
+              "lo": 0.1159,
+              "hi": 0.1763
+            }
+          },
+          "latency_total": {
+            "n": 648,
+            "p50_ms": 71.37,
+            "p95_ms": 75.52,
+            "mean_ms": 71.22
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 648,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            }
+          }
+        },
+        {
+          "config": "hybrid@bge-small",
+          "parent": "dense@bge-small",
+          "retrieval": {
+            "ndcg@10": 0.3645,
+            "recall@10": 0.4365,
+            "recall@100": 0.6911,
+            "mrr@10": 0.438,
+            "n_queries": 648
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3645,
+              "lo": 0.3374,
+              "hi": 0.3903
+            },
+            "recall@10": {
+              "mean": 0.4365,
+              "lo": 0.4052,
+              "hi": 0.4664
+            },
+            "recall@100": {
+              "mean": 0.6911,
+              "lo": 0.6616,
+              "hi": 0.7174
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "dense@bge-small",
+            "ndcg@10": {
+              "delta": -0.0204,
+              "lo": -0.0386,
+              "hi": -0.0018
+            },
+            "recall@10": {
+              "delta": -0.0032,
+              "lo": -0.0252,
+              "hi": 0.0196
+            },
+            "recall@100": {
+              "delta": 0.0045,
+              "lo": -0.0124,
+              "hi": 0.023
+            }
+          },
+          "delta_vs_bm25": {
+            "reference": "bm25",
+            "ndcg@10": {
+              "delta": 0.1276,
+              "lo": 0.1106,
+              "hi": 0.1446
+            },
+            "recall@10": {
+              "delta": 0.1377,
+              "lo": 0.1135,
+              "hi": 0.1639
+            },
+            "recall@100": {
+              "delta": 0.1508,
+              "lo": 0.1282,
+              "hi": 0.1732
+            }
+          },
+          "latency_total": {
+            "n": 648,
+            "p50_ms": 286.85,
+            "p95_ms": 360.12,
+            "mean_ms": 288.0
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 648,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            }
+          }
+        }
+      ]
+    },
+    "beir_nfcorpus_cap_gpu.json": {
+      "path": "bench/results/revamp_20261007/beir_nfcorpus_cap_gpu.json",
+      "sha256": "f8cdf82e16db26bbe262f627aa6a4cdae5f60d0f4e0bdc18f46f81d5f238c333",
+      "n_docs": 3633,
+      "n_queries": 323,
+      "full_split_queries": 323,
+      "dataset": "BEIR/nfcorpus",
+      "device": {
+        "requested": "cuda",
+        "python": "3.11.13",
+        "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+        "cpu_count": 224,
+        "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+        "torch": "2.5.1+cu121",
+        "cuda_available": true,
+        "device": "cuda",
+        "device_name": "NVIDIA H100 80GB HBM3",
+        "threads": 4,
+        "sentence_transformers": "6.1.0"
+      },
+      "bootstrap": {
+        "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+        "rng": "numpy.random.RandomState.randint",
+        "seed": 0,
+        "n_boot": 1000,
+        "n_queries": 323,
+        "level": 0.95
+      },
+      "configs": [
+        {
+          "config": "hybrid+bge-rerank@bge-small",
+          "parent": "hybrid@bge-small",
+          "retrieval": {
+            "ndcg@10": 0.3549,
+            "recall@10": 0.1706,
+            "recall@100": 0.3134,
+            "mrr@10": 0.5648,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3549,
+              "lo": 0.32,
+              "hi": 0.3869
+            },
+            "recall@10": {
+              "mean": 0.1706,
+              "lo": 0.1445,
+              "hi": 0.1977
+            },
+            "recall@100": {
+              "mean": 0.3134,
+              "lo": 0.2853,
+              "hi": 0.3419
+            }
+          },
+          "delta_vs_parent": null,
+          "delta_vs_bm25": null,
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 263.42,
+            "p95_ms": 637.44,
+            "mean_ms": 306.07
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            },
+            "reranker": {
+              "role": "reranker",
+              "model": "BAAI/bge-reranker-v2-m3",
+              "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+              "neural": true,
+              "loaded": true,
+              "device": "cuda:0",
+              "precision": "fp32",
+              "dtype": "torch.float32",
+              "max_length": 8192,
+              "score_scale": "sigmoid probability in [0, 1]"
+            }
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "parent": "hybrid+bge-rerank@bge-small",
+          "retrieval": {
+            "ndcg@10": 0.3555,
+            "recall@10": 0.1746,
+            "recall@100": 0.3134,
+            "mrr@10": 0.5636,
+            "n_queries": 323
+          },
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3555,
+              "lo": 0.3206,
+              "hi": 0.3882
+            },
+            "recall@10": {
+              "mean": 0.1746,
+              "lo": 0.1472,
+              "hi": 0.2018
+            },
+            "recall@100": {
+              "mean": 0.3134,
+              "lo": 0.2853,
+              "hi": 0.3419
+            }
+          },
+          "delta_vs_parent": {
+            "reference": "hybrid+bge-rerank@bge-small",
+            "ndcg@10": {
+              "delta": 0.0006,
+              "lo": -0.0025,
+              "hi": 0.004
+            },
+            "recall@10": {
+              "delta": 0.0041,
+              "lo": 0.0001,
+              "hi": 0.0111
+            },
+            "recall@100": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          },
+          "delta_vs_bm25": null,
+          "latency_total": {
+            "n": 323,
+            "p50_ms": 218.73,
+            "p95_ms": 226.57,
+            "mean_ms": 218.0
+          },
+          "metric_cross_check": {
+            "status": "passed",
+            "implementation": "pytrec_eval/trec_eval",
+            "n_queries": 323,
+            "metrics": [
+              "ndcg@10",
+              "recall@10",
+              "recall@100"
+            ],
+            "max_absolute_difference": 0.0
+          },
+          "models": {
+            "embedder": {
+              "role": "embedder",
+              "model": "BAAI/bge-small-en-v1.5",
+              "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+              "neural": true,
+              "dim": 384,
+              "device": "cuda:0",
+              "query_instruction": null
+            },
+            "reranker": {
+              "role": "reranker",
+              "model": "BAAI/bge-reranker-v2-m3",
+              "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+              "neural": true,
+              "loaded": true,
+              "device": "cuda:0",
+              "precision": "fp32",
+              "dtype": "torch.float32",
+              "max_length": 512,
+              "score_scale": "sigmoid probability in [0, 1]"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "validation": {
+    "eval_tests": 19,
+    "api_contract_tests": 8,
+    "gpu_compose": "YAML statically parsed; Docker daemon inaccessible and Compose plugin absent, actual measurement used PostgreSQL16/pgvector via Apptainer and original uvicorn main:app",
+    "live_unicode_fix": "Explicit UTF8 initdb verified against actual600-file experiment corpus"
+  },
+  "limitations": [
+    "First32requests/level CPU exploratory profile interrupted without client checkpoints; archived server logs cannot reconstruct all HTTP attempts and must not support resume claims. Subsequent runner atomically checkpoints started/completed/failure/in-flight attempts.",
+    "CPU/GPU paired workload fixes corpus,questions,fp32,512token cap,depth20. Hardware and host differ; device-specific comparison is not a pure software-only optimization.",
+    "HTTP query labels are existing deterministic fixture or generated real-corpus scalar lookups. Performance measurement does not evaluate human-question or answer accuracy.",
+    "HTTP lexical backend is PostgreSQL ts_rank_cd, not true BM25. External BEIR uses in-memory BM25 engine.",
+    "Offline BEIR latency excludes model/index build and one warmup; it is not API end-to-end latency.",
+    "No equivalence claim from small nDCG changes; token cap paired CI includes zero, precision shows small negative nDCG delta.",
+    "FiQA hybrid underperforms dense, NFCorpus capped reranker underperforms hybrid point estimate; improvements are domain/configuration dependent."
+  ],
+  "resume_ready_results": [
+    "Indexed600 actual robotics experiment files into5,633PostgreSQL/pgvector nodes; original FastAPI retrieval p95251.686ms atconcurrency1 and1318.985ms atconcurrency16 onH100 fp16/512/depth20; all48measured requests successful.",
+    "Fixed-query NFCorpus fp32/depth20 token-cap ablation reduced offline pipeline p95637.44 to226.57ms (64.46%) while nDCG@10 changed.3549 to.3555;323testqueries, bootstrapCI for quality delta[-.0025,.0040].",
+    "Fixed512/depth20 NFCorpus precision ablation reduced offline pipeline p50206.88 to64.47ms (3.21x); nDCG@10 decreased.0002, explicit confidence bounds retained.",
+    "External full-test FiQA denseBGE-small nDCG@10.3848 versusBM25.2369 (62.43%relative),648testqueries/57,638docs; NFCorpus hybrid.3637 versusBM25.3207 (13.41%relative),323queries/3,633docs; independent pytrec_eval verified exact per-query nDCG/Recall."
+  ],
+  "hardware_confirmation": {
+    "torch_observation_same_allocation_as_paired_GPU_HTTP": {
+      "source": "bench/results/revamp_20261007/beir_nfcorpus_cap_gpu.json",
+      "slurm_job_id": "21658631",
+      "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+      "device_name": "NVIDIA H100 80GB HBM3",
+      "torch": "2.5.1+cu121",
+      "threads": 4
+    },
+    "robotics_scale_same_host_scheduler_confirmation": {
+      "slurm_job_id": "21658762",
+      "node": "dgxh-2",
+      "active_features": "sapphire,avx,avx2,avx512,h100,vram80g,el9",
+      "gpus_on_node": 8,
+      "job_requested_gpus": 1,
+      "evidence": "scontrol show node dgxh-2 and sacct completed job records; BEIR device_info on same host reports NVIDIA H10080GB HBM3"
+    },
+    "direct_read_only_inventory": {
+      "command": "nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader",
+      "output": "0, NVIDIA H100 80GB HBM3, 81559 MiB",
+      "method": "Read-only NVML inventory; no inference or existing allocation work executed."
+    }
+  },
+  "allocation_receipt": [
+    {
+      "job_id": "21657923",
+      "status": "COMPLETED",
+      "exit": "0:0",
+      "purpose": "three-domain CPU BM25"
+    },
+    {
+      "job_id": "21657979",
+      "status": "COMPLETED",
+      "exit": "0:0",
+      "purpose": "NFCorpus/FiQA neural and32perlevel GPUfp16HTTP"
+    },
+    {
+      "job_id": "21657981",
+      "status": "CANCELLED",
+      "purpose": "interrupted uncheckpointed CPU exploratory profile; do not use latency"
+    },
+    {
+      "job_id": "21658603",
+      "status": "FAILED",
+      "exit": "2:0",
+      "purpose": "completed paired CPUHTTP all51attempts; exit2 because13clienttimeouts atc16"
+    },
+    {
+      "job_id": "21658631",
+      "status": "CANCELLED",
+      "purpose": "pairedGPUfp32HTTP andfulltoken-cap BEIR complete; cancelled during optionalSQL_ASCIIUnicodefailure after archival"
+    },
+    {
+      "job_id": "21658762",
+      "status": "COMPLETED",
+      "exit": "0:0",
+      "purpose": "actual600fileGPUservice UTF8fix;51/51completed"
+    }
+  ],
+  "cleanup": {
+    "active_allocations": 0,
+    "servers": "Every task-localserver exits on launchercompletion; completed/cancelledSlurmjobs have no remaining allocation. No existinguserjob ordatabase was modified.",
+    "remaining_benchmarks": 0
+  },
+  "final_source_sha256": {
+    "app/eval/http_load.py": "5ce93a6ac6c1fc3595a726e83f487cd329fbbe32e4f25ed34bb4f2b25d14b9e3",
+    "app/eval/beir.py": "1bf6176704693e225c49af49440490a9901f73ab652228aba96f375bc1e4503c",
+    "app/eval/beir_rescore.py": "77a119ed77c1539c5da5c7566fb60b34999d3df8c08b9f7932e225e8821d1de6",
+    "app/settings.py": "d79ccab39c6fb1df3cf41e7d84424d7fe8d2c55c31001d2ab37814e0dc0fdfc3",
+    "main.py": "33737be9e704805fed07e16975e90da263e51946b23903bff5a5413727eb46d3",
+    "scripts/revamp_http_service.py": "7c970a1af837d42cd9c7384c471f03732468f15cbab53a67feee67fd641c8d28",
+    "Dockerfile": "849cc2b85993263cdf8015bc8f95fc32e8051e259fef1ce18b520bf765c9d745",
+    "docker-compose.gpu.yml": "a7331923c02acc9f67cb09a5c7c98b4c1b51d48b9c58f255f7f9b8e972b97337"
+  },
+  "final_tests": "19eval/load/replaytests passed0.44s;8APIcontracttests passed previously. Compileall andgitdiff--check pass. ActualUTF8corpusAPIpassed51/51."
+}

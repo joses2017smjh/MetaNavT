@@ -1,0 +1,347 @@
+{
+  "status": "NEGATIVE",
+  "final": true,
+  "protocol_sha256": "e3ae4fc55eb8d29009e5a2bcb360f4329eb0222e4c1ec159996c213a3765802c",
+  "per_cell": {
+    "armV5-s8-nominal": {
+      "goals": 44,
+      "clean": 44,
+      "falls": 1,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": false,
+      "success_rate": 0.9166666666666666,
+      "success_wilson95": [
+        0.8044669820963272,
+        0.9671162431819081
+      ],
+      "median_success_time_s": 67.97999999999999,
+      "failed_seeds": [
+        72002,
+        72007,
+        72014,
+        72031
+      ],
+      "contact_seeds": [
+        72014
+      ],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.30160353982300886,
+        "mean_abs_commanded_wz_rad_s": 0.980080879592384,
+        "path_m": 1421.9099999999999,
+        "sensor_stats": {
+          "received_extero_packets": 37264,
+          "dropped_extero_packets": 0,
+          "braked_robot_steps": 29628,
+          "stale_stop_robot_steps": 0,
+          "braked_step_fraction": 0.3181222754310993
+        }
+      }
+    },
+    "armV5-s8-drop35": {
+      "goals": 43,
+      "clean": 43,
+      "falls": 0,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": true,
+      "success_rate": 0.8958333333333334,
+      "success_wilson95": [
+        0.7783257830561368,
+        0.9546782809581869
+      ],
+      "median_success_time_s": 78.6,
+      "failed_seeds": [
+        72002,
+        72008,
+        72018,
+        72025,
+        72036
+      ],
+      "contact_seeds": [],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.2693452799451256,
+        "mean_abs_commanded_wz_rad_s": 0.9810981308411215,
+        "path_m": 1584.4899999999998,
+        "sensor_stats": {
+          "received_extero_packets": 30325,
+          "dropped_extero_packets": 16306,
+          "braked_robot_steps": 51781,
+          "stale_stop_robot_steps": 24804,
+          "braked_step_fraction": 0.44424711948455287
+        }
+      }
+    },
+    "armV5-s9-nominal": {
+      "goals": 46,
+      "clean": 44,
+      "falls": 1,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": false,
+      "success_rate": 0.9583333333333334,
+      "success_wilson95": [
+        0.8602434412954456,
+        0.9884981065106133
+      ],
+      "median_success_time_s": 64.92,
+      "failed_seeds": [
+        72001,
+        72007
+      ],
+      "contact_seeds": [
+        72040,
+        72047
+      ],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.31920306558240213,
+        "mean_abs_commanded_wz_rad_s": 0.9739624992687065,
+        "path_m": 1299.7699999999998,
+        "sensor_stats": {
+          "received_extero_packets": 34152,
+          "dropped_extero_packets": 0,
+          "braked_robot_steps": 19824,
+          "stale_stop_robot_steps": 0,
+          "braked_step_fraction": 0.2322399250234302
+        }
+      }
+    },
+    "armV5-s9-drop35": {
+      "goals": 44,
+      "clean": 44,
+      "falls": 2,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": false,
+      "success_rate": 0.9166666666666666,
+      "success_wilson95": [
+        0.8044669820963272,
+        0.9671162431819081
+      ],
+      "median_success_time_s": 84.96000000000001,
+      "failed_seeds": [
+        72000,
+        72005,
+        72008,
+        72018
+      ],
+      "contact_seeds": [],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.2831052201913919,
+        "mean_abs_commanded_wz_rad_s": 0.9759426731371037,
+        "path_m": 1484.9599999999998,
+        "sensor_stats": {
+          "received_extero_packets": 28625,
+          "dropped_extero_packets": 15442,
+          "braked_robot_steps": 40656,
+          "stale_stop_robot_steps": 23448,
+          "braked_step_fraction": 0.3691033881686458
+        }
+      }
+    },
+    "armV5-s10-nominal": {
+      "goals": 44,
+      "clean": 44,
+      "falls": 2,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": false,
+      "success_rate": 0.9166666666666666,
+      "success_wilson95": [
+        0.8044669820963272,
+        0.9671162431819081
+      ],
+      "median_success_time_s": 62.980000000000004,
+      "failed_seeds": [
+        72006,
+        72008,
+        72044,
+        72045
+      ],
+      "contact_seeds": [
+        72044
+      ],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.30398727096295447,
+        "mean_abs_commanded_wz_rad_s": 0.9599549061019464,
+        "path_m": 1321.33,
+        "sensor_stats": {
+          "received_extero_packets": 35015,
+          "dropped_extero_packets": 0,
+          "braked_robot_steps": 27362,
+          "stale_stop_robot_steps": 0,
+          "braked_step_fraction": 0.31265854606120164
+        }
+      }
+    },
+    "armV5-s10-drop35": {
+      "goals": 46,
+      "clean": 45,
+      "falls": 0,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": true,
+      "success_rate": 0.9583333333333334,
+      "success_wilson95": [
+        0.8602434412954456,
+        0.9884981065106133
+      ],
+      "median_success_time_s": 80.46000000000001,
+      "failed_seeds": [
+        72002,
+        72007
+      ],
+      "contact_seeds": [
+        72021
+      ],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.28044517949666914,
+        "mean_abs_commanded_wz_rad_s": 0.9598203645447816,
+        "path_m": 1470.6799999999996,
+        "sensor_stats": {
+          "received_extero_packets": 28104,
+          "dropped_extero_packets": 15096,
+          "braked_robot_steps": 44689,
+          "stale_stop_robot_steps": 22914,
+          "braked_step_fraction": 0.4138905096644532
+        }
+      }
+    },
+    "astar-nominal": {
+      "goals": 44,
+      "clean": 39,
+      "falls": 0,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": null,
+      "success_rate": 0.9166666666666666,
+      "success_wilson95": [
+        0.8044669820963272,
+        0.9671162431819081
+      ],
+      "median_success_time_s": 69.44,
+      "failed_seeds": [
+        72002,
+        72013,
+        72016,
+        72047
+      ],
+      "contact_seeds": [
+        72011,
+        72020,
+        72027,
+        72035,
+        72042
+      ],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.1995857740585774,
+        "mean_abs_commanded_wz_rad_s": 0.15747548943643783,
+        "path_m": 1065.8200000000002,
+        "sensor_stats": {
+          "received_extero_packets": 38686,
+          "dropped_extero_packets": 0,
+          "braked_robot_steps": 19695,
+          "stale_stop_robot_steps": 0,
+          "braked_step_fraction": 0.2036837859639688
+        }
+      }
+    },
+    "astar-drop35": {
+      "goals": 45,
+      "clean": 42,
+      "falls": 0,
+      "n": 48,
+      "complete": true,
+      "problems": [],
+      "project_target_met": null,
+      "success_rate": 0.9375,
+      "success_wilson95": [
+        0.8316456194505365,
+        0.9785167670916107
+      ],
+      "median_success_time_s": 90.6,
+      "failed_seeds": [
+        72001,
+        72044,
+        72047
+      ],
+      "contact_seeds": [
+        72025,
+        72039,
+        72046
+      ],
+      "telemetry": {
+        "mean_abs_commanded_vx_m_s": 0.1989082477641603,
+        "mean_abs_commanded_wz_rad_s": 0.15975293971513746,
+        "path_m": 1269.1200000000001,
+        "sensor_stats": {
+          "received_extero_packets": 31390,
+          "dropped_extero_packets": 16888,
+          "braked_robot_steps": 34169,
+          "stale_stop_robot_steps": 25671,
+          "braked_step_fraction": 0.28314895380153304
+        }
+      }
+    }
+  },
+  "paired_vs_astar": {
+    "armV5-s8-nominal": {
+      "n_paired": 48,
+      "both_goal": 41,
+      "learned_only_goal": 3,
+      "astar_only_goal": 3
+    },
+    "armV5-s8-drop35": {
+      "n_paired": 48,
+      "both_goal": 40,
+      "learned_only_goal": 3,
+      "astar_only_goal": 5
+    },
+    "armV5-s9-nominal": {
+      "n_paired": 48,
+      "both_goal": 42,
+      "learned_only_goal": 4,
+      "astar_only_goal": 2
+    },
+    "armV5-s9-drop35": {
+      "n_paired": 48,
+      "both_goal": 41,
+      "learned_only_goal": 3,
+      "astar_only_goal": 4
+    },
+    "armV5-s10-nominal": {
+      "n_paired": 48,
+      "both_goal": 40,
+      "learned_only_goal": 4,
+      "astar_only_goal": 4
+    },
+    "armV5-s10-drop35": {
+      "n_paired": 48,
+      "both_goal": 43,
+      "learned_only_goal": 3,
+      "astar_only_goal": 2
+    }
+  },
+  "labels": {
+    "learned": "frozen Isaac PPO biped gait + final NavGym v5 PPO navigation actor",
+    "scripted": "reactive speed brake; A* in matched reference cells only",
+    "oracle": "pose and goal coordinate",
+    "scope": "simulation confirmation, no hardware deployment"
+  },
+  "project_targets": {
+    "nominal": {
+      "min_goals": 40
+    },
+    "drop35": {
+      "min_goals": 36
+    }
+  },
+  "statistical_scope": "48 distinct maze layouts shared across 3 trained navigation policies and 2 conditions. Report per-policy results; pooled episodes share layouts and are not IID. Wilson intervals are descriptive per-cell intervals, not robustness certificates."
+}

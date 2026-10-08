@@ -1,0 +1,140 @@
+{
+  "complete": true,
+  "evidence_jobs": {
+    "route_smoke": "21398074",
+    "route_evaluation": "21398514",
+    "switch_handoff_probe": "21399211",
+    "early_handoff_probe": "21399449",
+    "rejoin_diagnostic": "21399494",
+    "rejoin_fix_wiring_check": "21399502",
+    "rejoin_fix_doors_1": "21399503"
+  },
+  "route_evaluation": {
+    "doors": {
+      "episodes": 16,
+      "successes": 1,
+      "falls": 4,
+      "timeouts": 11,
+      "guarded_stage_activations": 0,
+      "before_plate_or_navigation": [0, 2, 3, 6, 10, 11, 14, 15],
+      "plate_alignment_or_interaction_incomplete": [5, 8, 12],
+      "after_interaction_or_recovery": [1, 4, 9, 13],
+      "success": [7],
+      "world_minus_x": [8]
+    },
+    "transport": {
+      "episodes": 16,
+      "successes": 0,
+      "falls": 6,
+      "timeouts": 10,
+      "guarded_stage_activations": 0,
+      "before_plate_or_navigation": [3, 10, 11, 14],
+      "manipulation_or_acquisition_before_plate": [2, 6, 7, 15],
+      "plate_alignment_or_interaction_incomplete": [8, 12],
+      "after_interaction_or_recovery": [0, 1, 4, 5, 9, 13],
+      "world_minus_x": [8]
+    }
+  },
+  "exact_replay_capture_observed": {
+    "episodes": 10,
+    "upright": 10,
+    "world_direction_counts": {"+x": 3, "+y": 7, "-x": 0, "-y": 0},
+    "plate_distance_m": [0.736, 0.782],
+    "lateral_offset_m": [-0.782, 0.743],
+    "forward_offset_m": [-0.692, 0.130],
+    "heading_error_rad": [-0.035, 1.623],
+    "speed_mps": [0.105, 0.805],
+    "yaw_rate_radps": [-0.443, 0.421],
+    "interpretation": "Observed successful entries only; no capture-region boundary is certified."
+  },
+  "early_handoff_comparison": {
+    "doors_1": {
+      "world_direction": "+x",
+      "stage_entry": {
+        "time_s": 19.8,
+        "route_waypoint": 4,
+        "plate_distance_m": 0.736,
+        "lateral_offset_m": -0.733,
+        "forward_offset_m": 0.069,
+        "heading_error_rad": 0.024,
+        "speed_mps": 0.586
+      },
+      "first_target_contact_s": 21.537,
+      "stage_completed_s": 25.0,
+      "stage_exit": {
+        "base_xy": [1.113, 3.936],
+        "yaw_rad": 0.113,
+        "velocity_world_mps": [-0.238, 0.150],
+        "route_waypoint": 4,
+        "env_phase": "advance",
+        "target_kind": "door_center",
+        "open": [false, false],
+        "crossed": [false, false]
+      },
+      "first_divergence": {
+        "time_s": 44.6,
+        "route_waypoint": 8,
+        "base_xy": [4.317, 5.983],
+        "target_xy": [6.0, 6.0],
+        "target_distance_m": 1.683,
+        "realized_speed_mps": "near zero",
+        "state_transition": "valid route advance; no stale index or invalid flag"
+      },
+      "terminal": "timeout at 180 s; door 0 open/crossed, door 1 unopened; no fall"
+    },
+    "transport_1": {
+      "first_stage_entry": {
+        "world_direction": "+x",
+        "time_s": 20.4,
+        "route_waypoint": 4,
+        "plate_distance_m": 0.741,
+        "lateral_offset_m": -0.739,
+        "forward_offset_m": 0.045,
+        "heading_error_rad": 0.039,
+        "speed_mps": 0.963
+      },
+      "first_stage_completed_s": 25.8,
+      "stage_exit": {
+        "base_xy": [1.234, 3.956],
+        "yaw_rad": -0.028,
+        "velocity_world_mps": [-0.019, -0.091],
+        "route_waypoint": 4,
+        "env_phase": "advance",
+        "carrying": true
+      },
+      "first_divergence": "none at waypoint 8; the route advanced to waypoint 9 at 51.2 s",
+      "second_stage": {
+        "world_direction": "-y",
+        "activation_s": 57.6,
+        "target_contact_s": 59.035,
+        "completion_s": 62.2
+      },
+      "terminal": "full success at 84.12 s"
+    }
+  },
+  "intervention": {
+    "name": "single forward restart pulse",
+    "condition": "Doors/1, early handoff, after target-distance progress stalled for 0.8 s at waypoint 8",
+    "command": "0.30 m/s body-forward for 0.4 s",
+    "job": "21399503",
+    "pulse_window_s": [45.8, 46.2],
+    "result": "pulse activated; route remained at waypoint 8 and timed out at 180 s",
+    "preserved": [
+      "PlateStage internals",
+      "early activation condition",
+      "physics and geometry",
+      "fall predicate",
+      "task success criteria"
+    ]
+  },
+  "conclusion": {
+    "narrow_exact_replay_gate_supported": true,
+    "route_to_stage_handoff_dominant_for_original_layout_1_falls": true,
+    "route_to_stage_handoff_dominant_for_remaining_route_failures": false,
+    "post_stage_rejoin_stall_supported": true,
+    "world_minus_x_disproportionate_in_route_sample": false,
+    "world_minus_x_approach_result": "8/16 privileged Approach",
+    "separate_manipulation_failure_supported": false,
+    "next_smallest_experiment": "Rejoin-only deterministic Doors/1 state isolation using Transport/1 as control; vary one route-controller condition at a time and log commanded versus realized motion, contacts, and waypoint progress."
+  }
+}

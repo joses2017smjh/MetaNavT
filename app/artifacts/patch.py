@@ -1,6 +1,6 @@
 """SEARCH/REPLACE patches (Aider / OpenHands / Cursor apply model).
 
-propose never writes. apply requires approved=True, same as file moves.
+propose never writes. apply requires an operator capability, same as file moves.
 """
 
 from __future__ import annotations

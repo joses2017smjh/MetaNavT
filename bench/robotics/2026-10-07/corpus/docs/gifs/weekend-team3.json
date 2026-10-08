@@ -1,0 +1,14 @@
+{
+  "source_clip": "results/weekend-20260919/team3-airlock.mp4",
+  "source_sha256": "4de61c9d3243a06f922e060402e82e1dcb23203e87ba9a302d2561bda39bd6ce",
+  "evidence": "results/weekend-20260919/team3-video.json",
+  "evidence_sha256": "770e5691b6c33d1418aca7a13e28a1aebad8fe3a19a0d934b033a74a584c2f67",
+  "output": "docs/gifs/weekend-team3.gif",
+  "output_sha256": "4435d635568e9aed5f12289f2fa5c31c797050b2f5b8ed7f78b4a343a0579e29",
+  "expected_success": true,
+  "failure": null,
+  "completion_s": 30.68,
+  "playback_speed": 1.1,
+  "caption": "COMPLETED - three robots inspect, wait, cross and rendezvous",
+  "scope": "Shared MuJoCo world | learned gait + oracle team supervisor | 1.1x"
+}

@@ -49,7 +49,7 @@ def test_grade_chunk_overlap():
     assert grade_chunk("learning rate run 47", "learning_rate: 3e-4 run 47") > 0.2
 
 
-def test_move_plan_requires_approval(tmp_path):
+def test_move_plan_requires_approval(tmp_path, operator_grant):
     src = tmp_path / "a.txt"
     src.write_text("x")
     tools = FilesystemTools(root=tmp_path)
@@ -61,7 +61,7 @@ def test_move_plan_requires_approval(tmp_path):
     except ApprovalRequired:
         raised = True
     assert raised
-    applied = tools.apply_plan(plan["plan_id"], approved=True)
+    applied = tools.apply_plan(plan["plan_id"], approval_token=operator_grant(tools, plan["plan_id"]))
     assert applied["status"] == "applied"
     assert (tmp_path / "b.txt").exists()
 

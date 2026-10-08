@@ -1,0 +1,103 @@
+{
+  "output": "docs/gifs/mission7-approach-negx-centering.gif",
+  "output_sha256": "52db90609e404364662f2b3897ed0fe2d23cdad43b46ab06ac60e56abff84c64",
+  "source_clip": [
+    "results/mission7-campaign-20260923/media/overhead/approach-negx14-baseline.mp4",
+    "results/mission7-campaign-20260923/media/overhead/approach-negx14-centered.mp4"
+  ],
+  "source_sha256": [
+    "eacbd4c6e560565ad6e36fabee76de1a855d8a61fbf3ba18abc42d238169be1c",
+    "d7102498809920166379f2577f4742bf3505833aa31ca187cf48e33f8c24a34e"
+  ],
+  "evidence": [
+    "results/mission7-campaign-20260923/approach-negx-recovery/result.json",
+    "results/mission7-campaign-20260923/approach-matrix-center-bias/result.json"
+  ],
+  "evidence_sha256": [
+    "0090359daae635566ad09bcfaf6e352820e93bcf07fc757cd8a772c09f80350d",
+    "4457da78c6e18301834ba86db10a0a858a726cd0d1d939e65e256037c2d579d1"
+  ],
+  "left": {
+    "label": "baseline: post collision",
+    "outcome": {
+      "success": false,
+      "failure": "excessive_collision",
+      "collisions": 6,
+      "elapsed_s": 2.1199999999998753
+    },
+    "camera": "overhead",
+    "robot_visibility": {
+      "camera": "overhead",
+      "probes": 3,
+      "probe_every_frames": 25,
+      "robot_pixel_fraction_min": 0.004722222222222222,
+      "robot_pixel_fraction_mean": 0.004851466049382716,
+      "share_of_probes_with_robot_visible": 1.0,
+      "visible_threshold_fraction": 0.001
+    },
+    "controller": "measured_translation_0.50mps_with_bounded_0.30mps_stall_pulse",
+    "reset_sequence": [
+      1,
+      5,
+      6,
+      7,
+      14
+    ]
+  },
+  "right": {
+    "label": "centred: through the gap",
+    "outcome": {
+      "success": true,
+      "failure": null,
+      "collisions": 0,
+      "elapsed_s": 4.400000000000281
+    },
+    "camera": "overhead",
+    "robot_visibility": {
+      "camera": "overhead",
+      "probes": 5,
+      "probe_every_frames": 25,
+      "robot_pixel_fraction_min": 0.004722222222222222,
+      "robot_pixel_fraction_mean": 0.004798611111111111,
+      "share_of_probes_with_robot_visible": 1.0,
+      "visible_threshold_fraction": 0.001
+    },
+    "controller": "gap_midline_centring_with_plus_y_prebias_0.015m",
+    "reset_sequence": [
+      1,
+      5,
+      6,
+      7,
+      14
+    ]
+  },
+  "expected_success": {
+    "left": false,
+    "right": true
+  },
+  "completion_s": {
+    "left": null,
+    "right": 4.400000000000281
+  },
+  "red_outline_panel": "left",
+  "green_panel": "right",
+  "playback_speed": 1.0,
+  "gif_budget_s": 12.0,
+  "camera": "overhead",
+  "reproduces_evaluated_episode": true,
+  "caption": "Mission 7 privileged Approach, world -x, test layout 14 (0.65 m spawn, both goal posts unchanged): the evaluated 0.50 m/s recovery controller strikes goal_post_-1 on its first stride and is rejected by the >5-contact-tick predicate at 2.12 s (left); with gap-midline centring pre-biased +0.015 m the same layout passes at 4.40 s (right). Full-matrix gate result: 62/64, 0 falls, 16/16/16/14 (job 21401966).",
+  "labels": "privileged pose (oracle), frozen learned gait, free-standing, native MuJoCo; scripted centring, not learned",
+  "scope": "One evaluated layout, reproduced by replaying the evaluator's reset order; the gate claim rests on the 64-episode matrix in the evidence file, not on this clip.",
+  "supersedes": {
+    "output_sha256": "0beef1e7f4dedffa65fd076f02c564cdda8abc0c96d0d07c951076d8f2bbb8c3",
+    "source_sha256": [
+      "036ce1a86b8ae3b3a6ecb00e53756b20ff8687e71dc09dcd8c6e3de53c35d5ed",
+      "879cf4e8b1e9be48da42f494fd81d7b7e2e2f7a092acd7641f3132fe63165db1"
+    ],
+    "camera": "tracking",
+    "red_outline_panel": "right",
+    "note": "previous GIF: tracking camera behind the maze walls, success panel outlined red"
+  },
+  "git_commit": "02f71e67d93be1e63041b620851351f57ef49ec6",
+  "rebuilt_by": "login-node rebuild from the 21405530 overhead renders (size-fitted window)"
+}

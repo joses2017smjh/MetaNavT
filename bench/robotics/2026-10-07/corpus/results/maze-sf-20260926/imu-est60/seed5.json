@@ -1,0 +1,566 @@
+{
+  "seed": 5,
+  "maze": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "cells_on_shortest_route": 13,
+    "walls": 48,
+    "layout_sha256": "55f8809cc91492cc"
+  },
+  "outcome": "fall",
+  "success": false,
+  "clean_success": false,
+  "completion_s": null,
+  "elapsed_s": 5.48,
+  "wall_contact_steps": 0,
+  "path_length_m": 3.03,
+  "turns": 1,
+  "replans": 14,
+  "map_updates": 55,
+  "mapped_fraction_end": 0.135,
+  "sensor_mode": "reactive",
+  "sensor_stats": {
+    "received_extero_packets": 55,
+    "dropped_extero_packets": 0,
+    "braked_robot_steps": 36,
+    "stale_stop_robot_steps": 0,
+    "range_limited_robot_steps": 28,
+    "imu_limited_robot_steps": 16,
+    "sampled_robot_steps": 138
+  },
+  "initial_heading_rad": 0.0,
+  "controller": {
+    "cruise": 0.3,
+    "turn_rate": 0.6,
+    "inflate_m": 0.3,
+    "replan_s": 0.4,
+    "map_res": 0.1
+  },
+  "control": "frozen_learned_biped_gait+lidar_occupancy_map+astar_unknown_free+turn_then_walk; pose and goal are oracle; gait attitude = filter in the loop (imu)",
+  "policy": null,
+  "wall_seconds": 3.2,
+  "trace": [
+    {
+      "t": 0.0,
+      "xy": [
+        -0.008,
+        0.048
+      ],
+      "yaw": 0.0,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 2
+    },
+    {
+      "t": 0.2,
+      "xy": [
+        -0.006,
+        0.042
+      ],
+      "yaw": -0.028,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 2
+    },
+    {
+      "t": 0.4,
+      "xy": [
+        -0.004,
+        0.032
+      ],
+      "yaw": -0.024,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 3
+    },
+    {
+      "t": 0.6,
+      "xy": [
+        -0.004,
+        0.023
+      ],
+      "yaw": -0.019,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 3
+    },
+    {
+      "t": 0.8,
+      "xy": [
+        -0.006,
+        0.019
+      ],
+      "yaw": -0.016,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 3
+    },
+    {
+      "t": 1.0,
+      "xy": [
+        -0.003,
+        0.019
+      ],
+      "yaw": -0.014,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.067,
+      "plan_len": 3
+    },
+    {
+      "t": 1.2,
+      "xy": [
+        -0.014,
+        0.035
+      ],
+      "yaw": 0.139,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.067,
+      "plan_len": 3
+    },
+    {
+      "t": 1.4,
+      "xy": [
+        -0.037,
+        0.055
+      ],
+      "yaw": 0.179,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.067,
+      "plan_len": 3
+    },
+    {
+      "t": 1.6,
+      "xy": [
+        -0.034,
+        0.074
+      ],
+      "yaw": 0.279,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.067,
+      "plan_len": 3
+    },
+    {
+      "t": 1.8,
+      "xy": [
+        -0.023,
+        0.067
+      ],
+      "yaw": 0.411,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.067,
+      "plan_len": 3
+    },
+    {
+      "t": 2.0,
+      "xy": [
+        -0.052,
+        0.059
+      ],
+      "yaw": 0.555,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.084,
+      "plan_len": 3
+    },
+    {
+      "t": 2.2,
+      "xy": [
+        -0.035,
+        0.079
+      ],
+      "yaw": 0.682,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.084,
+      "plan_len": 3
+    },
+    {
+      "t": 2.4,
+      "xy": [
+        -0.022,
+        0.083
+      ],
+      "yaw": 0.823,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.084,
+      "plan_len": 3
+    },
+    {
+      "t": 2.6,
+      "xy": [
+        -0.057,
+        0.051
+      ],
+      "yaw": 0.95,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.084,
+      "plan_len": 3
+    },
+    {
+      "t": 2.8,
+      "xy": [
+        -0.052,
+        0.079
+      ],
+      "yaw": 1.073,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.084,
+      "plan_len": 3
+    },
+    {
+      "t": 3.0,
+      "xy": [
+        -0.041,
+        0.109
+      ],
+      "yaw": 1.207,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.089,
+      "plan_len": 3
+    },
+    {
+      "t": 3.2,
+      "xy": [
+        -0.04,
+        0.103
+      ],
+      "yaw": 1.258,
+      "state": "walk",
+      "cmd": [
+        0.281,
+        0.0,
+        0.173
+      ],
+      "known": 0.089,
+      "plan_len": 3
+    },
+    {
+      "t": 3.4,
+      "xy": [
+        -0.023,
+        0.129
+      ],
+      "yaw": 1.286,
+      "state": "walk",
+      "cmd": [
+        0.278,
+        0.0,
+        0.142
+      ],
+      "known": 0.089,
+      "plan_len": 3
+    },
+    {
+      "t": 3.6,
+      "xy": [
+        -0.005,
+        0.227
+      ],
+      "yaw": 1.37,
+      "state": "walk",
+      "cmd": [
+        0.283,
+        0.0,
+        0.05
+      ],
+      "known": 0.089,
+      "plan_len": 3
+    },
+    {
+      "t": 3.8,
+      "xy": [
+        -0.007,
+        0.224
+      ],
+      "yaw": 1.41,
+      "state": "walk",
+      "cmd": [
+        0.202,
+        0.0,
+        -0.005
+      ],
+      "known": 0.089,
+      "plan_len": 3
+    },
+    {
+      "t": 4.0,
+      "xy": [
+        0.023,
+        0.302
+      ],
+      "yaw": 1.37,
+      "state": "walk",
+      "cmd": [
+        0.3,
+        0.0,
+        0.062
+      ],
+      "known": 0.093,
+      "plan_len": 3
+    },
+    {
+      "t": 4.2,
+      "xy": [
+        -0.006,
+        0.479
+      ],
+      "yaw": 1.457,
+      "state": "walk",
+      "cmd": [
+        0.15,
+        0.0,
+        -0.066
+      ],
+      "known": 0.093,
+      "plan_len": 3
+    },
+    {
+      "t": 4.4,
+      "xy": [
+        0.044,
+        0.384
+      ],
+      "yaw": 1.346,
+      "state": "walk",
+      "cmd": [
+        0.149,
+        0.0,
+        0.108
+      ],
+      "known": 0.093,
+      "plan_len": 3
+    },
+    {
+      "t": 4.6,
+      "xy": [
+        0.126,
+        0.644
+      ],
+      "yaw": 1.312,
+      "state": "walk",
+      "cmd": [
+        0.149,
+        0.0,
+        0.169
+      ],
+      "known": 0.093,
+      "plan_len": 3
+    },
+    {
+      "t": 4.8,
+      "xy": [
+        0.072,
+        0.459
+      ],
+      "yaw": 1.306,
+      "state": "walk",
+      "cmd": [
+        0.148,
+        0.0,
+        0.2
+      ],
+      "known": 0.093,
+      "plan_len": 4
+    },
+    {
+      "t": 5.0,
+      "xy": [
+        0.174,
+        0.6
+      ],
+      "yaw": 1.384,
+      "state": "walk",
+      "cmd": [
+        0.149,
+        0.0,
+        0.125
+      ],
+      "known": 0.1,
+      "plan_len": 4
+    },
+    {
+      "t": 5.2,
+      "xy": [
+        0.159,
+        0.562
+      ],
+      "yaw": 1.095,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.1,
+      "plan_len": 4
+    },
+    {
+      "t": 5.4,
+      "xy": [
+        0.327,
+        0.319
+      ],
+      "yaw": 0.935,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.1,
+      "plan_len": 4
+    }
+  ],
+  "outcome_class": "fall",
+  "goal_check": {
+    "judge": {
+      "rule": "TRUE position within goal_radius (ends the episode)",
+      "goal_radius_m": 0.3,
+      "reached": false,
+      "final_true_dist_m": 9.387
+    },
+    "controller": {
+      "rule": "ESTIMATED position within goal_radius of the plan's last waypoint (the exact goal); commands zero",
+      "arrived_ever": false,
+      "first_arrival_s": null,
+      "true_dist_at_first_arrival_m": null,
+      "est_dist_at_first_arrival_m": null,
+      "arrived_steps": 0,
+      "arrived_at_end": false
+    },
+    "note": "with no pose error the judge fires on the post-step true pose one step before the controller would see it, so arrived_ever is expected false on a reached episode; the learned --policy has no arrival state"
+  },
+  "stall": {
+    "final_s": 0.2,
+    "longest_s": 3.64,
+    "window_s": 20.0,
+    "radius_m": 0.2,
+    "position": "true"
+  },
+  "pose_error": {
+    "pose_bias_m": 0.0,
+    "pose_noise_m": 0.0,
+    "pose_yaw_deg": 0.0,
+    "bias_vector_m": [
+      0.0,
+      0.0
+    ],
+    "rng": "default_rng(10_000 + seed), SF-02",
+    "applied_to": "map + planner + controller (estimated pose); judge uses the true pose"
+  },
+  "imu": {
+    "source": "estimated",
+    "filter": "mahony",
+    "filter_rate_hz": 200.0,
+    "imu_delay_ms": 60.0,
+    "aligned": true,
+    "pre_alignment_steps": 113,
+    "gravity_rmse": 0.09988212834565732,
+    "gravity_max": 0.2953554915006823,
+    "gyro_bias_true_rad_s": [
+      -0.0,
+      -0.0,
+      -0.0
+    ],
+    "gyro_bias_estimated_rad_s": [
+      -0.004057708776822304,
+      -0.004279126382511071,
+      -0.00021833296656341222
+    ],
+    "settings": {
+      "imu_gyro_std": 0.0,
+      "imu_accel_std": 0.0,
+      "imu_gyro_bias": 0.0,
+      "imu_gyro_bias_walk": 0.0,
+      "imu_delay_steps": 0,
+      "imu_init": "accel",
+      "imu_kp": 1.0,
+      "imu_ki": 0.1,
+      "imu_beta": 0.1
+    }
+  },
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  }
+}

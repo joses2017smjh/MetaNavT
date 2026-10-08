@@ -22,6 +22,7 @@ FROM frontend-${WITH_FRONTEND} AS frontend
 # ---- API -------------------------------------------------------------------
 FROM python:3.11-slim AS api
 ARG EXTRAS=app
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -30,11 +31,11 @@ WORKDIR /app
 
 # Dependencies first (cached layer), from the single source of truth.
 COPY pyproject.toml scripts/print_deps.py ./scripts/
-# When the ml extra is requested, take torch from the CPU wheel index first so the
-# image does not pull the CUDA build (the API's CPU path is what the image serves).
+# Install torch from the selected wheel index before the ml extra. CPU remains
+# the default; docker-compose.gpu.yml explicitly selects CUDA wheels.
 RUN mv scripts/pyproject.toml . \
     && python scripts/print_deps.py "${EXTRAS}" > /tmp/requirements.txt \
-    && (case ",${EXTRAS}," in *,ml,*) pip install torch --index-url https://download.pytorch.org/whl/cpu ;; esac) \
+    && (case ",${EXTRAS}," in *,ml,*) pip install torch --index-url "${TORCH_INDEX_URL}" ;; esac) \
     && pip install -r /tmp/requirements.txt
 
 # Source tree, installed in place so bench/ and app/ resolve from /app.

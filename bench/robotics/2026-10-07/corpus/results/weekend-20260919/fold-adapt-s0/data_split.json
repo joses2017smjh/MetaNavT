@@ -1,0 +1,838 @@
+{
+  "train": [
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep10.npz",
+      "garment": "Top_Short_Seen_0",
+      "episode": 10,
+      "success": true,
+      "frames": 200,
+      "bytes": 32374029,
+      "mtime_ns": 1788668972000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep135.npz",
+      "garment": "Top_Short_Seen_5",
+      "episode": 135,
+      "success": true,
+      "frames": 200,
+      "bytes": 32867117,
+      "mtime_ns": 1788669170000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep145.npz",
+      "garment": "Top_Short_Seen_5",
+      "episode": 145,
+      "success": true,
+      "frames": 200,
+      "bytes": 30356525,
+      "mtime_ns": 1788669168000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep166.npz",
+      "garment": "Top_Short_Seen_6",
+      "episode": 166,
+      "success": true,
+      "frames": 200,
+      "bytes": 34999233,
+      "mtime_ns": 1788669179000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep21.npz",
+      "garment": "Top_Short_Seen_0",
+      "episode": 21,
+      "success": true,
+      "frames": 200,
+      "bytes": 30553587,
+      "mtime_ns": 1788668983000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep260.npz",
+      "garment": "Top_Long_Seen_0",
+      "episode": 260,
+      "success": true,
+      "frames": 200,
+      "bytes": 34603146,
+      "mtime_ns": 1788669460000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep271.npz",
+      "garment": "Top_Long_Seen_0",
+      "episode": 271,
+      "success": true,
+      "frames": 200,
+      "bytes": 33972483,
+      "mtime_ns": 1788669458000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep281.npz",
+      "garment": "Top_Long_Seen_1",
+      "episode": 281,
+      "success": true,
+      "frames": 200,
+      "bytes": 35442162,
+      "mtime_ns": 1788669459000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep292.npz",
+      "garment": "Top_Long_Seen_1",
+      "episode": 292,
+      "success": true,
+      "frames": 200,
+      "bytes": 35233318,
+      "mtime_ns": 1788669481000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep302.npz",
+      "garment": "Top_Long_Seen_2",
+      "episode": 302,
+      "success": true,
+      "frames": 200,
+      "bytes": 33280792,
+      "mtime_ns": 1788669540000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep31.npz",
+      "garment": "Top_Short_Seen_1",
+      "episode": 31,
+      "success": true,
+      "frames": 200,
+      "bytes": 31774424,
+      "mtime_ns": 1788668977000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep312.npz",
+      "garment": "Top_Long_Seen_2",
+      "episode": 312,
+      "success": true,
+      "frames": 200,
+      "bytes": 36149251,
+      "mtime_ns": 1788669575000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep323.npz",
+      "garment": "Top_Long_Seen_2",
+      "episode": 323,
+      "success": true,
+      "frames": 200,
+      "bytes": 36123070,
+      "mtime_ns": 1788669609000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep333.npz",
+      "garment": "Top_Long_Seen_3",
+      "episode": 333,
+      "success": true,
+      "frames": 200,
+      "bytes": 36503196,
+      "mtime_ns": 1788669613000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep385.npz",
+      "garment": "Top_Long_Seen_5",
+      "episode": 385,
+      "success": true,
+      "frames": 200,
+      "bytes": 33724139,
+      "mtime_ns": 1788669756000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep395.npz",
+      "garment": "Top_Long_Seen_5",
+      "episode": 395,
+      "success": true,
+      "frames": 200,
+      "bytes": 33202262,
+      "mtime_ns": 1788669754000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep406.npz",
+      "garment": "Top_Long_Seen_6",
+      "episode": 406,
+      "success": true,
+      "frames": 200,
+      "bytes": 33735332,
+      "mtime_ns": 1788669752000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep416.npz",
+      "garment": "Top_Long_Seen_6",
+      "episode": 416,
+      "success": true,
+      "frames": 200,
+      "bytes": 31546256,
+      "mtime_ns": 1788669775000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep42.npz",
+      "garment": "Top_Short_Seen_1",
+      "episode": 42,
+      "success": true,
+      "frames": 200,
+      "bytes": 29395722,
+      "mtime_ns": 1788668972000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep426.npz",
+      "garment": "Top_Long_Seen_7",
+      "episode": 426,
+      "success": true,
+      "frames": 200,
+      "bytes": 32610935,
+      "mtime_ns": 1788669838000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep447.npz",
+      "garment": "Top_Long_Seen_7",
+      "episode": 447,
+      "success": true,
+      "frames": 200,
+      "bytes": 34010863,
+      "mtime_ns": 1788669890000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep458.npz",
+      "garment": "Top_Long_Seen_8",
+      "episode": 458,
+      "success": true,
+      "frames": 200,
+      "bytes": 32542204,
+      "mtime_ns": 1788669905000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep468.npz",
+      "garment": "Top_Long_Seen_8",
+      "episode": 468,
+      "success": true,
+      "frames": 200,
+      "bytes": 32031426,
+      "mtime_ns": 1788669922000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep500.npz",
+      "garment": "Pant_Short_Seen_0",
+      "episode": 500,
+      "success": true,
+      "frames": 200,
+      "bytes": 31493424,
+      "mtime_ns": 1788669991000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep510.npz",
+      "garment": "Pant_Short_Seen_0",
+      "episode": 510,
+      "success": true,
+      "frames": 200,
+      "bytes": 31656018,
+      "mtime_ns": 1788670031000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep521.npz",
+      "garment": "Pant_Short_Seen_0",
+      "episode": 521,
+      "success": true,
+      "frames": 200,
+      "bytes": 28819957,
+      "mtime_ns": 1788670046000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep531.npz",
+      "garment": "Pant_Short_Seen_1",
+      "episode": 531,
+      "success": true,
+      "frames": 200,
+      "bytes": 29554050,
+      "mtime_ns": 1788670063000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep542.npz",
+      "garment": "Pant_Short_Seen_1",
+      "episode": 542,
+      "success": true,
+      "frames": 200,
+      "bytes": 29691279,
+      "mtime_ns": 1788670125000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep552.npz",
+      "garment": "Pant_Short_Seen_2",
+      "episode": 552,
+      "success": true,
+      "frames": 200,
+      "bytes": 30072683,
+      "mtime_ns": 1788670150000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep573.npz",
+      "garment": "Pant_Short_Seen_2",
+      "episode": 573,
+      "success": true,
+      "frames": 200,
+      "bytes": 28789186,
+      "mtime_ns": 1788670170000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep583.npz",
+      "garment": "Pant_Short_Seen_3",
+      "episode": 583,
+      "success": true,
+      "frames": 200,
+      "bytes": 27448467,
+      "mtime_ns": 1788670186000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep593.npz",
+      "garment": "Pant_Short_Seen_3",
+      "episode": 593,
+      "success": true,
+      "frames": 200,
+      "bytes": 28279433,
+      "mtime_ns": 1788670207000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep604.npz",
+      "garment": "Pant_Short_Seen_4",
+      "episode": 604,
+      "success": true,
+      "frames": 200,
+      "bytes": 29959368,
+      "mtime_ns": 1788670268000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep614.npz",
+      "garment": "Pant_Short_Seen_4",
+      "episode": 614,
+      "success": true,
+      "frames": 200,
+      "bytes": 27906357,
+      "mtime_ns": 1788670272000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep624.npz",
+      "garment": "Pant_Short_Seen_4",
+      "episode": 624,
+      "success": true,
+      "frames": 200,
+      "bytes": 28363128,
+      "mtime_ns": 1788670300000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep635.npz",
+      "garment": "Pant_Short_Seen_5",
+      "episode": 635,
+      "success": true,
+      "frames": 200,
+      "bytes": 30168898,
+      "mtime_ns": 1788670314000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep645.npz",
+      "garment": "Pant_Short_Seen_5",
+      "episode": 645,
+      "success": true,
+      "frames": 200,
+      "bytes": 30142273,
+      "mtime_ns": 1788670326000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep656.npz",
+      "garment": "Pant_Short_Seen_6",
+      "episode": 656,
+      "success": true,
+      "frames": 200,
+      "bytes": 31129521,
+      "mtime_ns": 1788670355000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep666.npz",
+      "garment": "Pant_Short_Seen_6",
+      "episode": 666,
+      "success": true,
+      "frames": 200,
+      "bytes": 29338197,
+      "mtime_ns": 1788670416000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep676.npz",
+      "garment": "Pant_Short_Seen_7",
+      "episode": 676,
+      "success": true,
+      "frames": 200,
+      "bytes": 31566675,
+      "mtime_ns": 1788670439000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep687.npz",
+      "garment": "Pant_Short_Seen_7",
+      "episode": 687,
+      "success": true,
+      "frames": 200,
+      "bytes": 29755054,
+      "mtime_ns": 1788670450000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep697.npz",
+      "garment": "Pant_Short_Seen_7",
+      "episode": 697,
+      "success": true,
+      "frames": 200,
+      "bytes": 29966549,
+      "mtime_ns": 1788670451000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep708.npz",
+      "garment": "Pant_Short_Seen_8",
+      "episode": 708,
+      "success": true,
+      "frames": 200,
+      "bytes": 26830517,
+      "mtime_ns": 1788670476000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep718.npz",
+      "garment": "Pant_Short_Seen_8",
+      "episode": 718,
+      "success": true,
+      "frames": 200,
+      "bytes": 27396491,
+      "mtime_ns": 1788670499000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep73.npz",
+      "garment": "Top_Short_Seen_2",
+      "episode": 73,
+      "success": true,
+      "frames": 200,
+      "bytes": 31260240,
+      "mtime_ns": 1788669092000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep750.npz",
+      "garment": "Pant_Long_Seen_0",
+      "episode": 750,
+      "success": true,
+      "frames": 200,
+      "bytes": 34336906,
+      "mtime_ns": 1788670593000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep771.npz",
+      "garment": "Pant_Long_Seen_0",
+      "episode": 771,
+      "success": true,
+      "frames": 200,
+      "bytes": 32792515,
+      "mtime_ns": 1788670649000000000
+    }
+  ],
+  "validation": [
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep176.npz",
+      "garment": "Top_Short_Seen_7",
+      "episode": 176,
+      "success": true,
+      "frames": 200,
+      "bytes": 32437475,
+      "mtime_ns": 1788669181000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep187.npz",
+      "garment": "Top_Short_Seen_7",
+      "episode": 187,
+      "success": true,
+      "frames": 200,
+      "bytes": 29982630,
+      "mtime_ns": 1788669237000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep197.npz",
+      "garment": "Top_Short_Seen_7",
+      "episode": 197,
+      "success": true,
+      "frames": 200,
+      "bytes": 32282106,
+      "mtime_ns": 1788669298000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep489.npz",
+      "garment": "Top_Long_Seen_9",
+      "episode": 489,
+      "success": true,
+      "frames": 200,
+      "bytes": 32737697,
+      "mtime_ns": 1788669988000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep728.npz",
+      "garment": "Pant_Short_Seen_9",
+      "episode": 728,
+      "success": true,
+      "frames": 200,
+      "bytes": 28084851,
+      "mtime_ns": 1788670557000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep739.npz",
+      "garment": "Pant_Short_Seen_9",
+      "episode": 739,
+      "success": true,
+      "frames": 200,
+      "bytes": 29161505,
+      "mtime_ns": 1788670569000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep749.npz",
+      "garment": "Pant_Short_Seen_9",
+      "episode": 749,
+      "success": true,
+      "frames": 200,
+      "bytes": 29156330,
+      "mtime_ns": 1788670600000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep895.npz",
+      "garment": "Pant_Long_Seen_5",
+      "episode": 895,
+      "success": true,
+      "frames": 200,
+      "bytes": 32220173,
+      "mtime_ns": 1788670909000000000
+    }
+  ],
+  "excluded_failed_replays": [
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep0.npz",
+      "garment": "Top_Short_Seen_0",
+      "episode": 0,
+      "success": false,
+      "frames": 200,
+      "bytes": 32259172,
+      "mtime_ns": 1788668972000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep156.npz",
+      "garment": "Top_Short_Seen_6",
+      "episode": 156,
+      "success": false,
+      "frames": 200,
+      "bytes": 33384669,
+      "mtime_ns": 1788669165000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep208.npz",
+      "garment": "Top_Short_Seen_8",
+      "episode": 208,
+      "success": false,
+      "frames": 200,
+      "bytes": 30019307,
+      "mtime_ns": 1788669315000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep218.npz",
+      "garment": "Top_Short_Seen_8",
+      "episode": 218,
+      "success": false,
+      "frames": 200,
+      "bytes": 30182947,
+      "mtime_ns": 1788669315000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep228.npz",
+      "garment": "Top_Short_Seen_9",
+      "episode": 228,
+      "success": false,
+      "frames": 200,
+      "bytes": 33318583,
+      "mtime_ns": 1788669329000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep239.npz",
+      "garment": "Top_Short_Seen_9",
+      "episode": 239,
+      "success": false,
+      "frames": 200,
+      "bytes": 29959434,
+      "mtime_ns": 1788669322000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep249.npz",
+      "garment": "Top_Short_Seen_9",
+      "episode": 249,
+      "success": false,
+      "frames": 200,
+      "bytes": 28205795,
+      "mtime_ns": 1788669388000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep250.npz",
+      "garment": "Top_Long_Seen_0",
+      "episode": 250,
+      "success": false,
+      "frames": 200,
+      "bytes": 34020371,
+      "mtime_ns": 1788669433000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep343.npz",
+      "garment": "Top_Long_Seen_3",
+      "episode": 343,
+      "success": false,
+      "frames": 200,
+      "bytes": 37421556,
+      "mtime_ns": 1788669608000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep354.npz",
+      "garment": "Top_Long_Seen_4",
+      "episode": 354,
+      "success": false,
+      "frames": 200,
+      "bytes": 34992848,
+      "mtime_ns": 1788669635000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep364.npz",
+      "garment": "Top_Long_Seen_4",
+      "episode": 364,
+      "success": false,
+      "frames": 200,
+      "bytes": 31616923,
+      "mtime_ns": 1788669689000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep374.npz",
+      "garment": "Top_Long_Seen_4",
+      "episode": 374,
+      "success": false,
+      "frames": 200,
+      "bytes": 34774113,
+      "mtime_ns": 1788669708000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep437.npz",
+      "garment": "Top_Long_Seen_7",
+      "episode": 437,
+      "success": false,
+      "frames": 200,
+      "bytes": 35575214,
+      "mtime_ns": 1788669852000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep499.npz",
+      "garment": "Top_Long_Seen_9",
+      "episode": 499,
+      "success": false,
+      "frames": 200,
+      "bytes": 30842384,
+      "mtime_ns": 1788669984000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep562.npz",
+      "garment": "Pant_Short_Seen_2",
+      "episode": 562,
+      "success": false,
+      "frames": 200,
+      "bytes": 29266355,
+      "mtime_ns": 1788670138000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep760.npz",
+      "garment": "Pant_Long_Seen_0",
+      "episode": 760,
+      "success": false,
+      "frames": 200,
+      "bytes": 32615217,
+      "mtime_ns": 1788670615000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep781.npz",
+      "garment": "Pant_Long_Seen_1",
+      "episode": 781,
+      "success": false,
+      "frames": 200,
+      "bytes": 32632298,
+      "mtime_ns": 1788670697000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep792.npz",
+      "garment": "Pant_Long_Seen_1",
+      "episode": 792,
+      "success": false,
+      "frames": 200,
+      "bytes": 37185223,
+      "mtime_ns": 1788670701000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep802.npz",
+      "garment": "Pant_Long_Seen_2",
+      "episode": 802,
+      "success": false,
+      "frames": 200,
+      "bytes": 37927217,
+      "mtime_ns": 1788670731000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep812.npz",
+      "garment": "Pant_Long_Seen_2",
+      "episode": 812,
+      "success": false,
+      "frames": 200,
+      "bytes": 32888985,
+      "mtime_ns": 1788670749000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep823.npz",
+      "garment": "Pant_Long_Seen_2",
+      "episode": 823,
+      "success": false,
+      "frames": 200,
+      "bytes": 33703044,
+      "mtime_ns": 1788670759000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep833.npz",
+      "garment": "Pant_Long_Seen_3",
+      "episode": 833,
+      "success": false,
+      "frames": 200,
+      "bytes": 31872512,
+      "mtime_ns": 1788670793000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep843.npz",
+      "garment": "Pant_Long_Seen_3",
+      "episode": 843,
+      "success": false,
+      "frames": 200,
+      "bytes": 32777482,
+      "mtime_ns": 1788670844000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep864.npz",
+      "garment": "Pant_Long_Seen_4",
+      "episode": 864,
+      "success": false,
+      "frames": 200,
+      "bytes": 35402677,
+      "mtime_ns": 1788670870000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep874.npz",
+      "garment": "Pant_Long_Seen_4",
+      "episode": 874,
+      "success": false,
+      "frames": 200,
+      "bytes": 35190469,
+      "mtime_ns": 1788670902000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep885.npz",
+      "garment": "Pant_Long_Seen_5",
+      "episode": 885,
+      "success": false,
+      "frames": 200,
+      "bytes": 33058693,
+      "mtime_ns": 1788670892000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep906.npz",
+      "garment": "Pant_Long_Seen_6",
+      "episode": 906,
+      "success": false,
+      "frames": 200,
+      "bytes": 31724577,
+      "mtime_ns": 1788670936000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep916.npz",
+      "garment": "Pant_Long_Seen_6",
+      "episode": 916,
+      "success": false,
+      "frames": 200,
+      "bytes": 32627957,
+      "mtime_ns": 1788671041000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep926.npz",
+      "garment": "Pant_Long_Seen_7",
+      "episode": 926,
+      "success": false,
+      "frames": 200,
+      "bytes": 31857678,
+      "mtime_ns": 1788671008000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep937.npz",
+      "garment": "Pant_Long_Seen_7",
+      "episode": 937,
+      "success": false,
+      "frames": 200,
+      "bytes": 32234879,
+      "mtime_ns": 1788671038000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep947.npz",
+      "garment": "Pant_Long_Seen_7",
+      "episode": 947,
+      "success": false,
+      "frames": 200,
+      "bytes": 30710450,
+      "mtime_ns": 1788671049000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep958.npz",
+      "garment": "Pant_Long_Seen_8",
+      "episode": 958,
+      "success": false,
+      "frames": 200,
+      "bytes": 28420296,
+      "mtime_ns": 1788671058000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep968.npz",
+      "garment": "Pant_Long_Seen_8",
+      "episode": 968,
+      "success": false,
+      "frames": 200,
+      "bytes": 29871442,
+      "mtime_ns": 1788671089000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep978.npz",
+      "garment": "Pant_Long_Seen_9",
+      "episode": 978,
+      "success": false,
+      "frames": 200,
+      "bytes": 33232896,
+      "mtime_ns": 1788671143000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep989.npz",
+      "garment": "Pant_Long_Seen_9",
+      "episode": 989,
+      "success": false,
+      "frames": 200,
+      "bytes": 32066277,
+      "mtime_ns": 1788671178000000000
+    },
+    {
+      "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/lehome-data/storm_capture100/ep999.npz",
+      "garment": "Pant_Long_Seen_9",
+      "episode": 999,
+      "success": false,
+      "frames": 200,
+      "bytes": 30019674,
+      "mtime_ns": 1788671205000000000
+    }
+  ],
+  "heldout_garments": [
+    "Top_Short_Seen_7",
+    "Top_Long_Seen_9",
+    "Pant_Short_Seen_9",
+    "Pant_Long_Seen_5"
+  ],
+  "split_unit": "garment_identity",
+  "validation_mode": "stratified-success",
+  "note": "Garment identities held out from this adaptation, not base pretraining. Success-filtered supervision is not an unbiased success-rate estimate.",
+  "sampling": "uniform class, uniform episode, uniform frame",
+  "sha256": "16fda1afe6eef9f89c7db1a294238718cd7ed021d68e63bded353d91c306a1d6"
+}

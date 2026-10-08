@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "source_repository": "https://github.com/joses2017smjh/IsaacSimFolding",
+  "source_clip": "results/rollout_Pant_Short_Seen_0_repro_ep509_policy_success.gif",
+  "source_sha256": "c319a7604dbbd284b6c907dc2df1b00ec160a89a9383c5fc798a0e038822b735",
+  "evidence": "results/rollout_Pant_Short_Seen_0_repro_ep509.json",
+  "evidence_sha256": "daa18d7a01ffadbe6af51481c4aff50781cb51aef300318ab9c7632f58567210",
+  "source_scope": "Source paths are relative to the IsaacSimFolding project; original artifacts are not bundled here.",
+  "source_size": [
+    1920,
+    480
+  ],
+  "source_frame_count": 134,
+  "source_camera": "top",
+  "source_triptych_order": [
+    "left_wrist",
+    "top",
+    "right_wrist"
+  ],
+  "crop_box_xyxy": [
+    640,
+    0,
+    1280,
+    480
+  ],
+  "mode": "policy",
+  "replayed_demonstration_actions": false,
+  "policy_variant": "historical_smolvla_raster_ft_full",
+  "garment": "Pant_Short_Seen_0",
+  "pose_source_episode": 509,
+  "reported_actions": 400,
+  "completed_actions_explicitly_recorded": null,
+  "checker": "LeHome success_checker_garment_fold",
+  "success": true,
+  "terminal_success": null,
+  "first_success_step": null,
+  "success_scope": "Historical success is latched when the checker passes at any step; terminal success and first-success step were not recorded.",
+  "benchmark_scope": "One selected development rollout, not a success-rate estimate or a comparison between policy generations.",
+  "renderer": "Storm rasterized RGB",
+  "simulation_seconds": null,
+  "cloth_max_particle_displacement_m": null,
+  "playback": {
+    "description": "Adjusted playback | Selected development episode",
+    "simulation_speed_factor": null,
+    "source_timing": "Source GIF contains missing or zero frame delays; physical-time playback cannot be recovered from this artifact.",
+    "historical_assigned_frame_ms": 100,
+    "extra_final_hold_ms": 1000,
+    "output_duration_seconds": 14.4,
+    "all_source_frames_processed": true,
+    "identical_frames_may_be_merged": true
+  },
+  "transformations": [
+    "Native simulator footage; no generated or interpolated action frames.",
+    "Lanczos spatial resizing; static caption footer; fixed 96-color GIF palette.",
+    "Historical top camera extracted from the middle third."
+  ],
+  "caption": "CHECKER SUCCESS | Historical policy",
+  "scope_caption": "Short pants | Top camera | Learned actions",
+  "output": "docs/gifs/folding-policy-success.gif",
+  "output_sha256": "fb84df7c30f2e65077037dbd452405f7971b1ef2a5e1ca43c6883c1f74a4f1db",
+  "output_bytes": 903780,
+  "output_size": [
+    512,
+    456
+  ],
+  "output_frame_count": 134,
+  "poster": "docs/gifs/folding-policy-success.png",
+  "poster_sha256": "484caed12475a44163ce020db13a18e75723d0af42cfa71a167de76c9addf341",
+  "poster_source_frame_index": 67
+}

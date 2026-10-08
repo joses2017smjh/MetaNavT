@@ -1,0 +1,82 @@
+{
+  "complete": true,
+  "job_id": "21399211",
+  "status": "COMPLETED_TARGETED_HANDOFF_PROBE",
+  "controller": "PlateSafeRouteController plus guarded PlateStage on switch handoff",
+  "selected_layouts": [1, 4, 8],
+  "stages": ["doors", "transport"],
+  "geometry_unchanged": true,
+  "activation_semantics_unchanged": true,
+  "fall_predicate_unchanged": true,
+  "episodes": 6,
+  "guarded_stage_activations": 4,
+  "guarded_stage_completions": 2,
+  "successes": 1,
+  "episode_summary": [
+    {
+      "stage": "doors",
+      "layout_index": 1,
+      "failure": "fall",
+      "guarded_stage_activated": false,
+      "guarded_stage_completed": false,
+      "plate_contacts_seen": [[0, true]],
+      "first_fall_s": 22.28,
+      "first_fall_phase": "plate_brake",
+      "interpretation": "physical plate contact and PlateSafe brake preceded the fall before the switch handoff could activate"
+    },
+    {
+      "stage": "doors",
+      "layout_index": 4,
+      "failure": "fall",
+      "guarded_stage_activated": true,
+      "guarded_stage_completed": true,
+      "stage_exit_s": 21.80,
+      "first_fall_s": 21.96,
+      "first_fall_phase": "advance",
+      "interpretation": "the guarded crossing completed, then route continuation fell after stage exit"
+    },
+    {
+      "stage": "doors",
+      "layout_index": 8,
+      "failure": "excessive_collision",
+      "guarded_stage_activated": true,
+      "guarded_stage_completed": false,
+      "world_minus_x": true,
+      "stage_phases": ["approach", "settle"],
+      "interpretation": "world-minus-x handoff entered the stage but did not complete before collision termination"
+    },
+    {
+      "stage": "transport",
+      "layout_index": 1,
+      "failure": "fall",
+      "guarded_stage_activated": false,
+      "guarded_stage_completed": false,
+      "plate_contacts_seen": [[0, true]],
+      "first_fall_s": 22.88,
+      "first_fall_phase": "plate_brake",
+      "interpretation": "physical plate contact and PlateSafe brake preceded the fall before the switch handoff could activate"
+    },
+    {
+      "stage": "transport",
+      "layout_index": 4,
+      "failure": null,
+      "guarded_stage_activated": true,
+      "guarded_stage_completed": true,
+      "guarded_stage_doors": 2,
+      "interpretation": "both guarded crossings completed and the full transport route succeeded"
+    },
+    {
+      "stage": "transport",
+      "layout_index": 8,
+      "failure": "fall",
+      "guarded_stage_activated": true,
+      "guarded_stage_completed": false,
+      "world_minus_x": true,
+      "stage_phases": ["approach", "settle", "cross"],
+      "first_fall_s": 23.44,
+      "first_fall_phase": "stage_cross",
+      "interpretation": "world-minus-x entry reached guarded crossing but fell before stage completion"
+    }
+  ],
+  "raw_evidence": "results/mission7-approach-followup-20260922-v3/route-handoff-probe-cn-c22/result.json"
+}

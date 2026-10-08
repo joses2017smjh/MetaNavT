@@ -1,0 +1,169 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "summaries": {
+    "legacy-doors": {
+      "episodes": 1,
+      "successes": 0,
+      "success_rate": 0.0,
+      "falls": 0,
+      "collisions": 0,
+      "failures": {
+        "timeout": 1
+      },
+      "mean_return": -0.002,
+      "mean_diagnostic_return": -0.002,
+      "final_distance": {
+        "mean": 8.005025589127833,
+        "median": 8.005025589127833,
+        "std": 0.0,
+        "min": 8.005025589127833,
+        "max": 8.005025589127833
+      },
+      "minimum_distance": {
+        "mean": 7.927810212452817,
+        "median": 7.927810212452817,
+        "std": 0.0,
+        "min": 7.927810212452817,
+        "max": 7.927810212452817
+      },
+      "fraction_closed": {
+        "mean": 0.008241747020509057,
+        "median": 0.008241747020509057,
+        "std": 0.0,
+        "min": 0.008241747020509057,
+        "max": 0.008241747020509057
+      },
+      "initial_distance": {
+        "mean": 7.993692201336045,
+        "median": 7.993692201336045,
+        "std": 0.0,
+        "min": 7.993692201336045,
+        "max": 7.993692201336045
+      }
+    },
+    "legacy-transport": {
+      "episodes": 1,
+      "successes": 0,
+      "success_rate": 0.0,
+      "falls": 0,
+      "collisions": 0,
+      "failures": {
+        "timeout": 1
+      },
+      "mean_return": -0.002,
+      "mean_diagnostic_return": -0.002,
+      "final_distance": {
+        "mean": 8.005025589127833,
+        "median": 8.005025589127833,
+        "std": 0.0,
+        "min": 8.005025589127833,
+        "max": 8.005025589127833
+      },
+      "minimum_distance": {
+        "mean": 7.927810212452817,
+        "median": 7.927810212452817,
+        "std": 0.0,
+        "min": 7.927810212452817,
+        "max": 7.927810212452817
+      },
+      "fraction_closed": {
+        "mean": 0.008241747020509057,
+        "median": 0.008241747020509057,
+        "std": 0.0,
+        "min": 0.008241747020509057,
+        "max": 0.008241747020509057
+      },
+      "initial_distance": {
+        "mean": 7.993692201336045,
+        "median": 7.993692201336045,
+        "std": 0.0,
+        "min": 7.993692201336045,
+        "max": 7.993692201336045
+      }
+    },
+    "measured-doors": {
+      "episodes": 1,
+      "successes": 0,
+      "success_rate": 0.0,
+      "falls": 0,
+      "collisions": 0,
+      "failures": {
+        "timeout": 1
+      },
+      "mean_return": -0.002,
+      "mean_diagnostic_return": -0.002,
+      "final_distance": {
+        "mean": 8.005025589127833,
+        "median": 8.005025589127833,
+        "std": 0.0,
+        "min": 8.005025589127833,
+        "max": 8.005025589127833
+      },
+      "minimum_distance": {
+        "mean": 7.927810212452817,
+        "median": 7.927810212452817,
+        "std": 0.0,
+        "min": 7.927810212452817,
+        "max": 7.927810212452817
+      },
+      "fraction_closed": {
+        "mean": 0.008241747020509057,
+        "median": 0.008241747020509057,
+        "std": 0.0,
+        "min": 0.008241747020509057,
+        "max": 0.008241747020509057
+      },
+      "initial_distance": {
+        "mean": 7.993692201336045,
+        "median": 7.993692201336045,
+        "std": 0.0,
+        "min": 7.993692201336045,
+        "max": 7.993692201336045
+      }
+    },
+    "measured-transport": {
+      "episodes": 1,
+      "successes": 0,
+      "success_rate": 0.0,
+      "falls": 0,
+      "collisions": 0,
+      "failures": {
+        "timeout": 1
+      },
+      "mean_return": -0.002,
+      "mean_diagnostic_return": -0.002,
+      "final_distance": {
+        "mean": 8.005025589127833,
+        "median": 8.005025589127833,
+        "std": 0.0,
+        "min": 8.005025589127833,
+        "max": 8.005025589127833
+      },
+      "minimum_distance": {
+        "mean": 7.927810212452817,
+        "median": 7.927810212452817,
+        "std": 0.0,
+        "min": 7.927810212452817,
+        "max": 7.927810212452817
+      },
+      "fraction_closed": {
+        "mean": 0.008241747020509057,
+        "median": 0.008241747020509057,
+        "std": 0.0,
+        "min": 0.008241747020509057,
+        "max": 0.008241747020509057
+      },
+      "initial_distance": {
+        "mean": 7.993692201336045,
+        "median": 7.993692201336045,
+        "std": 0.0,
+        "min": 7.993692201336045,
+        "max": 7.993692201336045
+      }
+    }
+  },
+  "unchanged_benchmark": true,
+  "split": "validation",
+  "comparison": "16 paired layouts; same seed; only scripted navigation commands differ"
+}

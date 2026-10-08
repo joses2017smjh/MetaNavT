@@ -1,4 +1,4 @@
-"""BEIR SciFact: an external benchmark with a published BM25 baseline.
+"""BEIR SciFact, NFCorpus and FiQA with reproducible external evaluation.
 
     python -m app.eval.beir --out bench/results/beir_scifact.json [--device auto|cpu|cuda] [--rerank-top 20]
 
@@ -18,7 +18,7 @@ is scored with.
 Rows form an explicit ablation chain (each row names its `parent`, and the
 paired delta is against that parent, not against list order): bm25 ->
 dense@bge-small -> hybrid@bge-small -> hybrid+bge-rerank (top 20, fp32,
-uncapped) -> the same reranker in fp16 with max_length 512 -> rerank depth
+library-default token cap) -> fp32 with max_length 512 -> fp16 at the same cap -> rerank depth
 50 -> 100. dense@bge-small+instruction is the bge-v1.5 query prefix on the
 query side only (document embeddings are cached). Metrics: nDCG@10,
 Recall@10, Recall@100 and MRR@10 with 95% paired bootstrap CIs; per-query
@@ -32,12 +32,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import time
 import urllib.request
 import zipfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -67,7 +68,14 @@ BGE_SMALL = "st:BAAI/bge-small-en-v1.5"
 BGE_RERANKER = "BAAI/bge-reranker-v2-m3"
 BGE_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 REFERENCE = "bm25"
+RUNNER_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 CI_METRICS = ("ndcg@10", "recall@10", "recall@100")
+DATASETS = {
+    "scifact": {"url": SCIFACT_URL, "sha256": SCIFACT_SHA256, "published": PUBLISHED},
+    # Observed official archive identities on 2026-10-07, pinned for replay.
+    "nfcorpus": {"url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip", "sha256": "efe5be03f8c5b86a5870102d0599d227c8c6e2484328e68c6522560385671b0b", "published": None},
+    "fiqa": {"url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/fiqa.zip", "sha256": "32c7df99ed21252fdfb2cf3f5673502a8d245ee0c44c4a133570d92ce2b3ad02", "published": None},
+}
 
 
 @dataclass
@@ -89,6 +97,7 @@ class BeirConfig:
 
 
 RERANK_FP32 = "hybrid+bge-rerank@bge-small"
+RERANK_FP32_512 = "hybrid+bge-rerank@bge-small/fp32-512/top20"
 RERANK_FP16 = "hybrid+bge-rerank@bge-small/fp16-512/top20"
 DEFAULT_CONFIGS = [
     BeirConfig(name="bm25", mode="bm25"),
@@ -97,7 +106,8 @@ DEFAULT_CONFIGS = [
     BeirConfig(name="dense@bge-small+instruction", mode="dense", embedder=BGE_SMALL, parent="dense@bge-small", query_instruction=BGE_QUERY_INSTRUCTION),
     BeirConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL, parent="dense@bge-small"),
     BeirConfig(name=RERANK_FP32, mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=20, parent="hybrid@bge-small"),
-    BeirConfig(name=RERANK_FP16, mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=20, parent=RERANK_FP32, precision="fp16", max_length=512),
+    BeirConfig(name=RERANK_FP32_512, mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=20, parent=RERANK_FP32, precision="fp32", max_length=512),
+    BeirConfig(name=RERANK_FP16, mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=20, parent=RERANK_FP32_512, precision="fp16", max_length=512),
     BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top50", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=50, parent=RERANK_FP16, precision="fp16", max_length=512),
     BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top100", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=100, parent="hybrid+bge-rerank@bge-small/fp16-512/top50", precision="fp16", max_length=512),
 ]
@@ -115,23 +125,49 @@ def sha256_of(path: Path) -> str:
 
 
 def download_scifact(data_dir: Path, url: str = SCIFACT_URL, sha256: str | None = SCIFACT_SHA256) -> Path:
-    """Fetch and unpack the BEIR zip once; verify the checksum every time."""
+    """Backward-compatible SciFact download entry point."""
+    return download_dataset(data_dir, "scifact", url=url, sha256=sha256)
+
+
+def download_dataset(data_dir: Path, dataset: str, *, url: str | None = None, sha256: str | None = None) -> Path:
+    """Fetch a supported BEIR archive, record its identity and extract safely.
+
+    All three supported datasets have fixed archive checksum pins. An explicit
+    --dataset-sha256 overrides the expected identity for a deliberate replay.
+    """
+    spec = DATASETS[dataset]
+    expected = sha256 or spec["sha256"]
     data_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = data_dir / "scifact.zip"
+    zip_path = data_dir / f"{dataset}.zip"
     if not zip_path.exists():
-        urllib.request.urlretrieve(url, zip_path)
+        temporary = zip_path.with_suffix(".zip.partial")
+        urllib.request.urlretrieve(url or spec["url"], temporary)
+        temporary.replace(zip_path)
     actual = sha256_of(zip_path)
-    if sha256 and actual != sha256:
-        raise RuntimeError(f"scifact.zip sha256 {actual} != pinned {sha256}; delete it and retry")
-    root = data_dir / "scifact"
+    if expected and actual != expected:
+        raise RuntimeError(f"{dataset}.zip sha256 {actual} != pinned {expected}; delete it and retry")
+    identity = data_dir / f"{dataset}.sha256"
+    if identity.exists() and identity.read_text().strip() != actual:
+        raise RuntimeError(f"{dataset}.zip changed after first download; sha256 differs from recorded identity")
+    root = data_dir / dataset
     if not (root / "corpus.jsonl").exists():
         with zipfile.ZipFile(zip_path) as zf:
+            base = data_dir.resolve()
+            for member in zf.infolist():
+                if not (base / member.filename).resolve().is_relative_to(base):
+                    raise ValueError(f"unsafe archive member {member.filename!r}")
             zf.extractall(data_dir)
+    identity.write_text(actual + "\n")
     return root
 
 
 def load_scifact(root: Path, split: str = "test") -> tuple[dict[str, str], dict[str, str], dict[str, dict[str, int]]]:
-    """corpus id -> 'title text', query id -> text (only queries with qrels), qrels id -> {doc: score>0}."""
+    """Backward-compatible alias for the generic BEIR format loader."""
+    return load_beir(root, split)
+
+
+def load_beir(root: Path, split: str = "test") -> tuple[dict[str, str], dict[str, str], dict[str, dict[str, int]]]:
+    """Load BEIR JSONL/TSV, retaining positive graded relevance exactly."""
     corpus: dict[str, str] = {}
     with (root / "corpus.jsonl").open(encoding="utf-8") as fh:
         for line in fh:
@@ -158,6 +194,62 @@ def load_scifact(root: Path, split: str = "test") -> tuple[dict[str, str], dict[
     return corpus, queries, qrels
 
 
+def graded_ndcg_at_k(retrieved: list[str], qrels: dict[str, int], k: int) -> float:
+    """trec_eval ndcg_cut: linear relevance grades / log2(rank + 1).
+
+    BEIR uses pytrec_eval, whose default gains are the numeric qrel grades,
+    not 2**grade - 1. Duplicate retrieved ids are refused by the run writer.
+    """
+    gains = [max(0, qrels.get(did, 0)) for did in retrieved[:k]]
+    ideal = sorted((grade for grade in qrels.values() if grade > 0), reverse=True)[:k]
+    dcg = sum(gain / math.log2(i + 2) for i, gain in enumerate(gains))
+    idcg = sum(gain / math.log2(i + 2) for i, gain in enumerate(ideal))
+    return dcg / idcg if idcg else 0.0
+
+
+def trec_scores(rankings: dict[str, list[str]]) -> dict[str, dict[str, float]]:
+    return {qid: {did: float(len(ids) - i) for i, did in enumerate(ids)} for qid, ids in rankings.items()}
+
+
+def cross_check_metrics(rankings: dict[str, list[str]], qrels: dict[str, dict[str, int]], per_query: list[dict], *, required: bool = False) -> dict:
+    """Cross-check exact per-query scores against independent trec_eval code."""
+    try:
+        import pytrec_eval
+    except ImportError:
+        if required:
+            raise RuntimeError("--require-trec-eval needs pytrec-eval (or pytrec-eval-terrier)")
+        return {"status": "not_run", "reason": "pytrec_eval not installed", "implementation": "pytrec_eval/trec_eval"}
+    evaluator = pytrec_eval.RelevanceEvaluator(qrels, {"ndcg_cut.10", "recall.10,100"})
+    reference = evaluator.evaluate(trec_scores(rankings))
+    mapping = {"ndcg@10": "ndcg_cut_10", "recall@10": "recall_10", "recall@100": "recall_100"}
+    maximum = 0.0
+    for row in per_query:
+        if row["id"] not in reference:
+            raise RuntimeError(f"trec_eval omitted query {row['id']}")
+        for internal, external in mapping.items():
+            difference = abs(row[internal] - reference[row["id"]][external])
+            maximum = max(maximum, difference)
+            if difference > 1e-9:
+                raise RuntimeError(f"metric mismatch {row['id']} {internal}: {row[internal]} vs {reference[row['id']][external]}")
+    return {"status": "passed", "implementation": "pytrec_eval/trec_eval", "n_queries": len(per_query), "metrics": list(mapping), "max_absolute_difference": maximum}
+
+
+def write_trec_outputs(directory: Path, cfg: BeirConfig, rankings: dict[str, list[str]], qrels: dict[str, dict[str, int]]) -> dict:
+    directory.mkdir(parents=True, exist_ok=True)
+    run_path = directory / f"{_slug(cfg.name)}.run"
+    qrels_path = directory / "qrels.txt"
+    query_order_path = directory / "query_ids.json"
+    for qid, ids in rankings.items():
+        if len(ids) != len(set(ids)) or any(any(c.isspace() for c in value) for value in [qid, *ids]):
+            raise ValueError("TREC ids must be unique per ranking and contain no whitespace")
+    run_path.write_text("".join(f"{qid} Q0 {did} {i + 1} {len(ids) - i} {_slug(cfg.name)}\n" for qid, ids in rankings.items() for i, did in enumerate(ids)))
+    qrels_path.write_text("".join(f"{qid} 0 {did} {grade}\n" for qid, docs in qrels.items() for did, grade in docs.items()))
+    # TREC run files cannot represent a query with zero retrieved documents.
+    # Preserve its identity and the original bootstrap order separately.
+    query_order_path.write_text(json.dumps(list(rankings)) + "\n")
+    return {"run": str(run_path), "run_sha256": sha256_of(run_path), "qrels": str(qrels_path), "qrels_sha256": sha256_of(qrels_path), "query_order": str(query_order_path), "query_order_sha256": sha256_of(query_order_path)}
+
+
 def chunks_from_corpus(corpus: dict[str, str]) -> list[Chunk]:
     return [Chunk(chunk_id=did, path=did, text=text, start_byte=0, end_byte=len(text.encode("utf-8"))) for did, text in corpus.items()]
 
@@ -172,10 +264,14 @@ def _slug(name: str) -> str:
 class Engine:
     """Shares indexes, embeddings and models across configs; caches doc embeddings on disk."""
 
-    def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None):
+    def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto"):
         self.chunks = chunks
         self.by_id = {c.chunk_id: c for c in chunks}
         self.cache_dir = cache_dir
+        self.device = device
+        # Corpus identity and ordering matter: two datasets of the same size
+        # must never silently share a document embedding matrix.
+        self.corpus_sha256 = hashlib.sha256(json.dumps([(c.chunk_id, c.text) for c in chunks], ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
         self._bm25: dict[tuple[str, float, float], BM25Index] = {}
         self._embedders: dict[str, Any] = {}
         self._doc_mats: dict[str, np.ndarray] = {}
@@ -198,6 +294,8 @@ class Engine:
                 from app.retrieval.embedders import SentenceTransformerEmbedder
 
                 self._embedders[name] = SentenceTransformerEmbedder(name.split(":", 1)[1])
+                if self.device != "auto":
+                    self._embedders[name]._model.to(self.device)
             else:
                 raise ValueError(f"unknown embedder {name!r}")
             self.provenance[name] = {
@@ -213,9 +311,11 @@ class Engine:
             return self._doc_mats[name]
         emb = self.embedder(name)
         rev = self.provenance[name].get("revision") or "norev"
-        cache = self.cache_dir / f"scifact.{_slug(name)}.{rev}.{len(self.chunks)}.npy" if self.cache_dir else None
+        cache = self.cache_dir / f"{self.corpus_sha256}.{_slug(name)}.{rev}.{len(self.chunks)}.npy" if self.cache_dir else None
         if cache and cache.exists():
             mat = np.load(cache)
+            if mat.shape != (len(self.chunks), emb.dim) or not np.isfinite(mat).all():
+                raise RuntimeError(f"invalid embedding cache {cache}: expected {(len(self.chunks), emb.dim)}, got {mat.shape}")
         else:
             mat = emb.encode([c.text for c in self.chunks])
             if cache:
@@ -235,7 +335,7 @@ class Engine:
                 self._rerankers[key] = OverlapReranker()
                 self.provenance[key] = {**model_provenance("overlap", "reranker"), "loaded": True}
             else:
-                model = get_cross_encoder(name, precision=precision, max_length=max_length)
+                model = get_cross_encoder(name, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device)
                 if model is None:
                     raise RuntimeError(f"reranker {name} not available (set BGE_ALLOW_DOWNLOAD=1 or cache it)")
                 inner = getattr(model, "model", None)
@@ -317,20 +417,28 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
     return ids
 
 
-def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]]) -> dict[str, Any]:
+def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]], *, trec_dir: Path | None = None, require_trec_eval: bool = False) -> dict[str, Any]:
+    if cfg.precision == "fp16" and cfg.reranker not in {None, "overlap"}:
+        import torch
+        if engine.device == "cpu" or not torch.cuda.is_available():
+            raise RuntimeError("fp16 ablations require CUDA; CPU fallback would not measure precision")
     build = engine.build(cfg)  # index, embeddings, model loads: reported separately, never inside a query
     first = next(iter(queries.values()))
     retrieve(engine, cfg, first, StageTimer())  # warm-up (CUDA kernels, caches); excluded from the stats
     timer = StageTimer()
     per_query: list[dict[str, float]] = []
+    rankings: dict[str, list[str]] = {}
     t0 = time.perf_counter()
     for qid, text in queries.items():
         ids = retrieve(engine, cfg, text, timer)
+        # Match BEIR's default ignore_identical_ids convention.
+        ids = [did for did in ids if did != qid]
+        rankings[qid] = ids
         relevant = list(qrels[qid])
         per_query.append(
             {
                 "id": qid,
-                "ndcg@10": ndcg_at_k(ids, relevant, 10),
+                "ndcg@10": graded_ndcg_at_k(ids, qrels[qid], 10),
                 "recall@10": recall_at_k(ids, relevant, 10),
                 "recall@100": recall_at_k(ids, relevant, 100),
                 "mrr@10": mrr_at_k(ids, relevant, 10),
@@ -354,11 +462,13 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         "build_ms": build,
         "wall_ms": round(wall_ms, 2),
         "models": models,
+        "metric_cross_check": cross_check_metrics(rankings, qrels, per_query, required=require_trec_eval),
+        "trec": write_trec_outputs(trec_dir, cfg, rankings, qrels) if trec_dir is not None else None,
         "_per_query": per_query,
     }
 
 
-def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_SEED, n_boot: int = DEFAULT_N_BOOT) -> dict:
+def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_SEED, n_boot: int = DEFAULT_N_BOOT, *, published: dict | None = PUBLISHED) -> dict:
     idx = resample_indices(n_queries, n_boot=n_boot, seed=seed)
     by_name = {r["config"]: r for r in results}
     ref = by_name.get(REFERENCE)
@@ -385,10 +495,10 @@ def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_S
                 delta, lo, hi = paired_delta_ci([r[m] for r in pq], [r[m] for r in parent["_per_query"]], idx)
                 dp[m] = {"delta": round(delta, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
             row["delta_vs_parent"] = dp
-        if row["config"] == REFERENCE:
+        if row["config"] == REFERENCE and published is not None:
             row["vs_published"] = {
-                "published_bm25_ndcg@10": PUBLISHED["bm25_ndcg@10"],
-                "delta": round(row["retrieval"]["ndcg@10"] - PUBLISHED["bm25_ndcg@10"], 4),
+                "published_bm25_ndcg@10": published["bm25_ndcg@10"],
+                "delta": round(row["retrieval"]["ndcg@10"] - published["bm25_ndcg@10"], 4),
             }
     for row in results:
         row.pop("_per_query", None)
@@ -404,22 +514,59 @@ def run(
     seed: int = DEFAULT_SEED,
     root: Path | None = None,
     download: bool = True,
+    dataset: str = "scifact",
+    split: str = "test",
+    dataset_sha256: str | None = None,
+    max_queries: int | None = None,
+    trec_dir: Path | None = None,
+    require_trec_eval: bool = False,
 ) -> dict[str, Any]:
-    configs = configs or DEFAULT_CONFIGS
-    scifact = download_scifact(data_dir) if download else data_dir / "scifact"
-    corpus, queries, qrels = load_scifact(scifact)
-    engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache")
-    results = [run_config(engine, cfg, queries, qrels) for cfg in configs]
-    boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot)
+    if dataset not in DATASETS:
+        raise ValueError(f"unsupported dataset {dataset!r}")
+    if configs is not None and not configs:
+        raise ValueError("at least one config is required")
+    configs = configs if configs is not None else DEFAULT_CONFIGS
+    names = {cfg.name for cfg in configs}
+    # A bounded sweep may omit the expensive uncapped reranker. In that
+    # case, evaluate the capped reranker as a component addition against the
+    # measured hybrid baseline, rather than leaving its paired delta empty.
+    configs = [replace(cfg, parent="hybrid@bge-small") if cfg.name == RERANK_FP32_512 and cfg.parent not in names and "hybrid@bge-small" in names else cfg for cfg in configs]
+    spec = DATASETS[dataset]
+    dataset_root = download_dataset(data_dir, dataset, sha256=dataset_sha256) if download else data_dir / dataset
+    corpus, queries, qrels = load_beir(dataset_root, split)
+    full_query_count = len(queries)
+    if max_queries is not None:
+        if max_queries < 1:
+            raise ValueError("max_queries must be positive")
+        queries = dict(list(sorted(queries.items()))[:max_queries])
+        qrels = {qid: qrels[qid] for qid in queries}
+    if not corpus or not queries:
+        raise ValueError("dataset must have documents and positively judged queries")
+    missing_docs = {did for docs in qrels.values() for did in docs if did not in corpus}
+    if missing_docs:
+        raise ValueError(f"qrels reference {len(missing_docs)} missing documents")
+    engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device)
+    results = [run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval) for cfg in configs]
+    # A published full-test reference is inapplicable to a query subset.
+    published = spec["published"] if split == "test" and len(queries) == full_query_count else None
+    boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot, published=published)
+    zip_path = data_dir / f"{dataset}.zip"
     return {
-        "dataset": "BEIR/scifact",
-        "split": "test",
-        "url": SCIFACT_URL,
-        "zip_sha256": SCIFACT_SHA256,
+        "dataset": f"BEIR/{dataset}",
+        "split": split,
+        "url": spec["url"],
+        "zip_sha256": sha256_of(zip_path) if zip_path.exists() else None,
+        "expected_zip_sha256": dataset_sha256 or spec["sha256"],
+        "files_sha256": {str(p.relative_to(dataset_root)): sha256_of(p) for p in (dataset_root / "corpus.jsonl", dataset_root / "queries.jsonl", dataset_root / "qrels" / f"{split}.tsv")},
+        "corpus_sha256": engine.corpus_sha256,
+        "runner_sha256": RUNNER_SHA256,
         "n_docs": len(corpus),
         "n_queries": len(queries),
+        "full_split_queries": full_query_count,
+        "query_selection": "full split" if len(queries) == full_query_count else "bounded subset, query ids sorted ascending",
         "document_text": "title + ' ' + text",
-        "published": PUBLISHED,
+        "published": published,
+        "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
         "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
         "git_sha": git_sha(root),
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -440,7 +587,7 @@ def _fmt(block: dict | None, key: str = "mean") -> str:
 
 def markdown_table(blob: dict) -> str:
     lines = [
-        f"BEIR SciFact test: {blob['n_docs']} docs, {blob['n_queries']} queries. Published BM25 nDCG@10 = {blob['published']['bm25_ndcg@10']:.3f}.",
+        f"BEIR {blob['dataset'].split('/')[-1].replace('scifact', 'SciFact')} {blob['split']}: {blob['n_docs']} docs, {blob['n_queries']} queries." + (f" Published BM25 nDCG@10 = {blob['published']['bm25_ndcg@10']:.3f}." if blob.get("published") else " No matched published reference claimed."),
         "",
         "| config | parent | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25 | p50 / p95 ms | build s |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
@@ -460,6 +607,12 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data-dir", type=Path, default=root / "bench" / "external")
+    p.add_argument("--dataset", choices=tuple(DATASETS), default="scifact")
+    p.add_argument("--split", default="test")
+    p.add_argument("--dataset-sha256", default=None)
+    p.add_argument("--max-queries", type=int, default=None, help="bounded sorted query subset; never reported as the full benchmark")
+    p.add_argument("--trec-dir", type=Path, default=None, help="write independently evaluable .run and qrels.txt files")
+    p.add_argument("--require-trec-eval", action="store_true", help="fail unless pytrec_eval confirms exact per-query metrics")
     p.add_argument("--out", type=Path, default=root / "bench" / "results" / "beir_scifact.json")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     p.add_argument("--rerank-top", type=int, default=None, help="override every reranked row's depth (default: each row's own rerank_top)")
@@ -474,7 +627,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.only:
         wanted = {n.strip() for n in args.only.split(",")}
         configs = [c for c in configs if c.name in wanted]
-    blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root)
+    if not configs:
+        p.error("--only selected no configurations")
+    blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2) + "\n")

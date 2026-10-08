@@ -1,0 +1,2602 @@
+{
+ "tool": "navgym_diagnose",
+ "run": "results/navgym-v2-20260926/armA-s0",
+ "backend": "onnx",
+ "size": "5x5",
+ "seeds": "maze seed 10000 + k, k = 0..47; dynamics reset(seed=k) -- the PUBLISHED v2 held-out eval seeds: diagnosis only, never a scored set for anything designed from this",
+ "deterministic": "raw Gaussian mean clipped to [-1, 1] (= model.predict(deterministic=True) = the ONNX actor)",
+ "extend": 2.0,
+ "rules": {
+  "window_steps": 500,
+  "stalled": "window path < 0.3 m",
+  "stuck_at_wall": "window frac(clearance < 0.30 m) >= 0.5 and window progress < 0.5 m",
+  "looping": "window geodesic progress < 0.5 m",
+  "slow_but_progressing": "window geodesic progress >= 0.5 m",
+  "order": [
+   "stalled",
+   "stuck_at_wall",
+   "looping",
+   "slow_but_progressing"
+  ]
+ },
+ "actors": {
+  "final": {
+   "zip": "results/navgym-v2-20260926/armA-s0/ppo_final.zip",
+   "std": [
+    10.040994644165039,
+    4.633857727050781
+   ],
+   "onnx_max_abs_diff": 1.9073486328125e-06,
+   "backend": "onnx:results/navgym-v2-20260926/armA-s0/actor.onnx",
+   "summary": {
+    "n": 48,
+    "success": 0.7916666666666666,
+    "collision": 0.0625,
+    "time_out": 0.14583333333333334,
+    "time_out_classes": {
+     "stalled": 3,
+     "stuck_at_wall": 0,
+     "looping": 4,
+     "slow_but_progressing": 0
+    },
+    "time_out_seeds": [
+     0,
+     4,
+     26,
+     29,
+     31,
+     39,
+     42
+    ],
+    "time_out_reached_in_extension": 0,
+    "by_outcome_median": {
+     "goal": {
+      "sat_v": 0.999,
+      "sat_w": 0.96,
+      "frac_full_speed": 0.9735,
+      "frac_zero_speed": 0.023,
+      "frac_full_turn": 0.96,
+      "w_flips_per_s": 19.4895,
+      "mean_abs_w": 0.292,
+      "mean_v": 0.32255,
+      "frac_turn_in_place": 0.002,
+      "progress_rate_mps": 0.29625,
+      "min_rate_mps": 0.0998,
+      "tortuosity": 1.07,
+      "progress_frac": 0.9724999999999999,
+      "route_m": 11.05
+     },
+     "collision": {
+      "sat_v": 0.994,
+      "sat_w": 0.949,
+      "frac_full_speed": 0.969,
+      "frac_zero_speed": 0.022,
+      "frac_full_turn": 0.952,
+      "w_flips_per_s": 19.048,
+      "mean_abs_w": 0.268,
+      "mean_v": 0.3015,
+      "frac_turn_in_place": 0.0,
+      "progress_rate_mps": 0.2918,
+      "min_rate_mps": 0.1059,
+      "tortuosity": 1.03,
+      "progress_frac": 0.318,
+      "route_m": 18.357
+     },
+     "time_out": {
+      "sat_v": 0.997,
+      "sat_w": 0.954,
+      "frac_full_speed": 0.273,
+      "frac_zero_speed": 0.724,
+      "frac_full_turn": 0.955,
+      "w_flips_per_s": 20.689,
+      "mean_abs_w": 0.182,
+      "mean_v": 0.0917,
+      "frac_turn_in_place": 0.011,
+      "progress_rate_mps": 0.0338,
+      "min_rate_mps": 0.0999,
+      "tortuosity": 2.93,
+      "progress_frac": 0.346,
+      "route_m": 11.119
+     }
+    },
+    "all_median": {
+     "sat_v": 0.998,
+     "sat_w": 0.9584999999999999,
+     "frac_full_speed": 0.9655,
+     "frac_zero_speed": 0.0325,
+     "frac_full_turn": 0.959,
+     "w_flips_per_s": 19.4895,
+     "mean_abs_w": 0.28200000000000003,
+     "mean_v": 0.3136,
+     "frac_turn_in_place": 0.005,
+     "progress_rate_mps": 0.29200000000000004,
+     "min_rate_mps": 0.0999,
+     "tortuosity": 1.08,
+     "progress_frac": 0.971,
+     "route_m": 11.119
+    },
+    "median_abs_mu_all": [
+     25.53,
+     12.45
+    ]
+   },
+   "episodes": [
+    {
+     "k": 0,
+     "maze_seed": 10000,
+     "outcome": "time_out",
+     "steps": 2418,
+     "limit_steps": 2418,
+     "route_m": 9.414,
+     "min_rate_mps": 0.0973,
+     "progress_rate_mps": 0.0298,
+     "progress_frac": 0.306,
+     "geo_left_m": 6.505,
+     "path_m": 8.46,
+     "tortuosity": 2.93,
+     "sat_v": 0.998,
+     "sat_w": 0.956,
+     "med_abs_mu": [
+      25.05,
+      2.35
+     ],
+     "frac_full_speed": 0.204,
+     "frac_zero_speed": 0.794,
+     "frac_full_turn": 0.957,
+     "w_flips_per_s": 23.615,
+     "mean_abs_w": 0.209,
+     "mean_v": 0.0648,
+     "frac_turn_in_place": 0.011,
+     "min_clearance_m": 0.455,
+     "extended": {
+      "limit_steps": 4836,
+      "outcome": "time_out",
+      "steps": 4836
+     },
+     "dyn": {
+      "w_gain": 1.218,
+      "v_gain": 0.904,
+      "tau": 0.162,
+      "drift": -0.058,
+      "latency": 0
+     },
+     "timeout": {
+      "class": "looping",
+      "window_steps": 500,
+      "window_path_m": 0.593,
+      "window_progress_m": -0.045,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 0.968,
+      "window_zero_speed_frac": 1.0,
+      "window_mean_speed_mps": 0.0297,
+      "window_w_flips_per_s": 24.9,
+      "steps_since_quarter_m_progress": 2060,
+      "n_best_improvements": 390,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 1,
+     "maze_seed": 10001,
+     "outcome": "goal",
+     "steps": 785,
+     "limit_steps": 2454,
+     "route_m": 9.582,
+     "min_rate_mps": 0.0976,
+     "progress_rate_mps": 0.2951,
+     "progress_frac": 0.967,
+     "geo_left_m": 0.298,
+     "path_m": 10.75,
+     "tortuosity": 1.16,
+     "sat_v": 0.997,
+     "sat_w": 0.958,
+     "med_abs_mu": [
+      26.21,
+      12.58
+     ],
+     "frac_full_speed": 0.945,
+     "frac_zero_speed": 0.052,
+     "frac_full_turn": 0.959,
+     "w_flips_per_s": 18.121,
+     "mean_abs_w": 0.36,
+     "mean_v": 0.3424,
+     "frac_turn_in_place": 0.051,
+     "min_clearance_m": 0.279,
+     "extended": {
+      "limit_steps": 4908,
+      "outcome": "goal",
+      "steps": 785
+     },
+     "dyn": {
+      "w_gain": 1.156,
+      "v_gain": 1.04,
+      "tau": 0.193,
+      "drift": 0.0538,
+      "latency": 0
+     }
+    },
+    {
+     "k": 2,
+     "maze_seed": 10002,
+     "outcome": "goal",
+     "steps": 717,
+     "limit_steps": 2318,
+     "route_m": 8.946,
+     "min_rate_mps": 0.0965,
+     "progress_rate_mps": 0.3013,
+     "progress_frac": 0.966,
+     "geo_left_m": 0.291,
+     "path_m": 8.94,
+     "tortuosity": 1.03,
+     "sat_v": 1.0,
+     "sat_w": 0.958,
+     "med_abs_mu": [
+      26.72,
+      11.31
+     ],
+     "frac_full_speed": 0.997,
+     "frac_zero_speed": 0.003,
+     "frac_full_turn": 0.958,
+     "w_flips_per_s": 20.432,
+     "mean_abs_w": 0.195,
+     "mean_v": 0.3131,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.256,
+     "extended": {
+      "limit_steps": 4636,
+      "outcome": "goal",
+      "steps": 717
+     },
+     "dyn": {
+      "w_gain": 1.031,
+      "v_gain": 0.91,
+      "tau": 0.394,
+      "drift": -0.049,
+      "latency": 1
+     }
+    },
+    {
+     "k": 3,
+     "maze_seed": 10003,
+     "outcome": "goal",
+     "steps": 960,
+     "limit_steps": 2647,
+     "route_m": 10.483,
+     "min_rate_mps": 0.099,
+     "progress_rate_mps": 0.2659,
+     "progress_frac": 0.974,
+     "geo_left_m": 0.299,
+     "path_m": 11.43,
+     "tortuosity": 1.12,
+     "sat_v": 1.0,
+     "sat_w": 0.965,
+     "med_abs_mu": [
+      26.5,
+      13.18
+     ],
+     "frac_full_speed": 0.952,
+     "frac_zero_speed": 0.048,
+     "frac_full_turn": 0.965,
+     "w_flips_per_s": 19.505,
+     "mean_abs_w": 0.221,
+     "mean_v": 0.2962,
+     "frac_turn_in_place": 0.043,
+     "min_clearance_m": 0.295,
+     "extended": {
+      "limit_steps": 5294,
+      "outcome": "goal",
+      "steps": 960
+     },
+     "dyn": {
+      "w_gain": 0.943,
+      "v_gain": 0.897,
+      "tau": 0.39,
+      "drift": 0.0099,
+      "latency": 0
+     }
+    },
+    {
+     "k": 4,
+     "maze_seed": 10004,
+     "outcome": "time_out",
+     "steps": 2418,
+     "limit_steps": 2418,
+     "route_m": 9.414,
+     "min_rate_mps": 0.0973,
+     "progress_rate_mps": 0.0481,
+     "progress_frac": 0.494,
+     "geo_left_m": 4.786,
+     "path_m": 11.06,
+     "tortuosity": 2.38,
+     "sat_v": 0.998,
+     "sat_w": 0.734,
+     "med_abs_mu": [
+      23.49,
+      1.49
+     ],
+     "frac_full_speed": 0.32,
+     "frac_zero_speed": 0.678,
+     "frac_full_turn": 0.737,
+     "w_flips_per_s": 20.689,
+     "mean_abs_w": 0.174,
+     "mean_v": 0.1069,
+     "frac_turn_in_place": 0.006,
+     "min_clearance_m": 0.245,
+     "extended": {
+      "limit_steps": 4836,
+      "outcome": "time_out",
+      "steps": 4836
+     },
+     "dyn": {
+      "w_gain": 1.372,
+      "v_gain": 0.952,
+      "tau": 0.443,
+      "drift": -0.0503,
+      "latency": 1
+     },
+     "timeout": {
+      "class": "stalled",
+      "window_steps": 500,
+      "window_path_m": 0.23,
+      "window_progress_m": 0.035,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 0.462,
+      "window_zero_speed_frac": 1.0,
+      "window_mean_speed_mps": 0.0115,
+      "window_w_flips_per_s": 20.45,
+      "steps_since_quarter_m_progress": 1845,
+      "n_best_improvements": 459,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 5,
+     "maze_seed": 10005,
+     "outcome": "goal",
+     "steps": 1001,
+     "limit_steps": 2607,
+     "route_m": 10.299,
+     "min_rate_mps": 0.0988,
+     "progress_rate_mps": 0.25,
+     "progress_frac": 0.972,
+     "geo_left_m": 0.308,
+     "path_m": 13.46,
+     "tortuosity": 1.34,
+     "sat_v": 1.0,
+     "sat_w": 0.965,
+     "med_abs_mu": [
+      25.34,
+      14.54
+     ],
+     "frac_full_speed": 0.955,
+     "frac_zero_speed": 0.045,
+     "frac_full_turn": 0.965,
+     "w_flips_per_s": 18.506,
+     "mean_abs_w": 0.342,
+     "mean_v": 0.3351,
+     "frac_turn_in_place": 0.043,
+     "min_clearance_m": 0.275,
+     "extended": {
+      "limit_steps": 5214,
+      "outcome": "goal",
+      "steps": 1001
+     },
+     "dyn": {
+      "w_gain": 1.303,
+      "v_gain": 1.012,
+      "tau": 0.305,
+      "drift": -0.0257,
+      "latency": 2
+     }
+    },
+    {
+     "k": 6,
+     "maze_seed": 10006,
+     "outcome": "goal",
+     "steps": 1381,
+     "limit_steps": 3715,
+     "route_m": 15.465,
+     "min_rate_mps": 0.1041,
+     "progress_rate_mps": 0.2738,
+     "progress_frac": 0.978,
+     "geo_left_m": 0.294,
+     "path_m": 16.38,
+     "tortuosity": 1.08,
+     "sat_v": 0.993,
+     "sat_w": 0.941,
+     "med_abs_mu": [
+      25.55,
+      10.13
+     ],
+     "frac_full_speed": 0.923,
+     "frac_zero_speed": 0.07,
+     "frac_full_turn": 0.942,
+     "w_flips_per_s": 18.573,
+     "mean_abs_w": 0.318,
+     "mean_v": 0.2961,
+     "frac_turn_in_place": 0.022,
+     "min_clearance_m": 0.275,
+     "extended": {
+      "limit_steps": 7430,
+      "outcome": "goal",
+      "steps": 1381
+     },
+     "dyn": {
+      "w_gain": 1.169,
+      "v_gain": 0.919,
+      "tau": 0.261,
+      "drift": -0.0151,
+      "latency": 1
+     }
+    },
+    {
+     "k": 7,
+     "maze_seed": 10007,
+     "outcome": "goal",
+     "steps": 916,
+     "limit_steps": 2400,
+     "route_m": 9.333,
+     "min_rate_mps": 0.0972,
+     "progress_rate_mps": 0.246,
+     "progress_frac": 0.966,
+     "geo_left_m": 0.295,
+     "path_m": 12.66,
+     "tortuosity": 1.4,
+     "sat_v": 1.0,
+     "sat_w": 0.968,
+     "med_abs_mu": [
+      25.7,
+      12.32
+     ],
+     "frac_full_speed": 0.967,
+     "frac_zero_speed": 0.033,
+     "frac_full_turn": 0.969,
+     "w_flips_per_s": 19.541,
+     "mean_abs_w": 0.277,
+     "mean_v": 0.3451,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.302,
+     "extended": {
+      "limit_steps": 4800,
+      "outcome": "goal",
+      "steps": 916
+     },
+     "dyn": {
+      "w_gain": 1.213,
+      "v_gain": 1.029,
+      "tau": 0.383,
+      "drift": -0.033,
+      "latency": 0
+     }
+    },
+    {
+     "k": 8,
+     "maze_seed": 10008,
+     "outcome": "goal",
+     "steps": 888,
+     "limit_steps": 3129,
+     "route_m": 12.735,
+     "min_rate_mps": 0.1017,
+     "progress_rate_mps": 0.3495,
+     "progress_frac": 0.975,
+     "geo_left_m": 0.29,
+     "path_m": 12.91,
+     "tortuosity": 1.04,
+     "sat_v": 1.0,
+     "sat_w": 0.956,
+     "med_abs_mu": [
+      26.36,
+      13.07
+     ],
+     "frac_full_speed": 1.0,
+     "frac_zero_speed": 0.0,
+     "frac_full_turn": 0.957,
+     "w_flips_per_s": 19.285,
+     "mean_abs_w": 0.273,
+     "mean_v": 0.3641,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.281,
+     "extended": {
+      "limit_steps": 6258,
+      "outcome": "goal",
+      "steps": 888
+     },
+     "dyn": {
+      "w_gain": 1.063,
+      "v_gain": 1.047,
+      "tau": 0.246,
+      "drift": 0.0346,
+      "latency": 1
+     }
+    },
+    {
+     "k": 9,
+     "maze_seed": 10009,
+     "outcome": "goal",
+     "steps": 709,
+     "limit_steps": 2295,
+     "route_m": 8.843,
+     "min_rate_mps": 0.0963,
+     "progress_rate_mps": 0.3017,
+     "progress_frac": 0.968,
+     "geo_left_m": 0.296,
+     "path_m": 8.81,
+     "tortuosity": 1.03,
+     "sat_v": 0.997,
+     "sat_w": 0.955,
+     "med_abs_mu": [
+      25.58,
+      13.92
+     ],
+     "frac_full_speed": 0.982,
+     "frac_zero_speed": 0.016,
+     "frac_full_turn": 0.956,
+     "w_flips_per_s": 19.781,
+     "mean_abs_w": 0.283,
+     "mean_v": 0.3085,
+     "frac_turn_in_place": 0.016,
+     "min_clearance_m": 0.345,
+     "extended": {
+      "limit_steps": 4590,
+      "outcome": "goal",
+      "steps": 709
+     },
+     "dyn": {
+      "w_gain": 1.335,
+      "v_gain": 0.907,
+      "tau": 0.331,
+      "drift": 0.0333,
+      "latency": 1
+     }
+    },
+    {
+     "k": 10,
+     "maze_seed": 10010,
+     "outcome": "goal",
+     "steps": 936,
+     "limit_steps": 2783,
+     "route_m": 11.119,
+     "min_rate_mps": 0.0999,
+     "progress_rate_mps": 0.2884,
+     "progress_frac": 0.971,
+     "geo_left_m": 0.3,
+     "path_m": 11.31,
+     "tortuosity": 1.05,
+     "sat_v": 0.999,
+     "sat_w": 0.972,
+     "med_abs_mu": [
+      25.56,
+      14.79
+     ],
+     "frac_full_speed": 0.98,
+     "frac_zero_speed": 0.019,
+     "frac_full_turn": 0.972,
+     "w_flips_per_s": 20.326,
+     "mean_abs_w": 0.263,
+     "mean_v": 0.3024,
+     "frac_turn_in_place": 0.004,
+     "min_clearance_m": 0.295,
+     "extended": {
+      "limit_steps": 5566,
+      "outcome": "goal",
+      "steps": 936
+     },
+     "dyn": {
+      "w_gain": 1.378,
+      "v_gain": 0.892,
+      "tau": 0.399,
+      "drift": -0.0421,
+      "latency": 2
+     }
+    },
+    {
+     "k": 11,
+     "maze_seed": 10011,
+     "outcome": "goal",
+     "steps": 1693,
+     "limit_steps": 4451,
+     "route_m": 18.901,
+     "min_rate_mps": 0.1062,
+     "progress_rate_mps": 0.2744,
+     "progress_frac": 0.983,
+     "geo_left_m": 0.301,
+     "path_m": 20.93,
+     "tortuosity": 1.13,
+     "sat_v": 0.994,
+     "sat_w": 0.953,
+     "med_abs_mu": [
+      23.94,
+      10.97
+     ],
+     "frac_full_speed": 0.931,
+     "frac_zero_speed": 0.064,
+     "frac_full_turn": 0.954,
+     "w_flips_per_s": 18.665,
+     "mean_abs_w": 0.25,
+     "mean_v": 0.3087,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.326,
+     "extended": {
+      "limit_steps": 8902,
+      "outcome": "goal",
+      "steps": 1693
+     },
+     "dyn": {
+      "w_gain": 0.964,
+      "v_gain": 0.95,
+      "tau": 0.33,
+      "drift": -0.0566,
+      "latency": 1
+     }
+    },
+    {
+     "k": 12,
+     "maze_seed": 10012,
+     "outcome": "goal",
+     "steps": 674,
+     "limit_steps": 2493,
+     "route_m": 9.766,
+     "min_rate_mps": 0.0979,
+     "progress_rate_mps": 0.3522,
+     "progress_frac": 0.972,
+     "geo_left_m": 0.298,
+     "path_m": 9.73,
+     "tortuosity": 1.02,
+     "sat_v": 1.0,
+     "sat_w": 0.979,
+     "med_abs_mu": [
+      26.47,
+      12.69
+     ],
+     "frac_full_speed": 1.0,
+     "frac_zero_speed": 0.0,
+     "frac_full_turn": 0.979,
+     "w_flips_per_s": 21.105,
+     "mean_abs_w": 0.214,
+     "mean_v": 0.361,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.328,
+     "extended": {
+      "limit_steps": 4986,
+      "outcome": "goal",
+      "steps": 674
+     },
+     "dyn": {
+      "w_gain": 1.025,
+      "v_gain": 1.039,
+      "tau": 0.207,
+      "drift": -0.0385,
+      "latency": 1
+     }
+    },
+    {
+     "k": 13,
+     "maze_seed": 10013,
+     "outcome": "goal",
+     "steps": 713,
+     "limit_steps": 2493,
+     "route_m": 9.766,
+     "min_rate_mps": 0.0979,
+     "progress_rate_mps": 0.3319,
+     "progress_frac": 0.969,
+     "geo_left_m": 0.302,
+     "path_m": 9.56,
+     "tortuosity": 1.01,
+     "sat_v": 0.999,
+     "sat_w": 0.961,
+     "med_abs_mu": [
+      27.09,
+      12.18
+     ],
+     "frac_full_speed": 0.94,
+     "frac_zero_speed": 0.059,
+     "frac_full_turn": 0.962,
+     "w_flips_per_s": 18.724,
+     "mean_abs_w": 0.317,
+     "mean_v": 0.3315,
+     "frac_turn_in_place": 0.056,
+     "min_clearance_m": 0.27,
+     "extended": {
+      "limit_steps": 4986,
+      "outcome": "goal",
+      "steps": 713
+     },
+     "dyn": {
+      "w_gain": 1.332,
+      "v_gain": 1.021,
+      "tau": 0.393,
+      "drift": -0.0286,
+      "latency": 0
+     }
+    },
+    {
+     "k": 14,
+     "maze_seed": 10014,
+     "outcome": "goal",
+     "steps": 1122,
+     "limit_steps": 3366,
+     "route_m": 13.838,
+     "min_rate_mps": 0.1028,
+     "progress_rate_mps": 0.3011,
+     "progress_frac": 0.976,
+     "geo_left_m": 0.304,
+     "path_m": 14.33,
+     "tortuosity": 1.06,
+     "sat_v": 1.0,
+     "sat_w": 0.949,
+     "med_abs_mu": [
+      26.15,
+      13.61
+     ],
+     "frac_full_speed": 0.997,
+     "frac_zero_speed": 0.003,
+     "frac_full_turn": 0.949,
+     "w_flips_per_s": 19.474,
+     "mean_abs_w": 0.298,
+     "mean_v": 0.3193,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.25,
+     "extended": {
+      "limit_steps": 6732,
+      "outcome": "goal",
+      "steps": 1122
+     },
+     "dyn": {
+      "w_gain": 1.315,
+      "v_gain": 0.922,
+      "tau": 0.361,
+      "drift": 0.0432,
+      "latency": 1
+     }
+    },
+    {
+     "k": 15,
+     "maze_seed": 10015,
+     "outcome": "goal",
+     "steps": 1009,
+     "limit_steps": 2783,
+     "route_m": 11.119,
+     "min_rate_mps": 0.0999,
+     "progress_rate_mps": 0.269,
+     "progress_frac": 0.976,
+     "geo_left_m": 0.301,
+     "path_m": 13.36,
+     "tortuosity": 1.23,
+     "sat_v": 0.993,
+     "sat_w": 0.956,
+     "med_abs_mu": [
+      24.93,
+      12.51
+     ],
+     "frac_full_speed": 0.935,
+     "frac_zero_speed": 0.058,
+     "frac_full_turn": 0.957,
+     "w_flips_per_s": 19.722,
+     "mean_abs_w": 0.313,
+     "mean_v": 0.3306,
+     "frac_turn_in_place": 0.01,
+     "min_clearance_m": 0.282,
+     "extended": {
+      "limit_steps": 5566,
+      "outcome": "goal",
+      "steps": 1009
+     },
+     "dyn": {
+      "w_gain": 1.246,
+      "v_gain": 1.013,
+      "tau": 0.253,
+      "drift": -0.0546,
+      "latency": 1
+     }
+    },
+    {
+     "k": 16,
+     "maze_seed": 10016,
+     "outcome": "goal",
+     "steps": 645,
+     "limit_steps": 2186,
+     "route_m": 8.333,
+     "min_rate_mps": 0.0953,
+     "progress_rate_mps": 0.3106,
+     "progress_frac": 0.962,
+     "geo_left_m": 0.296,
+     "path_m": 8.41,
+     "tortuosity": 1.05,
+     "sat_v": 1.0,
+     "sat_w": 0.964,
+     "med_abs_mu": [
+      25.93,
+      11.21
+     ],
+     "frac_full_speed": 1.0,
+     "frac_zero_speed": 0.0,
+     "frac_full_turn": 0.964,
+     "w_flips_per_s": 20.0,
+     "mean_abs_w": 0.303,
+     "mean_v": 0.3259,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.27,
+     "extended": {
+      "limit_steps": 4372,
+      "outcome": "goal",
+      "steps": 645
+     },
+     "dyn": {
+      "w_gain": 1.183,
+      "v_gain": 0.936,
+      "tau": 0.178,
+      "drift": -0.0182,
+      "latency": 0
+     }
+    },
+    {
+     "k": 17,
+     "maze_seed": 10017,
+     "outcome": "goal",
+     "steps": 1217,
+     "limit_steps": 3441,
+     "route_m": 14.191,
+     "min_rate_mps": 0.1031,
+     "progress_rate_mps": 0.2859,
+     "progress_frac": 0.981,
+     "geo_left_m": 0.307,
+     "path_m": 14.78,
+     "tortuosity": 1.06,
+     "sat_v": 0.999,
+     "sat_w": 0.974,
+     "med_abs_mu": [
+      25.15,
+      14.18
+     ],
+     "frac_full_speed": 0.987,
+     "frac_zero_speed": 0.012,
+     "frac_full_turn": 0.975,
+     "w_flips_per_s": 20.624,
+     "mean_abs_w": 0.262,
+     "mean_v": 0.3032,
+     "frac_turn_in_place": 0.008,
+     "min_clearance_m": 0.229,
+     "extended": {
+      "limit_steps": 6882,
+      "outcome": "goal",
+      "steps": 1217
+     },
+     "dyn": {
+      "w_gain": 1.323,
+      "v_gain": 0.882,
+      "tau": 0.317,
+      "drift": -0.0158,
+      "latency": 0
+     }
+    },
+    {
+     "k": 18,
+     "maze_seed": 10018,
+     "outcome": "goal",
+     "steps": 784,
+     "limit_steps": 2554,
+     "route_m": 10.05,
+     "min_rate_mps": 0.0984,
+     "progress_rate_mps": 0.3096,
+     "progress_frac": 0.966,
+     "geo_left_m": 0.295,
+     "path_m": 10.31,
+     "tortuosity": 1.06,
+     "sat_v": 0.999,
+     "sat_w": 0.974,
+     "med_abs_mu": [
+      26.76,
+      12.64
+     ],
+     "frac_full_speed": 0.953,
+     "frac_zero_speed": 0.046,
+     "frac_full_turn": 0.974,
+     "w_flips_per_s": 17.188,
+     "mean_abs_w": 0.354,
+     "mean_v": 0.3283,
+     "frac_turn_in_place": 0.043,
+     "min_clearance_m": 0.257,
+     "extended": {
+      "limit_steps": 5108,
+      "outcome": "goal",
+      "steps": 784
+     },
+     "dyn": {
+      "w_gain": 1.1,
+      "v_gain": 0.993,
+      "tau": 0.234,
+      "drift": -0.0501,
+      "latency": 2
+     }
+    },
+    {
+     "k": 19,
+     "maze_seed": 10019,
+     "outcome": "collision",
+     "steps": 399,
+     "limit_steps": 4100,
+     "route_m": 17.265,
+     "min_rate_mps": 0.1053,
+     "progress_rate_mps": 0.3437,
+     "progress_frac": 0.318,
+     "geo_left_m": 11.765,
+     "path_m": 5.61,
+     "tortuosity": 1.02,
+     "sat_v": 1.0,
+     "sat_w": 0.97,
+     "med_abs_mu": [
+      26.66,
+      13.63
+     ],
+     "frac_full_speed": 0.995,
+     "frac_zero_speed": 0.005,
+     "frac_full_turn": 0.97,
+     "w_flips_per_s": 19.048,
+     "mean_abs_w": 0.268,
+     "mean_v": 0.3553,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.222,
+     "extended": {
+      "limit_steps": 8200,
+      "outcome": "collision",
+      "steps": 399
+     },
+     "dyn": {
+      "w_gain": 1.11,
+      "v_gain": 1.035,
+      "tau": 0.232,
+      "drift": -0.0528,
+      "latency": 1
+     }
+    },
+    {
+     "k": 20,
+     "maze_seed": 10020,
+     "outcome": "goal",
+     "steps": 1366,
+     "limit_steps": 3441,
+     "route_m": 14.191,
+     "min_rate_mps": 0.1031,
+     "progress_rate_mps": 0.2548,
+     "progress_frac": 0.981,
+     "geo_left_m": 0.302,
+     "path_m": 17.15,
+     "tortuosity": 1.23,
+     "sat_v": 0.993,
+     "sat_w": 0.944,
+     "med_abs_mu": [
+      23.17,
+      11.56
+     ],
+     "frac_full_speed": 0.951,
+     "frac_zero_speed": 0.042,
+     "frac_full_turn": 0.945,
+     "w_flips_per_s": 19.967,
+     "mean_abs_w": 0.271,
+     "mean_v": 0.3141,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.336,
+     "extended": {
+      "limit_steps": 6882,
+      "outcome": "goal",
+      "steps": 1366
+     },
+     "dyn": {
+      "w_gain": 1.04,
+      "v_gain": 0.942,
+      "tau": 0.187,
+      "drift": 0.0027,
+      "latency": 0
+     }
+    },
+    {
+     "k": 21,
+     "maze_seed": 10021,
+     "outcome": "goal",
+     "steps": 694,
+     "limit_steps": 2418,
+     "route_m": 9.414,
+     "min_rate_mps": 0.0973,
+     "progress_rate_mps": 0.3295,
+     "progress_frac": 0.972,
+     "geo_left_m": 0.301,
+     "path_m": 9.37,
+     "tortuosity": 1.02,
+     "sat_v": 1.0,
+     "sat_w": 0.963,
+     "med_abs_mu": [
+      26.11,
+      13.1
+     ],
+     "frac_full_speed": 1.0,
+     "frac_zero_speed": 0.0,
+     "frac_full_turn": 0.963,
+     "w_flips_per_s": 21.146,
+     "mean_abs_w": 0.21,
+     "mean_v": 0.336,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.258,
+     "extended": {
+      "limit_steps": 4836,
+      "outcome": "goal",
+      "steps": 694
+     },
+     "dyn": {
+      "w_gain": 1.291,
+      "v_gain": 0.971,
+      "tau": 0.363,
+      "drift": -0.0493,
+      "latency": 0
+     }
+    },
+    {
+     "k": 22,
+     "maze_seed": 10022,
+     "outcome": "collision",
+     "steps": 455,
+     "limit_steps": 4334,
+     "route_m": 18.357,
+     "min_rate_mps": 0.1059,
+     "progress_rate_mps": 0.2918,
+     "progress_frac": 0.289,
+     "geo_left_m": 13.048,
+     "path_m": 5.46,
+     "tortuosity": 1.03,
+     "sat_v": 0.991,
+     "sat_w": 0.949,
+     "med_abs_mu": [
+      24.21,
+      10.05
+     ],
+     "frac_full_speed": 0.969,
+     "frac_zero_speed": 0.022,
+     "frac_full_turn": 0.952,
+     "w_flips_per_s": 16.978,
+     "mean_abs_w": 0.39,
+     "mean_v": 0.3015,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.221,
+     "extended": {
+      "limit_steps": 8668,
+      "outcome": "collision",
+      "steps": 455
+     },
+     "dyn": {
+      "w_gain": 1.083,
+      "v_gain": 0.89,
+      "tau": 0.177,
+      "drift": 0.0184,
+      "latency": 0
+     }
+    },
+    {
+     "k": 23,
+     "maze_seed": 10023,
+     "outcome": "goal",
+     "steps": 808,
+     "limit_steps": 2630,
+     "route_m": 10.402,
+     "min_rate_mps": 0.0989,
+     "progress_rate_mps": 0.3118,
+     "progress_frac": 0.969,
+     "geo_left_m": 0.303,
+     "path_m": 10.94,
+     "tortuosity": 1.09,
+     "sat_v": 0.999,
+     "sat_w": 0.943,
+     "med_abs_mu": [
+      26.1,
+      11.84
+     ],
+     "frac_full_speed": 0.995,
+     "frac_zero_speed": 0.004,
+     "frac_full_turn": 0.943,
+     "w_flips_per_s": 20.606,
+     "mean_abs_w": 0.289,
+     "mean_v": 0.3394,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.284,
+     "extended": {
+      "limit_steps": 5260,
+      "outcome": "goal",
+      "steps": 808
+     },
+     "dyn": {
+      "w_gain": 1.247,
+      "v_gain": 0.978,
+      "tau": 0.189,
+      "drift": -0.0464,
+      "latency": 0
+     }
+    },
+    {
+     "k": 24,
+     "maze_seed": 10024,
+     "outcome": "goal",
+     "steps": 1022,
+     "limit_steps": 3152,
+     "route_m": 12.838,
+     "min_rate_mps": 0.1018,
+     "progress_rate_mps": 0.3065,
+     "progress_frac": 0.976,
+     "geo_left_m": 0.296,
+     "path_m": 13.04,
+     "tortuosity": 1.04,
+     "sat_v": 0.998,
+     "sat_w": 0.967,
+     "med_abs_mu": [
+      24.37,
+      12.68
+     ],
+     "frac_full_speed": 0.982,
+     "frac_zero_speed": 0.016,
+     "frac_full_turn": 0.968,
+     "w_flips_per_s": 18.933,
+     "mean_abs_w": 0.279,
+     "mean_v": 0.3181,
+     "frac_turn_in_place": 0.011,
+     "min_clearance_m": 0.286,
+     "extended": {
+      "limit_steps": 6304,
+      "outcome": "goal",
+      "steps": 1022
+     },
+     "dyn": {
+      "w_gain": 1.065,
+      "v_gain": 0.931,
+      "tau": 0.322,
+      "drift": 0.0008,
+      "latency": 1
+     }
+    },
+    {
+     "k": 25,
+     "maze_seed": 10025,
+     "outcome": "goal",
+     "steps": 1356,
+     "limit_steps": 3612,
+     "route_m": 14.987,
+     "min_rate_mps": 0.1037,
+     "progress_rate_mps": 0.2696,
+     "progress_frac": 0.976,
+     "geo_left_m": 0.302,
+     "path_m": 15.25,
+     "tortuosity": 1.04,
+     "sat_v": 0.998,
+     "sat_w": 0.942,
+     "med_abs_mu": [
+      24.74,
+      12.57
+     ],
+     "frac_full_speed": 0.945,
+     "frac_zero_speed": 0.052,
+     "frac_full_turn": 0.942,
+     "w_flips_per_s": 17.754,
+     "mean_abs_w": 0.318,
+     "mean_v": 0.2808,
+     "frac_turn_in_place": 0.031,
+     "min_clearance_m": 0.244,
+     "extended": {
+      "limit_steps": 7224,
+      "outcome": "goal",
+      "steps": 1356
+     },
+     "dyn": {
+      "w_gain": 0.98,
+      "v_gain": 0.85,
+      "tau": 0.215,
+      "drift": -0.0158,
+      "latency": 0
+     }
+    },
+    {
+     "k": 26,
+     "maze_seed": 10026,
+     "outcome": "time_out",
+     "steps": 4117,
+     "limit_steps": 4117,
+     "route_m": 17.344,
+     "min_rate_mps": 0.1053,
+     "progress_rate_mps": 0.0145,
+     "progress_frac": 0.137,
+     "geo_left_m": 14.922,
+     "path_m": 44.22,
+     "tortuosity": 18.56,
+     "sat_v": 0.991,
+     "sat_w": 0.954,
+     "med_abs_mu": [
+      24.0,
+      11.25
+     ],
+     "frac_full_speed": 0.849,
+     "frac_zero_speed": 0.142,
+     "frac_full_turn": 0.955,
+     "w_flips_per_s": 17.416,
+     "mean_abs_w": 0.414,
+     "mean_v": 0.2675,
+     "frac_turn_in_place": 0.083,
+     "min_clearance_m": 0.249,
+     "extended": {
+      "limit_steps": 8234,
+      "outcome": "time_out",
+      "steps": 8234
+     },
+     "dyn": {
+      "w_gain": 1.146,
+      "v_gain": 0.897,
+      "tau": 0.17,
+      "drift": 0.0255,
+      "latency": 2
+     },
+     "timeout": {
+      "class": "looping",
+      "window_steps": 500,
+      "window_path_m": 5.228,
+      "window_progress_m": -1.692,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 0.952,
+      "window_zero_speed_frac": 0.16,
+      "window_mean_speed_mps": 0.2614,
+      "window_w_flips_per_s": 16.6,
+      "steps_since_quarter_m_progress": 3086,
+      "n_best_improvements": 559,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 27,
+     "maze_seed": 10027,
+     "outcome": "goal",
+     "steps": 869,
+     "limit_steps": 2647,
+     "route_m": 10.483,
+     "min_rate_mps": 0.099,
+     "progress_rate_mps": 0.2922,
+     "progress_frac": 0.969,
+     "geo_left_m": 0.296,
+     "path_m": 10.49,
+     "tortuosity": 1.03,
+     "sat_v": 0.999,
+     "sat_w": 0.969,
+     "med_abs_mu": [
+      26.4,
+      12.48
+     ],
+     "frac_full_speed": 0.939,
+     "frac_zero_speed": 0.06,
+     "frac_full_turn": 0.969,
+     "w_flips_per_s": 20.713,
+     "mean_abs_w": 0.299,
+     "mean_v": 0.2986,
+     "frac_turn_in_place": 0.051,
+     "min_clearance_m": 0.289,
+     "extended": {
+      "limit_steps": 5294,
+      "outcome": "goal",
+      "steps": 869
+     },
+     "dyn": {
+      "w_gain": 1.249,
+      "v_gain": 0.913,
+      "tau": 0.186,
+      "drift": -0.0212,
+      "latency": 1
+     }
+    },
+    {
+     "k": 28,
+     "maze_seed": 10028,
+     "outcome": "goal",
+     "steps": 815,
+     "limit_steps": 2708,
+     "route_m": 10.766,
+     "min_rate_mps": 0.0994,
+     "progress_rate_mps": 0.3219,
+     "progress_frac": 0.975,
+     "geo_left_m": 0.305,
+     "path_m": 11.41,
+     "tortuosity": 1.09,
+     "sat_v": 0.996,
+     "sat_w": 0.96,
+     "med_abs_mu": [
+      25.83,
+      13.4
+     ],
+     "frac_full_speed": 0.982,
+     "frac_zero_speed": 0.015,
+     "frac_full_turn": 0.96,
+     "w_flips_per_s": 19.202,
+     "mean_abs_w": 0.303,
+     "mean_v": 0.3499,
+     "frac_turn_in_place": 0.006,
+     "min_clearance_m": 0.369,
+     "extended": {
+      "limit_steps": 5416,
+      "outcome": "goal",
+      "steps": 815
+     },
+     "dyn": {
+      "w_gain": 1.326,
+      "v_gain": 1.027,
+      "tau": 0.38,
+      "drift": -0.0561,
+      "latency": 0
+     }
+    },
+    {
+     "k": 29,
+     "maze_seed": 10029,
+     "outcome": "time_out",
+     "steps": 2471,
+     "limit_steps": 2471,
+     "route_m": 9.663,
+     "min_rate_mps": 0.0978,
+     "progress_rate_mps": 0.0338,
+     "progress_frac": 0.346,
+     "geo_left_m": 6.318,
+     "path_m": 15.22,
+     "tortuosity": 4.55,
+     "sat_v": 0.993,
+     "sat_w": 0.965,
+     "med_abs_mu": [
+      22.28,
+      6.17
+     ],
+     "frac_full_speed": 0.459,
+     "frac_zero_speed": 0.534,
+     "frac_full_turn": 0.966,
+     "w_flips_per_s": 21.125,
+     "mean_abs_w": 0.182,
+     "mean_v": 0.1537,
+     "frac_turn_in_place": 0.049,
+     "min_clearance_m": 0.369,
+     "extended": {
+      "limit_steps": 4942,
+      "outcome": "time_out",
+      "steps": 4942
+     },
+     "dyn": {
+      "w_gain": 0.925,
+      "v_gain": 0.951,
+      "tau": 0.306,
+      "drift": -0.0282,
+      "latency": 1
+     },
+     "timeout": {
+      "class": "stalled",
+      "window_steps": 500,
+      "window_path_m": 0.015,
+      "window_progress_m": -0.002,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 0.984,
+      "window_zero_speed_frac": 0.996,
+      "window_mean_speed_mps": 0.0008,
+      "window_w_flips_per_s": 24.95,
+      "steps_since_quarter_m_progress": 2075,
+      "n_best_improvements": 412,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 30,
+     "maze_seed": 10030,
+     "outcome": "goal",
+     "steps": 1576,
+     "limit_steps": 4500,
+     "route_m": 19.438,
+     "min_rate_mps": 0.108,
+     "progress_rate_mps": 0.3029,
+     "progress_frac": 0.982,
+     "geo_left_m": 0.3,
+     "path_m": 20.48,
+     "tortuosity": 1.07,
+     "sat_v": 0.997,
+     "sat_w": 0.96,
+     "med_abs_mu": [
+      26.11,
+      12.16
+     ],
+     "frac_full_speed": 0.993,
+     "frac_zero_speed": 0.004,
+     "frac_full_turn": 0.96,
+     "w_flips_per_s": 20.78,
+     "mean_abs_w": 0.247,
+     "mean_v": 0.3248,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.275,
+     "extended": {
+      "limit_steps": 9000,
+      "outcome": "goal",
+      "steps": 1576
+     },
+     "dyn": {
+      "w_gain": 1.018,
+      "v_gain": 0.936,
+      "tau": 0.178,
+      "drift": 0.0111,
+      "latency": 0
+     }
+    },
+    {
+     "k": 31,
+     "maze_seed": 10031,
+     "outcome": "time_out",
+     "steps": 4500,
+     "limit_steps": 4500,
+     "route_m": 19.438,
+     "min_rate_mps": 0.108,
+     "progress_rate_mps": 0.045,
+     "progress_frac": 0.416,
+     "geo_left_m": 11.327,
+     "path_m": 8.4,
+     "tortuosity": 1.04,
+     "sat_v": 1.0,
+     "sat_w": 0.995,
+     "med_abs_mu": [
+      24.91,
+      6.19
+     ],
+     "frac_full_speed": 0.151,
+     "frac_zero_speed": 0.849,
+     "frac_full_turn": 0.995,
+     "w_flips_per_s": 24.372,
+     "mean_abs_w": 0.107,
+     "mean_v": 0.0456,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.23,
+     "extended": {
+      "limit_steps": 9000,
+      "outcome": "time_out",
+      "steps": 9000
+     },
+     "dyn": {
+      "w_gain": 1.352,
+      "v_gain": 0.864,
+      "tau": 0.352,
+      "drift": -0.0033,
+      "latency": 1
+     },
+     "timeout": {
+      "class": "stalled",
+      "window_steps": 500,
+      "window_path_m": 0.026,
+      "window_progress_m": -0.0,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 1.0,
+      "window_zero_speed_frac": 1.0,
+      "window_mean_speed_mps": 0.0013,
+      "window_w_flips_per_s": 24.95,
+      "steps_since_quarter_m_progress": 3802,
+      "n_best_improvements": 884,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 32,
+     "maze_seed": 10032,
+     "outcome": "collision",
+     "steps": 1808,
+     "limit_steps": 4500,
+     "route_m": 19.71,
+     "min_rate_mps": 0.1095,
+     "progress_rate_mps": 0.1438,
+     "progress_frac": 0.527,
+     "geo_left_m": 9.372,
+     "path_m": 12.43,
+     "tortuosity": 1.2,
+     "sat_v": 0.994,
+     "sat_w": 0.867,
+     "med_abs_mu": [
+      24.68,
+      3.24
+     ],
+     "frac_full_speed": 0.466,
+     "frac_zero_speed": 0.529,
+     "frac_full_turn": 0.869,
+     "w_flips_per_s": 19.414,
+     "mean_abs_w": 0.218,
+     "mean_v": 0.158,
+     "frac_turn_in_place": 0.01,
+     "min_clearance_m": 0.22,
+     "extended": {
+      "limit_steps": 9000,
+      "outcome": "collision",
+      "steps": 1808
+     },
+     "dyn": {
+      "w_gain": 0.98,
+      "v_gain": 0.964,
+      "tau": 0.263,
+      "drift": -0.0212,
+      "latency": 1
+     }
+    },
+    {
+     "k": 33,
+     "maze_seed": 10033,
+     "outcome": "goal",
+     "steps": 892,
+     "limit_steps": 2768,
+     "route_m": 11.05,
+     "min_rate_mps": 0.0998,
+     "progress_rate_mps": 0.2999,
+     "progress_frac": 0.968,
+     "geo_left_m": 0.296,
+     "path_m": 11.53,
+     "tortuosity": 1.08,
+     "sat_v": 0.994,
+     "sat_w": 0.956,
+     "med_abs_mu": [
+      25.42,
+      12.47
+     ],
+     "frac_full_speed": 0.967,
+     "frac_zero_speed": 0.027,
+     "frac_full_turn": 0.956,
+     "w_flips_per_s": 16.816,
+     "mean_abs_w": 0.323,
+     "mean_v": 0.323,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.285,
+     "extended": {
+      "limit_steps": 5536,
+      "outcome": "goal",
+      "steps": 892
+     },
+     "dyn": {
+      "w_gain": 1.122,
+      "v_gain": 0.964,
+      "tau": 0.422,
+      "drift": -0.0295,
+      "latency": 1
+     }
+    },
+    {
+     "k": 34,
+     "maze_seed": 10034,
+     "outcome": "goal",
+     "steps": 694,
+     "limit_steps": 2432,
+     "route_m": 9.479,
+     "min_rate_mps": 0.0974,
+     "progress_rate_mps": 0.3303,
+     "progress_frac": 0.967,
+     "geo_left_m": 0.301,
+     "path_m": 9.79,
+     "tortuosity": 1.07,
+     "sat_v": 1.0,
+     "sat_w": 0.968,
+     "med_abs_mu": [
+      25.99,
+      12.43
+     ],
+     "frac_full_speed": 0.996,
+     "frac_zero_speed": 0.004,
+     "frac_full_turn": 0.968,
+     "w_flips_per_s": 17.687,
+     "mean_abs_w": 0.295,
+     "mean_v": 0.3546,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.297,
+     "extended": {
+      "limit_steps": 4864,
+      "outcome": "goal",
+      "steps": 694
+     },
+     "dyn": {
+      "w_gain": 0.902,
+      "v_gain": 1.024,
+      "tau": 0.223,
+      "drift": 0.0181,
+      "latency": 0
+     }
+    },
+    {
+     "k": 35,
+     "maze_seed": 10035,
+     "outcome": "goal",
+     "steps": 1131,
+     "limit_steps": 3366,
+     "route_m": 13.838,
+     "min_rate_mps": 0.1028,
+     "progress_rate_mps": 0.2993,
+     "progress_frac": 0.978,
+     "geo_left_m": 0.296,
+     "path_m": 14.57,
+     "tortuosity": 1.08,
+     "sat_v": 1.0,
+     "sat_w": 0.95,
+     "med_abs_mu": [
+      25.57,
+      12.38
+     ],
+     "frac_full_speed": 0.986,
+     "frac_zero_speed": 0.014,
+     "frac_full_turn": 0.95,
+     "w_flips_per_s": 17.905,
+     "mean_abs_w": 0.301,
+     "mean_v": 0.3221,
+     "frac_turn_in_place": 0.01,
+     "min_clearance_m": 0.271,
+     "extended": {
+      "limit_steps": 6732,
+      "outcome": "goal",
+      "steps": 1131
+     },
+     "dyn": {
+      "w_gain": 1.069,
+      "v_gain": 0.942,
+      "tau": 0.431,
+      "drift": 0.0536,
+      "latency": 0
+     }
+    },
+    {
+     "k": 36,
+     "maze_seed": 10036,
+     "outcome": "goal",
+     "steps": 970,
+     "limit_steps": 2783,
+     "route_m": 11.119,
+     "min_rate_mps": 0.0999,
+     "progress_rate_mps": 0.2795,
+     "progress_frac": 0.975,
+     "geo_left_m": 0.3,
+     "path_m": 11.76,
+     "tortuosity": 1.08,
+     "sat_v": 0.998,
+     "sat_w": 0.963,
+     "med_abs_mu": [
+      25.51,
+      12.59
+     ],
+     "frac_full_speed": 0.939,
+     "frac_zero_speed": 0.059,
+     "frac_full_turn": 0.963,
+     "w_flips_per_s": 16.959,
+     "mean_abs_w": 0.288,
+     "mean_v": 0.3021,
+     "frac_turn_in_place": 0.042,
+     "min_clearance_m": 0.277,
+     "extended": {
+      "limit_steps": 5566,
+      "outcome": "goal",
+      "steps": 970
+     },
+     "dyn": {
+      "w_gain": 0.99,
+      "v_gain": 0.93,
+      "tau": 0.418,
+      "drift": -0.0116,
+      "latency": 2
+     }
+    },
+    {
+     "k": 37,
+     "maze_seed": 10037,
+     "outcome": "goal",
+     "steps": 757,
+     "limit_steps": 2454,
+     "route_m": 9.582,
+     "min_rate_mps": 0.0976,
+     "progress_rate_mps": 0.3079,
+     "progress_frac": 0.973,
+     "geo_left_m": 0.3,
+     "path_m": 9.83,
+     "tortuosity": 1.05,
+     "sat_v": 0.997,
+     "sat_w": 0.968,
+     "med_abs_mu": [
+      25.47,
+      12.51
+     ],
+     "frac_full_speed": 0.948,
+     "frac_zero_speed": 0.049,
+     "frac_full_turn": 0.97,
+     "w_flips_per_s": 18.989,
+     "mean_abs_w": 0.379,
+     "mean_v": 0.3252,
+     "frac_turn_in_place": 0.033,
+     "min_clearance_m": 0.292,
+     "extended": {
+      "limit_steps": 4908,
+      "outcome": "goal",
+      "steps": 757
+     },
+     "dyn": {
+      "w_gain": 1.252,
+      "v_gain": 0.982,
+      "tau": 0.171,
+      "drift": 0.0243,
+      "latency": 0
+     }
+    },
+    {
+     "k": 38,
+     "maze_seed": 10038,
+     "outcome": "goal",
+     "steps": 1159,
+     "limit_steps": 3305,
+     "route_m": 13.555,
+     "min_rate_mps": 0.1025,
+     "progress_rate_mps": 0.2864,
+     "progress_frac": 0.979,
+     "geo_left_m": 0.303,
+     "path_m": 14.27,
+     "tortuosity": 1.07,
+     "sat_v": 0.998,
+     "sat_w": 0.974,
+     "med_abs_mu": [
+      24.28,
+      14.75
+     ],
+     "frac_full_speed": 0.983,
+     "frac_zero_speed": 0.016,
+     "frac_full_turn": 0.974,
+     "w_flips_per_s": 20.858,
+     "mean_abs_w": 0.217,
+     "mean_v": 0.3078,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.264,
+     "extended": {
+      "limit_steps": 6610,
+      "outcome": "goal",
+      "steps": 1159
+     },
+     "dyn": {
+      "w_gain": 1.143,
+      "v_gain": 0.9,
+      "tau": 0.366,
+      "drift": 0.0162,
+      "latency": 0
+     }
+    },
+    {
+     "k": 39,
+     "maze_seed": 10039,
+     "outcome": "time_out",
+     "steps": 2783,
+     "limit_steps": 2783,
+     "route_m": 11.119,
+     "min_rate_mps": 0.0999,
+     "progress_rate_mps": 0.0238,
+     "progress_frac": 0.238,
+     "geo_left_m": 8.435,
+     "path_m": 12.14,
+     "tortuosity": 4.58,
+     "sat_v": 0.996,
+     "sat_w": 0.819,
+     "med_abs_mu": [
+      23.18,
+      1.98
+     ],
+     "frac_full_speed": 0.272,
+     "frac_zero_speed": 0.724,
+     "frac_full_turn": 0.82,
+     "w_flips_per_s": 20.338,
+     "mean_abs_w": 0.238,
+     "mean_v": 0.0917,
+     "frac_turn_in_place": 0.05,
+     "min_clearance_m": 0.35,
+     "extended": {
+      "limit_steps": 5566,
+      "outcome": "time_out",
+      "steps": 5566
+     },
+     "dyn": {
+      "w_gain": 1.151,
+      "v_gain": 0.958,
+      "tau": 0.191,
+      "drift": -0.0232,
+      "latency": 2
+     },
+     "timeout": {
+      "class": "looping",
+      "window_steps": 500,
+      "window_path_m": 0.497,
+      "window_progress_m": 0.018,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 0.782,
+      "window_zero_speed_frac": 0.996,
+      "window_mean_speed_mps": 0.0249,
+      "window_w_flips_per_s": 17.95,
+      "steps_since_quarter_m_progress": 1957,
+      "n_best_improvements": 376,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 40,
+     "maze_seed": 10040,
+     "outcome": "goal",
+     "steps": 1648,
+     "limit_steps": 2844,
+     "route_m": 11.402,
+     "min_rate_mps": 0.1002,
+     "progress_rate_mps": 0.1679,
+     "progress_frac": 0.971,
+     "geo_left_m": 0.3,
+     "path_m": 17.92,
+     "tortuosity": 1.62,
+     "sat_v": 0.994,
+     "sat_w": 0.951,
+     "med_abs_mu": [
+      23.61,
+      8.43
+     ],
+     "frac_full_speed": 0.786,
+     "frac_zero_speed": 0.208,
+     "frac_full_turn": 0.953,
+     "w_flips_per_s": 19.964,
+     "mean_abs_w": 0.256,
+     "mean_v": 0.2709,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.232,
+     "extended": {
+      "limit_steps": 5688,
+      "outcome": "goal",
+      "steps": 1648
+     },
+     "dyn": {
+      "w_gain": 1.265,
+      "v_gain": 0.989,
+      "tau": 0.433,
+      "drift": -0.0528,
+      "latency": 1
+     }
+    },
+    {
+     "k": 41,
+     "maze_seed": 10041,
+     "outcome": "goal",
+     "steps": 1544,
+     "limit_steps": 4390,
+     "route_m": 18.618,
+     "min_rate_mps": 0.106,
+     "progress_rate_mps": 0.2974,
+     "progress_frac": 0.987,
+     "geo_left_m": 0.298,
+     "path_m": 21.32,
+     "tortuosity": 1.16,
+     "sat_v": 1.0,
+     "sat_w": 0.957,
+     "med_abs_mu": [
+      25.06,
+      13.12
+     ],
+     "frac_full_speed": 0.986,
+     "frac_zero_speed": 0.014,
+     "frac_full_turn": 0.957,
+     "w_flips_per_s": 20.92,
+     "mean_abs_w": 0.306,
+     "mean_v": 0.3454,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.306,
+     "extended": {
+      "limit_steps": 8780,
+      "outcome": "goal",
+      "steps": 1544
+     },
+     "dyn": {
+      "w_gain": 1.377,
+      "v_gain": 1.004,
+      "tau": 0.188,
+      "drift": 0.0392,
+      "latency": 1
+     }
+    },
+    {
+     "k": 42,
+     "maze_seed": 10042,
+     "outcome": "time_out",
+     "steps": 4500,
+     "limit_steps": 4500,
+     "route_m": 20.063,
+     "min_rate_mps": 0.1115,
+     "progress_rate_mps": 0.0816,
+     "progress_frac": 0.732,
+     "geo_left_m": 5.382,
+     "path_m": 20.0,
+     "tortuosity": 1.36,
+     "sat_v": 0.997,
+     "sat_w": 0.604,
+     "med_abs_mu": [
+      24.31,
+      1.25
+     ],
+     "frac_full_speed": 0.273,
+     "frac_zero_speed": 0.724,
+     "frac_full_turn": 0.61,
+     "w_flips_per_s": 19.361,
+     "mean_abs_w": 0.137,
+     "mean_v": 0.0902,
+     "frac_turn_in_place": 0.003,
+     "min_clearance_m": 0.284,
+     "extended": {
+      "limit_steps": 9000,
+      "outcome": "time_out",
+      "steps": 9000
+     },
+     "dyn": {
+      "w_gain": 1.287,
+      "v_gain": 0.938,
+      "tau": 0.408,
+      "drift": 0.0237,
+      "latency": 0
+     },
+     "timeout": {
+      "class": "looping",
+      "window_steps": 500,
+      "window_path_m": 0.61,
+      "window_progress_m": 0.008,
+      "window_wall_frac": 0.0,
+      "window_revisit_frac": 1.0,
+      "window_sat_w": 0.682,
+      "window_zero_speed_frac": 1.0,
+      "window_mean_speed_mps": 0.0305,
+      "window_w_flips_per_s": 23.85,
+      "steps_since_quarter_m_progress": 3101,
+      "n_best_improvements": 1415,
+      "reached_in_extension": false,
+      "extension_steps_to_goal_over_limit": null
+     }
+    },
+    {
+     "k": 43,
+     "maze_seed": 10043,
+     "outcome": "goal",
+     "steps": 985,
+     "limit_steps": 2478,
+     "route_m": 9.697,
+     "min_rate_mps": 0.0978,
+     "progress_rate_mps": 0.2387,
+     "progress_frac": 0.97,
+     "geo_left_m": 0.3,
+     "path_m": 11.2,
+     "tortuosity": 1.19,
+     "sat_v": 0.998,
+     "sat_w": 0.95,
+     "med_abs_mu": [
+      25.59,
+      11.69
+     ],
+     "frac_full_speed": 0.947,
+     "frac_zero_speed": 0.051,
+     "frac_full_turn": 0.95,
+     "w_flips_per_s": 20.228,
+     "mean_abs_w": 0.336,
+     "mean_v": 0.284,
+     "frac_turn_in_place": 0.008,
+     "min_clearance_m": 0.222,
+     "extended": {
+      "limit_steps": 4956,
+      "outcome": "goal",
+      "steps": 985
+     },
+     "dyn": {
+      "w_gain": 1.226,
+      "v_gain": 0.859,
+      "tau": 0.156,
+      "drift": 0.0407,
+      "latency": 1
+     }
+    },
+    {
+     "k": 44,
+     "maze_seed": 10044,
+     "outcome": "goal",
+     "steps": 1075,
+     "limit_steps": 3168,
+     "route_m": 12.915,
+     "min_rate_mps": 0.1019,
+     "progress_rate_mps": 0.294,
+     "progress_frac": 0.979,
+     "geo_left_m": 0.299,
+     "path_m": 13.41,
+     "tortuosity": 1.06,
+     "sat_v": 0.999,
+     "sat_w": 0.943,
+     "med_abs_mu": [
+      25.57,
+      10.47
+     ],
+     "frac_full_speed": 0.992,
+     "frac_zero_speed": 0.007,
+     "frac_full_turn": 0.945,
+     "w_flips_per_s": 18.023,
+     "mean_abs_w": 0.281,
+     "mean_v": 0.3112,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.287,
+     "extended": {
+      "limit_steps": 6336,
+      "outcome": "goal",
+      "steps": 1075
+     },
+     "dyn": {
+      "w_gain": 0.961,
+      "v_gain": 0.902,
+      "tau": 0.272,
+      "drift": 0.0563,
+      "latency": 1
+     }
+    },
+    {
+     "k": 45,
+     "maze_seed": 10045,
+     "outcome": "goal",
+     "steps": 912,
+     "limit_steps": 2768,
+     "route_m": 11.05,
+     "min_rate_mps": 0.0998,
+     "progress_rate_mps": 0.2945,
+     "progress_frac": 0.972,
+     "geo_left_m": 0.304,
+     "path_m": 12.03,
+     "tortuosity": 1.12,
+     "sat_v": 1.0,
+     "sat_w": 0.961,
+     "med_abs_mu": [
+      25.19,
+      12.01
+     ],
+     "frac_full_speed": 0.999,
+     "frac_zero_speed": 0.001,
+     "frac_full_turn": 0.961,
+     "w_flips_per_s": 18.531,
+     "mean_abs_w": 0.295,
+     "mean_v": 0.3307,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.267,
+     "extended": {
+      "limit_steps": 5536,
+      "outcome": "goal",
+      "steps": 912
+     },
+     "dyn": {
+      "w_gain": 1.187,
+      "v_gain": 0.956,
+      "tau": 0.379,
+      "drift": 0.0374,
+      "latency": 1
+     }
+    },
+    {
+     "k": 46,
+     "maze_seed": 10046,
+     "outcome": "goal",
+     "steps": 1600,
+     "limit_steps": 3866,
+     "route_m": 16.171,
+     "min_rate_mps": 0.1046,
+     "progress_rate_mps": 0.2481,
+     "progress_frac": 0.982,
+     "geo_left_m": 0.292,
+     "path_m": 18.67,
+     "tortuosity": 1.18,
+     "sat_v": 0.997,
+     "sat_w": 0.959,
+     "med_abs_mu": [
+      24.36,
+      12.98
+     ],
+     "frac_full_speed": 0.965,
+     "frac_zero_speed": 0.032,
+     "frac_full_turn": 0.959,
+     "w_flips_per_s": 21.609,
+     "mean_abs_w": 0.257,
+     "mean_v": 0.2917,
+     "frac_turn_in_place": 0.0,
+     "min_clearance_m": 0.244,
+     "extended": {
+      "limit_steps": 7732,
+      "outcome": "goal",
+      "steps": 1600
+     },
+     "dyn": {
+      "w_gain": 1.353,
+      "v_gain": 0.865,
+      "tau": 0.232,
+      "drift": 0.0146,
+      "latency": 0
+     }
+    },
+    {
+     "k": 47,
+     "maze_seed": 10047,
+     "outcome": "goal",
+     "steps": 686,
+     "limit_steps": 2340,
+     "route_m": 9.05,
+     "min_rate_mps": 0.0967,
+     "progress_rate_mps": 0.3193,
+     "progress_frac": 0.968,
+     "geo_left_m": 0.303,
+     "path_m": 9.22,
+     "tortuosity": 1.05,
+     "sat_v": 0.997,
+     "sat_w": 0.974,
+     "med_abs_mu": [
+      25.92,
+      14.71
+     ],
+     "frac_full_speed": 0.966,
+     "frac_zero_speed": 0.031,
+     "frac_full_turn": 0.974,
+     "w_flips_per_s": 19.169,
+     "mean_abs_w": 0.31,
+     "mean_v": 0.3358,
+     "frac_turn_in_place": 0.029,
+     "min_clearance_m": 0.277,
+     "extended": {
+      "limit_steps": 4680,
+      "outcome": "goal",
+      "steps": 686
+     },
+     "dyn": {
+      "w_gain": 1.271,
+      "v_gain": 1.001,
+      "tau": 0.29,
+      "drift": -0.0476,
+      "latency": 0
+     }
+    }
+   ],
+   "wall_s": 161.6,
+   "published": {
+    "success": 0.7708333333333334,
+    "collision": 0.0625,
+    "time_out": 0.16666666666666666,
+    "mean_steps": 1398.2083333333333,
+    "n": 48
+   },
+   "matches_published": false
+  }
+ },
+ "dose_response": [
+  {
+   "timesteps": 2000000,
+   "std": [
+    0.803,
+    0.821
+   ],
+   "sat_v": 0.945,
+   "sat_w": 0.142,
+   "w_flips_per_s": 2.26,
+   "median_abs_mu": [
+    2.49,
+    0.3
+   ],
+   "eval_5x5": {
+    "success": 0.5,
+    "collision": 0.5,
+    "time_out": 0.0,
+    "mean_steps": 854.8333333333334,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.625,
+    "collision": 0.375,
+    "time_out": 0.0,
+    "mean_steps": 1104.9583333333333,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 4000000,
+   "std": [
+    1.147,
+    1.012
+   ],
+   "sat_v": 0.994,
+   "sat_w": 0.184,
+   "w_flips_per_s": 2.747,
+   "median_abs_mu": [
+    3.41,
+    0.38
+   ],
+   "eval_5x5": {
+    "success": 0.7916666666666666,
+    "collision": 0.08333333333333333,
+    "time_out": 0.125,
+    "mean_steps": 1291.5833333333333,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.6666666666666666,
+    "collision": 0.125,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 1792.4583333333333,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 6000000,
+   "std": [
+    1.566,
+    1.247
+   ],
+   "sat_v": 0.989,
+   "sat_w": 0.169,
+   "w_flips_per_s": 4.552,
+   "median_abs_mu": [
+    3.96,
+    0.34
+   ],
+   "eval_5x5": {
+    "success": 0.7083333333333334,
+    "collision": 0.16666666666666666,
+    "time_out": 0.125,
+    "mean_steps": 1077.0833333333333,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.7083333333333334,
+    "collision": 0.125,
+    "time_out": 0.16666666666666666,
+    "mean_steps": 1639.875,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 8000000,
+   "std": [
+    1.949,
+    1.496
+   ],
+   "sat_v": 0.918,
+   "sat_w": 0.53,
+   "w_flips_per_s": 14.833,
+   "median_abs_mu": [
+    4.99,
+    1.0
+   ],
+   "eval_5x5": {
+    "success": 0.6666666666666666,
+    "collision": 0.125,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 1379.25,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.5,
+    "collision": 0.20833333333333334,
+    "time_out": 0.2916666666666667,
+    "mean_steps": 1681.625,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 10000000,
+   "std": [
+    2.594,
+    1.867
+   ],
+   "sat_v": 0.955,
+   "sat_w": 0.805,
+   "w_flips_per_s": 16.917,
+   "median_abs_mu": [
+    6.01,
+    2.39
+   ],
+   "eval_5x5": {
+    "success": 0.7083333333333334,
+    "collision": 0.08333333333333333,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 1371.4166666666667,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.5416666666666666,
+    "collision": 0.125,
+    "time_out": 0.3333333333333333,
+    "mean_steps": 2059.2083333333335,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 12000000,
+   "std": [
+    3.098,
+    1.947
+   ],
+   "sat_v": 0.947,
+   "sat_w": 0.838,
+   "w_flips_per_s": 17.146,
+   "median_abs_mu": [
+    6.59,
+    3.02
+   ],
+   "eval_5x5": {
+    "success": 0.6666666666666666,
+    "collision": 0.0,
+    "time_out": 0.3333333333333333,
+    "mean_steps": 1769.0416666666667,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.5416666666666666,
+    "collision": 0.08333333333333333,
+    "time_out": 0.375,
+    "mean_steps": 2139.0,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 14000000,
+   "std": [
+    3.829,
+    2.231
+   ],
+   "sat_v": 0.992,
+   "sat_w": 0.846,
+   "w_flips_per_s": 15.99,
+   "median_abs_mu": [
+    11.37,
+    3.37
+   ],
+   "eval_5x5": {
+    "success": 0.8333333333333334,
+    "collision": 0.0,
+    "time_out": 0.16666666666666666,
+    "mean_steps": 1344.75,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.8333333333333334,
+    "collision": 0.041666666666666664,
+    "time_out": 0.125,
+    "mean_steps": 1771.875,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 16000000,
+   "std": [
+    4.65,
+    2.588
+   ],
+   "sat_v": 0.988,
+   "sat_w": 0.905,
+   "w_flips_per_s": 15.594,
+   "median_abs_mu": [
+    14.96,
+    5.15
+   ],
+   "eval_5x5": {
+    "success": 0.6666666666666666,
+    "collision": 0.08333333333333333,
+    "time_out": 0.25,
+    "mean_steps": 1462.75,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.6666666666666666,
+    "collision": 0.041666666666666664,
+    "time_out": 0.2916666666666667,
+    "mean_steps": 1910.0,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 18000000,
+   "std": [
+    5.536,
+    2.91
+   ],
+   "sat_v": 0.986,
+   "sat_w": 0.944,
+   "w_flips_per_s": 18.594,
+   "median_abs_mu": [
+    15.93,
+    7.97
+   ],
+   "eval_5x5": {
+    "success": 0.7083333333333334,
+    "collision": 0.041666666666666664,
+    "time_out": 0.25,
+    "mean_steps": 1628.0416666666667,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.4166666666666667,
+    "collision": 0.125,
+    "time_out": 0.4583333333333333,
+    "mean_steps": 2457.9166666666665,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 20000000,
+   "std": [
+    6.337,
+    3.25
+   ],
+   "sat_v": 0.977,
+   "sat_w": 0.943,
+   "w_flips_per_s": 17.75,
+   "median_abs_mu": [
+    12.7,
+    8.9
+   ],
+   "eval_5x5": {
+    "success": 0.5833333333333334,
+    "collision": 0.0,
+    "time_out": 0.4166666666666667,
+    "mean_steps": 1982.7083333333333,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.5416666666666666,
+    "collision": 0.0,
+    "time_out": 0.4583333333333333,
+    "mean_steps": 2505.4583333333335,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 22000000,
+   "std": [
+    7.302,
+    3.452
+   ],
+   "sat_v": 0.985,
+   "sat_w": 0.95,
+   "w_flips_per_s": 17.552,
+   "median_abs_mu": [
+    15.18,
+    11.76
+   ],
+   "eval_5x5": {
+    "success": 0.5833333333333334,
+    "collision": 0.041666666666666664,
+    "time_out": 0.375,
+    "mean_steps": 1816.4583333333333,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.625,
+    "collision": 0.16666666666666666,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 1981.6666666666667,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 24000000,
+   "std": [
+    7.971,
+    3.855
+   ],
+   "sat_v": 0.989,
+   "sat_w": 0.932,
+   "w_flips_per_s": 16.023,
+   "median_abs_mu": [
+    17.32,
+    9.59
+   ],
+   "eval_5x5": {
+    "success": 0.5,
+    "collision": 0.25,
+    "time_out": 0.25,
+    "mean_steps": 1406.7916666666667,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.625,
+    "collision": 0.16666666666666666,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 1595.7083333333333,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 26000000,
+   "std": [
+    8.949,
+    4.147
+   ],
+   "sat_v": 0.996,
+   "sat_w": 0.963,
+   "w_flips_per_s": 18.448,
+   "median_abs_mu": [
+    22.1,
+    12.65
+   ],
+   "eval_5x5": {
+    "success": 0.75,
+    "collision": 0.0,
+    "time_out": 0.25,
+    "mean_steps": 1548.0,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.625,
+    "collision": 0.041666666666666664,
+    "time_out": 0.3333333333333333,
+    "mean_steps": 2175.9583333333335,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 28000000,
+   "std": [
+    9.467,
+    4.43
+   ],
+   "sat_v": 0.999,
+   "sat_w": 0.964,
+   "w_flips_per_s": 18.583,
+   "median_abs_mu": [
+    25.22,
+    11.17
+   ],
+   "eval_5x5": {
+    "success": 0.75,
+    "collision": 0.041666666666666664,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 1460.625,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.5833333333333334,
+    "collision": 0.20833333333333334,
+    "time_out": 0.20833333333333334,
+    "mean_steps": 2015.4166666666667,
+    "n": 24
+   }
+  },
+  {
+   "timesteps": 30000000,
+   "std": [
+    10.041,
+    4.634
+   ],
+   "sat_v": 0.998,
+   "sat_w": 0.97,
+   "w_flips_per_s": 17.302,
+   "median_abs_mu": [
+    26.28,
+    12.48
+   ],
+   "eval_5x5": {
+    "success": 0.875,
+    "collision": 0.041666666666666664,
+    "time_out": 0.08333333333333333,
+    "mean_steps": 1064.0416666666667,
+    "n": 24
+   },
+   "eval_6x6": {
+    "success": 0.75,
+    "collision": 0.125,
+    "time_out": 0.125,
+    "mean_steps": 1631.75,
+    "n": 24
+   }
+  },
+  {
+   "spearman_std_vs_5x5_timeout": [
+    0.389,
+    0.1516
+   ],
+   "spearman_std_vs_sat_w": [
+    0.971,
+    0.0
+   ],
+   "note": "std rises monotonically with training time in v2: these correlations are confounded with training progress"
+  }
+ ],
+ "wall_s": 498.0
+}

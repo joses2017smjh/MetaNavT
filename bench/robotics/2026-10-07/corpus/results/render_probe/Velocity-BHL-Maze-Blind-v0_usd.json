@@ -1,0 +1,131 @@
+[
+  {
+    "step": 1,
+    "task": "Velocity-BHL-Maze-Blind-v0",
+    "mode": "usd",
+    "articulation": "robot",
+    "root_local": [
+      -0.3696,
+      -0.3782,
+      0.0
+    ],
+    "body_z_min": -0.0,
+    "body_z_max": 0.5426,
+    "env_origin": [
+      -28.0,
+      -76.0,
+      0.05
+    ],
+    "physics_base_world": [
+      -28.363,
+      -76.3817,
+      0.0414
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot",
+      "valid": true,
+      "loaded": true,
+      "gprims": 21,
+      "visibility": {
+        "inherited": 21
+      },
+      "purpose": {
+        "default": 14,
+        "guide": 7
+      },
+      "usd_base_world": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/Velocity-BHL-Maze-Blind-v0_usd_s001_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/Velocity-BHL-Maze-Blind-v0_usd_s001_viewport.png"
+  },
+  {
+    "step": 11,
+    "task": "Velocity-BHL-Maze-Blind-v0",
+    "mode": "usd",
+    "articulation": "robot",
+    "root_local": [
+      -0.3214,
+      -0.4216,
+      -0.0766
+    ],
+    "body_z_min": -0.0766,
+    "body_z_max": 0.4709,
+    "env_origin": [
+      -28.0,
+      -76.0,
+      0.05
+    ],
+    "physics_base_world": [
+      -28.3193,
+      -76.4237,
+      -0.028
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot",
+      "valid": true,
+      "loaded": true,
+      "gprims": 21,
+      "visibility": {
+        "inherited": 21
+      },
+      "purpose": {
+        "default": 14,
+        "guide": 7
+      },
+      "usd_base_world": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/Velocity-BHL-Maze-Blind-v0_usd_s011_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/Velocity-BHL-Maze-Blind-v0_usd_s011_viewport.png"
+  },
+  {
+    "step": 51,
+    "task": "Velocity-BHL-Maze-Blind-v0",
+    "mode": "usd",
+    "articulation": "robot",
+    "root_local": [
+      0.3958,
+      0.3633,
+      -0.0699
+    ],
+    "body_z_min": -0.0699,
+    "body_z_max": 0.4763,
+    "env_origin": [
+      -36.0,
+      -76.0,
+      0.05
+    ],
+    "physics_base_world": [
+      -35.6021,
+      -75.63,
+      -0.0204
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot",
+      "valid": true,
+      "loaded": true,
+      "gprims": 21,
+      "visibility": {
+        "inherited": 21
+      },
+      "purpose": {
+        "default": 14,
+        "guide": 7
+      },
+      "usd_base_world": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/Velocity-BHL-Maze-Blind-v0_usd_s051_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/Velocity-BHL-Maze-Blind-v0_usd_s051_viewport.png"
+  }
+]

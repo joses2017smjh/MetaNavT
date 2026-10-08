@@ -1,0 +1,318 @@
+{
+  "protocol": "inspection_maze.py ordered route, reactive sensors, seeds 0-2, 60 s, truth attitude; position bias (random direction per seed) / white noise / heading error / drift applied only to the pose the route controller uses",
+  "job": 21402726,
+  "control": "SF-03 L0 truth 3/3 at 17.36 s",
+  "arms": {
+    "sf02-bias0.05": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.400000000000002,
+        17.04,
+        17.76
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        6.94,
+        6.92,
+        6.93
+      ]
+    },
+    "sf02-bias0.10": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        18.36,
+        16.68,
+        19.080000000000002
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.14,
+        6.73,
+        7.25
+      ]
+    },
+    "sf02-bias0.15": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        19.36,
+        15.92,
+        21.400000000000002
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.39,
+        6.66,
+        7.46
+      ]
+    },
+    "sf02-bias0.20": {
+      "success": 1,
+      "n": 3,
+      "completion_s": [
+        15.88
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [
+        [
+          "mission_timeout",
+          60.0
+        ],
+        [
+          "mission_timeout",
+          60.0
+        ]
+      ],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        4.02,
+        6.73,
+        1.43
+      ]
+    },
+    "sf02-drift0.01": {
+      "success": 0,
+      "n": 3,
+      "completion_s": [],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [
+        [
+          "mission_timeout",
+          60.0
+        ],
+        [
+          "mission_timeout",
+          60.0
+        ],
+        [
+          "mission_timeout",
+          60.0
+        ]
+      ],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.26,
+        7.16,
+        7.22
+      ]
+    },
+    "sf02-drift0.03": {
+      "success": 0,
+      "n": 3,
+      "completion_s": [],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [
+        [
+          "mission_timeout",
+          60.0
+        ],
+        [
+          "mission_timeout",
+          60.0
+        ],
+        [
+          "mission_timeout",
+          60.0
+        ]
+      ],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        3.5,
+        3.41,
+        3.47
+      ]
+    },
+    "sf02-noise0.05": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.44,
+        17.36,
+        17.28
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.01,
+        7.03,
+        6.9
+      ]
+    },
+    "sf02-noise0.10": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.8,
+        17.68,
+        17.28
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.2,
+        7.18,
+        7.06
+      ]
+    },
+    "sf02-yaw10": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.68,
+        17.64,
+        17.64
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.02,
+        7.04,
+        7.1
+      ]
+    },
+    "sf02-yaw20": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        20.56,
+        20.56,
+        20.92
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.75,
+        7.73,
+        7.81
+      ]
+    },
+    "sf02-yaw3": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.56,
+        17.400000000000002,
+        17.28
+      ],
+      "gravity_rmse": [],
+      "aligned": [
+        null,
+        null,
+        null
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        6.99,
+        6.86,
+        6.93
+      ]
+    }
+  }
+}

@@ -1,0 +1,131 @@
+[
+  {
+    "step": 1,
+    "task": "ClothSort-BHL-Rigid-Oracle-v0",
+    "mode": "fabric",
+    "articulation": "robot",
+    "root_local": [
+      -0.232,
+      0.0158,
+      -0.0272
+    ],
+    "body_z_min": -0.0272,
+    "body_z_max": 0.7498,
+    "env_origin": [
+      -0.0,
+      0.0,
+      0.0
+    ],
+    "physics_base_world": [
+      -0.2311,
+      0.0147,
+      -0.036
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot",
+      "valid": true,
+      "loaded": true,
+      "gprims": 37,
+      "visibility": {
+        "inherited": 37
+      },
+      "purpose": {
+        "default": 26,
+        "guide": 11
+      },
+      "usd_base_world": [
+        -0.22,
+        0.0,
+        -0.0272
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/ClothSort-BHL-Rigid-Oracle-v0_fabric_s001_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/ClothSort-BHL-Rigid-Oracle-v0_fabric_s001_viewport.png"
+  },
+  {
+    "step": 11,
+    "task": "ClothSort-BHL-Rigid-Oracle-v0",
+    "mode": "fabric",
+    "articulation": "robot",
+    "root_local": [
+      -0.4018,
+      -0.0053,
+      -0.1766
+    ],
+    "body_z_min": -0.1766,
+    "body_z_max": 0.5382,
+    "env_origin": [
+      -0.0,
+      0.0,
+      0.0
+    ],
+    "physics_base_world": [
+      -0.449,
+      -0.008,
+      -0.149
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot",
+      "valid": true,
+      "loaded": true,
+      "gprims": 37,
+      "visibility": {
+        "inherited": 37
+      },
+      "purpose": {
+        "default": 26,
+        "guide": 11
+      },
+      "usd_base_world": [
+        -0.22,
+        0.0,
+        -0.0272
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/ClothSort-BHL-Rigid-Oracle-v0_fabric_s011_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/ClothSort-BHL-Rigid-Oracle-v0_fabric_s011_viewport.png"
+  },
+  {
+    "step": 51,
+    "task": "ClothSort-BHL-Rigid-Oracle-v0",
+    "mode": "fabric",
+    "articulation": "robot",
+    "root_local": [
+      -0.4377,
+      -0.0293,
+      -0.1541
+    ],
+    "body_z_min": -0.1541,
+    "body_z_max": 0.5226,
+    "env_origin": [
+      -0.0,
+      0.0,
+      0.0
+    ],
+    "physics_base_world": [
+      -0.4822,
+      -0.0322,
+      -0.1209
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot",
+      "valid": true,
+      "loaded": true,
+      "gprims": 37,
+      "visibility": {
+        "inherited": 37
+      },
+      "purpose": {
+        "default": 26,
+        "guide": 11
+      },
+      "usd_base_world": [
+        -0.22,
+        0.0,
+        -0.0272
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/ClothSort-BHL-Rigid-Oracle-v0_fabric_s051_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/ClothSort-BHL-Rigid-Oracle-v0_fabric_s051_viewport.png"
+  }
+]

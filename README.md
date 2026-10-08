@@ -30,9 +30,9 @@
 ## Engineering overview
 
 Hybrid retrieval over research files, with cited source locations and reviewable file operations.
-The committed benchmark is a frozen fixture scored with **hash embeddings and
-overlap reranking**; it is not a measurement of a production corpus or a neural
-embedding backend. Every number in this README's benchmark text is rendered from
+The original regression benchmark is a frozen fixture scored with **hash
+embeddings and overlap reranking**. Separate real-model, external-domain and
+robotics-file measurements are documented below. The original fixture numbers are rendered from
 [`bench/results/main.json`](bench/results/main.json) by `make bench-table`, and
 `tests/eval/test_readme_numbers.py` fails if the text drifts from that file.
 
@@ -43,7 +43,8 @@ On the frozen fixture (136 questions over 61 files; hash embeddings, overlap rer
 **Jose Sanchez's contribution:** retrieval and data APIs on the six-person
 [project team](#team). The application combines a FastAPI backend, a Next.js
 interface and PostgreSQL/pgvector; the committed retrieval benchmark runs
-separately on CPU.
+separately on CPU. The independent 2026 extensions add experiment provenance,
+external-domain evaluation, measured neural service load and trusted action grants.
 
 The [ablation table](#the-number) reports ranking quality (nDCG@10), coverage
 (Recall@10, and Recall@50 next to a random-list baseline), paired deltas with
@@ -51,6 +52,95 @@ intervals, and the number of gold questions behind each category.
 
 [Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) ·
 [Benchmark artifact](bench/results/latest.json) · [Run the CPU benchmark](#cpu-benchmark) · [Run the application](#run-it) · [Architecture](#how-the-app-is-put-together)
+
+### Measured neural HTTP service
+
+The original FastAPI/PostgreSQL 16/pgvector service now has explicit device
+readiness and a bounded load runner that retains errors, timeouts and per-route
+latencies. On an **NVIDIA H100 80GB**, the real 600-file robotics snapshot indexes
+**5,633 nodes**. With real BGE embeddings and fp16 reranking (512 tokens, top 20),
+client p95 is **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16**. Each level
+has 16 requests; all **48 measured attempts** plus one cold probe and two warmups
+succeed. The queries are generated experiment lookups. These short runs establish
+measured endpoint behavior, without establishing capacity or answer accuracy.
+
+[600-file HTTP measurements](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json)
+
+A separate matched fp32 comparison uses the same 61-file fixture and query
+workload on CPU and GPU. GPU p95 is 62 / 235 / 889 ms with no errors. CPU succeeds
+at concurrency 1 and 4 (p95 15.6 / 63.3 seconds), then **13/16 attempts time out**
+at concurrency 16. Failed attempts remain in the report; successful-only latency
+would conceal the failure rate. This comparison changes hardware/device, not
+just precision. The interrupted earlier CPU profile and failed SQL_ASCII setup
+are retained separately; the real-file run uses explicit UTF-8 database encoding.
+
+[Matched GPU report](bench/results/revamp_20261007/http_gpu_fp32_512_paired16/http_load.json) ·
+[Matched CPU report](bench/results/revamp_20261007/http_cpu_fp32_512_paired16/http_load.json)
+
+```bash
+# Against a running service; model/index startup is outside these timings.
+python -m app.eval.http_load --url http://127.0.0.1:8000 \
+  --queries bench/robotics/2026-10-07/questions.jsonl \
+  --out bench/results/api_latency_load.json --concurrency 1,4,16 --requests 16 \
+  --require-reranker --require-device cuda
+```
+
+The measured service ran with task-local PostgreSQL via Apptainer. The added
+GPU Docker Compose override is a deployment recipe validated by parsing; it was
+not executed here because the Docker daemon was unavailable.
+
+### New external domain validation
+
+The October 7 evaluation adds **NFCorpus (3,633 documents, 323 official test
+queries)** and **FiQA (57,638 documents, 648 test queries)**. Each configuration
+uses the full test split, preserves graded relevance for nDCG, emits TREC runs,
+and independently cross-checks every reported query metric with `pytrec_eval`.
+Configurations were fixed before these runs; per-domain winners below describe
+the measured results rather than a newly validated automatic selector.
+
+| Dataset | BM25 nDCG@10 | Dense BGE-small | Hybrid RRF | Finding |
+|---|---:|---:|---:|---|
+| NFCorpus | 0.3207 | 0.3373 | 0.3637 | Hybrid improves on BM25; adding the bounded reranker reduces nDCG to 0.3555 |
+| FiQA | 0.2369 | 0.3848 | 0.3645 | Dense improves on BM25; hybrid reduces quality relative to dense |
+
+[Full NFCorpus results](bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) ·
+[Full FiQA results](bench/results/revamp_20261007/beir_fiqa_gpu.json)
+
+On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
+**512-token cap and top-20 depth fixed** reduces warm offline total p95 from
+**216.52 to 77.15 ms** (64.4%). nDCG changes from **0.3555 to 0.3554**. This
+isolates precision more directly than the historical SciFact joint precision/
+truncation comparison. It excludes model load, index build and HTTP concurrency.
+
+### Real robotics experiment lookup
+
+The October 7 revamp adds a separate, hash-verified snapshot of **600 unique
+experiment files from 110 source groups**, with commit/blob provenance and
+exact UTF-8 evidence spans. Its **360 generated scalar lookup questions** have
+120 development and 240 test questions from disjoint experiment families.
+There are 13 question-bearing families in each split; the broader source tree
+also supplies distractor files. No human answer labels are claimed.
+
+On the fixed 240-question test split, indexing file-path context alongside the
+body raises source-file **Recall@10 from 0.058 to 0.671** and **nDCG@10 from 0.024
+to 0.485**. The paired nDCG difference is +0.461, with a family-bootstrap 95%
+interval [0.297, 0.666]. These are generated experiment lookup results, not
+semantic answer accuracy or current-version accuracy. The search context stays
+separate from citation text. Both configurations use BM25 without a neural model.
+
+[Snapshot and provenance](bench/robotics/2026-10-07/manifest.json) ·
+[Generated questions](bench/robotics/2026-10-07/questions.jsonl) ·
+[Per-query measurements and source hashes](bench/results/robotics_file_lookup_revalidated_2026-10-07.json)
+
+```bash
+make robotics-verify
+make bench-robotics   # writes a new result; retains the measured reference
+```
+
+Opt in to the same search-only context with
+`build_index(..., include_path_context=True)`. The existing fixture remains the
+regression baseline. Human-reviewed temporal, multi-artifact and unanswerable
+questions remain necessary before claiming real-corpus answer quality.
 
 ### CPU benchmark
 
@@ -261,11 +351,11 @@ Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in t
 | `read_file(path, byte_range)` | citations resolve to bytes |
 | `list_dir` / `stat` | navigate the tree, not just vectors |
 | `propose_move` | returns a plan. never executes |
-| `apply_plan` | requires `approved=true` |
+| `apply_plan` | requires an externally signed, single-use `approval_token` |
 | `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper) |
 | `propose_artifact` | spec → generate → sandbox. never writes |
-| `apply_artifact` | requires `approved=true`; refuses a failed sandbox |
-| `propose_patch` / `apply_patch` | SEARCH/REPLACE, same HITL |
+| `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
+| `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
 | `exec_sandboxed` | AST-gated Python. no `os`, no pip |
 | `inspect_spreadsheet` | schema, types, missingness, five-row preview |
 | `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
@@ -275,8 +365,40 @@ Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in t
 plan = tools.propose_move("logs/run_040.out", "archive/run_040.out")
 # {'status': 'pending_approval', 'plan_id': '...'}
 tools.apply_plan(plan["plan_id"])                 # ApprovalRequired
-tools.apply_plan(plan["plan_id"], approved=True)  # applied
+review = tools.review_plan(plan["plan_id"])        # export for operator review
+# An operator signs this exact review outside the agent tool interface.
+tools.apply_plan(plan["plan_id"], approval_token=token)  # applied once
 ```
+
+The deterministic approval benchmark denies **220/220** malicious action fixtures
+across 22 families while preserving **100/100** benign controls. The fixtures
+vary source contents and paths; they test the tool enforcement boundary without
+an LLM or OS isolation. A separate **240-case** balanced JSON-fact suite checks
+subject, value, physical units, polarity and source-supplied currency labels.
+Its results describe that narrow structured contract, without establishing
+natural-language entailment or human-reviewed citation accuracy.
+[Action evidence](bench/results/trusted_actions.json) ·
+[Structured evidence](bench/results/evidence_consistency.json)
+
+The boolean `approved=True` no longer authorizes a write. The operator key and
+SQLite replay ledger must live outside every agent-readable/indexed root, with
+private file permissions. Without configured approval state, file writes are
+refused. A capability binds the session, operation, paths, reviewed content and
+source fingerprints, expires quickly, and is consumed transactionally before
+mutation. Symlink paths and implicit overwrites are refused.
+
+```bash
+# Run as the trusted operator; choose paths outside the indexed corpus.
+python -m app.mcp.approve init --key /private/operator.key
+python -m app.mcp.approve sign --key /private/operator.key --review review.json --actor operator
+# Server settings: METANAVIT_APPROVAL_KEY_FILE and METANAVIT_APPROVAL_LEDGER_FILE
+```
+
+Export the review from the plan panel, have the operator inspect and sign it,
+and paste the resulting token into the panel. Issuance is absent from MCP and
+HTTP tools. An agent with arbitrary operator code execution or access to the
+signing key is outside this boundary. Older GIFs illustrate the review flow;
+the current implementation requires the signed grant.
 
 ### Cutting-edge query processing
 
@@ -476,10 +598,11 @@ Our BM25 with the same analyzer and document text scores nDCG@10 0.677 against A
 <!-- bench-beir:end -->
 
 **How to read these.** With real models the picture flips: hybrid RRF and the
-cross-encoder both beat BM25 with intervals that exclude zero, on the fixture
+complete reranked pipeline beat BM25 with intervals that exclude zero, on the fixture
 and on SciFact, and the "beats BM25?" column is computed from those intervals,
 not asserted. Every paired delta is against the row's named parent, one change
-away, never against list order.
+away, never against list order. On SciFact, the incremental reranker-versus-hybrid interval
+includes zero; the full-pipeline gain does not establish that incremental effect.
 
 **Which benchmark carries which claim.** SciFact carries the retrieval-quality
 claims: 5k documents, a published BM25 baseline to check against, a top-50 that
@@ -698,7 +821,9 @@ The product is a research tree, so “generate code” has to mean two different
 art = tools.propose_artifact("reproduce run 47 from the paper")
 # sandbox ran; status pending_approval
 tools.apply_artifact(art["plan_id"])                 # ApprovalRequired
-tools.apply_artifact(art["plan_id"], approved=True)  # writes artifacts/reproduce.py
+review = tools.review_plan(art["plan_id"])
+# token is issued externally for this exact reviewed artifact
+tools.apply_artifact(art["plan_id"], approval_token=token)
 ```
 
 ### Spreadsheet to MATLAB, with a user checkpoint
@@ -725,7 +850,7 @@ plan = tools.propose_visualization(
 tools.apply_visualization(plan["plan_id"])  # ApprovalRequired
 tools.apply_visualization(
     plan["plan_id"],
-    approved=True,
+    approval_token=token,  # external grant covers these exact options
     chart_type="dot",  # user can override
     backend="matlab",
 )
@@ -792,7 +917,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Index Manager.** `app/database/index_manager.py` stores path, mtime, process version, content hash. Loaders crawl the tree, skip blocked paths, and only re-embed what changed.
 
-**Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: the destructive action does not run until `approved=true`.
+**Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
 
 **Eval harness.** Does not need Postgres or a GPU. In-memory BM25 + hash dense over `bench/corpus/files`. `make bench` is one command. The git history of `bench/results/*.json` is the ablation log.
 
@@ -921,3 +1046,13 @@ doc/figures/       still charts
 ravidatd@oregonstate.edu · soma@oregonstate.edu · lauriek@oregonstate.edu · tranj8@oregonstate.edu · nakanika@oregonstate.edu · sanchej7@oregonstate.edu
 
 [PLAN.md](PLAN.md) is the modernization checklist and the v3 frontier plan (LLM jury, bge-m3 row, Search-R1). Issues that predate it: HITL UI [#74](https://github.com/klaurie/MetaNaviT/issues/74), ranking [#58](https://github.com/klaurie/MetaNaviT/issues/58), chunking [#22](https://github.com/klaurie/MetaNaviT/issues/22).
+
+## Resume project results
+
+[Verified project sections](docs/resume-results-20261007/resume-projects.pdf) ·
+[Editable role-specific bullets](docs/resume-results-20261007/resume-projects.txt) ·
+[Measured results and research rationale](docs/resume-results-20261007/revamp-report.pdf).
+
+The saved report describes the local measurement phase; repository history records
+the subsequent publication. Generated lookup labels, short HTTP sessions and
+synthetic enforcement fixtures retain the limits stated in the report.

@@ -1,0 +1,3 @@
+CoopLift-BHL-Cube-Random-v0 PASS
+CoopLift-BHL-Cube-Occluded-v0 PASS
+CoopLift-BHL-Cube-Occluded-Depth-v0 PASS

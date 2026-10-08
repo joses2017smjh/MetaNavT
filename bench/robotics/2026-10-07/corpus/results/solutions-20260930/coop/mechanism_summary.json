@@ -1,0 +1,236 @@
+{
+ "note": "exploration seeds >= 100 only; crew 2; frozen arms-dr1.0-s0 gait; scripted arm; MuJoCo 3.3.5; modelling variants on pads/solver only",
+ "lift_hold_rule_20s": {
+  "base": {
+   "succ": 0,
+   "n": 3,
+   "solver": null,
+   "pad": {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   }
+  },
+  "tors04": {
+   "succ": 0,
+   "n": 3,
+   "solver": null,
+   "pad": {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 4,
+    "friction": [
+     1.0,
+     0.04,
+     0.0001
+    ]
+   }
+  },
+  "tors02": {
+   "succ": 0,
+   "n": 3,
+   "solver": null,
+   "pad": {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 4,
+    "friction": [
+     1.0,
+     0.02,
+     0.0001
+    ]
+   }
+  },
+  "base_ell": {
+   "succ": 1,
+   "n": 3,
+   "solver": {
+    "cone": 1,
+    "impratio": 10.0,
+    "noslip_iterations": 0
+   },
+   "pad": {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   }
+  },
+  "tors04_ell": {
+   "succ": 3,
+   "n": 3,
+   "solver": {
+    "cone": 1,
+    "impratio": 10.0,
+    "noslip_iterations": 0
+   },
+   "pad": {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 4,
+    "friction": [
+     1.0,
+     0.04,
+     0.0001
+    ]
+   }
+  },
+  "base_noslip": {
+   "succ": 0,
+   "n": 2,
+   "solver": {
+    "cone": 0,
+    "impratio": 1.0,
+    "noslip_iterations": 10
+   },
+   "pad": {
+    "name": "r0_arm_left_hand_pad",
+    "condim": 3,
+    "friction": [
+     1.0,
+     0.005,
+     0.0001
+    ]
+   }
+  }
+ },
+ "lift_place_rule_20s": {
+  "base|tuned": {
+   "successes": 1,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 4,
+   "final_tilt_rad": [
+    3.1416,
+    3.1416,
+    1.5708,
+    1.5713,
+    0.0
+   ]
+  },
+  "tors04_ell|tuned": {
+   "successes": 0,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 5,
+   "final_tilt_rad": [
+    1.5708,
+    1.5708,
+    1.5708,
+    1.5708,
+    1.5708
+   ]
+  },
+  "tors04_ell|0.0:1.1:0.0:1.0:0.0": {
+   "successes": 0,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 5,
+   "final_tilt_rad": [
+    1.5708,
+    1.5708,
+    1.5708,
+    1.5708,
+    1.5708
+   ]
+  },
+  "tors04_ell|reverse": {
+   "successes": 5,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 0,
+   "final_tilt_rad": [
+    0.0002,
+    0.0005,
+    0.0004,
+    0.0001,
+    0.0007
+   ]
+  },
+  "base|reverse": {
+   "successes": 0,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 5,
+   "final_tilt_rad": [
+    3.1416,
+    1.5708,
+    1.5708,
+    3.1416,
+    1.5708
+   ]
+  },
+  "base_ell|reverse": {
+   "successes": 2,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 2,
+   "final_tilt_rad": [
+    1.5707,
+    1.5708,
+    1.5716,
+    1.5716,
+    1.5708
+   ]
+  },
+  "tors04|reverse": {
+   "successes": 0,
+   "n": 5,
+   "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "floor": 5,
+   "final_tilt_rad": [
+    1.5708,
+    1.5708,
+    1.5708,
+    1.5708,
+    1.5708
+   ]
+  }
+ }
+}

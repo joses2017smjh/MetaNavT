@@ -1,0 +1,10 @@
+  ippo-rough               PASS  obs=301  ok
+  ippo-slippery            PASS  obs=301  ok
+  ippo-stairs              PASS  obs=301  ok
+  limb1-rough              PASS  obs=301  ok
+  limb1-slippery           PASS  obs=301  ok
+  limb1-stairs             PASS  obs=301  ok
+  mappo-rough              PASS  obs=301  ok
+  mappo-slippery           PASS  obs=301  ok
+  mappo-stairs             PASS  obs=301  ok
+G-B4t PASS  9 of 9 rows logged, obs widths [301]

@@ -1,0 +1,114 @@
+{
+ "usd": "/nfs/hpc/share/sanchej7/Humanoid_Lite/assets/waiter/usd/berkeley_humanoid_lite_waiter.usd",
+ "revolute": [
+  "arm_left_elbow_pitch_joint",
+  "arm_left_elbow_roll_joint",
+  "arm_left_gripper_joint",
+  "arm_left_shoulder_pitch_joint",
+  "arm_left_shoulder_roll_joint",
+  "arm_left_shoulder_yaw_joint",
+  "arm_right_elbow_pitch_joint",
+  "arm_right_elbow_roll_joint",
+  "arm_right_gripper_joint",
+  "arm_right_shoulder_pitch_joint",
+  "arm_right_shoulder_roll_joint",
+  "arm_right_shoulder_yaw_joint",
+  "leg_left_ankle_pitch_joint",
+  "leg_left_ankle_roll_joint",
+  "leg_left_hip_pitch_joint",
+  "leg_left_hip_roll_joint",
+  "leg_left_hip_yaw_joint",
+  "leg_left_knee_pitch_joint",
+  "leg_right_ankle_pitch_joint",
+  "leg_right_ankle_roll_joint",
+  "leg_right_hip_pitch_joint",
+  "leg_right_hip_roll_joint",
+  "leg_right_hip_yaw_joint",
+  "leg_right_knee_pitch_joint"
+ ],
+ "palm_collision_prims": [
+  "/berkeley_humanoid_lite/arm_left_hand_link/collisions/arm_left_hand_link_visual/node_STL_BINARY_",
+  "/berkeley_humanoid_lite/arm_right_hand_link/collisions/arm_right_hand_link_visual/node_STL_BINARY_"
+ ],
+ "joint_names": [
+  "arm_left_shoulder_pitch_joint",
+  "arm_right_shoulder_pitch_joint",
+  "leg_left_hip_roll_joint",
+  "leg_right_hip_roll_joint",
+  "arm_left_shoulder_roll_joint",
+  "arm_right_shoulder_roll_joint",
+  "leg_left_hip_yaw_joint",
+  "leg_right_hip_yaw_joint",
+  "arm_left_shoulder_yaw_joint",
+  "arm_right_shoulder_yaw_joint",
+  "leg_left_hip_pitch_joint",
+  "leg_right_hip_pitch_joint",
+  "arm_left_elbow_pitch_joint",
+  "arm_right_elbow_pitch_joint",
+  "leg_left_knee_pitch_joint",
+  "leg_right_knee_pitch_joint",
+  "arm_left_elbow_roll_joint",
+  "arm_right_elbow_roll_joint",
+  "leg_left_ankle_pitch_joint",
+  "leg_right_ankle_pitch_joint",
+  "leg_left_ankle_roll_joint",
+  "leg_right_ankle_roll_joint",
+  "arm_left_gripper_joint",
+  "arm_right_gripper_joint"
+ ],
+ "shipped": {
+  "torso_above_ankles": -0.08999961614608765,
+  "hand_l": [
+   -5.289912223815918e-07,
+   0.2517624795436859,
+   1.4851332902908325
+  ],
+  "hand_r": [
+   -3.2223761081695557e-07,
+   -0.25176286697387695,
+   1.4851332902908325
+  ],
+  "mass": 16.33115577697754
+ },
+ "waiter": {
+  "torso_above_ankles": -0.08999961614608765,
+  "hand_l": [
+   -5.271285772323608e-07,
+   0.25176286697387695,
+   1.4851332902908325
+  ],
+  "hand_r": [
+   -3.203749656677246e-07,
+   -0.25176262855529785,
+   1.4851332902908325
+  ],
+  "mass": 16.391155242919922
+ },
+ "checks": {
+  "joints_24": true,
+  "usd_revolute_24": true,
+  "palm_collisions_2": true,
+  "upright_like_shipped": true,
+  "hands_symmetric": true,
+  "hands_match_shipped": true,
+  "mass_plausible": true
+ },
+ "actuators": {
+  "arms": {
+   "effort": 8.0,
+   "stiffness": 20.0
+  },
+  "legs": {
+   "effort": 6,
+   "stiffness": 20
+  },
+  "ankles": {
+   "effort": 6,
+   "stiffness": 20
+  },
+  "grippers": {
+   "effort": 2.0,
+   "stiffness": 20.0
+  }
+ }
+}

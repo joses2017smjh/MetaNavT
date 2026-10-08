@@ -1,0 +1,92 @@
+{
+  "out": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v2-20260926/armA-s1",
+  "seed": 1,
+  "total_steps": 30000000,
+  "n_envs": 16,
+  "n_steps": 256,
+  "eval_every": 1000000,
+  "checkpoint_every": 2000000,
+  "subproc": true,
+  "dummy_vec": false,
+  "env_version": 2,
+  "ppo": {
+    "n_steps": 256,
+    "batch_size": 1024,
+    "n_epochs": 4,
+    "lr": 0.0003,
+    "lr_final": 3e-05,
+    "gamma": 0.998,
+    "gae_lambda": 0.95,
+    "clip": 0.2,
+    "ent_coef": 0.01,
+    "target_kl": 0.02,
+    "log_std_init": -0.5,
+    "std_floor": 0.2
+  },
+  "n_eval": 24,
+  "n_final_eval": 48,
+  "eval_workers": null,
+  "curriculum": [
+    [
+      [
+        3,
+        3
+      ]
+    ],
+    [
+      [
+        3,
+        3
+      ],
+      [
+        4,
+        4
+      ]
+    ],
+    [
+      [
+        4,
+        4
+      ],
+      [
+        5,
+        5
+      ]
+    ],
+    [
+      [
+        5,
+        5
+      ],
+      [
+        6,
+        6
+      ]
+    ]
+  ],
+  "eval_sizes": [
+    [
+      5,
+      5
+    ],
+    [
+      6,
+      6
+    ]
+  ],
+  "final_eval_sizes": [
+    [
+      4,
+      4
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      6,
+      6
+    ]
+  ],
+  "env_shaping_gamma": 1.0
+}

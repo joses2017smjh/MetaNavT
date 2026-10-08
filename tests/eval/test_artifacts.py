@@ -155,7 +155,7 @@ def test_research_evidence_prefers_live_config_current_paper_and_source():
     assert prop.exec_result.ok, prop.exec_result.error
 
 
-def test_spec_required_citations_and_agent_hitl(tmp_path):
+def test_spec_required_citations_and_agent_hitl(tmp_path, operator_grant):
     idx = _index()
     spec = spec_from_query("write a test for fusion", idx.retrieve("fusion").hits)
     assert spec.citations
@@ -173,14 +173,14 @@ def test_spec_required_citations_and_agent_hitl(tmp_path):
     except ApprovalRequired:
         raised = True
     assert raised
-    applied = tools.apply_artifact(pending["plan_id"], approved=True)
+    applied = tools.apply_artifact(pending["plan_id"], approval_token=operator_grant(tools, pending["plan_id"]))
     assert applied["status"] == "applied"
     written = tmp_path / pending["spec"]["file_path"]
     assert written.exists()
     assert "citations:" in written.read_text()
 
 
-def test_patch_search_replace_requires_approval(tmp_path):
+def test_patch_search_replace_requires_approval(tmp_path, operator_grant):
     src = tmp_path / "src"
     src.mkdir()
     (src / "fusion.py").write_text("def project(features, fusion_on):\n    return features[0]\n")
@@ -197,7 +197,7 @@ def test_patch_search_replace_requires_approval(tmp_path):
     except ApprovalRequired:
         raised = True
     assert raised
-    tools.apply_patch(pending["plan_id"], approved=True)
+    tools.apply_patch(pending["plan_id"], approval_token=operator_grant(tools, pending["plan_id"]))
     text = (src / "fusion.py").read_text()
     assert "reference view only" in text
     parsed = parse_search_replace(

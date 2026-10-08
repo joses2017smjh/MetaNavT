@@ -1,0 +1,232 @@
+{
+  "protocol": "inspection_maze.py ordered route, reactive sensors, seeds 0-2, 60 s; Mahony at 200 Hz from the physics substep hook; L1 noise (gyro 0.02, accel 0.3, bias 0.02); IMU delivery delay in ms",
+  "job": 21402725,
+  "arms": {
+    "sf03b-delay0ms": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        16.12,
+        16.52,
+        16.36
+      ],
+      "gravity_rmse": [
+        0.027315513820302936,
+        0.02511961673269487,
+        0.0355909816860453
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        6.94,
+        7.02,
+        7.02
+      ]
+    },
+    "sf03b-delay10ms": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        16.12,
+        16.240000000000002,
+        16.080000000000002
+      ],
+      "gravity_rmse": [
+        0.030105819372679542,
+        0.026892627001098707,
+        0.03564185642094588
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.18,
+        6.97,
+        7.07
+      ]
+    },
+    "sf03b-delay20ms": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        16.12,
+        16.64,
+        16.56
+      ],
+      "gravity_rmse": [
+        0.03401838074554085,
+        0.02856620706272518,
+        0.03470530202143364
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.29,
+        7.44,
+        7.21
+      ]
+    },
+    "sf03b-delay30ms": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        16.080000000000002,
+        17.12,
+        15.84
+      ],
+      "gravity_rmse": [
+        0.04120161749968512,
+        0.036689302516575616,
+        0.043316209230510196
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.85,
+        8.4,
+        8.04
+      ]
+    },
+    "sf03b-delay40ms": {
+      "success": 1,
+      "n": 3,
+      "completion_s": [
+        20.64
+      ],
+      "gravity_rmse": [
+        0.07069611264193325,
+        0.058746494490755106,
+        0.059852875067151035
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [
+        [
+          "fall",
+          20.2
+        ],
+        [
+          "fall",
+          4.7
+        ]
+      ],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        13.26,
+        2.48,
+        13.15
+      ]
+    },
+    "sf03b-delay5ms": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        16.48,
+        16.56,
+        16.2
+      ],
+      "gravity_rmse": [
+        0.028939729994681737,
+        0.027382196035148194,
+        0.03608968920853084
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [],
+      "wall_contacts": [
+        0,
+        0,
+        0
+      ],
+      "path_m": [
+        7.05,
+        7.03,
+        7.09
+      ]
+    },
+    "sf03b-delay60ms": {
+      "success": 0,
+      "n": 3,
+      "completion_s": [],
+      "gravity_rmse": [
+        0.10776121920578809,
+        0.10624586254752288,
+        0.1032768336894691
+      ],
+      "aligned": [
+        true,
+        true,
+        true
+      ],
+      "failures": [
+        [
+          "fall",
+          3.0
+        ],
+        [
+          "fall",
+          3.7
+        ],
+        [
+          "fall",
+          2.7
+        ]
+      ],
+      "wall_contacts": [
+        0,
+        3,
+        0
+      ],
+      "path_m": [
+        2.35,
+        2.57,
+        1.74
+      ]
+    }
+  }
+}

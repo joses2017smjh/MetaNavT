@@ -1,0 +1,3 @@
+RTX 6.0.0 | rgb (256, 256, 3) mean=222.2 std=24.4 unique=1902
+RTX 6.0.0 | depth (256, 256) finite=0.282 range=[270.0, 270.0]
+VERDICT | depth=OK rgb=OK -> RTX FULLY RENDERS ON 6.0

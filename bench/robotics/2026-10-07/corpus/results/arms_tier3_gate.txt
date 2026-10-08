@@ -1,0 +1,4 @@
+  ppo-stairs     PASS  ok
+  mappo-stairs   PASS  ok
+  limb1-stairs   PASS  ok
+G-T3 PASS

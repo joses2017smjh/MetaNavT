@@ -1,0 +1,33 @@
+{
+  "utc": "2026-10-06T12:56:39.017745+00:00",
+  "slurm_job_id": "21602115",
+  "source_sha256": "d74574dbc07e93b48655168268d22b84feb481122b232bf220c31b7e227b7b5e",
+  "source_hashes": {
+    "locomotion_protocol": "0aac4602e557436c9476ef894b1bb80dc406a5f65848aaf26d8f12a534e58578",
+    "navigation_protocol": "e3ae4fc55eb8d29009e5a2bcb360f4329eb0222e4c1ec159996c213a3765802c",
+    "locomotion_verdict": "7bd2629ae71b8bddd61e1b4c9d88c85d1abd5116f145d00f3783755bd82fcc04",
+    "navigation_verdict": "7b9a1901f1febd48e6ff4849ecbd26a2ca6c15f36326da5be378d2020b9b8393",
+    "publisher_code": "189313b138c760d638377279b22ed6e7eef3e882044fbca8b7faff0de47d1d36"
+  },
+  "prior_doc_sha256": {
+    "README.md": "0d7f4bd22cac670d18a45e7fe74e6f163042579794fb6167d195137fffe9eb72",
+    "docs/RANDOM_MAZE.md": "cb9f6e015fa32065a3d594708a0292b59f163295ad05534ae699f38acda4375f",
+    "docs/STATUS.md": "821b7b94a60910b20d956561ccf9b2c27504fe1faa9a37fce432d9e6266d52fe",
+    "SLURM_JOBS.md": "5b595aafcce4260e025aa98aaeeb7305e00d5e01e88353241981a9dc47c5e9d0"
+  },
+  "appended_existing_docs": [
+    "README.md",
+    "docs/RANDOM_MAZE.md",
+    "docs/STATUS.md",
+    "SLURM_JOBS.md"
+  ],
+  "statuses": {
+    "locomotion": "PASS",
+    "navigation": "NEGATIVE"
+  },
+  "recorded_episode_files": {
+    "locomotion": 3600,
+    "navigation": 384
+  },
+  "method": "append-only; no prior prose rewritten"
+}

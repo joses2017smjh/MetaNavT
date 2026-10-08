@@ -1,26 +1,15 @@
-"""Citation verification: post-generation gate that checks every claim is sourced.
+"""Literal citation/value checks, not semantic entailment or fact verification.
 
-After the agent produces an answer with citations, this module verifies:
-1. Every cited path actually exists in the retrieved evidence
-2. Every factual claim in the answer can be traced to a cited chunk
-3. No hallucinated values appear (numbers, configs, names not in evidence)
-
-Unverified claims are flagged. If the ratio of verified claims is below
-the threshold, the answer is rejected (fail-loud).
-
-Two strictness levels:
-- verify_claims(..., cited_only=False): a value counts as verified when it appears
-  anywhere in the retrieved evidence (the pre-M4 behaviour).
-- verify_claims(..., cited_only=True): a value counts only when it appears inside
-  a chunk the answer actually cites (path, and byte range when the citation
-  carries one). This is what M4's deterministic check uses: "every number or
-  config value in the answer appears in the cited bytes".
+Strict mode checks only the exact cited UTF-8 byte range. Structure-aware chunks
+may include synthetic search headers; their raw source span is used instead.
+Matching a number or token does not establish its subject, unit, polarity or
+currency. Use evidence_checks for explicit structured fact comparisons.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Sequence
 
 from app.retrieval.types import Chunk
@@ -109,30 +98,53 @@ def cited_chunks(
     evidence: Sequence[Chunk],
     citations: Sequence[dict | tuple | str] | None,
 ) -> list[Chunk]:
-    """The evidence chunks an answer cites.
+    """Return raw evidence sliced to the requested range, never its whole chunk.
 
-    A citation may be a path (str), a (path, start, end) tuple or a dict with
-    path / start_byte / end_byte. With a byte range, the chunk must cover it;
-    with a bare path, every chunk of that path counts.
+    Missing/invalid ranges, UTF-8 mid-character boundaries and transformed
+    chunks without a raw span fail closed. A bare path selects its raw chunks.
     """
-    if not citations:
-        return []
     keep: list[Chunk] = []
-    for cit in citations:
+    for cit in citations or []:
         if isinstance(cit, str):
             path, start, end = cit, None, None
         elif isinstance(cit, dict):
             path, start, end = cit.get("path"), cit.get("start_byte"), cit.get("end_byte")
-        else:
+        elif isinstance(cit, (tuple, list)):
             path, start, end = (list(cit) + [None, None])[:3]
+        else:
+            continue
+        ranged = start is not None or end is not None
+        if ranged and (type(start) is not int or type(end) is not int or not 0 <= start < end):
+            continue
         for chunk in evidence:
             if chunk.path != path:
                 continue
-            if start is not None and end is not None and not (chunk.start_byte <= int(start) and int(end) <= chunk.end_byte):
+            raw = chunk.metadata.get("evidence_raw")
+            if raw is None:
+                if chunk.metadata.get("text_is_verbatim") is False:
+                    continue
+                raw = chunk.text
+            if not isinstance(raw, str):
                 continue
-            if chunk not in keep:
-                keep.append(chunk)
+            lo, hi = chunk.start_byte, chunk.end_byte
+            data = raw.encode("utf-8")
+            if ranged:
+                if len(data) != hi - lo or not lo <= start < end <= hi:
+                    continue
+                try:
+                    raw = data[start-lo:end-lo].decode("utf-8", errors="strict")
+                except UnicodeDecodeError:
+                    continue
+                lo, hi = start, end
+            sliced = replace(chunk, text=raw, start_byte=lo, end_byte=hi)
+            if sliced not in keep:
+                keep.append(sliced)
     return keep
+
+
+def _literal_found(value: str, text: str) -> bool:
+    # A cited 0.0559 or run 147 must not support the literal 0.055 or 47.
+    return bool(re.search(r"(?<![\w.])" + re.escape(value) + r"(?![\w.])", text, re.I))
 
 
 def verify_claims(
@@ -149,42 +161,46 @@ def verify_claims(
     cited_only=True restricts value checks to the chunks named in `citations`
     (falling back to `cited_paths`): a number that is in the evidence but not in
     the cited bytes is reported as hallucinated_values, because the citation
-    does not support it.
+    does not literally contain it. This is not an entailment check.
     """
     evidence_paths = {c.path for c in evidence}
     cited_set = set(cited_paths or [])
     if cited_only:
-        scope = cited_chunks(evidence, citations) or cited_chunks(evidence, list(cited_set))
+        scope = cited_chunks(evidence, citations if citations is not None else list(cited_set))
     else:
         scope = list(evidence)
     evidence_text = " ".join(c.text for c in scope)
-    evidence_lower = evidence_text.lower()  # values match case-insensitively (DINOv2 vs `encoder: dinov2`)
 
     missing_citations: list[str] = []
     hallucinated_values: list[str] = []
     verified_count = 0
 
     for claim in claims:
+        claim.verified = False
+        claim.evidence_snippet = ""
+        claim_scope = ([chunk for chunk in scope if chunk.path == claim.cited_path]
+                       if cited_only and claim.cited_path else scope)
+        claim_evidence = " ".join(chunk.text for chunk in claim_scope)
         if claim.cited_path:
-            if claim.cited_path not in evidence_paths and claim.cited_path not in cited_set:
+            if claim.cited_path not in evidence_paths:
                 missing_citations.append(claim.cited_path)
                 claim.verified = False
                 continue
 
         if claim.value:
-            if claim.value.lower() in evidence_lower:
+            if _literal_found(claim.value, claim_evidence):
                 claim.verified = True
-                for chunk in scope:
-                    if claim.value.lower() in chunk.text.lower():
+                for chunk in claim_scope:
+                    if _literal_found(claim.value, chunk.text):
                         claim.evidence_snippet = chunk.text[:200]
                         break
             else:
                 claim.verified = False
                 hallucinated_values.append(claim.value)
                 continue
-        elif claim.cited_path and claim.cited_path in evidence_paths:
+        elif claim.cited_path and claim.cited_path in {chunk.path for chunk in claim_scope}:
             claim.verified = True
-        elif _fuzzy_match_claim(claim.text, evidence_text):
+        elif _fuzzy_match_claim(claim.text, claim_evidence):
             claim.verified = True
         else:
             claim.verified = False

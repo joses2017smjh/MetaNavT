@@ -1,0 +1,37 @@
+{
+  "output": "docs/gifs/inspection-maze-panels.gif",
+  "output_sha256": "976a58ae253e0d5743489275c18d4d5638d37b0c6b672b568175e5556ddd6735",
+  "output_mb": 1.19,
+  "source_clip": "results/repo-gpu-20260923/maze-panels/inspection-maze-panels.mp4",
+  "source_sha256": "4aac65b998ce5b0455d922694fa467f265bc15470a3a79a74d07cb1dae0b35bf",
+  "evidence": "results/repo-gpu-20260923/maze-panels/inspection-maze-panels.json",
+  "episode": {
+    "seed": 0,
+    "route": "ordered",
+    "sensor_mode": "reactive",
+    "success": true,
+    "failure": null,
+    "completion_s": 17.36,
+    "stations_completed": 2,
+    "wall_contact_steps": 0,
+    "path_length_m": 6.930498464704443
+  },
+  "matches_readme_recording": true,
+  "readme_recording_completion_s": 17.36,
+  "playback_speed": 2.0,
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/inspection-maze-panels.gif",
+    "bytes": 1192762,
+    "mb": 1.19,
+    "fps": 8,
+    "width": 860,
+    "max_colors": 128,
+    "speed": 2.0,
+    "badge": "GIF 2x",
+    "within_budget": true
+  },
+  "scope": "MuJoCo 3.3.5 | frozen learned gait + oracle waypoints + sensor speed brake | lidar and paired ray depth shown are the brake's inputs | textured world is visual only",
+  "capture": "top view: MuJoCo offscreen renderer, free camera; robot-eye: free camera at the stereo mount; depth/lidar panels: the packet the brake consumed at that step",
+  "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-08-18_20-57-50_arms-dr1.0-s0/exported/policy.onnx",
+  "checkpoint_sha256": "4f559e08089eb5404a44bf43df9fab2acd48f78e6686e235aefd946adb0cfd4b"
+}

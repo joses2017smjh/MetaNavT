@@ -1,0 +1,31 @@
+{
+ "copied": "2026-10-07T17:44:48-07:00",
+ "note": "byte-for-byte copies of the 2026-10-06 confirmatory campaign's verdicts, protocols and receipts, so the results are citable from the repository; the campaign itself (per-episode files, logs) stays at the source",
+ "source_campaign": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory",
+ "files": {
+  "dr_verdict.json": {
+   "source": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory/dr_verdict.json",
+   "sha256": "7bd2629ae71b8bddd61e1b4c9d88c85d1abd5116f145d00f3783755bd82fcc04"
+  },
+  "dr_protocol.json": {
+   "source": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory/dr_protocol.json",
+   "sha256": "0aac4602e557436c9476ef894b1bb80dc406a5f65848aaf26d8f12a534e58578"
+  },
+  "nav_verdict.json": {
+   "source": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory/verdict.json",
+   "sha256": "7b9a1901f1febd48e6ff4849ecbd26a2ca6c15f36326da5be378d2020b9b8393"
+  },
+  "nav_protocol.json": {
+   "source": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory/protocol.json",
+   "sha256": "e3ae4fc55eb8d29009e5a2bcb360f4329eb0222e4c1ec159996c213a3765802c"
+  },
+  "publication_receipt.json": {
+   "source": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory/publication_receipt.json",
+   "sha256": "887d04108ba15900ac9cd95f4cc75f5f5607a1cffa2f073dd61a4a57769968dc"
+  },
+  "submission.json": {
+   "source": "/nfs/hpc/share/sanchej7/Computer_Vision/project_results_upgrade/humanoid_confirmatory/submission.json",
+   "sha256": "2e511f0594be8147f37343c4a6cda9cb2566f7078f8f214b0a756fb15566b4c6"
+  }
+ }
+}

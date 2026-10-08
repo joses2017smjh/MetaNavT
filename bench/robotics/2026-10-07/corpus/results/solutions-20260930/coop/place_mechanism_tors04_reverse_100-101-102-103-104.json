@@ -1,0 +1,112 @@
+[
+ {
+  "variant": "tors04",
+  "lower": "reverse",
+  "seed": 100,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2008,
+  "hold_s": 4.16,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.2649,
+   0.0588
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 1.797,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.6,
+   "phase": "release"
+  },
+  "wall_s": 15.4
+ },
+ {
+  "variant": "tors04",
+  "lower": "reverse",
+  "seed": 101,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1731,
+  "hold_s": 4.8,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.1285,
+   0.268
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1737,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.96,
+   "phase": "retract"
+  },
+  "wall_s": 15.4
+ },
+ {
+  "variant": "tors04",
+  "lower": "reverse",
+  "seed": 102,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1791,
+  "hold_s": 4.08,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.0228,
+   0.2805
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1684,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.6,
+   "phase": "release"
+  },
+  "wall_s": 15.3
+ },
+ {
+  "variant": "tors04",
+  "lower": "reverse",
+  "seed": 103,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1905,
+  "hold_s": 4.84,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.2247,
+   0.1437
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 2.0282,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.6,
+   "phase": "release"
+  },
+  "wall_s": 15.4
+ },
+ {
+  "variant": "tors04",
+  "lower": "reverse",
+  "seed": 104,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2248,
+  "hold_s": 5.16,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.2662,
+   0.1729
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 1.8775,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.56,
+   "phase": "release"
+  },
+  "wall_s": 15.7
+ }
+]

@@ -1,0 +1,74 @@
+{
+  "stages": {
+    "boot": {
+      "ok": true,
+      "kit_version": "6.0.1",
+      "active_renderer": "?"
+    },
+    "render_product": {
+      "ok": true,
+      "rgb": "(64, 64, 4)",
+      "depth": "(64, 64)"
+    },
+    "not_degenerate": {
+      "ok": true,
+      "colours": 56,
+      "finite": "72%",
+      "depth_spread_m": 10.78
+    },
+    "responds_to_scene": {
+      "ok": true,
+      "mean_pixel_delta": 72.15
+    }
+  },
+  "timings": [
+    {
+      "cameras": 1,
+      "res": 64,
+      "ms_per_frame": 169.712,
+      "ms_per_camera": 169.7119
+    },
+    {
+      "cameras": 4,
+      "res": 64,
+      "ms_per_frame": 201.169,
+      "ms_per_camera": 50.2922
+    },
+    {
+      "cameras": 16,
+      "res": 64,
+      "ms_per_frame": 272.294,
+      "ms_per_camera": 17.0184
+    },
+    {
+      "cameras": 64,
+      "res": 64,
+      "ms_per_frame": 876.888,
+      "ms_per_camera": 13.7014
+    },
+    {
+      "cameras": 1,
+      "res": 128,
+      "ms_per_frame": 173.237,
+      "ms_per_camera": 173.2366
+    },
+    {
+      "cameras": 4,
+      "res": 128,
+      "ms_per_frame": 211.203,
+      "ms_per_camera": 52.8007
+    },
+    {
+      "cameras": 16,
+      "res": 128,
+      "ms_per_frame": 283.646,
+      "ms_per_camera": 17.7279
+    },
+    {
+      "cameras": 64,
+      "res": 128,
+      "ms_per_frame": 903.15,
+      "ms_per_camera": 14.1117
+    }
+  ]
+}

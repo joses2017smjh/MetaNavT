@@ -1,0 +1,5 @@
+quat order probed: xyzw   base projected-gravity z -0.998 (-1 upright)   configured corrected rot (0.0, 0.1736, 0.0, 0.9848)
+  stereo_l   pitch  -20.0 deg   up_z +0.94   hits 0.775   rows(top->bottom) 0.00 0.54 1.00 1.00 1.00
+  stereo_r   pitch  -20.0 deg   up_z +0.94   hits 0.776   rows(top->bottom) 0.00 0.54 1.00 1.00 1.00
+  stereo_raw pitch  +20.0 deg   up_z -0.94   hits 0.148   rows(top->bottom) 1.00 0.00 0.00 0.00 0.00
+STEREO-PITCH PASS  corrected pitch -20.0/-20.0 hits 0.775  raw pitch +20.0 hits 0.148

@@ -1,0 +1,14 @@
+{
+  "source_clip": "results/weekend-20260919/inspection-maze.mp4",
+  "source_sha256": "01f70d16ad040a5482d329f49f40d0874ac221924e3360d7ff9f7c176ad8ccac",
+  "evidence": "results/weekend-20260919/inspection-maze-video.json",
+  "evidence_sha256": "6380d955869cdd7df5487a78a9e9434a2ecedd66811202ed64a178a4e2fb68d3",
+  "output": "docs/gifs/weekend-inspection.gif",
+  "output_sha256": "19ca85a50c8454fc79ca1076f66eb08c36c46115f756081397afdcdd8d574808",
+  "expected_success": true,
+  "failure": null,
+  "completion_s": 17.36,
+  "playback_speed": 1.0,
+  "caption": "COMPLETED - two ordered inspections and exit",
+  "scope": "MuJoCo | learned gait + oracle waypoints + sensor brake | 1x"
+}

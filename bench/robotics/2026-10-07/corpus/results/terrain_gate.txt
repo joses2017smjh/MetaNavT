@@ -1,0 +1,18 @@
+CHECK | bumpy    static=(0.4, 1.2) dynamic=(0.4, 1.2)
+CHECK | slippery static=(0.25, 0.35) dynamic=(0.18, 0.3)
+PASS  | slippery friction differs from bumpy
+PASS  | slippery max 0.35 is below bumpy min 0.4 -- a different regime, not the tail of the same one
+PASS  | dynamic friction does not exceed static
+PASS  | slippery and slippery-depth share one terrain menu
+VERDICT | ALL PASS
+CHECK | stairs sub-terrains: ['stairs_down', 'stairs_up']
+CHECK | stairs_up: riser 0 -> 3.0 cm (11% leg), tread 32 cm
+PASS  | stairs_up riser 3.0 cm within the 3 cm ceiling G-B2 settled on
+PASS  | stairs_up starts at zero, so difficulty 0 is flat
+PASS  | stairs_up tread 32 cm fits a foot
+CHECK | stairs_down: riser 0 -> 3.0 cm (11% leg), tread 32 cm
+PASS  | stairs_down riser 3.0 cm within the 3 cm ceiling G-B2 settled on
+PASS  | stairs_down starts at zero, so difficulty 0 is flat
+PASS  | stairs_down tread 32 cm fits a foot
+PASS  | both ascent and descent present
+VERDICT | ALL PASS

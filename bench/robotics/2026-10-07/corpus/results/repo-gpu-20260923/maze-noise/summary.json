@@ -1,0 +1,110 @@
+{
+  "protocol": "maze_recovery_probe.py --keep-corruption, 12 Full-stage checkpoints, 32 envs x 600 steps, seeds 100+train_seed, first episode per env",
+  "job": 21402549,
+  "rows": [
+    {
+      "arm": "Blind",
+      "seed": 0,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Blind",
+      "seed": 1,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 29,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Blind",
+      "seed": 2,
+      "noise_on_success": 31,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Both",
+      "seed": 0,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Both",
+      "seed": 1,
+      "noise_on_success": 31,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Both",
+      "seed": 2,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Lidar",
+      "seed": 0,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Lidar",
+      "seed": 1,
+      "noise_on_success": 31,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Lidar",
+      "seed": 2,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Stereo",
+      "seed": 0,
+      "noise_on_success": 31,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Stereo",
+      "seed": 1,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 32,
+      "observation_corruption": true
+    },
+    {
+      "arm": "Stereo",
+      "seed": 2,
+      "noise_on_success": 32,
+      "n": 32,
+      "noise_off_success": 30,
+      "observation_corruption": true
+    }
+  ],
+  "pooled_noise_on": [
+    380,
+    384
+  ],
+  "pooled_noise_off_published": [
+    379,
+    384
+  ]
+}

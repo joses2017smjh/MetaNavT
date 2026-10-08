@@ -1,0 +1,998 @@
+{
+  "seed": 9,
+  "maze": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "cells_on_shortest_route": 31,
+    "walls": 48,
+    "layout_sha256": "30015358ff97c777"
+  },
+  "outcome": "fall",
+  "success": false,
+  "clean_success": false,
+  "completion_s": null,
+  "elapsed_s": 10.8,
+  "wall_contact_steps": 0,
+  "path_length_m": 8.18,
+  "turns": 3,
+  "replans": 26,
+  "map_updates": 108,
+  "mapped_fraction_end": 0.136,
+  "sensor_mode": "reactive",
+  "sensor_stats": {
+    "received_extero_packets": 109,
+    "dropped_extero_packets": 0,
+    "braked_robot_steps": 83,
+    "stale_stop_robot_steps": 0,
+    "range_limited_robot_steps": 78,
+    "imu_limited_robot_steps": 13,
+    "sampled_robot_steps": 271
+  },
+  "initial_heading_rad": 0.0,
+  "controller": {
+    "cruise": 0.3,
+    "turn_rate": 0.6,
+    "inflate_m": 0.3,
+    "replan_s": 0.4,
+    "map_res": 0.1
+  },
+  "control": "frozen_learned_biped_gait+lidar_occupancy_map+astar_unknown_free+turn_then_walk; pose and goal are oracle; gait attitude = filter in the loop (imu)",
+  "policy": null,
+  "wall_seconds": 6.2,
+  "trace": [
+    {
+      "t": 0.0,
+      "xy": [
+        0.025,
+        0.075
+      ],
+      "yaw": 0.0,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 2
+    },
+    {
+      "t": 0.2,
+      "xy": [
+        0.032,
+        0.072
+      ],
+      "yaw": -0.022,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 2
+    },
+    {
+      "t": 0.4,
+      "xy": [
+        0.035,
+        0.063
+      ],
+      "yaw": -0.021,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 4
+    },
+    {
+      "t": 0.6,
+      "xy": [
+        0.035,
+        0.055
+      ],
+      "yaw": -0.017,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 4
+    },
+    {
+      "t": 0.8,
+      "xy": [
+        0.031,
+        0.052
+      ],
+      "yaw": -0.014,
+      "state": "settle",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "known": 0.0,
+      "plan_len": 4
+    },
+    {
+      "t": 1.0,
+      "xy": [
+        0.035,
+        0.053
+      ],
+      "yaw": -0.011,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.05,
+      "plan_len": 4
+    },
+    {
+      "t": 1.2,
+      "xy": [
+        0.023,
+        0.065
+      ],
+      "yaw": 0.14,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.05,
+      "plan_len": 4
+    },
+    {
+      "t": 1.4,
+      "xy": [
+        0.007,
+        0.086
+      ],
+      "yaw": 0.18,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.05,
+      "plan_len": 4
+    },
+    {
+      "t": 1.6,
+      "xy": [
+        0.061,
+        0.105
+      ],
+      "yaw": 0.178,
+      "state": "walk",
+      "cmd": [
+        0.296,
+        0.0,
+        0.188
+      ],
+      "known": 0.05,
+      "plan_len": 4
+    },
+    {
+      "t": 1.8,
+      "xy": [
+        0.097,
+        0.126
+      ],
+      "yaw": 0.269,
+      "state": "walk",
+      "cmd": [
+        0.221,
+        0.0,
+        -0.004
+      ],
+      "known": 0.05,
+      "plan_len": 4
+    },
+    {
+      "t": 2.0,
+      "xy": [
+        0.174,
+        0.12
+      ],
+      "yaw": 0.234,
+      "state": "walk",
+      "cmd": [
+        0.3,
+        0.0,
+        0.041
+      ],
+      "known": 0.051,
+      "plan_len": 4
+    },
+    {
+      "t": 2.2,
+      "xy": [
+        0.22,
+        0.162
+      ],
+      "yaw": 0.274,
+      "state": "walk",
+      "cmd": [
+        0.269,
+        0.0,
+        -0.008
+      ],
+      "known": 0.051,
+      "plan_len": 4
+    },
+    {
+      "t": 2.4,
+      "xy": [
+        0.233,
+        0.162
+      ],
+      "yaw": 0.308,
+      "state": "walk",
+      "cmd": [
+        0.27,
+        0.0,
+        -0.07
+      ],
+      "known": 0.051,
+      "plan_len": 4
+    },
+    {
+      "t": 2.6,
+      "xy": [
+        0.341,
+        0.179
+      ],
+      "yaw": 0.29,
+      "state": "walk",
+      "cmd": [
+        0.222,
+        0.0,
+        0.07
+      ],
+      "known": 0.051,
+      "plan_len": 4
+    },
+    {
+      "t": 2.8,
+      "xy": [
+        0.441,
+        0.162
+      ],
+      "yaw": 0.221,
+      "state": "walk",
+      "cmd": [
+        0.294,
+        0.0,
+        0.233
+      ],
+      "known": 0.051,
+      "plan_len": 4
+    },
+    {
+      "t": 3.0,
+      "xy": [
+        0.442,
+        0.23
+      ],
+      "yaw": 0.336,
+      "state": "walk",
+      "cmd": [
+        0.295,
+        0.0,
+        -0.209
+      ],
+      "known": 0.058,
+      "plan_len": 4
+    },
+    {
+      "t": 3.2,
+      "xy": [
+        0.502,
+        0.231
+      ],
+      "yaw": 0.24,
+      "state": "walk",
+      "cmd": [
+        0.3,
+        0.0,
+        -0.037
+      ],
+      "known": 0.058,
+      "plan_len": 4
+    },
+    {
+      "t": 3.4,
+      "xy": [
+        0.555,
+        0.296
+      ],
+      "yaw": 0.28,
+      "state": "walk",
+      "cmd": [
+        0.266,
+        0.0,
+        -0.176
+      ],
+      "known": 0.058,
+      "plan_len": 5
+    },
+    {
+      "t": 3.6,
+      "xy": [
+        0.563,
+        0.276
+      ],
+      "yaw": 0.252,
+      "state": "walk",
+      "cmd": [
+        0.213,
+        0.0,
+        -0.136
+      ],
+      "known": 0.058,
+      "plan_len": 5
+    },
+    {
+      "t": 3.8,
+      "xy": [
+        0.656,
+        0.289
+      ],
+      "yaw": 0.247,
+      "state": "walk",
+      "cmd": [
+        0.298,
+        0.0,
+        0.13
+      ],
+      "known": 0.058,
+      "plan_len": 4
+    },
+    {
+      "t": 4.0,
+      "xy": [
+        0.789,
+        0.4
+      ],
+      "yaw": 0.386,
+      "state": "walk",
+      "cmd": [
+        0.149,
+        0.0,
+        -0.161
+      ],
+      "known": 0.065,
+      "plan_len": 4
+    },
+    {
+      "t": 4.2,
+      "xy": [
+        0.769,
+        0.296
+      ],
+      "yaw": 0.281,
+      "state": "walk",
+      "cmd": [
+        0.149,
+        0.0,
+        0.098
+      ],
+      "known": 0.065,
+      "plan_len": 4
+    },
+    {
+      "t": 4.4,
+      "xy": [
+        0.953,
+        0.329
+      ],
+      "yaw": 0.209,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.065,
+      "plan_len": 6
+    },
+    {
+      "t": 4.6,
+      "xy": [
+        0.944,
+        0.338
+      ],
+      "yaw": 0.289,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.065,
+      "plan_len": 6
+    },
+    {
+      "t": 4.8,
+      "xy": [
+        0.95,
+        0.314
+      ],
+      "yaw": 0.437,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.065,
+      "plan_len": 6
+    },
+    {
+      "t": 5.0,
+      "xy": [
+        0.944,
+        0.279
+      ],
+      "yaw": 0.552,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.092,
+      "plan_len": 6
+    },
+    {
+      "t": 5.2,
+      "xy": [
+        0.927,
+        0.218
+      ],
+      "yaw": 0.517,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.092,
+      "plan_len": 6
+    },
+    {
+      "t": 5.4,
+      "xy": [
+        0.798,
+        0.048
+      ],
+      "yaw": 0.471,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.092,
+      "plan_len": 6
+    },
+    {
+      "t": 5.6,
+      "xy": [
+        0.809,
+        -0.111
+      ],
+      "yaw": 0.823,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.092,
+      "plan_len": 5
+    },
+    {
+      "t": 5.8,
+      "xy": [
+        0.749,
+        -0.044
+      ],
+      "yaw": 1.035,
+      "state": "walk",
+      "cmd": [
+        0.05,
+        0.0,
+        0.03
+      ],
+      "known": 0.092,
+      "plan_len": 5
+    },
+    {
+      "t": 6.0,
+      "xy": [
+        0.722,
+        -0.11
+      ],
+      "yaw": 0.898,
+      "state": "walk",
+      "cmd": [
+        0.142,
+        0.0,
+        0.395
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 6.2,
+      "xy": [
+        0.851,
+        0.03
+      ],
+      "yaw": 0.888,
+      "state": "walk",
+      "cmd": [
+        0.139,
+        0.0,
+        0.4
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 6.4,
+      "xy": [
+        0.724,
+        -0.075
+      ],
+      "yaw": 0.886,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 6.6,
+      "xy": [
+        0.764,
+        -0.155
+      ],
+      "yaw": 1.224,
+      "state": "walk",
+      "cmd": [
+        0.185,
+        0.0,
+        0.066
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 6.8,
+      "xy": [
+        0.791,
+        -0.051
+      ],
+      "yaw": 1.114,
+      "state": "walk",
+      "cmd": [
+        0.259,
+        0.0,
+        0.183
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 7.0,
+      "xy": [
+        0.754,
+        -0.072
+      ],
+      "yaw": 1.178,
+      "state": "walk",
+      "cmd": [
+        0.187,
+        0.0,
+        0.061
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 7.2,
+      "xy": [
+        0.768,
+        0.017
+      ],
+      "yaw": 1.19,
+      "state": "walk",
+      "cmd": [
+        0.159,
+        0.0,
+        -0.003
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 7.4,
+      "xy": [
+        0.776,
+        0.015
+      ],
+      "yaw": 1.194,
+      "state": "walk",
+      "cmd": [
+        0.149,
+        0.0,
+        0.005
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 7.6,
+      "xy": [
+        0.819,
+        0.049
+      ],
+      "yaw": 1.196,
+      "state": "walk",
+      "cmd": [
+        0.3,
+        0.0,
+        0.056
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 7.8,
+      "xy": [
+        0.828,
+        0.111
+      ],
+      "yaw": 1.223,
+      "state": "walk",
+      "cmd": [
+        0.278,
+        0.0,
+        0.007
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 8.0,
+      "xy": [
+        0.842,
+        0.141
+      ],
+      "yaw": 1.214,
+      "state": "walk",
+      "cmd": [
+        0.283,
+        0.0,
+        0.006
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 8.2,
+      "xy": [
+        0.868,
+        0.182
+      ],
+      "yaw": 1.213,
+      "state": "walk",
+      "cmd": [
+        0.3,
+        0.0,
+        0.068
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 8.4,
+      "xy": [
+        0.874,
+        0.346
+      ],
+      "yaw": 1.273,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        -0.6
+      ],
+      "known": 0.094,
+      "plan_len": 6
+    },
+    {
+      "t": 8.6,
+      "xy": [
+        0.865,
+        0.24
+      ],
+      "yaw": 1.155,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        -0.6
+      ],
+      "known": 0.094,
+      "plan_len": 6
+    },
+    {
+      "t": 8.8,
+      "xy": [
+        0.996,
+        0.471
+      ],
+      "yaw": 1.002,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.094,
+      "plan_len": 5
+    },
+    {
+      "t": 9.0,
+      "xy": [
+        0.843,
+        0.259
+      ],
+      "yaw": 0.855,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.099,
+      "plan_len": 5
+    },
+    {
+      "t": 9.2,
+      "xy": [
+        1.002,
+        0.422
+      ],
+      "yaw": 1.033,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.099,
+      "plan_len": 5
+    },
+    {
+      "t": 9.4,
+      "xy": [
+        0.875,
+        0.377
+      ],
+      "yaw": 1.031,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.099,
+      "plan_len": 5
+    },
+    {
+      "t": 9.6,
+      "xy": [
+        0.822,
+        0.384
+      ],
+      "yaw": 1.007,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.099,
+      "plan_len": 5
+    },
+    {
+      "t": 9.8,
+      "xy": [
+        0.792,
+        0.28
+      ],
+      "yaw": 0.832,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        -0.6
+      ],
+      "known": 0.099,
+      "plan_len": 6
+    },
+    {
+      "t": 10.0,
+      "xy": [
+        0.907,
+        0.426
+      ],
+      "yaw": 0.795,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        -0.6
+      ],
+      "known": 0.108,
+      "plan_len": 6
+    },
+    {
+      "t": 10.2,
+      "xy": [
+        0.766,
+        0.307
+      ],
+      "yaw": 0.723,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.108,
+      "plan_len": 5
+    },
+    {
+      "t": 10.4,
+      "xy": [
+        0.934,
+        0.389
+      ],
+      "yaw": 0.822,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.108,
+      "plan_len": 5
+    },
+    {
+      "t": 10.6,
+      "xy": [
+        0.877,
+        0.411
+      ],
+      "yaw": 0.173,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.108,
+      "plan_len": 5
+    },
+    {
+      "t": 10.8,
+      "xy": [
+        0.849,
+        0.177
+      ],
+      "yaw": -0.316,
+      "state": "turn",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "known": 0.108,
+      "plan_len": 5
+    }
+  ],
+  "outcome_class": "fall",
+  "goal_check": {
+    "judge": {
+      "rule": "TRUE position within goal_radius (ends the episode)",
+      "goal_radius_m": 0.3,
+      "reached": false,
+      "final_true_dist_m": 9.186
+    },
+    "controller": {
+      "rule": "ESTIMATED position within goal_radius of the plan's last waypoint (the exact goal); commands zero",
+      "arrived_ever": false,
+      "first_arrival_s": null,
+      "true_dist_at_first_arrival_m": null,
+      "est_dist_at_first_arrival_m": null,
+      "arrived_steps": 0,
+      "arrived_at_end": false
+    },
+    "note": "with no pose error the judge fires on the post-step true pose one step before the controller would see it, so arrived_ever is expected false on a reached episode; the learned --policy has no arrival state"
+  },
+  "stall": {
+    "final_s": 2.36,
+    "longest_s": 2.56,
+    "window_s": 20.0,
+    "radius_m": 0.2,
+    "position": "true"
+  },
+  "pose_error": {
+    "pose_bias_m": 0.0,
+    "pose_noise_m": 0.0,
+    "pose_yaw_deg": 0.0,
+    "bias_vector_m": [
+      0.0,
+      0.0
+    ],
+    "rng": "default_rng(10_000 + seed), SF-02",
+    "applied_to": "map + planner + controller (estimated pose); judge uses the true pose"
+  },
+  "imu": {
+    "source": "estimated",
+    "filter": "mahony",
+    "filter_rate_hz": 200.0,
+    "imu_delay_ms": 60.0,
+    "aligned": true,
+    "pre_alignment_steps": 113,
+    "gravity_rmse": 0.12215739261289331,
+    "gravity_max": 0.3593390574245239,
+    "gyro_bias_true_rad_s": [
+      -0.0,
+      0.0,
+      -0.0
+    ],
+    "gyro_bias_estimated_rad_s": [
+      -0.0018551615696301008,
+      -0.015407412837087938,
+      0.004474601983145813
+    ],
+    "settings": {
+      "imu_gyro_std": 0.0,
+      "imu_accel_std": 0.0,
+      "imu_gyro_bias": 0.0,
+      "imu_gyro_bias_walk": 0.0,
+      "imu_delay_steps": 0,
+      "imu_init": "accel",
+      "imu_kp": 1.0,
+      "imu_ki": 0.1,
+      "imu_beta": 0.1
+    }
+  },
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  }
+}

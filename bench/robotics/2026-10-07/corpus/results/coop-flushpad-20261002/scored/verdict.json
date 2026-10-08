@@ -1,0 +1,41 @@
+{
+ "variant": "flushpad_v1",
+ "stage": "scored",
+ "label": "LEARNED gait (frozen arms-dr1.0-s0) + SCRIPTED arms + ORACLE cube pose (scoring only) | MODIFIED END-EFFECTOR (flush hand pads) \u2014 not the stock robot",
+ "label_detail": "legs + outer arm: frozen learned PPO gait arms-dr1.0-s0, unmodified observation, zero velocity command all episode | grasping arm (one per robot): scripted joint keyframes (unchanged), PD kp 30 (deploy 10), 4 Nm cap | cube pose: simulator oracle, scoring only | contact: MuJoCo, no welds | MODIFIED END-EFFECTOR: hand pad = hand-mesh AABB box re-oriented flush to the cube faces at the squeeze pose, condim 4, torsional friction 0.04 m | HARNESS CHANGE: elliptic friction cone, impratio 10 (global; also foot-floor contact)",
+ "end_effector": "MODIFIED END-EFFECTOR (flush hand pads) \u2014 not the stock robot",
+ "harness_change": "HARNESS CHANGE: elliptic friction cone + impratio 10 are global MuJoCo options and also change the foot-floor contact of the frozen gait; the robot-fall clauses are kept unchanged",
+ "clauses_as_applied": [
+  "cube tilt = the angle between the cube's own z axis and world z (CarryRunner.cube_tilt; a cube rolled 90 deg reads 1.571 rad), logged at every policy-step state (t = i * 0.04 s, i = 0..500) in full float precision; <= 0.35 rad passes, anything larger or non-finite fails",
+  "probe 'throughout lift-hold' = every policy-step state of the 20 s lift_hold episode, t = 0 to 20 s inclusive (stricter than the hold alone). A probe seed passes iff that tilt clause, LIFT_HOLD_RULE's robot-fall clause unchanged (no robot of the pair tilts > 0.78 rad at any policy step) and the validity clauses (finite state, no MuJoCo auto-reset, full 20 s) all hold; crew 2 (one pair), seeds 120-124, PROCEED iff >= 4 of 5",
+  "probe disclosure: the rule text names only the robot-fall clauses of LIFT_HOLD_RULE, so its lift, hold and floor clauses are not gated in the probe (they are reported per seed as diagnostics). A probe episode that never lifts the cube therefore passes the probe's tilt clause; the scored stage keeps every LIFT_HOLD_RULE clause",
+  "hold 'throughout the hold' = every policy-step state of the hold LIFT_HOLD_RULE scores (its longest contiguous >= 0.05 m run, hold_start_s inclusive to hold_end_s exclusive); no hold = the clause fails",
+  "place 'at release' = every policy-step state from the first at or after the end of the lowering (PlaceScript t_end['unload'] = 10.7 s: state 268, t = 10.72 s) through the first at or after the hands are fully open (t_end['release'] = 11.7 s: state 293, t = 11.72 s), inclusive; 'when seated' = the final state (t = 20 s), where LIFT_PLACE_RULE checks the seated cube",
+  "crews as the existing rules and launchers define them: crew 2 (one pair) and crew 4 (two pairs, two cubes, one world), >= 8/10 per pair; PASS iff all six pairs (lift-hold crew 2, crew 4 pair 0, crew 4 pair 1; lift-place the same) meet it",
+  "an episode stopped by a non-finite state is a scored failure (as cpu_coop_lift_place.sbatch reads it); its non-finite numbers are written as null so the score JSON holds it. A numerical blow-up that MuJoCo catches itself is a scored failure too, in every stage (check no_sim_reset): MuJoCo 3.3.5 resets the state automatically (qpos0, time 0) when qpos, qvel or qacc holds a NaN or a value beyond 1e10, so the harness's own non-finite check never sees it; it is detected after every policy step from the simulated time (not steps x policy step) and MuJoCo's bad-qpos/qvel/qacc warning counters. An episode that is absent, shorter than 20 s without a recorded failure, or has no tilt log or no auto-reset record is MISSING (INCOMPLETE)",
+  "INVALID (never PROCEED, never PASS): a score JSON that is not this variant's or its stage's, not under the frozen rule, parameters, keyframes or lowering, not a scored run, or whose compiled model does not show the designed flush pads with condim 4, torsional friction 0.04 m, elliptic cone and impratio 10"
+ ],
+ "seed_evidence": [
+  "results/scripted-carry-20260926/score_crew2.json, score_crew4.json, score_lifthold_crew2.json and score_lifthold_crew4.json hold seeds 0-9 only; results/scripted-carry-20260927/score_liftplace_crew2.json and score_liftplace_crew4.json hold seeds 10-19 only",
+  "Slurm logs of this harness: scripted-carry-21434982 and coop-lift-hold-21435079 ran seeds 0-9, coop-lift-place-21443282 seeds 10-19; the render jobs 21435080 and 21443283 skipped (no PASS)",
+  "exploration: this module's docstring and lift-place notes name seeds 100-119 only (100-102, 100-109, 110-114, 100-104 and the slip times on 100-119); the 2026-09-30 investigators' grip and place mechanism JSONs (solutions-20260930/coop and verify-coop) hold seeds 100-104 only",
+  "the ledger (SLURM_JOBS.md) names seeds 0-9 (carry, lift_hold), 10-19 (lift_place) and exploration seeds >= 100 for this harness; no score JSON, Slurm log, ledger entry or investigator file of this harness contains seed 120-124 or any seed 20-39"
+ ],
+ "rule_text": "Scored, only after PROCEED (state the evidence that seeds 20-39 were never used): lift-hold on seeds 20-29 and lift-place on seeds 30-39, each with its UNCHANGED rule (LIFT_HOLD_RULE / LIFT_PLACE_RULE, pass_min 8) PLUS cube tilt <= 0.35 rad (hold: throughout the hold; place: at release and when seated), >= 8/10 per crew or pair as the existing rules define them. PASS iff every crew/pair meets it; otherwise NEGATIVE; INCOMPLETE if any episode is missing.",
+ "verdict": "NOT_RUN",
+ "probe_verdict": "NEGATIVE",
+ "groups": [],
+ "reading": "stage 2 not run: the probe verdict is NEGATIVE, not PROCEED (the frozen rule runs the scored stage only after PROCEED); seeds 20-39 stay unused",
+ "inputs": {
+  "probe_verdict": {
+   "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/coop-flushpad-20261002/probe/verdict.json",
+   "sha256": "1001b083629a42811af4e3ad4feed4dcde0d60224e418f81bcd7a66b3eb9069f"
+  }
+ },
+ "code_sha256": {
+  "scripted_carry.py": "fa298cbe56c5643f2ecd0909af21ee7aa0321f1f246f98b2645b1826477a1961",
+  "coop_scripted_carry.py": "d8962764619c41f531cfe67692019b024cee42e49390ce780a58cb93b47b4b17"
+ },
+ "git_head": "a6c64e0",
+ "written_at": "2026-10-02T05:08:11-0700"
+}

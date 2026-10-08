@@ -1,0 +1,42 @@
+{
+  "verdict": "NEGATIVE",
+  "rule": "PASS iff EACH gate-passing final actor (armV4-s5, armV4-s6) reaches >= 10/12 goals with 0 falls on hard 6x6 maze seeds 50000-50011 (180 s); A* reported, not gated",
+  "labels": {
+    "learned": "biped gait (frozen PPO) + NavGym v4 (vx, wz) commands",
+    "scripted": "A* reference only",
+    "oracle": "pose and goal coordinate"
+  },
+  "learned": {
+    "armV4-s5": {
+      "n": 12,
+      "success": 8,
+      "clean_success": 8,
+      "falls": 0,
+      "time_outs": 4,
+      "stuck": 1,
+      "median_completion_s": 65.68,
+      "meets": false,
+      "onnx_sha256": "e3595cc1ce3df2b114588b13ff6b691257da9452224f95e438036d595c677de2"
+    },
+    "armV4-s6": {
+      "n": 12,
+      "success": 9,
+      "clean_success": 9,
+      "falls": 0,
+      "time_outs": 3,
+      "stuck": 0,
+      "median_completion_s": 59.88,
+      "meets": false,
+      "onnx_sha256": "83f0fc53c374a4c269b205f4bcb8d85f0bee46d6350f0fff02886f3f230d57bf"
+    }
+  },
+  "astar_reference": {
+    "n": 12,
+    "success": 12,
+    "clean_success": 12,
+    "falls": 0,
+    "time_outs": 0,
+    "stuck": 0,
+    "median_completion_s": 67.04
+  }
+}

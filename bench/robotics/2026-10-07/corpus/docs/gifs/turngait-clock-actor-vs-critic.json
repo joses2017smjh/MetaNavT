@@ -1,0 +1,127 @@
+{
+  "what": "turning ablation clip: the same turn_test v2 command given to two LEARNED gaits, side by side",
+  "label": "LEARNED gaits (PPO, frozen at evaluation); MuJoCo CPU physics, rendered; display only, not a gate",
+  "protocol": {
+    "turn_wz_rad_s": 0.6,
+    "warm_s": 3.0,
+    "seconds": 6.0,
+    "reset_seed": 0,
+    "variant": "humanoid",
+    "shown_from_s": 2.0,
+    "turn_min_deg_drawn": 150.0,
+    "match_tol_deg": 0.5,
+    "camera": [
+      2.1,
+      -20.0,
+      30.0
+    ]
+  },
+  "sides": [
+    {
+      "side": "left",
+      "title": "Gait clock in the actor (R1)",
+      "subtitle": "arms-turngait-clock-s2: the 1 of 3 R1 seeds that qualifies",
+      "run_dir": "2026-10-02_03-58-04_arms-turngait-clock-s2",
+      "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-02_03-58-04_arms-turngait-clock-s2/exported/deploy.yaml",
+      "onnx_sha256": "c1862f1e4429c1e6ac2e4fae1391f3f40ccc353382c8bbf4b88efee4c6c8d8de",
+      "scored_json": "results/repo-gpu-20260923/turngait-r12-20261001/turn-test-v2/arms-turngait-clock-s2.json"
+    },
+    {
+      "side": "right",
+      "title": "Gait clock in the critic only (R2)",
+      "subtitle": "arms-turngait-critic-s0: seed 0 of 3; no R2 seed turns",
+      "run_dir": "2026-10-02_04-10-49_arms-turngait-critic-s0",
+      "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-02_04-10-49_arms-turngait-critic-s0/exported/deploy.yaml",
+      "onnx_sha256": "1531a5e669a4f1bf5f7598579d3a8a3f312ac874867c210e72cefbcd5a6154cf",
+      "scored_json": "results/repo-gpu-20260923/turngait-r12-20261001/turn-test-v2/arms-turngait-critic-s0.json"
+    }
+  ],
+  "runs": [
+    {
+      "side": "left",
+      "run_dir": "2026-10-02_03-58-04_arms-turngait-clock-s2",
+      "name": "turn+_s0",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "fell_at_s": null,
+      "yaw_deg": 196.8,
+      "displacement_m": 0.431,
+      "seconds": 6.0,
+      "scored_yaw_deg": 196.8,
+      "matches_scored": true
+    },
+    {
+      "side": "right",
+      "run_dir": "2026-10-02_04-10-49_arms-turngait-critic-s0",
+      "name": "turn+_s0",
+      "cmd": [
+        0.0,
+        0.0,
+        0.6
+      ],
+      "fell_at_s": null,
+      "yaw_deg": 16.6,
+      "displacement_m": 0.065,
+      "seconds": 6.0,
+      "scored_yaw_deg": 16.6,
+      "matches_scored": true
+    },
+    {
+      "side": "left",
+      "run_dir": "2026-10-02_03-58-04_arms-turngait-clock-s2",
+      "name": "turn-_s0",
+      "cmd": [
+        0.0,
+        0.0,
+        -0.6
+      ],
+      "fell_at_s": null,
+      "yaw_deg": -206.2,
+      "displacement_m": 0.187,
+      "seconds": 6.0,
+      "scored_yaw_deg": -206.2,
+      "matches_scored": true
+    },
+    {
+      "side": "right",
+      "run_dir": "2026-10-02_04-10-49_arms-turngait-critic-s0",
+      "name": "turn-_s0",
+      "cmd": [
+        0.0,
+        0.0,
+        -0.6
+      ],
+      "fell_at_s": null,
+      "yaw_deg": -14.5,
+      "displacement_m": 0.092,
+      "seconds": 6.0,
+      "scored_yaw_deg": -14.5,
+      "matches_scored": true
+    }
+  ],
+  "reproduces_scored_runs": true,
+  "mp4": "results/turngait-clip-20261002/turngait-clock-actor-vs-critic.mp4",
+  "mp4_sha256": "00dd447e048119aeaecc794a29b1c0666710356491715da42cd393444c062615",
+  "mp4_codec": "libx264",
+  "mp4_frames": 410,
+  "mp4_fps": 25,
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/turngait-clock-actor-vs-critic.gif",
+    "bytes": 5088457,
+    "mb": 5.09,
+    "fps": 10,
+    "width": 880,
+    "ffmpeg": "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2",
+    "max_colors": 128,
+    "speed": 1.0,
+    "badge": null,
+    "within_budget": true
+  },
+  "git_head": "d68952a",
+  "node": "dgxh-2.hpc.engr.oregonstate.edu",
+  "slurm_job": "21516970",
+  "written_at": "2026-10-02 15:33:27 PDT"
+}

@@ -1,0 +1,15 @@
+job 21402550 host cn-gpu5.hpc.engr.oregonstate.edu gpu Quadro RTX 8000 46080 MiB stack v51 date 2026-09-23T12:29:56-07:00
+repo HEAD 681dde1 branch mission7-approach-followup depth-code-dirty yes
+upstream HEAD 984741a
+--- git status (depth/terrain code)
+ M src/bhl_robust/tasks/depth_env_cfg.py
+ M src/bhl_robust/tasks/terrain_env_cfg.py
+ M src/bhl_robust/terrains/bumpy.py
+ M src/bhl_robust/terrains/ice.py
+?? src/bhl_robust/terrains/maze_viz.py
+--- git diff --stat HEAD (depth/terrain code)
+ src/bhl_robust/tasks/depth_env_cfg.py   |  5 +-
+ src/bhl_robust/tasks/terrain_env_cfg.py | 10 ++--
+ src/bhl_robust/terrains/bumpy.py        | 12 +++++
+ src/bhl_robust/terrains/ice.py          | 90 +++++++++++++++++++++++++++------
+ 4 files changed, 93 insertions(+), 24 deletions(-)

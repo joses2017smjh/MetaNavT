@@ -69,7 +69,7 @@ class InMemoryHybridIndex:
 
         self.bm25 = BM25Index().fit(
             [c.chunk_id for c in self.chunks],
-            [c.text for c in self.chunks],
+            [str(c.metadata.get("search_context", "")) + "\n" + c.text for c in self.chunks],
         )
         if hasattr(self.embedder, "fit"):
             self.embedder.fit([c.text for c in self.chunks])  # type: ignore[attr-defined]

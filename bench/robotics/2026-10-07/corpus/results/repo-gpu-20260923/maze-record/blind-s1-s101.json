@@ -1,0 +1,81 @@
+{
+  "task": "Velocity-BHL-MazeRecovery-Full-Blind-v0",
+  "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-19_17-53-59_wknd-full-blind-s1/model_5997.pt",
+  "checkpoint_sha256": "8abd1e3f588fbeb893e30d476868ba1061326763e9294c83b93fb6d0ac3ab7cc",
+  "num_envs": 1,
+  "max_steps": 600,
+  "sim_dt": 0.005,
+  "step_dt": 0.04,
+  "decimation": 8,
+  "observation_corruption": true,
+  "stack": "v60",
+  "hostname": "cn-gpu6.hpc.engr.oregonstate.edu",
+  "git_commit": "7024c2e59eb5de36e12fdda8712aee1d492aaa67",
+  "clip_overlays": 10,
+  "capture_path_used_for_gif": "camera_sensor",
+  "capture_note": "viewport = gym RecordVideo on the Kit perspective camera (draws the stale USD pose under fabric on this stack, docs/ISAAC_RENDER.md s10); camera_sensor = CameraCfg following the robot root, the recorder behind every published Isaac clip",
+  "sensor_eye_offset_m": [
+    -2.0,
+    0.0,
+    1.5
+  ],
+  "sensor_lookat_offset_m": [
+    0.5,
+    0.0,
+    0.1
+  ],
+  "viewport_eye_world_m": [
+    -34.6,
+    -79.5,
+    2.5
+  ],
+  "viewport_lookat_world_m": [
+    -34.6,
+    -76.0,
+    0.2
+  ],
+  "viewport_camera": "env0_corridor",
+  "viewport_error": null,
+  "env0_origin_m": [
+    -36.0,
+    -76.0,
+    0.0
+  ],
+  "frame_size": [
+    640,
+    360
+  ],
+  "video_fps": 25.0,
+  "playback_speed": 1.0,
+  "seed": 101,
+  "imu_delay_steps": 0,
+  "outcome": "base_orientation",
+  "success": false,
+  "terminated": true,
+  "terminations_fired": [
+    "base_orientation"
+  ],
+  "steps": 69,
+  "sim_seconds": 2.7600000000000002,
+  "wall_seconds": 16.59,
+  "sim_time_per_step": null,
+  "final_button_distance_m": 0.7635690569877625,
+  "min_button_distance_m": 0.6198709607124329,
+  "max_displacement_from_spawn_m": 2.3465704917907715,
+  "camera_sensor": {
+    "frames": 69,
+    "mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-record/blind-s1-s101.mp4",
+    "codec": "libx264",
+    "png_dir": "/scratch/sanchej7/tmp/maze-record-frames/blind-s1-s101",
+    "writer_error": null
+  },
+  "viewport": {
+    "recorded": true,
+    "frames": 69,
+    "mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-record/blind-s1-s101.viewport.mp4",
+    "error": null
+  },
+  "mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-record/blind-s1-s101.mp4",
+  "viewport_mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-record/blind-s1-s101.viewport.mp4",
+  "episode": "blind-s1-s101"
+}

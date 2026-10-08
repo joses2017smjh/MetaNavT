@@ -1,0 +1,78 @@
+Project revamp - measured results, October 7, 2026
+Both repositories were changed locally. Code, immutable evidence, portable replay assets, and editable resume wording are included. Existing Humanoid changes were preserved; nothing was committed, pushed or published.
+
+New measurements cover simulation regression engineering, generated file lookup, real neural HTTP service behavior, external retrieval domains, and deterministic approval/citation contracts. The existing 3,600/384 confirmatory results were verified from saved artifacts and documented; they were not rerun during this revamp.
+
+Humanoid: reproducibility and measured execution
+H2: portable real-checkpoint bundle, 30 hashed source/asset files. Relocated from /tmp with PYTHONPATH unset. Five of five nominal repeats matched exactly; 40 of 40 injected regressions were caught. These gates detect changes relative to a reference, not unsafe behavior or physical-robot robustness.
+
+Cached versus uncached validators matched 208/208 tested decisions. Two counterbalanced 5,000-call comparisons reduced median validated execution latency 49-69%. A separate 10,000-call measurement gave 0.313 ms median, 1.092 ms p99, 16.277 ms max and zero observed misses against a 40 ms policy period. Intel Xeon Platinum 8480CL host; warm CPU execution excludes physics, I/O and startup. The speedup is for added validation, not the original unguarded controller or faster ONNX inference.
+
+H1: a fresh eight-episode development pilot evaluated one actor on two layouts, nominal sensing and 35% dropout. Both baseline and existing yaw filter reached 2/4 goals without falls. Command flip rates fell about 53%; no goal-success or fall-rate improvement is established. These layouts are now consumed development data.
+
+Saved confirmation: flat falls off/default 77/360 versus 0/360; recorded push falls 341/360 versus 13/360. Navigation confirmation completed 384 episodes and retained its NEGATIVE zero-fall verdict. Results use a 12-DoF biped in simulation and oracle pose/goal for navigation.
+
+MetaNavT: real data, external validation and service behavior
+M1: 600 unique actual experiment files, 110 source groups, 360 generated scalar lookup questions (120 dev/240 test). Each labeled split spans 13 disjoint experiment directories. Snapshot, question, manifest and executing-source hashes are recorded. Body-only versus path-context BM25 test Recall@10 is 0.058 versus 0.671; nDCG@10 is 0.024 versus 0.485, paired family-bootstrap delta +0.461 [0.297, 0.666]. These labels are mechanically generated, with zero independent human reviews; they do not establish answer or newest-version accuracy.
+
+M3: full official NFCorpus and FiQA test splits total 61,271 documents and 971 queries. Graded nDCG and positive-relevance recall were independently checked against pytrec_eval. NFCorpus hybrid beats BM25 (0.3637 versus 0.3207), but bounded reranking reduces it to 0.3555. FiQA dense beats BM25 (0.3848 versus 0.2369), while hybrid falls to 0.3645. Fixed configurations show domain-dependent tradeoffs; no automatic per-domain selector has been validated.
+
+Two separate same-GPU ablations: fp32 to fp16 at fixed 512 tokens/top 20 lowers NFCorpus warm offline p95 216.52 to 77.15 ms, with paired nDCG delta -0.0002 [-0.0004, approximately zero]. Default 8,192 to 512 tokens at fixed fp32/top 20 lowers p95 637.44 to 226.57 ms, with nDCG delta +0.0006 [-0.0025, +0.0040]. Neither interval establishes formal quality equivalence; index/model load and HTTP are excluded.
+
+M2: the original FastAPI/PostgreSQL16/pgvector SQL service indexed 600 real files into 5,633 nodes. H100 GPU fp16 client p95 is 252/422/1,319 ms at concurrency 1/4/16, with 16 requests per level; all 48 measured requests plus cold probe and two warmups succeeded. Generated first-16 lookup questions measure latency, not answer accuracy or capacity. PostgreSQL ran via task-local Apptainer; the Docker GPU override was parsed but not executed.
+
+Matched fp32 CPU/GPU profiles used the same 61-file fixture and 16 queries at each concurrency. GPU p95 is 62/235/889 ms, with zero errors. CPU succeeded at concurrency 1/4, then 13/16 requests timed out at concurrency 16 (120 s timeout); failures remain in all-attempt statistics. Different hosts/devices prevent attributing this comparison to precision or software changes alone. Interrupted exploratory CPU accounting and failed SQL_ASCII startup are retained; UTF8 initialization fixed the latter for the real-file run.
+
+MetaNavT: verifiable file edits and evidence contracts
+M4: trusted operator CLI, immutable content/path/session-bound capabilities, short expiry, SQLite single-use consumption/audit, descriptor-based regular-file operations, no implicit overwrite, and frontend review export/token submission. Boolean approval bypasses and an in-process library key-reader route were removed. Header/filename newline injection, wrong-source value borrowing and CRLF corruption were also corrected.
+
+220/220 malicious action fixtures were denied without mutation across 22 families; 100/100 benign controls passed (80 approved writes and 20 reads). A separate 240-case synthetic JSON-fact suite passed 80 supported, 80 conflict and 80 unknown cases. These are deterministic enforcement/structured-fact contracts, not LLM prompt-injection resistance, human citation accuracy or natural-language entailment. Protect operator keys against every other tool; same-account arbitrary OS execution remains outside this boundary. Physical citation mapping across all production reader transformations remains a follow-up validation item.
+
+Validation and practical limits
+MetaNavT broad eval/unit/engine/API/MCP run: 299 passed, three optional skips. After review fixes, 89 integrity tests passed with one Octave runtime skip; final M4 focused suite passed 118 with one skip; API/SDK passed seven. Twelve optional TREC tests and 19 load/BEIR/replay tests passed. Existing fixture gate passed all six configurations with unchanged ranking metrics. Frontend production build, lint/types, static export and formatting passed; lockfile unchanged.
+
+Humanoid full CPU run: 2,105 passed, two stale assertion failures, three skips. Narrow assertion corrections preserved frozen clock behavior and exact task-registration checks; both affected tests then passed. Nine actual-asset integration checks and three mocked CI-intake checks passed. The full suite was not rerun after assertion fixes. Fresh dependency installation, GitHub CI execution and second-host determinism are unverified.
+
+Academic basis and employer fit
+BEIR and its reproducible-reference work informed full-domain evaluation, graded labels, TREC artifacts and paired deltas. The statistical-precipice paper informed grouped uncertainty and separate per-policy failure reporting. ALCE informed separating source resolution, literal support and entailment. AgentDojo informed adversarial/benign utility controls; the new suite enforces capabilities without claiming to reproduce AgentDojo LLM experiments.
+
+As an inference from the researched postings: Humanoid replay/fault/timing evidence fits Neuralink Simulation and robotics test work; dataset provenance, pgvector operation and load measurements fit Torc MLOps/Data Engineering and Apptronik infrastructure; retrieval and trusted action execution fit SpaceX Applied AI. Rust/C++ and professional/hardware experience requirements remain qualification gaps where applicable; project metrics do not replace them. Keep six-person capstone retrieval/data-API credit separate from these independent 2026 enhancements.
+
+Remaining measured-result tasks
+M1: independently review/rephrase questions and add temporal conflict, multi-artifact and unanswerable cases. Validate every ingestion adapter against physical source bytes before claiming citation accuracy across formats. The review CSV is a draft, not completed human labeling.
+
+H1: lock a candidate and fresh-layout protocol before a larger matched navigation confirmation. Do not present the eight-episode chatter result as fall reduction.
+
+M2/M3: repeat load sessions, score retrieval quality through the actual API, and select retrieval configurations on development data before new holdout evaluation. Current domain winners were observed after testing.
+
+H3/H4: history/latency policy training and repeatable 22-DoF turning remain proposed training work. No new PPO training or hardware deployment was performed.
+
+ACADEMIC SOURCES
+Demonstrating Berkeley Humanoid Lite (RSS 2025)
+https://arxiv.org/abs/2504.17249
+Real-World Humanoid Locomotion with Reinforcement Learning (Science Robotics 2024)
+https://arxiv.org/abs/2303.03381
+RMA: Rapid Motor Adaptation for Legged Robots (RSS 2021)
+https://arxiv.org/abs/2107.04034
+Deep RL at the Edge of the Statistical Precipice (NeurIPS 2021)
+https://arxiv.org/abs/2108.13264
+Learning to Walk in Minutes Using Massively Parallel Deep RL (CoRL 2021 / PMLR 2022)
+https://proceedings.mlr.press/v164/rudin22a.html
+BEIR: A Heterogenous Benchmark for Zero-shot Evaluation of Information Retrieval Models
+https://arxiv.org/abs/2104.08663
+Resources for Brewing BEIR: Reproducible Reference Models and Statistical Analyses
+https://cs.uwaterloo.ca/~jimmylin/publications/Kamalloo_etal_SIGIR2024.pdf
+Fact or Fiction: Verifying Scientific Claims
+https://aclanthology.org/2020.emnlp-main.609/
+Enabling Large Language Models to Generate Text with Citations
+https://arxiv.org/abs/2305.14627
+FreshLLMs: Refreshing Large Language Models with Search Engine Augmentation
+https://aclanthology.org/2024.findings-acl.813/
+Adaptive-RAG: Learning to Adapt Retrieval-Augmented Large Language Models through Question Complexity
+https://arxiv.org/abs/2403.14403
+Is ChatGPT Good at Search? Investigating Large Language Models as Re-Ranking Agents
+https://arxiv.org/abs/2304.09542
+Lost in the Middle: How Language Models Use Long Contexts
+https://arxiv.org/abs/2307.03172
+AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents
+https://arxiv.org/abs/2406.13352

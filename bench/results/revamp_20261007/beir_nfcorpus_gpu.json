@@ -1,0 +1,726 @@
+{
+  "dataset": "BEIR/nfcorpus",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip",
+  "zip_sha256": "efe5be03f8c5b86a5870102d0599d227c8c6e2484328e68c6522560385671b0b",
+  "expected_zip_sha256": null,
+  "files_sha256": {
+    "corpus.jsonl": "10cc83ef1826b1425e6a87090b5140b39b27755d5a27e48215a88611c899991f",
+    "queries.jsonl": "d024e6621b84925d485ae473d316a0c3af31c62c8068a59fb29d22f7613aef2a",
+    "qrels/test.tsv": "f8fba6ef3d4dd9c3a242a8ba4ae38276fc3622fce7dcbae764766d564542fd2a"
+  },
+  "corpus_sha256": "38a3242fd28a8bf39ef90bb78b442d95389fce3d7cdf1861528273f890f1c1cb",
+  "n_docs": 3633,
+  "n_queries": 323,
+  "full_split_queries": 323,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": null,
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "55811b6",
+  "timestamp": "2026-10-08T01:15:42.114239+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=0 HF_HOME=/nfs/stak/users/sanchej7/hpc-share/mnt_work/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --dataset nfcorpus --device cuda --only bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20,hybrid+bge-rerank@bge-small/fp16-512/top20 --n-boot 1000 --require-trec-eval --trec-dir bench/results/revamp_20261007/trec_nfcorpus_gpu --out bench/results/revamp_20261007/beir_nfcorpus_gpu.json",
+  "device": {
+    "requested": "cuda",
+    "python": "3.11.13",
+    "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 224,
+    "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA H100 80GB HBM3",
+    "threads": 4,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 1000,
+    "n_queries": 323,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "bm25",
+      "parent": null,
+      "settings": {
+        "name": "bm25",
+        "mode": "bm25",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3207,
+        "recall@10": 0.1521,
+        "recall@100": 0.2462,
+        "mrr@10": 0.5228,
+        "n_queries": 323
+      },
+      "latency": {
+        "bm25": {
+          "n": 323,
+          "p50_ms": 5.55,
+          "p95_ms": 8.75,
+          "mean_ms": 5.83
+        },
+        "total": {
+          "n": 323,
+          "p50_ms": 5.56,
+          "p95_ms": 8.75,
+          "mean_ms": 5.84
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 8503.39,
+        "total_ms": 8503.39
+      },
+      "wall_ms": 1896.48,
+      "models": {},
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 323,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_nfcorpus_gpu/bm25.run",
+        "run_sha256": "f5040054dcde1795b338a17915dced1ed08b36c2d424714dda18375532f1152d",
+        "qrels": "bench/results/revamp_20261007/trec_nfcorpus_gpu/qrels.txt",
+        "qrels_sha256": "9d822ee3fc9e3b395d7fe25a13d81686f54b2a056992574daa825e792800c959"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3207,
+          "lo": 0.2852,
+          "hi": 0.3544
+        },
+        "recall@10": {
+          "mean": 0.1521,
+          "lo": 0.1276,
+          "hi": 0.1788
+        },
+        "recall@100": {
+          "mean": 0.2462,
+          "lo": 0.2165,
+          "hi": 0.2739
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    },
+    {
+      "config": "dense@bge-small",
+      "parent": "bm25",
+      "settings": {
+        "name": "dense@bge-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "bm25",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3373,
+        "recall@10": 0.1583,
+        "recall@100": 0.3058,
+        "mrr@10": 0.5284,
+        "n_queries": 323
+      },
+      "latency": {
+        "embed": {
+          "n": 323,
+          "p50_ms": 5.86,
+          "p95_ms": 6.09,
+          "mean_ms": 5.9
+        },
+        "dense": {
+          "n": 323,
+          "p50_ms": 2.09,
+          "p95_ms": 2.22,
+          "mean_ms": 2.09
+        },
+        "total": {
+          "n": 323,
+          "p50_ms": 7.98,
+          "p95_ms": 8.26,
+          "mean_ms": 8.01
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 20340.24,
+        "doc_embeddings_ms": 5152.03,
+        "total_ms": 25492.27
+      },
+      "wall_ms": 2605.04,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 323,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_nfcorpus_gpu/dense-bge-small.run",
+        "run_sha256": "b423e65de416a9a02d897c46f90f8bb94bab46cb6143048a702111ca3f6216ac",
+        "qrels": "bench/results/revamp_20261007/trec_nfcorpus_gpu/qrels.txt",
+        "qrels_sha256": "9d822ee3fc9e3b395d7fe25a13d81686f54b2a056992574daa825e792800c959"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3373,
+          "lo": 0.3022,
+          "hi": 0.3669
+        },
+        "recall@10": {
+          "mean": 0.1583,
+          "lo": 0.1342,
+          "hi": 0.1827
+        },
+        "recall@100": {
+          "mean": 0.3058,
+          "lo": 0.2778,
+          "hi": 0.3338
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0166,
+          "lo": -0.0044,
+          "hi": 0.037
+        },
+        "recall@10": {
+          "delta": 0.0062,
+          "lo": -0.0067,
+          "hi": 0.0191
+        },
+        "recall@100": {
+          "delta": 0.0596,
+          "lo": 0.0402,
+          "hi": 0.0793
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0166,
+          "lo": -0.0044,
+          "hi": 0.037
+        },
+        "recall@10": {
+          "delta": 0.0062,
+          "lo": -0.0067,
+          "hi": 0.0191
+        },
+        "recall@100": {
+          "delta": 0.0596,
+          "lo": 0.0402,
+          "hi": 0.0793
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3637,
+        "recall@10": 0.1734,
+        "recall@100": 0.3134,
+        "mrr@10": 0.5739,
+        "n_queries": 323
+      },
+      "latency": {
+        "bm25": {
+          "n": 323,
+          "p50_ms": 7.61,
+          "p95_ms": 12.45,
+          "mean_ms": 8.18
+        },
+        "embed": {
+          "n": 323,
+          "p50_ms": 5.87,
+          "p95_ms": 6.01,
+          "mean_ms": 5.9
+        },
+        "dense": {
+          "n": 323,
+          "p50_ms": 1.74,
+          "p95_ms": 2.29,
+          "mean_ms": 1.89
+        },
+        "fuse": {
+          "n": 323,
+          "p50_ms": 0.07,
+          "p95_ms": 0.08,
+          "mean_ms": 0.07
+        },
+        "total": {
+          "n": 323,
+          "p50_ms": 15.32,
+          "p95_ms": 20.68,
+          "mean_ms": 16.07
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 5205.87,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 323,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_nfcorpus_gpu/hybrid-bge-small.run",
+        "run_sha256": "7f832d43ed992cc8f199cd886ffbc06aa8978eeb561942080512736ccc4f156b",
+        "qrels": "bench/results/revamp_20261007/trec_nfcorpus_gpu/qrels.txt",
+        "qrels_sha256": "9d822ee3fc9e3b395d7fe25a13d81686f54b2a056992574daa825e792800c959"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3637,
+          "lo": 0.3262,
+          "hi": 0.3956
+        },
+        "recall@10": {
+          "mean": 0.1734,
+          "lo": 0.1468,
+          "hi": 0.2004
+        },
+        "recall@100": {
+          "mean": 0.3134,
+          "lo": 0.2853,
+          "hi": 0.3419
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.043,
+          "lo": 0.0299,
+          "hi": 0.0573
+        },
+        "recall@10": {
+          "delta": 0.0213,
+          "lo": 0.0116,
+          "hi": 0.0322
+        },
+        "recall@100": {
+          "delta": 0.0672,
+          "lo": 0.0522,
+          "hi": 0.0829
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": 0.0264,
+          "lo": 0.0125,
+          "hi": 0.0407
+        },
+        "recall@10": {
+          "delta": 0.0151,
+          "lo": 0.0057,
+          "hi": 0.0255
+        },
+        "recall@100": {
+          "delta": 0.0076,
+          "lo": -0.0034,
+          "hi": 0.0178
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "parent": "hybrid+bge-rerank@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid+bge-rerank@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3555,
+        "recall@10": 0.1746,
+        "recall@100": 0.3134,
+        "mrr@10": 0.5636,
+        "n_queries": 323
+      },
+      "latency": {
+        "bm25": {
+          "n": 323,
+          "p50_ms": 6.03,
+          "p95_ms": 10.78,
+          "mean_ms": 6.48
+        },
+        "embed": {
+          "n": 323,
+          "p50_ms": 4.38,
+          "p95_ms": 5.38,
+          "mean_ms": 4.5
+        },
+        "dense": {
+          "n": 323,
+          "p50_ms": 2.05,
+          "p95_ms": 3.08,
+          "mean_ms": 2.24
+        },
+        "fuse": {
+          "n": 323,
+          "p50_ms": 0.07,
+          "p95_ms": 0.09,
+          "mean_ms": 0.07
+        },
+        "rerank": {
+          "n": 323,
+          "p50_ms": 193.98,
+          "p95_ms": 200.23,
+          "mean_ms": 194.4
+        },
+        "total": {
+          "n": 323,
+          "p50_ms": 206.88,
+          "p95_ms": 216.52,
+          "mean_ms": 207.73
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 8202.46,
+        "total_ms": 8202.46
+      },
+      "wall_ms": 67115.6,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]"
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 323,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_nfcorpus_gpu/hybrid-bge-rerank-bge-small-fp32-512-top20.run",
+        "run_sha256": "d3f0b28848bbf85426e4b853c7d498dde789dbc878488cfc158e558ea62743ba",
+        "qrels": "bench/results/revamp_20261007/trec_nfcorpus_gpu/qrels.txt",
+        "qrels_sha256": "9d822ee3fc9e3b395d7fe25a13d81686f54b2a056992574daa825e792800c959"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3555,
+          "lo": 0.3206,
+          "hi": 0.3882
+        },
+        "recall@10": {
+          "mean": 0.1746,
+          "lo": 0.1472,
+          "hi": 0.2018
+        },
+        "recall@100": {
+          "mean": 0.3134,
+          "lo": 0.2853,
+          "hi": 0.3419
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0349,
+          "lo": 0.0212,
+          "hi": 0.0492
+        },
+        "recall@10": {
+          "delta": 0.0226,
+          "lo": 0.0101,
+          "hi": 0.0354
+        },
+        "recall@100": {
+          "delta": 0.0672,
+          "lo": 0.0522,
+          "hi": 0.0829
+        }
+      },
+      "delta_vs_parent": null
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "precision": "fp16",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3554,
+        "recall@10": 0.1746,
+        "recall@100": 0.3134,
+        "mrr@10": 0.5636,
+        "n_queries": 323
+      },
+      "latency": {
+        "bm25": {
+          "n": 323,
+          "p50_ms": 8.19,
+          "p95_ms": 13.5,
+          "mean_ms": 8.78
+        },
+        "embed": {
+          "n": 323,
+          "p50_ms": 5.85,
+          "p95_ms": 7.57,
+          "mean_ms": 6.07
+        },
+        "dense": {
+          "n": 323,
+          "p50_ms": 2.03,
+          "p95_ms": 2.41,
+          "mean_ms": 2.08
+        },
+        "fuse": {
+          "n": 323,
+          "p50_ms": 0.07,
+          "p95_ms": 0.09,
+          "mean_ms": 0.07
+        },
+        "rerank": {
+          "n": 323,
+          "p50_ms": 48.26,
+          "p95_ms": 54.96,
+          "mean_ms": 48.63
+        },
+        "total": {
+          "n": 323,
+          "p50_ms": 64.47,
+          "p95_ms": 77.15,
+          "mean_ms": 65.67
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 2181.63,
+        "total_ms": 2181.63
+      },
+      "wall_ms": 21232.59,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp16",
+          "dtype": "torch.float16",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]"
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 323,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_nfcorpus_gpu/hybrid-bge-rerank-bge-small-fp16-512-top20.run",
+        "run_sha256": "1acd0faa023200e552ae9c0fbebd3f345136fd681490da6e1c5b584419257aed",
+        "qrels": "bench/results/revamp_20261007/trec_nfcorpus_gpu/qrels.txt",
+        "qrels_sha256": "9d822ee3fc9e3b395d7fe25a13d81686f54b2a056992574daa825e792800c959"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3554,
+          "lo": 0.3205,
+          "hi": 0.388
+        },
+        "recall@10": {
+          "mean": 0.1746,
+          "lo": 0.1472,
+          "hi": 0.2018
+        },
+        "recall@100": {
+          "mean": 0.3134,
+          "lo": 0.2853,
+          "hi": 0.3419
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0347,
+          "lo": 0.0211,
+          "hi": 0.0489
+        },
+        "recall@10": {
+          "delta": 0.0226,
+          "lo": 0.0101,
+          "hi": 0.0354
+        },
+        "recall@100": {
+          "delta": 0.0672,
+          "lo": 0.0522,
+          "hi": 0.0829
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0002,
+          "lo": -0.0004,
+          "hi": -0.0
+        },
+        "recall@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "outcome": "interrupted_profile",
+  "slurm_job_id": "21657981",
+  "timestamp": "2026-10-08T01:27:11.457168+00:00",
+  "reason": "Initial32requests/level CPU profile exceeded expected runtime; stopped to execute complete16requests/level CPU/GPU paired workload with incremental checkpoints.",
+  "planned_measured_requests": 96,
+  "completed_client_request_count": null,
+  "server_logged_POST_responses": 61,
+  "api_log_sha256_at_interrupt": "44939039c9bf3dc9552e1a0e030a395f11c9eb4a1b06f3f3e8a4d82baee08fb1",
+  "limitations": "Original runner had no incremental client checkpoint. Server response logs do not identify every attempted HTTP request, timeout, or client latency. No performance/resume claim may use this interrupted profile."
+}

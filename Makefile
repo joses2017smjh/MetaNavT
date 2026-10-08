@@ -1,6 +1,7 @@
 .PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
+ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
 export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
 SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
@@ -78,6 +79,13 @@ bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/r
 
 bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --out bench/results/beir_scifact.json
+
+.PHONY: robotics-verify bench-robotics
+robotics-verify: ## verify real experiment source hashes, evidence spans and family split
+	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)
+
+bench-robotics: robotics-verify ## generated lookup benchmark; preserves the measured reference
+	$(PYTHON) -m app.eval.robotics evaluate --snapshot $(ROBOTICS_SNAPSHOT) --output bench/results/robotics_file_lookup_latest.json
 
 # ---- demos / figures -------------------------------------------------------
 figures:

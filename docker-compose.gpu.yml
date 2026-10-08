@@ -1,0 +1,25 @@
+# CUDA override; requires NVIDIA Container Toolkit and compatible host driver.
+# docker compose -f docker-compose.yml -f docker-compose.ml.yml -f docker-compose.gpu.yml up --build
+# CUDA 12.6 wheels are supported by PyTorch's published install matrix.
+# https://pytorch.org/get-started/previous-versions/
+# GPU reservation syntax: https://docs.docker.com/compose/how-tos/gpu-support/
+# A separate database volume is required when changing embedding dimensions.
+# /health is 503 if actual model devices do not match CUDA; no CPU fallback.
+services:
+  api:
+    build:
+      args:
+        EXTRAS: app,ml
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu126
+    environment:
+      EMBEDDING_DEVICE: cuda
+      RERANKER_DEVICE: cuda
+      RETRIEVAL_REQUIRE_DEVICE: cuda
+      RERANKER_PRECISION: fp16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

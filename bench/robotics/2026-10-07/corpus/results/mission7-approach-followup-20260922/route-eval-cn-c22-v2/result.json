@@ -1,0 +1,40 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "replay": {
+    "episodes": 10,
+    "falls": 1,
+    "no_fall": 9
+  },
+  "routes": {
+    "doors": {
+      "episodes": 16,
+      "successes": 1,
+      "success_rate": 0.0625,
+      "falls": 4,
+      "failures": {
+        "timeout": 11,
+        "fall": 4,
+        "success": 1
+      }
+    },
+    "transport": {
+      "episodes": 16,
+      "successes": 0,
+      "success_rate": 0.0,
+      "falls": 6,
+      "failures": {
+        "fall": 6,
+        "timeout": 10
+      }
+    }
+  },
+  "geometry_unchanged": true,
+  "plate_collision_enabled": true,
+  "controller": "MeasuredRouteController plus 1.0 s standstill after physical plate contact or gate activation",
+  "gate": {
+    "replay_10_no_falls": false,
+    "doors_16": true,
+    "transport_16": true
+  }
+}

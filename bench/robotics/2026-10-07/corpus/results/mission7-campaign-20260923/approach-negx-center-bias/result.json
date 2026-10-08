@@ -1,0 +1,113 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "selection": {
+    "-1,+0": [
+      {
+        "split": "test",
+        "index": 1
+      },
+      {
+        "split": "test",
+        "index": 5
+      },
+      {
+        "split": "test",
+        "index": 6
+      },
+      {
+        "split": "test",
+        "index": 7
+      },
+      {
+        "split": "test",
+        "index": 14
+      },
+      {
+        "split": "test",
+        "index": 15
+      },
+      {
+        "split": "test",
+        "index": 17
+      },
+      {
+        "split": "test",
+        "index": 20
+      },
+      {
+        "split": "test",
+        "index": 21
+      },
+      {
+        "split": "test",
+        "index": 25
+      },
+      {
+        "split": "test",
+        "index": 31
+      },
+      {
+        "split": "test",
+        "index": 33
+      },
+      {
+        "split": "test",
+        "index": 36
+      },
+      {
+        "split": "test",
+        "index": 37
+      },
+      {
+        "split": "test",
+        "index": 41
+      },
+      {
+        "split": "test",
+        "index": 51
+      }
+    ]
+  },
+  "controller_arm": "center_bias",
+  "directions": [
+    "-1,+0"
+  ],
+  "controller": {
+    "arm": "center_bias"
+  },
+  "pulse": {
+    "episodes": 16,
+    "successes": 14,
+    "success_rate": 0.875,
+    "falls": 0,
+    "failures": {
+      "success": 14,
+      "failed_to_translate_toward_target": 1,
+      "failed_to_rotate_or_align_or_stopped_early": 1
+    },
+    "by_direction": {
+      "-1,+0": {
+        "episodes": 16,
+        "successes": 14,
+        "success_rate": 0.875,
+        "falls": 0,
+        "failures": {
+          "success": 14,
+          "failed_to_translate_toward_target": 1,
+          "failed_to_rotate_or_align_or_stopped_early": 1
+        }
+      }
+    }
+  },
+  "controls": {},
+  "gate": {
+    "full_matrix": false,
+    "minimum_episodes": false,
+    "successes_at_least_60": false,
+    "zero_falls": true,
+    "per_direction_at_least_14": true
+  },
+  "benchmark_geometry_unchanged": true,
+  "note": "Test split is used for a balanced 16-per-direction matrix; all four directions have matched pulse and standstill controls."
+}

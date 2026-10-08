@@ -1,0 +1,44 @@
+{
+ "arm": "ER-OBS-1-OW",
+ "label": "LEARNED gait (frozen arms-dr1.0-s0) + SCRIPTED arms + EXTERNAL VLM observer (Gemini Robotics-ER 2 preview, rendered RGB, offline)",
+ "prompt_text": "This image is one frame from a fixed camera watching a physics simulation. Two humanoid robots (orange and black) stand side by side on a checkered floor. Between them is a small grey plinth (a box-shaped stand, 0.19 m tall). A blue cube, 0.28 m on each side, starts on top of the plinth; the robots may squeeze it between their hands, lift it, hold it, lower it, release it or drop it.\nReport the state of the blue cube in this frame only, as JSON with these fields:\n- cube_point: one point on the blue cube as [y, x], each normalized to 0-1000 (y from the top edge of the image, x from the left edge).\n- lifted_clear: true if the cube is lifted clear: its lowest corner is at least 2 cm above every surface directly below it (the floor, and the plinth top when the cube is over the plinth), so it rests on neither.\n- on_floor: true if any part of the cube touches the floor.\n- robot_contact: true if the robots press on the cube: the total contact force from the robots on the cube is more than 1 newton.\n- seated_flat: true if the cube sits on the plinth: it touches the plinth with its centre over the plinth top, and one of its faces (any face) is flat down, within 8 degrees of level.\nAnswer with the JSON object only.\nJSON schema of the answer: {\"properties\": {\"cube_point\": {\"description\": \"[y, x] of one point on the blue cube, each normalized to 0-1000\", \"items\": {\"type\": \"integer\"}, \"maxItems\": 2, \"minItems\": 2, \"type\": \"array\"}, \"lifted_clear\": {\"type\": \"boolean\"}, \"on_floor\": {\"type\": \"boolean\"}, \"robot_contact\": {\"type\": \"boolean\"}, \"seated_flat\": {\"type\": \"boolean\"}}, \"required\": [\"cube_point\", \"lifted_clear\", \"on_floor\", \"robot_contact\", \"seated_flat\"], \"type\": \"object\"}",
+ "prompt_schema_sha256": "873d16aed67f87f36fff88dbe7deb2ad6ec55abd0ce71c1a9e581f059191c20b",
+ "decoding": {
+  "do_sample": false,
+  "max_new_tokens": 256,
+  "dtype": "bfloat16",
+  "batch": 1
+ },
+ "source_sha256": {
+  "scripts/bench/er_obs_local.py": "733e863bb044aab09a2e10ccd7ee139a64608799cfa01dbc85577dafb9fec722",
+  "src/bhl_robust/eval/er_obs/client.py": "b49f4f8bbc822129a4da074603f8c9cabd7fbd97df1c6a050db0341606a43c80",
+  "src/bhl_robust/eval/er_obs/verdict.py": "32b2c3d6de458af30a88a8fd5015c021832eb2b7ab60b082f2c390adcbfdf223",
+  "scripts/bench/er_obs.py": "42875a21503df347c390b12994c1847e9109e5fa573f8dfadb7a12162f52d3ae"
+ },
+ "host": "cn-r-6.hpc.engr.oregonstate.edu",
+ "slurm_job_id": "21549477",
+ "written_at": "2026-10-04T22:15:55-0700",
+ "verdict": "NOT-IN-LOOP-ELIGIBLE",
+ "calls": 50,
+ "expected_calls": 50,
+ "p95_nearest_rank_s": 2.0503,
+ "p95_is_inf": false,
+ "failed_calls": 0,
+ "outcome_kinds": {
+  "ok": 50
+ },
+ "ok_latency_s": {
+  "min": 1.7445,
+  "median": 1.7605,
+  "max": 2.3239
+ },
+ "rule": "nearest-rank p95 (ceil(0.95 n)-th smallest) of 50 synchronous calls <= 1.0 s; failed = +inf",
+ "which": "latency",
+ "mode": "run",
+ "model": "allenai/Molmo2-ER",
+ "inputs": {
+  "latency": "/nfs/hpc/share/sanchej7/Humanoid_Lite/er-obs1-data/ow/molmo2-er/latency/latency.json",
+  "latency_sha256": "b4e5d869eef58ebfa53b1474a668e15c84d73890d870b531f68fccbc9d942661",
+  "gpu": "NVIDIA A40"
+ }
+}

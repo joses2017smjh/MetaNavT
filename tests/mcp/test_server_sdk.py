@@ -4,6 +4,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from app.mcp.approvals import create_key, sign_review
 
 import pytest
 
@@ -25,8 +26,10 @@ def _payload(result):
     return json.loads(_text(result))
 
 
-async def _drive(corpus: Path) -> dict:
-    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp.server_sdk", "--root", str(corpus)], cwd=str(ROOT), env={"PYTHONPATH": str(ROOT)})
+async def _drive(corpus: Path, private: Path) -> dict:
+    key = private / "key"
+    create_key(key)
+    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp.server_sdk", "--root", str(corpus)], cwd=str(ROOT), env={"PYTHONPATH": str(ROOT), "METANAVIT_APPROVAL_KEY_FILE": str(key), "METANAVIT_APPROVAL_LEDGER_FILE": str(private / "ledger.sqlite")})
     out: dict = {}
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -41,18 +44,21 @@ async def _drive(corpus: Path) -> dict:
             out["plan"] = _payload(plan)
             refused = await session.call_tool("apply_plan", {"plan_id": out["plan"]["plan_id"]})
             out["refused"] = _payload(refused)
-            applied = await session.call_tool("apply_plan", {"plan_id": out["plan"]["plan_id"], "approved": True})
+            token = sign_review(out["plan"]["review"], key, actor="sdk-test-operator")
+            applied = await session.call_tool("apply_plan", {"plan_id": out["plan"]["plan_id"], "approval_token": token})
             out["applied"] = _payload(applied)
     return out
 
 
-def test_sdk_server_lists_and_calls_tools(tmp_path):
+def test_sdk_server_lists_and_calls_tools(tmp_path, tmp_path_factory):
     (tmp_path / "configs").mkdir()
     (tmp_path / "configs" / "run_047.yaml").write_text("learning_rate: 3e-4\n")
-    out = asyncio.run(_drive(tmp_path))
+    out = asyncio.run(_drive(tmp_path, tmp_path_factory.mktemp("sdk-operator-private")))
 
     assert out["server_name"] == "metanavit-filesystem"
     assert {"search_lexical", "read_file", "list_dir", "propose_move", "apply_plan"} <= set(out["tools"])
+    assert "approval_token" in out["tools"]["apply_plan"]["properties"]
+    assert "approved" not in out["tools"]["apply_plan"]["properties"]
     assert "src" in out["tools"]["propose_move"]["properties"] and "src" in out["tools"]["propose_move"].get("required", [])
     listed = out["list_dir"]
     entries = listed if isinstance(listed, list) else listed.get("result", listed)

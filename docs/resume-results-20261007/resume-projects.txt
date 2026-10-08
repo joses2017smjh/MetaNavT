@@ -1,0 +1,27 @@
+RESUME PROJECT SECTIONS - VERIFIED WORDING
+October 7, 2026
+
+Humanoid Locomotion and Robustness | Python, Isaac Lab, MuJoCo, ONNX
+- Built an Isaac Lab-to-MuJoCo PPO evaluation pipeline; evaluated 3,600 simulation episodes across five randomization settings and three training seeds, with matched push-test falls decreasing from 341/360 to 13/360 under default randomization.
+- Packaged a hash-verified replay suite for a trained 12-DoF biped; detected 40/40 injected sensor/action/scoring regressions and reproduced all five seeded nominal trajectories exactly on the same host.
+
+MetaNavT | Python, FastAPI, PostgreSQL/pgvector, neural retrieval
+- Benchmarked neural retrieval on 57,638 FiQA documents and 648 test queries; BGE-small achieved nDCG@10 of 0.385 versus 0.237 for matched BM25, with paired bootstrap gain 0.148 [0.124, 0.174].
+- Served neural retrieval over 600 robotics experiment files (5,633 nodes) through FastAPI/pgvector; measured 1.32 s p95 at 16 concurrent clients on an H100, with zero failures across 48 measured load-test requests.
+
+Attribution: original retrieval/data APIs contributed on a six-person capstone team; independent 2026 benchmark/infrastructure enhancements.
+
+ROLE-SPECIFIC ALTERNATIVES
+Humanoid - performance/infrastructure
+- Cached deployment limits in runtime validation, reducing median inference-and-validation latency 49-69% versus uncached validators in paired CPU benchmarks; measured 1.09 ms p99 over 10,000 warm calls, excluding physics and I/O.
+
+MetaNavT - retrieval optimization
+- Reduced warm offline retrieval p95 from 216.5 to 77.2 ms by switching GPU reranking to fp16 at fixed 512-token/top-20 settings; NFCorpus nDCG@10 changed from 0.3555 to 0.3554.
+
+MetaNavT - agents/infrastructure
+- Implemented content-bound, expiring MCP action approvals with transactional replay protection; blocked 220 malicious action fixtures across 22 families and passed 100 benign controls (80 authorized writes, 20 reads).
+
+MetaNavT - data engineering
+- Built a provenance-verified benchmark over 600 unique robotics experiment files and 360 generated lookup questions; file-path context increased test-split Recall@10 from 5.8% to 67.1% across 13 source families.
+
+Scope: Humanoid is simulated 12-DoF biped work; latency excludes physics/I/O. HTTP tests are short lab measurements, with 16 samples at each concurrency. Real-corpus lookup questions are generated. Malicious/benign fixtures test deterministic tools, not general prompt-injection resistance.

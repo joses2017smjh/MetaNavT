@@ -1,0 +1,101 @@
+{
+  "total_steps": 30000000,
+  "wall_hours": 9.2,
+  "final_eval_heldout_48": {
+    "4x4": {
+      "success": 0.9375,
+      "collision": 0.0,
+      "time_out": 0.0625,
+      "mean_steps": 828.9583333333334,
+      "n": 48
+    },
+    "5x5": {
+      "success": 0.8125,
+      "collision": 0.020833333333333332,
+      "time_out": 0.16666666666666666,
+      "mean_steps": 1631.7291666666667,
+      "n": 48
+    },
+    "6x6": {
+      "success": 0.875,
+      "collision": 0.020833333333333332,
+      "time_out": 0.10416666666666667,
+      "mean_steps": 1767.4375,
+      "n": 48
+    }
+  },
+  "curriculum_stage": 3,
+  "onnx": {
+    "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v2-20260926/armA-s1/actor.onnx",
+    "inputs": [
+      "lidar",
+      "near",
+      "map",
+      "goal"
+    ],
+    "max_abs_diff_vs_torch": 3.814697265625e-06
+  },
+  "env_version": 2,
+  "ppo": "v2",
+  "train_std_last_update": 6.233024597167969,
+  "policy_std_final": 6.233024597167969,
+  "std_floor_clamps": 0,
+  "best": {
+    "timesteps": 4000000,
+    "eval": {
+      "5x5": {
+        "success": 0.875,
+        "collision": 0.125,
+        "time_out": 0.0,
+        "mean_steps": 962.5833333333334,
+        "n": 24
+      },
+      "6x6": {
+        "success": 0.875,
+        "collision": 0.08333333333333333,
+        "time_out": 0.041666666666666664,
+        "mean_steps": 1466.3333333333333,
+        "n": 24
+      }
+    },
+    "key": [
+      0.875,
+      0.875
+    ],
+    "note": "selected on held-out seeds 0-23 (a subset of the 48): its 48-maze numbers are selection-biased",
+    "final_eval_heldout_48": {
+      "4x4": {
+        "success": 0.9583333333333334,
+        "collision": 0.041666666666666664,
+        "time_out": 0.0,
+        "mean_steps": 701.4375,
+        "n": 48
+      },
+      "5x5": {
+        "success": 0.8125,
+        "collision": 0.1875,
+        "time_out": 0.0,
+        "mean_steps": 1109.8333333333333,
+        "n": 48
+      },
+      "6x6": {
+        "success": 0.8958333333333334,
+        "collision": 0.0625,
+        "time_out": 0.041666666666666664,
+        "mean_steps": 1489.9583333333333,
+        "n": 48
+      }
+    },
+    "onnx": {
+      "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v2-20260926/armA-s1/actor_best.onnx",
+      "inputs": [
+        "lidar",
+        "near",
+        "map",
+        "goal"
+      ],
+      "max_abs_diff_vs_torch": 7.152557373046875e-07
+    }
+  },
+  "eval_mode": "parallel_pool"
+}

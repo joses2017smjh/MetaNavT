@@ -1,0 +1,47 @@
+{
+  "output": "docs/gifs/random-maze-explore.gif",
+  "output_sha256": "c22f90afddfe3844898e0e4e574caf5422fc8db998f8f91e829bd16aaed61261",
+  "output_mb": 1.04,
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/random-maze-explore.gif",
+    "bytes": 1043169,
+    "mb": 1.04,
+    "fps": 8,
+    "width": 860,
+    "ffmpeg": "ffmpeg",
+    "max_colors": 128,
+    "speed": 5.0,
+    "badge": "GIF 5x",
+    "within_budget": true
+  },
+  "source_clip": "results/maze-explore-20260924/hard-6x6/seed1_render.mp4",
+  "source_sha256": "230b3004c3787d77af715d977363d7902f4473b33d004ac12922a7c8650408ef",
+  "evidence": "results/maze-explore-20260924/hard-6x6/seed1_render.json",
+  "episode": {
+    "seed": 1,
+    "outcome": "goal",
+    "success": true,
+    "clean_success": true,
+    "completion_s": 73.12,
+    "wall_contact_steps": 0,
+    "path_length_m": 24.8,
+    "turns": 23,
+    "replans": 172,
+    "mapped_fraction_end": 0.594
+  },
+  "maze": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "cells_on_shortest_route": 21,
+    "walls": 48,
+    "layout_sha256": "1753af9b4e60126d"
+  },
+  "playback_speed": 5.0,
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  },
+  "scope": "MuJoCo 3.3.5 | frozen learned biped gait (dr-default-s0) | lidar log-odds map | A* on the map with unknown = free | turn in place then walk forward (no sideways) | oracle pose and goal coordinate; the maze itself is unknown to the planner | one seed = one maze; the multi-seed table is the evidence, this clip the illustration"
+}

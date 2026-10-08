@@ -1,0 +1,7 @@
+=== node: cn-r-3.hpc.engr.oregonstate.edu | HEAD 90e3e07 | Sat Sep 26 04:41:54 PM PDT 2026 ===
+6716a26e2f18247fbaf199f9d7849672  scripts/bench/ice_depth_freeze.py
+9f1f07e64c665b66cc7c988a073c3746  src/bhl_robust/eval/multi_robot.py
+9e5bf20cfb8deb45839d54ad4b622bd7  src/bhl_robust/eval/depth_controller.py
+a3a58cff46f6275c079dfb986cdf851c  src/bhl_robust/eval/harness.py
+c06467fdccc346d8079f4248280004d9  results/deploy_ice_blind.yaml
+EGL depth render preflight OK 3.3.5

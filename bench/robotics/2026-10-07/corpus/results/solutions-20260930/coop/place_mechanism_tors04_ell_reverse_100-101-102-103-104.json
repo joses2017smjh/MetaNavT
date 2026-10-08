@@ -1,0 +1,97 @@
+[
+ {
+  "variant": "tors04_ell",
+  "lower": "reverse",
+  "seed": 100,
+  "success": true,
+  "first_failed": null,
+  "lift_peak_m": 0.2604,
+  "hold_s": 4.76,
+  "final_dz_m": -0.0,
+  "final_offset_xy_m": [
+   -0.0074,
+   0.0056
+  ],
+  "final_cube_tilt_rad": 0.0002,
+  "max_robot_tilt": 0.1649,
+  "floor": false,
+  "floor_first": null,
+  "wall_s": 15.6
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "reverse",
+  "seed": 101,
+  "success": true,
+  "first_failed": null,
+  "lift_peak_m": 0.1971,
+  "hold_s": 4.52,
+  "final_dz_m": -0.0,
+  "final_offset_xy_m": [
+   0.0039,
+   0.0184
+  ],
+  "final_cube_tilt_rad": 0.0005,
+  "max_robot_tilt": 0.1682,
+  "floor": false,
+  "floor_first": null,
+  "wall_s": 15.7
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "reverse",
+  "seed": 102,
+  "success": true,
+  "first_failed": null,
+  "lift_peak_m": 0.2125,
+  "hold_s": 4.56,
+  "final_dz_m": -0.0,
+  "final_offset_xy_m": [
+   0.0087,
+   0.0117
+  ],
+  "final_cube_tilt_rad": 0.0004,
+  "max_robot_tilt": 0.1647,
+  "floor": false,
+  "floor_first": null,
+  "wall_s": 15.6
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "reverse",
+  "seed": 103,
+  "success": true,
+  "first_failed": null,
+  "lift_peak_m": 0.2114,
+  "hold_s": 4.64,
+  "final_dz_m": -0.0,
+  "final_offset_xy_m": [
+   -0.0016,
+   0.004
+  ],
+  "final_cube_tilt_rad": 0.0001,
+  "max_robot_tilt": 0.1726,
+  "floor": false,
+  "floor_first": null,
+  "wall_s": 15.2
+ },
+ {
+  "variant": "tors04_ell",
+  "lower": "reverse",
+  "seed": 104,
+  "success": true,
+  "first_failed": null,
+  "lift_peak_m": 0.2088,
+  "hold_s": 4.6,
+  "final_dz_m": -0.0,
+  "final_offset_xy_m": [
+   0.0158,
+   0.0244
+  ],
+  "final_cube_tilt_rad": 0.0007,
+  "max_robot_tilt": 0.1657,
+  "floor": false,
+  "floor_first": null,
+  "wall_s": 15.6
+ }
+]

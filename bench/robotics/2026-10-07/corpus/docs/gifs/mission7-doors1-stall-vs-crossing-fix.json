@@ -1,0 +1,122 @@
+{
+  "output": "docs/gifs/mission7-doors1-stall-vs-crossing-fix.gif",
+  "output_sha256": "934c771f8ff6016cabcb4ed90b29bffe7fbe7dc17f35115107563f094e0895fa",
+  "source_clip": [
+    "results/mission7-campaign-20260923/media/overhead/doors1-baseline-stall.mp4",
+    "results/mission7-campaign-20260923/media/overhead/doors1-crossing-fix-success.mp4"
+  ],
+  "source_sha256": [
+    "3aff8533b5be7aa3edfc733a369d95879fe062dfcea24944337b5872ea00f5f0",
+    "24c27889fd870cecdee6932e7eb5e64abc84f40d501fe9c331ed70678b327e0e"
+  ],
+  "evidence": [
+    "results/mission7-campaign-20260923/campaign-a-doors-00-07/result.json",
+    "results/mission7-campaign-20260923/local-stage-v2/doors-1-kick-center/result.json"
+  ],
+  "evidence_sha256": [
+    "91600a2bd8bd567a2e3878ed5adb1faeba0d877fccbc52b01200351b22a68db7",
+    "90ca59efdfea35c94d7cd0385b2eb321594c68d915b7b9a4644cf4f37911da6c"
+  ],
+  "left": {
+    "label": "baseline: stalls after the plate",
+    "outcome": {
+      "success": false,
+      "failure": null,
+      "elapsed_s": 70.00000000015221,
+      "recording_stopped_early": true
+    },
+    "camera": "overhead",
+    "robot_visibility": {
+      "camera": "overhead",
+      "probes": 70,
+      "probe_every_frames": 25,
+      "robot_pixel_fraction_min": 0.004052854938271605,
+      "robot_pixel_fraction_mean": 0.004728257275132275,
+      "share_of_probes_with_robot_visible": 1.0,
+      "visible_threshold_fraction": 0.001
+    },
+    "configuration": {
+      "stage": "doors",
+      "index": 1,
+      "max_seconds": 70.0,
+      "handoff": "early",
+      "rejoin_fix": "none",
+      "stall_min_s": 0.8,
+      "stage_activate": false,
+      "stage_wait_open": 2.0,
+      "pre_point": 0.3,
+      "cross_clear": null,
+      "cross_kick": false,
+      "align_yaw": false,
+      "rejoin_advance": false,
+      "exit_ramp": 0.0,
+      "exit_ramp_center": false
+    },
+    "re_encoded": "libopenh264 462 kb/s, 800 px wide, after rendering, to stay under the 5 MB artifact guard; frames unchanged"
+  },
+  "right": {
+    "label": "crossing fix: reaches the goal",
+    "outcome": {
+      "success": true,
+      "failure": null,
+      "elapsed_s": 77.68000000018888,
+      "recording_stopped_early": false
+    },
+    "camera": "overhead",
+    "robot_visibility": {
+      "camera": "overhead",
+      "probes": 78,
+      "probe_every_frames": 25,
+      "robot_pixel_fraction_min": 0.0019598765432098765,
+      "robot_pixel_fraction_mean": 0.004599754669199115,
+      "share_of_probes_with_robot_visible": 1.0,
+      "visible_threshold_fraction": 0.001
+    },
+    "configuration": {
+      "stage": "doors",
+      "index": 1,
+      "max_seconds": null,
+      "handoff": "early",
+      "rejoin_fix": "none",
+      "stall_min_s": 0.8,
+      "stage_activate": true,
+      "stage_wait_open": 0.0,
+      "pre_point": 0.45,
+      "cross_clear": 0.35,
+      "cross_kick": true,
+      "align_yaw": false,
+      "rejoin_advance": true,
+      "exit_ramp": 1.2,
+      "exit_ramp_center": true
+    },
+    "re_encoded": "libopenh264 417 kb/s, 800 px wide, after rendering, to stay under the 5 MB artifact guard; frames unchanged"
+  },
+  "expected_success": {
+    "left": false,
+    "right": true
+  },
+  "completion_s": {
+    "left": null,
+    "right": 77.68000000018888
+  },
+  "red_outline_panel": "left",
+  "green_panel": "right",
+  "playback_speed": 4.0,
+  "gif_budget_s": 18.0,
+  "camera": "overhead",
+  "caption": "Mission 7 Doors/1 (validation layout 1): the unchanged guarded stage hands back on the plate edge and the gait settles into its standing fixed point (left, recording stopped at 70 s of a 180 s timeout); with the stage-owned crossing (prev_actions kick, cross-until-clear, centre-aimed exit ramp, waypoint advance) the same layout completes at 77.7 s (right).",
+  "scope": "One development layout under two controller configurations, rendered from deterministic reruns. The crossing fix is NOT a promoted candidate: it fails the exact ten-fall replay regression (7/10 to 9/10 across variants) and was not evaluated on the route rate. Not a claim about Mission 7 success.",
+  "supersedes": {
+    "output_sha256": "01c4e823eb4178e51aec708a21649022e7c2efc22d5bba0c45750306b491ef62",
+    "source_sha256": [
+      "f9b8f8f8f73afbdaee5df5e31f3d89a81e49eb2d0d45de3a9a2044a8c7ca769e",
+      "8e7cffdadd05c76f84663ec05b2af4e6f8c1fcd8d197c73e03d8eec2a60b15b8"
+    ],
+    "camera": "tracking",
+    "red_outline_panel": "right",
+    "note": "previous GIF: tracking camera behind the maze walls, success panel outlined red"
+  },
+  "git_commit": "02f71e67d93be1e63041b620851351f57ef49ec6",
+  "rebuilt_by": "login-node rebuild from the 21405530 overhead renders (size-fitted window)",
+  "note": "18.0 s at 4.0x covers the full 70 s / 78 s sources; fps 5, 64 colours to stay under the 5 MiB guard"
+}

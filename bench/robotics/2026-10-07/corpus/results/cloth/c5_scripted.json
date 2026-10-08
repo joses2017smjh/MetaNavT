@@ -1,0 +1,21 @@
+{
+  "success_rate": 1.0,
+  "wrong_basket_rate": 0.0,
+  "mean_sweeps": 5.0,
+  "mean_steps_to_success": 5.0,
+  "fall_rate": 0.0,
+  "invalid_trajectory_rate": 0.0,
+  "env_steps_per_s": 357.3760138618683,
+  "real_time_factor": null,
+  "gpu_mem_mb": null,
+  "n_episodes": 32,
+  "physics": "kinematic_rigid",
+  "policy": "scripted",
+  "num_envs": 1,
+  "cloth_resolution": "n/a",
+  "n_deformables": 0,
+  "n_vertices": 0,
+  "active_garment_mode": true,
+  "note": "Stage 3 Mode B evaluates one active deformable at a time. That is not five simultaneously active cloth objects.",
+  "rung": "C5"
+}

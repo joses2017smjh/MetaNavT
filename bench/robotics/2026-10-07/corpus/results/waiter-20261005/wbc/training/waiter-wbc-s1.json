@@ -1,0 +1,9 @@
+{
+ "run": "waiter-wbc-s1",
+ "task": "Velocity-BHL-Waiter-WBC-v0",
+ "seed": 1,
+ "final_ckpt": "model_5999.pt",
+ "run_dir": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-05_18-41-32_waiter-wbc-s1",
+ "job": "21585990",
+ "logged_iterations": 6000
+}

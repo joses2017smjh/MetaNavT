@@ -1,0 +1,620 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "episodes": 10,
+  "falls_replayed": 10,
+  "unchanged_replay_matches": true,
+  "selected_layouts": [
+    0,
+    1,
+    4,
+    5,
+    7,
+    9,
+    12,
+    13,
+    14,
+    15
+  ],
+  "aggregate": {
+    "minimum_robot_obstacle_clearance_m": -0.039379554570321114,
+    "minimum_robot_plate_surface_clearance_m": -0.039379554570321114,
+    "minimum_robot_plate_edge_clearance_m": -0.20878266706296827,
+    "failure_stages": {
+      "during_plate_traversal": 6,
+      "after_plate_exit": 4
+    },
+    "first_contact_geoms": {
+      "plate_0_-1": 6,
+      "plate_0_1": 4
+    }
+  },
+  "geometry_unchanged": true,
+  "job_id": "21396492",
+  "node": "cn-c22",
+  "python_environment": "validated Mission7 venv selected via PYTHON",
+  "interpretation_allowed": true,
+  "episodes_detail": [
+    {
+      "layout_index": 0,
+      "layout_seed": 10000,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 55.04000000008078,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.03612869372423548,
+        "robot_plate_surface_clearance_m": -0.03612869372423548,
+        "robot_plate_edge_clearance_m": -0.06919171048669573,
+        "correct_plate_edge_clearance_m": -0.06919171048669573
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 24.18799999998898,
+        "geom1": "plate_0_-1",
+        "geom2": "",
+        "world_geom": "plate_0_-1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -0.00021358947209471914,
+        "normal_force_N": 127.3452345034313,
+        "tangent_force_N": 15.683066384059433,
+        "base_xy": [
+          0.13894597078619667,
+          4.504312837212518
+        ],
+        "base_yaw": 0.03341309314600816,
+        "lateral_offset_m": 0.2810540292138031,
+        "longitudinal_offset_m": -0.17568716278748295,
+        "nearest_sample": {
+          "time_s": 24.19999999998895,
+          "command": [
+            0.32600463237473554,
+            0.2317778670844426,
+            -0.012393576860608902
+          ],
+          "velocity_world": [
+            0.29054360540070556,
+            -0.19334178602798216
+          ],
+          "velocity_body": [
+            0.28403074499955006,
+            -0.20278848280593134
+          ],
+          "yaw_rate": -0.043405962504731416,
+          "phase": "switch"
+        }
+      },
+      "last_plate_contact_s": 55.04000000008078,
+      "failure_stage_relative_to_plate": "during_plate_traversal",
+      "fall_after_first_plate_contact_s": 30.852000000091802,
+      "contact_counts": {
+        "plate_0_-1": 3045,
+        "plate_1_1": 2050
+      }
+    },
+    {
+      "layout_index": 1,
+      "layout_seed": 10001,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 43.68000000002654,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.033943651058905795,
+        "robot_plate_surface_clearance_m": -0.033943651058905795,
+        "robot_plate_edge_clearance_m": -0.20878266706296827,
+        "correct_plate_edge_clearance_m": -0.20878266706296827
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 18.171500000003,
+        "geom1": "plate_0_-1",
+        "geom2": "",
+        "world_geom": "plate_0_-1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -0.0002165225714065494,
+        "normal_force_N": 71.68537526650277,
+        "tangent_force_N": 4.200836681673112,
+        "base_xy": [
+          1.427069687942981,
+          3.776591981172082
+        ],
+        "base_yaw": 0.03604105067529886,
+        "lateral_offset_m": -0.303408018827918,
+        "longitudinal_offset_m": 0.04706968794298105,
+        "nearest_sample": {
+          "time_s": 18.160000000003027,
+          "command": [
+            0.0441947914703874,
+            0.3465,
+            -0.027508273673895512
+          ],
+          "velocity_world": [
+            -0.24184134363925303,
+            -0.05657996286643004
+          ],
+          "velocity_body": [
+            -0.24379634699895156,
+            -0.04745386055077797
+          ],
+          "yaw_rate": -0.14859975864390365,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 43.482500000025595,
+      "failure_stage_relative_to_plate": "after_plate_exit",
+      "fall_after_first_plate_contact_s": 25.50850000002354,
+      "contact_counts": {
+        "plate_0_-1": 4779,
+        "plate_1_-1": 3746
+      }
+    },
+    {
+      "layout_index": 4,
+      "layout_seed": 10004,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 45.08000000003322,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.024936062053454926,
+        "robot_plate_surface_clearance_m": -0.024936062053454926,
+        "robot_plate_edge_clearance_m": -0.05263732885998096,
+        "correct_plate_edge_clearance_m": -0.05263732885998096
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 15.856000000007887,
+        "geom1": "plate_0_-1",
+        "geom2": "",
+        "world_geom": "plate_0_-1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -9.033910728316826e-05,
+        "normal_force_N": 158.53648354334575,
+        "tangent_force_N": 112.95773196470445,
+        "base_xy": [
+          1.837417061933747,
+          3.1042201489204437
+        ],
+        "base_yaw": 0.08140026185912057,
+        "lateral_offset_m": 0.28258293806625295,
+        "longitudinal_offset_m": -0.17577985107955604,
+        "nearest_sample": {
+          "time_s": 15.840000000007867,
+          "command": [
+            0.35563250838350874,
+            0.18309975144945886,
+            -0.0955914187048117
+          ],
+          "velocity_world": [
+            -0.02339579144839763,
+            0.06982470284159675
+          ],
+          "velocity_body": [
+            -0.017574324122031894,
+            0.07151220396595237
+          ],
+          "yaw_rate": 0.09374457725635116,
+          "phase": "switch"
+        }
+      },
+      "last_plate_contact_s": 44.97400000003272,
+      "failure_stage_relative_to_plate": "after_plate_exit",
+      "fall_after_first_plate_contact_s": 29.224000000025335,
+      "contact_counts": {
+        "plate_0_-1": 3795,
+        "plate_1_1": 804
+      }
+    },
+    {
+      "layout_index": 5,
+      "layout_seed": 10005,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 42.60000000002138,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.02591885093687655,
+        "robot_plate_surface_clearance_m": -0.02591885093687655,
+        "robot_plate_edge_clearance_m": -0.11038397543106665,
+        "correct_plate_edge_clearance_m": -0.10944159374692031
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 16.14250000000773,
+        "geom1": "plate_0_1",
+        "geom2": "",
+        "world_geom": "plate_0_1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -3.629613485391938e-06,
+        "normal_force_N": 78.13944497863729,
+        "tangent_force_N": 76.0871658745848,
+        "base_xy": [
+          6.004042830620088,
+          -0.0012925097195578966
+        ],
+        "base_yaw": -0.03106447707903979,
+        "lateral_offset_m": 0.3759571693799115,
+        "longitudinal_offset_m": 0.1187074902804421,
+        "nearest_sample": {
+          "time_s": 16.160000000007688,
+          "command": [
+            0.396,
+            0.008529946435847573,
+            0.05359773233420628
+          ],
+          "velocity_world": [
+            0.593398816096514,
+            -0.0679137556275047
+          ],
+          "velocity_body": [
+            0.5955187875362139,
+            -0.045736274876454514
+          ],
+          "yaw_rate": -0.3911764353587299,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 42.60000000002138,
+      "failure_stage_relative_to_plate": "during_plate_traversal",
+      "fall_after_first_plate_contact_s": 26.457500000013653,
+      "contact_counts": {
+        "plate_0_1": 13564,
+        "plate_0_-1": 2565,
+        "plate_1_1": 1053
+      }
+    },
+    {
+      "layout_index": 7,
+      "layout_seed": 10007,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 44.48000000003036,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.022340493570389697,
+        "robot_plate_surface_clearance_m": -0.022340493570389697,
+        "robot_plate_edge_clearance_m": -0.05392003809750687,
+        "correct_plate_edge_clearance_m": -0.05392003809750687
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 15.921000000007966,
+        "geom1": "plate_0_1",
+        "geom2": "",
+        "world_geom": "plate_0_1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -4.4980014611297984e-05,
+        "normal_force_N": 112.44170404889032,
+        "tangent_force_N": 61.12620901628416,
+        "base_xy": [
+          1.4889202569699806,
+          3.079865779912014
+        ],
+        "base_yaw": 0.0026932985762000185,
+        "lateral_offset_m": -0.2089202569699806,
+        "longitudinal_offset_m": -0.20013422008798584,
+        "nearest_sample": {
+          "time_s": 15.920000000007965,
+          "command": [
+            -0.2777299782361691,
+            0.28786465428902025,
+            -0.006424591205188121
+          ],
+          "velocity_world": [
+            -0.3373312658659133,
+            -0.2160768650352916
+          ],
+          "velocity_body": [
+            -0.33797056636487016,
+            -0.21507554673925158
+          ],
+          "yaw_rate": -0.28635348455930976,
+          "phase": "switch"
+        }
+      },
+      "last_plate_contact_s": 44.34800000002973,
+      "failure_stage_relative_to_plate": "after_plate_exit",
+      "fall_after_first_plate_contact_s": 28.559000000022394,
+      "contact_counts": {
+        "plate_0_1": 2588,
+        "plate_1_1": 2722
+      }
+    },
+    {
+      "layout_index": 9,
+      "layout_seed": 10009,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 20.879999999996688,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.021085343697040803,
+        "robot_plate_surface_clearance_m": -0.021085343697040803,
+        "robot_plate_edge_clearance_m": -0.07536995093502702,
+        "correct_plate_edge_clearance_m": -0.07536995093502702
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 19.89149999999899,
+        "geom1": "plate_0_-1",
+        "geom2": "",
+        "world_geom": "plate_0_-1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -0.00013162060155910414,
+        "normal_force_N": 60.83184527091804,
+        "tangent_force_N": 60.83184527091804,
+        "base_xy": [
+          4.412561737371676,
+          2.2926007775564554
+        ],
+        "base_yaw": 0.020688799188071975,
+        "lateral_offset_m": -0.28739922244354466,
+        "longitudinal_offset_m": 0.032561737371676,
+        "nearest_sample": {
+          "time_s": 19.87999999999902,
+          "command": [
+            0.05336277988002047,
+            0.3465,
+            -0.024761254473958983
+          ],
+          "velocity_world": [
+            0.048822952473556835,
+            0.5075050570669742
+          ],
+          "velocity_body": [
+            0.060905619969782075,
+            0.5061971642481657
+          ],
+          "yaw_rate": -0.291068591381773,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 20.879999999996688,
+      "failure_stage_relative_to_plate": "during_plate_traversal",
+      "fall_after_first_plate_contact_s": 0.9884999999976962,
+      "contact_counts": {
+        "plate_0_-1": 1453
+      }
+    },
+    {
+      "layout_index": 12,
+      "layout_seed": 10012,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 13.60000000000513,
+      "fall_phase": "switch",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.039379554570321114,
+        "robot_plate_surface_clearance_m": -0.039379554570321114,
+        "robot_plate_edge_clearance_m": -0.18648106403149034,
+        "correct_plate_edge_clearance_m": -0.18648106403149034
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 12.574000000003876,
+        "geom1": "plate_0_-1",
+        "geom2": "",
+        "world_geom": "plate_0_-1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -0.00024428271718889667,
+        "normal_force_N": 190.49627234053509,
+        "tangent_force_N": 119.07755744334541,
+        "base_xy": [
+          0.6700569209349938,
+          1.5128910758254877
+        ],
+        "base_yaw": 0.029734409709062874,
+        "lateral_offset_m": -0.2500569209349938,
+        "longitudinal_offset_m": 0.03289107582548767,
+        "nearest_sample": {
+          "time_s": 12.560000000003859,
+          "command": [
+            -0.3928153701482764,
+            0.0754724120144083,
+            -0.019198685642198735
+          ],
+          "velocity_world": [
+            -0.10211039161857273,
+            -0.032785993889237385
+          ],
+          "velocity_body": [
+            -0.10302255517670754,
+            -0.029796083579317127
+          ],
+          "yaw_rate": 0.06453647244885538,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 13.58450000000511,
+      "failure_stage_relative_to_plate": "during_plate_traversal",
+      "fall_after_first_plate_contact_s": 1.026000000001254,
+      "contact_counts": {
+        "plate_0_-1": 2222
+      }
+    },
+    {
+      "layout_index": 13,
+      "layout_seed": 10013,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 15.240000000007134,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.01258451470748306,
+        "robot_plate_surface_clearance_m": -0.01258451470748306,
+        "robot_plate_edge_clearance_m": -0.0755181065732573,
+        "correct_plate_edge_clearance_m": 0.7684953920735176
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 13.816500000005394,
+        "geom1": "plate_0_-1",
+        "geom2": "",
+        "world_geom": "plate_0_-1",
+        "body1": "world",
+        "body2": "r0_leg_left_ankle_roll",
+        "world_body": "world",
+        "distance_m": -0.00019686353432464727,
+        "normal_force_N": 28.74715995172821,
+        "tangent_force_N": 20.354353442117908,
+        "base_xy": [
+          1.5295538971036893,
+          2.442665949250328
+        ],
+        "base_yaw": -0.0012683286518582059,
+        "lateral_offset_m": -0.33733405074967227,
+        "longitudinal_offset_m": 0.04955389710368929,
+        "nearest_sample": {
+          "time_s": 13.800000000005374,
+          "command": [
+            0.0348681406064282,
+            0.3465,
+            0.008341664365695502
+          ],
+          "velocity_world": [
+            -0.19549942931072892,
+            -0.22295247300232907
+          ],
+          "velocity_body": [
+            -0.195673540313537,
+            -0.2227996806547118
+          ],
+          "yaw_rate": -0.201142334075734,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 15.240000000007134,
+      "failure_stage_relative_to_plate": "during_plate_traversal",
+      "fall_after_first_plate_contact_s": 1.4235000000017397,
+      "contact_counts": {
+        "plate_0_-1": 3997
+      }
+    },
+    {
+      "layout_index": 14,
+      "layout_seed": 10014,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 37.15999999999541,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.031410429568132156,
+        "robot_plate_surface_clearance_m": -0.031410429568132156,
+        "robot_plate_edge_clearance_m": -0.16003268584312225,
+        "correct_plate_edge_clearance_m": -0.16003268584312225
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 15.627500000007608,
+        "geom1": "plate_0_1",
+        "geom2": "",
+        "world_geom": "plate_0_1",
+        "body1": "world",
+        "body2": "r0_leg_right_ankle_roll",
+        "world_body": "world",
+        "distance_m": -0.0002830030775442188,
+        "normal_force_N": 116.92173007862722,
+        "tangent_force_N": 40.58097714689686,
+        "base_xy": [
+          5.603646779416392,
+          0.011816138384536897
+        ],
+        "base_yaw": -0.06321265475388613,
+        "lateral_offset_m": 0.3763532205836082,
+        "longitudinal_offset_m": 0.1318161383845369,
+        "nearest_sample": {
+          "time_s": 15.640000000007623,
+          "command": [
+            0.396,
+            0.022840004498336695,
+            0.07773612659686388
+          ],
+          "velocity_world": [
+            0.5498484541803806,
+            -0.15546816843629738
+          ],
+          "velocity_body": [
+            0.5584628332187039,
+            -0.12092534008564618
+          ],
+          "yaw_rate": 0.003510142717725217,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 37.15999999999541,
+      "failure_stage_relative_to_plate": "during_plate_traversal",
+      "fall_after_first_plate_contact_s": 21.5324999999878,
+      "contact_counts": {
+        "plate_0_1": 15045,
+        "plate_0_-1": 3421,
+        "plate_1_-1": 1267
+      }
+    },
+    {
+      "layout_index": 15,
+      "layout_seed": 10015,
+      "maximum_pose_difference": 0.0,
+      "fall_time_s": 40.680000000012214,
+      "fall_phase": "advance",
+      "minimum_clearances_m": {
+        "robot_obstacle_clearance_m": -0.030035148526338727,
+        "robot_plate_surface_clearance_m": -0.030035148526338727,
+        "robot_plate_edge_clearance_m": -0.1735288908698046,
+        "correct_plate_edge_clearance_m": -0.1735288908698046
+      },
+      "first_undesired_contact": null,
+      "first_plate_contact": {
+        "time_s": 14.427500000006141,
+        "geom1": "plate_0_1",
+        "geom2": "",
+        "world_geom": "plate_0_1",
+        "body1": "world",
+        "body2": "r0_leg_right_ankle_roll",
+        "world_body": "world",
+        "distance_m": -4.7021087118564386e-05,
+        "normal_force_N": 40.77693642774147,
+        "tangent_force_N": 40.77693642774147,
+        "base_xy": [
+          0.8101848726470302,
+          3.162763154243783
+        ],
+        "base_yaw": -0.05628827974930822,
+        "lateral_offset_m": 0.3698151273529698,
+        "longitudinal_offset_m": 0.08276315424378301,
+        "nearest_sample": {
+          "time_s": 14.440000000006156,
+          "command": [
+            0.396,
+            0.04648518229771487,
+            0.07397854311694198
+          ],
+          "velocity_world": [
+            0.4780115792468488,
+            0.09942068860609071
+          ],
+          "velocity_body": [
+            0.4717701453343597,
+            0.12574765678998875
+          ],
+          "yaw_rate": 0.022418252640820417,
+          "phase": "advance"
+        }
+      },
+      "last_plate_contact_s": 40.38800000001082,
+      "failure_stage_relative_to_plate": "after_plate_exit",
+      "fall_after_first_plate_contact_s": 26.252500000006073,
+      "contact_counts": {
+        "plate_0_1": 13332,
+        "plate_0_-1": 4789,
+        "plate_1_-1": 495
+      }
+    }
+  ],
+  "raw_trace": "episodes.json (cluster-only; ignored by git)"
+}

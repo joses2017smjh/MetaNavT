@@ -1,0 +1,4 @@
+These documents preserve the local measurement report prepared before GitHub publication.
+The report describes the original measurement checkout and frozen artifacts.
+See repository history for the later publication commit; its revision differs from the recorded measurement revisions.
+No new training or physical robot deployment was performed.

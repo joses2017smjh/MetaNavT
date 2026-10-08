@@ -1,0 +1,131 @@
+[
+  {
+    "step": 1,
+    "task": "TaskV2-BHL-CubeToShelf-Blind-v0",
+    "mode": "usd",
+    "articulation": "robot_a",
+    "root_local": [
+      -0.0318,
+      0.5114,
+      -0.0272
+    ],
+    "body_z_min": -0.8045,
+    "body_z_max": -0.0272,
+    "env_origin": [
+      -0.0,
+      0.0,
+      0.0
+    ],
+    "physics_base_world": [
+      0.0188,
+      0.4761,
+      -0.0272
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot_a",
+      "valid": true,
+      "loaded": true,
+      "gprims": 37,
+      "visibility": {
+        "inherited": 37
+      },
+      "purpose": {
+        "default": 26,
+        "guide": 11
+      },
+      "usd_base_world": [
+        0.0,
+        0.48,
+        -0.0272
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/TaskV2-BHL-CubeToShelf-Blind-v0_usd_s001_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/TaskV2-BHL-CubeToShelf-Blind-v0_usd_s001_viewport.png"
+  },
+  {
+    "step": 11,
+    "task": "TaskV2-BHL-CubeToShelf-Blind-v0",
+    "mode": "usd",
+    "articulation": "robot_a",
+    "root_local": [
+      -0.0004,
+      0.5193,
+      -0.0272
+    ],
+    "body_z_min": -0.806,
+    "body_z_max": -0.0272,
+    "env_origin": [
+      -0.0,
+      0.0,
+      0.0
+    ],
+    "physics_base_world": [
+      0.0127,
+      0.5056,
+      -0.0272
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot_a",
+      "valid": true,
+      "loaded": true,
+      "gprims": 37,
+      "visibility": {
+        "inherited": 37
+      },
+      "purpose": {
+        "default": 26,
+        "guide": 11
+      },
+      "usd_base_world": [
+        0.0,
+        0.48,
+        -0.0272
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/TaskV2-BHL-CubeToShelf-Blind-v0_usd_s011_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/TaskV2-BHL-CubeToShelf-Blind-v0_usd_s011_viewport.png"
+  },
+  {
+    "step": 51,
+    "task": "TaskV2-BHL-CubeToShelf-Blind-v0",
+    "mode": "usd",
+    "articulation": "robot_a",
+    "root_local": [
+      -0.0172,
+      0.5136,
+      -0.0272
+    ],
+    "body_z_min": -0.8051,
+    "body_z_max": -0.0272,
+    "env_origin": [
+      -0.0,
+      0.0,
+      0.0
+    ],
+    "physics_base_world": [
+      0.0,
+      0.5005,
+      -0.0272
+    ],
+    "usd": {
+      "prim_path": "/World/envs/env_0/robot_a",
+      "valid": true,
+      "loaded": true,
+      "gprims": 37,
+      "visibility": {
+        "inherited": 37
+      },
+      "purpose": {
+        "default": 26,
+        "guide": 11
+      },
+      "usd_base_world": [
+        0.0,
+        0.48,
+        -0.0272
+      ]
+    },
+    "camera_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/TaskV2-BHL-CubeToShelf-Blind-v0_usd_s051_camera.png",
+    "viewport_png": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/render_probe/TaskV2-BHL-CubeToShelf-Blind-v0_usd_s051_viewport.png"
+  }
+]

@@ -1,0 +1,46 @@
+{
+  "verdict": "BIAS-NOT-A-THREAT",
+  "checks": [
+    {
+      "text": "control bias0.05 31/32 >= 28/32 -> bias not a threat at this level",
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "BothBias": {
+    "counts": {
+      "bias0": 31,
+      "bias0.02": 31,
+      "bias0.05": 32,
+      "bias0.10": 32
+    },
+    "first_completed": {
+      "bias0": 32,
+      "bias0.02": 32,
+      "bias0.05": 32,
+      "bias0.10": 32
+    },
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-24_01-37-12_sf04-ft-bothbias-s0/model_7996.pt"
+  },
+  "control": {
+    "counts": {
+      "bias0": 30,
+      "bias0.02": 31,
+      "bias0.05": 31,
+      "bias0.10": 31
+    },
+    "first_completed": {
+      "bias0": 32,
+      "bias0.02": 32,
+      "bias0.05": 32,
+      "bias0.10": 32
+    },
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-19_16-25-50_wknd-full-both-s0/model_5997.pt"
+  },
+  "rule": "if control bias0.05 >= 28/32: bias not a threat at this level; else PASS iff BothBias bias0.05 >= control bias0.05 + 8 AND BothBias bias0 >= 28/32 (predeclared 2026-09-26)",
+  "labels": {
+    "policy": "learned PPO MLP walking policy",
+    "navigation": "oracle waypoint teacher command",
+    "bias": "scripted, policy-side constant vector of the given norm (see settings imu_bias_model)"
+  }
+}

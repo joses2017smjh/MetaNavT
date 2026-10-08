@@ -1,0 +1,83 @@
+{
+  "output": "docs/gifs/isaac/maze_recovery_pair.gif",
+  "output_sha256": "51c8d6687ab70704271b6d9c85baa8c60a43c1e45cd6dcc8313353b15847f1b2",
+  "output_mb": 8.29,
+  "source_clip": [
+    "results/repo-gpu-20260923/maze-record/both-s0-success.mp4",
+    "results/repo-gpu-20260923/maze-record/blind-s1-failure.mp4"
+  ],
+  "source_sha256": [
+    "af7dfc562360884e4b1605a5190094054402f7fc021abacbbf431c0d93cc0bf2",
+    "6529dafac369c24a9a543bc21a7b528400daedb0253bf33e5409b3acbb8cb267"
+  ],
+  "viewport_clip": [
+    "results/repo-gpu-20260923/maze-record/both-s0-success.viewport.mp4",
+    "results/repo-gpu-20260923/maze-record/blind-s1-failure.viewport.mp4"
+  ],
+  "evidence": [
+    "results/repo-gpu-20260923/maze-record/both-s0-success.json",
+    "results/repo-gpu-20260923/maze-record/blind-s1-failure.json"
+  ],
+  "evidence_sha256": [
+    "14412298e30679b18cb1bd7fd5fff7006b851385486115a906091880b54c2f88",
+    "fb45a51e87392f78c4c925bff88214eefaa24dda097d7def1070286f596a6583"
+  ],
+  "labels_drawn": [
+    "Both s0  seed 100  REACHED  6.4s  1x",
+    "Blind s1  seed 101  FALL  2.8s  1x"
+  ],
+  "left": {
+    "policy": "Both s0",
+    "task": "Velocity-BHL-MazeRecovery-Full-Both-v0",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-19_16-25-50_wknd-full-both-s0/model_5997.pt",
+    "checkpoint_sha256": "82889d05589f053cba0ecb7351287187fcc215aa75b33eabdc1e19f027b5a5d4",
+    "seed": 100,
+    "outcome": "success",
+    "terminations_fired": [
+      "button_reached"
+    ],
+    "steps": 159,
+    "sim_seconds": 6.36,
+    "imu_delay_steps": 0
+  },
+  "right": {
+    "policy": "Blind s1",
+    "task": "Velocity-BHL-MazeRecovery-Full-Blind-v0",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-19_17-53-59_wknd-full-blind-s1/model_5997.pt",
+    "checkpoint_sha256": "8abd1e3f588fbeb893e30d476868ba1061326763e9294c83b93fb6d0ac3ab7cc",
+    "seed": 101,
+    "outcome": "base_orientation",
+    "terminations_fired": [
+      "base_orientation"
+    ],
+    "steps": 69,
+    "sim_seconds": 2.7600000000000002,
+    "imu_delay_steps": 0,
+    "tier": "blind"
+  },
+  "expected_success": {
+    "left": true,
+    "right": false
+  },
+  "capture_path": "camera_sensor (CameraCfg following the robot root; the gym RecordVideo viewport clip is kept beside each mp4 as *.viewport.mp4 and draws the stale USD pose on this stack, docs/ISAAC_RENDER.md s10)",
+  "observation_corruption": true,
+  "num_envs": 1,
+  "sim_dt": 0.005,
+  "step_dt": 0.04,
+  "video_fps": 25.0,
+  "playback_speed": 1.0,
+  "stack": "v60",
+  "git_commit": "c1c92e6d3166a441fc220bdedff18a4dd861b97a",
+  "search_caps": {
+    "success_seeds": 4,
+    "failure_seeds": 8
+  },
+  "scope": "Isaac Sim 6.0 / Lab 3.0.0b2 | learned PPO gait + oracle waypoint teacher | training observation noise on | 1x",
+  "notes": [
+    "both-s0-failure: no failure in 8 seed(s)"
+  ],
+  "sources_denoised": "ffmpeg nlmeans (s=8, p=5, r=9) on the camera streams: the v60 RTX renderer ran at 1 sample per pixel without the NGX denoiser on this node, so the raw frames are speckled",
+  "gif_fps": 6,
+  "gif_colors": 64,
+  "rebuilt_by": "login-node size fit from the 21405533 recordings"
+}

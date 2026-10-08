@@ -1,0 +1,82 @@
+{
+  "task": "bimanual_so101_garment_folding",
+  "policy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/weekend-20260919/fold-adapt-s0/step_001200",
+  "garment_type": "top_short",
+  "seed": 100,
+  "renderer": "Storm RGB (synthetic depth unused by RGB policy)",
+  "physics": "Isaac Sim 5.1 GPU PhysX particle cloth",
+  "scorer": "unmodified official LeHome run_evaluation_loop returned metrics",
+  "expected_episodes": 24,
+  "max_steps": 600,
+  "completed": false,
+  "garments": [
+    {
+      "garment": "Top_Short_Seen_0",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.3064659833908081,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 107.12642858240555,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 114.69323585056964,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Top_Short_Seen_1",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.28043705224990845,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 108.73999401159972,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 104.55529615302365,
+          "length": 600,
+          "success": false
+        }
+      ]
+    },
+    {
+      "garment": "Top_Short_Seen_2",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.42264437675476074,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 146.32784242305112,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 107.00863566210795,
+          "length": 600,
+          "success": false
+        }
+      ]
+    }
+  ],
+  "rendered_observations": 7340,
+  "error": "IndexError('index 11029 is out of bounds for axis 0 with size 10869')"
+}

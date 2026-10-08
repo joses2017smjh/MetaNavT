@@ -38,9 +38,18 @@ bench/results/*.json
 !bench/results/parity.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json
+!bench/results/robotics_file_lookup_2026-10-07.json
+!bench/results/robotics_file_lookup_revalidated_2026-10-07.json
 
 # editable install metadata
 *.egg-info/
 
 # external benchmark downloads (BEIR SciFact) and embedding caches; results are committed
 bench/external/
+
+# Signed approval / structured evidence regression artifacts
+!bench/results/trusted_actions.json
+!bench/results/evidence_consistency.json
+
+# Task-local service and Slurm logs stay out of the measured evidence commit.
+bench/results/revamp_20261007/**/*.log

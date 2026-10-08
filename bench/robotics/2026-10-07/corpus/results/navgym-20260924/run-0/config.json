@@ -1,0 +1,73 @@
+{
+  "out": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-20260924/run-0",
+  "seed": 0,
+  "total_steps": 60000000,
+  "n_envs": 16,
+  "n_steps": 256,
+  "eval_every": 1000000,
+  "checkpoint_every": 2000000,
+  "subproc": true,
+  "dummy_vec": false,
+  "curriculum": [
+    [
+      [
+        3,
+        3
+      ]
+    ],
+    [
+      [
+        3,
+        3
+      ],
+      [
+        4,
+        4
+      ]
+    ],
+    [
+      [
+        4,
+        4
+      ],
+      [
+        5,
+        5
+      ]
+    ],
+    [
+      [
+        5,
+        5
+      ],
+      [
+        6,
+        6
+      ]
+    ]
+  ],
+  "eval_sizes": [
+    [
+      4,
+      4
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      6,
+      6
+    ]
+  ],
+  "ppo": {
+    "n_steps": 256,
+    "batch_size": 1024,
+    "n_epochs": 4,
+    "lr": 0.0003,
+    "gamma": 0.995,
+    "gae_lambda": 0.95,
+    "clip": 0.2,
+    "ent_coef": 0.003
+  }
+}

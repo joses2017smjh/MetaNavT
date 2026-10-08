@@ -1,0 +1,149 @@
+{
+  "baseline_contact_probe": {
+    "aggregate": {
+      "contact_events": 86732,
+      "minimum_plate_distance_m": -0.03562834640260374,
+      "peak_plate_normal_force_N": 2015.0021360032833,
+      "peak_plate_tangent_force_N": 419.59033505475344,
+      "plate_contact_events": 86732,
+      "plate_geom_counts": {
+        "plate_0_-1": 30066,
+        "plate_0_1": 44529,
+        "plate_1_-1": 5508,
+        "plate_1_1": 6629
+      }
+    },
+    "episodes": 10,
+    "falls_replayed": 10,
+    "job": "21386539",
+    "maximum_pose_difference_m": 0.0,
+    "result": "contact_probe-rerun5/result.json",
+    "unchanged_replay_matches": true
+  },
+  "benchmark_geometry_unchanged": true,
+  "campaign": "mission7-approach-followup-20260921",
+  "closed_sensor_gates": [
+    "sensor-only Both",
+    "four-sensor comparison"
+  ],
+  "gates": {
+    "exact_replay_10_of_10_upright": false,
+    "privileged_approach": false,
+    "routes_unlocked": false,
+    "sensor_studies_released": false
+  },
+  "plate_friction_intervention": {
+    "intervention": "plate sliding friction 1.0 -> 0.20; geometry and activation unchanged",
+    "job": "21386540",
+    "result": "plate_physics2/result.json",
+    "summary": {
+      "episodes": 10,
+      "falls": 10,
+      "no_fall": 0
+    }
+  },
+  "plate_safe_mitigation": {
+    "doors": "plate_safe_v3/doors.json",
+    "doors_summary": {
+      "episodes": 16,
+      "failures": {
+        "fall": 4,
+        "success": 1,
+        "timeout": 11
+      },
+      "falls": 4,
+      "success_rate": 0.0625,
+      "successes": 1
+    },
+    "job": "21386488",
+    "replay": "plate_safe_v3/replay/replay.json",
+    "replay_summary": {
+      "episodes": 10,
+      "falls": 2,
+      "no_fall": 8
+    }
+  },
+  "privileged_approach": {
+    "by_direction": {
+      "+0,+1": {
+        "episodes": 16,
+        "failures": {
+          "success": 16
+        },
+        "falls": 0,
+        "success_rate": 1.0,
+        "successes": 16
+      },
+      "+0,-1": {
+        "episodes": 16,
+        "failures": {
+          "success": 16
+        },
+        "falls": 0,
+        "success_rate": 1.0,
+        "successes": 16
+      },
+      "+1,+0": {
+        "episodes": 16,
+        "failures": {
+          "success": 16
+        },
+        "falls": 0,
+        "success_rate": 1.0,
+        "successes": 16
+      },
+      "-1,+0": {
+        "episodes": 16,
+        "failures": {
+          "failed_to_rotate_or_align_or_stopped_early": 8,
+          "success": 8
+        },
+        "falls": 0,
+        "success_rate": 0.5,
+        "successes": 8
+      }
+    },
+    "episodes": 64,
+    "falls": 0,
+    "job": "21386145",
+    "matched_standstill_successes": 0,
+    "result": "approach_controller_speed05/result.json",
+    "successes": 56
+  },
+  "transport_route": {
+    "job": "21386803_[0-15%4]",
+    "result": "transport_array/transport_summary.json",
+    "summary": {
+      "complete": true,
+      "episode_files": [
+        "transport-0.json",
+        "transport-1.json",
+        "transport-2.json",
+        "transport-3.json",
+        "transport-4.json",
+        "transport-5.json",
+        "transport-6.json",
+        "transport-7.json",
+        "transport-8.json",
+        "transport-9.json",
+        "transport-10.json",
+        "transport-11.json",
+        "transport-12.json",
+        "transport-13.json",
+        "transport-14.json",
+        "transport-15.json"
+      ],
+      "episodes": 16,
+      "failures": {
+        "fall": 13,
+        "success": 1,
+        "timeout": 2
+      },
+      "falls": 13,
+      "source_job": "21386803_[0-15%4]",
+      "stage": "transport",
+      "success_rate": 0.0625,
+      "successes": 1
+    }
+  }
+}

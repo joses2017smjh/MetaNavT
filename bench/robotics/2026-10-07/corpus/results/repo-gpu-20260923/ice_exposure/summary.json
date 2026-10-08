@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "problems": [],
+  "verdicts": {
+    "blind": "EXPOSED",
+    "depth": "EXPOSED"
+  },
+  "files": {
+    "blind": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/ice_exposure/blind_s0.json",
+    "depth": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/ice_exposure/depth_s0.json"
+  }
+}

@@ -1,0 +1,192 @@
+{
+  "rows": [
+    {
+      "finite": true,
+      "success": false,
+      "released": true,
+      "mirror_pair_rmse_m": 0.13356039802417052,
+      "footprint_xy_m": [
+        0.18548080231693875,
+        0.18548210888478353
+      ],
+      "max_height_above_table_m": 0.0008982255173080045,
+      "warning_count": 0,
+      "seed": 0,
+      "control": "hold",
+      "width_m": 0.18547846749285818,
+      "friction": 0.780936014129161,
+      "mass_kg": 0.012327788191489558,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 14.691844473127276,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.00390301449094611
+    },
+    {
+      "finite": true,
+      "success": true,
+      "released": true,
+      "mirror_pair_rmse_m": 0.0005981348461413952,
+      "footprint_xy_m": [
+        0.09336329634257708,
+        0.18575941580081934
+      ],
+      "max_height_above_table_m": 0.0074837300981951405,
+      "warning_count": 0,
+      "seed": 0,
+      "control": "fold",
+      "width_m": 0.18547846749285818,
+      "friction": 0.780936014129161,
+      "mass_kg": 0.012327788191489558,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 9.801502655027434,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.18570983052747467
+    },
+    {
+      "finite": true,
+      "success": false,
+      "released": true,
+      "mirror_pair_rmse_m": 0.12995621156671205,
+      "footprint_xy_m": [
+        0.18047569632464858,
+        0.18047499280202156
+      ],
+      "max_height_above_table_m": 0.0008442026579514872,
+      "warning_count": 0,
+      "seed": 1,
+      "control": "hold",
+      "width_m": 0.18047286498801027,
+      "friction": 0.9851391088977806,
+      "mass_kg": 0.01315327690175707,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 11.801399416988716,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.0037590505095431073
+    },
+    {
+      "finite": true,
+      "success": true,
+      "released": true,
+      "mirror_pair_rmse_m": 0.0005758506949086423,
+      "footprint_xy_m": [
+        0.09089475688358632,
+        0.18074832659737675
+      ],
+      "max_height_above_table_m": 0.0072710381107864985,
+      "warning_count": 0,
+      "seed": 1,
+      "control": "fold",
+      "width_m": 0.18047286498801027,
+      "friction": 0.9851391088977806,
+      "mass_kg": 0.01315327690175707,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 9.850621025077999,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.18069822778439135
+    },
+    {
+      "finite": true,
+      "success": false,
+      "released": true,
+      "mirror_pair_rmse_m": 0.12274909509110263,
+      "footprint_xy_m": [
+        0.17046696352133922,
+        0.17046638184711066
+      ],
+      "max_height_above_table_m": 0.0009490412677352067,
+      "warning_count": 0,
+      "seed": 2,
+      "control": "hold",
+      "width_m": 0.17046448536997266,
+      "friction": 0.789547343024237,
+      "mass_kg": 0.018513805924754243,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 14.380410902900621,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.00365160950541533
+    },
+    {
+      "finite": true,
+      "success": true,
+      "released": true,
+      "mirror_pair_rmse_m": 0.0006531267088184916,
+      "footprint_xy_m": [
+        0.08592387459291573,
+        0.17077417342653378
+      ],
+      "max_height_above_table_m": 0.007466103830585991,
+      "warning_count": 0,
+      "seed": 2,
+      "control": "fold",
+      "width_m": 0.17046448536997266,
+      "friction": 0.789547343024237,
+      "mass_kg": 0.018513805924754243,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 9.88319515506737,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.17069398802581445
+    },
+    {
+      "finite": true,
+      "success": false,
+      "released": true,
+      "mirror_pair_rmse_m": 0.11768106532407813,
+      "footprint_xy_m": [
+        0.1634291921692944,
+        0.16342940610984907
+      ],
+      "max_height_above_table_m": 0.0008745356683818595,
+      "warning_count": 0,
+      "seed": 3,
+      "control": "hold",
+      "width_m": 0.16342596668574497,
+      "friction": 0.7710431519788299,
+      "mass_kg": 0.018410195721651174,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 14.67489394498989,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.003768570596200074
+    },
+    {
+      "finite": true,
+      "success": true,
+      "released": true,
+      "mirror_pair_rmse_m": 0.0006878937379004654,
+      "footprint_xy_m": [
+        0.08243432364896967,
+        0.1637583780870138
+      ],
+      "max_height_above_table_m": 0.007480888296879373,
+      "warning_count": 0,
+      "seed": 3,
+      "control": "fold",
+      "width_m": 0.16342596668574497,
+      "friction": 0.7710431519788299,
+      "mass_kg": 0.018410195721651174,
+      "resolution": 7,
+      "simulated_s": 5.000000000000004,
+      "wall_s": 10.071443060878664,
+      "physics": "MuJoCo 3.3.5 2D flex with self collision",
+      "actuation": "two idealized Cartesian attachments; no robot/gripper model",
+      "max_vertex_displacement_m": 0.16365819776506
+    }
+  ],
+  "completed": true,
+  "gate_pass": true,
+  "fold_success_rate": 1.0,
+  "scope": "physics diagnostic with idealized pickers, not a humanoid folding result"
+}

@@ -1,0 +1,88 @@
+{
+  "output": "docs/gifs/random-maze-humanoid-sensors.gif",
+  "output_sha256": "a40e839dd0b9ee423207e3e61bdc47cd6c18462c2b7bea98e11ee292576e3fbd",
+  "output_mb": 4.4,
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/random-maze-humanoid-sensors.gif",
+    "bytes": 4396785,
+    "mb": 4.4,
+    "fps": 6,
+    "width": 1100,
+    "ffmpeg": "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2",
+    "max_colors": 96,
+    "speed": 5.0,
+    "badge": "GIF 5x",
+    "within_budget": true
+  },
+  "source_clip": "results/maze-humanoid-20260928/humanoid-hard-6x6/seed12_sensors.mp4",
+  "source_sha256": "328c79a7b7a5cc0949a0132046251f0dd6c06ecbc397c02c801cf929ff72bb60",
+  "evidence": "results/maze-humanoid-20260928/humanoid-hard-6x6/seed12_sensors.json",
+  "episode": {
+    "seed": 12,
+    "outcome": "goal",
+    "success": true,
+    "clean_success": true,
+    "completion_s": 70.48,
+    "wall_contact_steps": 0,
+    "path_length_m": 23.33,
+    "turns": 20,
+    "replans": 166,
+    "mapped_fraction_end": 0.546
+  },
+  "maze": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "cells_on_shortest_route": 15,
+    "walls": 48,
+    "layout_sha256": "6855f0f9744188bc"
+  },
+  "playback_speed": 5.0,
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-09-25_18-54-44_arms-turn-turnboth-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-09-25_18-54-44_arms-turn-turnboth-s0/exported/policy.onnx",
+    "checkpoint_sha256": "562ceed71e04df2bc317edd352c9ebf59fb13fee5d0cc6708fa82aff33b55c95",
+    "variant": "humanoid",
+    "run": "arms-turn-turnboth-s0",
+    "label": "LEARNED gait arms-turn-turnboth-s0 (one checkpoint, frozen; 22-DoF humanoid); QUALIFIED 2026-09-27 as a single checkpoint (turn 10/10, walk 3/3, push 7/60), 1 of 12 turning-arm seeds, not a recipe; marches in place at zero command, turns while stepping"
+  },
+  "scope": "MuJoCo 3.3.5 | 22-DoF humanoid | LEARNED gait arms-turn-turnboth-s0 (ONE checkpoint, frozen) | SCRIPTED lidar log-odds map + A* (unknown = free) + turn-then-walk (no sideways) | ORACLE pose and goal coordinate; the maze itself is unknown to the planner | one seed = one maze; the multi-seed table is the evidence, this clip the illustration",
+  "labels": {
+    "gait": "LEARNED gait arms-turn-turnboth-s0 (one checkpoint, frozen; 22-DoF humanoid); QUALIFIED 2026-09-27 as a single checkpoint (turn 10/10, walk 3/3, push 7/60), 1 of 12 turning-arm seeds, not a recipe; marches in place at zero command, turns while stepping",
+    "planner": "SCRIPTED A* on the lidar log-odds map (unknown = free) + turn-then-walk (never sideways)",
+    "pose": "ORACLE (simulator pose)",
+    "goal": "ORACLE goal coordinate"
+  },
+  "imu_panel": {
+    "label": "SIMULATED IM10A-like 10-axis IMU, display only (never in the control loop)",
+    "rate_hz": 100.0,
+    "noise": {
+      "gyro_noise_dps": 0.07,
+      "gyro_bias_dps": 1.0,
+      "accel_noise_mg": 1.0,
+      "accel_bias_mg": 40.0,
+      "mag_resolution_mgauss": 0.0667,
+      "baro_noise_pa": 0.5,
+      "max_rate_hz": 200.0,
+      "source": "Hiwonder IMU module user manual s1 (datasheet upper bounds), retrieved 2026-09-29"
+    },
+    "filter": "Mahony kp=1.0 ki=0.1, 6-axis, own random stream",
+    "not_used": "magnetometer (approx. local field) and barometer are simulated and not used"
+  },
+  "rig_panels": {
+    "label": "display only: the brake reads the 8x8 ray-cast depth, the map the lidar",
+    "rgb_depth": "MuJoCo renders at the stereo mount, 160x120 per eye, 20 deg down, 60.5 deg vfov",
+    "optical_flow": "OpenCV Farneback on consecutive left-eye frames (HSV: hue = direction)"
+  },
+  "episode_matches_table": {
+    "table": {
+      "outcome": "goal",
+      "completion_s": 70.48
+    },
+    "rendered": {
+      "outcome": "goal",
+      "completion_s": 70.48
+    },
+    "match": true
+  }
+}

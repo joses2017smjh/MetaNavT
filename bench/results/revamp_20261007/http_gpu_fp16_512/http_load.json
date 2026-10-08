@@ -1,0 +1,2942 @@
+{
+  "schema_version": 1,
+  "measurement": "HTTP client end-to-end retrieval latency; server stage times reported separately",
+  "timestamp": "2026-10-08T01:23:44.671726+00:00",
+  "url": "http://127.0.0.1:39149",
+  "k": 8,
+  "query_count": 136,
+  "query_sha256": "49d2b6a7c9695d49df3c521b9cb6f913763f078495f402a1bee3baa57838234a",
+  "timeout_seconds": 120,
+  "cold_definition": "first request by this client after health check; model load/startup excluded",
+  "fresh_service_confirmed_by_operator": true,
+  "warmup_excluded_from_measured": true,
+  "health": {
+    "status": "ok",
+    "n_nodes": 61,
+    "embedding_provider": "huggingface",
+    "embed_model": "HuggingFaceEmbedding",
+    "devices": {
+      "embedding": "cuda:0",
+      "reranker": "cuda:0"
+    },
+    "required_device": "cuda",
+    "bm25_backend": "ts_rank_cd",
+    "retrieval_mode": "sql",
+    "reranker_loaded": true,
+    "reranker": {
+      "configured": true,
+      "loaded": true,
+      "model": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "device": "cuda:0",
+      "precision": "fp16",
+      "max_length": 512,
+      "depth": 20,
+      "error": null,
+      "dtype": "torch.float16"
+    },
+    "degraded": [],
+    "indexing": {
+      "indexed": true,
+      "n_documents": 61,
+      "n_nodes": 61,
+      "data_dir": "/nfs/hpc/share/sanchej7/MetaNavT/MetaNaviT/bench/corpus/files"
+    },
+    "observability": {
+      "log_format": "json",
+      "tracing": {
+        "configured": true,
+        "enabled": false,
+        "reason": "OTEL_EXPORTER_OTLP_ENDPOINT not set"
+      }
+    }
+  },
+  "readiness_errors": [],
+  "runs": [
+    {
+      "concurrency": 1,
+      "attempted": 32,
+      "completed": 32,
+      "succeeded": 32,
+      "failed": 0,
+      "error_rate": 0.0,
+      "status_counts": {
+        "200": 32
+      },
+      "error_counts": {},
+      "unique_query_ids": 32,
+      "route_counts": {
+        "semantic": 25,
+        "aggregation_query": 7
+      },
+      "e2e_successful_by_route": {
+        "aggregation_query": {
+          "n": 7,
+          "p50_ms": 10.776,
+          "p95_ms": 11.373,
+          "mean_ms": 10.888
+        },
+        "semantic": {
+          "n": 25,
+          "p50_ms": 22.269,
+          "p95_ms": 23.469,
+          "mean_ms": 22.49
+        }
+      },
+      "wall_seconds": 0.639278,
+      "successful_requests_per_second": 50.05643761889803,
+      "completed_requests_per_second": 50.05643761889803,
+      "e2e_all_attempts": {
+        "n": 32,
+        "p50_ms": 22.114,
+        "p95_ms": 23.459,
+        "mean_ms": 19.952
+      },
+      "e2e_successful": {
+        "n": 32,
+        "p50_ms": 22.114,
+        "p95_ms": 23.459,
+        "mean_ms": 19.952
+      },
+      "server_stages_successful": {
+        "embed": {
+          "n": 32,
+          "p50_ms": 4.932,
+          "p95_ms": 5.281,
+          "mean_ms": 4.972
+        },
+        "hybrid_sql": {
+          "n": 32,
+          "p50_ms": 3.05,
+          "p95_ms": 3.605,
+          "mean_ms": 3.142
+        },
+        "rerank": {
+          "n": 25,
+          "p50_ms": 11.824,
+          "p95_ms": 12.152,
+          "mean_ms": 11.842
+        },
+        "route": {
+          "n": 32,
+          "p50_ms": 0.023,
+          "p95_ms": 0.03,
+          "mean_ms": 0.023
+        },
+        "staleness": {
+          "n": 32,
+          "p50_ms": 0.165,
+          "p95_ms": 0.173,
+          "mean_ms": 0.167
+        },
+        "total": {
+          "n": 32,
+          "p50_ms": 20.154,
+          "p95_ms": 21.302,
+          "mean_ms": 17.917
+        }
+      }
+    },
+    {
+      "concurrency": 4,
+      "attempted": 32,
+      "completed": 32,
+      "succeeded": 32,
+      "failed": 0,
+      "error_rate": 0.0,
+      "status_counts": {
+        "200": 32
+      },
+      "error_counts": {},
+      "unique_query_ids": 32,
+      "route_counts": {
+        "semantic": 25,
+        "aggregation_query": 7
+      },
+      "e2e_successful_by_route": {
+        "aggregation_query": {
+          "n": 7,
+          "p50_ms": 38.479,
+          "p95_ms": 50.012,
+          "mean_ms": 38.459
+        },
+        "semantic": {
+          "n": 25,
+          "p50_ms": 101.442,
+          "p95_ms": 110.48,
+          "mean_ms": 101.944
+        }
+      },
+      "wall_seconds": 0.707774,
+      "successful_requests_per_second": 45.21217448114532,
+      "completed_requests_per_second": 45.21217448114532,
+      "e2e_all_attempts": {
+        "n": 32,
+        "p50_ms": 100.161,
+        "p95_ms": 110.421,
+        "mean_ms": 88.056
+      },
+      "e2e_successful": {
+        "n": 32,
+        "p50_ms": 100.161,
+        "p95_ms": 110.421,
+        "mean_ms": 88.056
+      },
+      "server_stages_successful": {
+        "embed": {
+          "n": 32,
+          "p50_ms": 27.506,
+          "p95_ms": 36.656,
+          "mean_ms": 27.71
+        },
+        "hybrid_sql": {
+          "n": 32,
+          "p50_ms": 4.413,
+          "p95_ms": 13.257,
+          "mean_ms": 6.412
+        },
+        "rerank": {
+          "n": 25,
+          "p50_ms": 65.461,
+          "p95_ms": 73.644,
+          "mean_ms": 64.274
+        },
+        "route": {
+          "n": 32,
+          "p50_ms": 0.02,
+          "p95_ms": 0.028,
+          "mean_ms": 0.021
+        },
+        "staleness": {
+          "n": 32,
+          "p50_ms": 0.177,
+          "p95_ms": 0.305,
+          "mean_ms": 0.207
+        },
+        "total": {
+          "n": 32,
+          "p50_ms": 97.383,
+          "p95_ms": 105.635,
+          "mean_ms": 85.0
+        }
+      }
+    },
+    {
+      "concurrency": 16,
+      "attempted": 32,
+      "completed": 32,
+      "succeeded": 32,
+      "failed": 0,
+      "error_rate": 0.0,
+      "status_counts": {
+        "200": 32
+      },
+      "error_counts": {},
+      "unique_query_ids": 32,
+      "route_counts": {
+        "semantic": 25,
+        "aggregation_query": 7
+      },
+      "e2e_successful_by_route": {
+        "aggregation_query": {
+          "n": 7,
+          "p50_ms": 175.661,
+          "p95_ms": 237.635,
+          "mean_ms": 189.177
+        },
+        "semantic": {
+          "n": 25,
+          "p50_ms": 502.285,
+          "p95_ms": 557.116,
+          "mean_ms": 472.19
+        }
+      },
+      "wall_seconds": 0.913329,
+      "successful_requests_per_second": 35.0366441698487,
+      "completed_requests_per_second": 35.0366441698487,
+      "e2e_all_attempts": {
+        "n": 32,
+        "p50_ms": 428.687,
+        "p95_ms": 556.032,
+        "mean_ms": 410.281
+      },
+      "e2e_successful": {
+        "n": 32,
+        "p50_ms": 428.687,
+        "p95_ms": 556.032,
+        "mean_ms": 410.281
+      },
+      "server_stages_successful": {
+        "embed": {
+          "n": 32,
+          "p50_ms": 153.197,
+          "p95_ms": 194.176,
+          "mean_ms": 156.333
+        },
+        "hybrid_sql": {
+          "n": 32,
+          "p50_ms": 6.279,
+          "p95_ms": 20.73,
+          "mean_ms": 10.196
+        },
+        "rerank": {
+          "n": 25,
+          "p50_ms": 324.881,
+          "p95_ms": 365.912,
+          "mean_ms": 290.05
+        },
+        "route": {
+          "n": 32,
+          "p50_ms": 0.021,
+          "p95_ms": 0.03,
+          "mean_ms": 0.021
+        },
+        "staleness": {
+          "n": 32,
+          "p50_ms": 0.246,
+          "p95_ms": 0.374,
+          "mean_ms": 0.251
+        },
+        "total": {
+          "n": 32,
+          "p50_ms": 424.912,
+          "p95_ms": 523.923,
+          "mean_ms": 393.933
+        }
+      }
+    }
+  ],
+  "requests": [
+    {
+      "phase": "cold_probe",
+      "sequence": 0,
+      "query_id": "q001",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.031,
+        "embed": 7.942,
+        "hybrid_sql": 6.844,
+        "staleness": 0.229,
+        "rerank": 307.554,
+        "total": 323.097
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 331.68
+    },
+    {
+      "phase": "warmup",
+      "sequence": 0,
+      "query_id": "q001",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.041,
+        "embed": 6.17,
+        "hybrid_sql": 3.974,
+        "staleness": 0.208,
+        "rerank": 13.241,
+        "total": 24.035
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 26.858
+    },
+    {
+      "phase": "warmup",
+      "sequence": 1,
+      "query_id": "q002",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.025,
+        "embed": 5.149,
+        "hybrid_sql": 3.222,
+        "staleness": 0.168,
+        "total": 8.925
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 11.345
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 0,
+      "query_id": "q001",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.025,
+        "embed": 4.984,
+        "hybrid_sql": 3.047,
+        "staleness": 0.169,
+        "rerank": 11.961,
+        "total": 20.54
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.801
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 1,
+      "query_id": "q002",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.024,
+        "embed": 4.905,
+        "hybrid_sql": 3.118,
+        "staleness": 0.165,
+        "total": 8.565
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 10.696
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 2,
+      "query_id": "q003",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.017,
+        "embed": 4.854,
+        "hybrid_sql": 3.031,
+        "staleness": 0.165,
+        "rerank": 11.893,
+        "total": 20.305
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.269
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 3,
+      "query_id": "q004",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 4.943,
+        "hybrid_sql": 2.953,
+        "staleness": 0.173,
+        "rerank": 12.82,
+        "total": 21.268
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 23.383
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 4,
+      "query_id": "q005",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.036,
+        "embed": 4.93,
+        "hybrid_sql": 2.894,
+        "staleness": 0.167,
+        "rerank": 11.721,
+        "total": 20.103
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.117
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 5,
+      "query_id": "q006",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 4.942,
+        "hybrid_sql": 3.013,
+        "staleness": 0.172,
+        "rerank": 11.661,
+        "total": 20.162
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.069
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 6,
+      "query_id": "q007",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 4.924,
+        "hybrid_sql": 3.077,
+        "staleness": 0.161,
+        "total": 8.547
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 43,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 10.694
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 7,
+      "query_id": "q008",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.015,
+        "embed": 4.839,
+        "hybrid_sql": 2.993,
+        "staleness": 0.168,
+        "rerank": 11.689,
+        "total": 20.191
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.11
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 8,
+      "query_id": "q009",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 4.928,
+        "hybrid_sql": 2.915,
+        "staleness": 0.165,
+        "rerank": 11.92,
+        "total": 20.312
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.4
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 9,
+      "query_id": "q010",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.025,
+        "embed": 4.925,
+        "hybrid_sql": 2.874,
+        "staleness": 0.163,
+        "rerank": 11.603,
+        "total": 19.945
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 21.938
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 10,
+      "query_id": "q011",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 4.885,
+        "hybrid_sql": 2.998,
+        "staleness": 0.165,
+        "rerank": 11.722,
+        "total": 20.146
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.139
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 11,
+      "query_id": "q012",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.027,
+        "embed": 5.088,
+        "hybrid_sql": 3.068,
+        "staleness": 0.159,
+        "total": 8.705
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 46,
+        "vector": 45,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 10.776
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 12,
+      "query_id": "q013",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.015,
+        "embed": 4.847,
+        "hybrid_sql": 3.005,
+        "staleness": 0.164,
+        "rerank": 11.94,
+        "total": 20.31
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.02
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 13,
+      "query_id": "q014",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 4.935,
+        "hybrid_sql": 3.301,
+        "staleness": 0.173,
+        "rerank": 11.974,
+        "total": 20.754
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.806
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 14,
+      "query_id": "q015",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 5.004,
+        "hybrid_sql": 3.271,
+        "staleness": 0.161,
+        "rerank": 11.824,
+        "total": 20.627
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.742
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 15,
+      "query_id": "q016",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.024,
+        "embed": 4.977,
+        "hybrid_sql": 3.467,
+        "staleness": 0.162,
+        "rerank": 11.881,
+        "total": 20.851
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.992
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 16,
+      "query_id": "q017",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 4.978,
+        "hybrid_sql": 3.531,
+        "staleness": 0.224,
+        "total": 9.197
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 45,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 11.335
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 17,
+      "query_id": "q018",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 5.021,
+        "hybrid_sql": 3.6,
+        "staleness": 0.165,
+        "rerank": 12.171,
+        "total": 21.324
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 23.588
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 18,
+      "query_id": "q019",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 5.004,
+        "hybrid_sql": 3.42,
+        "staleness": 0.164,
+        "rerank": 11.842,
+        "total": 20.794
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.961
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 19,
+      "query_id": "q020",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 5.013,
+        "hybrid_sql": 3.463,
+        "staleness": 0.17,
+        "rerank": 11.677,
+        "total": 20.743
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.872
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 20,
+      "query_id": "q021",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.03,
+        "embed": 5.387,
+        "hybrid_sql": 3.323,
+        "staleness": 0.164,
+        "rerank": 12.024,
+        "total": 21.284
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 23.475
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 21,
+      "query_id": "q022",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 5.006,
+        "hybrid_sql": 3.705,
+        "staleness": 0.169,
+        "total": 9.32
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 11.39
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 22,
+      "query_id": "q023",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 5.515,
+        "hybrid_sql": 3.611,
+        "staleness": 0.162,
+        "rerank": 11.909,
+        "total": 21.559
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 23.445
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 23,
+      "query_id": "q024",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.025,
+        "embed": 4.939,
+        "hybrid_sql": 2.945,
+        "staleness": 0.166,
+        "rerank": 11.69,
+        "total": 20.132
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 45,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.243
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 24,
+      "query_id": "q025",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 4.91,
+        "hybrid_sql": 2.882,
+        "staleness": 0.162,
+        "rerank": 11.518,
+        "total": 19.845
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 49,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 21.777
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 25,
+      "query_id": "q026",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 4.914,
+        "hybrid_sql": 3.052,
+        "staleness": 0.164,
+        "rerank": 12.075,
+        "total": 20.577
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.467
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 26,
+      "query_id": "q027",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 4.904,
+        "hybrid_sql": 3.071,
+        "staleness": 0.161,
+        "total": 8.517
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 10.484
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 27,
+      "query_id": "q028",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.015,
+        "embed": 4.871,
+        "hybrid_sql": 3.027,
+        "staleness": 0.162,
+        "rerank": 11.558,
+        "total": 19.976
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 21.85
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 28,
+      "query_id": "q029",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 4.85,
+        "hybrid_sql": 2.928,
+        "staleness": 0.166,
+        "rerank": 11.686,
+        "total": 20.002
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 21.807
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 29,
+      "query_id": "q030",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.031,
+        "embed": 4.901,
+        "hybrid_sql": 2.876,
+        "staleness": 0.163,
+        "rerank": 11.633,
+        "total": 19.958
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 49,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 22.087
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 30,
+      "query_id": "q031",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 4.798,
+        "hybrid_sql": 3.006,
+        "staleness": 0.163,
+        "rerank": 11.651,
+        "total": 19.981
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 21.882
+    },
+    {
+      "phase": "warm_c1",
+      "sequence": 31,
+      "query_id": "q032",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 5.194,
+        "hybrid_sql": 3.07,
+        "staleness": 0.164,
+        "total": 8.802
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 43,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 10.841
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 0,
+      "query_id": "q001",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.016,
+        "embed": 26.371,
+        "hybrid_sql": 3.964,
+        "staleness": 0.166,
+        "rerank": 66.949,
+        "total": 97.849
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 101.326
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 1,
+      "query_id": "q002",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.013,
+        "embed": 37.993,
+        "hybrid_sql": 6.536,
+        "staleness": 0.171,
+        "total": 45.1
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 52.429
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 2,
+      "query_id": "q003",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.016,
+        "embed": 29.168,
+        "hybrid_sql": 5.333,
+        "staleness": 0.315,
+        "rerank": 59.544,
+        "total": 94.846
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 102.049
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 3,
+      "query_id": "q004",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 29.515,
+        "hybrid_sql": 15.515,
+        "staleness": 0.166,
+        "rerank": 58.019,
+        "total": 103.55
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 111.112
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 4,
+      "query_id": "q005",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 26.611,
+        "hybrid_sql": 3.875,
+        "staleness": 0.168,
+        "rerank": 72.259,
+        "total": 103.377
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 106.234
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 5,
+      "query_id": "q006",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.031,
+        "embed": 29.051,
+        "hybrid_sql": 3.91,
+        "staleness": 0.183,
+        "rerank": 65.461,
+        "total": 99.088
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 101.442
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 6,
+      "query_id": "q007",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.017,
+        "embed": 28.536,
+        "hybrid_sql": 12.694,
+        "staleness": 0.215,
+        "total": 41.833
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 43,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 44.371
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 7,
+      "query_id": "q008",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 23.749,
+        "hybrid_sql": 7.372,
+        "staleness": 0.167,
+        "rerank": 65.677,
+        "total": 97.342
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 99.606
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 8,
+      "query_id": "q009",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 31.052,
+        "hybrid_sql": 4.371,
+        "staleness": 0.165,
+        "rerank": 60.804,
+        "total": 96.838
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 99.327
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 9,
+      "query_id": "q010",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 20.687,
+        "hybrid_sql": 10.561,
+        "staleness": 0.432,
+        "rerank": 64.278,
+        "total": 96.297
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 98.923
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 10,
+      "query_id": "q011",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 26.78,
+        "hybrid_sql": 4.071,
+        "staleness": 0.169,
+        "rerank": 73.99,
+        "total": 105.466
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 110.345
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 11,
+      "query_id": "q012",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 22.393,
+        "hybrid_sql": 13.047,
+        "staleness": 0.279,
+        "total": 36.348
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 46,
+        "vector": 45,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 38.685
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 12,
+      "query_id": "q013",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.024,
+        "embed": 29.194,
+        "hybrid_sql": 4.107,
+        "staleness": 0.187,
+        "rerank": 57.276,
+        "total": 91.512
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 93.876
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 13,
+      "query_id": "q014",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 32.327,
+        "hybrid_sql": 8.124,
+        "staleness": 0.296,
+        "rerank": 66.723,
+        "total": 108.031
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 110.514
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 14,
+      "query_id": "q015",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 19.951,
+        "hybrid_sql": 11.846,
+        "staleness": 0.222,
+        "rerank": 69.475,
+        "total": 101.821
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 104.299
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 15,
+      "query_id": "q016",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 22.068,
+        "hybrid_sql": 5.377,
+        "staleness": 0.178,
+        "rerank": 74.878,
+        "total": 102.98
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 105.543
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 16,
+      "query_id": "q017",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 30.658,
+        "hybrid_sql": 4.587,
+        "staleness": 0.174,
+        "total": 35.909
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 45,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 38.479
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 17,
+      "query_id": "q018",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.031,
+        "embed": 28.812,
+        "hybrid_sql": 4.127,
+        "staleness": 0.175,
+        "rerank": 60.623,
+        "total": 94.163
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 96.878
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 18,
+      "query_id": "q019",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 28.159,
+        "hybrid_sql": 13.513,
+        "staleness": 0.263,
+        "rerank": 63.4,
+        "total": 105.842
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 108.287
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 19,
+      "query_id": "q020",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 21.285,
+        "hybrid_sql": 3.105,
+        "staleness": 0.231,
+        "rerank": 71.042,
+        "total": 96.014
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 98.365
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 20,
+      "query_id": "q021",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 25.43,
+        "hybrid_sql": 4.309,
+        "staleness": 0.177,
+        "rerank": 67.503,
+        "total": 98.008
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 100.375
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 21,
+      "query_id": "q022",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 28.166,
+        "hybrid_sql": 4.136,
+        "staleness": 0.173,
+        "total": 32.973
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 35.422
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 22,
+      "query_id": "q023",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 27.41,
+        "hybrid_sql": 3.746,
+        "staleness": 0.167,
+        "rerank": 66.07,
+        "total": 97.998
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 100.428
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 23,
+      "query_id": "q024",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 27.303,
+        "hybrid_sql": 4.042,
+        "staleness": 0.173,
+        "rerank": 65.544,
+        "total": 97.424
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 45,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 99.948
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 24,
+      "query_id": "q025",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 38.669,
+        "hybrid_sql": 3.742,
+        "staleness": 0.167,
+        "rerank": 59.623,
+        "total": 102.667
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 49,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 105.366
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 25,
+      "query_id": "q026",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 26.027,
+        "hybrid_sql": 5.995,
+        "staleness": 0.181,
+        "rerank": 62.371,
+        "total": 94.975
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 97.676
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 26,
+      "query_id": "q027",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.017,
+        "embed": 24.153,
+        "hybrid_sql": 4.455,
+        "staleness": 0.171,
+        "total": 29.267
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 31.614
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 27,
+      "query_id": "q028",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 27.602,
+        "hybrid_sql": 3.985,
+        "staleness": 0.248,
+        "rerank": 67.392,
+        "total": 99.553
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 102.224
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 28,
+      "query_id": "q029",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 35.562,
+        "hybrid_sql": 3.392,
+        "staleness": 0.18,
+        "rerank": 59.587,
+        "total": 99.301
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 101.671
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 29,
+      "query_id": "q030",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 34.649,
+        "hybrid_sql": 12.266,
+        "staleness": 0.167,
+        "rerank": 53.812,
+        "total": 101.231
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 49,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 104.056
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 30,
+      "query_id": "q031",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 25.928,
+        "hybrid_sql": 5.142,
+        "staleness": 0.218,
+        "rerank": 54.56,
+        "total": 86.212
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 88.724
+    },
+    {
+      "phase": "warm_c4",
+      "sequence": 31,
+      "query_id": "q032",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 21.455,
+        "hybrid_sql": 3.941,
+        "staleness": 0.271,
+        "total": 26.175
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 43,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 28.213
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 0,
+      "query_id": "q001",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.026,
+        "embed": 105.257,
+        "hybrid_sql": 5.093,
+        "staleness": 0.313,
+        "rerank": 366.303,
+        "total": 477.416
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 485.448
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 1,
+      "query_id": "q002",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 125.814,
+        "hybrid_sql": 5.969,
+        "staleness": 0.256,
+        "total": 132.417
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 141.497
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 2,
+      "query_id": "q003",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.016,
+        "embed": 148.955,
+        "hybrid_sql": 5.503,
+        "staleness": 0.27,
+        "rerank": 364.349,
+        "total": 519.605
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 550.048
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 3,
+      "query_id": "q004",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 191.71,
+        "hybrid_sql": 13.115,
+        "staleness": 0.274,
+        "rerank": 294.045,
+        "total": 499.717
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 528.456
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 4,
+      "query_id": "q005",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 132.64,
+        "hybrid_sql": 4.012,
+        "staleness": 0.172,
+        "rerank": 355.921,
+        "total": 493.223
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 502.285
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 5,
+      "query_id": "q006",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 167.021,
+        "hybrid_sql": 6.862,
+        "staleness": 0.168,
+        "rerank": 331.686,
+        "total": 506.222
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 544.105
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 6,
+      "query_id": "q007",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.013,
+        "embed": 148.956,
+        "hybrid_sql": 25.435,
+        "staleness": 0.217,
+        "total": 174.964
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 43,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 208.036
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 7,
+      "query_id": "q008",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 138.042,
+        "hybrid_sql": 4.527,
+        "staleness": 0.27,
+        "rerank": 324.881,
+        "total": 468.115
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 481.017
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 8,
+      "query_id": "q009",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 154.137,
+        "hybrid_sql": 8.062,
+        "staleness": 0.282,
+        "rerank": 329.333,
+        "total": 492.488
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 524.262
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 9,
+      "query_id": "q010",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 169.582,
+        "hybrid_sql": 12.131,
+        "staleness": 0.179,
+        "rerank": 336.392,
+        "total": 518.767
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 557.736
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 10,
+      "query_id": "q011",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.019,
+        "embed": 152.678,
+        "hybrid_sql": 20.068,
+        "staleness": 0.244,
+        "rerank": 329.396,
+        "total": 503.722
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 532.55
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 11,
+      "query_id": "q012",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.016,
+        "embed": 197.189,
+        "hybrid_sql": 12.101,
+        "staleness": 0.347,
+        "total": 210.178
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 46,
+        "vector": 45,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 239.762
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 12,
+      "query_id": "q013",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.017,
+        "embed": 153.325,
+        "hybrid_sql": 17.596,
+        "staleness": 0.164,
+        "rerank": 376.968,
+        "total": 548.377
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 582.183
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 13,
+      "query_id": "q014",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.017,
+        "embed": 144.376,
+        "hybrid_sql": 17.881,
+        "staleness": 0.267,
+        "rerank": 348.324,
+        "total": 511.464
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 548.567
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 14,
+      "query_id": "q015",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.016,
+        "embed": 177.69,
+        "hybrid_sql": 5.395,
+        "staleness": 0.159,
+        "rerank": 327.37,
+        "total": 511.018
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 550.871
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 15,
+      "query_id": "q016",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.017,
+        "embed": 183.784,
+        "hybrid_sql": 4.975,
+        "staleness": 0.391,
+        "rerank": 324.729,
+        "total": 514.403
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 554.637
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 16,
+      "query_id": "q017",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 223.573,
+        "hybrid_sql": 5.483,
+        "staleness": 0.175,
+        "total": 229.703
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 45,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 232.673
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 17,
+      "query_id": "q018",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.028,
+        "embed": 187.44,
+        "hybrid_sql": 5.769,
+        "staleness": 0.298,
+        "rerank": 334.176,
+        "total": 529.201
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 535.314
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 18,
+      "query_id": "q019",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 157.504,
+        "hybrid_sql": 12.639,
+        "staleness": 0.249,
+        "rerank": 334.687,
+        "total": 505.72
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 509.861
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 19,
+      "query_id": "q020",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 137.336,
+        "hybrid_sql": 4.624,
+        "staleness": 0.393,
+        "rerank": 302.589,
+        "total": 445.312
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 449.123
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 20,
+      "query_id": "q021",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.033,
+        "embed": 151.918,
+        "hybrid_sql": 4.371,
+        "staleness": 0.17,
+        "rerank": 247.696,
+        "total": 404.512
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 408.25
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 21,
+      "query_id": "q022",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 149.855,
+        "hybrid_sql": 14.453,
+        "staleness": 0.166,
+        "total": 164.914
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 169.017
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 22,
+      "query_id": "q023",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 170.367,
+        "hybrid_sql": 5.442,
+        "staleness": 0.224,
+        "rerank": 219.116,
+        "total": 395.716
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 398.557
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 23,
+      "query_id": "q024",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.033,
+        "embed": 157.149,
+        "hybrid_sql": 5.282,
+        "staleness": 0.228,
+        "rerank": 217.002,
+        "total": 380.191
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 45,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 384.055
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 24,
+      "query_id": "q025",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 135.226,
+        "hybrid_sql": 5.789,
+        "staleness": 0.213,
+        "rerank": 231.318,
+        "total": 372.936
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 49,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 376.072
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 25,
+      "query_id": "q026",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.022,
+        "embed": 122.187,
+        "hybrid_sql": 6.058,
+        "staleness": 0.296,
+        "rerank": 239.207,
+        "total": 368.17
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 371.297
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 26,
+      "query_id": "q027",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.016,
+        "embed": 147.132,
+        "hybrid_sql": 6.5,
+        "staleness": 0.213,
+        "total": 154.296
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 44,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 157.59
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 27,
+      "query_id": "q028",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.023,
+        "embed": 153.068,
+        "hybrid_sql": 5.571,
+        "staleness": 0.35,
+        "rerank": 193.065,
+        "total": 352.689
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 47,
+        "vector": 47,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 360.836
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 28,
+      "query_id": "q029",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.02,
+        "embed": 155.045,
+        "hybrid_sql": 21.105,
+        "staleness": 0.21,
+        "rerank": 172.434,
+        "total": 349.235
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 46,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 357.219
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 29,
+      "query_id": "q030",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.027,
+        "embed": 157.253,
+        "hybrid_sql": 14.358,
+        "staleness": 0.36,
+        "rerank": 179.135,
+        "total": 351.798
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 49,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 358.491
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 30,
+      "query_id": "q031",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.021,
+        "embed": 156.848,
+        "hybrid_sql": 19.693,
+        "staleness": 0.17,
+        "rerank": 171.128,
+        "total": 348.258
+      },
+      "route": "semantic",
+      "counts": {
+        "bm25": 48,
+        "vector": 46,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 353.519
+    },
+    {
+      "phase": "warm_c16",
+      "sequence": 31,
+      "query_id": "q032",
+      "status_code": 200,
+      "success": true,
+      "error": null,
+      "stages_ms": {
+        "route": 0.018,
+        "embed": 149.593,
+        "hybrid_sql": 20.424,
+        "staleness": 0.336,
+        "total": 171.109
+      },
+      "route": "aggregation_query",
+      "counts": {
+        "bm25": 43,
+        "vector": 48,
+        "fused": 50,
+        "returned": 8
+      },
+      "bm25_backend": "ts_rank_cd",
+      "e2e_ms": 175.661
+    }
+  ],
+  "cold_probe": {
+    "phase": "cold_probe",
+    "sequence": 0,
+    "query_id": "q001",
+    "status_code": 200,
+    "success": true,
+    "error": null,
+    "stages_ms": {
+      "route": 0.031,
+      "embed": 7.942,
+      "hybrid_sql": 6.844,
+      "staleness": 0.229,
+      "rerank": 307.554,
+      "total": 323.097
+    },
+    "route": "semantic",
+    "counts": {
+      "bm25": 48,
+      "vector": 46,
+      "fused": 50,
+      "returned": 8
+    },
+    "bm25_backend": "ts_rank_cd",
+    "e2e_ms": 331.68
+  },
+  "measured_attempts": {
+    "concurrency": 16,
+    "attempted": 96,
+    "completed": 96,
+    "succeeded": 96,
+    "failed": 0,
+    "error_rate": 0.0,
+    "status_counts": {
+      "200": 96
+    },
+    "error_counts": {},
+    "unique_query_ids": 32,
+    "route_counts": {
+      "semantic": 75,
+      "aggregation_query": 21
+    },
+    "e2e_successful_by_route": {
+      "aggregation_query": {
+        "n": 21,
+        "p50_ms": 38.479,
+        "p95_ms": 232.673,
+        "mean_ms": 79.508
+      },
+      "semantic": {
+        "n": 75,
+        "p50_ms": 101.442,
+        "p95_ms": 550.295,
+        "mean_ms": 198.875
+      }
+    },
+    "wall_seconds": 2.260382,
+    "successful_requests_per_second": 42.47070009920777,
+    "completed_requests_per_second": 42.47070009920777,
+    "e2e_all_attempts": {
+      "n": 96,
+      "p50_ms": 100.161,
+      "p95_ms": 548.937,
+      "mean_ms": 172.763
+    },
+    "e2e_successful": {
+      "n": 96,
+      "p50_ms": 100.161,
+      "p95_ms": 548.937,
+      "mean_ms": 172.763
+    },
+    "server_stages_successful": {
+      "embed": {
+        "n": 96,
+        "p50_ms": 27.506,
+        "p95_ms": 179.213,
+        "mean_ms": 63.005
+      },
+      "hybrid_sql": {
+        "n": 96,
+        "p50_ms": 4.34,
+        "p95_ms": 18.334,
+        "mean_ms": 6.583
+      },
+      "rerank": {
+        "n": 75,
+        "p50_ms": 65.461,
+        "p95_ms": 350.603,
+        "mean_ms": 122.055
+      },
+      "route": {
+        "n": 96,
+        "p50_ms": 0.021,
+        "p95_ms": 0.031,
+        "mean_ms": 0.022
+      },
+      "staleness": {
+        "n": 96,
+        "p50_ms": 0.173,
+        "p95_ms": 0.348,
+        "mean_ms": 0.208
+      },
+      "total": {
+        "n": 96,
+        "p50_ms": 97.383,
+        "p95_ms": 512.199,
+        "mean_ms": 165.617
+      }
+    }
+  },
+  "all_attempts": {
+    "attempted": 99,
+    "succeeded": 99,
+    "failed": 0
+  },
+  "outcome": "ok",
+  "deployment": {
+    "backend": "original FastAPI main:app + task-local PostgreSQL16/pgvector SQL retrieval",
+    "data_dir": "/nfs/hpc/share/sanchej7/MetaNavT/MetaNaviT/bench/corpus/files",
+    "corpus_kind": "existing deterministic fixture",
+    "data_files": 61,
+    "corpus_sha256": "9cfc24ce2eff3e1cf2fe4bbe0dfd848aadfab823b5ce12fbc17bc9a14b9a39de",
+    "source_sha256": {
+      "main.py": "33737be9e704805fed07e16975e90da263e51946b23903bff5a5413727eb46d3",
+      "app/api/routers/retrieve.py": "1c6cda3f3bab5fdab003a2b6c12c15f74ec9ef9ee40853314e76b53ed2ba2b59",
+      "app/engine/retriever.py": "40caf141320ec7189593dbf63df40ccfb24188f21f7cf04aab02e1fe751f6a8f",
+      "app/settings.py": "d79ccab39c6fb1df3cf41e7d84424d7fe8d2c55c31001d2ab37814e0dc0fdfc3",
+      "app/eval/http_load.py": "a78502591285440ef3d0a0caf8d68b4db12c5ef8e81e189654cc340a596bfa64",
+      "scripts/revamp_http_service.py": "83ce60110cbfff125ca356be2f4a7763860b2a8dadeb8d9d04735cc292208334"
+    },
+    "startup_seconds": 19.588463000021875,
+    "slurm_job_id": "21657979",
+    "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+    "precision": "fp16",
+    "max_length": 512,
+    "rerank_depth": 20,
+    "observed_health": {
+      "status": "ok",
+      "n_nodes": 61,
+      "embedding_provider": "huggingface",
+      "embed_model": "HuggingFaceEmbedding",
+      "devices": {
+        "embedding": "cuda:0",
+        "reranker": "cuda:0"
+      },
+      "required_device": "cuda",
+      "bm25_backend": "ts_rank_cd",
+      "retrieval_mode": "sql",
+      "reranker_loaded": true,
+      "reranker": {
+        "configured": true,
+        "loaded": true,
+        "model": "BAAI/bge-reranker-v2-m3",
+        "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+        "device": "cuda:0",
+        "precision": "fp16",
+        "max_length": 512,
+        "depth": 20,
+        "error": null,
+        "dtype": "torch.float16"
+      },
+      "degraded": [],
+      "indexing": {
+        "indexed": true,
+        "n_documents": 61,
+        "n_nodes": 61,
+        "data_dir": "/nfs/hpc/share/sanchej7/MetaNavT/MetaNaviT/bench/corpus/files"
+      },
+      "observability": {
+        "log_format": "json",
+        "tracing": {
+          "configured": true,
+          "enabled": false,
+          "reason": "OTEL_EXPORTER_OTLP_ENDPOINT not set"
+        }
+      }
+    },
+    "container": "/nfs/hpc/share/sanchej7/containers/pgvector-pg16-resume.sif"
+  }
+}

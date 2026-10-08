@@ -1,0 +1,16 @@
+NAV-03 rollout score, job 21434972, 2026-09-26T16:47:35-07:00
+repo HEAD 2f40fbc088b9eb08780b0926e4b922b04dddca6b
+working-tree changes in files these tasks import (git status --short):
+   M src/bhl_robust/tasks/depth_env_cfg.py
+   M src/bhl_robust/tasks/terrain_env_cfg.py
+   M src/bhl_robust/terrains/bumpy.py
+   M src/bhl_robust/terrains/ice.py
+  ?? src/bhl_robust/terrains/maze_viz.py
+Blind: /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_18-12-07_mazenav-blind-s0/model_5999.pt  trained at commit 1f1740f0053233bab53ffff4d9390e195790d819 + uncommitted diff in /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_18-12-07_mazenav-blind-s0/git/
+Lidar: /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_18-14-59_mazenav-lidar-s0/model_5999.pt  trained at commit 1f1740f0053233bab53ffff4d9390e195790d819 + uncommitted diff in /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_18-14-59_mazenav-lidar-s0/git/
+Stereo: /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_23-27-31_mazenav-stereo-s0/model_5999.pt  trained at commit 1f1740f0053233bab53ffff4d9390e195790d819 + uncommitted diff in /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_23-27-31_mazenav-stereo-s0/git/
+Both: /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_23-55-36_mazenav-both-s0/model_5999.pt  trained at commit 1f1740f0053233bab53ffff4d9390e195790d819 + uncommitted diff in /nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_23-55-36_mazenav-both-s0/git/
+maze_env_cfg.py at training (1f1740f + run diff) vs HEAD: differs only by the terrain visual_material block
+  (checked 2026-09-26 on the login node); depth_env_cfg.py and terrain_env_cfg.py at training equal the
+  2026-09-26 working tree and differ from HEAD only in the ice classes; maze_mdp.py, maze_layout.py,
+  terrains/maze.py were untracked at training time and cannot be diffed -- this job replays today's versions.

@@ -1,0 +1,35 @@
+{
+ "robot_mass_kg": 16.331,
+ "squeeze": {
+  "com_shift_lateral_m": 0.011,
+  "com_shift_fwd_m": 0.0025,
+  "arm_self_moment_roll_Nm": 1.758,
+  "arm_self_moment_pitch_Nm": 0.393,
+  "hand_xyz_m": [
+   0.059,
+   0.428,
+   0.656
+  ],
+  "payload_share_moment_roll_Nm": 1.049,
+  "payload_share_moment_pitch_Nm": 0.145
+ },
+ "lift": {
+  "com_shift_lateral_m": 0.0102,
+  "com_shift_fwd_m": 0.0051,
+  "arm_self_moment_roll_Nm": 1.629,
+  "arm_self_moment_pitch_Nm": 0.817,
+  "hand_xyz_m": [
+   0.113,
+   0.404,
+   0.772
+  ],
+  "payload_share_moment_roll_Nm": 0.99,
+  "payload_share_moment_pitch_Nm": 0.278
+ },
+ "isaac_pinch_both_arms": {
+  "com_shift_fwd_m": 0.0233,
+  "arm_self_moment_pitch_Nm": 3.729,
+  "payload_moment_pitch_Nm_0.25kg_per_robot_at_cube_face": 0.834
+ },
+ "training_disturbance_on_base": "constant force +/-2 N and torque +/-2 Nm per episode (reset); base mass -1..+2 kg (startup)"
+}

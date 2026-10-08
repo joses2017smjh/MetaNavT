@@ -1,0 +1,5 @@
+import FAIL
+CoopLift-BHL-Cube-Crew3-v0 FAIL
+CoopLift-BHL-Cube-Crew4-v0 FAIL
+CoopLift-BHL-Cube-Crew3-Depth-v0 FAIL
+CoopLift-BHL-Cube-Crew4-Depth-v0 FAIL

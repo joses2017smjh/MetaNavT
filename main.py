@@ -90,14 +90,29 @@ async def health():
         )
     n_nodes = await run_in_threadpool(state.vsm.count_nodes)
     reranker = getattr(state.retriever, "reranker_info", None) or {}
+    from app.settings import embedding_device
+
+    embedder = getattr(state.index, "_embed_model", None)
+    devices = {"embedding": embedding_device(embedder) if embedder is not None else None, "reranker": reranker.get("device")}
     degraded = []
     if reranker.get("configured") and not reranker.get("loaded"):
         degraded.append({"component": "rerank", "error": reranker.get("error") or "configured but not loaded"})
-    return {
+    required = os.getenv("RETRIEVAL_REQUIRE_DEVICE")
+    device_errors = []
+    if required:
+        for component, actual in devices.items():
+            if component == "reranker" and not reranker.get("configured"):
+                continue
+            if not str(actual or "").startswith(required):
+                device_errors.append({"component": component, "error": f"required device {required}, loaded weights on {actual!r}"})
+    degraded.extend(device_errors)
+    payload = {
         "status": "ok" if not degraded else "degraded",
         "n_nodes": n_nodes,
         "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
+        "devices": devices,
+        "required_device": required,
         "bm25_backend": getattr(state.vsm, "hybrid_backend", None) or state.vsm.last_bm25_backend,
         "retrieval_mode": getattr(state.retriever, "mode", None),
         "reranker_loaded": state.retriever._reranker is not None,
@@ -106,6 +121,7 @@ async def health():
         "indexing": state.indexing,
         "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
     }
+    return JSONResponse(status_code=503, content=payload) if device_errors else payload
 
 
 

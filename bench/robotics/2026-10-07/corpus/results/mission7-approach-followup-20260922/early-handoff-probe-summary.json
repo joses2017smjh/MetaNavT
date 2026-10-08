@@ -1,0 +1,136 @@
+{
+  "complete": true,
+  "job_id": "21399449",
+  "status": "COMPLETED_TARGETED_EARLY_HANDOFF_PROBE",
+  "controller": "PlateSafeRouteController plus unchanged PlateStage on continuous early handoff",
+  "source_result": "results/mission7-approach-followup-20260922-early/route-early-handoff-cn-c22/result.json",
+  "episodes": 2,
+  "geometry_unchanged": true,
+  "plate_stage_internal_behavior_unchanged": true,
+  "activation_before_contact": {
+    "doors_1": true,
+    "transport_1_first_stage": true,
+    "transport_1_second_stage": true
+  },
+  "episode_summary": [
+    {
+      "stage": "doors",
+      "layout_index": 1,
+      "original_route_failure": "fall at 22.28 s before guarded-stage activation",
+      "early_handoff": {
+        "handoff_condition_first_true_s": 19.8,
+        "plate_stage_activation_s": 19.8,
+        "first_plate_contact_s": 21.537,
+        "target_plate_contact_s": 21.537,
+        "activation_to_target_contact_margin_s": 1.737,
+        "stage_transitions": [
+          "approach@19.8",
+          "settle@23.0",
+          "cross@23.6",
+          "completed@25.0"
+        ],
+        "world_direction": "+x",
+        "previous_route_phase": "advance",
+        "route_waypoint": 4,
+        "entry": {
+          "plate_distance_m": 0.735994,
+          "lateral_offset_m": -0.732722,
+          "forward_distance_m": 0.069325,
+          "heading_error_yaw_minus_target_rad": 0.023891,
+          "linear_speed_mps": 0.585788,
+          "angular_velocity_radps": 0.062942,
+          "base_xy": [1.449325, 3.347278],
+          "base_yaw_rad": 0.023891
+        },
+        "stage_completed": true,
+        "fall_time_s": null,
+        "failure_phase": "after PlateStage",
+        "final_success": false,
+        "final_failure": "timeout at 180.0 s; first door crossed/open, second door not completed",
+        "first_meaningful_divergence": "post-stage route rejoin did not reach the second door"
+      }
+    },
+    {
+      "stage": "transport",
+      "layout_index": 1,
+      "original_route_failure": "fall at 22.88 s before guarded-stage activation",
+      "early_handoff": {
+        "stage_transitions": [
+          "door0: approach@20.4",
+          "door0: settle@23.8",
+          "door0: cross@24.4",
+          "door0: completed@25.8",
+          "door1: approach@57.6",
+          "door1: settle@60.6",
+          "door1: cross@61.0",
+          "door1: completed@62.2"
+        ],
+        "stages": [
+          {
+            "door": 0,
+            "handoff_condition_first_true_s": 20.4,
+            "plate_stage_activation_s": 20.4,
+            "first_plate_contact_s": 22.3195,
+            "target_plate_contact_s": 22.3195,
+            "activation_to_target_contact_margin_s": 1.9195,
+            "world_direction": "+x",
+            "previous_route_phase": "advance",
+            "route_waypoint": 4,
+            "entry": {
+              "plate_distance_m": 0.740706,
+              "lateral_offset_m": -0.739347,
+              "forward_distance_m": 0.044854,
+              "heading_error_yaw_minus_target_rad": 0.039409,
+              "linear_speed_mps": 0.962871,
+              "angular_velocity_radps": 0.212756,
+              "base_xy": [1.424854, 3.340653],
+              "base_yaw_rad": 0.039409
+            },
+            "stage_completed": true
+          },
+          {
+            "door": 1,
+            "handoff_condition_first_true_s": 57.6,
+            "plate_stage_activation_s": 57.6,
+            "target_plate_contact_s": 59.035,
+            "activation_to_target_contact_margin_s": 1.435,
+            "world_direction": "-y",
+            "previous_route_phase": "advance",
+            "route_waypoint": 10,
+            "entry": {
+              "plate_distance_m": 0.764757,
+              "lateral_offset_m": -0.764606,
+              "forward_distance_m": 0.015213,
+              "heading_error_yaw_minus_target_rad": 1.51217,
+              "linear_speed_mps": 0.25811,
+              "angular_velocity_radps": -0.100587,
+              "base_xy": [6.315394, 4.604786],
+              "base_yaw_rad": -0.058626
+            },
+            "stage_completed": true
+          }
+        ],
+        "stage_completed": true,
+        "fall_time_s": null,
+        "failure_phase": "none",
+        "final_success": true,
+        "final_success_time_s": 84.12,
+        "first_meaningful_divergence": "none; route rejoin and manipulation completed"
+      }
+    }
+  ],
+  "interpretation": {
+    "precontact_failure_disappeared": true,
+    "handoff_supported": true,
+    "capture_region_failure_supported": false,
+    "world_minus_x_tested": false,
+    "post_stage_route_rejoin_remains": true,
+    "metrics": {
+      "handoff_before_contact": "2/2 first target stages",
+      "plate_stage_completion": "3/3 staged door crossings",
+      "post_stage_continuation": "Transport/1 pass; Doors/1 timeout",
+      "full_task_success": "1/2"
+    },
+    "next_smallest_experiment": "Instrument or make one bounded route-rejoin intervention that preserves the existing PlateStage and activation/fall criteria, first on Doors/1 deterministic replay; do not broaden to a route sweep until the second-door handoff/rejoin state is verified."
+  }
+}

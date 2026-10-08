@@ -1,0 +1,636 @@
+{
+  "protocol": "scripts/render_multi.py --no-video: four policies in one flat MuJoCo world, matched shoves (one direction per event for all robots), same flags as docs/gifs/multi_race.gif; one race per seed",
+  "flags": {
+    "seconds": 12.0,
+    "vx": 0.3,
+    "push": 0.45,
+    "push_every": 3.5,
+    "world": "flat",
+    "variant": "biped",
+    "policy_dt": 0.04,
+    "tilt_limit_rad": 0.78
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "n_seeds": 10,
+  "expected_seeds": 10,
+  "complete": true,
+  "per_policy": {
+    "randomized": {
+      "seeds": 10,
+      "falls": 1,
+      "fall_rate": 0.1,
+      "first_fall_times_s": [
+        4.64
+      ],
+      "mean_first_fall_s": 4.64,
+      "fell_on_seeds": [
+        4
+      ],
+      "mean_peak_x_m": 3.356,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0"
+    },
+    "no randomization": {
+      "seeds": 10,
+      "falls": 10,
+      "fall_rate": 1.0,
+      "first_fall_times_s": [
+        4.8,
+        4.2,
+        4.84,
+        4.28,
+        4.24,
+        9.68,
+        7.68,
+        4.32,
+        7.84,
+        4.76
+      ],
+      "mean_first_fall_s": 5.66,
+      "fell_on_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "mean_peak_x_m": 1.476,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0"
+    },
+    "push-trained": {
+      "seeds": 10,
+      "falls": 0,
+      "fall_rate": 0.0,
+      "first_fall_times_s": [],
+      "mean_first_fall_s": null,
+      "fell_on_seeds": [],
+      "mean_peak_x_m": 2.251,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0"
+    },
+    "terrain-trained": {
+      "seeds": 10,
+      "falls": 0,
+      "fall_rate": 0.0,
+      "first_fall_times_s": [],
+      "mean_first_fall_s": null,
+      "fell_on_seeds": [],
+      "mean_peak_x_m": 3.083,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0"
+    }
+  },
+  "gif_seed0_check": {
+    "reference": {
+      "seed": 0,
+      "label": "no randomization",
+      "fell_at_s": 4.8,
+      "source": "/nfs/hpc/share/sanchej7/Humanoid_Lite/logs/multi-gif-20951392.out (docs/gifs/multi_race.gif)"
+    },
+    "rerun_seed0_falls": [
+      [
+        "no randomization",
+        4.8
+      ]
+    ],
+    "matches_reference": true,
+    "note": "informational: same seed, but render_multi has changed since the GIF run"
+  },
+  "rows": [
+    {
+      "seed": 0,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.6839,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 0,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.8,
+      "peak_x_m": 1.7945,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 0,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.543,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 0,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.1243,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 1,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.4605,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 1,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.2,
+      "peak_x_m": 1.1403,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 1,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 1.9655,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 1,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.1978,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 2,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.6646,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 2,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.84,
+      "peak_x_m": 1.2464,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 2,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 1.8122,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 2,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.1397,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 3,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.5111,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 3,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.28,
+      "peak_x_m": 0.8858,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 3,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.7413,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 3,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.6843,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 4,
+      "policy": "randomized",
+      "fell": true,
+      "fell_at_s": 4.64,
+      "peak_x_m": 1.5381,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 4,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.24,
+      "peak_x_m": 1.1031,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 4,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.3172,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 4,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.3257,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 5,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.7926,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 5,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 9.68,
+      "peak_x_m": 2.6211,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 5,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.6314,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 5,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.3022,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 6,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.5686,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 6,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 7.68,
+      "peak_x_m": 2.1222,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 6,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.0874,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 6,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.3585,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 7,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.515,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 7,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.32,
+      "peak_x_m": 1.2822,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 7,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 1.9673,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 7,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.0568,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 8,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.465,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 8,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 7.84,
+      "peak_x_m": 1.4831,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 8,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.5019,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 8,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.8439,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 9,
+      "policy": "randomized",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.3572,
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 9,
+      "policy": "no randomization",
+      "fell": true,
+      "fell_at_s": 4.76,
+      "peak_x_m": 1.0807,
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 9,
+      "policy": "push-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 1.9387,
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    },
+    {
+      "seed": 9,
+      "policy": "terrain-trained",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 2.7925,
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "push_times_s": [
+        3.48,
+        6.96,
+        10.44
+      ]
+    }
+  ],
+  "job": "21405531",
+  "source": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/multi-race-20260923"
+}

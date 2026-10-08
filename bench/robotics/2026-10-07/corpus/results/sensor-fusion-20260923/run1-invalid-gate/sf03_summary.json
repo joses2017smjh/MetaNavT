@@ -1,0 +1,176 @@
+{
+  "protocol": "inspection_maze.py ordered route, reactive sensors, seeds 0-2, 60 s, 22-DoF arms-dr1.0-s0; attitude filter at the 25 Hz policy rate replaces the oracle quaternion/gyro; noise = experiment settings, not a calibration",
+  "job": 21402118,
+  "levels": {
+    "L0-truth": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.36,
+        17.32,
+        17.400000000000002
+      ],
+      "gravity_rmse": [],
+      "gravity_max": [],
+      "pre_alignment_steps": [],
+      "failures": [],
+      "settings": null
+    },
+    "L1-madgwick": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.400000000000002,
+        16.76,
+        16.52
+      ],
+      "gravity_rmse": [
+        0.02533888848695544,
+        0.031135325070493474,
+        0.03424594157271659
+      ],
+      "gravity_max": [
+        0.05728458542822042,
+        0.10154786540003145,
+        0.08397287036873996
+      ],
+      "pre_alignment_steps": [
+        17,
+        14,
+        14
+      ],
+      "failures": [],
+      "settings": {
+        "imu_gyro_std": 0.02,
+        "imu_accel_std": 0.3,
+        "imu_gyro_bias": 0.02,
+        "imu_gyro_bias_walk": 0.0,
+        "imu_delay_steps": 0,
+        "imu_init": "accel",
+        "imu_kp": 1.0,
+        "imu_ki": 0.1,
+        "imu_beta": 0.1
+      }
+    },
+    "L1-mahony": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        16.6,
+        16.36,
+        16.04
+      ],
+      "gravity_rmse": [
+        0.035377624554673144,
+        0.03135879181744454,
+        0.045657911109315684
+      ],
+      "gravity_max": [
+        0.0786131874921607,
+        0.07573646834964781,
+        0.10387753441663561
+      ],
+      "pre_alignment_steps": [
+        17,
+        14,
+        14
+      ],
+      "failures": [],
+      "settings": {
+        "imu_gyro_std": 0.02,
+        "imu_accel_std": 0.3,
+        "imu_gyro_bias": 0.02,
+        "imu_gyro_bias_walk": 0.0,
+        "imu_delay_steps": 0,
+        "imu_init": "accel",
+        "imu_kp": 1.0,
+        "imu_ki": 0.1,
+        "imu_beta": 0.1
+      }
+    },
+    "L2-madgwick": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.36,
+        17.32,
+        17.400000000000002
+      ],
+      "gravity_rmse": [],
+      "gravity_max": [],
+      "pre_alignment_steps": [
+        434,
+        433,
+        435
+      ],
+      "failures": [],
+      "settings": {
+        "imu_gyro_std": 0.05,
+        "imu_accel_std": 1.0,
+        "imu_gyro_bias": 0.05,
+        "imu_gyro_bias_walk": 0.0,
+        "imu_delay_steps": 1,
+        "imu_init": "accel",
+        "imu_kp": 1.0,
+        "imu_ki": 0.1,
+        "imu_beta": 0.1
+      }
+    },
+    "L2-mahony": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.36,
+        17.32,
+        17.400000000000002
+      ],
+      "gravity_rmse": [],
+      "gravity_max": [],
+      "pre_alignment_steps": [
+        434,
+        433,
+        435
+      ],
+      "failures": [],
+      "settings": {
+        "imu_gyro_std": 0.05,
+        "imu_accel_std": 1.0,
+        "imu_gyro_bias": 0.05,
+        "imu_gyro_bias_walk": 0.0,
+        "imu_delay_steps": 1,
+        "imu_init": "accel",
+        "imu_kp": 1.0,
+        "imu_ki": 0.1,
+        "imu_beta": 0.1
+      }
+    },
+    "L3-mahony": {
+      "success": 3,
+      "n": 3,
+      "completion_s": [
+        17.36,
+        17.32,
+        17.400000000000002
+      ],
+      "gravity_rmse": [],
+      "gravity_max": [],
+      "pre_alignment_steps": [
+        434,
+        433,
+        435
+      ],
+      "failures": [],
+      "settings": {
+        "imu_gyro_std": 0.1,
+        "imu_accel_std": 2.0,
+        "imu_gyro_bias": 0.1,
+        "imu_gyro_bias_walk": 0.0,
+        "imu_delay_steps": 2,
+        "imu_init": "accel",
+        "imu_kp": 1.0,
+        "imu_ki": 0.1,
+        "imu_beta": 0.1
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "output": "docs/gifs/random-maze-explore-sensors.gif",
+  "output_sha256": "24b0fb824c088a58ff2c1404b37613d63792761694281269f5420eca18b4282f",
+  "output_mb": 4.94,
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/random-maze-explore-sensors.gif",
+    "bytes": 4937764,
+    "mb": 4.94,
+    "fps": 8,
+    "width": 1100,
+    "ffmpeg": "ffmpeg",
+    "max_colors": 96,
+    "speed": 5.0,
+    "badge": "GIF 5x",
+    "within_budget": true
+  },
+  "source_clip": "results/maze-explore-20260924/hard-6x6/seed1_sensors.mp4",
+  "source_sha256": "28c0bd298a28f6af81ed72d42e42d93cb4513889ba5d59d76f896f4b414d9e94",
+  "evidence": "results/maze-explore-20260924/hard-6x6/seed1_sensors.json",
+  "episode": {
+    "seed": 1,
+    "outcome": "goal",
+    "success": true,
+    "clean_success": true,
+    "completion_s": 73.12,
+    "wall_contact_steps": 0,
+    "path_length_m": 24.8,
+    "turns": 23,
+    "replans": 172,
+    "mapped_fraction_end": 0.594
+  },
+  "maze": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "cells_on_shortest_route": 21,
+    "walls": 48,
+    "layout_sha256": "1753af9b4e60126d"
+  },
+  "playback_speed": 5.0,
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  },
+  "scope": "MuJoCo 3.3.5 | frozen learned biped gait (dr-default-s0) | lidar log-odds map | A* on the map with unknown = free | turn in place then walk forward (no sideways) | oracle pose and goal coordinate; the maze itself is unknown to the planner | one seed = one maze; the multi-seed table is the evidence, this clip the illustration",
+  "imu_panel": {
+    "label": "SIMULATED IM10A-like 10-axis IMU, display only (never in the control loop)",
+    "rate_hz": 100.0,
+    "noise": {
+      "gyro_noise_dps": 0.07,
+      "gyro_bias_dps": 1.0,
+      "accel_noise_mg": 1.0,
+      "accel_bias_mg": 40.0,
+      "mag_resolution_mgauss": 0.0667,
+      "baro_noise_pa": 0.5,
+      "max_rate_hz": 200.0,
+      "source": "Hiwonder IMU module user manual s1 (datasheet upper bounds), retrieved 2026-09-29"
+    },
+    "filter": "Mahony kp=1.0 ki=0.1, 6-axis, own random stream",
+    "not_used": "magnetometer (approx. local field) and barometer are simulated and not used"
+  },
+  "rig_panels": {
+    "label": "display only: the brake reads the 8x8 ray-cast depth, the map the lidar",
+    "rgb_depth": "MuJoCo renders at the stereo mount, 160x120 per eye, 20 deg down, 60.5 deg vfov",
+    "optical_flow": "OpenCV Farneback on consecutive left-eye frames (HSV: hue = direction)"
+  },
+  "episode_matches_table": {
+    "table": {
+      "outcome": "goal",
+      "completion_s": 73.12
+    },
+    "rendered": {
+      "outcome": "goal",
+      "completion_s": 73.12
+    },
+    "match": true
+  }
+}

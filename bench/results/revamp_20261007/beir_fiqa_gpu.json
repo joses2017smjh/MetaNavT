@@ -1,0 +1,412 @@
+{
+  "dataset": "BEIR/fiqa",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/fiqa.zip",
+  "zip_sha256": "32c7df99ed21252fdfb2cf3f5673502a8d245ee0c44c4a133570d92ce2b3ad02",
+  "expected_zip_sha256": "32c7df99ed21252fdfb2cf3f5673502a8d245ee0c44c4a133570d92ce2b3ad02",
+  "files_sha256": {
+    "corpus.jsonl": "ff593e4df9933955dc3af83be0c3fa28ac7465f627e08c2e53593e734d506517",
+    "queries.jsonl": "eede1e61d4a0188940239b53ebc2da91f577a6a34679c812d1eb9090c29877bc",
+    "qrels/test.tsv": "6adc2a640dcdd22bb8b3858f89107adef2a7c3db20a63550dfa7a0f71e379e44"
+  },
+  "corpus_sha256": "f66ef26f25dae42254b1494d4672e6b0118709ee62cee13b763d99d25066356a",
+  "runner_sha256": "6b361c7df3c7deb49c8c0378d03edfcaddb2938bb1cba71f76434c3efbc9b192",
+  "n_docs": 57638,
+  "n_queries": 648,
+  "full_split_queries": 648,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": null,
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "55811b6",
+  "timestamp": "2026-10-08T01:23:23.934624+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=0 HF_HOME=/nfs/stak/users/sanchej7/hpc-share/mnt_work/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --dataset fiqa --device cuda --only bm25,dense@bge-small,hybrid@bge-small --n-boot 1000 --require-trec-eval --trec-dir bench/results/revamp_20261007/trec_fiqa_gpu --out bench/results/revamp_20261007/beir_fiqa_gpu.json",
+  "device": {
+    "requested": "cuda",
+    "python": "3.11.13",
+    "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 224,
+    "hostname": "dgxh-2.hpc.engr.oregonstate.edu",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA H100 80GB HBM3",
+    "threads": 4,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 1000,
+    "n_queries": 648,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "bm25",
+      "parent": null,
+      "settings": {
+        "name": "bm25",
+        "mode": "bm25",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.2369,
+        "recall@10": 0.2988,
+        "recall@100": 0.5402,
+        "mrr@10": 0.2963,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 161.47,
+          "p95_ms": 230.91,
+          "mean_ms": 165.2
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 161.49,
+          "p95_ms": 230.94,
+          "mean_ms": 165.22
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 69163.46,
+        "total_ms": 69163.46
+      },
+      "wall_ms": 107094.65,
+      "models": {},
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 648,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_fiqa_gpu/bm25.run",
+        "run_sha256": "ce9db937c544d0fafce8c518290f296188dbcb1d817824149fff37894e14da42",
+        "qrels": "bench/results/revamp_20261007/trec_fiqa_gpu/qrels.txt",
+        "qrels_sha256": "424164b5418f5e537fd19b97383c7301166e5738cbfa8e249bc9c10f6b6cd926"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.2369,
+          "lo": 0.2124,
+          "hi": 0.2585
+        },
+        "recall@10": {
+          "mean": 0.2988,
+          "lo": 0.2694,
+          "hi": 0.3251
+        },
+        "recall@100": {
+          "mean": 0.5402,
+          "lo": 0.5092,
+          "hi": 0.5698
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    },
+    {
+      "config": "dense@bge-small",
+      "parent": "bm25",
+      "settings": {
+        "name": "dense@bge-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "bm25",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3848,
+        "recall@10": 0.4396,
+        "recall@100": 0.6866,
+        "mrr@10": 0.465,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.66,
+          "p95_ms": 9.32,
+          "mean_ms": 8.36
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 62.74,
+          "p95_ms": 67.71,
+          "mean_ms": 62.82
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 71.37,
+          "p95_ms": 75.52,
+          "mean_ms": 71.22
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 9476.61,
+        "doc_embeddings_ms": 38779.7,
+        "total_ms": 48256.31
+      },
+      "wall_ms": 46213.94,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 648,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_fiqa_gpu/dense-bge-small.run",
+        "run_sha256": "87f2622e88b50531b12cf54855f1f7bce704bdacb8965392cb526289e2cff60e",
+        "qrels": "bench/results/revamp_20261007/trec_fiqa_gpu/qrels.txt",
+        "qrels_sha256": "424164b5418f5e537fd19b97383c7301166e5738cbfa8e249bc9c10f6b6cd926"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3848,
+          "lo": 0.3562,
+          "hi": 0.4123
+        },
+        "recall@10": {
+          "mean": 0.4396,
+          "lo": 0.4089,
+          "hi": 0.4692
+        },
+        "recall@100": {
+          "mean": 0.6866,
+          "lo": 0.6584,
+          "hi": 0.7144
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1479,
+          "lo": 0.1239,
+          "hi": 0.1737
+        },
+        "recall@10": {
+          "delta": 0.1408,
+          "lo": 0.1117,
+          "hi": 0.1716
+        },
+        "recall@100": {
+          "delta": 0.1463,
+          "lo": 0.1159,
+          "hi": 0.1763
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1479,
+          "lo": 0.1239,
+          "hi": 0.1737
+        },
+        "recall@10": {
+          "delta": 0.1408,
+          "lo": 0.1117,
+          "hi": 0.1716
+        },
+        "recall@100": {
+          "delta": 0.1463,
+          "lo": 0.1159,
+          "hi": 0.1763
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3645,
+        "recall@10": 0.4365,
+        "recall@100": 0.6911,
+        "mrr@10": 0.438,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 217.15,
+          "p95_ms": 287.87,
+          "mean_ms": 219.33
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 5.83,
+          "p95_ms": 7.07,
+          "mean_ms": 6.11
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 62.95,
+          "p95_ms": 66.9,
+          "mean_ms": 62.37
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.15,
+          "p95_ms": 0.18,
+          "mean_ms": 0.15
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 286.85,
+          "p95_ms": 360.12,
+          "mean_ms": 288.0
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 186674.58,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 648,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": {
+        "run": "bench/results/revamp_20261007/trec_fiqa_gpu/hybrid-bge-small.run",
+        "run_sha256": "e2fec70b7ad954bced531beb94dab3cf5c309230a744e467f4de7d8acaa1d672",
+        "qrels": "bench/results/revamp_20261007/trec_fiqa_gpu/qrels.txt",
+        "qrels_sha256": "424164b5418f5e537fd19b97383c7301166e5738cbfa8e249bc9c10f6b6cd926"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3645,
+          "lo": 0.3374,
+          "hi": 0.3903
+        },
+        "recall@10": {
+          "mean": 0.4365,
+          "lo": 0.4052,
+          "hi": 0.4664
+        },
+        "recall@100": {
+          "mean": 0.6911,
+          "lo": 0.6616,
+          "hi": 0.7174
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1276,
+          "lo": 0.1106,
+          "hi": 0.1446
+        },
+        "recall@10": {
+          "delta": 0.1377,
+          "lo": 0.1135,
+          "hi": 0.1639
+        },
+        "recall@100": {
+          "delta": 0.1508,
+          "lo": 0.1282,
+          "hi": 0.1732
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0204,
+          "lo": -0.0386,
+          "hi": -0.0018
+        },
+        "recall@10": {
+          "delta": -0.0032,
+          "lo": -0.0252,
+          "hi": 0.0196
+        },
+        "recall@100": {
+          "delta": 0.0045,
+          "lo": -0.0124,
+          "hi": 0.023
+        }
+      }
+    }
+  ]
+}

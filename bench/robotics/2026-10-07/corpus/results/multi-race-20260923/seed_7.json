@@ -1,0 +1,53 @@
+{
+  "seed": 7,
+  "flags": {
+    "seconds": 12.0,
+    "vx": 0.3,
+    "push": 0.45,
+    "push_every": 3.5,
+    "world": "flat",
+    "variant": "biped",
+    "policy_dt": 0.04,
+    "tilt_limit_rad": 0.78
+  },
+  "push_times_s": [
+    3.48,
+    6.96,
+    10.44
+  ],
+  "video": null,
+  "robots": [
+    {
+      "label": "randomized",
+      "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+      "run_dir": "2026-08-17_09-54-10_dr-default-s0",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.515
+    },
+    {
+      "label": "no randomization",
+      "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-11_dr-off-s0/exported/deploy.yaml",
+      "run_dir": "2026-08-17_09-54-11_dr-off-s0",
+      "fell": true,
+      "fell_at_s": 4.32,
+      "peak_x_m": 1.2822
+    },
+    {
+      "label": "push-trained",
+      "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_23-22-21_push-adaptive-s0/exported/deploy.yaml",
+      "run_dir": "2026-08-17_23-22-21_push-adaptive-s0",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 1.9673
+    },
+    {
+      "label": "terrain-trained",
+      "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_22-56-08_terrain-bumpy-s0/exported/deploy.yaml",
+      "run_dir": "2026-08-17_22-56-08_terrain-bumpy-s0",
+      "fell": false,
+      "fell_at_s": null,
+      "peak_x_m": 3.0568
+    }
+  ]
+}

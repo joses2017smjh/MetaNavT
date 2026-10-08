@@ -1,0 +1,112 @@
+[
+ {
+  "variant": "base",
+  "lower": "reverse",
+  "seed": 100,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1789,
+  "hold_s": 5.08,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   -0.2608,
+   0.1844
+  ],
+  "final_cube_tilt_rad": 3.1416,
+  "max_robot_tilt": 0.1795,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.6,
+   "phase": "release"
+  },
+  "wall_s": 14.2
+ },
+ {
+  "variant": "base",
+  "lower": "reverse",
+  "seed": 101,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1988,
+  "hold_s": 3.56,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.085,
+   0.2913
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1737,
+  "floor": true,
+  "floor_first": {
+   "t_s": 10.8,
+   "phase": "release"
+  },
+  "wall_s": 14.3
+ },
+ {
+  "variant": "base",
+  "lower": "reverse",
+  "seed": 102,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2052,
+  "hold_s": 4.88,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.3301,
+   0.0308
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 1.7604,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.68,
+   "phase": "release"
+  },
+  "wall_s": 14.3
+ },
+ {
+  "variant": "base",
+  "lower": "reverse",
+  "seed": 103,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.1427,
+  "hold_s": 3.48,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   -0.2901,
+   0.2459
+  ],
+  "final_cube_tilt_rad": 3.1416,
+  "max_robot_tilt": 0.1761,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.76,
+   "phase": "retract"
+  },
+  "wall_s": 14.0
+ },
+ {
+  "variant": "base",
+  "lower": "reverse",
+  "seed": 104,
+  "success": false,
+  "first_failed": "on_plinth_height",
+  "lift_peak_m": 0.2061,
+  "hold_s": 4.96,
+  "final_dz_m": -0.1898,
+  "final_offset_xy_m": [
+   0.308,
+   0.04
+  ],
+  "final_cube_tilt_rad": 1.5708,
+  "max_robot_tilt": 0.1999,
+  "floor": true,
+  "floor_first": {
+   "t_s": 11.68,
+   "phase": "release"
+  },
+  "wall_s": 14.3
+ }
+]

@@ -1,0 +1,37 @@
+{
+  "task": "bimanual_so101_garment_folding",
+  "policy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/weekend-20260919/fold-adapt-s1/step_001000",
+  "garment_type": "top_long",
+  "seed": 100,
+  "renderer": "Storm RGB (synthetic depth unused by RGB policy)",
+  "physics": "Isaac Sim 5.1 GPU PhysX particle cloth",
+  "scorer": "unmodified official LeHome run_evaluation_loop returned metrics",
+  "expected_episodes": 24,
+  "max_steps": 600,
+  "completed": false,
+  "garments": [
+    {
+      "garment": "Top_Long_Seen_0",
+      "split": "seen",
+      "physics_health": {
+        "steps": 1240,
+        "max_particle_step_m": 0.3142145276069641,
+        "finite": true,
+        "rendered_observations": 2446
+      },
+      "episodes": [
+        {
+          "return": 106.41074554861602,
+          "length": 600,
+          "success": false
+        },
+        {
+          "return": 107.80903120407285,
+          "length": 600,
+          "success": false
+        }
+      ]
+    }
+  ],
+  "rendered_observations": 2446
+}

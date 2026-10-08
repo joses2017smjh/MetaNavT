@@ -1,0 +1,336 @@
+{
+ "model": "gemini-robotics-er-2-preview",
+ "endpoint": "https://generativelanguage.googleapis.com/v1beta/interactions",
+ "prompt": "This image is one frame from a fixed camera watching a physics simulation. Two humanoid robots (orange and black) stand side by side on a checkered floor. Between them is a small grey plinth (a box-shaped stand, 0.19 m tall). A blue cube, 0.28 m on each side, starts on top of the plinth; the robots may squeeze it between their hands, lift it, hold it, lower it, release it or drop it.\nReport the state of the blue cube in this frame only, as JSON with these fields:\n- cube_point: one point on the blue cube as [y, x], each normalized to 0-1000 (y from the top edge of the image, x from the left edge).\n- lifted_clear: true if the cube is lifted clear: its lowest corner is at least 2 cm above every surface directly below it (the floor, and the plinth top when the cube is over the plinth), so it rests on neither.\n- on_floor: true if any part of the cube touches the floor.\n- robot_contact: true if the robots press on the cube: the total contact force from the robots on the cube is more than 1 newton.\n- seated_flat: true if the cube sits on the plinth: it touches the plinth with its centre over the plinth top, and one of its faces (any face) is flat down, within 8 degrees of level.\nAnswer with the JSON object only.",
+ "json_schema": {
+  "type": "object",
+  "properties": {
+   "cube_point": {
+    "type": "array",
+    "items": {
+     "type": "integer"
+    },
+    "minItems": 2,
+    "maxItems": 2,
+    "description": "[y, x] of one point on the blue cube, each normalized to 0-1000"
+   },
+   "lifted_clear": {
+    "type": "boolean"
+   },
+   "on_floor": {
+    "type": "boolean"
+   },
+   "robot_contact": {
+    "type": "boolean"
+   },
+   "seated_flat": {
+    "type": "boolean"
+   }
+  },
+  "required": [
+   "cube_point",
+   "lifted_clear",
+   "on_floor",
+   "robot_contact",
+   "seated_flat"
+  ]
+ },
+ "prompt_text": "This image is one frame from a fixed camera watching a physics simulation. Two humanoid robots (orange and black) stand side by side on a checkered floor. Between them is a small grey plinth (a box-shaped stand, 0.19 m tall). A blue cube, 0.28 m on each side, starts on top of the plinth; the robots may squeeze it between their hands, lift it, hold it, lower it, release it or drop it.\nReport the state of the blue cube in this frame only, as JSON with these fields:\n- cube_point: one point on the blue cube as [y, x], each normalized to 0-1000 (y from the top edge of the image, x from the left edge).\n- lifted_clear: true if the cube is lifted clear: its lowest corner is at least 2 cm above every surface directly below it (the floor, and the plinth top when the cube is over the plinth), so it rests on neither.\n- on_floor: true if any part of the cube touches the floor.\n- robot_contact: true if the robots press on the cube: the total contact force from the robots on the cube is more than 1 newton.\n- seated_flat: true if the cube sits on the plinth: it touches the plinth with its centre over the plinth top, and one of its faces (any face) is flat down, within 8 degrees of level.\nAnswer with the JSON object only.\nJSON schema of the answer: {\"properties\": {\"cube_point\": {\"description\": \"[y, x] of one point on the blue cube, each normalized to 0-1000\", \"items\": {\"type\": \"integer\"}, \"maxItems\": 2, \"minItems\": 2, \"type\": \"array\"}, \"lifted_clear\": {\"type\": \"boolean\"}, \"on_floor\": {\"type\": \"boolean\"}, \"robot_contact\": {\"type\": \"boolean\"}, \"seated_flat\": {\"type\": \"boolean\"}}, \"required\": [\"cube_point\", \"lifted_clear\", \"on_floor\", \"robot_contact\", \"seated_flat\"], \"type\": \"object\"}",
+ "prompt_schema_sha256": "873d16aed67f87f36fff88dbe7deb2ad6ec55abd0ce71c1a9e581f059191c20b",
+ "request_sha256": "ddc1f3d1cc08ba9ad97399145b119c1566a6f1d6e02789668e69ea356c8d20b2",
+ "request_template": {
+  "method": "POST",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/interactions",
+  "headers": {
+   "Content-Type": "application/json",
+   "x-goog-api-key": "<from the key file; never stored>"
+  },
+  "body": {
+   "model": "gemini-robotics-er-2-preview",
+   "input": [
+    {
+     "type": "image",
+     "data": "<base64 PNG frame>",
+     "mime_type": "image/png"
+    },
+    {
+     "type": "text",
+     "text": "This image is one frame from a fixed camera watching a physics simulation. Two humanoid robots (orange and black) stand side by side on a checkered floor. Between them is a small grey plinth (a box-shaped stand, 0.19 m tall). A blue cube, 0.28 m on each side, starts on top of the plinth; the robots may squeeze it between their hands, lift it, hold it, lower it, release it or drop it.\nReport the state of the blue cube in this frame only, as JSON with these fields:\n- cube_point: one point on the blue cube as [y, x], each normalized to 0-1000 (y from the top edge of the image, x from the left edge).\n- lifted_clear: true if the cube is lifted clear: its lowest corner is at least 2 cm above every surface directly below it (the floor, and the plinth top when the cube is over the plinth), so it rests on neither.\n- on_floor: true if any part of the cube touches the floor.\n- robot_contact: true if the robots press on the cube: the total contact force from the robots on the cube is more than 1 newton.\n- seated_flat: true if the cube sits on the plinth: it touches the plinth with its centre over the plinth top, and one of its faces (any face) is flat down, within 8 degrees of level.\nAnswer with the JSON object only.\nJSON schema of the answer: {\"properties\": {\"cube_point\": {\"description\": \"[y, x] of one point on the blue cube, each normalized to 0-1000\", \"items\": {\"type\": \"integer\"}, \"maxItems\": 2, \"minItems\": 2, \"type\": \"array\"}, \"lifted_clear\": {\"type\": \"boolean\"}, \"on_floor\": {\"type\": \"boolean\"}, \"robot_contact\": {\"type\": \"boolean\"}, \"seated_flat\": {\"type\": \"boolean\"}}, \"required\": [\"cube_point\", \"lifted_clear\", \"on_floor\", \"robot_contact\", \"seated_flat\"], \"type\": \"object\"}"
+    }
+   ],
+   "generation_config": {
+    "thinking_level": "low"
+   }
+  },
+  "answer_field": "steps[type=model_output].content[type=text].text, joined in order; top-level output_text only when the response has no steps list",
+  "answer_json": "one JSON object, bare or in exactly one ``` / ```json code block",
+  "connect_timeout_s": 10.0,
+  "wall_timeout_s": 60.0,
+  "call_policy": {
+   "min_gap_s": 1.0,
+   "gap": "a request is sent no earlier than min_gap_s after the previous request ended (response, error or timeout): preflight, scored calls, re-sends and latency calls alike",
+   "resend_only_on": "HTTP 429, HTTP 503, or a connection error with no HTTP response (requests ConnectionError, ConnectTimeout included; a read timeout is final): the model produced no answer",
+   "max_resends_per_frame_per_job": 3,
+   "wait_before_resend": "max(Retry-After header, google.rpc.RetryInfo retryDelay) when the response gives one, else 5, 15, 45 s for re-send 1, 2, 3; never less than min_gap_s",
+   "max_wait_s": 120.0,
+   "when_resends_are_used_up_or_wait_too_long": "the caller stops (exit 4) with NO final outcome for that frame (a 429/503/connection error is never a scored outcome); resubmitting resumes",
+   "every_other_outcome": "final at its first attempt (cached; failures included)",
+   "latency_mode": "no re-sends: a 429/503/connection error there is a failed call (+inf)",
+   "attempts": "every attempt (re-sends included) is appended to the frame's attempts log and copied into its final record"
+  },
+  "api_defaults": "only generation_config.thinking_level is set (the documented examples' one config field, in the SDKs' flat form: the live service refused the REST example's nested thinking_config); temperature, top_p, the output-token cap (documented output limit 65,536), media resolution, safety settings, system instruction and interaction storage are not set (API defaults); single-turn request; no tools"
+ },
+ "call_policy": {
+  "min_gap_s": 1.0,
+  "gap": "a request is sent no earlier than min_gap_s after the previous request ended (response, error or timeout): preflight, scored calls, re-sends and latency calls alike",
+  "resend_only_on": "HTTP 429, HTTP 503, or a connection error with no HTTP response (requests ConnectionError, ConnectTimeout included; a read timeout is final): the model produced no answer",
+  "max_resends_per_frame_per_job": 3,
+  "wait_before_resend": "max(Retry-After header, google.rpc.RetryInfo retryDelay) when the response gives one, else 5, 15, 45 s for re-send 1, 2, 3; never less than min_gap_s",
+  "max_wait_s": 120.0,
+  "when_resends_are_used_up_or_wait_too_long": "the caller stops (exit 4) with NO final outcome for that frame (a 429/503/connection error is never a scored outcome); resubmitting resumes",
+  "every_other_outcome": "final at its first attempt (cached; failures included)",
+  "latency_mode": "no re-sends: a 429/503/connection error there is a failed call (+inf)",
+  "attempts": "every attempt (re-sends included) is appended to the frame's attempts log and copied into its final record"
+ },
+ "request_format_tested_live": false,
+ "request_format_source": "live Interactions API reference and its image-understanding REST example (2026-10-05), after two live preflights refused the saved robotics REST example's shape (er_obs.REQUEST_AMENDMENT); answer: steps[type=model_output].content[type=text].text, joined in order; top-level output_text only when the response has no steps list",
+ "frames_manifest": "/nfs/hpc/share/sanchej7/Humanoid_Lite/er-obs1-data/frames-smoke/21544355/frames/manifest.json",
+ "frames_manifest_sha256": "4fda943dd772849dc9722d20c1cd146dd3e497a20fe2ec6b57b417a4bf8c4aee",
+ "mode": "run",
+ "tier": "free",
+ "http_status": 200,
+ "booleans": {
+  "lifted_clear": false,
+  "on_floor": false,
+  "robot_contact": false,
+  "seated_flat": true
+ },
+ "raw": "{\"id\":\"v1_ChcyLWJEYXR2QkxNTFJ6N0lQcmJMRGdRbxIXMi1iRGF0dkJMTUxSejdJUHJiTERnUW8\",\"status\":\"completed\",\"usage\":{\"total_tokens\":1866,\"total_input_tokens\":1577,\"input_tokens_by_modality\":[{\"modality\":\"image\",\"tokens\":1100},{\"modality\":\"text\",\"tokens\":477}],\"total_cached_tokens\":0,\"total_output_tokens\":61,\"total_tool_use_tokens\":0,\"total_thought_tokens\":228,\"raw_prompt_token\":2004,\"model_invocation_token_counts\":[{\"prompt_tokens_details\":[{\"modality\":\"text\",\"tokens\":904},{\"modality\":\"image\",\"tokens\":1100}],\"candidates_tokens_details\":[{\"modality\":\"text\",\"tokens\":65}],\"thoughts_tokens_details\":[{\"modality\":\"text\",\"tokens\":228}]}],\"non_grounding_model_invocation_token_counts\":[{\"prompt_tokens_details\":[{\"modality\":\"text\",\"tokens\":904},{\"modality\":\"image\",\"tokens\":1100}],\"candidates_tokens_details\":[{\"modality\":\"text\",\"tokens\":65}],\"thoughts_tokens_details\":[{\"modality\":\"text\",\"tokens\":228}]}]},\"created\":\"2026-10-05T18:05:17Z\",\"updated\":\"2026-10-05T18:05:17Z\",\"service_tier\":\"standard\",\"steps\":[{\"signature\":\"EvkGCvYGAWkUfRMYuiJPv4QFKoqthsBAofo658BVvpUGKuiaxPEwN5bwsgDVbGkAqSkaVv4sqgGUGhJQKdKRd8wwtvyYWro8bPQ7xbb35MgO2jaMgEiHcMfTHKrHrtbbUkgkPN0d3nhBVBFgRU7gwIAm+PmoXh13aUTzyLPopMbkSHtVTcILzC6BQSEtzOQbhDCtCd8IVeVFQV1Pi8GeupHLPwGMK2offG0b2sxT5ZkrDXlCk3GAQ/f1BBPTdvpc3Gqs6r+r2R6W/ZwP6+VWX8IPO05vGFEydNP/l13zJjay4CRFCgnUWTvut+DCoKYDPZHCELmxJy/YYkAM5ctNoaRuzlp8pRUHz4hvLyoFEajHb/9QP7Zrh1tmuMGWag4D70WeBZFdXaR/c/aa5KDQvYawW07cH2Oei4hdKI+Bp/zzrNwIciCWCdqhIiFrEspzG8hSDsqRGC+yJMWxlGD493xSys0GTZx9dH3lbCHBHl9/VRd9CN7iqiKqnDjcvgN0cBwA7NOs3/W6QaG47fPD1wqvQzWLHCu4DkcQp4dlmDq5OMJzZq4vKTW7QErOX+aJiRG5wk0q2E53VfE+Bp702/HuTvbAeCC0mY2GuH0o0qLaVPRA0SM8OzR+q9XpkeIo4LitRNzFswEUkORJTSYUMLwWP9oQjnrZxsVLk8wRU+WAQyk2L0ROL7wd1KyYc9wmN7eiOYf9kIHTHiFp91AiYEiUmCyzemOu+mcMHmFnk+eXtDZ2FndmSUDPpEPSL+i051fbS+x4IqB8q3A1BRmyuIBwUj9Z0V9HKfl1su9YWCV1bfP2q7VdeGGNHfK6C3TeVfXc+J00JSFjQIU4EvD+p8U4MqjA0s0SraTK8C3+klNhGDGxG8n9o7ozBVjrj/SwxwVmECRbgiy/hADL6qSg/gyJKd8mLfNgJqt8SAv6LygNeGAMZPIae2XcNM1dS9a2j5pgU3EOJ4an5vuNSXSR9Ld9t7mRIFoST0F8o21RiRT2gIZ+3//mkMmSO7EbPf/Ob+pPI2WW2JT0ZiuaM4iEpnnTQPT8RWMmSUW8WBz6DfIJSO7mQxdKKavqTgzw4pghlSfzCd4bN25VPE9Rul5FWpHlcF4kt+09GFs6H4oa31ff0Bi63y4onZMX+2D9ONXL8Wm72EhCnt7PxcUI7sMvw/20haWSmuoXzQAVnA==\",\"type\":\"thought\"},{\"content\":[{\"text\":\"```json\\n{\\n  \\\"cube_point\\\": [480, 500],\\n  \\\"lifted_clear\\\": false,\\n  \\\"on_floor\\\": false,\\n  \\\"robot_contact\\\": false,\\n  \\\"seated_flat\\\": true\\n}\\n```\",\"type\":\"text\"}],\"type\":\"model_output\"}],\"object\":\"interaction\",\"model\":\"gemini-robotics-er-2-preview\"}",
+ "raw_bytes": 2506,
+ "usage": {
+  "usage": {
+   "total_tokens": 1866,
+   "total_input_tokens": 1577,
+   "input_tokens_by_modality": [
+    {
+     "modality": "image",
+     "tokens": 1100
+    },
+    {
+     "modality": "text",
+     "tokens": 477
+    }
+   ],
+   "total_cached_tokens": 0,
+   "total_output_tokens": 61,
+   "total_tool_use_tokens": 0,
+   "total_thought_tokens": 228,
+   "raw_prompt_token": 2004,
+   "model_invocation_token_counts": [
+    {
+     "prompt_tokens_details": [
+      {
+       "modality": "text",
+       "tokens": 904
+      },
+      {
+       "modality": "image",
+       "tokens": 1100
+      }
+     ],
+     "candidates_tokens_details": [
+      {
+       "modality": "text",
+       "tokens": 65
+      }
+     ],
+     "thoughts_tokens_details": [
+      {
+       "modality": "text",
+       "tokens": 228
+      }
+     ]
+    }
+   ],
+   "non_grounding_model_invocation_token_counts": [
+    {
+     "prompt_tokens_details": [
+      {
+       "modality": "text",
+       "tokens": 904
+      },
+      {
+       "modality": "image",
+       "tokens": 1100
+      }
+     ],
+     "candidates_tokens_details": [
+      {
+       "modality": "text",
+       "tokens": 65
+      }
+     ],
+     "thoughts_tokens_details": [
+      {
+       "modality": "text",
+       "tokens": 228
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "thought_tokens": [
+  [
+   "usage.total_thought_tokens",
+   228
+  ]
+ ],
+ "response_keys": [
+  "created",
+  "id",
+  "model",
+  "object",
+  "service_tier",
+  "status",
+  "steps",
+  "updated",
+  "usage"
+ ],
+ "response_id": "v1_ChcyLWJEYXR2QkxNTFJ6N0lQcmJMRGdRbxIXMi1iRGF0dkJMTUxSejdJUHJiTERnUW8",
+ "response_model": "gemini-robotics-er-2-preview",
+ "response_status": "completed",
+ "text": "```json\n{\n  \"cube_point\": [480, 500],\n  \"lifted_clear\": false,\n  \"on_floor\": false,\n  \"robot_contact\": false,\n  \"seated_flat\": true\n}\n```",
+ "answer": {
+  "cube_point": [
+   480.0,
+   500.0
+  ],
+  "lifted_clear": false,
+  "on_floor": false,
+  "robot_contact": false,
+  "seated_flat": true
+ },
+ "kind": "ok",
+ "latency_s": 3.0621,
+ "retryable": false,
+ "attempts": [
+  {
+   "kind": "http_error",
+   "http_status": 503,
+   "latency_s": 1.517,
+   "error": "gemini-robotics-er-2-preview is currently experiencing high demand, spikes in demand are usually temporary. Please try again later.",
+   "retry_hint_s": 30.0,
+   "retryable": true,
+   "attempt": 1,
+   "gap_before_s": null,
+   "waited_for_s": null,
+   "at": "2026-10-05T11:04:45-0700"
+  },
+  {
+   "kind": "ok",
+   "http_status": 200,
+   "latency_s": 3.0621,
+   "error": null,
+   "retry_hint_s": null,
+   "retryable": false,
+   "attempt": 2,
+   "gap_before_s": 30.0001,
+   "waited_for_s": 30.0,
+   "at": "2026-10-05T11:05:18-0700"
+  }
+ ],
+ "stop": null,
+ "format_check": {
+  "ok": true,
+  "layer": null,
+  "detail": null,
+  "usage": {
+   "usage": {
+    "total_tokens": 1866,
+    "total_input_tokens": 1577,
+    "input_tokens_by_modality": [
+     {
+      "modality": "image",
+      "tokens": 1100
+     },
+     {
+      "modality": "text",
+      "tokens": 477
+     }
+    ],
+    "total_cached_tokens": 0,
+    "total_output_tokens": 61,
+    "total_tool_use_tokens": 0,
+    "total_thought_tokens": 228,
+    "raw_prompt_token": 2004,
+    "model_invocation_token_counts": [
+     {
+      "prompt_tokens_details": [
+       {
+        "modality": "text",
+        "tokens": 904
+       },
+       {
+        "modality": "image",
+        "tokens": 1100
+       }
+      ],
+      "candidates_tokens_details": [
+       {
+        "modality": "text",
+        "tokens": 65
+       }
+      ],
+      "thoughts_tokens_details": [
+       {
+        "modality": "text",
+        "tokens": 228
+       }
+      ]
+     }
+    ],
+    "non_grounding_model_invocation_token_counts": [
+     {
+      "prompt_tokens_details": [
+       {
+        "modality": "text",
+        "tokens": 904
+       },
+       {
+        "modality": "image",
+        "tokens": 1100
+       }
+      ],
+      "candidates_tokens_details": [
+       {
+        "modality": "text",
+        "tokens": 65
+       }
+      ],
+      "thoughts_tokens_details": [
+       {
+        "modality": "text",
+        "tokens": 228
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "thought_tokens": [
+   [
+    "usage.total_thought_tokens",
+    228
+   ]
+  ]
+ },
+ "frame_id": "s900_t01",
+ "at": "2026-10-05T11:05:18-0700",
+ "job": {
+  "slurm_job_id": "21565149",
+  "host": "cn-e06.hpc.engr.oregonstate.edu",
+  "pid": 1231795,
+  "since": "2026-10-05T11:04:43-0700"
+ }
+}

@@ -6,12 +6,18 @@ collect_run_artifact, propose_artifact / apply_artifact,
 propose_patch / apply_patch, exec_sandboxed,
 inspect_spreadsheet, propose_visualization / apply_visualization.
 
-Destructive writes never auto-fire: apply_* requires approved=true.
+Mutations require a short-lived, content-bound operator capability.
+Caller-supplied approval booleans never authorize changes.
 """
 
 from __future__ import annotations
 
 import json
+import ast
+import hashlib
+import threading
+import tempfile
+from functools import wraps
 import os
 import stat as statmod
 import time
@@ -21,12 +27,28 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from app.retrieval.hybrid import InMemoryHybridIndex
+from app.mcp.approvals import ApprovalError, ApprovalVerifier, canonical, verifier_from_env
+from app.mcp.secure_io import fingerprint, relative, create_file, replace_file, move_file
 
 
 class ApprovalRequired(Exception):
     def __init__(self, plan_id: str):
-        super().__init__(f"Plan {plan_id} requires human approval before apply_plan")
+        super().__init__(f"Plan {plan_id} requires a trusted operator approval capability")
         self.plan_id = plan_id
+
+
+def _serialized(method):
+    @wraps(method)
+    def wrapped(self, plan_id, *args, **kwargs):
+        with self._mutation_lock:
+            try:
+                result = method(self, plan_id, *args, **kwargs)
+            except Exception as exc:
+                self._audit(plan_id, method.__name__, "rejected", type(exc).__name__)
+                raise
+            self._audit(plan_id, method.__name__, result.get("status", "applied"))
+            return result
+    return wrapped
 
 
 @dataclass
@@ -47,18 +69,118 @@ class FilesystemTools:
     artifacts: dict = field(default_factory=dict)
     patches: dict = field(default_factory=dict)
     visualizations: dict = field(default_factory=dict)
-    allow_apply: bool = False
+    allow_apply: bool = False  # retained for constructor compatibility; True is refused
+    approval_verifier: ApprovalVerifier | None = None
+    audit_events: list[dict] = field(default_factory=list, init=False)
+    _reviews: dict[str, str] = field(default_factory=dict, init=False)
+    _session: str = field(default_factory=lambda: str(uuid.uuid4()), init=False)
+    _mutation_lock: Any = field(default_factory=threading.RLock, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.root = Path(self.root).resolve()
+        if self.allow_apply:
+            raise ApprovalError("allow_apply bypass was removed; configure operator capabilities")
+        if self.approval_verifier is None:
+            self.approval_verifier = verifier_from_env(self.root)
 
     def _safe(self, path: str) -> Path:
-        candidate = (self.root / path).resolve() if not os.path.isabs(path) else Path(path).resolve()
-        try:
-            candidate.relative_to(self.root)
-        except ValueError as exc:
-            raise PermissionError(f"path escapes corpus root: {path}") from exc
+        if path in {"", "."}:
+            return self.root
+        rel = relative(self.root, path)
+        candidate = self.root / rel
+        current = self.root
+        for component in Path(rel).parts:
+            current = current / component
+            if current.is_symlink():
+                raise PermissionError("symlink paths are refused")
         return candidate
+
+    def _audit(self, plan_id: str, action: str, result: str, detail: str = "") -> None:
+        event = {"plan_id": plan_id, "action": action, "result": result,
+                 "detail": detail, "timestamp": time.time()}
+        # No grant tokens, key material or file content in audit rows.
+        if self.approval_verifier is not None:
+            self.approval_verifier.audit(plan_id, action, result, detail)
+        self.audit_events.append(event)
+
+    def _describe(self, plan_id: str) -> dict:
+        if plan_id in self.plans:
+            p = self.plans[plan_id]
+            action, payload, reads, creates = "apply_plan", {"src": p.src, "dst": p.dst}, [p.src], [p.dst]
+        elif plan_id in self.patches:
+            p = self.patches[plan_id]
+            action, payload, reads, creates = "apply_patch", p.as_dict(), [p.path], []
+        elif plan_id in self.artifacts:
+            p = self.artifacts[plan_id]
+            action = "apply_artifact"
+            payload = {"spec": p.spec.as_dict(), "code": p.code, "sandbox_ok": p.exec_result.ok, "kind": p.kind}
+            reads, creates = [], [p.spec.file_path]
+        elif plan_id in self.visualizations:
+            p = self.visualizations[plan_id]
+            action, payload, reads, creates = "apply_visualization", p.as_dict(), [p.source_path], [p.script_path, p.chart_path]
+            payload.pop("status", None)
+        else:
+            raise KeyError(f"unknown plan {plan_id}")
+        states = [fingerprint(self.root, path) for path in reads]
+        if not all(state["exists"] for state in states):
+            raise FileNotFoundError("reviewed source is missing")
+        destinations = [fingerprint(self.root, path) for path in creates]
+        if any(state["exists"] for state in destinations):
+            raise FileExistsError("destination already exists; overwrites require a separate reviewed patch")
+        st = self.root.stat()
+        return {"schema": "metanavit-reviewed-action-v1", "session": self._session,
+                "root_identity": hashlib.sha256(f"{self.root}:{st.st_dev}:{st.st_ino}".encode()).hexdigest(),
+                "plan_id": plan_id, "action": action, "payload": payload,
+                "sources": states, "destinations": destinations}
+
+    def _register_review(self, plan_id: str) -> dict:
+        self._reviews[plan_id] = canonical(self._describe(plan_id)).decode()
+        return self.review_plan(plan_id)
+
+    def review_plan(self, plan_id: str, **options) -> dict:
+        """Read-only host/operator helper, not an approval issuer or MCP tool.
+
+        A returned JSON object is a copy. A reviewer may sign visualization
+        options explicitly; these options are covered by the capability hash.
+        """
+        if plan_id not in self._reviews:
+            raise KeyError(f"unknown reviewed plan {plan_id}")
+        review = json.loads(self._reviews[plan_id])
+        if review["action"] == "apply_visualization":
+            defaults = {"chart_type": review["payload"]["recommended_chart"], "execute": True, "backend": "auto"}
+            if set(options) - set(defaults):
+                raise ValueError("unknown visualization review option")
+            defaults.update(options)
+            if type(defaults["execute"]) is not bool or defaults["chart_type"] not in {"bar", "line", "dot", "histogram"} or defaults["backend"] not in {"auto", "matlab", "octave"}:
+                raise ValueError("invalid visualization options")
+            review["options"] = defaults
+            # Bind the exact script bytes for the selected options, including
+            # an override, so the operator sees precisely what will be written.
+            from app.artifacts.visualization import generate_matlab
+            p = self.visualizations[plan_id]
+            script = generate_matlab(source_path=p.source_path,
+                                     headers=[column.name for column in p.columns],
+                                     columns=p.columns, group_by=p.group_by, value=p.value,
+                                     operation=p.operation, chart_type=defaults["chart_type"],
+                                     chart_path=p.chart_path, baseline=p.baseline)
+            review["output_content"] = {"script_path": p.script_path, "script": script,
+                                        "sha256": hashlib.sha256(script.encode()).hexdigest()}
+        elif options:
+            raise ValueError("this action has no review options")
+        return review
+
+    def _authorize(self, plan_id: str, action: str, approval_token: str | None, **options) -> dict:
+        if self.approval_verifier is None or not approval_token:
+            raise ApprovalRequired(plan_id)
+        review = self.review_plan(plan_id, **options)
+        if review["action"] != action:
+            raise ApprovalError("capability action mismatch")
+        # Content and operation must still match the immutable proposal.
+        if canonical(self._describe(plan_id)).decode() != self._reviews[plan_id]:
+            raise ApprovalError("reviewed plan or file state is stale; propose again")
+        self.approval_verifier.consume(approval_token, review)
+        self._audit(plan_id, action, "authorized")  # durable intent before touching files
+        return review
 
     def search_semantic(self, query: str, k: int = 8, filters: dict | None = None) -> list[dict]:
         if self.index is None:
@@ -147,28 +269,22 @@ class FilesystemTools:
             created_at=time.time(),
         )
         self.plans[plan.plan_id] = plan
+        review = self._register_review(plan.plan_id)
         return {
             "plan_id": plan.plan_id,
             "src": plan.src,
             "dst": plan.dst,
             "status": "pending_approval",
-            "note": "Destructive action. Call apply_plan only after human approval.",
+            "note": "Have an operator inspect and sign the review; approved=true does not authorize writes.",
+            "review": review,
         }
 
-    def apply_plan(self, plan_id: str, approved: bool = False) -> dict:
-        plan = self.plans.get(plan_id)
-        if plan is None:
-            raise KeyError(f"unknown plan {plan_id}")
-        if plan.applied:
-            return {"plan_id": plan_id, "status": "already_applied"}
-        if not (approved or self.allow_apply):
-            raise ApprovalRequired(plan_id)
-        plan.approved = True
-        src = self._safe(plan.src)
-        dst = self._safe(plan.dst)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        os.rename(src, dst)
-        plan.applied = True
+    @_serialized
+    def apply_plan(self, plan_id: str, approved: bool = False, *, approval_token: str | None = None) -> dict:
+        review = self._authorize(plan_id, "apply_plan", approval_token)
+        plan = self.plans[plan_id]
+        move_file(self.root, plan.src, plan.dst, review["sources"][0])
+        plan.approved = plan.applied = True
         return {"plan_id": plan_id, "status": "applied", "src": plan.src, "dst": plan.dst}
 
     def collect_run_artifact(self, run_id: str) -> dict:
@@ -186,31 +302,18 @@ class FilesystemTools:
             raise RuntimeError("propose_artifact requires an index")
         prop = ArtifactAgent(self.index).produce(query)
         self.artifacts[prop.plan_id] = prop
-        return prop.as_dict()
+        review = self._register_review(prop.plan_id)
+        return {**prop.as_dict(), "review": review}
 
-    def apply_artifact(self, plan_id: str, approved: bool = False) -> dict:
-        prop = self.artifacts.get(plan_id)
-        if prop is None:
-            raise KeyError(f"unknown artifact {plan_id}")
-        if prop.applied:
-            return {"plan_id": plan_id, "status": "already_applied"}
-        if not (approved or self.allow_apply):
-            raise ApprovalRequired(plan_id)
+    @_serialized
+    def apply_artifact(self, plan_id: str, approved: bool = False, *, approval_token: str | None = None) -> dict:
+        self._authorize(plan_id, "apply_artifact", approval_token)
+        prop = self.artifacts[plan_id]
         if not prop.exec_result.ok:
-            raise RuntimeError(
-                f"refusing to write an artifact that failed the sandbox: {prop.exec_result.error}"
-            )
-        dest = self._safe(prop.spec.file_path)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(prop.code)
-        prop.approved = True
-        prop.applied = True
-        return {
-            "plan_id": plan_id,
-            "status": "applied",
-            "path": str(dest.relative_to(self.root)),
-            "kind": prop.kind,
-        }
+            raise RuntimeError(f"refusing artifact that failed its sandbox: {prop.exec_result.error}")
+        create_file(self.root, prop.spec.file_path, prop.code.encode())
+        prop.approved = prop.applied = True
+        return {"plan_id": plan_id, "status": "applied", "path": prop.spec.file_path, "kind": prop.kind}
 
     def propose_patch(self, path: str, old: str, new: str) -> dict:
         from app.artifacts.patch import FilePatch, unified_hunk
@@ -221,30 +324,41 @@ class FilesystemTools:
         plan_id = str(uuid.uuid4())
         patch = FilePatch(path=str(target.relative_to(self.root)), old=old, new=new)
         self.patches[plan_id] = patch
+        review = self._register_review(plan_id)
         return {
             "plan_id": plan_id,
             "path": patch.path,
             "status": "pending_approval",
             "diff": unified_hunk(patch.path, old, new),
-            "note": "Call apply_patch only after human approval. Never auto-applies.",
+            "note": "An operator must sign the immutable review before applying.",
+            "review": review,
         }
 
-    def apply_patch(self, plan_id: str, approved: bool = False) -> dict:
+    @_serialized
+    def apply_patch(self, plan_id: str, approved: bool = False, *, approval_token: str | None = None) -> dict:
         from app.artifacts.patch import apply_search_replace
-
-        patch = self.patches.get(plan_id)
-        if patch is None:
-            raise KeyError(f"unknown patch {plan_id}")
-        if not (approved or self.allow_apply):
-            raise ApprovalRequired(plan_id)
-        target = self._safe(patch.path)
-        text = target.read_text(encoding="utf-8")
-        target.write_text(apply_search_replace(text, patch))
+        review = self._authorize(plan_id, "apply_patch", approval_token)
+        patch = self.patches[plan_id]
+        text = self._safe(patch.path).read_bytes().decode("utf-8")
+        result = apply_search_replace(text, patch)
+        replace_file(self.root, patch.path, result.encode(), review["sources"][0])
         return {"plan_id": plan_id, "status": "applied", "path": patch.path}
 
     def exec_sandboxed(self, code: str) -> dict:
         from app.artifacts.sandbox import run_sandboxed
 
+        # The legacy artifact AST runner permits library file readers. Exposing
+        # those as an agent tool would let it read the operator's private key.
+        # This MCP tool therefore accepts only a no-import/no-attribute subset.
+        # It remains a correctness runner, not a CPU/memory/OS security sandbox.
+        try:
+            if not isinstance(code, str) or len(code) > 65536:
+                raise ValueError("code exceeds the expression-tool limit")
+            tree = ast.parse(code)
+            if any(isinstance(node, (ast.Import, ast.ImportFrom, ast.Attribute)) for node in ast.walk(tree)):
+                raise ValueError("imports and attribute access are unavailable in the MCP expression tool")
+        except (ValueError, SyntaxError) as exc:
+            return {"ok": False, "stdout": "", "stderr": "", "error": str(exc), "timed_out": False}
         return run_sandboxed(code).as_dict()
 
     def inspect_spreadsheet(self, path: str) -> dict:
@@ -280,8 +394,10 @@ class FilesystemTools:
             chart_type=chart_type,
         )
         self.visualizations[plan.plan_id] = plan
-        return plan.as_dict()
+        review = self._register_review(plan.plan_id)
+        return {**plan.as_dict(), "review": review}
 
+    @_serialized
     def apply_visualization(
         self,
         plan_id: str,
@@ -289,54 +405,41 @@ class FilesystemTools:
         chart_type: str | None = None,
         execute: bool = True,
         backend: str = "auto",
+        approval_token: str | None = None,
     ) -> dict:
-        from app.artifacts.visualization import execute_matlab, generate_matlab
+        from app.artifacts.visualization import execute_matlab
 
         plan = self.visualizations.get(plan_id)
         if plan is None:
             raise KeyError(f"unknown visualization {plan_id}")
-        if plan.applied:
-            return {
-                "plan_id": plan_id,
-                "status": "already_applied",
-                "script_path": plan.script_path,
-                "chart_path": plan.chart_path,
-            }
-        if not (approved or self.allow_apply):
-            raise ApprovalRequired(plan_id)
         selected = chart_type or plan.recommended_chart
-        plan.matlab_code = generate_matlab(
-            source_path=plan.source_path,
-            headers=[column.name for column in plan.columns],
-            columns=plan.columns,
-            group_by=plan.group_by,
-            value=plan.value,
-            operation=plan.operation,
-            chart_type=selected,
-            chart_path=plan.chart_path,
-            baseline=plan.baseline,
-        )
+        review = self._authorize(plan_id, "apply_visualization", approval_token,
+                                 chart_type=selected, execute=execute, backend=backend)
+        plan.matlab_code = review["output_content"]["script"]
         script = self._safe(plan.script_path)
         chart = self._safe(plan.chart_path)
-        script.parent.mkdir(parents=True, exist_ok=True)
-        chart.parent.mkdir(parents=True, exist_ok=True)
-        script.write_text(plan.matlab_code)
-        execution = (
-            execute_matlab(
-                self.root,
-                plan.script_path,
-                chart_path=plan.chart_path,
-                backend=backend,
-            )
-            if execute
-            else {
+        create_file(self.root, plan.script_path, plan.matlab_code.encode())
+        # Render in a disposable tree, then publish via exclusive creation. The
+        # external backend is not an OS sandbox, and its runtime is not evaluated
+        # by the deterministic authorization benchmark.
+        if execute:
+            with tempfile.TemporaryDirectory(prefix="metanavit-chart-") as temporary:
+                staging = Path(temporary)
+                create_file(staging, plan.source_path, self._safe(plan.source_path).read_bytes())
+                create_file(staging, plan.script_path, plan.matlab_code.encode())
+                staged_chart = staging / plan.chart_path
+                staged_chart.parent.mkdir(parents=True, exist_ok=True)
+                execution = execute_matlab(staging, plan.script_path, chart_path=plan.chart_path, backend=backend)
+                if execution["ok"] and staged_chart.is_file():
+                    create_file(self.root, plan.chart_path, staged_chart.read_bytes())
+        else:
+            execution = {
                 "ok": None,
                 "backend": None,
                 "stdout": "",
                 "stderr": "execution not requested",
                 "returncode": None,
             }
-        )
         plan.approved = True
         plan.applied = True
         plan.status = (
@@ -431,12 +534,12 @@ class FilesystemTools:
             },
             {
                 "name": "apply_plan",
-                "description": "Apply a move plan. Requires approved=true from a human.",
+                "description": "Apply a move plan. Requires an operator-issued capability bound to the reviewed action.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "plan_id": {"type": "string"},
-                        "approved": {"type": "boolean", "default": False},
+                        "approval_token": {"type": "string"},
                     },
                     "required": ["plan_id"],
                 },
@@ -452,7 +555,7 @@ class FilesystemTools:
             },
             {
                 "name": "propose_artifact",
-                "description": "Spec → generate → sandbox. Returns a plan; never writes.",
+                "description": "Spec → template generation → AST correctness check. Returns a plan; never writes.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {"query": {"type": "string"}},
@@ -461,12 +564,12 @@ class FilesystemTools:
             },
             {
                 "name": "apply_artifact",
-                "description": "Write a proposed artifact. Requires approved=true. Refuses failed sandbox runs.",
+                "description": "Write a proposed artifact. Requires an operator-issued capability. Refuses failed sandbox runs.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "plan_id": {"type": "string"},
-                        "approved": {"type": "boolean", "default": False},
+                        "approval_token": {"type": "string"},
                     },
                     "required": ["plan_id"],
                 },
@@ -486,19 +589,19 @@ class FilesystemTools:
             },
             {
                 "name": "apply_patch",
-                "description": "Apply a patch plan. Requires approved=true.",
+                "description": "Apply a patch plan. Requires an operator-issued capability.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "plan_id": {"type": "string"},
-                        "approved": {"type": "boolean", "default": False},
+                        "approval_token": {"type": "string"},
                     },
                     "required": ["plan_id"],
                 },
             },
             {
                 "name": "exec_sandboxed",
-                "description": "AST-gated Python exec. No os/subprocess/pip.",
+                "description": "Run a no-import, no-attribute Python expression subset; no OS isolation or resource guarantees.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {"code": {"type": "string"}},
@@ -538,12 +641,12 @@ class FilesystemTools:
             },
             {
                 "name": "apply_visualization",
-                "description": "After user approval/override, write MATLAB code and optionally render the chart.",
+                "description": "Use a trusted capability covering chart/execute/backend options to write or render.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "plan_id": {"type": "string"},
-                        "approved": {"type": "boolean", "default": False},
+                        "approval_token": {"type": "string"},
                         "chart_type": {
                             "type": "string",
                             "enum": ["bar", "line", "dot", "histogram"],
@@ -561,6 +664,9 @@ class FilesystemTools:
         ]
 
     def call(self, name: str, arguments: dict[str, Any]) -> Any:
+        if name.startswith("apply_") and "approved" in arguments:
+            self._audit(str(arguments.get("plan_id", "")), name, "rejected", "untrusted_approval_argument")
+            raise ApprovalRequired(str(arguments.get("plan_id", "")))
         if name == "search_semantic":
             return self.search_semantic(
                 arguments["query"],
@@ -579,7 +685,7 @@ class FilesystemTools:
             return self.propose_move(arguments["src"], arguments["dst"])
         if name == "apply_plan":
             return self.apply_plan(
-                arguments["plan_id"], approved=bool(arguments.get("approved", False))
+                arguments["plan_id"], approval_token=arguments.get("approval_token")
             )
         if name == "collect_run_artifact":
             return self.collect_run_artifact(str(arguments["run_id"]))
@@ -587,13 +693,13 @@ class FilesystemTools:
             return self.propose_artifact(arguments["query"])
         if name == "apply_artifact":
             return self.apply_artifact(
-                arguments["plan_id"], approved=bool(arguments.get("approved", False))
+                arguments["plan_id"], approval_token=arguments.get("approval_token")
             )
         if name == "propose_patch":
             return self.propose_patch(arguments["path"], arguments["old"], arguments["new"])
         if name == "apply_patch":
             return self.apply_patch(
-                arguments["plan_id"], approved=bool(arguments.get("approved", False))
+                arguments["plan_id"], approval_token=arguments.get("approval_token")
             )
         if name == "exec_sandboxed":
             return self.exec_sandboxed(arguments["code"])
@@ -611,9 +717,9 @@ class FilesystemTools:
         if name == "apply_visualization":
             return self.apply_visualization(
                 arguments["plan_id"],
-                approved=bool(arguments.get("approved", False)),
+                approval_token=arguments.get("approval_token"),
                 chart_type=arguments.get("chart_type"),
-                execute=bool(arguments.get("execute", True)),
+                execute=arguments.get("execute", True),
                 backend=arguments.get("backend", "auto"),
             )
         raise KeyError(f"unknown tool {name}")

@@ -1,0 +1,9 @@
+task,status,measured_evidence,remaining
+H2,implemented and measured,40/40 regressions;5/5 exact repeats;10k timing calls,Fresh install/GitHub CI/second host
+M1,lookup pilot implemented and measured,600files;360generatedquestions;0humanlabels,"Independent annotation,temporal/multi-artifact/abstention and reader mappings"
+M2,implemented and measured,Real600file API;48successful measured requests;pairedCPU failures retained,"API quality,repeat sessions,capacity"
+H1,development pilot completed,8episodes;chatter reduced;goal success unchanged,Fresh full-size matched confirmation
+M3,implemented and measured,61271documents/971queries;gradedTRECcrosschecks;two isolated ablations,Development-selected configs/newholdout
+M4,implemented and measured,220negative/100benign;240structuredsyntheticcases,Human citation/LLM-level attack evaluation
+H3,proposed training work,No new training,History/latency matched training campaign
+H4,proposed training work,No new training,22-DoF turning repeated-seed qualification

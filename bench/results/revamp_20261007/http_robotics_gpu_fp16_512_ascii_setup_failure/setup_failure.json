@@ -1,0 +1,8 @@
+{
+  "outcome": "readiness_failed",
+  "requests_attempted": 0,
+  "reason": "Task-local initdb --no-locale created SQL_ASCII database; real corpus Unicode insertion raised UnicodeEncodeError. Launcher now explicitly initializes UTF8.",
+  "timestamp": "2026-10-08T01:35:53.610118+00:00",
+  "slurm_job_id": "21658631",
+  "api_log_sha256_at_archive": "37959be9dd5d370b7f8caf1e30ff4814be68919231748b4f2d2084c539977706"
+}

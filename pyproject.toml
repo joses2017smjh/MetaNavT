@@ -20,6 +20,7 @@ eval = [
     "pytest>=8,<10",
     "pytest-mock>=3.12",
     "snowballstemmer>=2.2",  # Porter stemming for the BEIR-style BM25 analyzer (pure python)
+    "httpx>=0.27",  # bounded load-runner tests; no live service required
 ]
 # The FastAPI service and the Postgres/pgvector path (what the Docker image installs).
 # HuggingFace embeddings live in `ml` because they pull torch; the image uses the
@@ -54,6 +55,10 @@ ml = [
 ]
 dev = [
     "pip-tools>=7.4",
+]
+# Independent metric parity for external benchmark evidence (optional).
+eval-trec = [
+    "pytrec-eval-terrier>=0.5.10,<1",
 ]
 # OpenTelemetry spans for the retrieval stages (app/observability.py); optional.
 otel = [

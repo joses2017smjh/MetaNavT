@@ -1,0 +1,55 @@
+{
+  "verdict": "NEGATIVE",
+  "clauses": {
+    "s5_net": false,
+    "s5_lost": false,
+    "s6_net": true,
+    "no_falls": true,
+    "wall_contacts_not_increased": true
+  },
+  "per_actor": {
+    "armV4-s5": {
+      "goals_loop_top": 15,
+      "goals_capture_pose": 17,
+      "won": [
+        9122,
+        9125,
+        9129,
+        9132
+      ],
+      "lost": [
+        9128,
+        9141
+      ],
+      "net": 2,
+      "both": 13,
+      "neither": 5,
+      "mcnemar_exact_p": 0.6875,
+      "falls_capture_pose": 0,
+      "falls_loop_top": 0,
+      "wall_contact_steps_capture_pose": 11,
+      "wall_contact_steps_loop_top": 14
+    },
+    "armV4-s6": {
+      "goals_loop_top": 23,
+      "goals_capture_pose": 23,
+      "won": [],
+      "lost": [],
+      "net": 0,
+      "both": 23,
+      "neither": 1,
+      "mcnemar_exact_p": 1.0,
+      "falls_capture_pose": 0,
+      "falls_loop_top": 0,
+      "wall_contact_steps_capture_pose": 0,
+      "wall_contact_steps_loop_top": 0
+    }
+  },
+  "detail": "armV4-s5: 15->17/24, won 4, lost 2, net +2, McNemar p 0.6875, falls 0, wall steps 14->11 | armV4-s6: 23->23/24, won 0, lost 0, net +0, McNemar p 1.0, falls 0, wall steps 0->0",
+  "rule": "PASS iff armV4-s5 nets >= +4 goals with the flag (won minus lost, paired by maze) with <= 1 lost, armV4-s6 nets >= -1, each actor has 0 falls with the flag, and each actor's total wall-contact steps with the flag are <= its total without; on training-range hard 6x6 maze seeds 9120-9143, 180 s. McNemar exact p reported, not gated. Otherwise NEGATIVE; INCOMPLETE if any arm is missing an episode or a pairing check fails.",
+  "labels": {
+    "learned": "frozen biped gait (PPO) + NavGym v4 actor (vx, wz) commands",
+    "scripted": "A* reference only (fresh stage)",
+    "oracle": "pose and goal coordinate"
+  }
+}

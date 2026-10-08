@@ -1,0 +1,18 @@
+{
+  "submitted_utc": "2026-10-06T09:32:36.921186+00:00",
+  "jobs": {
+    "locomotion": "21601701",
+    "navigation": "21601709",
+    "final_verdict": "21601710"
+  },
+  "state": "SUBMITTED",
+  "dependencies": {
+    "navigation": "afterany:21601701",
+    "final_verdict": "afterany:21601701:21601709"
+  },
+  "dependency_correction": "final job was updated immediately to actual navigation ID; verified unfulfilled wildcard array dependencies by scontrol before run",
+  "planned_locomotion_episodes": 3600,
+  "planned_navigation_episodes": 384,
+  "concurrency": 2,
+  "fresh_results": "No pending or running job is considered successful evidence"
+}

@@ -4,6 +4,22 @@ from unittest.mock import MagicMock
 
 import pytest
 
+
+@pytest.fixture
+def operator_grant(tmp_path_factory):
+    """Explicit trusted operator fixture; never a production approval fallback."""
+    from pathlib import Path
+    from app.mcp.approvals import ApprovalVerifier, create_key, sign_review
+    protected = tmp_path_factory.mktemp("operator-private")
+    key = protected / "operator.key"
+    create_key(key)
+
+    def issue(tools, plan_id, **options):
+        if tools.approval_verifier is None:
+            tools.approval_verifier = ApprovalVerifier(tools.root, key, protected / "ledger.sqlite")
+        return sign_review(tools.review_plan(plan_id, **options), key, actor="test-operator")
+    return issue
+
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

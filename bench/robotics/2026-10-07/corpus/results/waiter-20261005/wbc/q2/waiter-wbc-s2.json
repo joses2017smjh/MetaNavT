@@ -1,0 +1,114 @@
+{
+ "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-10-05_18-43-44_waiter-wbc-s2/exported/deploy.yaml",
+ "gate": "Q2",
+ "rule": "PASS iff 0 falls in 12 (4 trajectories x seeds 0-2, 0.5 kg per hand, 3 s stand + 5 s walk at 0.25 m/s) and |heading drift| <= 15 deg on >= 10 of the 12 walking segments",
+ "verdict": "FAIL",
+ "falls": 1,
+ "n": 12,
+ "drift_ok": 11,
+ "episodes": [
+  {
+   "seed": 0,
+   "fell_at_s": null,
+   "walk_drift_deg": 4.0,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0516,
+   "trajectory": "T1_carry"
+  },
+  {
+   "seed": 1,
+   "fell_at_s": null,
+   "walk_drift_deg": -1.4,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0487,
+   "trajectory": "T1_carry"
+  },
+  {
+   "seed": 2,
+   "fell_at_s": null,
+   "walk_drift_deg": 2.9,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0483,
+   "trajectory": "T1_carry"
+  },
+  {
+   "seed": 0,
+   "fell_at_s": null,
+   "walk_drift_deg": 1.9,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0262,
+   "trajectory": "T2_reach"
+  },
+  {
+   "seed": 1,
+   "fell_at_s": null,
+   "walk_drift_deg": 10.7,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0267,
+   "trajectory": "T2_reach"
+  },
+  {
+   "seed": 2,
+   "fell_at_s": null,
+   "walk_drift_deg": 12.1,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.026,
+   "trajectory": "T2_reach"
+  },
+  {
+   "seed": 0,
+   "fell_at_s": null,
+   "walk_drift_deg": 11.2,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0323,
+   "trajectory": "T3_raise"
+  },
+  {
+   "seed": 1,
+   "fell_at_s": null,
+   "walk_drift_deg": 13.7,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0314,
+   "trajectory": "T3_raise"
+  },
+  {
+   "seed": 2,
+   "fell_at_s": null,
+   "walk_drift_deg": 0.5,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0311,
+   "trajectory": "T3_raise"
+  },
+  {
+   "seed": 0,
+   "fell_at_s": null,
+   "walk_drift_deg": 1.9,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.0628,
+   "trajectory": "T4_random"
+  },
+  {
+   "seed": 1,
+   "fell_at_s": 1.56,
+   "walk_drift_deg": null,
+   "drift_ok": false,
+   "arm_track_err_rad": 0.0706,
+   "trajectory": "T4_random"
+  },
+  {
+   "seed": 2,
+   "fell_at_s": null,
+   "walk_drift_deg": -6.5,
+   "drift_ok": true,
+   "arm_track_err_rad": 0.061,
+   "trajectory": "T4_random"
+  }
+ ],
+ "payload_kg_per_hand": 0.5,
+ "trajectories": "Waiter phase 1 gate Q2: the four upper-body trajectories (docs/WAITER_PROGRAM.md; frozen 2026-10-05).\n\nCommitted before any Waiter WBC checkpoint was evaluated. Each trajectory maps t in [0, 8] s to the 12 upper-body\ntargets (absolute rad, deploy order: left arm 5, right arm 5, left gripper, right gripper). Kinematics (MuJoCo FK\nof the Waiter model, arms hanging at 0): left shoulder pitch < 0 swings the arm forward, left elbow pitch > 0\nbrings the forearm forward; the right arm mirrors the left by negation (every limit pair is negated).\n\nT1 carry: both arms to a tray-carry pose (upper arm 0.25 rad forward, forearm about level and forward) over\n   1.5 s, then held; grippers close at 1.5-2.0 s and stay closed.\nT2 reach: the right arm reaches forward-down (shoulder 0.9 rad forward, elbow 0.6), closes its gripper, returns,\n   opens; a 4 s cycle, twice.\nT3 raise: both arms raise forward to 1.2 rad and lower, three times in 8 s (raised-cosine profile), grippers open.\nT4 random: smooth random goals from the training distribution (waiter_wbc_mdp.sample_goals' rule, re-implemented\n   in numpy), a new goal every 2.0 s reached by linear interpolation over 0.8 s, numpy seed 20261005.\n",
+ "push_with_load": {
+  "falls": 3,
+  "n": 20,
+  "protocol": "T1 carry held, 0.5 kg per hand, standing 12 s, 0.5 m/s shoves every 3 s, reset seeds 20-39 (reported, not gated)"
+ }
+}

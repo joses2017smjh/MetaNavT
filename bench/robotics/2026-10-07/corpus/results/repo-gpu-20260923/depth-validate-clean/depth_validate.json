@@ -1,0 +1,100 @@
+{
+  "bench_txt": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/depth-validate-clean/depth_validate.txt",
+  "mode": "validate-only (clean worktree)",
+  "tolerance": 0.1,
+  "verdict": "MISMATCH",
+  "reasons": [
+    "mre 0.0954 is +229% vs 0.029 (validator FAIL at tol 0.03)",
+    "rough departure NOT_MEASURED (step rc=137)"
+  ],
+  "claims": [
+    {
+      "claim": "finite_fraction",
+      "measured": 1.0,
+      "documented": 1.0,
+      "verdict": "PASS",
+      "rule": "validator prints 3 decimals; the '100 % finite' claim needs 1.000"
+    },
+    {
+      "claim": "mean_relative_error",
+      "measured": 0.0954,
+      "documented": 0.029,
+      "rel_diff": 2.289655172413793,
+      "verdict": "MISMATCH",
+      "pixels": 3136,
+      "documented_pixels": 3136,
+      "validate_verdict": "FAIL",
+      "validate_tol": 0.03
+    },
+    {
+      "claim": "row_flipped_relative_error",
+      "measured": 1.0395,
+      "documented": 1.02,
+      "verdict": "PASS"
+    },
+    {
+      "claim": "best_orientation",
+      "measured": "as-returned",
+      "documented": "as-returned",
+      "verdict": "PASS"
+    },
+    {
+      "claim": "rough_departure",
+      "measured": null,
+      "documented": null,
+      "terrain_moves_verdict": null,
+      "terrain_env_spread_m": null,
+      "verdict": "NOT_MEASURED",
+      "rule": "validator: departure > 3x the flat-plane error (a constant sensor would not move)"
+    }
+  ],
+  "claim_counts": {
+    "PASS": 3,
+    "MISMATCH": 1,
+    "NOT_MEASURED": 1
+  },
+  "node": {
+    "host": "cn-gpu7.hpc.engr.oregonstate.edu",
+    "gpu": "Quadro RTX 8000 46080 MiB",
+    "job": "21405534",
+    "stack": "v51",
+    "head": "c1c92e6",
+    "dirty": "no",
+    "worktree": "clean",
+    "main_depth_dirty": "yes"
+  },
+  "validate": {
+    "camera_pitch_deg": 19.99,
+    "flat_camera_height_m": 0.291,
+    "flat_finite_fraction": 1.0,
+    "validate_verdict": "FAIL",
+    "best_error": 0.0954,
+    "best_orientation": "as-returned",
+    "validate_tol": 0.03
+  },
+  "orientations": {
+    "as-returned": {
+      "mean_relative_error": 0.0954,
+      "pixels": 3136
+    },
+    "row-flipped": {
+      "mean_relative_error": 1.0395,
+      "pixels": 2240
+    }
+  },
+  "steps": [
+    {
+      "name": "import_check",
+      "rc": "0"
+    },
+    {
+      "name": "validate_res64_n16",
+      "rc": "137",
+      "secs": "1531",
+      "timeout_s": "1500",
+      "salvaged_stdout_lines": "5"
+    }
+  ],
+  "warnings": [],
+  "parser": "/scratch/sanchej7/depth-clean-21405534/scripts/bench/depth_bench_summary.py"
+}

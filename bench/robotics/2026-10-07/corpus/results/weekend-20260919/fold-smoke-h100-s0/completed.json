@@ -1,0 +1,21 @@
+{
+  "steps": 2,
+  "elapsed_s": 5.9421015488915145,
+  "data_hash": "584519493c7c16ae7ed2ff045dac9580b0ef99dbf2956ff4d538fa93f085b50b",
+  "history": [
+    {
+      "step": 0,
+      "validation_loss": 0.579520046710968
+    },
+    {
+      "step": 1,
+      "train_loss": 0.5066521167755127,
+      "validation_loss": 0.5903652906417847
+    },
+    {
+      "step": 2,
+      "train_loss": 0.3144322633743286,
+      "validation_loss": 0.6234389543533325
+    }
+  ]
+}

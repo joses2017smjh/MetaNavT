@@ -1,7 +1,7 @@
 """Orchestrate spec → generate → sandbox tests → HITL propose.
 
 Does not write the tree. Callers (MCP) store the proposal and apply only
-after approved=True.
+after a trusted operator capability authorizes the immutable review.
 """
 
 from __future__ import annotations

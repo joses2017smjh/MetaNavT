@@ -1,0 +1,60 @@
+{
+  "verdict": "PASS",
+  "meets": {
+    "armV5-s8": true,
+    "armV5-s9": true,
+    "armV5-s10": true
+  },
+  "rule": "Physics transfer, only if the gym gate PASSES, only for gate-passing final actors: MuJoCo 3.3.5, the frozen learned biped gait, LEARNED v5 (vx, wz) commands, ORACLE pose and goal, --policy-capture-pose; hard 6x6, 1 extra opening, maze seeds 63000-63011, 180 s. PASS iff EACH gate-passing final actor reaches >= 10/12 goals with 0 falls; otherwise NEGATIVE; INCOMPLETE if a summary is missing or not 12 episodes. A* on the same mazes reported, not gated.",
+  "labels": {
+    "learned": "frozen biped gait (PPO, dr-default-s0) + NavGym v5 final actor (vx, wz) commands",
+    "scripted": "A* reference only (not gated)",
+    "oracle": "pose and goal coordinate"
+  },
+  "actors": [
+    "armV5-s8",
+    "armV5-s9",
+    "armV5-s10"
+  ],
+  "per_actor": {
+    "armV5-s8": {
+      "goals": 11,
+      "n": 12,
+      "falls": 0,
+      "time_outs": 1,
+      "clean": 11,
+      "failed_seeds": [
+        63006
+      ],
+      "summary_success": 11
+    },
+    "armV5-s9": {
+      "goals": 12,
+      "n": 12,
+      "falls": 0,
+      "time_outs": 0,
+      "clean": 11,
+      "failed_seeds": [],
+      "summary_success": 12
+    },
+    "armV5-s10": {
+      "goals": 12,
+      "n": 12,
+      "falls": 0,
+      "time_outs": 0,
+      "clean": 11,
+      "failed_seeds": [],
+      "summary_success": 12
+    }
+  },
+  "astar_reference": {
+    "goals": 12,
+    "n": 12,
+    "label": "SCRIPTED A* reference, not gated"
+  },
+  "gym_verdict": {
+    "path": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-v5-20261002/verdict_v5.json",
+    "verdict": "PASS",
+    "final": true
+  }
+}

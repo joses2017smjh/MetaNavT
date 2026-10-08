@@ -150,3 +150,13 @@ def test_response_and_health_list_degraded_components_and_the_reranker(ready_cli
     h = health.json()
     assert h["status"] == "degraded" and h["degraded"][0]["component"] == "rerank"
     assert h["reranker"]["model"] == "BAAI/bge-reranker-v2-m3" and h["retrieval_mode"] == "sql" and h["n_nodes"] == 61
+
+
+def test_health_refuses_unverified_required_cuda_device(ready_client, monkeypatch):
+    monkeypatch.setenv("RETRIEVAL_REQUIRE_DEVICE", "cuda")
+    response = ready_client.get("/health")
+    assert response.status_code == 503
+    body = response.json()
+    assert body["required_device"] == "cuda"
+    assert body["devices"] == {"embedding": None, "reranker": None}
+    assert {issue["component"] for issue in body["degraded"]} == {"embedding", "reranker", "rerank"}

@@ -1,0 +1,82 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "intervention": "plate sliding friction 1.0 -> 0.20; geometry and activation unchanged",
+  "episodes": [
+    {
+      "layout_index": 0,
+      "fall": true,
+      "first_fall_s": 55.04000000008078,
+      "maximum_tilt": 0.837399562917046,
+      "replay_elapsed_s": 55.04000000008078
+    },
+    {
+      "layout_index": 1,
+      "fall": true,
+      "first_fall_s": 43.68000000002654,
+      "maximum_tilt": 0.7923183155929497,
+      "replay_elapsed_s": 43.68000000002654
+    },
+    {
+      "layout_index": 4,
+      "fall": true,
+      "first_fall_s": 45.08000000003322,
+      "maximum_tilt": 0.8009735465362832,
+      "replay_elapsed_s": 45.08000000003322
+    },
+    {
+      "layout_index": 5,
+      "fall": true,
+      "first_fall_s": 42.60000000002138,
+      "maximum_tilt": 0.8192079392574261,
+      "replay_elapsed_s": 42.60000000002138
+    },
+    {
+      "layout_index": 7,
+      "fall": true,
+      "first_fall_s": 44.48000000003036,
+      "maximum_tilt": 0.8749636024766153,
+      "replay_elapsed_s": 44.48000000003036
+    },
+    {
+      "layout_index": 9,
+      "fall": true,
+      "first_fall_s": 20.879999999996688,
+      "maximum_tilt": 0.8328187218937045,
+      "replay_elapsed_s": 20.879999999996688
+    },
+    {
+      "layout_index": 12,
+      "fall": true,
+      "first_fall_s": 13.60000000000513,
+      "maximum_tilt": 0.8781479025851541,
+      "replay_elapsed_s": 13.60000000000513
+    },
+    {
+      "layout_index": 13,
+      "fall": true,
+      "first_fall_s": 15.240000000007134,
+      "maximum_tilt": 0.8814999699254565,
+      "replay_elapsed_s": 15.240000000007134
+    },
+    {
+      "layout_index": 14,
+      "fall": true,
+      "first_fall_s": 37.15999999999541,
+      "maximum_tilt": 0.9100851318624745,
+      "replay_elapsed_s": 37.15999999999541
+    },
+    {
+      "layout_index": 15,
+      "fall": true,
+      "first_fall_s": 40.680000000012214,
+      "maximum_tilt": 0.8036544704470052,
+      "replay_elapsed_s": 40.680000000012214
+    }
+  ],
+  "summary": {
+    "episodes": 10,
+    "falls": 10,
+    "no_fall": 0
+  }
+}

@@ -1,0 +1,17 @@
+grasp height under test: 0.300 m (tolerance +/-0.030)
+standing root_z = -0.137
+
+G-T1  standing (feet planted): 625 legal postures, 96 put both hands within tolerance of 0.30 m while descending no more than 25 cm
+      closest overall: hands 0.301 m, base -0.292 m, lowest geom +0.000 m
+      best qualifying: hands 0.301 m, descent 15.5 cm -> a squat, not a collapse
+
+G-T3  collapsed by 41 cm: 0 legal postures, 0 reach 0.30 m
+
+G-T2  standing hands span 0.100 .. 0.663 m with feet planted
+      cube -> shelf slot         needs 0.520 m  ok
+      ball -> net rim            needs 0.600 m  ok
+      plank -> wall contact      needs 0.500 m  ok
+
+G-T1 PASS | a standing squat reaches the payload
+G-T2 PASS | every target height is reachable standing
+G-T3 PASS | a collapsed robot cannot reach it

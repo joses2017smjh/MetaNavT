@@ -1,0 +1,25 @@
+{
+  "variant": "biped",
+  "total_mass_urdf_kg": 11.342673041000003,
+  "total_mass_mjcf_kg": 11.342673040000003,
+  "mass_delta_kg": 1.000000082740371e-09,
+  "mass_mismatches": 0,
+  "inertia_mismatches": 0,
+  "joint_limit_mismatches_mjcf": 0,
+  "joint_limit_mismatches_usd": 0,
+  "damping_mismatches": 0,
+  "urdf_collision_kinds": [
+    "box",
+    "cylinder"
+  ],
+  "mjcf_collision_kinds": [
+    "box",
+    "cylinder"
+  ],
+  "urdf_collision_geoms": 7,
+  "mjcf_collision_geoms": 7,
+  "urdf_joints": 12,
+  "mjcf_joints": 12,
+  "usd_joints": 12,
+  "agrees": true
+}

@@ -1,0 +1,199 @@
+{
+  "seeds": [
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+  ],
+  "n": 12,
+  "success": 12,
+  "clean_success": 12,
+  "falls": 0,
+  "time_outs": 0,
+  "median_completion_s": 70.48,
+  "completion_s": [
+    47.56,
+    47.72,
+    57.28,
+    59.56,
+    67.12,
+    67.72,
+    70.48,
+    70.76,
+    85.96,
+    94.28,
+    116.4,
+    123.52
+  ],
+  "wall_contact_steps": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "median_seed_by_time": 12,
+  "median_clean_seed_by_time": 12,
+  "settings": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "time_limit": 180.0,
+    "cruise": 0.3,
+    "turn_rate": 0.6,
+    "inflate": 0.5,
+    "replan_s": 0.4,
+    "map_res": 0.1,
+    "sensor_mode": "reactive",
+    "random_heading": false,
+    "settle_s": 1.0,
+    "turn_enter": null,
+    "turn_exit": null,
+    "wz_walk": null,
+    "waypoint_radius": null
+  },
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-09-25_18-54-44_arms-turn-turnboth-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-09-25_18-54-44_arms-turn-turnboth-s0/exported/policy.onnx",
+    "checkpoint_sha256": "562ceed71e04df2bc317edd352c9ebf59fb13fee5d0cc6708fa82aff33b55c95",
+    "variant": "humanoid",
+    "run": "arms-turn-turnboth-s0",
+    "label": "LEARNED gait arms-turn-turnboth-s0 (one checkpoint, frozen; 22-DoF humanoid); QUALIFIED 2026-09-27 as a single checkpoint (turn 10/10, walk 3/3, push 7/60), 1 of 12 turning-arm seeds, not a recipe; marches in place at zero command, turns while stepping"
+  },
+  "outcome_classes": {
+    "goal": 12
+  },
+  "reached_no_fall": 12,
+  "arrived_not_judged": 0,
+  "stuck": 0,
+  "controller_arrived_ever": 0,
+  "stress": {
+    "pose_error": {
+      "pose_yaw_deg": 0.0,
+      "pose_bias_m": 0.0,
+      "pose_noise_m": 0.0
+    },
+    "imu": {
+      "imu_source": "truth"
+    }
+  },
+  "variant": "humanoid",
+  "labels": {
+    "gait": "LEARNED gait arms-turn-turnboth-s0 (one checkpoint, frozen; 22-DoF humanoid); QUALIFIED 2026-09-27 as a single checkpoint (turn 10/10, walk 3/3, push 7/60), 1 of 12 turning-arm seeds, not a recipe; marches in place at zero command, turns while stepping",
+    "planner": "SCRIPTED A* on the lidar log-odds map (unknown = free) + turn-then-walk (never sideways)",
+    "pose": "ORACLE (simulator pose)",
+    "goal": "ORACLE goal coordinate"
+  },
+  "frozen_humanoid_settings": {
+    "cruise": 0.3,
+    "turn_rate": 0.6,
+    "inflate": 0.5,
+    "settle_s": 1.0,
+    "turn_enter": null,
+    "turn_exit": null,
+    "wz_walk": null,
+    "waypoint_radius": null
+  },
+  "settings_match_frozen": true,
+  "humanoid_diagnostics": {
+    "max_tilt_rad": [
+      0.135,
+      0.135,
+      0.158,
+      0.139,
+      0.131,
+      0.143,
+      0.136,
+      0.155,
+      0.136,
+      0.136,
+      0.139,
+      0.132
+    ],
+    "max_sink_m": [
+      0.056,
+      0.061,
+      0.078,
+      0.057,
+      0.062,
+      0.054,
+      0.083,
+      0.072,
+      0.084,
+      0.069,
+      0.069,
+      0.062
+    ],
+    "wall_contact_steps_by_state": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ],
+    "planner_failures": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "floor_returns": [
+      2,
+      27,
+      5,
+      65,
+      79,
+      160,
+      36,
+      68,
+      10,
+      6,
+      0,
+      19
+    ],
+    "max_origin_offset_from_base_m": [
+      0.213,
+      0.213,
+      0.218,
+      0.214,
+      0.213,
+      0.218,
+      0.211,
+      0.214,
+      0.21,
+      0.212,
+      0.217,
+      0.211
+    ]
+  }
+}

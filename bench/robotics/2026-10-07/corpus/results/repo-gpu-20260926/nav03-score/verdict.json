@@ -1,0 +1,56 @@
+{
+  "verdict": "CONSISTENT",
+  "rows": {
+    "Blind": {
+      "button_first": 0,
+      "first_done": 32,
+      "episodes": 32,
+      "button_all": 0,
+      "dead_ends": 0,
+      "timeouts": 32,
+      "min_goal_distance_m": 2.707766532897949,
+      "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_18-12-07_mazenav-blind-s0/model_5999.pt",
+      "task": "Velocity-BHL-Maze-Blind-v0"
+    },
+    "Lidar": {
+      "button_first": 0,
+      "first_done": 32,
+      "episodes": 33,
+      "button_all": 0,
+      "dead_ends": 0,
+      "timeouts": 32,
+      "min_goal_distance_m": 2.600069999694824,
+      "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_18-14-59_mazenav-lidar-s0/model_5999.pt",
+      "task": "Velocity-BHL-Maze-Lidar-v0"
+    },
+    "Stereo": {
+      "button_first": 0,
+      "first_done": 32,
+      "episodes": 32,
+      "button_all": 0,
+      "dead_ends": 0,
+      "timeouts": 32,
+      "min_goal_distance_m": 2.7185447216033936,
+      "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_23-27-31_mazenav-stereo-s0/model_5999.pt",
+      "task": "Velocity-BHL-Maze-Stereo-v0"
+    },
+    "Both": {
+      "button_first": 0,
+      "first_done": 32,
+      "episodes": 33,
+      "button_all": 0,
+      "dead_ends": 0,
+      "timeouts": 32,
+      "min_goal_distance_m": 2.6453354358673096,
+      "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-09-17_23-55-36_mazenav-both-s0/model_5999.pt",
+      "task": "Velocity-BHL-Maze-Both-v0"
+    }
+  },
+  "problems": [],
+  "rule": "CONSISTENT iff first-episode button_reached == 0/32 on all four; any > 0 reopens NAV-03 (predeclared 2026-09-26)",
+  "labels": {
+    "policy": "learned PPO MLP walking policy (legacy mazenav seed 0)",
+    "navigation": "oracle waypoint command of the legacy maze task",
+    "noise": "observation corruption off"
+  }
+}

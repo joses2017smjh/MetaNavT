@@ -1,0 +1,420 @@
+{
+  "rule": {
+    "seeds": [
+      2,
+      3,
+      4
+    ],
+    "own_dir": "armV2C-s{}",
+    "twin_dir": "armV3-s{}",
+    "set": "final_eval_heldout_48",
+    "never_used_set": "final_eval_fresh_48",
+    "never_used_base": 40000,
+    "total_steps": 30000000,
+    "n": 48,
+    "match_rel_tol": 1e-06,
+    "b_seed": 2,
+    "b_not_caused_below": 0.3,
+    "b_caused_at": 0.6,
+    "c_raised_by": 0.1,
+    "c_within": 0.05,
+    "c_min_seeds": 2,
+    "text": "REPORT-ONLY reading (not a gate), predeclared 2026-09-28 before any v2ctl run. v2ctl = the v2 recipe (--ppo v2 --env-version 2) on training seeds 2, 3, 4, each the twin of the v3 run with the same seed. (a) determinism: if the v2ctl run's rollout/ep_rew_mean equals its v3 twin's (relative tolerance 1e-6) at every point logged at a step strictly below that twin's first logged std-ceiling clamp, the pair is a SINGLE-FACTOR comparison, else a SEED-MATCHED REPLICATE (first divergence reported). (b) s2: v2ctl-s2 final 5x5 success on the 10000-set < 0.30 -> the s2 collapse is not caused by the ceiling; >= 0.60 -> the ceiling caused or deepened it; else inconclusive. (c) on the 10000-set: >= 2/3 v2ctl seeds with 6x6 collision at least 0.10 lower than the v3 twin -> the ceiling raised collisions; >= 2/3 within 0.05 -> it did not; else inconclusive. The never-used set (maze seeds 40000-40047) and a 5-seed v2 estimate (Arm A s0, s1 + v2ctl s2-s4, 10000-set) are reported, not read."
+  },
+  "label": "learned actors (deterministic mean); pose and goal are oracle inputs",
+  "per_seed": {
+    "2": {
+      "summary_exists": true,
+      "twin_summary_exists": true,
+      "checks": {
+        "config_v2": true,
+        "reached_last_step": true,
+        "n48": true,
+        "never_used_set_is_40000": true
+      },
+      "valid": true,
+      "heldout_10000": {
+        "4x4": {
+          "success": 0.75,
+          "collision": 0.041666666666666664,
+          "time_out": 0.20833333333333334,
+          "mean_steps": 1246.9583333333333,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.7083333333333334,
+          "collision": 0.041666666666666664,
+          "time_out": 0.25,
+          "mean_steps": 1976.25,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.7083333333333334,
+          "collision": 0.08333333333333333,
+          "time_out": 0.20833333333333334,
+          "mean_steps": 2354.8958333333335,
+          "n": 48
+        }
+      },
+      "never_used_40000_not_read": {
+        "4x4": {
+          "success": 0.7916666666666666,
+          "collision": 0.020833333333333332,
+          "time_out": 0.1875,
+          "mean_steps": 1189.0208333333333,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.8333333333333334,
+          "collision": 0.08333333333333333,
+          "time_out": 0.08333333333333333,
+          "mean_steps": 1613.0,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.6875,
+          "collision": 0.10416666666666667,
+          "time_out": 0.20833333333333334,
+          "mean_steps": 2421.6041666666665,
+          "n": 48
+        }
+      },
+      "twin_heldout_10000": {
+        "4x4": {
+          "success": 0.2916666666666667,
+          "collision": 0.125,
+          "time_out": 0.5833333333333334,
+          "mean_steps": 1789.6875,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.10416666666666667,
+          "collision": 0.041666666666666664,
+          "time_out": 0.8541666666666666,
+          "mean_steps": 2929.7708333333335,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.1875,
+          "collision": 0.14583333333333334,
+          "time_out": 0.6666666666666666,
+          "mean_steps": 3318.3958333333335,
+          "n": 48
+        }
+      },
+      "a_determinism": {
+        "result": "single-factor comparison",
+        "first_ceiling_clamp_step": 4481024,
+        "points_compared": 1093,
+        "first_divergence_step": null,
+        "max_abs_diff": 0.0
+      },
+      "c_twin_minus_own_6x6_collision": 0.06250000000000001,
+      "c_class": "neither"
+    },
+    "3": {
+      "summary_exists": true,
+      "twin_summary_exists": true,
+      "checks": {
+        "config_v2": true,
+        "reached_last_step": true,
+        "n48": true,
+        "never_used_set_is_40000": true
+      },
+      "valid": true,
+      "heldout_10000": {
+        "4x4": {
+          "success": 0.8333333333333334,
+          "collision": 0.0625,
+          "time_out": 0.10416666666666667,
+          "mean_steps": 877.6458333333334,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.6458333333333334,
+          "collision": 0.0625,
+          "time_out": 0.2916666666666667,
+          "mean_steps": 1732.7291666666667,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.75,
+          "collision": 0.0625,
+          "time_out": 0.1875,
+          "mean_steps": 1888.9166666666667,
+          "n": 48
+        }
+      },
+      "never_used_40000_not_read": {
+        "4x4": {
+          "success": 0.8541666666666666,
+          "collision": 0.041666666666666664,
+          "time_out": 0.10416666666666667,
+          "mean_steps": 904.2291666666666,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.7916666666666666,
+          "collision": 0.041666666666666664,
+          "time_out": 0.16666666666666666,
+          "mean_steps": 1436.4166666666667,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.7083333333333334,
+          "collision": 0.0625,
+          "time_out": 0.22916666666666666,
+          "mean_steps": 2002.2708333333333,
+          "n": 48
+        }
+      },
+      "twin_heldout_10000": {
+        "4x4": {
+          "success": 0.7291666666666666,
+          "collision": 0.25,
+          "time_out": 0.020833333333333332,
+          "mean_steps": 597.9166666666666,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.7291666666666666,
+          "collision": 0.25,
+          "time_out": 0.020833333333333332,
+          "mean_steps": 1055.2083333333333,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.5208333333333334,
+          "collision": 0.4583333333333333,
+          "time_out": 0.020833333333333332,
+          "mean_steps": 1083.5208333333333,
+          "n": 48
+        }
+      },
+      "a_determinism": {
+        "result": "single-factor comparison",
+        "first_ceiling_clamp_step": 3645440,
+        "points_compared": 889,
+        "first_divergence_step": null,
+        "max_abs_diff": 0.0
+      },
+      "c_twin_minus_own_6x6_collision": 0.3958333333333333,
+      "c_class": "lower by >= 0.10"
+    },
+    "4": {
+      "summary_exists": true,
+      "twin_summary_exists": true,
+      "checks": {
+        "config_v2": true,
+        "reached_last_step": true,
+        "n48": true,
+        "never_used_set_is_40000": true
+      },
+      "valid": true,
+      "heldout_10000": {
+        "4x4": {
+          "success": 0.6041666666666666,
+          "collision": 0.0625,
+          "time_out": 0.3333333333333333,
+          "mean_steps": 1421.7916666666667,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.5625,
+          "collision": 0.08333333333333333,
+          "time_out": 0.3541666666666667,
+          "mean_steps": 2174.7291666666665,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.5,
+          "collision": 0.041666666666666664,
+          "time_out": 0.4583333333333333,
+          "mean_steps": 2756.4375,
+          "n": 48
+        }
+      },
+      "never_used_40000_not_read": {
+        "4x4": {
+          "success": 0.7916666666666666,
+          "collision": 0.020833333333333332,
+          "time_out": 0.1875,
+          "mean_steps": 1241.2083333333333,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.6458333333333334,
+          "collision": 0.0625,
+          "time_out": 0.2916666666666667,
+          "mean_steps": 2046.6458333333333,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.375,
+          "collision": 0.10416666666666667,
+          "time_out": 0.5208333333333334,
+          "mean_steps": 2951.8541666666665,
+          "n": 48
+        }
+      },
+      "twin_heldout_10000": {
+        "4x4": {
+          "success": 0.8541666666666666,
+          "collision": 0.08333333333333333,
+          "time_out": 0.0625,
+          "mean_steps": 788.7916666666666,
+          "n": 48
+        },
+        "5x5": {
+          "success": 0.5625,
+          "collision": 0.125,
+          "time_out": 0.3125,
+          "mean_steps": 1811.1875,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.6041666666666666,
+          "collision": 0.2708333333333333,
+          "time_out": 0.125,
+          "mean_steps": 1554.8958333333333,
+          "n": 48
+        }
+      },
+      "a_determinism": {
+        "result": "single-factor comparison",
+        "first_ceiling_clamp_step": 3362816,
+        "points_compared": 820,
+        "first_divergence_step": null,
+        "max_abs_diff": 0.0
+      },
+      "c_twin_minus_own_6x6_collision": 0.22916666666666666,
+      "c_class": "lower by >= 0.10"
+    }
+  },
+  "a": {
+    "2": {
+      "result": "single-factor comparison",
+      "first_ceiling_clamp_step": 4481024,
+      "points_compared": 1093,
+      "first_divergence_step": null,
+      "max_abs_diff": 0.0
+    },
+    "3": {
+      "result": "single-factor comparison",
+      "first_ceiling_clamp_step": 3645440,
+      "points_compared": 889,
+      "first_divergence_step": null,
+      "max_abs_diff": 0.0
+    },
+    "4": {
+      "result": "single-factor comparison",
+      "first_ceiling_clamp_step": 3362816,
+      "points_compared": 820,
+      "first_divergence_step": null,
+      "max_abs_diff": 0.0
+    }
+  },
+  "b": {
+    "v2ctl_s2_5x5_success_10000": 0.7083333333333334,
+    "reading": "the ceiling caused or deepened it"
+  },
+  "c": {
+    "n_lower_by_0.10": 2,
+    "n_within_0.05": 0,
+    "n_valid_pairs": 3,
+    "reading": "the ceiling raised collisions"
+  },
+  "v2_five_seed_estimate_10000_not_read": {
+    "per_seed": {
+      "armA-s0": {
+        "5x5": {
+          "success": 0.7708333333333334,
+          "collision": 0.0625,
+          "time_out": 0.16666666666666666,
+          "mean_steps": 1398.2083333333333,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.7916666666666666,
+          "collision": 0.14583333333333334,
+          "time_out": 0.0625,
+          "mean_steps": 1431.1875,
+          "n": 48
+        }
+      },
+      "armA-s1": {
+        "5x5": {
+          "success": 0.8125,
+          "collision": 0.020833333333333332,
+          "time_out": 0.16666666666666666,
+          "mean_steps": 1631.7291666666667,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.875,
+          "collision": 0.020833333333333332,
+          "time_out": 0.10416666666666667,
+          "mean_steps": 1767.4375,
+          "n": 48
+        }
+      },
+      "v2ctl-s2": {
+        "5x5": {
+          "success": 0.7083333333333334,
+          "collision": 0.041666666666666664,
+          "time_out": 0.25,
+          "mean_steps": 1976.25,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.7083333333333334,
+          "collision": 0.08333333333333333,
+          "time_out": 0.20833333333333334,
+          "mean_steps": 2354.8958333333335,
+          "n": 48
+        }
+      },
+      "v2ctl-s3": {
+        "5x5": {
+          "success": 0.6458333333333334,
+          "collision": 0.0625,
+          "time_out": 0.2916666666666667,
+          "mean_steps": 1732.7291666666667,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.75,
+          "collision": 0.0625,
+          "time_out": 0.1875,
+          "mean_steps": 1888.9166666666667,
+          "n": 48
+        }
+      },
+      "v2ctl-s4": {
+        "5x5": {
+          "success": 0.5625,
+          "collision": 0.08333333333333333,
+          "time_out": 0.3541666666666667,
+          "mean_steps": 2174.7291666666665,
+          "n": 48
+        },
+        "6x6": {
+          "success": 0.5,
+          "collision": 0.041666666666666664,
+          "time_out": 0.4583333333333333,
+          "mean_steps": 2756.4375,
+          "n": 48
+        }
+      }
+    },
+    "pooled": {
+      "n_seeds": 5,
+      "5x5_success_mean": 0.7000000000000001,
+      "5x5_collision_mean": 0.05416666666666666,
+      "5x5_time_out_mean": 0.24583333333333335,
+      "6x6_success_mean": 0.725,
+      "6x6_collision_mean": 0.07083333333333333,
+      "6x6_time_out_mean": 0.20416666666666666
+    }
+  }
+}

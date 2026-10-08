@@ -1,0 +1,29 @@
+{
+  "total_steps": 60000000,
+  "wall_hours": 14.86,
+  "final_eval_heldout_48": {
+    "4x4": {
+      "success": 0.3333333333333333,
+      "collision": 0.4583333333333333,
+      "mean_steps": 798.1458333333334,
+      "n": 48
+    },
+    "5x5": {
+      "success": 0.16666666666666666,
+      "collision": 0.6041666666666666,
+      "mean_steps": 948.9791666666666,
+      "n": 48
+    },
+    "6x6": {
+      "success": 0.14583333333333334,
+      "collision": 0.625,
+      "mean_steps": 880.8541666666666,
+      "n": 48
+    }
+  },
+  "curriculum_stage": 2,
+  "onnx": {
+    "onnx": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/navgym-20260924/run-0/actor.onnx",
+    "max_abs_diff_vs_torch": 5.066394805908203e-07
+  }
+}

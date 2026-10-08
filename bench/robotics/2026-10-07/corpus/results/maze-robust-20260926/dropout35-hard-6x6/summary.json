@@ -1,0 +1,70 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "n": 12,
+  "success": 12,
+  "clean_success": 11,
+  "falls": 0,
+  "time_outs": 0,
+  "median_completion_s": 85.4,
+  "completion_s": [
+    69.24,
+    70.0,
+    71.4,
+    73.36,
+    76.76,
+    84.8,
+    85.4,
+    94.44,
+    102.56,
+    112.24,
+    136.8,
+    182.12
+  ],
+  "wall_contact_steps": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    0
+  ],
+  "median_seed_by_time": 7,
+  "median_clean_seed_by_time": 8,
+  "settings": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "time_limit": 240.0,
+    "cruise": 0.3,
+    "turn_rate": 0.6,
+    "inflate": 0.3,
+    "replan_s": 0.4,
+    "map_res": 0.1,
+    "sensor_mode": "reactive_dropout",
+    "random_heading": false
+  },
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  }
+}

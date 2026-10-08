@@ -1,0 +1,108 @@
+{
+  "seed": 0,
+  "route": "ordered",
+  "sensor_mode": "reactive",
+  "success": true,
+  "failure": null,
+  "elapsed_s": 17.36,
+  "completion_s": 17.36,
+  "stations_completed": 2,
+  "station_times": [
+    {
+      "station": "inspect_A",
+      "time_s": 3.84
+    },
+    {
+      "station": "inspect_B",
+      "time_s": 13.24
+    }
+  ],
+  "waypoints_completed": 5,
+  "wall_contact_steps": 0,
+  "path_length_m": 6.930498464704443,
+  "final_xy": [
+    4.659045018930793,
+    1.5969889375256765
+  ],
+  "sensor_stats": {
+    "received_extero_packets": 174,
+    "dropped_extero_packets": 0,
+    "braked_robot_steps": 27,
+    "stale_stop_robot_steps": 0,
+    "range_limited_robot_steps": 27,
+    "imu_limited_robot_steps": 0,
+    "sampled_robot_steps": 434
+  },
+  "dropout_probability": 0.0,
+  "imu": {
+    "source": "truth"
+  },
+  "localization_error": {
+    "pose_bias_m": 0.0,
+    "pose_noise_m": 0.0,
+    "pose_yaw_deg": 0.0,
+    "pose_drift_mps": 0.0
+  },
+  "name": "inspection-maze-panels",
+  "mp4": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/maze-panels/inspection-maze-panels.mp4",
+  "frames": 464,
+  "png_dir": "/scratch/sanchej7/tmp/bhl-maze-panels-21408629/frames/inspection-maze-panels",
+  "writer_error": null,
+  "video_fps": 25.0,
+  "playback_speed": 1.0,
+  "render": {
+    "textured_world": true,
+    "no_render": false,
+    "main": [
+      960,
+      540
+    ],
+    "camera": {
+      "lookat": [
+        2.4,
+        0.2,
+        0.0
+      ],
+      "distance": 6.4,
+      "azimuth": 90.0,
+      "elevation": -66.0
+    },
+    "eye_view": {
+      "size": [
+        320,
+        180
+      ],
+      "mount": [
+        0.12,
+        0.0,
+        0.7
+      ],
+      "pitch_deg": -20.0
+    }
+  },
+  "panels": {
+    "lidar": "36 sector minima of 108 rays, 12 m range, brake input",
+    "depth": "paired idealized ray depth 8x8, 6 m, brake input",
+    "eye": "render for the viewer; not an input"
+  },
+  "control": "oracle_map_waypoints+frozen_isaac_gait+sensor_brake",
+  "readme_recording_completion_s": 17.36,
+  "matches_readme_recording": true,
+  "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-08-18_20-57-50_arms-dr1.0-s0/exported/deploy.yaml",
+  "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/humanoid/2026-08-18_20-57-50_arms-dr1.0-s0/exported/policy.onnx",
+  "checkpoint_sha256": "4f559e08089eb5404a44bf43df9fab2acd48f78e6686e235aefd946adb0cfd4b",
+  "mujoco": "3.3.5",
+  "wall_seconds": 70.6,
+  "mp4_sha256": "4aac65b998ce5b0455d922694fa467f265bc15470a3a79a74d07cb1dae0b35bf",
+  "gif": {
+    "gif": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/docs/gifs/inspection-maze-panels.gif",
+    "bytes": 1192762,
+    "mb": 1.19,
+    "fps": 8,
+    "width": 860,
+    "max_colors": 128,
+    "speed": 2.0,
+    "badge": "GIF 2x",
+    "within_budget": true
+  }
+}

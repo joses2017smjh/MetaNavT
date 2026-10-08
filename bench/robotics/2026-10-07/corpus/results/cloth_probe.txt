@@ -1,0 +1,611 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1788626690.050769  515186 descriptor_database.cc:633] File already exists in database: grpc/health/v1/health.proto
+W0000 00:00:1788626690.050827  515186 message.cc:301] Protobuf GeneratedMessageFactory: File is already registered: grpc/health/v1/health.proto
+Loading user config located at: '/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaacsim/kit/data/Kit/IsaacLab/3.0/user.config.json'
+2026-09-05T16:44:49Z [Info] [carb] Logging to file: /nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaacsim/kit/logs/Kit/IsaacLab/3.0/kit_20260905_094449.log
+2026-09-05T16:44:49Z [10ms] [Warning] [omni.ext.plugin] [ext: isaaclab_visualizers] Extensions config 'extension.toml' doesn't exist '/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab/source/isaaclab_visualizers' or '/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab/source/isaaclab_visualizers/config'
+2026-09-05T16:44:51Z [1,875ms] [Warning] [omni.perfmonitor.plugin]  PerfMonitorManager::onStart - error calling pthread_setaffinity_np
+2026-09-05T16:44:51Z [1,910ms] [Warning] [omni.platforminfo.plugin] failed to open the default display.  Can't verify X Server version.
+2026-09-05T16:44:51Z [1,911ms] [Warning] [omni.rtx] CUDA_VISIBLE_DEVICES environment variable is set.
+2026-09-05T16:44:51Z [1,911ms] [Warning] [omni.rtx] Note CUDA device enumeration and Omniverse device enumeration are different.
+2026-09-05T16:44:51Z [1,911ms] [Warning] [omni.rtx] Setting CUDA_VISIBLE_DEVICES can lead to undesired behavior or crashes.
+
+|---------------------------------------------------------------------------------------------|
+| Driver Version: 595.71.05     | Graphics API: Vulkan
+|=============================================================================================|
+| GPU | Name                             | Active | LDA | GPU Memory | Vendor-ID | LUID       |
+|     |                                  |        |     |            | Device-ID | UUID       |
+|     |                                  |        |     |            | Bus-ID    |            |
+|---------------------------------------------------------------------------------------------|
+| 0   | Quadro RTX 8000                  | Yes: 0 |     | 78838   MB | 10de      | 0          |
+|     |                                  |        |     |            | 1e78      | 74950fe9.. |
+|     |                                  |        |     |            | c1        |            |
+|=============================================================================================|
+| OS: 22.04.5 LTS (Jammy Jellyfish) ubuntu, Version: 22.04.5, Kernel: 5.14.0-611.55.1.el9_7.x86_64
+| Processor: Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz
+| Cores: 40 | Logical Cores: 40
+|---------------------------------------------------------------------------------------------|
+| Total Memory (MB): 772478 | Free Memory: 665996
+| Total Page/Swap (MB): 0 | Free Page/Swap: 0
+|---------------------------------------------------------------------------------------------|
+2026-09-05T16:44:52Z [2,818ms] [Warning] [omni.rtx] ECC is enabled on physical device 0
+2026-09-05T16:44:53Z [4,256ms] [Warning] [carb.windowing-glfw.plugin] GLFW initialization failed.
+2026-09-05T16:44:53Z [4,256ms] [Warning] [carb] Failed to startup plugin carb.windowing-glfw.plugin (interfaces: [carb::windowing::IGLContext v1.0],[carb::windowing::IWindowing v1.5]) (impl: carb.windowing-glfw.plugin)
+2026-09-05T16:44:53Z [4,373ms] [Warning] [carb.windowing-glfw.plugin] GLFW initialization failed.
+2026-09-05T16:44:53Z [4,373ms] [Warning] [carb] Failed to startup plugin carb.windowing-glfw.plugin (interfaces: [carb::windowing::IGLContext v1.0],[carb::windowing::IWindowing v1.5]) (impl: carb.windowing-glfw.plugin)
+2026-09-05T16:44:53Z [4,376ms] [Warning] [carb.windowing-glfw.plugin] GLFW initialization failed.
+2026-09-05T16:44:53Z [4,376ms] [Warning] [carb] Failed to startup plugin carb.windowing-glfw.plugin (interfaces: [carb::windowing::IGLContext v1.0],[carb::windowing::IWindowing v1.5]) (impl: carb.windowing-glfw.plugin)
+2026-09-05T16:44:54Z [5,039ms] [Warning] [isaacsim.core.simulation_manager.plugin] USD stage is not available; stage-opened subscription is deferred
+2026-09-05T16:44:54Z [5,039ms] [Warning] [isaacsim.core.simulation_manager.plugin] USD stage is not available; stage-opened subscription is deferred
+2026-09-05T16:44:54Z [5,097ms] [Warning] [omni.log] Source: omni.hydra was already registered.
+2026-09-05T16:44:57Z [8,320ms] [Warning] [pxr.Semantics] pxr.Semantics is deprecated - please use Semantics instead
+2026-09-05T16:44:57Z [8,489ms] [Warning] [omni.replicator.core.scripts.extension] No material configuration file, adding configuration to material settings directly.
+2026-09-05T16:44:59Z [9,742ms] [Warning] [omni.rtx] Trying to initialize NGX without vkGetInstanceProcAddr and vkGetDeviceProcAddr pointer-to-functions.
+2026-09-05T16:44:59Z [9,743ms] [Error] [omni.rtx] Could not get NGX parameters block because NGX isn't enabled.
+2026-09-05T16:44:59Z [9,743ms] [Error] [omni.rtx] Failed to create NGX context.
+[ISAACLAB] AppLauncher initialization complete
+  envs    steps/s   env-steps/s  note
+[INFO]: Parsing configuration from: isaaclab_tasks.manager_based.manipulation.lift_franka_soft.franka_cloth_env_cfg:FrankaClothEnvCfg
+[INFO]: Base environment:
+	Environment device    : cuda:0
+	Environment seed      : None
+	Physics step-size     : 0.016666666666666666
+	Rendering step-size   : 0.016666666666666666
+	Environment step-size : 0.016666666666666666
+[INFO]: Registered backend 'newton' for factory Articulation.
+[INFO]: Registered backend 'newton' for factory DeformableObject.
+[INFO]: Registered visual UsdGeom.Mesh at /World/envs/env_.*/Deformable/geometry/mesh.
+[INFO]: Registered UsdGeom.Mesh: 961 vertices.
+[INFO]: Registered backend 'newton' for factory FrameView.
+[INFO]: Registered backend 'newton' for factory FrameTransformer.
+[INFO]: FrameTransformer '/World/envs/env_.*/Robot/panda_link0': source='panda_link0', 1 target(s) registered
+[INFO]: Time taken for scene creation Last: 5.607386 s, Mean: 5.607386 s, Std: 0.000000 s, N: 1
+[INFO]: Scene manager:  <class InteractiveScene>
+	Number of environments: 8
+	Environment spacing   : 2.5
+	Source prim name      : /World/envs/env_0
+	Global prim paths     : []
+	Replicate physics     : True
+[INFO]: Dispatching MODEL_INIT callbacks
+[INFO]: Finalizing model on device: cuda:0
+/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab_newton/physics/newton_manager.py:989: FutureWarning: Newton shape color replacement is enabled; this workaround will be deprecated in a future release.
+  replace_newton_shape_colors(cls._model)
+Finalize builder took: Last: 0.878860 s, Mean: 0.878860 s, Std: 0.000000 s, N: 1
+[INFO]: Dispatching PHYSICS_READY callbacks
+[INFO]: Simulation parameters for joints in /World/envs/env_.*/Robot:
++-------------------------------------------------------------------------------------------------------------------------------------+
+|                                  Simulation Joint Information (Prim path: /World/envs/env_.*/Robot)                                 |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+| Index | Name                | Stiffness | Damping | Armature | Static Friction | Position Limits  | Velocity Limits | Effort Limits |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+|   0   | panda_joint1        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   1   | panda_joint2        |   80.000  |  4.000  |  0.001   |      0.000      | [-1.763, 1.763]  |      2.175      |     87.000    |
+|   2   | panda_joint3        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   3   | panda_joint4        |   80.000  |  4.000  |  0.001   |      0.000      | [-3.072, -0.070] |      2.175      |     87.000    |
+|   4   | panda_joint5        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   5   | panda_joint6        |   80.000  |  4.000  |  0.001   |      0.000      | [-0.018, 3.753]  |      2.610      |     12.000    |
+|   6   | panda_joint7        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   7   | panda_finger_joint1 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
+|   8   | panda_finger_joint2 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+[INFO]: Newton deformable object initialized at: /World/envs/env_.*/Deformable
+[INFO]: Number of instances: 8
+[INFO]: Particles per body: 961
+[INFO]: Added frame transform sensor (index=0, shapes=16)
+[INFO]: FrameTransformer initialized: 8 envs, 1 targets, sensor_index=0
+Warning: Possible version incompatibility. Attempting to load omni::cubric::IAdapter with version v0.2 against v0.1.
+Initialize solver took: Last: 13.416236 s, Mean: 13.416236 s, Std: 0.000000 s, N: 1
+[INFO]: cubric IAdapter bindings ready
+[INFO]: cubric bindings ready (adapter deferred to first render)
+[INFO]: Newton CUDA graph capture deferred until first step() (RTX active)
+CUDA graph took: Last: 0.000077 s, Mean: 0.000077 s, Std: 0.000000 s, N: 1
+[INFO]: Time taken for simulation start Last: 27.055556 s, Mean: 27.055556 s, Std: 0.000000 s, N: 1
+[INFO] Command Manager:  <CommandManager> contains 1 active terms.
++----------------------------------------------+
+|             Active Command Terms             |
++-------+-----------------+--------------------+
+| Index | Name            |        Type        |
++-------+-----------------+--------------------+
+|   0   | deformable_pose | UniformPoseCommand |
++-------+-----------------+--------------------+
+
+[INFO] Event Manager:  <EventManager> contains 2 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++---------+---------------------------+
+|  Index  | Name                      |
++---------+---------------------------+
+|    0    | reset_robot_joints        |
+|    1    | reset_deformable          |
++---------+---------------------------+
++----------------------------------------+
+| Active Event Terms in Mode: 'startup'  |
++---------+------------------------------+
+|  Index  | Name                         |
++---------+------------------------------+
+|    0    | robot_physics_material       |
++---------+------------------------------+
+
+[INFO] Recorder Manager:  <RecorderManager> contains 0 active terms.
++---------------------+
+| Active Recorder Terms |
++-----------+---------+
+|   Index   | Name    |
++-----------+---------+
++-----------+---------+
+
+[INFO]: Resolved joint names for the action term JointPositionAction: ['panda_joint1', 'panda_joint2', 'panda_joint3', 'panda_joint4', 'panda_joint5', 'panda_joint6', 'panda_joint7'] [[0, 1, 2, 3, 4, 5, 6]]
+[INFO]: Resolved joint names for the action term BinaryJointPositionAction: ['panda_finger_joint1', 'panda_finger_joint2'] [[7, 8]]
+[INFO] Action Manager:  <ActionManager> contains 2 active terms.
++------------------------------------+
+|   Active Action Terms (shape: 8)   |
++-------+----------------+-----------+
+| Index | Name           | Dimension |
++-------+----------------+-----------+
+|   0   | arm_action     |         7 |
+|   1   | gripper_action |         1 |
++-------+----------------+-----------+
+
+[INFO] Observation Manager: <ObservationManager> contains 1 groups.
++-------------------------------------------------------------+
+|  Active Observation Terms in Group: 'policy' (shape: (93,)) |
++----------+---------------------------------------+----------+
+|  Index   | Name                                  |  Shape   |
++----------+---------------------------------------+----------+
+|    0     | joint_pos                             |   (9,)   |
+|    1     | joint_vel                             |   (9,)   |
+|    2     | deformable_sampled_points             |  (60,)   |
+|    3     | target_position                       |   (7,)   |
+|    4     | actions                               |   (8,)   |
++----------+---------------------------------------+----------+
+
+[INFO] Termination Manager:  <TerminationManager> contains 4 active terms.
++---------------------------------------------+
+|           Active Termination Terms          |
++-------+--------------------------+----------+
+| Index | Name                     | Time Out |
++-------+--------------------------+----------+
+|   0   | time_out                 |   True   |
+|   1   | deformable_outside_table |  False   |
+|   2   | deformable_dropped       |  False   |
+|   3   | ee_below_table           |  False   |
++-------+--------------------------+----------+
+
+[INFO] Reward Manager:  <RewardManager> contains 9 active terms.
++---------------------------------------------------------+
+|                   Active Reward Terms                   |
++-------+---------------------------------------+---------+
+| Index | Name                                  |  Weight |
++-------+---------------------------------------+---------+
+|   0   | reaching_deformable                   |     5.0 |
+|   1   | lifting_deformable                    |     5.0 |
+|   2   | deformable_goal_tracking              |    16.0 |
+|   3   | deformable_goal_tracking_fine_grained |     5.0 |
+|   4   | action_rate                           |   -0.01 |
+|   5   | gripper_close                         |    -1.0 |
+|   6   | joint_vel                             |   -0.01 |
+|   7   | joint_torque                          | -0.0001 |
+|   8   | joint_acc                             | -0.0001 |
++-------+---------------------------------------+---------+
+
+[INFO] Curriculum Manager:  <CurriculumManager> contains 0 active terms.
++----------------------+
+| Active Curriculum Terms |
++-----------+----------+
+|   Index   | Name     |
++-----------+----------+
++-----------+----------+
+
+[INFO]: Completed setting up the environment...
+[INFO]: Newton CUDA graph captured (deferred relaxed mode, RTX-compatible)
+[INFO]: cubric GPU transform hierarchy enabled
+     8      22.76           182  dropped=[] kept=['ground', 'robot@5.0', 'table'] stripped=[]
+[INFO]: SimulationContext cleared
+[INFO]: Parsing configuration from: isaaclab_tasks.manager_based.manipulation.lift_franka_soft.franka_cloth_env_cfg:FrankaClothEnvCfg
+[INFO]: Base environment:
+	Environment device    : cuda:0
+	Environment seed      : None
+	Physics step-size     : 0.016666666666666666
+	Rendering step-size   : 0.016666666666666666
+	Environment step-size : 0.016666666666666666
+[INFO]: Registered visual UsdGeom.Mesh at /World/envs/env_.*/Deformable/geometry/mesh.
+[INFO]: Registered UsdGeom.Mesh: 961 vertices.
+[INFO]: FrameTransformer '/World/envs/env_.*/Robot/panda_link0': source='panda_link0', 1 target(s) registered
+[INFO]: Time taken for scene creation Last: 2.700969 s, Mean: 4.154178 s, Std: 2.055147 s, N: 2
+[INFO]: Scene manager:  <class InteractiveScene>
+	Number of environments: 32
+	Environment spacing   : 2.5
+	Source prim name      : /World/envs/env_0
+	Global prim paths     : []
+	Replicate physics     : True
+[INFO]: Dispatching MODEL_INIT callbacks
+[INFO]: Finalizing model on device: cuda:0
+/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab_newton/physics/newton_manager.py:989: FutureWarning: Newton shape color replacement is enabled; this workaround will be deprecated in a future release.
+  replace_newton_shape_colors(cls._model)
+Finalize builder took: Last: 0.320505 s, Mean: 0.599683 s, Std: 0.394816 s, N: 2
+[INFO]: Dispatching PHYSICS_READY callbacks
+[INFO]: Simulation parameters for joints in /World/envs/env_.*/Robot:
++-------------------------------------------------------------------------------------------------------------------------------------+
+|                                  Simulation Joint Information (Prim path: /World/envs/env_.*/Robot)                                 |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+| Index | Name                | Stiffness | Damping | Armature | Static Friction | Position Limits  | Velocity Limits | Effort Limits |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+|   0   | panda_joint1        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   1   | panda_joint2        |   80.000  |  4.000  |  0.001   |      0.000      | [-1.763, 1.763]  |      2.175      |     87.000    |
+|   2   | panda_joint3        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   3   | panda_joint4        |   80.000  |  4.000  |  0.001   |      0.000      | [-3.072, -0.070] |      2.175      |     87.000    |
+|   4   | panda_joint5        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   5   | panda_joint6        |   80.000  |  4.000  |  0.001   |      0.000      | [-0.018, 3.753]  |      2.610      |     12.000    |
+|   6   | panda_joint7        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   7   | panda_finger_joint1 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
+|   8   | panda_finger_joint2 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+[INFO]: Newton deformable object initialized at: /World/envs/env_.*/Deformable
+[INFO]: Number of instances: 32
+[INFO]: Particles per body: 961
+[INFO]: Added frame transform sensor (index=0, shapes=64)
+[INFO]: FrameTransformer initialized: 32 envs, 1 targets, sensor_index=0
+Warning: Possible version incompatibility. Attempting to load omni::cubric::IAdapter with version v0.2 against v0.1.
+Initialize solver took: Last: 0.541375 s, Mean: 6.978805 s, Std: 9.103901 s, N: 2
+[INFO]: cubric IAdapter bindings ready
+[INFO]: cubric bindings ready (adapter deferred to first render)
+[INFO]: Newton CUDA graph capture deferred until first step() (RTX active)
+CUDA graph took: Last: 0.000075 s, Mean: 0.000076 s, Std: 0.000001 s, N: 2
+[INFO]: Time taken for simulation start Last: 1.207860 s, Mean: 14.131708 s, Std: 18.277081 s, N: 2
+[INFO] Command Manager:  <CommandManager> contains 1 active terms.
++----------------------------------------------+
+|             Active Command Terms             |
++-------+-----------------+--------------------+
+| Index | Name            |        Type        |
++-------+-----------------+--------------------+
+|   0   | deformable_pose | UniformPoseCommand |
++-------+-----------------+--------------------+
+
+[INFO] Event Manager:  <EventManager> contains 2 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++---------+---------------------------+
+|  Index  | Name                      |
++---------+---------------------------+
+|    0    | reset_robot_joints        |
+|    1    | reset_deformable          |
++---------+---------------------------+
++----------------------------------------+
+| Active Event Terms in Mode: 'startup'  |
++---------+------------------------------+
+|  Index  | Name                         |
++---------+------------------------------+
+|    0    | robot_physics_material       |
++---------+------------------------------+
+
+[INFO] Recorder Manager:  <RecorderManager> contains 0 active terms.
++---------------------+
+| Active Recorder Terms |
++-----------+---------+
+|   Index   | Name    |
++-----------+---------+
++-----------+---------+
+
+[INFO]: Resolved joint names for the action term JointPositionAction: ['panda_joint1', 'panda_joint2', 'panda_joint3', 'panda_joint4', 'panda_joint5', 'panda_joint6', 'panda_joint7'] [[0, 1, 2, 3, 4, 5, 6]]
+[INFO]: Resolved joint names for the action term BinaryJointPositionAction: ['panda_finger_joint1', 'panda_finger_joint2'] [[7, 8]]
+[INFO] Action Manager:  <ActionManager> contains 2 active terms.
++------------------------------------+
+|   Active Action Terms (shape: 8)   |
++-------+----------------+-----------+
+| Index | Name           | Dimension |
++-------+----------------+-----------+
+|   0   | arm_action     |         7 |
+|   1   | gripper_action |         1 |
++-------+----------------+-----------+
+
+[INFO] Observation Manager: <ObservationManager> contains 1 groups.
++-------------------------------------------------------------+
+|  Active Observation Terms in Group: 'policy' (shape: (93,)) |
++----------+---------------------------------------+----------+
+|  Index   | Name                                  |  Shape   |
++----------+---------------------------------------+----------+
+|    0     | joint_pos                             |   (9,)   |
+|    1     | joint_vel                             |   (9,)   |
+|    2     | deformable_sampled_points             |  (60,)   |
+|    3     | target_position                       |   (7,)   |
+|    4     | actions                               |   (8,)   |
++----------+---------------------------------------+----------+
+
+[INFO] Termination Manager:  <TerminationManager> contains 4 active terms.
++---------------------------------------------+
+|           Active Termination Terms          |
++-------+--------------------------+----------+
+| Index | Name                     | Time Out |
++-------+--------------------------+----------+
+|   0   | time_out                 |   True   |
+|   1   | deformable_outside_table |  False   |
+|   2   | deformable_dropped       |  False   |
+|   3   | ee_below_table           |  False   |
++-------+--------------------------+----------+
+
+[INFO] Reward Manager:  <RewardManager> contains 9 active terms.
++---------------------------------------------------------+
+|                   Active Reward Terms                   |
++-------+---------------------------------------+---------+
+| Index | Name                                  |  Weight |
++-------+---------------------------------------+---------+
+|   0   | reaching_deformable                   |     5.0 |
+|   1   | lifting_deformable                    |     5.0 |
+|   2   | deformable_goal_tracking              |    16.0 |
+|   3   | deformable_goal_tracking_fine_grained |     5.0 |
+|   4   | action_rate                           |   -0.01 |
+|   5   | gripper_close                         |    -1.0 |
+|   6   | joint_vel                             |   -0.01 |
+|   7   | joint_torque                          | -0.0001 |
+|   8   | joint_acc                             | -0.0001 |
++-------+---------------------------------------+---------+
+
+[INFO] Curriculum Manager:  <CurriculumManager> contains 0 active terms.
++----------------------+
+| Active Curriculum Terms |
++-----------+----------+
+|   Index   | Name     |
++-----------+----------+
++-----------+----------+
+
+[INFO]: Completed setting up the environment...
+[INFO]: Newton CUDA graph captured (deferred relaxed mode, RTX-compatible)
+[INFO]: cubric GPU transform hierarchy enabled
+    32       5.52           177  dropped=[] kept=['ground', 'robot@5.0', 'table'] stripped=[]
+[INFO]: SimulationContext cleared
+[INFO]: Parsing configuration from: isaaclab_tasks.manager_based.manipulation.lift_franka_soft.franka_cloth_env_cfg:FrankaClothEnvCfg
+[INFO]: Base environment:
+	Environment device    : cuda:0
+	Environment seed      : None
+	Physics step-size     : 0.016666666666666666
+	Rendering step-size   : 0.016666666666666666
+	Environment step-size : 0.016666666666666666
+[INFO]: Registered visual UsdGeom.Mesh at /World/envs/env_.*/Deformable/geometry/mesh.
+[INFO]: Registered UsdGeom.Mesh: 961 vertices.
+[INFO]: FrameTransformer '/World/envs/env_.*/Robot/panda_link0': source='panda_link0', 1 target(s) registered
+[INFO]: Time taken for scene creation Last: 10.739715 s, Mean: 6.349357 s, Std: 4.070412 s, N: 3
+[INFO]: Scene manager:  <class InteractiveScene>
+	Number of environments: 128
+	Environment spacing   : 2.5
+	Source prim name      : /World/envs/env_0
+	Global prim paths     : []
+	Replicate physics     : True
+[INFO]: Dispatching MODEL_INIT callbacks
+[INFO]: Finalizing model on device: cuda:0
+Finalize builder took: Last: 1.107640 s, Mean: 0.769002 s, Std: 0.404903 s, N: 3
+[INFO]: Dispatching PHYSICS_READY callbacks
+[INFO]: Simulation parameters for joints in /World/envs/env_.*/Robot:
++-------------------------------------------------------------------------------------------------------------------------------------+
+|                                  Simulation Joint Information (Prim path: /World/envs/env_.*/Robot)                                 |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+| Index | Name                | Stiffness | Damping | Armature | Static Friction | Position Limits  | Velocity Limits | Effort Limits |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+|   0   | panda_joint1        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   1   | panda_joint2        |   80.000  |  4.000  |  0.001   |      0.000      | [-1.763, 1.763]  |      2.175      |     87.000    |
+|   2   | panda_joint3        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   3   | panda_joint4        |   80.000  |  4.000  |  0.001   |      0.000      | [-3.072, -0.070] |      2.175      |     87.000    |
+|   4   | panda_joint5        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   5   | panda_joint6        |   80.000  |  4.000  |  0.001   |      0.000      | [-0.018, 3.753]  |      2.610      |     12.000    |
+|   6   | panda_joint7        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   7   | panda_finger_joint1 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
+|   8   | panda_finger_joint2 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+[INFO]: Newton deformable object initialized at: /World/envs/env_.*/Deformable
+[INFO]: Number of instances: 128
+[INFO]: Particles per body: 961
+[INFO]: Added frame transform sensor (index=0, shapes=256)
+[INFO]: FrameTransformer initialized: 128 envs, 1 targets, sensor_index=0
+Warning: Possible version incompatibility. Attempting to load omni::cubric::IAdapter with version v0.2 against v0.1.
+Initialize solver took: Last: 1.415755 s, Mean: 5.124455 s, Std: 7.194189 s, N: 3
+[INFO]: cubric IAdapter bindings ready
+[INFO]: cubric bindings ready (adapter deferred to first render)
+[INFO]: Newton CUDA graph capture deferred until first step() (RTX active)
+CUDA graph took: Last: 0.000062 s, Mean: 0.000071 s, Std: 0.000008 s, N: 3
+[INFO]: Time taken for simulation start Last: 3.340690 s, Mean: 10.534702 s, Std: 14.347167 s, N: 3
+[INFO] Command Manager:  <CommandManager> contains 1 active terms.
++----------------------------------------------+
+|             Active Command Terms             |
++-------+-----------------+--------------------+
+| Index | Name            |        Type        |
++-------+-----------------+--------------------+
+|   0   | deformable_pose | UniformPoseCommand |
++-------+-----------------+--------------------+
+
+[INFO] Event Manager:  <EventManager> contains 2 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++---------+---------------------------+
+|  Index  | Name                      |
++---------+---------------------------+
+|    0    | reset_robot_joints        |
+|    1    | reset_deformable          |
++---------+---------------------------+
++----------------------------------------+
+| Active Event Terms in Mode: 'startup'  |
++---------+------------------------------+
+|  Index  | Name                         |
++---------+------------------------------+
+|    0    | robot_physics_material       |
++---------+------------------------------+
+
+[INFO] Recorder Manager:  <RecorderManager> contains 0 active terms.
++---------------------+
+| Active Recorder Terms |
++-----------+---------+
+|   Index   | Name    |
++-----------+---------+
++-----------+---------+
+
+[INFO]: Resolved joint names for the action term JointPositionAction: ['panda_joint1', 'panda_joint2', 'panda_joint3', 'panda_joint4', 'panda_joint5', 'panda_joint6', 'panda_joint7'] [[0, 1, 2, 3, 4, 5, 6]]
+[INFO]: Resolved joint names for the action term BinaryJointPositionAction: ['panda_finger_joint1', 'panda_finger_joint2'] [[7, 8]]
+[INFO] Action Manager:  <ActionManager> contains 2 active terms.
++------------------------------------+
+|   Active Action Terms (shape: 8)   |
++-------+----------------+-----------+
+| Index | Name           | Dimension |
++-------+----------------+-----------+
+|   0   | arm_action     |         7 |
+|   1   | gripper_action |         1 |
++-------+----------------+-----------+
+
+[INFO] Observation Manager: <ObservationManager> contains 1 groups.
++-------------------------------------------------------------+
+|  Active Observation Terms in Group: 'policy' (shape: (93,)) |
++----------+---------------------------------------+----------+
+|  Index   | Name                                  |  Shape   |
++----------+---------------------------------------+----------+
+|    0     | joint_pos                             |   (9,)   |
+|    1     | joint_vel                             |   (9,)   |
+|    2     | deformable_sampled_points             |  (60,)   |
+|    3     | target_position                       |   (7,)   |
+|    4     | actions                               |   (8,)   |
++----------+---------------------------------------+----------+
+
+[INFO] Termination Manager:  <TerminationManager> contains 4 active terms.
++---------------------------------------------+
+|           Active Termination Terms          |
++-------+--------------------------+----------+
+| Index | Name                     | Time Out |
++-------+--------------------------+----------+
+|   0   | time_out                 |   True   |
+|   1   | deformable_outside_table |  False   |
+|   2   | deformable_dropped       |  False   |
+|   3   | ee_below_table           |  False   |
++-------+--------------------------+----------+
+
+[INFO] Reward Manager:  <RewardManager> contains 9 active terms.
++---------------------------------------------------------+
+|                   Active Reward Terms                   |
++-------+---------------------------------------+---------+
+| Index | Name                                  |  Weight |
++-------+---------------------------------------+---------+
+|   0   | reaching_deformable                   |     5.0 |
+|   1   | lifting_deformable                    |     5.0 |
+|   2   | deformable_goal_tracking              |    16.0 |
+|   3   | deformable_goal_tracking_fine_grained |     5.0 |
+|   4   | action_rate                           |   -0.01 |
+|   5   | gripper_close                         |    -1.0 |
+|   6   | joint_vel                             |   -0.01 |
+|   7   | joint_torque                          | -0.0001 |
+|   8   | joint_acc                             | -0.0001 |
++-------+---------------------------------------+---------+
+
+[INFO] Curriculum Manager:  <CurriculumManager> contains 0 active terms.
++----------------------+
+| Active Curriculum Terms |
++-----------+----------+
+|   Index   | Name     |
++-----------+----------+
++-----------+----------+
+
+[INFO]: Completed setting up the environment...
+[INFO]: Newton CUDA graph captured (deferred relaxed mode, RTX-compatible)
+[INFO]: cubric GPU transform hierarchy enabled
+   128       0.55            71  dropped=[] kept=['ground', 'robot@5.0', 'table'] stripped=[]
+[INFO]: SimulationContext cleared
+[INFO]: Parsing configuration from: isaaclab_tasks.manager_based.manipulation.lift_franka_soft.franka_cloth_env_cfg:FrankaClothEnvCfg
+[INFO]: Base environment:
+	Environment device    : cuda:0
+	Environment seed      : None
+	Physics step-size     : 0.016666666666666666
+	Rendering step-size   : 0.016666666666666666
+	Environment step-size : 0.016666666666666666
+[INFO]: Registered visual UsdGeom.Mesh at /World/envs/env_.*/Deformable/geometry/mesh.
+[INFO]: Registered UsdGeom.Mesh: 961 vertices.
+[INFO]: FrameTransformer '/World/envs/env_.*/Robot/panda_link0': source='panda_link0', 1 target(s) registered
+[INFO]: Time taken for scene creation Last: 101.027842 s, Mean: 30.018978 s, Std: 47.455763 s, N: 4
+[INFO]: Scene manager:  <class InteractiveScene>
+	Number of environments: 512
+	Environment spacing   : 2.5
+	Source prim name      : /World/envs/env_0
+	Global prim paths     : []
+	Replicate physics     : True
+[INFO]: Dispatching MODEL_INIT callbacks
+[INFO]: Finalizing model on device: cuda:0
+Finalize builder took: Last: 4.469427 s, Mean: 1.694108 s, Std: 1.879517 s, N: 4
+[INFO]: Dispatching PHYSICS_READY callbacks
+[INFO]: Simulation parameters for joints in /World/envs/env_.*/Robot:
++-------------------------------------------------------------------------------------------------------------------------------------+
+|                                  Simulation Joint Information (Prim path: /World/envs/env_.*/Robot)                                 |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+| Index | Name                | Stiffness | Damping | Armature | Static Friction | Position Limits  | Velocity Limits | Effort Limits |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+|   0   | panda_joint1        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   1   | panda_joint2        |   80.000  |  4.000  |  0.001   |      0.000      | [-1.763, 1.763]  |      2.175      |     87.000    |
+|   2   | panda_joint3        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.175      |     87.000    |
+|   3   | panda_joint4        |   80.000  |  4.000  |  0.001   |      0.000      | [-3.072, -0.070] |      2.175      |     87.000    |
+|   4   | panda_joint5        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   5   | panda_joint6        |   80.000  |  4.000  |  0.001   |      0.000      | [-0.018, 3.753]  |      2.610      |     12.000    |
+|   6   | panda_joint7        |   80.000  |  4.000  |  0.001   |      0.000      | [-2.897, 2.897]  |      2.610      |     12.000    |
+|   7   | panda_finger_joint1 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
+|   8   | panda_finger_joint2 |  2.0e+03  | 100.000 |  0.000   |      0.000      |  [0.000, 0.040]  |      0.200      |    500.000    |
++-------+---------------------+-----------+---------+----------+-----------------+------------------+-----------------+---------------+
+[INFO]: Newton deformable object initialized at: /World/envs/env_.*/Deformable
+[INFO]: Number of instances: 512
+[INFO]: Particles per body: 961
+[INFO]: Added frame transform sensor (index=0, shapes=1024)
+[INFO]: FrameTransformer initialized: 512 envs, 1 targets, sensor_index=0
+Initialize solver took: Last: 0.292886 s, Mean: 3.916563 s, Std: 6.351397 s, N: 4
+[INFO]: Time taken for simulation start Last: 7.971131 s, Mean: 9.893809 s, Std: 11.784331 s, N: 4
+[INFO]: SimulationContext cleared
+Traceback (most recent call last):
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/scripts/bench/cloth_probe.py", line 192, in main
+    env = gym.make(args_cli.task, cfg=cfg, disable_env_checker=True)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/gymnasium/envs/registration.py", line 734, in make
+    env = env_creator(**env_spec_kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab/source/isaaclab/isaaclab/envs/manager_based_rl_env.py", line 88, in __init__
+    super().__init__(cfg=cfg)
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab/source/isaaclab/isaaclab/envs/manager_based_env.py", line 125, in __init__
+    self._init_sim()
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab/source/isaaclab/isaaclab/envs/manager_based_env.py", line 219, in _init_sim
+    self.sim.reset()
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab/source/isaaclab/isaaclab/sim/simulation_context.py", line 720, in reset
+    self.physics_manager.reset(soft)
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab_newton/physics/newton_manager.py", line 326, in reset
+    cls.initialize_solver()
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab_newton/physics/newton_manager.py", line 1250, in initialize_solver
+    cls._build_solver(cls._model, cfg.solver_cfg)  # type: ignore[union-attr]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/isaaclab_contrib/deformable/coupled_mjwarp_vbd_manager.py", line 314, in _build_solver
+    cls._soft_solver = SolverVBD(model, **kwargs)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/newton/_src/solvers/vbd/solver_vbd.py", line 409, in __init__
+    self._init_rigid_system(
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/newton/_src/solvers/vbd/solver_vbd.py", line 739, in _init_rigid_system
+    self._init_body_particle_contact_state(model.shape_count * model.particle_count)
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/newton/_src/solvers/vbd/solver_vbd.py", line 792, in _init_body_particle_contact_state
+    self.body_particle_contact_penalty_k = wp.zeros(soft_contact_max, dtype=float, device=self.device)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/warp/_src/context.py", line 7193, in zeros
+    arr = empty(
+          ^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/warp/_src/context.py", line 7457, in empty
+    arr = warp.array(
+          ^^^^^^^^^^^
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/warp/_src/types.py", line 3126, in __init__
+    self._init_new(dtype, shape, strides, device, pinned)
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/warp/_src/types.py", line 3525, in _init_new
+    check_array_shape(shape)
+  File "/nfs/hpc/share/sanchej7/Humanoid_Lite/venv-isaac60/lib/python3.12/site-packages/warp/_src/types.py", line 2937, in check_array_shape
+    raise ValueError(
+ValueError: Array shapes must not exceed the maximum representable value of a signed 32-bit integer, got 7307167232 in dimension 0.
+   512       FAIL                ValueError: Array shapes must not exceed the maximum representable value of a sign
+2026-09-05T16:44:59Z [9,743ms] [Warning] [carb.scenerenderer-rtx.plugin] Failed to create NGX context.
+2026-09-05T16:44:59Z [10,710ms] [Warning] [rtx.hydra] RenderDelegate : Warning /rtx/hydra/readTransformsFromFabricInRenderDelegate and geometry streaming are enabled together but this can cause issues with dynamic objects not streaming correctly due to problems in the transform update.
+2026-09-05T16:45:09Z [19,832ms] [Warning] [isaaclab.envs.manager_based_env] Seed not set for the environment. The environment creation may not be deterministic.
+2026-09-05T16:45:21Z [32,032ms] [Warning] [omni.usd] Encountered USD Warnings but USD Diagnostics are currently muted. To view USD Warnings, please set the '/persistent/app/usd/muteUsdDiagnostics' setting to false in Preferences page.
+2026-09-05T16:45:30Z [40,961ms] [Warning] [isaaclab_newton.assets.articulation.articulation_data] Failed to get root com velocity. If the articulation is fixed, this is expected. Setting root com velocity to zeros.
+2026-09-05T16:45:48Z [59,345ms] [Warning] [isaaclab_newton.physics._cubric] cubric IAdapter minor version newer than this shim was validated against: plugin reports v0.2, shim is pinned to v0.1. Proceeding under semver minor-compatibility — if transforms misbehave, verify the vtable layout against omni/cubric/IAdapter.h.
+2026-09-05T16:46:35Z [106,030ms] [Warning] [isaaclab.envs.manager_based_env] Seed not set for the environment. The environment creation may not be deterministic.
+2026-09-05T16:46:35Z [106,147ms] [Warning] [rtx.hydra] RenderDelegate : Warning /rtx/hydra/readTransformsFromFabricInRenderDelegate and geometry streaming are enabled together but this can cause issues with dynamic objects not streaming correctly due to problems in the transform update.
+2026-09-05T16:46:38Z [109,294ms] [Warning] [isaaclab_newton.assets.articulation.articulation_data] Failed to get root com velocity. If the articulation is fixed, this is expected. Setting root com velocity to zeros.
+2026-09-05T16:46:39Z [110,097ms] [Warning] [isaaclab_newton.physics._cubric] cubric IAdapter minor version newer than this shim was validated against: plugin reports v0.2, shim is pinned to v0.1. Proceeding under semver minor-compatibility — if transforms misbehave, verify the vtable layout against omni/cubric/IAdapter.h.
+2026-09-05T16:46:57Z [128,323ms] [Warning] [isaaclab.envs.manager_based_env] Seed not set for the environment. The environment creation may not be deterministic.
+2026-09-05T16:46:57Z [128,371ms] [Warning] [rtx.hydra] RenderDelegate : Warning /rtx/hydra/readTransformsFromFabricInRenderDelegate and geometry streaming are enabled together but this can cause issues with dynamic objects not streaming correctly due to problems in the transform update.
+2026-09-05T16:47:09Z [140,326ms] [Warning] [isaaclab_newton.assets.articulation.articulation_data] Failed to get root com velocity. If the articulation is fixed, this is expected. Setting root com velocity to zeros.
+2026-09-05T16:47:11Z [142,531ms] [Warning] [isaaclab_newton.physics._cubric] cubric IAdapter minor version newer than this shim was validated against: plugin reports v0.2, shim is pinned to v0.1. Proceeding under semver minor-compatibility — if transforms misbehave, verify the vtable layout against omni/cubric/IAdapter.h.
+2026-09-05T16:48:45Z [235,796ms] [Warning] [isaaclab.envs.manager_based_env] Seed not set for the environment. The environment creation may not be deterministic.
+2026-09-05T16:48:45Z [235,845ms] [Warning] [rtx.hydra] RenderDelegate : Warning /rtx/hydra/readTransformsFromFabricInRenderDelegate and geometry streaming are enabled together but this can cause issues with dynamic objects not streaming correctly due to problems in the transform update.
+2026-09-05T16:50:31Z [342,078ms] [Warning] [isaaclab_newton.assets.articulation.articulation_data] Failed to get root com velocity. If the articulation is fixed, this is expected. Setting root com velocity to zeros.

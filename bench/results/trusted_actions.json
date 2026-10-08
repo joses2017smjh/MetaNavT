@@ -1,0 +1,2944 @@
+{
+  "run_at_utc": "2026-10-08T01:36:09.355801+00:00",
+  "git_head": "55811b67e8cb2b806e8c9a59f727a10793bfd9cf",
+  "working_tree_dirty": true,
+  "source_sha256": {
+    "app/mcp/approvals.py": "24e86d55ce8f02cf795df2dea0e23cfce5dfb01c2e0bdb3d2839aa7ba5202a4a",
+    "app/mcp/approve.py": "0f98ca2505fe15e076a9d131762c9e4a8cc651b7e8491ceaf40b53d9f72c26c1",
+    "app/mcp/secure_io.py": "915959e9888e934395f6f24bad5907f4fd92a6a835efccbc710a603237cd70ab",
+    "app/mcp/filesystem.py": "6691e3373cfc6247f1a5ea4ee032049dd4003e194008f1247212fccde872ada7",
+    "app/mcp/server.py": "9ead76991018b508af850b318bb9197c5e06bdce8ec6d854c230d86e7959da09",
+    "app/agent/citation_verify.py": "6166ad8d9ab6c03a36d6a0f2554d7e1d50d5b978541d0ea295dfbaf5b65191a8",
+    "app/artifacts/templates.py": "d91c7d94e0b49cc1243f5a4bae211b445dd9bac88f02cc0aaa820aa2e02ba47b",
+    "app/agent/evidence_checks.py": "6339d9f01b01b68ece74468349b6b754a393823b5c7a4202d4969b3b0f29cb7d",
+    "app/eval/index_loader.py": "36a2cf984eaef62c160b941e5250f4aed1aa098bddbdbdf666b31db582dd0a56",
+    "app/eval/trusted_actions.py": "05204c8cf298fe3fb3eef5c0cc227a8cba2442188473162ef4e6906b1ad5b188",
+    "app/eval/evidence_consistency.py": "4a0edc760aa7dbb8703899d809c7e3332af76dacc1d28c241441479c4c6b28c2",
+    "app/eval/m4_provenance.py": "2ed48403c2de186b131c612de3c93b4d79ac0e25a62f3608c6e3af43bac1b709"
+  },
+  "benchmark": "trusted_action_capabilities_v1",
+  "scope": "deterministic temporary-fixture tool-boundary regression; no LLM prompt-injection or OS-isolation evaluation",
+  "attack_families": 22,
+  "variants_per_attack_family": 10,
+  "benign_families": 5,
+  "variants_per_benign_family": 20,
+  "attack_cases": 220,
+  "attack_cases_denied_without_mutation": 220,
+  "benign_cases": 100,
+  "benign_cases_succeeded": 100,
+  "unexpected_mutation_cases": 0,
+  "failed_cases": [],
+  "family_counts": {
+    "missing_capability": 10,
+    "boolean_true": 10,
+    "boolean_false": 10,
+    "truthy_string_false": 10,
+    "numeric_approval": 10,
+    "malformed_token": 10,
+    "forged_signature": 10,
+    "different_plan": 10,
+    "different_session": 10,
+    "expired_token": 10,
+    "replay_move": 10,
+    "replay_patch": 10,
+    "changed_source_content": 10,
+    "replaced_source_inode": 10,
+    "mutated_move_payload": 10,
+    "source_symlink": 10,
+    "parent_symlink": 10,
+    "destination_exists": 10,
+    "mutated_patch_payload": 10,
+    "visualization_options_changed": 10,
+    "mutated_artifact_code": 10,
+    "library_key_reader": 10,
+    "authorized_move": 20,
+    "authorized_patch": 20,
+    "authorized_artifact": 20,
+    "authorized_visualization_script": 20,
+    "unapproved_reads": 20
+  },
+  "elapsed_seconds": 3.731,
+  "python": "3.11.13",
+  "rows": [
+    {
+      "family": "missing_capability",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "missing_capability",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "boolean_true",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "boolean_false",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "truthy_string_false",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "numeric_approval",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "malformed_token",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "forged_signature",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "different_plan",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "different_plan",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "different_plan",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "different_plan",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "different_plan",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "different_plan",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "different_plan",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "different_plan",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "different_plan",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "different_plan",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "different_session",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "different_session",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "different_session",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "different_session",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "different_session",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "different_session",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "different_session",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "different_session",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "different_session",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "different_session",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "expired_token",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "expired_token",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "expired_token",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "expired_token",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "expired_token",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "expired_token",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "expired_token",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "expired_token",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "expired_token",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "expired_token",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "replay_move",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "replay_move",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "replay_move",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "replay_move",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "replay_move",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "replay_move",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "replay_move",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "replay_move",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "replay_move",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "replay_move",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "replay_patch",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "changed_source_content",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "replaced_source_inode",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "mutated_move_payload",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "source_symlink",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "parent_symlink",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "destination_exists",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "mutated_patch_payload",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "visualization_options_changed",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "mutated_artifact_code",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 0,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 1,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 2,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 3,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 4,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 5,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 6,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 7,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 8,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "library_key_reader",
+      "variant": 9,
+      "kind": "attack",
+      "passed": true,
+      "denied": true,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 0,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 1,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 2,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 3,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 4,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 5,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 6,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 7,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 8,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 9,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 10,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e66b216c8611f15c324d9d791f323bf3b98bea3b8c94ee3f8ef204542baa14e5"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 11,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "b9d778c839cdab8c13b6b55b78e9d497dfa69ebb9033d81e0750690fa925aed7"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 12,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d81f9b26c591961ba76b6c2dcb66eee3553febaa3d0bf93f7aeec684c8dd6a15"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 13,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "f7ccc8de0eee17581e7357420b59ce9012274ea3b9bef44463dc6e2775b8ccd3"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 14,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "9c24daf00906f85545ab3e6c91bb80a114eb223604e5922fc68f61ebbc2c99c6"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 15,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "6c8ff7f457af70c32b4012dc29b8378e03dcb454ee788bfa28c67fa39b31dfac"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 16,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e22a91787f74327a0235f927066947413c7133b7764fdddd145960d1ad621c87"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 17,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d5669fd54986b1f3949ff2c6017009cef6833d7d7f0c7313ca3e0efaa832b8f4"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 18,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "1e245aa0798e06bc2151d4d469f3158956d3af716b08ef3a2f39146ad4cf4fbc"
+    },
+    {
+      "family": "authorized_move",
+      "variant": 19,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d1443982f0feca7e3caa0f9b200e37a6dbfed1f345bb734677fb3f9bf4b56aec"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 0,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 1,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 2,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 3,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 4,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 5,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 6,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 7,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 8,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 9,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 10,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e66b216c8611f15c324d9d791f323bf3b98bea3b8c94ee3f8ef204542baa14e5"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 11,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "b9d778c839cdab8c13b6b55b78e9d497dfa69ebb9033d81e0750690fa925aed7"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 12,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d81f9b26c591961ba76b6c2dcb66eee3553febaa3d0bf93f7aeec684c8dd6a15"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 13,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "f7ccc8de0eee17581e7357420b59ce9012274ea3b9bef44463dc6e2775b8ccd3"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 14,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "9c24daf00906f85545ab3e6c91bb80a114eb223604e5922fc68f61ebbc2c99c6"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 15,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "6c8ff7f457af70c32b4012dc29b8378e03dcb454ee788bfa28c67fa39b31dfac"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 16,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e22a91787f74327a0235f927066947413c7133b7764fdddd145960d1ad621c87"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 17,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d5669fd54986b1f3949ff2c6017009cef6833d7d7f0c7313ca3e0efaa832b8f4"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 18,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "1e245aa0798e06bc2151d4d469f3158956d3af716b08ef3a2f39146ad4cf4fbc"
+    },
+    {
+      "family": "authorized_patch",
+      "variant": 19,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d1443982f0feca7e3caa0f9b200e37a6dbfed1f345bb734677fb3f9bf4b56aec"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 0,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 1,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 2,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 3,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 4,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 5,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 6,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 7,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 8,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 9,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 10,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e66b216c8611f15c324d9d791f323bf3b98bea3b8c94ee3f8ef204542baa14e5"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 11,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "b9d778c839cdab8c13b6b55b78e9d497dfa69ebb9033d81e0750690fa925aed7"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 12,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d81f9b26c591961ba76b6c2dcb66eee3553febaa3d0bf93f7aeec684c8dd6a15"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 13,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "f7ccc8de0eee17581e7357420b59ce9012274ea3b9bef44463dc6e2775b8ccd3"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 14,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "9c24daf00906f85545ab3e6c91bb80a114eb223604e5922fc68f61ebbc2c99c6"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 15,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "6c8ff7f457af70c32b4012dc29b8378e03dcb454ee788bfa28c67fa39b31dfac"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 16,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e22a91787f74327a0235f927066947413c7133b7764fdddd145960d1ad621c87"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 17,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d5669fd54986b1f3949ff2c6017009cef6833d7d7f0c7313ca3e0efaa832b8f4"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 18,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "1e245aa0798e06bc2151d4d469f3158956d3af716b08ef3a2f39146ad4cf4fbc"
+    },
+    {
+      "family": "authorized_artifact",
+      "variant": 19,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d1443982f0feca7e3caa0f9b200e37a6dbfed1f345bb734677fb3f9bf4b56aec"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 0,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 1,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 2,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 3,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 4,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 5,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 6,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 7,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 8,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 9,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 10,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e66b216c8611f15c324d9d791f323bf3b98bea3b8c94ee3f8ef204542baa14e5"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 11,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "b9d778c839cdab8c13b6b55b78e9d497dfa69ebb9033d81e0750690fa925aed7"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 12,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d81f9b26c591961ba76b6c2dcb66eee3553febaa3d0bf93f7aeec684c8dd6a15"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 13,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "f7ccc8de0eee17581e7357420b59ce9012274ea3b9bef44463dc6e2775b8ccd3"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 14,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "9c24daf00906f85545ab3e6c91bb80a114eb223604e5922fc68f61ebbc2c99c6"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 15,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "6c8ff7f457af70c32b4012dc29b8378e03dcb454ee788bfa28c67fa39b31dfac"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 16,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "e22a91787f74327a0235f927066947413c7133b7764fdddd145960d1ad621c87"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 17,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d5669fd54986b1f3949ff2c6017009cef6833d7d7f0c7313ca3e0efaa832b8f4"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 18,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "1e245aa0798e06bc2151d4d469f3158956d3af716b08ef3a2f39146ad4cf4fbc"
+    },
+    {
+      "family": "authorized_visualization_script",
+      "variant": 19,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": false,
+      "fixture_content_sha256": "d1443982f0feca7e3caa0f9b200e37a6dbfed1f345bb734677fb3f9bf4b56aec"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 0,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e63437a1ca752885da1bf406256be8b6225812f7c3a6b64c825035ff4460a074"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 1,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e4d92c1edeacab38c72d4895fab4baabdf023edaabd6decea5c7d41d7af9857a"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 2,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "81e6d5b78bd6d481839ca32c901b0d26dca10d79a85a9ad4b270232fa2f9788c"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 3,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "42d3703af346aa72bb523955597b1003e6582aca659f9dd13cd69aeb60d7bd4c"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 4,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "3cb3b85baf2c6183c9a6c3712b91d5be78f7281ab1805757e81d25d8754e8520"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 5,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "67c81e1caf50edd216278c03bb6ea03abeceee556dd4f21b74b048cc1313cd4a"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 6,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "ca1093ef0265fa5ddfd7a6934e6317c356a2457141c5ff0f69dcd6aa230c8306"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 7,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "05d405717b319a4a2a100c997db3f0538cb1883e3e82f86a71d2c73b16fb41fb"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 8,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "5ee8b2f2694fa2f42969ddfd3ad3513e2bb26bae41a33483d32979f452134493"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 9,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "610cb04913c76c7b77ff263b65503b7af9f3ee2e6577f8e59f5804688790524a"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 10,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e66b216c8611f15c324d9d791f323bf3b98bea3b8c94ee3f8ef204542baa14e5"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 11,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "b9d778c839cdab8c13b6b55b78e9d497dfa69ebb9033d81e0750690fa925aed7"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 12,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "d81f9b26c591961ba76b6c2dcb66eee3553febaa3d0bf93f7aeec684c8dd6a15"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 13,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "f7ccc8de0eee17581e7357420b59ce9012274ea3b9bef44463dc6e2775b8ccd3"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 14,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "9c24daf00906f85545ab3e6c91bb80a114eb223604e5922fc68f61ebbc2c99c6"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 15,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "6c8ff7f457af70c32b4012dc29b8378e03dcb454ee788bfa28c67fa39b31dfac"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 16,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "e22a91787f74327a0235f927066947413c7133b7764fdddd145960d1ad621c87"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 17,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "d5669fd54986b1f3949ff2c6017009cef6833d7d7f0c7313ca3e0efaa832b8f4"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 18,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "1e245aa0798e06bc2151d4d469f3158956d3af716b08ef3a2f39146ad4cf4fbc"
+    },
+    {
+      "family": "unapproved_reads",
+      "variant": 19,
+      "kind": "benign",
+      "passed": true,
+      "denied": false,
+      "corpus_and_outside_unchanged": true,
+      "fixture_content_sha256": "d1443982f0feca7e3caa0f9b200e37a6dbfed1f345bb734677fb3f9bf4b56aec"
+    }
+  ]
+}

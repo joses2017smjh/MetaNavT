@@ -1,0 +1,202 @@
+{
+  "note": "Privileged Approach, world -x only, 16 balanced test-split layouts per arm (selection unchanged from 21386145). Geometry, 0.65 m spawn, dwell radius and the >5-contact-tick excessive_collision predicate unchanged in every arm. One command-side factor per arm.",
+  "geometry": {
+    "goal_posts": "goal + (0.52, +/-0.35), capsule r 0.045",
+    "gap_between_posts_m": 0.61,
+    "robot_lateral_envelope_at_rest_m": 0.606,
+    "outside_post_margin_by_pitch_m": {
+      "1.5": 0.315,
+      "1.6": 0.365,
+      "1.7": 0.415
+    },
+    "robot_half_width_m": 0.316,
+    "must_cross_post_plane": "spawn at goal+0.65 (x), dwell radius 0.36, posts at +0.52",
+    "robot_lateral_envelope_walking_m": [
+      0.546,
+      0.605
+    ],
+    "measurement": "world-frame geom AABBs along y over a 6 s straight walk at 0.47 m/s; the earlier 0.632 m used geom_rbound sphere bounds and is withdrawn"
+  },
+  "arms": {
+    "recovery": {
+      "job": 21400730,
+      "n": 16,
+      "success": 8,
+      "falls": 0,
+      "failures": {
+        "None": 8,
+        "excessive_collision": 8
+      },
+      "mean_elapsed_s": 3.22,
+      "improved_vs_recovery": [],
+      "regressed_vs_recovery": []
+    },
+    "guard": {
+      "job": 21400731,
+      "n": 16,
+      "success": 0,
+      "falls": 0,
+      "failures": {
+        "excessive_collision": 7,
+        "timeout": 9
+      },
+      "mean_elapsed_s": 11.63,
+      "improved_vs_recovery": [],
+      "regressed_vs_recovery": [
+        1,
+        5,
+        6,
+        7,
+        20,
+        25,
+        37,
+        41
+      ]
+    },
+    "pulse": {
+      "job": 21400732,
+      "n": 16,
+      "success": 0,
+      "falls": 0,
+      "failures": {
+        "excessive_collision": 11,
+        "timeout": 5
+      },
+      "mean_elapsed_s": 11.87,
+      "improved_vs_recovery": [],
+      "regressed_vs_recovery": [
+        1,
+        5,
+        6,
+        7,
+        20,
+        25,
+        37,
+        41
+      ]
+    },
+    "recovery030": {
+      "job": 21400745,
+      "n": 16,
+      "success": 7,
+      "falls": 0,
+      "failures": {
+        "None": 7,
+        "excessive_collision": 8,
+        "timeout": 1
+      },
+      "mean_elapsed_s": 4.11,
+      "improved_vs_recovery": [
+        17,
+        33
+      ],
+      "regressed_vs_recovery": [
+        6,
+        25,
+        37
+      ]
+    },
+    "settle14": {
+      "job": 21400746,
+      "n": 16,
+      "success": 8,
+      "falls": 0,
+      "failures": {
+        "None": 8,
+        "excessive_collision": 8
+      },
+      "mean_elapsed_s": 3.5,
+      "improved_vs_recovery": [
+        14
+      ],
+      "regressed_vs_recovery": [
+        25
+      ]
+    },
+    "settle16": {
+      "job": 21400747,
+      "n": 16,
+      "success": 9,
+      "falls": 0,
+      "failures": {
+        "None": 9,
+        "excessive_collision": 7
+      },
+      "mean_elapsed_s": 3.68,
+      "improved_vs_recovery": [
+        14,
+        33
+      ],
+      "regressed_vs_recovery": [
+        6
+      ]
+    }
+  },
+  "layouts_success_by_arm": {
+    "recovery": [
+      1,
+      5,
+      6,
+      7,
+      20,
+      25,
+      37,
+      41
+    ],
+    "guard": [],
+    "pulse": [],
+    "recovery030": [
+      1,
+      5,
+      7,
+      17,
+      20,
+      33,
+      41
+    ],
+    "settle14": [
+      1,
+      5,
+      6,
+      7,
+      14,
+      20,
+      37,
+      41
+    ],
+    "settle16": [
+      1,
+      5,
+      7,
+      14,
+      20,
+      25,
+      33,
+      37,
+      41
+    ]
+  },
+  "conclusion": {
+    "layouts_succeeding_in_any_arm": [
+      1,
+      5,
+      6,
+      7,
+      14,
+      17,
+      20,
+      25,
+      33,
+      37,
+      41
+    ],
+    "layouts_succeeding_in_every_command_arm": [
+      1,
+      5,
+      7,
+      20,
+      41
+    ],
+    "reading": "Six coarse command-side arms land at 7-9/16 or 0/16 and the succeeding layout set moves with crossing phase. Clearance through the 0.61 m gap is 0.5-6 cm depending on gait phase (AABB envelope 0.546-0.605 m), so the gate is marginal rather than impossible; fine lateral centring on the gap midline is the untested lever."
+  }
+}

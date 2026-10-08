@@ -1,0 +1,88 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "n": 12,
+  "success": 1,
+  "clean_success": 1,
+  "falls": 11,
+  "time_outs": 0,
+  "median_completion_s": 99.24,
+  "completion_s": [
+    99.24
+  ],
+  "wall_contact_steps": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    28,
+    0,
+    0
+  ],
+  "median_seed_by_time": 0,
+  "median_clean_seed_by_time": 0,
+  "settings": {
+    "n": 6,
+    "m": 6,
+    "extra_openings": 1,
+    "time_limit": 180.0,
+    "cruise": 0.3,
+    "turn_rate": 0.6,
+    "inflate": 0.3,
+    "replan_s": 0.4,
+    "map_res": 0.1,
+    "sensor_mode": "reactive",
+    "random_heading": false
+  },
+  "gait": {
+    "deploy": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/deploy.yaml",
+    "checkpoint": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/external/Berkeley-Humanoid-Lite/logs/rsl_rl/biped/2026-08-17_09-54-10_dr-default-s0/exported/policy.onnx",
+    "checkpoint_sha256": "e62f4c242ad6ff89e4108aecca18f960255c58e5d045baddc0da8cb16e7a22b1"
+  },
+  "outcome_classes": {
+    "fall": 11,
+    "goal": 1
+  },
+  "reached_no_fall": 1,
+  "arrived_not_judged": 0,
+  "stuck": 0,
+  "controller_arrived_ever": 0,
+  "stress": {
+    "pose_error": {
+      "pose_yaw_deg": 0.0,
+      "pose_bias_m": 0.0,
+      "pose_noise_m": 0.0
+    },
+    "imu": {
+      "imu_source": "estimated",
+      "imu_filter": "mahony",
+      "imu_init": "accel",
+      "imu_kp": 1.0,
+      "imu_ki": 0.1,
+      "imu_rate_hz": 200.0,
+      "imu_delay_ms": 40.0,
+      "imu_delay_steps": 0,
+      "imu_gyro_std": 0.0,
+      "imu_accel_std": 0.0,
+      "imu_gyro_bias": 0.0,
+      "imu_gyro_bias_walk": 0.0
+    }
+  }
+}

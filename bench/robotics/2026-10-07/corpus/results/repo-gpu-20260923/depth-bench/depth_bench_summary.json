@@ -1,0 +1,238 @@
+{
+  "bench_txt": "/nfs/hpc/share/sanchej7/Humanoid_Lite/bhl-robustness-ladder/results/repo-gpu-20260923/depth-bench/depth_bench.txt",
+  "claims": [
+    {
+      "claim": "finite_fraction",
+      "measured": 1.0,
+      "documented": 1.0,
+      "rel_diff": 0.0,
+      "verdict": "PASS",
+      "source": "depth_validate flat plane, all envs, 3-decimal print"
+    },
+    {
+      "claim": "mean_relative_error",
+      "measured": 0.0504,
+      "documented": 0.029,
+      "rel_diff": 0.7379310344827585,
+      "verdict": "MISMATCH",
+      "pixels": 3136,
+      "documented_pixels": 3136,
+      "validate_verdict": "FAIL"
+    },
+    {
+      "claim": "row_flipped_relative_error",
+      "measured": 1.0389,
+      "documented": 1.02,
+      "rel_diff": 0.0185294117647058,
+      "verdict": "PASS"
+    },
+    {
+      "claim": "best_orientation",
+      "measured": "as-returned",
+      "documented": "as-returned",
+      "rel_diff": null,
+      "verdict": "PASS"
+    },
+    {
+      "claim": "env_steps_per_s[physics_2048]",
+      "measured": 18281.0,
+      "documented": 13971,
+      "rel_diff": 0.30849617063918117,
+      "verdict": "MISMATCH",
+      "ms_per_step": 112.0,
+      "documented_ms_per_step": 146.6,
+      "depth_finite_fraction": null,
+      "required": true,
+      "hardware_dependent": true
+    },
+    {
+      "claim": "env_steps_per_s[depth32x32_2048]",
+      "measured": 16395.0,
+      "documented": 13989,
+      "rel_diff": 0.17199227964829508,
+      "verdict": "MISMATCH",
+      "ms_per_step": 124.9,
+      "documented_ms_per_step": 146.4,
+      "depth_finite_fraction": 1.0,
+      "required": false,
+      "hardware_dependent": true
+    },
+    {
+      "claim": "env_steps_per_s[depth64x64_2048]",
+      "measured": 16414.0,
+      "documented": 13956,
+      "rel_diff": 0.17612496417311552,
+      "verdict": "MISMATCH",
+      "ms_per_step": 124.8,
+      "documented_ms_per_step": 146.7,
+      "depth_finite_fraction": 1.0,
+      "required": true,
+      "hardware_dependent": true
+    },
+    {
+      "claim": "env_steps_per_s[physics_4096]",
+      "measured": 24298.0,
+      "documented": 21844,
+      "rel_diff": 0.11234206189342612,
+      "verdict": "MISMATCH",
+      "ms_per_step": 168.6,
+      "documented_ms_per_step": 187.5,
+      "depth_finite_fraction": null,
+      "required": true,
+      "hardware_dependent": true
+    },
+    {
+      "claim": "env_steps_per_s[depth48x48_4096]",
+      "measured": 23968.0,
+      "documented": 21490,
+      "rel_diff": 0.11530944625407166,
+      "verdict": "MISMATCH",
+      "ms_per_step": 170.9,
+      "documented_ms_per_step": 190.6,
+      "depth_finite_fraction": 1.0,
+      "required": true,
+      "hardware_dependent": true
+    },
+    {
+      "claim": "depth_cost_4096",
+      "measured": 0.013581364721376277,
+      "documented": 0.016,
+      "rel_diff": -0.15116470491398273,
+      "verdict": "MISMATCH",
+      "cost_below_5pct": true,
+      "note": "strict 10%-relative check on a 1.6 % difference; read qualitatively"
+    }
+  ],
+  "measurement_complete": false,
+  "missing": [
+    "validate.rough_departure"
+  ],
+  "tolerance": 0.1,
+  "node": {
+    "host": "cn-gpu5.hpc.engr.oregonstate.edu",
+    "gpu": "Quadro RTX 8000 46080 MiB",
+    "job": "21402550",
+    "stack": "v51",
+    "head": "681dde1",
+    "dirty": "yes"
+  },
+  "validate": {
+    "camera_pitch_deg": 19.99,
+    "flat_camera_height_m": 0.291,
+    "flat_finite_fraction": 1.0,
+    "validate_verdict": "FAIL",
+    "best_error": 0.0504,
+    "best_orientation": "as-returned",
+    "validate_tol": 0.03
+  },
+  "orientations": {
+    "as-returned": {
+      "mean_relative_error": 0.0504,
+      "pixels": 3136
+    },
+    "row-flipped": {
+      "mean_relative_error": 1.0389,
+      "pixels": 2203
+    }
+  },
+  "rows": {
+    "physics_2048": {
+      "mode": "physics",
+      "res": 0,
+      "envs": 2048,
+      "env_steps_per_s": 18281.0,
+      "ms_per_step": 112.0
+    },
+    "depth64x64_2048": {
+      "mode": "depth",
+      "res": 64,
+      "envs": 2048,
+      "env_steps_per_s": 16414.0,
+      "ms_per_step": 124.8,
+      "depth_tensor": "(2048, 64, 64, 1)",
+      "depth_finite_fraction": 1.0,
+      "depth_range_m": [
+        0.11,
+        6.0
+      ]
+    },
+    "physics_4096": {
+      "mode": "physics",
+      "res": 0,
+      "envs": 4096,
+      "env_steps_per_s": 24298.0,
+      "ms_per_step": 168.6
+    },
+    "depth48x48_4096": {
+      "mode": "depth",
+      "res": 48,
+      "envs": 4096,
+      "env_steps_per_s": 23968.0,
+      "ms_per_step": 170.9,
+      "depth_tensor": "(4096, 48, 48, 1)",
+      "depth_finite_fraction": 1.0,
+      "depth_range_m": [
+        0.1,
+        6.0
+      ]
+    },
+    "depth32x32_2048": {
+      "mode": "depth",
+      "res": 32,
+      "envs": 2048,
+      "env_steps_per_s": 16395.0,
+      "ms_per_step": 124.9,
+      "depth_tensor": "(2048, 32, 32, 1)",
+      "depth_finite_fraction": 1.0,
+      "depth_range_m": [
+        0.1,
+        6.0
+      ]
+    }
+  },
+  "steps": [
+    {
+      "name": "validate_res64_n16",
+      "rc": "124",
+      "secs": "601",
+      "salvaged_stdout_lines": "5"
+    },
+    {
+      "name": "physics_2048",
+      "rc": "0",
+      "secs": "41",
+      "salvaged_stdout_lines": "0"
+    },
+    {
+      "name": "depth64_2048",
+      "rc": "0",
+      "secs": "42",
+      "salvaged_stdout_lines": "0"
+    },
+    {
+      "name": "physics_4096",
+      "rc": "0",
+      "secs": "48",
+      "salvaged_stdout_lines": "0"
+    },
+    {
+      "name": "depth48_4096",
+      "rc": "0",
+      "secs": "51",
+      "salvaged_stdout_lines": "0"
+    },
+    {
+      "name": "depth32_2048",
+      "rc": "0",
+      "secs": "42",
+      "salvaged_stdout_lines": "0"
+    }
+  ],
+  "warnings": [],
+  "unparsed_result_lines": [],
+  "claim_counts": {
+    "PASS": 3,
+    "MISMATCH": 7,
+    "NOT_MEASURED": 0
+  }
+}

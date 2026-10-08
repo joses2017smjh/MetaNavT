@@ -1,0 +1,20 @@
+NODE | host=cn-gpu5.hpc.engr.oregonstate.edu gpu=Quadro RTX 8000 46080 MiB job=21402550 stack=v51 head=681dde1 dirty=yes
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | flat plane: camera height 0.291 m, finite 1.000
+CHECK  | as-returned : mean relative error 0.0504 over 3136 px
+CHECK  | row-flipped : mean relative error 1.0389 over 2203 px
+FAIL   | flat-ground depth matches closed form to 0.0504 (as-returned, tol 0.03)
+STEP | name=validate_res64_n16 rc=124 secs=601 salvaged_stdout_lines=5
+RESULT | physics only               | envs= 2048 |     18281 env-steps/s |  112.0 ms/step
+STEP | name=physics_2048 rc=0 secs=41 salvaged_stdout_lines=0
+RESULT | raycast depth 64x64        | envs= 2048 |     16414 env-steps/s |  124.8 ms/step
+DEPTH  | tensor (2048, 64, 64, 1) | finite=1.000 | range [0.11, 6.00] m
+STEP | name=depth64_2048 rc=0 secs=42 salvaged_stdout_lines=0
+RESULT | physics only               | envs= 4096 |     24298 env-steps/s |  168.6 ms/step
+STEP | name=physics_4096 rc=0 secs=48 salvaged_stdout_lines=0
+RESULT | raycast depth 48x48        | envs= 4096 |     23968 env-steps/s |  170.9 ms/step
+DEPTH  | tensor (4096, 48, 48, 1) | finite=1.000 | range [0.10, 6.00] m
+STEP | name=depth48_4096 rc=0 secs=51 salvaged_stdout_lines=0
+RESULT | raycast depth 32x32        | envs= 2048 |     16395 env-steps/s |  124.9 ms/step
+DEPTH  | tensor (2048, 32, 32, 1) | finite=1.000 | range [0.10, 6.00] m
+STEP | name=depth32_2048 rc=0 secs=42 salvaged_stdout_lines=0

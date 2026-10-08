@@ -1,0 +1,196 @@
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | arm depthswap: drop_object_pose=True
+CHECK  | policy observation terms, in manager order:
+       |   [  0:  3]  projected_gravity_a  (3)
+       |   [  3:  6]  projected_gravity_b  (3)
+       |   [  6:  9]  base_ang_vel_a  (3)
+       |   [  9: 12]  base_ang_vel_b  (3)
+       |   [ 12: 34]  joint_pos_a  (22)
+       |   [ 34: 56]  joint_pos_b  (22)
+       |   [ 56: 78]  joint_vel_a  (22)
+       |   [ 78:100]  joint_vel_b  (22)
+       |   [100:122]  track_err_a  (22)
+       |   [122:144]  track_err_b  (22)
+       |   [144:188]  actions  (44)
+       |   [188:252]  depth_a  (64)
+       |   [252:316]  depth_b  (64)
+PASS  | obs_width: 316 against replay's 316 for depthswap
+PASS  | depth_present: depth terms ['depth_a', 'depth_b']
+PASS  | depth_is_last: vector ends with ['depth_a', 'depth_b']
+PASS  | actions_before_depth: actions at 10, depth_a at 11
+PASS  | object_pose_gating: object pose terms [] for depthswap
+PASS  | finite: 100% finite pixels, res 64x64
+PASS  | resolution: 64 against cfg 64
+CHECK  | camera height 0.153 m; floor-only depth spans 0.17-6.00 m
+PASS  | payload_visible: 76.7% of pixels are >2 cm nearer than bare floor (3143 px)
+CHECK  | near-blob rows 0-63, cols 0-63, min depth 0.105 m
+PASS  | blob_is_the_payload: 0.0% near pixels with the cube 8 m away (was 76.7%)
+FAIL  | restored: 53.9% near pixels after moving it back (was 76.7%)
+PASS  | tracks_transform: blob centroid row 46.2 -> 22.3 after lifting the cube 20 cm
+PASS  | image_changed: mean |delta| = 2.6793 m
+
+RESULT | FAILED: restored
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | arm depthboth: drop_object_pose=False
+CHECK  | policy observation terms, in manager order:
+       |   [  0:  3]  projected_gravity_a  (3)
+       |   [  3:  6]  projected_gravity_b  (3)
+       |   [  6:  9]  base_ang_vel_a  (3)
+       |   [  9: 12]  base_ang_vel_b  (3)
+       |   [ 12: 34]  joint_pos_a  (22)
+       |   [ 34: 56]  joint_pos_b  (22)
+       |   [ 56: 78]  joint_vel_a  (22)
+       |   [ 78:100]  joint_vel_b  (22)
+       |   [100:122]  track_err_a  (22)
+       |   [122:144]  track_err_b  (22)
+       |   [144:188]  actions  (44)
+       |   [188:252]  depth_a  (64)
+       |   [252:316]  depth_b  (64)
+FAIL  | obs_width: 316 against replay's 322 for depthboth
+PASS  | depth_present: depth terms ['depth_a', 'depth_b']
+PASS  | depth_is_last: vector ends with ['depth_a', 'depth_b']
+PASS  | actions_before_depth: actions at 10, depth_a at 11
+FAIL  | object_pose_gating: object pose terms [] for depthboth
+PASS  | finite: 100% finite pixels, res 64x64
+PASS  | resolution: 64 against cfg 64
+CHECK  | camera height 0.146 m; floor-only depth spans 0.17-6.00 m
+PASS  | payload_visible: 67.9% of pixels are >2 cm nearer than bare floor (2781 px)
+CHECK  | near-blob rows 0-56, cols 0-63, min depth 0.091 m
+PASS  | blob_is_the_payload: 3.3% near pixels with the cube 8 m away (was 67.9%)
+FAIL  | restored: 61.9% near pixels after moving it back (was 67.9%)
+FAIL  | tracks_transform: blob centroid row 23.7 -> 30.6 after lifting the cube 20 cm
+PASS  | image_changed: mean |delta| = 1.0269 m
+
+RESULT | FAILED: obs_width, object_pose_gating, restored, tracks_transform
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | arm depthswap: drop_object_pose=True
+CHECK  | policy observation terms, in manager order:
+       |   [  0:  3]  projected_gravity_a  (3)
+       |   [  3:  6]  projected_gravity_b  (3)
+       |   [  6:  9]  base_ang_vel_a  (3)
+       |   [  9: 12]  base_ang_vel_b  (3)
+       |   [ 12: 34]  joint_pos_a  (22)
+       |   [ 34: 56]  joint_pos_b  (22)
+       |   [ 56: 78]  joint_vel_a  (22)
+       |   [ 78:100]  joint_vel_b  (22)
+       |   [100:122]  track_err_a  (22)
+       |   [122:144]  track_err_b  (22)
+       |   [144:188]  actions  (44)
+       |   [188:252]  depth_a  (64)
+       |   [252:316]  depth_b  (64)
+PASS  | obs_width: 316 against replay's 316 for depthswap
+PASS  | depth_present: depth terms ['depth_a', 'depth_b']
+PASS  | depth_is_last: vector ends with ['depth_a', 'depth_b']
+PASS  | actions_before_depth: actions at 10, depth_a at 11
+PASS  | object_pose_gating: object pose terms [] for depthswap
+PASS  | finite: 100% finite pixels, res 64x64
+PASS  | resolution: 64 against cfg 64
+CHECK  | camera height 0.152 m; floor-only depth spans 0.17-6.00 m
+PASS  | payload_visible: 69.5% of pixels are >2 cm nearer than bare floor (2848 px)
+CHECK  | near-blob rows 0-60, cols 0-63, min depth 0.071 m
+PASS  | tracks_transform: blob centroid row 25.3 -> 24.8 after lifting the cube 20 cm
+PASS  | image_changed: mean |delta| = 0.2343 m
+PASS  | blob_is_the_payload: 0.0% near pixels with the cube 8 m away (was 69.5%)
+PASS  | restored: 76.2% near pixels after moving it back (was 69.5%, gate 34.8%)
+
+RESULT | ALL PASS
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | arm depthboth: drop_object_pose=False
+CHECK  | policy observation terms, in manager order:
+       |   [  0:  3]  projected_gravity_a  (3)
+       |   [  3:  6]  projected_gravity_b  (3)
+       |   [  6:  9]  base_ang_vel_a  (3)
+       |   [  9: 12]  base_ang_vel_b  (3)
+       |   [ 12: 34]  joint_pos_a  (22)
+       |   [ 34: 56]  joint_pos_b  (22)
+       |   [ 56: 78]  joint_vel_a  (22)
+       |   [ 78:100]  joint_vel_b  (22)
+       |   [100:103]  object_pos_a  (3)
+       |   [103:106]  object_pos_b  (3)
+       |   [106:128]  track_err_a  (22)
+       |   [128:150]  track_err_b  (22)
+       |   [150:194]  actions  (44)
+       |   [194:258]  depth_a  (64)
+       |   [258:322]  depth_b  (64)
+PASS  | obs_width: 322 against replay's 322 for depthboth
+PASS  | depth_present: depth terms ['depth_a', 'depth_b']
+PASS  | depth_is_last: vector ends with ['depth_a', 'depth_b']
+PASS  | actions_before_depth: actions at 12, depth_a at 13
+PASS  | object_pose_gating: object pose terms ['object_pos_a', 'object_pos_b'] for depthboth
+PASS  | finite: 100% finite pixels, res 64x64
+PASS  | resolution: 64 against cfg 64
+CHECK  | camera height 0.150 m; floor-only depth spans 0.17-6.00 m
+PASS  | payload_visible: 81.9% of pixels are >2 cm nearer than bare floor (3354 px)
+CHECK  | near-blob rows 0-60, cols 0-63, min depth 0.073 m
+PASS  | tracks_transform: blob centroid row 25.9 -> 22.3 after lifting the cube 20 cm
+PASS  | image_changed: mean |delta| = 0.0360 m
+PASS  | blob_is_the_payload: 0.0% near pixels with the cube 8 m away (was 81.9%)
+PASS  | restored: 79.8% near pixels after moving it back (was 81.9%, gate 40.9%)
+
+RESULT | ALL PASS
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | arm depthswap: drop_object_pose=True
+CHECK  | policy observation terms, in manager order:
+       |   [  0:  3]  projected_gravity_a  (3)
+       |   [  3:  6]  projected_gravity_b  (3)
+       |   [  6:  9]  base_ang_vel_a  (3)
+       |   [  9: 12]  base_ang_vel_b  (3)
+       |   [ 12: 34]  joint_pos_a  (22)
+       |   [ 34: 56]  joint_pos_b  (22)
+       |   [ 56: 78]  joint_vel_a  (22)
+       |   [ 78:100]  joint_vel_b  (22)
+       |   [100:122]  track_err_a  (22)
+       |   [122:144]  track_err_b  (22)
+       |   [144:188]  actions  (44)
+       |   [188:252]  depth_a  (64)
+       |   [252:316]  depth_b  (64)
+PASS  | obs_width: 316 against replay's 316 for depthswap
+PASS  | depth_present: depth terms ['depth_a', 'depth_b']
+PASS  | depth_is_last: vector ends with ['depth_a', 'depth_b']
+PASS  | actions_before_depth: actions at 10, depth_a at 11
+PASS  | object_pose_gating: object pose terms [] for depthswap
+PASS  | finite: 100% finite pixels, res 64x64
+PASS  | resolution: 64 against cfg 64
+CHECK  | camera height 0.145 m; floor-only depth spans 0.17-6.00 m
+PASS  | payload_visible: 74.9% of pixels are >2 cm nearer than bare floor (3068 px)
+CHECK  | near-blob rows 0-57, cols 0-63, min depth 0.079 m
+PASS  | tracks_transform: blob centroid row 23.9 -> 21.0 after lifting the cube 20 cm
+PASS  | image_changed: mean |delta| = 0.1217 m
+PASS  | blob_is_the_payload: 0.2% near pixels with the cube 8 m away (was 74.9%)
+PASS  | restored: 70.9% near pixels after moving it back (was 74.9%, gate 37.5%)
+
+RESULT | ALL PASS
+CHECK  | camera pitch from cfg quaternion: 19.99 deg below horizontal
+CHECK  | arm depthboth: drop_object_pose=False
+CHECK  | policy observation terms, in manager order:
+       |   [  0:  3]  projected_gravity_a  (3)
+       |   [  3:  6]  projected_gravity_b  (3)
+       |   [  6:  9]  base_ang_vel_a  (3)
+       |   [  9: 12]  base_ang_vel_b  (3)
+       |   [ 12: 34]  joint_pos_a  (22)
+       |   [ 34: 56]  joint_pos_b  (22)
+       |   [ 56: 78]  joint_vel_a  (22)
+       |   [ 78:100]  joint_vel_b  (22)
+       |   [100:103]  object_pos_a  (3)
+       |   [103:106]  object_pos_b  (3)
+       |   [106:128]  track_err_a  (22)
+       |   [128:150]  track_err_b  (22)
+       |   [150:194]  actions  (44)
+       |   [194:258]  depth_a  (64)
+       |   [258:322]  depth_b  (64)
+PASS  | obs_width: 322 against replay's 322 for depthboth
+PASS  | depth_present: depth terms ['depth_a', 'depth_b']
+PASS  | depth_is_last: vector ends with ['depth_a', 'depth_b']
+PASS  | actions_before_depth: actions at 12, depth_a at 13
+PASS  | object_pose_gating: object pose terms ['object_pos_a', 'object_pos_b'] for depthboth
+PASS  | finite: 100% finite pixels, res 64x64
+PASS  | resolution: 64 against cfg 64
+CHECK  | camera height 0.148 m; floor-only depth spans 0.17-6.00 m
+PASS  | payload_visible: 75.3% of pixels are >2 cm nearer than bare floor (3085 px)
+CHECK  | near-blob rows 0-59, cols 0-63, min depth 0.071 m
+PASS  | tracks_transform: blob centroid row 24.0 -> 21.9 after lifting the cube 20 cm
+PASS  | image_changed: mean |delta| = 0.0313 m
+PASS  | blob_is_the_payload: 0.0% near pixels with the cube 8 m away (was 75.3%)
+PASS  | restored: 82.5% near pixels after moving it back (was 75.3%, gate 37.7%)
+
+RESULT | ALL PASS

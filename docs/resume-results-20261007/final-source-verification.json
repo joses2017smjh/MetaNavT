@@ -1,0 +1,40 @@
+{
+  "scope": "Final source matches recorded fingerprints; this is integrity verification, not a rerun of measurements.",
+  "checks": [
+    {
+      "artifact": "MetaNavT/MetaNaviT/bench/results/trusted_actions.json",
+      "checked_files": 12,
+      "status": "PASS"
+    },
+    {
+      "artifact": "MetaNavT/MetaNaviT/bench/results/evidence_consistency.json",
+      "checked_files": 12,
+      "status": "PASS"
+    },
+    {
+      "artifact": "MetaNavT/MetaNaviT/bench/results/robotics_file_lookup_revalidated_2026-10-07.json",
+      "checked_files": 4,
+      "status": "PASS"
+    },
+    {
+      "artifact": "MetaNavT/MetaNaviT/bench/results/revamp_20261007/m2_m3_summary.json",
+      "checked_files": 8,
+      "status": "PASS"
+    },
+    {
+      "artifact": "output/humanoid-replay-2026-10-07/final-validation.json",
+      "checked_files": 9,
+      "status": "PASS"
+    },
+    {
+      "artifact": "Humanoid_Lite/bhl-robustness-ladder/results/resume-revamp-20261007/EVIDENCE.json",
+      "checked_files": 12,
+      "status": "PASS"
+    },
+    {
+      "artifact": "resume-projects.pdf/revamp-report.pdf",
+      "status": "PASS",
+      "layout": "One-page resume sections and three-page report; no overfull boxes; rendered inspection completed."
+    }
+  ]
+}

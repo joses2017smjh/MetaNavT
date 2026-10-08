@@ -2,7 +2,7 @@
 
 POST /api/plans                 {"src": "...", "dst": "..."} -> a pending MovePlan (no file touched)
 GET  /api/plans                 every plan this process knows, newest first
-POST /api/plans/{id}/approve    apply_plan(approved=True): the only code path that moves the file
+POST /api/plans/{id}/approve    requires an externally issued operator capability; never mints approval
 POST /api/plans/{id}/reject     mark rejected; the file is never touched
 
 Backed by app.mcp.filesystem.FilesystemTools (the same gate the MCP tools use)
@@ -48,11 +48,13 @@ class PlanView(BaseModel):
     decided_at: Optional[float] = None
     actor: Optional[str] = None
     note: Optional[str] = None
+    review: dict[str, Any] | None = None
 
 
 class Decision(BaseModel):
     actor: str = Field("web-ui", max_length=128)
     note: Optional[str] = Field(None, max_length=1000)
+    approval_token: Optional[str] = Field(None, max_length=8192)
 
 
 class PlanStore:
@@ -68,6 +70,8 @@ class PlanStore:
             plan = self.tools.propose_move(src, dst)
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=f"source not found: {exc}") from exc
+        except FileExistsError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except PermissionError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return self.view(plan["plan_id"])
@@ -86,12 +90,12 @@ class PlanStore:
         else:
             status = "pending_approval"
         return PlanView(plan_id=plan.plan_id, src=plan.src, dst=plan.dst, status=status, created_at=plan.created_at,
-                        decided_at=decision.get("decided_at"), actor=decision.get("actor"), note=decision.get("note"))
+                        decided_at=decision.get("decided_at"), actor=decision.get("actor"), note=decision.get("note"), review=self.tools.review_plan(plan_id))
 
     def list(self) -> list[PlanView]:
         return sorted((self.view(pid) for pid in self.tools.plans), key=lambda p: p.created_at, reverse=True)
 
-    def decide(self, plan_id: str, action: str, actor: str, note: Optional[str]) -> PlanView:
+    def decide(self, plan_id: str, action: str, actor: str, note: Optional[str], approval_token: str | None = None) -> PlanView:
         current = self.view(plan_id)
         if current.status in {"applied", "rejected"}:
             raise HTTPException(status_code=409, detail=f"plan {plan_id} is already {current.status}")
@@ -105,11 +109,18 @@ class PlanStore:
         self.decisions[plan_id] = record
         if action == "approve":
             try:
-                result = self.tools.apply_plan(plan_id, approved=True)
+                result = self.tools.apply_plan(plan_id, approval_token=approval_token)
                 record["result"] = result.get("status", "applied")
-            except ApprovalRequired as exc:  # cannot happen with approved=True; kept explicit
+            except (ApprovalRequired, PermissionError) as exc:
                 record["result"] = f"refused: {exc}"
-                raise HTTPException(status_code=500, detail=str(exc)) from exc
+                if self.log is not None:
+                    self.log.update(record)
+                raise HTTPException(status_code=403, detail=str(exc)) from exc
+            except FileExistsError as exc:
+                record["result"] = f"refused: {exc}"
+                if self.log is not None:
+                    self.log.update(record)
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
             except OSError as exc:
                 record["result"] = f"failed: {exc}"
                 if self.log is not None:
@@ -179,7 +190,7 @@ class DecisionLog:
 
 def build_plan_store(vsm=None, root: str | None = None) -> PlanStore:
     root = root or os.getenv("DATA_DIR", "data")
-    tools = FilesystemTools(root=root)  # allow_apply stays False: only an explicit approval applies
+    tools = FilesystemTools(root=root)  # allow_apply stays False: only an operator capability applies
     log = DecisionLog(vsm) if vsm is not None else None
     return PlanStore(tools, log)
 
@@ -218,7 +229,7 @@ async def get_plan(plan_id: str, request: Request) -> PlanView:
 @r.post("/{plan_id}/approve", response_model=PlanView)
 async def approve_plan(plan_id: str, request: Request, body: Decision | None = None) -> PlanView:
     body = body or Decision()
-    return await run_in_threadpool(_store(request).decide, plan_id, "approve", body.actor, body.note)
+    return await run_in_threadpool(_store(request).decide, plan_id, "approve", body.actor, body.note, body.approval_token)
 
 
 @r.post("/{plan_id}/reject", response_model=PlanView)

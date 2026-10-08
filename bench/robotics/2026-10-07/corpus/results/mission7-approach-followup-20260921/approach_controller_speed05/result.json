@@ -1,0 +1,434 @@
+{
+  "complete": true,
+  "status": "COMPLETED_DIAGNOSTIC",
+  "selection": {
+    "-1,+0": [
+      {
+        "split": "test",
+        "index": 1
+      },
+      {
+        "split": "test",
+        "index": 5
+      },
+      {
+        "split": "test",
+        "index": 6
+      },
+      {
+        "split": "test",
+        "index": 7
+      },
+      {
+        "split": "test",
+        "index": 14
+      },
+      {
+        "split": "test",
+        "index": 15
+      },
+      {
+        "split": "test",
+        "index": 17
+      },
+      {
+        "split": "test",
+        "index": 20
+      },
+      {
+        "split": "test",
+        "index": 21
+      },
+      {
+        "split": "test",
+        "index": 25
+      },
+      {
+        "split": "test",
+        "index": 31
+      },
+      {
+        "split": "test",
+        "index": 33
+      },
+      {
+        "split": "test",
+        "index": 36
+      },
+      {
+        "split": "test",
+        "index": 37
+      },
+      {
+        "split": "test",
+        "index": 41
+      },
+      {
+        "split": "test",
+        "index": 51
+      }
+    ],
+    "+0,-1": [
+      {
+        "split": "test",
+        "index": 0
+      },
+      {
+        "split": "test",
+        "index": 8
+      },
+      {
+        "split": "test",
+        "index": 9
+      },
+      {
+        "split": "test",
+        "index": 12
+      },
+      {
+        "split": "test",
+        "index": 13
+      },
+      {
+        "split": "test",
+        "index": 24
+      },
+      {
+        "split": "test",
+        "index": 26
+      },
+      {
+        "split": "test",
+        "index": 29
+      },
+      {
+        "split": "test",
+        "index": 30
+      },
+      {
+        "split": "test",
+        "index": 32
+      },
+      {
+        "split": "test",
+        "index": 35
+      },
+      {
+        "split": "test",
+        "index": 42
+      },
+      {
+        "split": "test",
+        "index": 44
+      },
+      {
+        "split": "test",
+        "index": 45
+      },
+      {
+        "split": "test",
+        "index": 46
+      },
+      {
+        "split": "test",
+        "index": 50
+      }
+    ],
+    "+0,+1": [
+      {
+        "split": "test",
+        "index": 3
+      },
+      {
+        "split": "test",
+        "index": 4
+      },
+      {
+        "split": "test",
+        "index": 16
+      },
+      {
+        "split": "test",
+        "index": 18
+      },
+      {
+        "split": "test",
+        "index": 19
+      },
+      {
+        "split": "test",
+        "index": 23
+      },
+      {
+        "split": "test",
+        "index": 27
+      },
+      {
+        "split": "test",
+        "index": 39
+      },
+      {
+        "split": "test",
+        "index": 43
+      },
+      {
+        "split": "test",
+        "index": 49
+      },
+      {
+        "split": "test",
+        "index": 52
+      },
+      {
+        "split": "test",
+        "index": 54
+      },
+      {
+        "split": "test",
+        "index": 61
+      },
+      {
+        "split": "validation",
+        "index": 3
+      },
+      {
+        "split": "validation",
+        "index": 4
+      },
+      {
+        "split": "validation",
+        "index": 15
+      }
+    ],
+    "+1,+0": [
+      {
+        "split": "test",
+        "index": 2
+      },
+      {
+        "split": "test",
+        "index": 10
+      },
+      {
+        "split": "test",
+        "index": 11
+      },
+      {
+        "split": "test",
+        "index": 22
+      },
+      {
+        "split": "test",
+        "index": 28
+      },
+      {
+        "split": "test",
+        "index": 34
+      },
+      {
+        "split": "test",
+        "index": 38
+      },
+      {
+        "split": "test",
+        "index": 40
+      },
+      {
+        "split": "test",
+        "index": 47
+      },
+      {
+        "split": "test",
+        "index": 48
+      },
+      {
+        "split": "test",
+        "index": 53
+      },
+      {
+        "split": "test",
+        "index": 55
+      },
+      {
+        "split": "test",
+        "index": 58
+      },
+      {
+        "split": "validation",
+        "index": 0
+      },
+      {
+        "split": "validation",
+        "index": 6
+      },
+      {
+        "split": "validation",
+        "index": 8
+      }
+    ]
+  },
+  "controller": {
+    "speed_m_s": 0.5,
+    "stall_pulse_m_s": 0.3,
+    "stall_pulse_s": 0.4,
+    "stop_radius_m": 0.28,
+    "heading_gain": 1.2
+  },
+  "pulse": {
+    "episodes": 64,
+    "successes": 56,
+    "success_rate": 0.875,
+    "falls": 0,
+    "failures": {
+      "success": 56,
+      "failed_to_rotate_or_align_or_stopped_early": 8
+    },
+    "by_direction": {
+      "+0,+1": {
+        "episodes": 16,
+        "successes": 16,
+        "success_rate": 1.0,
+        "falls": 0,
+        "failures": {
+          "success": 16
+        }
+      },
+      "+0,-1": {
+        "episodes": 16,
+        "successes": 16,
+        "success_rate": 1.0,
+        "falls": 0,
+        "failures": {
+          "success": 16
+        }
+      },
+      "+1,+0": {
+        "episodes": 16,
+        "successes": 16,
+        "success_rate": 1.0,
+        "falls": 0,
+        "failures": {
+          "success": 16
+        }
+      },
+      "-1,+0": {
+        "episodes": 16,
+        "successes": 8,
+        "success_rate": 0.5,
+        "falls": 0,
+        "failures": {
+          "success": 8,
+          "failed_to_rotate_or_align_or_stopped_early": 8
+        }
+      }
+    }
+  },
+  "controls": {
+    "matched_standstill": {
+      "episodes": 64,
+      "successes": 0,
+      "success_rate": 0.0,
+      "falls": 0,
+      "failures": {
+        "failed_to_translate_toward_target": 64
+      },
+      "by_direction": {
+        "+0,+1": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "failed_to_translate_toward_target": 16
+          }
+        },
+        "+0,-1": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "failed_to_translate_toward_target": 16
+          }
+        },
+        "+1,+0": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "failed_to_translate_toward_target": 16
+          }
+        },
+        "-1,+0": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "failed_to_translate_toward_target": 16
+          }
+        }
+      }
+    },
+    "easy_standstill": {
+      "episodes": 64,
+      "successes": 12,
+      "success_rate": 0.1875,
+      "falls": 0,
+      "failures": {
+        "success": 12,
+        "failed_to_translate_toward_target": 37,
+        "entered_goal_region_but_dwell_failed": 15
+      },
+      "by_direction": {
+        "+0,+1": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "failed_to_translate_toward_target": 16
+          }
+        },
+        "+0,-1": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "failed_to_translate_toward_target": 16
+          }
+        },
+        "+1,+0": {
+          "episodes": 16,
+          "successes": 0,
+          "success_rate": 0.0,
+          "falls": 0,
+          "failures": {
+            "entered_goal_region_but_dwell_failed": 15,
+            "failed_to_translate_toward_target": 1
+          }
+        },
+        "-1,+0": {
+          "episodes": 16,
+          "successes": 12,
+          "success_rate": 0.75,
+          "falls": 0,
+          "failures": {
+            "success": 12,
+            "failed_to_translate_toward_target": 4
+          }
+        }
+      }
+    }
+  },
+  "gate": {
+    "minimum_episodes": true,
+    "successes_at_least_60": false,
+    "zero_falls": true,
+    "per_direction_at_least_14": false
+  },
+  "benchmark_geometry_unchanged": true,
+  "note": "Test split is used for a balanced 16-per-direction matrix; all four directions have matched pulse and standstill controls."
+}

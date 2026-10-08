@@ -1,0 +1,7 @@
+A plain Crew3Cfg(): observations=Crew3ObservationsCfg policy=PolicyCfg
+A plain Crew3Cfg(): 23 terms | pair-style [] | crew-style ['base_ang_vel_0', 'base_ang_vel_1', 'base_ang_vel_2', 'joint_pos_0']
+A plain Crew3Cfg(): VERDICT CLEAN
+B parse_env_cfg: observations=Crew3ObservationsCfg policy=PolicyCfg
+B parse_env_cfg: 23 terms | pair-style [] | crew-style ['base_ang_vel_0', 'base_ang_vel_1', 'base_ang_vel_2', 'joint_pos_0']
+B parse_env_cfg: VERDICT CLEAN
+CONCLUSION | both paths clean; the leak is downstream of cfg construction, i.e. in Hydra's to_dict/from_dict round trip.

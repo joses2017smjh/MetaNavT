@@ -1,0 +1,303 @@
+{
+ "arm": "ER-OBS-1-OW",
+ "label": "LEARNED gait (frozen arms-dr1.0-s0) + SCRIPTED arms + EXTERNAL VLM observer (Gemini Robotics-ER 2 preview, rendered RGB, offline)",
+ "prompt_text": "This image is one frame from a fixed camera watching a physics simulation. Two humanoid robots (orange and black) stand side by side on a checkered floor. Between them is a small grey plinth (a box-shaped stand, 0.19 m tall). A blue cube, 0.28 m on each side, starts on top of the plinth; the robots may squeeze it between their hands, lift it, hold it, lower it, release it or drop it.\nReport the state of the blue cube in this frame only, as JSON with these fields:\n- cube_point: one point on the blue cube as [y, x], each normalized to 0-1000 (y from the top edge of the image, x from the left edge).\n- lifted_clear: true if the cube is lifted clear: its lowest corner is at least 2 cm above every surface directly below it (the floor, and the plinth top when the cube is over the plinth), so it rests on neither.\n- on_floor: true if any part of the cube touches the floor.\n- robot_contact: true if the robots press on the cube: the total contact force from the robots on the cube is more than 1 newton.\n- seated_flat: true if the cube sits on the plinth: it touches the plinth with its centre over the plinth top, and one of its faces (any face) is flat down, within 8 degrees of level.\nAnswer with the JSON object only.\nJSON schema of the answer: {\"properties\": {\"cube_point\": {\"description\": \"[y, x] of one point on the blue cube, each normalized to 0-1000\", \"items\": {\"type\": \"integer\"}, \"maxItems\": 2, \"minItems\": 2, \"type\": \"array\"}, \"lifted_clear\": {\"type\": \"boolean\"}, \"on_floor\": {\"type\": \"boolean\"}, \"robot_contact\": {\"type\": \"boolean\"}, \"seated_flat\": {\"type\": \"boolean\"}}, \"required\": [\"cube_point\", \"lifted_clear\", \"on_floor\", \"robot_contact\", \"seated_flat\"], \"type\": \"object\"}",
+ "prompt_schema_sha256": "873d16aed67f87f36fff88dbe7deb2ad6ec55abd0ce71c1a9e581f059191c20b",
+ "decoding": {
+  "do_sample": false,
+  "max_new_tokens": 256,
+  "dtype": "bfloat16",
+  "batch": 1
+ },
+ "source_sha256": {
+  "scripts/bench/er_obs_local.py": "733e863bb044aab09a2e10ccd7ee139a64608799cfa01dbc85577dafb9fec722",
+  "src/bhl_robust/eval/er_obs/client.py": "b49f4f8bbc822129a4da074603f8c9cabd7fbd97df1c6a050db0341606a43c80",
+  "src/bhl_robust/eval/er_obs/verdict.py": "32b2c3d6de458af30a88a8fd5015c021832eb2b7ab60b082f2c390adcbfdf223",
+  "scripts/bench/er_obs.py": "42875a21503df347c390b12994c1847e9109e5fa573f8dfadb7a12162f52d3ae"
+ },
+ "host": "dgxh-1.hpc.engr.oregonstate.edu",
+ "slurm_job_id": "21549476",
+ "written_at": "2026-10-04T22:05:39-0700",
+ "verdict": "NEGATIVE",
+ "checks": {
+  "main_ba_all_ge_0.90": false,
+  "point_hit_rate_ge_0.95": false,
+  "c1_ba_all_le_0.60": true
+ },
+ "incomplete_reasons": [],
+ "frames": 400,
+ "expected_frames": 400,
+ "class_counts": {
+  "lifted_clear": {
+   "true": 62,
+   "false": 338
+  },
+  "on_floor": {
+   "true": 150,
+   "false": 250
+  },
+  "robot_contact": {
+   "true": 180,
+   "false": 220
+  },
+  "seated_flat": {
+   "true": 118,
+   "false": 282
+  }
+ },
+ "main_balanced_accuracy": {
+  "lifted_clear": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 62,
+   "tn": 338,
+   "fp": 0,
+   "n_pos": 62,
+   "n_neg": 338,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "on_floor": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 150,
+   "tn": 250,
+   "fp": 0,
+   "n_pos": 150,
+   "n_neg": 250,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "robot_contact": {
+   "ba": 0.5671717171717172,
+   "tpr": 0.1388888888888889,
+   "tnr": 0.9954545454545455,
+   "tp": 25,
+   "fn": 155,
+   "tn": 219,
+   "fp": 1,
+   "n_pos": 180,
+   "n_neg": 220,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "seated_flat": {
+   "ba": 0.9032335617261691,
+   "tpr": 0.8135593220338984,
+   "tnr": 0.9929078014184397,
+   "tp": 96,
+   "fn": 22,
+   "tn": 280,
+   "fp": 2,
+   "n_pos": 118,
+   "n_neg": 282,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  }
+ },
+ "c1_balanced_accuracy": {
+  "lifted_clear": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 62,
+   "tn": 338,
+   "fp": 0,
+   "n_pos": 62,
+   "n_neg": 338,
+   "n_failed": 0,
+   "failed_scored_as": "correct"
+  },
+  "on_floor": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 150,
+   "tn": 250,
+   "fp": 0,
+   "n_pos": 150,
+   "n_neg": 250,
+   "n_failed": 0,
+   "failed_scored_as": "correct"
+  },
+  "robot_contact": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 180,
+   "tn": 220,
+   "fp": 0,
+   "n_pos": 180,
+   "n_neg": 220,
+   "n_failed": 0,
+   "failed_scored_as": "correct"
+  },
+  "seated_flat": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 118,
+   "tn": 282,
+   "fp": 0,
+   "n_pos": 118,
+   "n_neg": 282,
+   "n_failed": 0,
+   "failed_scored_as": "correct"
+  }
+ },
+ "scoring": {
+  "main": "a failed call is scored WRONG (the negation of the label) on every boolean and the point",
+  "c1": "a failed call (no four parsed booleans) is scored CORRECT on every boolean; the C1 booleans are parsed on their own, whatever cube_point holds (the point is never scored on C1)"
+ },
+ "main_failures": {
+  "failed": 0,
+  "frames_with_outcome": 400,
+  "rate": 0.0,
+  "failed_kinds": {}
+ },
+ "c1_failures": {
+  "failed": 0,
+  "frames_with_outcome": 400,
+  "rate": 0.0,
+  "failed_kinds": {}
+ },
+ "c1_balanced_accuracy_answered_only": {
+  "lifted_clear": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 62,
+   "tn": 338,
+   "fp": 0,
+   "n_pos": 62,
+   "n_neg": 338,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "on_floor": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 150,
+   "tn": 250,
+   "fp": 0,
+   "n_pos": 150,
+   "n_neg": 250,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "robot_contact": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 180,
+   "tn": 220,
+   "fp": 0,
+   "n_pos": 180,
+   "n_neg": 220,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "seated_flat": {
+   "ba": 0.5,
+   "tpr": 0.0,
+   "tnr": 1.0,
+   "tp": 0,
+   "fn": 118,
+   "tn": 282,
+   "fp": 0,
+   "n_pos": 118,
+   "n_neg": 282,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  }
+ },
+ "c1_answered_only_note": "C1 BA over the C1 frames with four parsed booleans only: reported, never gating",
+ "point": {
+  "cube_visible_frames": 400,
+  "hits": 240,
+  "hit_rate": 0.6
+ },
+ "outcome_kinds": {
+  "main": {
+   "ok": 400
+  },
+  "c1": {
+   "ok": 400
+  }
+ },
+ "missing_outcomes": [],
+ "n_missing_outcomes": 0,
+ "c2_status_quo": {
+  "lifted_centre_vs_lifted_clear": {
+   "ba": 0.9511834319526626,
+   "tpr": 1.0,
+   "tnr": 0.9023668639053254,
+   "tp": 62,
+   "fn": 0,
+   "tn": 305,
+   "fp": 33,
+   "n_pos": 62,
+   "n_neg": 338,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "placed_no_orientation_vs_seated_flat": {
+   "ba": 1.0,
+   "tpr": 1.0,
+   "tnr": 1.0,
+   "tp": 118,
+   "fn": 0,
+   "tn": 282,
+   "fp": 0,
+   "n_pos": 118,
+   "n_neg": 282,
+   "n_failed": 0,
+   "failed_scored_as": "wrong"
+  },
+  "frames": 400
+ },
+ "body_z_disagreement": {
+  "frames": 18,
+  "ids": [
+   "s307_t12",
+   "s307_t13",
+   "s307_t14",
+   "s307_t15",
+   "s307_t16",
+   "s307_t17",
+   "s307_t18",
+   "s307_t19",
+   "s307_t20",
+   "s314_t12",
+   "s314_t13",
+   "s314_t14",
+   "s314_t15",
+   "s314_t16",
+   "s314_t17",
+   "s314_t18",
+   "s314_t19",
+   "s314_t20"
+  ],
+  "note": "seated_flat (any face down) vs Stand4's strict body-z tilt"
+ },
+ "which": "accuracy",
+ "mode": "run",
+ "model": "allenai/Molmo2-ER",
+ "inputs": {
+  "calls": "/nfs/hpc/share/sanchej7/Humanoid_Lite/er-obs1-data/ow/molmo2-er/calls-run/calls.json",
+  "calls_sha256": "71dbf143c2c99b8657aedeb62829bc6f00ff311345019343f723cc8ced79c08e",
+  "frames_manifest_sha256": "9b6fd86ef05559a9019cb337072f648a8c32a90f0cb2b961c3d4ff4042d79f9c"
+ }
+}
