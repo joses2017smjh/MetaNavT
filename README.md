@@ -8,7 +8,7 @@ MetaNaviT combines lexical and dense retrieval with source locations, version-aw
 
 *Illustrated fixture interaction, not a live model recording. The project also includes generated traces from its real offline retrieval stack. [Measured fixture demos](doc/engineering-reference.md#hard-benchmark-demos-generated).*
 
-[Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) · [Run the benchmark](#run-the-cpu-benchmark) · [Architecture](#how-it-works) · [Engineering reference](doc/engineering-reference.md) · [Agent Field mobile companion](mobile/README.md)
+[Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) · [Demo walkthroughs](#demo-walkthroughs) · [Run the benchmark](#run-the-cpu-benchmark) · [Architecture](#how-it-works) · [Engineering reference](doc/engineering-reference.md) · [Agent Field mobile companion](mobile/README.md)
 
 ## Problem and contribution
 
@@ -24,15 +24,34 @@ Research directories contain near-duplicate configurations, archived results, an
 - **Review changes:** the separate file-operation tools propose plans and require externally signed, single-use approval tokens to apply them.
 - **Measure regressions:** keep deterministic fixture checks, real-model experiments, and external-domain evaluations separate.
 
+## Demo walkthroughs
+
+### Combine exact terms with semantic matches
+
+[![Illustrated lexical and dense candidate lists combined through reciprocal rank fusion](doc/gifs/hybrid.gif)](doc/engineering-reference.md#hybrid-search)
+
+*Illustrated ranking flow. The displayed Recall@50 comes from the 61-file fixture, where retrieving most files makes coverage easy; it is not a claim about external-domain ranking quality.*
+
+### Keep archived evidence from becoming the answer
+
+[![Two generated fixture traces comparing archived configurations and contradictory paper drafts before and after current-version filtering](doc/gifs/hard-staleness.gif)](doc/engineering-reference.md#staleness-under-contradiction)
+
+*Generated traces for fixture questions `q115` and `q117`: remove known superseded paths and surface conflicting claims. These two cases illustrate the mechanism; aggregate results are reported separately. [Trace data](doc/demo/traces.json) · [Case manifest](bench/demo/manifest.json).*
+
 ## Evidence and limits
+
+**Evidence checked October 14, 2026.** The latest committed retrieval and HTTP-load additions are from the October 7 campaign. These are stored measurements; this README refresh does not claim a new evaluation run.
 
 | Evaluation | Published finding | Scope |
 | --- | --- | --- |
 | NFCorpus | Hybrid nDCG@10 **0.3637**, versus **0.3207** for BM25 | 323 official test queries; the added reranker reduced the hybrid score. [Results](bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) |
 | FiQA | Dense nDCG@10 **0.3848**, versus **0.3645** for hybrid | 648 test queries; hybrid is not the best choice on every corpus. [Results](bench/results/revamp_20261007/beir_fiqa_gpu.json) |
 | Robotics-file lookup | Path context increased source-file Recall@10 **0.058 → 0.671** | 240 generated test questions with disjoint experiment families; this measures file retrieval, not answer correctness. [Results](bench/results/robotics_file_lookup_revalidated_2026-10-07.json) |
+| Neural HTTP service | Client p95 **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16** | H100, 600 files, 5,633 nodes; 16 requests per level, all 48 measured requests succeeded. A short workload, not a capacity claim. [Results](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json) |
 
 The small frozen fixture uses **hash embeddings and overlap reranking**. Its full pipeline does not establish an overall ranking improvement over BM25. Model-backed retrieval, generated answers, and mobile fixture replays have different dependencies and evidence. [Full generated measurements](#generated-benchmark-evidence) · [HTTP load studies](doc/engineering-reference.md#measured-neural-http-service).
+
+The generated-answer study is separate from retrieval ranking. Its judge-validity gate could not be evaluated on the saturated reference slice, so judge scores remain withheld. [Answer-evaluation artifact](bench/results/jury.json).
 
 ## How it works
 
