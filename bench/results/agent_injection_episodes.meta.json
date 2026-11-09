@@ -1,0 +1,67 @@
+{
+  "reconstructed": true,
+  "note": "Written after the fact: this run predates the sidecar. The run was interrupted after 241 episodes, when the job order changed from task-major to trial-major, and resumed with --resume; the code that generates episodes (tasks, prompts, tools, chat client, max_turns, temperature, seeds) did not change between the two segments. The resumed process's own summary step failed (rows from the first segment lacked a score field added later), so every score and the summary come from --summarize-only, which rescores the stored answers and tool calls. Times are from the interactive session's clock, not recorded by the harness; the Ollama version and digests were read from the same server process after the run.",
+  "wall_note": "about 50 minutes over two process segments (times from the session clock, not recorded by the harness)",
+  "segments": [
+    {
+      "git_head": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+      "working_tree_dirty": true,
+      "device": {
+        "gpu": "Tesla V100-SXM3-32GB"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.32.12",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          },
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        }
+      },
+      "command": "python -m app.eval.agent_injection --base-url http://127.0.0.1:11535 --models qwen2.5:7b,llama3.1:8b --k 4 --workers 8 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl",
+      "module_sha256": null,
+      "started_utc": "2026-10-16T00:00Z (approximate)",
+      "finished_utc": "2026-10-16T00:18:30Z (approximate, interrupted)",
+      "episodes_before": 0,
+      "episodes_after": 241,
+      "wall_s": null
+    },
+    {
+      "git_head": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+      "working_tree_dirty": true,
+      "device": {
+        "gpu": "Tesla V100-SXM3-32GB"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.32.12",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          },
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        }
+      },
+      "command": "python -m app.eval.agent_injection --base-url http://127.0.0.1:11535 --models qwen2.5:7b,llama3.1:8b --k 4 --workers 8 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl --resume",
+      "module_sha256": null,
+      "started_utc": "2026-10-16T00:18:56Z",
+      "finished_utc": "2026-10-16T00:52:44Z (last episode written)",
+      "episodes_before": 241,
+      "episodes_after": 1200,
+      "wall_s": null
+    }
+  ]
+}

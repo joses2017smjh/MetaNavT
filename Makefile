@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -66,6 +66,13 @@ bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic ju
 
 bench-frontier:
 	$(PYTHON) -m app.eval.harness --frontier
+
+AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
+bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
+
+bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json from the committed episodes (no model call)
+	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
 
 freeze-corpus:
 	$(PYTHON) bench/corpus/build.py
