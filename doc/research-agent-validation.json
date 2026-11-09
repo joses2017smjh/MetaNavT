@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "validation": "actual_loopback_TCP_uvicorn_service",
+  "synthetic": true,
+  "python": "3.14.4",
+  "health": {
+    "service": "metanavt-agent",
+    "demo_ready": true,
+    "live_configured": false,
+    "live_readiness": "not_probed",
+    "demo_model": "scripted-extractive-demo-v1",
+    "live_model": null,
+    "notice": "Configured does not mean that the model is installed, supports tools, or is ready. Live capability is validated by an actual request."
+  },
+  "cases": [
+    {
+      "case": "What is the learning rate in run_047.yaml?",
+      "http_status": 200,
+      "status": "complete",
+      "tool_calls": 2
+    },
+    {
+      "case": "What checkpoint belongs to run_047.ckpt.meta.json?",
+      "http_status": 200,
+      "status": "complete",
+      "tool_calls": 2
+    },
+    {
+      "case": "What GPU resources does run_047.sbatch request?",
+      "http_status": 200,
+      "status": "complete",
+      "tool_calls": 2
+    }
+  ],
+  "unauthenticated_live_status": 401,
+  "operator_approval_route_status": 404,
+  "explicit_cors_status": 200,
+  "real_LLM_inference_tested": false,
+  "live_protocol_tests": "simulated Ollama responses, not model inference",
+  "test_command": "python -m pytest -q tests/eval/test_companion_agent.py tests/mcp/test_research_companion.py",
+  "tests_passed": 36
+}

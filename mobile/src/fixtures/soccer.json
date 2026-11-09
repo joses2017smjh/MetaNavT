@@ -1,0 +1,1216 @@
+{
+  "schema_version": "1.0",
+  "service": "soccer",
+  "generated_at_utc": "2026-10-07T12:00:00+00:00",
+  "base_commit": "f5699deca4b4be08297293fa1770929f1cd168bc",
+  "generator": "python -m scripts.export_mobile_demo",
+  "source_sha256": {
+    "scripts/build_demo_artifacts.py": "0907d6f0e2e0a58b5e5e276ed88bd44e2a1511bd220403b777676e9deee27ba4",
+    "scripts/export_mobile_demo.py": "172d41662c220b8563af9199892f964b89eca6f51d16043c79ed61f64caa6397",
+    "agent/graph.py": "e0753f472ce64cad20d3b5e2928ced11edfb29c0fd553e15ab1cdfeb1e2c2217",
+    "agent/parse.py": "4f15d56596a95ad5d2ddc064e10e6756a53d42c133d72792f937fa852d14e38d",
+    "agent/state.py": "1d63acd753a9efb75f29de846fc5c3abbd5b1a7819d31e304f14a15103527983",
+    "agent/synthesis.py": "e2cf858199ae3b85d272386d2d3aad63d40285406701286ead82347ae54fe2b2",
+    "agent/tooling.py": "887e98554d3ae52061ed19cc9e0eaec90f13c872eed9e171c880ba6499115150",
+    "mcp_servers/common.py": "4da8d515335aabcd9f87a11516ebee06e668da92c648007714d1122ad9a57d82",
+    "mcp_servers/demo_data.py": "559f57e1969c35be6b98c5f66c30dd76924859dc363ae071eb94227bf40b8ba2",
+    "mcp_servers/data_server/backend.py": "7bc61189da0dab6b6dadd7bd5192d09fa0c4f22ad2d8eee8970a6aeef801a17d",
+    "mcp_servers/data_server/server.py": "aedbe76a7d5563fb1f510b6cd4c166162d9007a44466302bc9b2fa7f97ee48f3",
+    "mcp_servers/news_server/server.py": "c73ebbe3909b11c560d613e8787ed088f4d37dc825da7421e542796eb6e42ff2",
+    "mcp_servers/ml_server/server.py": "c94572194b291fcbdfe255cc57e42847180ce4a88c3ff86c5f85703ddaf287ac",
+    "src/models/artifact.py": "36bd1e0abef5a3acac5f02835b8187b1a32e2e1f9112169f7dd9928876f9a799",
+    "src/models/calibration.py": "8941e658137c926b581498a240a813eb3f8f421859e05f40368b1aa29aabbbe9",
+    "src/models/conformal.py": "69aa7fae8a8d9503a0c880ceb53a108fe2d077be8d2fe88f75d0f41bcc9e33de",
+    "src/models/gbm.py": "5e0d5a371a88ed900798af77098475622b27fac2571350a30629f5efca8b6d7d",
+    "src/models/predict.py": "a143a96079f2c49578c1f74a8a1253c03db0bf3073faac1fbc662a2c18c67ee6",
+    "src/models/score_grid.py": "4f8222f219955a948acde620b8c37c7dd681ac446d7c14393cea76ea14578642",
+    "src/models/sequence.py": "0a993451e2b8dbef169196ece4c3e88ffb30b15597eba09092896bcbc6cea5cf",
+    "src/models/player_props.py": "91977fd85063fa54bacbf40f094122990bfdd864a2073869373baea10292fafc",
+    "src/models/suggestions.py": "a3cad570a92a7d1fa22bb5ea3bed43d59fa63ced9686e1427b85512766b17008",
+    "src/news/availability.py": "4a1cbc511991c864875c4c8f48ebe9cbca32d093ef93ff07992bbb043043fad7",
+    "src/news/sentiment.py": "fa35bc103332fc1f85c4790e3fe5d9159d771d5c99370904cdfb6de295b467e8",
+    "src/news/schemas.py": "ff2b844be210e829e77f4980da50a7ee687ce2dbdf70e7d380796507f6656311"
+  },
+  "artifact_sha256": {
+    "card.json": "750aa30020fd91bddb531d78f3a73d6bdb9d07260a9ce937dd78a01aba77148a",
+    "outcome.ubj": "a4208314b5f8e6c8fa60b5af7d156d6b38e5e03854941534691ac8361fae3bbd",
+    "outcome_head.pkl": "1becd8aa674b4199ffcb287ca2dc0ccf0138849faec9f4f343b8a4634191ba9f",
+    "outcome_meta.json": "af726c3faf154abecb3039a4b80f6058b39ad1a6ee3d65ec743a6595a25db844",
+    "timing.json": "69940f9171d8b3868860f33bf925818c45beb0b84de69501d5ba95bb64f587d5",
+    "xg_away.ubj": "c989f234828c875872e1a20c9c27b2803297cd6f01d65ea99846d5a15aa75916",
+    "xg_home.ubj": "0291de7dc3ad05f8affa2144db627f75e834f526449dc2660a9d5be2511a6537",
+    "xg_meta.json": "f224ed657d884f6863ea7950c21bd0c61add762a183428bedc3e9e052a4d8353"
+  },
+  "model_card": {
+    "version": "v0-mobile-demo",
+    "trained_at_utc": "2026-10-07T12:00:00+00:00",
+    "training_window": "synthetic-demo",
+    "dixon_coles_rho": -0.03133417040117466,
+    "conformal_alpha": 0.1,
+    "feature_names": [
+      "odds_imp_home",
+      "odds_imp_draw",
+      "odds_imp_away",
+      "form_xg_for_home",
+      "form_xg_against_home",
+      "form_xg_for_away",
+      "form_xg_against_away",
+      "availability_home",
+      "availability_away",
+      "sentiment_home",
+      "sentiment_away",
+      "neutral_venue"
+    ],
+    "eval_metrics": {},
+    "notes": "Synthetic demo bundle - NOT trained on real matches."
+  },
+  "samples": [
+    {
+      "id": "arsenal-city",
+      "input": {
+        "text": "Predict Arsenal vs Man City on 2026-07-18",
+        "mode": "demo"
+      },
+      "aliases": [
+        "Predict Arsenal vs Man City",
+        "Arsenal vs Man City"
+      ],
+      "response": {
+        "service": "soccer",
+        "mode": "demo",
+        "status": "complete",
+        "thread_id": "mobile-demo-arsenal-city",
+        "answer": "**ARS vs MCI** (ARS-MCI-2026-07-18, model v0-mobile-demo)\n\nOutcome: ARS 48%, draw 28%, MCI 24% (xG 1.50–0.83).\nUncertainty: at 90% coverage the model cannot separate [home, draw] — treat this as a genuinely open match, not a pick.\nMost likely scores: 1-0 (14%), 1-1 (12%), 2-0 (11%).\nFirst goal: ARS 58%, MCI 32%, no goals 10%.\n\nHeadline scenario — most likely single outcome (14%): **ARS 1-0 MCI**\n  53' – Bukayo Saka (ARS), assisted by Martin Odegaard\n  Player of the Match: Martin Odegaard\nTop ARS scorer prob: Bukayo Saka 45% anytime.\nTop MCI scorer prob: Rodri 35% anytime.\n3 value suggestion(s) computed — awaiting human approval before disclosure.\n\n**Parlay correlation study** (same-match legs vs independent pricing):\n  O/U 2.5: over 41%, under 59%. BTTS: yes 44%, no 56%.\n  Use the Parlay Builder to price multi-leg combos with exact correlation from the Dixon-Coles grid.\n\nEvidence trail: 11 tool call(s), 0 failed.",
+        "prediction": {
+          "model_version": "v0-mobile-demo",
+          "match_outcome": {
+            "home": 0.4830256998538971,
+            "draw": 0.27611419558525085,
+            "away": 0.24086011946201324,
+            "conformal_set": [
+              "home",
+              "draw"
+            ],
+            "conformal_alpha": 0.1
+          },
+          "expected_goals": {
+            "home": 1.498617172241211,
+            "away": 0.8279687166213989
+          },
+          "exact_score": {
+            "top_scorelines": [
+              {
+                "score": "1-0",
+                "prob": 0.1425120487647162
+              },
+              {
+                "score": "1-1",
+                "prob": 0.12493406325276324
+              },
+              {
+                "score": "2-0",
+                "prob": 0.10962970330786931
+              },
+              {
+                "score": "0-0",
+                "prob": 0.10142431479619152
+              },
+              {
+                "score": "2-1",
+                "prob": 0.09076996475140128
+              }
+            ],
+            "over_under_2_5": {
+              "over": 0.41099849922733056,
+              "under": 0.5890015007726694
+            },
+            "btts": {
+              "yes": 0.4410493416056485,
+              "no": 0.5589506583943515
+            },
+            "grid_outcome_probs": {
+              "home": 0.5267564953010617,
+              "draw": 0.26953883233259673,
+              "away": 0.20370467236634146
+            },
+            "scoreline_grid": {
+              "max_goals": 5,
+              "probs": [
+                [
+                  0.10142431479619152,
+                  0.07703761462205252,
+                  0.0334637560290765,
+                  0.009235647710908693,
+                  0.0019117068455921059,
+                  0.0003165666927002481
+                ],
+                [
+                  0.1425120487647162,
+                  0.12493406325276324,
+                  0.0501493594328644,
+                  0.013840700256337997,
+                  0.002864916707095407,
+                  0.00047441228184019816
+                ],
+                [
+                  0.10962970330786931,
+                  0.09076996475140128,
+                  0.03757734561149367,
+                  0.010370955539995726,
+                  0.00214670668714696,
+                  0.00035548119614392905
+                ],
+                [
+                  0.05476431865496069,
+                  0.04534314263339314,
+                  0.018771351806875777,
+                  0.005180697354929239,
+                  0.0010723638350411584,
+                  0.00017757674165004613
+                ],
+                [
+                  0.020517687090603445,
+                  0.01698800304844638,
+                  0.00703276754099128,
+                  0.0019409705050703946,
+                  0.0004017657145207804,
+                  6.652988860685005e-05
+                ],
+                [
+                  0.006149631641730029,
+                  0.005091702618097559,
+                  0.002107885241062026,
+                  0.0005817543459424382,
+                  0.00012041859979972036,
+                  1.9940566706704085e-05
+                ]
+              ],
+              "tail_mass": 0.00465622768538243
+            }
+          },
+          "event_sequence": {
+            "first_scorer": {
+              "home_first": 0.5787970084625408,
+              "away_first": 0.3197786767412677,
+              "no_goals": 0.10142431479619152
+            },
+            "goals_by_band": [
+              {
+                "band": "0-15",
+                "home": 0.1028753702396607,
+                "away": 0.05683745645453829
+              },
+              {
+                "band": "15-30",
+                "home": 0.21069667174084358,
+                "away": 0.11640748293092938
+              },
+              {
+                "band": "30-45",
+                "home": 0.2744991850144793,
+                "away": 0.15165763621283052
+              },
+              {
+                "band": "45-60",
+                "home": 0.31060448322359097,
+                "away": 0.17160539737235597
+              },
+              {
+                "band": "60-75",
+                "home": 0.3219801251250919,
+                "away": 0.1778903084226174
+              },
+              {
+                "band": "75-90+",
+                "home": 0.27796133689754476,
+                "away": 0.1535704352281275
+              }
+            ],
+            "next_goal_from_kickoff": {
+              "home": 0.5812420002162028,
+              "away": 0.321129506507486,
+              "no_more_goals": 0.09762849327631125
+            }
+          },
+          "player_props": {
+            "home": [
+              {
+                "player": "Bukayo Saka",
+                "p_anytime_scorer": 0.44961447373237806,
+                "p_assist": 0.08042064686192829,
+                "goal_lambda": 0.5971362894609091,
+                "assist_lambda": 0.08383893834812743
+              },
+              {
+                "player": "Martin Odegaard",
+                "p_anytime_scorer": 0.4451660724547858,
+                "p_assist": 0.5183752414238689,
+                "goal_lambda": 0.5890864396620892,
+                "assist_lambda": 0.7305899773053289
+              },
+              {
+                "player": "Declan Rice",
+                "p_anytime_scorer": 0.24604462695848361,
+                "p_assist": 0.26621115108238635,
+                "goal_lambda": 0.28242209967338844,
+                "assist_lambda": 0.30953396352745177
+              },
+              {
+                "player": "Gabriel Jesus",
+                "p_anytime_scorer": 0.0,
+                "p_assist": 0.0,
+                "goal_lambda": 0.0,
+                "assist_lambda": 0.0
+              }
+            ],
+            "away": [
+              {
+                "player": "Rodri",
+                "p_anytime_scorer": 0.3542263502254146,
+                "p_assist": 0.0080206493089231,
+                "goal_lambda": 0.43730622394536717,
+                "assist_lambda": 0.008052987749524723
+              },
+              {
+                "player": "Kevin De Bruyne",
+                "p_anytime_scorer": 0.14597342433337623,
+                "p_assist": 0.14143615408236687,
+                "goal_lambda": 0.15779296663018585,
+                "assist_lambda": 0.15249423225710837
+              },
+              {
+                "player": "Erling Haaland",
+                "p_anytime_scorer": 0.1332226004591881,
+                "p_assist": 0.2294202147044152,
+                "goal_lambda": 0.1429730831014618,
+                "assist_lambda": 0.26061207955618443
+              },
+              {
+                "player": "Phil Foden",
+                "p_anytime_scorer": 0.07071245643317514,
+                "p_assist": 0.1811196002984481,
+                "goal_lambda": 0.07333706861195599,
+                "assist_lambda": 0.19981723790323166
+              }
+            ]
+          },
+          "headline_scenario": {
+            "scoreline": "1-0",
+            "probability": 0.1425120487647162,
+            "goals": [
+              {
+                "minute": 53,
+                "team": "home",
+                "scorer": "Bukayo Saka",
+                "p_scorer_anytime": 0.44961447373237806,
+                "assist": "Martin Odegaard"
+              }
+            ],
+            "player_of_the_match": "Martin Odegaard"
+          },
+          "market_comparison": [
+            {
+              "market": "h2h",
+              "selection": "away",
+              "model_prob": 0.24086011946201324,
+              "market_prob": 0.1021,
+              "decimal_odds": 8.72,
+              "edge": 0.13876011946201325,
+              "ev": 1.1003002417087557
+            },
+            {
+              "market": "h2h",
+              "selection": "home",
+              "model_prob": 0.4830256998538971,
+              "market_prob": 0.5383,
+              "decimal_odds": 1.8,
+              "edge": -0.055274300146102906,
+              "ev": -0.13055374026298522
+            },
+            {
+              "market": "h2h",
+              "selection": "draw",
+              "model_prob": 0.27611419558525085,
+              "market_prob": 0.3596,
+              "decimal_odds": 2.64,
+              "edge": -0.08348580441474912,
+              "ev": -0.2710585236549377
+            }
+          ],
+          "suggestions": [
+            {
+              "market": "h2h",
+              "selection": "away",
+              "edge": 0.13876011946201325,
+              "ev": 1.1003002417087557,
+              "kelly_stake": 0.0356314845112939,
+              "tier": "low",
+              "rationale": "Model 24.1% vs market 10.2% (+13.9% edge) on h2h/away. Confidence capped: this outcome sits outside the model's conformal prediction set at the configured coverage level."
+            },
+            {
+              "market": "h2h",
+              "selection": "home",
+              "edge": -0.055274300146102906,
+              "ev": -0.13055374026298522,
+              "kelly_stake": 0.0,
+              "tier": "none",
+              "rationale": "Model 48.3% vs market 53.8% (-5.5% edge) on h2h/home."
+            },
+            {
+              "market": "h2h",
+              "selection": "draw",
+              "edge": -0.08348580441474912,
+              "ev": -0.2710585236549377,
+              "kelly_stake": 0.0,
+              "tier": "none",
+              "rationale": "Model 27.6% vs market 36.0% (-8.3% edge) on h2h/draw."
+            }
+          ],
+          "match_id": "ARS-MCI-2026-07-18",
+          "as_of": "2026-10-07T12:00:00+00:00"
+        },
+        "degraded": [],
+        "tool_calls": [
+          {
+            "server": "sports-data",
+            "tool": "get_fixture_context",
+            "args": {
+              "match_id": "ARS-MCI-2026-07-18"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_live_odds",
+            "args": {
+              "match_id": "ARS-MCI-2026-07-18",
+              "market": "h2h"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_team_stats",
+            "args": {
+              "team_id": "ARS",
+              "window": 10
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_squad_props",
+            "args": {
+              "team_id": "ARS"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_team_stats",
+            "args": {
+              "team_id": "MCI",
+              "window": 10
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_squad_props",
+            "args": {
+              "team_id": "MCI"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "get_availability_report",
+            "args": {
+              "team": "ARS"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "analyze_team_sentiment",
+            "args": {
+              "team": "ARS"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "get_availability_report",
+            "args": {
+              "team": "MCI"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "analyze_team_sentiment",
+            "args": {
+              "team": "MCI"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "ml-inference",
+            "tool": "predict_match",
+            "args": {
+              "match_id": "ARS-MCI-2026-07-18",
+              "match_context": {
+                "ev_threshold": -1.0,
+                "form_xg_for_home": 1.514,
+                "form_xg_against_home": 1.341,
+                "availability_home": 0.6875,
+                "sentiment_home": 0.2679339710476141,
+                "players_home": [
+                  {
+                    "player": "Bukayo Saka",
+                    "xg_share": 0.0941,
+                    "xa_share": 0.0581,
+                    "exp_minutes": 89,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Martin Odegaard",
+                    "xg_share": 0.102,
+                    "xa_share": 0.5563,
+                    "exp_minutes": 90,
+                    "setpiece_mult": 1.2,
+                    "availability": 0.75
+                  },
+                  {
+                    "player": "Gabriel Jesus",
+                    "xg_share": 0.7573,
+                    "xa_share": 0.161,
+                    "exp_minutes": 76,
+                    "setpiece_mult": 1.0,
+                    "availability": 0.0
+                  },
+                  {
+                    "player": "Declan Rice",
+                    "xg_share": 0.0466,
+                    "xa_share": 0.2246,
+                    "exp_minutes": 85,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  }
+                ],
+                "form_xg_for_away": 1.002,
+                "form_xg_against_away": 0.973,
+                "availability_away": 0.975,
+                "sentiment_away": -0.471150945100074,
+                "players_away": [
+                  {
+                    "player": "Erling Haaland",
+                    "xg_share": 0.1698,
+                    "xa_share": 0.3986,
+                    "exp_minutes": 89,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Phil Foden",
+                    "xg_share": 0.0957,
+                    "xa_share": 0.3358,
+                    "exp_minutes": 81,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Rodri",
+                    "xg_share": 0.5313,
+                    "xa_share": 0.0126,
+                    "exp_minutes": 87,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Kevin De Bruyne",
+                    "xg_share": 0.2032,
+                    "xa_share": 0.2529,
+                    "exp_minutes": 76,
+                    "setpiece_mult": 1.2,
+                    "availability": 0.9
+                  }
+                ],
+                "odds_imp_home": 0.5383,
+                "odds_imp_draw": 0.3596,
+                "odds_imp_away": 0.1021,
+                "market_quotes": [
+                  {
+                    "market": "h2h",
+                    "selection": "home",
+                    "model_prob": 0.0,
+                    "market_prob": 0.5383,
+                    "decimal_odds": 1.8
+                  },
+                  {
+                    "market": "h2h",
+                    "selection": "draw",
+                    "model_prob": 0.0,
+                    "market_prob": 0.3596,
+                    "decimal_odds": 2.64
+                  },
+                  {
+                    "market": "h2h",
+                    "selection": "away",
+                    "model_prob": 0.0,
+                    "market_prob": 0.1021,
+                    "decimal_odds": 8.72
+                  }
+                ],
+                "neutral_venue": 1.0,
+                "knockout": false
+              }
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          }
+        ],
+        "approval_request": null,
+        "provenance": {
+          "kind": "synthetic-fixture",
+          "model_version": "v0-mobile-demo",
+          "data_backend": "demo",
+          "fixture_id": "arsenal-city",
+          "generated_at_utc": "2026-10-07T12:00:00+00:00",
+          "notes": [
+            "Synthetic model trained with seed 42 and synthetic provider/news/squads; not a current match forecast.",
+            "Captured from the existing LangGraph workflow and MCP tool logic at a fixed fixture clock.",
+            "Tool latencies are omitted from frozen examples; this is not a performance or model-quality benchmark.",
+            "The conformal set belongs to the synthetic calibration distribution; no real-match coverage claim is made.",
+            "Approval examples remain pending. The mobile adapter cannot approve or place wagers."
+          ],
+          "fixture_sha256": "124bfb41e7bf23c8453beeb8319221c9858cc267f8f5a243e4a4255dd54f64d1"
+        }
+      }
+    },
+    {
+      "id": "liverpool-city",
+      "input": {
+        "text": "Predict Liverpool vs Man City on 2026-07-18",
+        "mode": "demo"
+      },
+      "aliases": [
+        "Predict Liverpool vs Man City",
+        "Liverpool vs Man City"
+      ],
+      "response": {
+        "service": "soccer",
+        "mode": "demo",
+        "status": "complete",
+        "thread_id": "mobile-demo-liverpool-city",
+        "answer": "**LIV vs MCI** (LIV-MCI-2026-07-18, model v0-mobile-demo)\n\nOutcome: LIV 48%, draw 23%, MCI 29% (xG 1.51–1.02).\nUncertainty: at 90% coverage the model cannot separate [home, away] — treat this as a genuinely open match, not a pick.\nMost likely scores: 1-1 (13%), 1-0 (12%), 2-1 (9%).\nFirst goal: LIV 55%, MCI 37%, no goals 8%.\n\nHeadline scenario — most likely single outcome (13%): **LIV 1-1 MCI (LIV win on penalties — 63% to advance)**\n  53' – Mohamed Salah (LIV), assisted by Virgil van Dijk\n  53' – Rodri (MCI), assisted by Erling Haaland\n  Player of the Match: Mohamed Salah\nTo advance (incl. extra time/pens): LIV 63%, MCI 37%.\nTop LIV scorer prob: Mohamed Salah 58% anytime.\nTop MCI scorer prob: Rodri 42% anytime.\n3 value suggestion(s) computed — awaiting human approval before disclosure.\n\n**Parlay correlation study** (same-match legs vs independent pricing):\n  O/U 2.5: over 46%, under 54%. BTTS: yes 50%, no 50%.\n  Use the Parlay Builder to price multi-leg combos with exact correlation from the Dixon-Coles grid.\n\nEvidence trail: 11 tool call(s), 0 failed.",
+        "prediction": {
+          "model_version": "v0-mobile-demo",
+          "match_outcome": {
+            "home": 0.47950324416160583,
+            "draw": 0.22560234367847443,
+            "away": 0.2948945164680481,
+            "conformal_set": [
+              "home",
+              "away"
+            ],
+            "conformal_alpha": 0.1
+          },
+          "expected_goals": {
+            "home": 1.514674186706543,
+            "away": 1.016053557395935
+          },
+          "exact_score": {
+            "top_scorelines": [
+              {
+                "score": "1-1",
+                "prob": 0.12634393702027716
+              },
+              {
+                "score": "1-0",
+                "prob": 0.11673115742903531
+              },
+              {
+                "score": "2-1",
+                "prob": 0.09277783357893139
+              },
+              {
+                "score": "2-0",
+                "prob": 0.09131195191788279
+              },
+              {
+                "score": "0-0",
+                "prob": 0.08343972218102637
+              }
+            ],
+            "over_under_2_5": {
+              "over": 0.4640441361676627,
+              "under": 0.5359558638323373
+            },
+            "btts": {
+              "yes": 0.50153895258633,
+              "no": 0.49846104741367003
+            },
+            "grid_outcome_probs": {
+              "home": 0.4840373124344663,
+              "draw": 0.26580215748329433,
+              "away": 0.2501605300822394
+            },
+            "scoreline_grid": {
+              "max_goals": 5,
+              "probs": [
+                [
+                  0.08343972218102637,
+                  0.07704039729459948,
+                  0.04108869798951614,
+                  0.01391610592033836,
+                  0.003534877231364604,
+                  0.0007183249171771802
+                ],
+                [
+                  0.11673115742903531,
+                  0.12634393702027716,
+                  0.06223599021010113,
+                  0.021078366417010615,
+                  0.005354187295524658,
+                  0.0010880282097163903
+                ],
+                [
+                  0.09131195191788279,
+                  0.09277783357893139,
+                  0.04713362392768064,
+                  0.015963428754894024,
+                  0.0040549246436616575,
+                  0.0008240041218329746
+                ],
+                [
+                  0.04610261883593538,
+                  0.04684272987352099,
+                  0.023797361163063923,
+                  0.008059797822122322,
+                  0.0020472965622648476,
+                  0.0004160325910267335
+                ],
+                [
+                  0.017457611672590537,
+                  0.017737868443572415,
+                  0.009011312166356426,
+                  0.003051991927810572,
+                  0.0007752468138489021,
+                  0.00015753845661420826
+                ],
+                [
+                  0.005288518752403946,
+                  0.005373418291735143,
+                  0.0027298403853469404,
+                  0.0009245546782182829,
+                  0.000234849267452685,
+                  4.7723886729426015e-05
+                ]
+              ],
+              "tail_mass": 0.005308129348815305
+            }
+          },
+          "event_sequence": {
+            "first_scorer": {
+              "home_first": 0.5485735068136829,
+              "away_first": 0.36798677100529076,
+              "no_goals": 0.08343972218102637
+            },
+            "goals_by_band": [
+              {
+                "band": "0-15",
+                "home": 0.10397763393893103,
+                "away": 0.06974889106876388
+              },
+              {
+                "band": "15-30",
+                "home": 0.21295419258646453,
+                "away": 0.1428510942081414
+              },
+              {
+                "band": "30-45",
+                "home": 0.2774403213274361,
+                "away": 0.18610881991905742
+              },
+              {
+                "band": "45-60",
+                "home": 0.31393247170023403,
+                "away": 0.21058799803453707
+              },
+              {
+                "band": "60-75",
+                "home": 0.32542999853001964,
+                "away": 0.21830061579694846
+              },
+              {
+                "band": "75-90+",
+                "home": 0.28093956862345787,
+                "away": 0.18845613836848701
+              }
+            ],
+            "next_goal_from_kickoff": {
+              "home": 0.5508709911617773,
+              "away": 0.36952793884549723,
+              "no_more_goals": 0.07960106999272543
+            }
+          },
+          "knockout": {
+            "advance": {
+              "home": 0.6325539293977247,
+              "away": 0.3674460706022753
+            }
+          },
+          "player_props": {
+            "home": [
+              {
+                "player": "Mohamed Salah",
+                "p_anytime_scorer": 0.5806063170114718,
+                "p_assist": 0.6214127538322757,
+                "goal_lambda": 0.8689452226484276,
+                "assist_lambda": 0.9713087276002019
+              },
+              {
+                "player": "Virgil van Dijk",
+                "p_anytime_scorer": 0.4595944919059616,
+                "p_assist": 0.15184927092087164,
+                "goal_lambda": 0.6154354803239844,
+                "assist_lambda": 0.1646969124297054
+              }
+            ],
+            "away": [
+              {
+                "player": "Rodri",
+                "p_anytime_scorer": 0.41529424254165004,
+                "p_assist": 0.009833668320545996,
+                "goal_lambda": 0.5366465369901757,
+                "assist_lambda": 0.009882338168474478
+              },
+              {
+                "player": "Kevin De Bruyne",
+                "p_anytime_scorer": 0.17604377681416783,
+                "p_assist": 0.17066861297106029,
+                "goal_lambda": 0.1936378776856251,
+                "assist_lambda": 0.1871354606239871
+              },
+              {
+                "player": "Erling Haaland",
+                "p_anytime_scorer": 0.1609218643539121,
+                "p_assist": 0.2737157492724417,
+                "goal_lambda": 0.17545144735647183,
+                "assist_lambda": 0.3198138108574161
+              },
+              {
+                "player": "Phil Foden",
+                "p_anytime_scorer": 0.08606572948905777,
+                "p_assist": 0.21745868434069815,
+                "goal_lambda": 0.08999662421574375,
+                "assist_lambda": 0.24520855839707364
+              }
+            ]
+          },
+          "headline_scenario": {
+            "scoreline": "1-1",
+            "probability": 0.12634393702027716,
+            "goals": [
+              {
+                "minute": 53,
+                "team": "home",
+                "scorer": "Mohamed Salah",
+                "p_scorer_anytime": 0.5806063170114718,
+                "assist": "Virgil van Dijk"
+              },
+              {
+                "minute": 53,
+                "team": "away",
+                "scorer": "Rodri",
+                "p_scorer_anytime": 0.41529424254165004,
+                "assist": "Erling Haaland"
+              }
+            ],
+            "penalties": {
+              "winner": "home",
+              "p_advance": 0.6325539293977247
+            },
+            "player_of_the_match": "Mohamed Salah"
+          },
+          "market_comparison": [
+            {
+              "market": "h2h",
+              "selection": "away",
+              "model_prob": 0.2948945164680481,
+              "market_prob": 0.1144,
+              "decimal_odds": 7.83,
+              "edge": 0.1804945164680481,
+              "ev": 1.3090240639448165
+            },
+            {
+              "market": "h2h",
+              "selection": "home",
+              "model_prob": 0.47950324416160583,
+              "market_prob": 0.3684,
+              "decimal_odds": 2.58,
+              "edge": 0.11110324416160583,
+              "ev": 0.23711836993694313
+            },
+            {
+              "market": "h2h",
+              "selection": "draw",
+              "model_prob": 0.22560234367847443,
+              "market_prob": 0.5172,
+              "decimal_odds": 1.87,
+              "edge": -0.29159765632152557,
+              "ev": -0.5781236173212528
+            }
+          ],
+          "suggestions": [
+            {
+              "market": "h2h",
+              "selection": "away",
+              "edge": 0.1804945164680481,
+              "ev": 1.3090240639448165,
+              "kelly_stake": 0.047914497216135304,
+              "tier": "high",
+              "rationale": "Model 29.5% vs market 11.4% (+18.0% edge) on h2h/away."
+            },
+            {
+              "market": "h2h",
+              "selection": "home",
+              "edge": 0.11110324416160583,
+              "ev": 0.23711836993694313,
+              "kelly_stake": 0.037518729420402394,
+              "tier": "high",
+              "rationale": "Model 48.0% vs market 36.8% (+11.1% edge) on h2h/home."
+            },
+            {
+              "market": "h2h",
+              "selection": "draw",
+              "edge": -0.29159765632152557,
+              "ev": -0.5781236173212528,
+              "kelly_stake": 0.0,
+              "tier": "low",
+              "rationale": "Model 22.6% vs market 51.7% (-29.2% edge) on h2h/draw. Confidence capped: this outcome sits outside the model's conformal prediction set at the configured coverage level."
+            }
+          ],
+          "match_id": "LIV-MCI-2026-07-18",
+          "as_of": "2026-10-07T12:00:00+00:00"
+        },
+        "degraded": [],
+        "tool_calls": [
+          {
+            "server": "sports-data",
+            "tool": "get_fixture_context",
+            "args": {
+              "match_id": "LIV-MCI-2026-07-18"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_live_odds",
+            "args": {
+              "match_id": "LIV-MCI-2026-07-18",
+              "market": "h2h"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_team_stats",
+            "args": {
+              "team_id": "LIV",
+              "window": 10
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_squad_props",
+            "args": {
+              "team_id": "LIV"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_team_stats",
+            "args": {
+              "team_id": "MCI",
+              "window": 10
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "sports-data",
+            "tool": "get_squad_props",
+            "args": {
+              "team_id": "MCI"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "get_availability_report",
+            "args": {
+              "team": "LIV"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "analyze_team_sentiment",
+            "args": {
+              "team": "LIV"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "get_availability_report",
+            "args": {
+              "team": "MCI"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "news-sentiment",
+            "tool": "analyze_team_sentiment",
+            "args": {
+              "team": "MCI"
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          },
+          {
+            "server": "ml-inference",
+            "tool": "predict_match",
+            "args": {
+              "match_id": "LIV-MCI-2026-07-18",
+              "match_context": {
+                "ev_threshold": -1.0,
+                "form_xg_for_home": 1.042,
+                "form_xg_against_home": 1.271,
+                "availability_home": 1.0,
+                "sentiment_home": 0.0,
+                "players_home": [
+                  {
+                    "player": "Mohamed Salah",
+                    "xg_share": 0.5606,
+                    "xa_share": 0.842,
+                    "exp_minutes": 83,
+                    "setpiece_mult": 1.2,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Virgil van Dijk",
+                    "xg_share": 0.4394,
+                    "xa_share": 0.158,
+                    "exp_minutes": 90,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  }
+                ],
+                "form_xg_for_away": 1.002,
+                "form_xg_against_away": 0.973,
+                "availability_away": 0.975,
+                "sentiment_away": -0.471150945100074,
+                "players_away": [
+                  {
+                    "player": "Erling Haaland",
+                    "xg_share": 0.1698,
+                    "xa_share": 0.3986,
+                    "exp_minutes": 89,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Phil Foden",
+                    "xg_share": 0.0957,
+                    "xa_share": 0.3358,
+                    "exp_minutes": 81,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Rodri",
+                    "xg_share": 0.5313,
+                    "xa_share": 0.0126,
+                    "exp_minutes": 87,
+                    "setpiece_mult": 1.0,
+                    "availability": 1.0
+                  },
+                  {
+                    "player": "Kevin De Bruyne",
+                    "xg_share": 0.2032,
+                    "xa_share": 0.2529,
+                    "exp_minutes": 76,
+                    "setpiece_mult": 1.2,
+                    "availability": 0.9
+                  }
+                ],
+                "odds_imp_home": 0.3684,
+                "odds_imp_draw": 0.5172,
+                "odds_imp_away": 0.1144,
+                "market_quotes": [
+                  {
+                    "market": "h2h",
+                    "selection": "home",
+                    "model_prob": 0.0,
+                    "market_prob": 0.3684,
+                    "decimal_odds": 2.58
+                  },
+                  {
+                    "market": "h2h",
+                    "selection": "draw",
+                    "model_prob": 0.0,
+                    "market_prob": 0.5172,
+                    "decimal_odds": 1.87
+                  },
+                  {
+                    "market": "h2h",
+                    "selection": "away",
+                    "model_prob": 0.0,
+                    "market_prob": 0.1144,
+                    "decimal_odds": 7.83
+                  }
+                ],
+                "neutral_venue": 0.0,
+                "knockout": true
+              }
+            },
+            "ok": true,
+            "error": "",
+            "at_utc": "2026-10-07T12:00:00+00:00"
+          }
+        ],
+        "approval_request": null,
+        "provenance": {
+          "kind": "synthetic-fixture",
+          "model_version": "v0-mobile-demo",
+          "data_backend": "demo",
+          "fixture_id": "liverpool-city",
+          "generated_at_utc": "2026-10-07T12:00:00+00:00",
+          "notes": [
+            "Synthetic model trained with seed 42 and synthetic provider/news/squads; not a current match forecast.",
+            "Captured from the existing LangGraph workflow and MCP tool logic at a fixed fixture clock.",
+            "Tool latencies are omitted from frozen examples; this is not a performance or model-quality benchmark.",
+            "The conformal set belongs to the synthetic calibration distribution; no real-match coverage claim is made.",
+            "Approval examples remain pending. The mobile adapter cannot approve or place wagers."
+          ],
+          "fixture_sha256": "61c21a9ea41c68e32a4a405d1b5bd6283b18ca4fc52bfaa8276b6136e0598e91"
+        }
+      }
+    },
+    {
+      "id": "approval-required",
+      "input": {
+        "text": "Arsenal vs Man City on 2026-07-18 — any value bets?",
+        "mode": "demo"
+      },
+      "aliases": [
+        "Arsenal vs Man City — any value bets?",
+        "Arsenal vs Man City - any value bets?"
+      ],
+      "response": {
+        "service": "soccer",
+        "mode": "demo",
+        "status": "pending_approval",
+        "thread_id": "mobile-demo-approval-required",
+        "answer": "",
+        "prediction": null,
+        "degraded": [],
+        "tool_calls": [],
+        "approval_request": {
+          "type": "stake_approval",
+          "match_id": "ARS-MCI-2026-07-18",
+          "suggestions": [
+            {
+              "market": "h2h",
+              "selection": "away",
+              "edge": 0.13876011946201325,
+              "ev": 1.1003002417087557,
+              "kelly_stake": 0.0356314845112939,
+              "tier": "low",
+              "rationale": "Model 24.1% vs market 10.2% (+13.9% edge) on h2h/away. Confidence capped: this outcome sits outside the model's conformal prediction set at the configured coverage level."
+            },
+            {
+              "market": "h2h",
+              "selection": "home",
+              "edge": -0.055274300146102906,
+              "ev": -0.13055374026298522,
+              "kelly_stake": 0.0,
+              "tier": "none",
+              "rationale": "Model 48.3% vs market 53.8% (-5.5% edge) on h2h/home."
+            },
+            {
+              "market": "h2h",
+              "selection": "draw",
+              "edge": -0.08348580441474912,
+              "ev": -0.2710585236549377,
+              "kelly_stake": 0.0,
+              "tier": "none",
+              "rationale": "Model 27.6% vs market 36.0% (-8.3% edge) on h2h/draw."
+            }
+          ],
+          "instructions": "resume with {'action': 'approve'|'reject'|'edit', 'suggestions': [...] (edit only)}"
+        },
+        "provenance": {
+          "kind": "synthetic-fixture",
+          "model_version": "v0-mobile-demo",
+          "data_backend": "demo",
+          "fixture_id": "approval-required",
+          "generated_at_utc": "2026-10-07T12:00:00+00:00",
+          "notes": [
+            "Synthetic model trained with seed 42 and synthetic provider/news/squads; not a current match forecast.",
+            "Captured from the existing LangGraph workflow and MCP tool logic at a fixed fixture clock.",
+            "Tool latencies are omitted from frozen examples; this is not a performance or model-quality benchmark.",
+            "The conformal set belongs to the synthetic calibration distribution; no real-match coverage claim is made.",
+            "Approval examples remain pending. The mobile adapter cannot approve or place wagers."
+          ],
+          "fixture_sha256": "0d84650e1f282ddaf841ca80584ab7ebd79472bc23214751bad6722f265cd09a"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "scope": "MetaNavT mobile read-only backend and fixture adapter",
+  "source_base_commit": "01b1733689e99187e87354dc4b1d68a17fd79f58",
+  "tests": {
+    "new_and_existing_api": {
+      "passed": 28,
+      "failures": 0,
+      "junit": "/tmp/metanavt-mobile-backend-tests.xml"
+    },
+    "clean_mobile_install_and_readme": {
+      "passed": 19,
+      "failures": 0,
+      "junit": "/tmp/metanavt-mobile-clean-install-tests.xml"
+    },
+    "pip_check": "passed",
+    "wheel_fixture_packaging": "passed",
+    "installed_wheel_retrieval": "passed",
+    "tcp_http_and_cors": "passed",
+    "cors_origin_configuration": {
+      "passed": 6,
+      "failures": 0,
+      "note": "Wildcards, null, wildcard domains, paths, credentials and query strings are rejected at startup."
+    },
+    "current_demo_suite": {
+      "passed": 20,
+      "failures": 0
+    }
+  },
+  "limitations": [
+    "Existing source fixture is synthetic, not measured robotics results.",
+    "Retrieval returns bounded excerpts; no generated answer is provided.",
+    "The fixture server does not exercise production Postgres or neural models."
+  ],
+  "files": [
+    {
+      "path": "app/api/routers/__init__.py",
+      "sha256": "e6cee10fbbacf7ee17785ee43af1b817ad85bf66e9022c592ead7f139ded3c6a"
+    },
+    {
+      "path": "app/api/routers/retrieve.py",
+      "sha256": "a20bb9cd832ee71371aea24a8105888b92b8f7ce015e98600863b9d4bd757fa3"
+    },
+    {
+      "path": "app/mobile/demo.py",
+      "sha256": "9af7139468b9538b74690acc58fc68fada32160e7b62493a55e63857986d98eb"
+    },
+    {
+      "path": "app/mobile/export.py",
+      "sha256": "4f0d9d56015f0dbbaac7ac696eb43214f437d648eda44b5fcbe69653983aeb17"
+    },
+    {
+      "path": "app/mobile/fixture-provenance.json",
+      "sha256": "2182fa300df2ff58c005dc7d2950a5096287e714390e28d2cc88e914bd29dbc7"
+    },
+    {
+      "path": "app/mobile/demo-response.json",
+      "sha256": "0043da744864e57e5daeccdba1852fddf99ea4e5af440a96c27f71fd318799bf"
+    },
+    {
+      "path": "tests/api/test_mobile_demo.py",
+      "sha256": "5c992f624039b52552c444ab6a00950485e1605e13fd8897ef5f55ec3f4659fe"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "b3ef5fdae96275807fb5826a4062a74499bb0ac33cf85bb342041b2c179f4bbc"
+    },
+    {
+      "path": ".github/workflows/mobile-backend.yml",
+      "sha256": "c60dc70439bb777949934a87dceb6b1d154b48b30076db52b33719dea6659c88"
+    }
+  ]
+}

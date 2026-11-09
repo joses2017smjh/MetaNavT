@@ -138,7 +138,7 @@ async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
         route=outcome.route.route.value if outcome.route else None,
         retrieval_mode=outcome.mode,
         bm25_backend=outcome.bm25_backend,
-        embedding_provider=os.getenv("EMBEDDING_PROVIDER", "huggingface"),
+        embedding_provider=getattr(state, "embedding_provider", None) or os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         reranker_loaded=getattr(state.retriever, "_reranker", None) is not None,
         reranker=RerankerInfo(**{k: v for k, v in (getattr(state.retriever, "reranker_info", None) or {}).items() if k in RerankerInfo.model_fields}),
         degraded=[Degraded(**d) for d in getattr(outcome, "degraded", [])],

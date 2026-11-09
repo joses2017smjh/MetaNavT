@@ -1,0 +1,31 @@
+{
+  "synthetic": true,
+  "source": "MetaNavT frozen regression fixture",
+  "files": [
+    {
+      "path": "README.md",
+      "text": "# Frozen research corpus (demo)\n\nSnapshot of a heterogeneous experiment tree: YAML configs, Slurm scripts,\n`.out` logs, ablation CSVs, paper drafts, Python modules, checkpoint metadata.\n\nDo not edit files here by hand. Rebuild with `python -m bench.corpus.build`.\nGold answers are generated from `bench/corpus/registry.py`.\n",
+      "sha256": "b9c71d2cd5640fcd816a9dcf793b25f0df7646a5175b0075cb39aebedd1f0cbd"
+    },
+    {
+      "path": "configs/run_047.yaml",
+      "text": "# run 47 config (CURRENT)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 0.0003\nval_rmse: 0.0521\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: best current\n",
+      "sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c"
+    },
+    {
+      "path": "logs/run_047.out",
+      "text": "Slurm job for run 47\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0521\nfinished status=SUCCESS\nconfig=configs/run_047.yaml\n",
+      "sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938"
+    },
+    {
+      "path": "checkpoints/run_047.ckpt.meta.json",
+      "text": "{\n  \"run_id\": 47,\n  \"val_rmse\": 0.0521,\n  \"encoder\": \"dinov2\",\n  \"path\": \"checkpoints/run_047.pt\",\n  \"produced_by\": \"slurm/run_047.sbatch\"\n}",
+      "sha256": "0cf9be11ff0068ae8df54d0e6c17ceb48d097f08003251768c110eaba07bdb00"
+    },
+    {
+      "path": "slurm/run_047.sbatch",
+      "text": "#!/bin/bash\n#SBATCH --job-name=run_047\n#SBATCH --gres=gpu:1\n#SBATCH --time=04:00:00\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n",
+      "sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a"
+    }
+  ]
+}
