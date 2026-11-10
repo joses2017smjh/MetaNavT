@@ -161,7 +161,7 @@ def run(
     # Pass 1: retrieve + generate every answer (one model resident), then deterministic checks.
     work: list[tuple[GoldQuestion, dict[str, Any], list[str], str, str]] = []
     for q in gold:
-        paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None, category=q.category)
+        paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None)
         hits = list(payload.hits[:TOP_N]) if hasattr(payload, "hits") else list(payload[:TOP_N])
         contexts = [h.chunk.text for h in hits]
         with timer.stage("generate"):
@@ -346,7 +346,7 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     new_checks: dict[str, dict[str, Any]] = {}
     for row in blob["rows"]:
         q = gold[row["id"]]
-        paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None, category=q.category)
+        paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None)
         hits = list(payload.hits[:TOP_N]) if hasattr(payload, "hits") else list(payload[:TOP_N])
         if paths[:TOP_N] != row["retrieved_paths"]:
             mismatched.append(row["id"])

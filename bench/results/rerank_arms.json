@@ -1,0 +1,790 @@
+{
+  "git_sha": "f812b3a",
+  "timestamp": "2026-11-10T03:06:36.755715+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/nfs/hpc/share/sanchej7/mnt_work/hf_cache python -m app.eval.rerank_arms --out bench/results/rerank_arms.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 96,
+    "hostname": "dgx2-5.hpc.engr.oregonstate.edu",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Tesla V100-SXM3-32GB",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "n_chunks": 71,
+  "candidates": {
+    "config": "hybrid@bge-small",
+    "retrieve_k": 50,
+    "note": "every arm reranks this fused list; nothing is added to it"
+  },
+  "models": {
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "neural": true,
+      "device": "cuda:0"
+    },
+    "reranker": {
+      "role": "reranker",
+      "model": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "neural": true,
+      "loaded": true,
+      "device": "cuda:0"
+    }
+  },
+  "split": {
+    "rule": "alternate train / test inside each category, gold order",
+    "train_ids": [
+      "q001",
+      "q003",
+      "q005",
+      "q007",
+      "q009",
+      "q011",
+      "q013",
+      "q015",
+      "q017",
+      "q019",
+      "q021",
+      "q023",
+      "q025",
+      "q027",
+      "q029",
+      "q031",
+      "q033",
+      "q035",
+      "q037",
+      "q039",
+      "q041",
+      "q043",
+      "q045",
+      "q047",
+      "q049",
+      "q051",
+      "q053",
+      "q055",
+      "q057",
+      "q059",
+      "q061",
+      "q063",
+      "q065",
+      "q067",
+      "q069",
+      "q071",
+      "q073",
+      "q075",
+      "q077",
+      "q079",
+      "q081",
+      "q083",
+      "q085",
+      "q087",
+      "q089",
+      "q091",
+      "q093",
+      "q095",
+      "q097",
+      "q099",
+      "q101",
+      "q103",
+      "q105",
+      "q107",
+      "q109",
+      "q111",
+      "q113",
+      "q115",
+      "q117",
+      "q119",
+      "q121",
+      "q123",
+      "q125",
+      "q127",
+      "q129",
+      "q131",
+      "q133",
+      "q135"
+    ],
+    "test_ids": [
+      "q002",
+      "q004",
+      "q006",
+      "q008",
+      "q010",
+      "q012",
+      "q014",
+      "q016",
+      "q018",
+      "q020",
+      "q022",
+      "q024",
+      "q026",
+      "q028",
+      "q030",
+      "q032",
+      "q034",
+      "q036",
+      "q038",
+      "q040",
+      "q042",
+      "q044",
+      "q046",
+      "q048",
+      "q050",
+      "q052",
+      "q054",
+      "q056",
+      "q058",
+      "q060",
+      "q062",
+      "q064",
+      "q066",
+      "q068",
+      "q070",
+      "q072",
+      "q074",
+      "q076",
+      "q078",
+      "q080",
+      "q082",
+      "q084",
+      "q086",
+      "q088",
+      "q090",
+      "q092",
+      "q094",
+      "q096",
+      "q098",
+      "q100",
+      "q102",
+      "q104",
+      "q106",
+      "q108",
+      "q110",
+      "q112",
+      "q114",
+      "q116",
+      "q118",
+      "q120",
+      "q122",
+      "q124",
+      "q126",
+      "q128",
+      "q130",
+      "q132",
+      "q134",
+      "q136"
+    ]
+  },
+  "test_split": {
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 68,
+      "level": 0.95
+    },
+    "results": [
+      {
+        "config": "hybrid@bge-small",
+        "n": 68,
+        "retrieval": {
+          "ndcg@10": 0.7068,
+          "recall@5": 0.7507,
+          "recall@10": 0.8299,
+          "recall@50": 0.9338,
+          "mrr@10": 0.7281,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.782,
+              "recall@10": 0.875,
+              "recall@50": 0.9,
+              "mrr@10": 0.8187,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6256,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5944,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.6607,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4693,
+              "recall@10": 0.52,
+              "recall@50": 1.0,
+              "mrr@10": 0.5286,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5323,
+              "recall@10": 0.625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8016,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7917,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4583,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.369,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7956,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7068,
+            "lo": 0.6316,
+            "hi": 0.7773
+          },
+          "recall@10": {
+            "mean": 0.8299,
+            "lo": 0.7564,
+            "hi": 0.8946
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          }
+        }
+      },
+      {
+        "config": "hybrid+bge-rerank@bge-small",
+        "n": 68,
+        "retrieval": {
+          "ndcg@10": 0.8048,
+          "recall@5": 0.8191,
+          "recall@10": 0.8789,
+          "recall@50": 0.9338,
+          "mrr@10": 0.8125,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8928,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9583,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5731,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.3542,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.4653,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.3958,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6478,
+              "recall@10": 0.66,
+              "recall@50": 1.0,
+              "mrr@10": 0.5667,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6016,
+              "recall@10": 0.75,
+              "recall@50": 0.875,
+              "mrr@10": 0.5625,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8137,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.7827,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7083,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.9439,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 1.0,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8048,
+            "lo": 0.7384,
+            "hi": 0.8656
+          },
+          "recall@10": {
+            "mean": 0.8789,
+            "lo": 0.8135,
+            "hi": 0.9351
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          }
+        },
+        "rerank_latency": {
+          "p50_ms": 263.959,
+          "p95_ms": 293.43,
+          "n": 68
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.098,
+              "lo": 0.0472,
+              "hi": 0.1538
+            },
+            "recall@10": {
+              "delta": 0.049,
+              "lo": 0.0038,
+              "hi": 0.1037
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          }
+        ]
+      },
+      {
+        "config": "hybrid+distilled-student@bge-small",
+        "n": 68,
+        "retrieval": {
+          "ndcg@10": 0.5553,
+          "recall@5": 0.7424,
+          "recall@10": 0.8382,
+          "recall@50": 0.9338,
+          "mrr@10": 0.5273,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.5944,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.58,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5588,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.3208,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5178,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.494,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4386,
+              "recall@10": 0.5325,
+              "recall@50": 1.0,
+              "mrr@10": 0.4786,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.473,
+              "recall@10": 0.5,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.4914,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.3065,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4056,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.3107,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.7333,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.5553,
+            "lo": 0.5022,
+            "hi": 0.6093
+          },
+          "recall@10": {
+            "mean": 0.8382,
+            "lo": 0.7705,
+            "hi": 0.8985
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          }
+        },
+        "rerank_latency": {
+          "p50_ms": 1.562,
+          "p95_ms": 1.804,
+          "n": 68
+        },
+        "deltas": [
+          {
+            "reference": "hybrid+bge-rerank@bge-small",
+            "ndcg@10": {
+              "delta": -0.2496,
+              "lo": -0.3029,
+              "hi": -0.1948
+            },
+            "recall@10": {
+              "delta": -0.0407,
+              "lo": -0.0868,
+              "hi": -0.002
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          },
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.1515,
+              "lo": -0.2035,
+              "hi": -0.101
+            },
+            "recall@10": {
+              "delta": 0.0083,
+              "lo": -0.0211,
+              "hi": 0.045
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          }
+        ],
+        "student": {
+          "backend": "numpy_lstsq",
+          "fallback": "linear least squares (LightGBM not installed)",
+          "n_train_questions": 68,
+          "n_train_triples": 3400,
+          "features": [
+            "dense_cosine",
+            "bm25_score",
+            "rrf_score",
+            "rrf_rank",
+            "jaccard",
+            "exact_overlap",
+            "path_depth",
+            "recency",
+            "is_yaml",
+            "is_log",
+            "is_code",
+            "is_csv",
+            "is_md"
+          ],
+          "teacher": "BAAI/bge-reranker-v2-m3"
+        }
+      }
+    ]
+  },
+  "all_questions": {
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 136,
+      "level": 0.95
+    },
+    "results": [
+      {
+        "config": "hybrid@bge-small",
+        "n": 136,
+        "retrieval": {
+          "ndcg@10": 0.6956,
+          "recall@5": 0.7395,
+          "recall@10": 0.8201,
+          "recall@50": 0.9375,
+          "mrr@10": 0.7049,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.7712,
+              "recall@10": 0.8875,
+              "recall@50": 0.9,
+              "mrr@10": 0.7898,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5988,
+              "recall@10": 0.9,
+              "recall@50": 1.0,
+              "mrr@10": 0.4948,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6239,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.7054,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5667,
+              "recall@10": 0.6496,
+              "recall@50": 1.0,
+              "mrr@10": 0.5601,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5675,
+              "recall@10": 0.625,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6667,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7117,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.6458,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.3542,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.3095,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7311,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6956,
+            "lo": 0.6456,
+            "hi": 0.7451
+          },
+          "recall@10": {
+            "mean": 0.8201,
+            "lo": 0.7676,
+            "hi": 0.8721
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          }
+        }
+      },
+      {
+        "config": "hybrid+bge-rerank@bge-small",
+        "n": 136,
+        "retrieval": {
+          "ndcg@10": 0.8119,
+          "recall@5": 0.8316,
+          "recall@10": 0.8789,
+          "recall@50": 0.9375,
+          "mrr@10": 0.8292,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8926,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9604,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6394,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.5021,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6198,
+              "recall@10": 0.7708,
+              "recall@50": 1.0,
+              "mrr@10": 0.6146,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6897,
+              "recall@10": 0.6863,
+              "recall@50": 1.0,
+              "mrr@10": 0.6417,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6469,
+              "recall@10": 0.8125,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6146,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7685,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.6875,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.7366,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.6458,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.8053,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8119,
+            "lo": 0.7653,
+            "hi": 0.856
+          },
+          "recall@10": {
+            "mean": 0.8789,
+            "lo": 0.8351,
+            "hi": 0.921
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          }
+        },
+        "rerank_latency": {
+          "p50_ms": 263.839,
+          "p95_ms": 292.045,
+          "n": 136
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.1164,
+              "lo": 0.0764,
+              "hi": 0.1602
+            },
+            "recall@10": {
+              "delta": 0.0588,
+              "lo": 0.0222,
+              "hi": 0.098
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "listwise": {
+    "evaluated": false,
+    "reason": "no --listwise-model given"
+  }
+}

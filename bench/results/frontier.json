@@ -1,0 +1,5507 @@
+{
+  "git_sha": "a66e914",
+  "timestamp": "2026-11-10T02:42:39.964095+00:00",
+  "command": "python -m app.eval.harness --frontier --out bench/results/frontier.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 96,
+    "hostname": "dgx2-5.hpc.engr.oregonstate.edu",
+    "torch": null,
+    "cuda_available": false,
+    "device": "cpu",
+    "device_name": "cpu",
+    "threads": null,
+    "sentence_transformers": null
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 136,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "hybrid",
+      "settings": {
+        "name": "hybrid",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.4548,
+        "recall@5": 0.5415,
+        "recall@10": 0.6623,
+        "recall@50": 0.9397,
+        "mrr@10": 0.4311,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4804,
+            "recall@10": 0.7188,
+            "recall@50": 0.9187,
+            "mrr@10": 0.4611,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1723,
+            "recall@10": 0.4,
+            "recall@50": 0.975,
+            "mrr@10": 0.1236,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3431,
+            "recall@10": 0.5417,
+            "recall@50": 1.0,
+            "mrr@10": 0.316,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3285,
+            "recall@10": 0.4535,
+            "recall@50": 1.0,
+            "mrr@10": 0.2467,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.433,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4428,
+            "recall@10": 0.625,
+            "recall@50": 1.0,
+            "mrr@10": 0.3792,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5955,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.5491,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.47,
+          "p95_ms": 1.0,
+          "mean_ms": 0.62
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.36,
+          "p95_ms": 1.26,
+          "mean_ms": 0.6
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.05,
+          "mean_ms": 0.07
+        }
+      },
+      "wall_ms": 220.67,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4548,
+          "lo": 0.4026,
+          "hi": 0.5119
+        },
+        "recall@10": {
+          "mean": 0.6623,
+          "lo": 0.5999,
+          "hi": 0.7265
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": null,
+      "delta_vs_parent_by_category": null,
+      "fallbacks": [
+        "hash embedder (no model)"
+      ]
+    },
+    {
+      "config": "hybrid+rerank",
+      "settings": {
+        "name": "hybrid+rerank",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4525,
+        "recall@5": 0.6851,
+        "recall@10": 0.747,
+        "recall@50": 0.9397,
+        "mrr@10": 0.3917,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4325,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
+            "mrr@10": 0.3579,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2169,
+            "recall@10": 0.4625,
+            "recall@50": 0.975,
+            "mrr@10": 0.1609,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3778,
+            "recall@10": 0.6042,
+            "recall@50": 1.0,
+            "mrr@10": 0.3345,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3449,
+            "recall@10": 0.4304,
+            "recall@50": 1.0,
+            "mrr@10": 0.2878,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4535,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4837,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.35,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.875,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.41,
+          "p95_ms": 0.65,
+          "mean_ms": 0.54
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.33,
+          "p95_ms": 0.55,
+          "mean_ms": 0.46
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.04,
+          "mean_ms": 0.03
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 2.71,
+          "p95_ms": 5.78,
+          "mean_ms": 3.26
+        }
+      },
+      "wall_ms": 630.42,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4525,
+          "lo": 0.4126,
+          "hi": 0.4966
+        },
+        "recall@10": {
+          "mean": 0.747,
+          "lo": 0.6904,
+          "hi": 0.8028
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": -0.0023,
+          "lo": -0.0404,
+          "hi": 0.0356
+        },
+        "recall@10": {
+          "delta": 0.0847,
+          "lo": 0.0339,
+          "hi": 0.1372
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0164,
+            "lo": -0.0769,
+            "hi": 0.1193
+          },
+          "recall@10": {
+            "delta": -0.0231,
+            "lo": -0.1208,
+            "hi": 0.0725
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0347,
+            "lo": -0.0417,
+            "hi": 0.1222
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0446,
+            "lo": -0.0328,
+            "hi": 0.1531
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.2795,
+            "lo": 0.0625,
+            "hi": 0.5382
+          },
+          "recall@10": {
+            "delta": 0.25,
+            "lo": 0.0,
+            "hi": 0.625
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0206,
+            "lo": -0.016,
+            "hi": 0.0674
+          },
+          "recall@10": {
+            "delta": 0.0312,
+            "lo": 0.0,
+            "hi": 0.0938
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": -0.1845,
+            "hi": 0.1845
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0479,
+            "lo": -0.0967,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0813,
+            "lo": 0.0187,
+            "hi": 0.15
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0409,
+            "lo": -0.1529,
+            "hi": 0.2405
+          },
+          "recall@10": {
+            "delta": 0.25,
+            "lo": -0.25,
+            "hi": 0.75
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 131,
+        "n_list_differs": 133
+      }
+    },
+    {
+      "config": "hybrid+rankgpt",
+      "settings": {
+        "name": "hybrid+rankgpt",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "rankgpt",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4503,
+        "recall@5": 0.6704,
+        "recall@10": 0.7257,
+        "recall@50": 0.9397,
+        "mrr@10": 0.3963,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4583,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
+            "mrr@10": 0.3948,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2224,
+            "recall@10": 0.4625,
+            "recall@50": 0.975,
+            "mrr@10": 0.1672,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3778,
+            "recall@10": 0.6042,
+            "recall@50": 1.0,
+            "mrr@10": 0.3345,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3517,
+            "recall@10": 0.4415,
+            "recall@50": 1.0,
+            "mrr@10": 0.2878,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4588,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4476,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.3375,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5955,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.5491,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.4,
+          "p95_ms": 0.68,
+          "mean_ms": 0.52
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.3,
+          "p95_ms": 0.47,
+          "mean_ms": 0.33
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.04,
+          "mean_ms": 0.03
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 0.99,
+          "p95_ms": 1.29,
+          "mean_ms": 1.03
+        }
+      },
+      "wall_ms": 290.86,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "rankgpt",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "rankgpt",
+          "revision": null,
+          "neural": true,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "reranker_fallback": "overlap-listwise",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4503,
+          "lo": 0.4086,
+          "hi": 0.4971
+        },
+        "recall@10": {
+          "mean": 0.7257,
+          "lo": 0.6678,
+          "hi": 0.7858
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": -0.0045,
+          "lo": -0.0396,
+          "hi": 0.0275
+        },
+        "recall@10": {
+          "delta": 0.0635,
+          "lo": 0.0179,
+          "hi": 0.113
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0232,
+            "lo": -0.0729,
+            "hi": 0.126
+          },
+          "recall@10": {
+            "delta": -0.0119,
+            "lo": -0.1049,
+            "hi": 0.075
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0347,
+            "lo": -0.0417,
+            "hi": 0.1222
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0501,
+            "lo": -0.0173,
+            "hi": 0.1531
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0259,
+            "lo": -0.0071,
+            "hi": 0.071
+          },
+          "recall@10": {
+            "delta": 0.0312,
+            "lo": 0.0,
+            "hi": 0.0938
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": -0.1845,
+            "hi": 0.1845
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0221,
+            "lo": -0.0701,
+            "hi": 0.0256
+          },
+          "recall@10": {
+            "delta": 0.0813,
+            "lo": 0.0187,
+            "hi": 0.15
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0047,
+            "lo": -0.189,
+            "hi": 0.2036
+          },
+          "recall@10": {
+            "delta": 0.125,
+            "lo": -0.25,
+            "hi": 0.5
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "listwise rerank by token overlap (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 128,
+        "n_list_differs": 128
+      }
+    },
+    {
+      "config": "hybrid+multiquery",
+      "settings": {
+        "name": "hybrid+multiquery",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": true,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.5435,
+        "recall@5": 0.5984,
+        "recall@10": 0.7439,
+        "recall@50": 0.9596,
+        "mrr@10": 0.5488,
+        "mean_unique_paths@50": 48.27,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.6246,
+            "recall@10": 0.8313,
+            "recall@50": 0.95,
+            "mrr@10": 0.6584,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1203,
+            "recall@10": 0.3438,
+            "recall@50": 1.0,
+            "mrr@10": 0.0637,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3627,
+            "recall@10": 0.5417,
+            "recall@50": 1.0,
+            "mrr@10": 0.3479,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3264,
+            "recall@10": 0.459,
+            "recall@50": 1.0,
+            "mrr@10": 0.2483,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4681,
+            "recall@10": 0.6875,
+            "recall@50": 0.9375,
+            "mrr@10": 0.526,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.441,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.3385,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6165,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.5347,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7689,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7913
+      },
+      "latency": {
+        "multi_query": {
+          "n": 136,
+          "p50_ms": 2.71,
+          "p95_ms": 4.72,
+          "mean_ms": 3.2
+        }
+      },
+      "wall_ms": 446.2,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "multi_query": 122
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "multi_query": true,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.5435,
+          "lo": 0.4902,
+          "hi": 0.5954
+        },
+        "recall@10": {
+          "mean": 0.7439,
+          "lo": 0.6842,
+          "hi": 0.8013
+        },
+        "recall@50": {
+          "mean": 0.9596,
+          "lo": 0.9338,
+          "hi": 0.9816
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": 0.0887,
+          "lo": 0.0603,
+          "hi": 0.1159
+        },
+        "recall@10": {
+          "delta": 0.0817,
+          "lo": 0.0394,
+          "hi": 0.1258
+        },
+        "recall@50": {
+          "delta": 0.0199,
+          "lo": 0.0051,
+          "hi": 0.0368
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.002,
+            "lo": -0.0452,
+            "hi": 0.0391
+          },
+          "recall@10": {
+            "delta": 0.0056,
+            "lo": -0.0333,
+            "hi": 0.05
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0196,
+            "lo": -0.0141,
+            "hi": 0.0606
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.052,
+            "lo": -0.1074,
+            "hi": -0.006
+          },
+          "recall@10": {
+            "delta": -0.0563,
+            "lo": -0.1313,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.021,
+            "lo": -0.1503,
+            "hi": 0.167
+          },
+          "recall@10": {
+            "delta": 0.125,
+            "lo": 0.0,
+            "hi": 0.375
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0351,
+            "lo": -0.0053,
+            "hi": 0.0877
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0615,
+            "lo": 0.0,
+            "hi": 0.1845
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.1442,
+            "lo": 0.1134,
+            "hi": 0.1765
+          },
+          "recall@10": {
+            "delta": 0.1125,
+            "lo": 0.05,
+            "hi": 0.1812
+          },
+          "recall@50": {
+            "delta": 0.0312,
+            "lo": 0.0063,
+            "hi": 0.0625
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0018,
+            "lo": -0.1663,
+            "hi": 0.134
+          },
+          "recall@10": {
+            "delta": 0.125,
+            "lo": 0.0,
+            "hi": 0.375
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "query expansion by keyword heuristic (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 122,
+        "n_list_differs": 122
+      }
+    },
+    {
+      "config": "hybrid+hipporag",
+      "settings": {
+        "name": "hybrid+hipporag",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": true,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4802,
+        "recall@5": 0.5491,
+        "recall@10": 0.6589,
+        "recall@50": 0.9397,
+        "mrr@10": 0.4918,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.5135,
+            "recall@10": 0.7188,
+            "recall@50": 0.9187,
+            "mrr@10": 0.5318,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1723,
+            "recall@10": 0.4,
+            "recall@50": 0.975,
+            "mrr@10": 0.1236,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.1893,
+            "recall@10": 0.3542,
+            "recall@50": 1.0,
+            "mrr@10": 0.1667,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.4695,
+            "recall@10": 0.4576,
+            "recall@50": 1.0,
+            "mrr@10": 0.5556,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.511,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4428,
+            "recall@10": 0.625,
+            "recall@50": 1.0,
+            "mrr@10": 0.3792,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5955,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.5491,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.42,
+          "p95_ms": 0.71,
+          "mean_ms": 0.49
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.3,
+          "p95_ms": 0.48,
+          "mean_ms": 0.37
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.05,
+          "mean_ms": 0.03
+        },
+        "hipporag": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 3.36,
+          "mean_ms": 0.75
+        }
+      },
+      "wall_ms": 265.74,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "hipporag": 33
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "hipporag": true,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4802,
+          "lo": 0.4284,
+          "hi": 0.5355
+        },
+        "recall@10": {
+          "mean": 0.6589,
+          "lo": 0.5982,
+          "hi": 0.7247
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": 0.0254,
+          "lo": 0.0001,
+          "hi": 0.0493
+        },
+        "recall@10": {
+          "delta": -0.0034,
+          "lo": -0.0314,
+          "hi": 0.0231
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.141,
+            "lo": -0.0261,
+            "hi": 0.2672
+          },
+          "recall@10": {
+            "delta": 0.0042,
+            "lo": -0.2567,
+            "hi": 0.1811
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.1538,
+            "lo": -0.4311,
+            "hi": 0.0358
+          },
+          "recall@10": {
+            "delta": -0.1875,
+            "lo": -0.5,
+            "hi": 0.0641
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.078,
+            "lo": 0.0,
+            "hi": 0.1934
+          },
+          "recall@10": {
+            "delta": 0.125,
+            "lo": 0.0,
+            "hi": 0.3125
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.0331,
+            "lo": 0.0151,
+            "hi": 0.0531
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "PPR over regex triples with a hand-written path prior (no LLM extraction)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 33,
+        "n_list_differs": 33
+      }
+    },
+    {
+      "config": "hybrid+hops=1",
+      "settings": {
+        "name": "hybrid+hops=1",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 1,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.383,
+        "recall@5": 0.4801,
+        "recall@10": 0.5761,
+        "recall@50": 0.9855,
+        "mrr@10": 0.3473,
+        "mean_unique_paths@50": 50.0,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4035,
+            "recall@10": 0.6312,
+            "recall@50": 1.0,
+            "mrr@10": 0.3484,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.119,
+            "recall@10": 0.2687,
+            "recall@50": 1.0,
+            "mrr@10": 0.1108,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.2853,
+            "recall@10": 0.4792,
+            "recall@50": 0.875,
+            "mrr@10": 0.2639,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.1346,
+            "recall@10": 0.236,
+            "recall@50": 0.9528,
+            "mrr@10": 0.1444,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4107,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4375,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.3711,
+            "recall@10": 0.5,
+            "recall@50": 1.0,
+            "mrr@10": 0.3229,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6077,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.5625,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.6855,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.7222,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.8197
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.01,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.44,
+          "p95_ms": 0.92,
+          "mean_ms": 0.71
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.35,
+          "p95_ms": 0.64,
+          "mean_ms": 0.55
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.05,
+          "mean_ms": 0.05
+        }
+      },
+      "wall_ms": 1714.75,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "graph_hops": 136
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.383,
+          "lo": 0.3264,
+          "hi": 0.4416
+        },
+        "recall@10": {
+          "mean": 0.5761,
+          "lo": 0.5051,
+          "hi": 0.6478
+        },
+        "recall@50": {
+          "mean": 0.9855,
+          "lo": 0.9708,
+          "hi": 0.9963
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": -0.0718,
+          "lo": -0.1012,
+          "hi": -0.0439
+        },
+        "recall@10": {
+          "delta": -0.0862,
+          "lo": -0.1554,
+          "hi": -0.0224
+        },
+        "recall@50": {
+          "delta": 0.0458,
+          "lo": 0.0127,
+          "hi": 0.0787
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.1938,
+            "lo": -0.3186,
+            "hi": -0.0641
+          },
+          "recall@10": {
+            "delta": -0.2175,
+            "lo": -0.4078,
+            "hi": -0.0328
+          },
+          "recall@50": {
+            "delta": -0.0472,
+            "lo": -0.1167,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0578,
+            "lo": -0.2059,
+            "hi": 0.0762
+          },
+          "recall@10": {
+            "delta": -0.0625,
+            "lo": -0.375,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": -0.125,
+            "lo": -0.2516,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0533,
+            "lo": -0.1459,
+            "hi": 0.0247
+          },
+          "recall@10": {
+            "delta": -0.1313,
+            "lo": -0.4062,
+            "hi": 0.05
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0122,
+            "lo": -0.191,
+            "hi": 0.2153
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": -0.5,
+            "hi": 0.5
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0222,
+            "lo": -0.1249,
+            "hi": 0.1053
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": -0.1875,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": -0.1875,
+            "hi": 0.1875
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0218,
+            "lo": -0.0655,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.1667,
+            "lo": 0.0,
+            "hi": 0.5
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0769,
+            "lo": -0.1118,
+            "hi": -0.0447
+          },
+          "recall@10": {
+            "delta": -0.0875,
+            "lo": -0.1812,
+            "hi": -0.0063
+          },
+          "recall@50": {
+            "delta": 0.0813,
+            "lo": 0.0437,
+            "hi": 0.125
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0718,
+            "lo": -0.1756,
+            "hi": -0.0069
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.375,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 136,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+hops=2",
+      "settings": {
+        "name": "hybrid+hops=2",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 2,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.3115,
+        "recall@5": 0.368,
+        "recall@10": 0.4152,
+        "recall@50": 0.943,
+        "mrr@10": 0.3145,
+        "mean_unique_paths@50": 50.0,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.3153,
+            "recall@10": 0.4188,
+            "recall@50": 0.9375,
+            "mrr@10": 0.3181,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.0577,
+            "recall@10": 0.15,
+            "recall@50": 1.0,
+            "mrr@10": 0.0469,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.2369,
+            "recall@10": 0.4167,
+            "recall@50": 0.9375,
+            "mrr@10": 0.2014,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.0741,
+            "recall@10": 0.1436,
+            "recall@50": 1.0,
+            "mrr@10": 0.0917,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.3954,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4375,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.3455,
+            "recall@10": 0.4375,
+            "recall@50": 1.0,
+            "mrr@10": 0.3229,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5,
+            "recall@10": 0.5,
+            "recall@50": 0.875,
+            "mrr@10": 0.5,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.6855,
+            "recall@10": 0.75,
+            "recall@50": 0.875,
+            "mrr@10": 0.7222,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.8197
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.01,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.43,
+          "p95_ms": 0.75,
+          "mean_ms": 0.57
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.34,
+          "p95_ms": 0.79,
+          "mean_ms": 0.64
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.04,
+          "mean_ms": 0.03
+        }
+      },
+      "wall_ms": 1930.14,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "graph_hops": 136
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3115,
+          "lo": 0.2511,
+          "hi": 0.3764
+        },
+        "recall@10": {
+          "mean": 0.4152,
+          "lo": 0.3433,
+          "hi": 0.4856
+        },
+        "recall@50": {
+          "mean": 0.943,
+          "lo": 0.9118,
+          "hi": 0.9706
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": -0.1433,
+          "lo": -0.1714,
+          "hi": -0.1155
+        },
+        "recall@10": {
+          "delta": -0.247,
+          "lo": -0.3184,
+          "hi": -0.1848
+        },
+        "recall@50": {
+          "delta": 0.0033,
+          "lo": -0.0257,
+          "hi": 0.0309
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.2544,
+            "lo": -0.3928,
+            "hi": -0.1221
+          },
+          "recall@10": {
+            "delta": -0.3099,
+            "lo": -0.5204,
+            "hi": -0.1111
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.1061,
+            "lo": -0.2223,
+            "hi": -0.0206
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.375,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.1146,
+            "lo": -0.1911,
+            "hi": -0.0346
+          },
+          "recall@10": {
+            "delta": -0.25,
+            "lo": -0.5,
+            "hi": -0.0625
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0955,
+            "lo": -0.2327,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": -0.25,
+            "lo": -0.625,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": -0.125,
+            "lo": -0.375,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0376,
+            "lo": -0.125,
+            "hi": 0.0593
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": -0.1875,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": -0.1875,
+            "hi": 0.1875
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0218,
+            "lo": -0.0655,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0417,
+            "lo": 0.0,
+            "hi": 0.125
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.1651,
+            "lo": -0.2027,
+            "hi": -0.131
+          },
+          "recall@10": {
+            "delta": -0.3,
+            "lo": -0.4,
+            "hi": -0.2123
+          },
+          "recall@50": {
+            "delta": 0.0187,
+            "lo": -0.0125,
+            "hi": 0.0502
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0973,
+            "lo": -0.2103,
+            "hi": -0.016
+          },
+          "recall@10": {
+            "delta": -0.1875,
+            "lo": -0.4375,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 136,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+fixed-chunks",
+      "settings": {
+        "name": "hybrid+fixed-chunks",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "fixed",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4446,
+        "recall@5": 0.5263,
+        "recall@10": 0.6549,
+        "recall@50": 0.954,
+        "mrr@10": 0.4198,
+        "mean_unique_paths@50": 50.0,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4785,
+            "recall@10": 0.7188,
+            "recall@50": 0.9437,
+            "mrr@10": 0.4584,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1661,
+            "recall@10": 0.4,
+            "recall@50": 1.0,
+            "mrr@10": 0.1167,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.326,
+            "recall@10": 0.5417,
+            "recall@50": 0.9375,
+            "mrr@10": 0.2908,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.2778,
+            "recall@10": 0.3535,
+            "recall@50": 1.0,
+            "mrr@10": 0.2183,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4255,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4688,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.454,
+            "recall@10": 0.625,
+            "recall@50": 1.0,
+            "mrr@10": 0.3854,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.5243,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.4554,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.875,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.8197
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.4,
+          "p95_ms": 0.65,
+          "mean_ms": 0.53
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.3,
+          "p95_ms": 0.47,
+          "mean_ms": 0.31
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.05,
+          "mean_ms": 0.03
+        }
+      },
+      "wall_ms": 145.49,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 61,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4446,
+          "lo": 0.3931,
+          "hi": 0.5011
+        },
+        "recall@10": {
+          "mean": 0.6549,
+          "lo": 0.5896,
+          "hi": 0.721
+        },
+        "recall@50": {
+          "mean": 0.954,
+          "lo": 0.9283,
+          "hi": 0.9779
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": -0.0102,
+          "lo": -0.025,
+          "hi": 0.0018
+        },
+        "recall@10": {
+          "delta": -0.0074,
+          "lo": -0.0221,
+          "hi": 0.0
+        },
+        "recall@50": {
+          "delta": 0.0143,
+          "lo": -0.0018,
+          "hi": 0.0313
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0507,
+            "lo": -0.1521,
+            "hi": 0.0032
+          },
+          "recall@10": {
+            "delta": -0.1,
+            "lo": -0.3,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.017,
+            "lo": -0.0394,
+            "hi": -0.0009
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0062,
+            "lo": -0.0253,
+            "hi": 0.0054
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0712,
+            "lo": -0.2135,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0075,
+            "lo": -0.0181,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0417,
+            "lo": 0.0,
+            "hi": 0.125
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0019,
+            "lo": -0.0156,
+            "hi": 0.0112
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0063,
+            "hi": 0.05
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0112,
+            "lo": 0.0,
+            "hi": 0.0278
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 104,
+        "n_list_differs": 135
+      }
+    },
+    {
+      "config": "hybrid+contextual",
+      "settings": {
+        "name": "hybrid+contextual",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": true,
+        "late_chunking": false,
+        "parent": "hybrid"
+      },
+      "retrieval": {
+        "ndcg@10": 0.5686,
+        "recall@5": 0.6734,
+        "recall@10": 0.7446,
+        "recall@50": 0.9434,
+        "mrr@10": 0.5615,
+        "mean_unique_paths@50": 47.0,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.6102,
+            "recall@10": 0.7875,
+            "recall@50": 0.9187,
+            "mrr@10": 0.6236,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1807,
+            "recall@10": 0.425,
+            "recall@50": 0.975,
+            "mrr@10": 0.1399,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.365,
+            "recall@10": 0.5417,
+            "recall@50": 0.9375,
+            "mrr@10": 0.3479,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3964,
+            "recall@10": 0.5033,
+            "recall@50": 1.0,
+            "mrr@10": 0.31,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.5123,
+            "recall@10": 0.6875,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.5469,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.4313,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9077,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.875,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7414,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7705
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.45,
+          "p95_ms": 1.79,
+          "mean_ms": 0.66
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.31,
+          "p95_ms": 0.73,
+          "mean_ms": 0.42
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.05,
+          "mean_ms": 0.03
+        }
+      },
+      "wall_ms": 191.83,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.5686,
+          "lo": 0.5138,
+          "hi": 0.6216
+        },
+        "recall@10": {
+          "mean": 0.7446,
+          "lo": 0.6867,
+          "hi": 0.8026
+        },
+        "recall@50": {
+          "mean": 0.9434,
+          "lo": 0.9176,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid",
+        "ndcg@10": {
+          "delta": 0.1138,
+          "lo": 0.0852,
+          "hi": 0.1445
+        },
+        "recall@10": {
+          "delta": 0.0823,
+          "lo": 0.0418,
+          "hi": 0.1262
+        },
+        "recall@50": {
+          "delta": 0.0037,
+          "lo": -0.0184,
+          "hi": 0.0257
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0679,
+            "lo": 0.0219,
+            "hi": 0.119
+          },
+          "recall@10": {
+            "delta": 0.0499,
+            "lo": 0.0125,
+            "hi": 0.0971
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0219,
+            "lo": -0.024,
+            "hi": 0.0745
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0084,
+            "lo": -0.0253,
+            "hi": 0.0492
+          },
+          "recall@10": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.3122,
+            "lo": 0.0789,
+            "hi": 0.5411
+          },
+          "recall@10": {
+            "delta": 0.25,
+            "lo": 0.0,
+            "hi": 0.625
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0793,
+            "lo": 0.0204,
+            "hi": 0.1594
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": -0.1875,
+            "hi": 0.1875
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0341,
+            "lo": 0.0,
+            "hi": 0.1022
+          },
+          "recall@10": {
+            "delta": 0.0833,
+            "lo": 0.0,
+            "hi": 0.25
+          },
+          "recall@50": {
+            "delta": 0.1667,
+            "lo": 0.0,
+            "hi": 0.5
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.1298,
+            "lo": 0.0928,
+            "hi": 0.1663
+          },
+          "recall@10": {
+            "delta": 0.0688,
+            "lo": 0.0187,
+            "hi": 0.125
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": -0.0187,
+            "hi": 0.0187
+          }
+        },
+        {
+          "reference": "hybrid",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1041,
+            "lo": 0.011,
+            "hi": 0.2322
+          },
+          "recall@10": {
+            "delta": 0.25,
+            "lo": 0.0,
+            "hi": 0.625
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "chunk prefix from path words (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid",
+        "n_questions": 136,
+        "n_top10_differs": 136,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+rerank+hyde",
+      "settings": {
+        "name": "hybrid+rerank+hyde",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": true,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+rerank"
+      },
+      "retrieval": {
+        "ndcg@10": 0.3877,
+        "recall@5": 0.4151,
+        "recall@10": 0.59,
+        "recall@50": 0.9397,
+        "mrr@10": 0.3512,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.3545,
+            "recall@10": 0.6,
+            "recall@50": 0.9187,
+            "mrr@10": 0.3003,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1576,
+            "recall@10": 0.4,
+            "recall@50": 0.975,
+            "mrr@10": 0.1001,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3431,
+            "recall@10": 0.4792,
+            "recall@50": 1.0,
+            "mrr@10": 0.3438,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.2954,
+            "recall@10": 0.3454,
+            "recall@50": 1.0,
+            "mrr@10": 0.3283,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4986,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5208,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4596,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.3639,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6414,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.6042,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7689,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "hyde": {
+          "n": 136,
+          "p50_ms": 0.83,
+          "p95_ms": 1.45,
+          "mean_ms": 0.93
+        },
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.42,
+          "p95_ms": 0.65,
+          "mean_ms": 0.45
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.3,
+          "p95_ms": 0.5,
+          "mean_ms": 0.32
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.03,
+          "p95_ms": 0.04,
+          "mean_ms": 0.03
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 2.67,
+          "p95_ms": 3.74,
+          "mean_ms": 3.0
+        }
+      },
+      "wall_ms": 706.81,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "hyde": 136
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3877,
+          "lo": 0.3325,
+          "hi": 0.4492
+        },
+        "recall@10": {
+          "mean": 0.59,
+          "lo": 0.5198,
+          "hi": 0.6623
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": -0.0648,
+          "lo": -0.1048,
+          "hi": -0.0263
+        },
+        "recall@10": {
+          "delta": -0.157,
+          "lo": -0.2195,
+          "hi": -0.0994
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid+rerank",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0495,
+            "lo": -0.1787,
+            "hi": 0.0486
+          },
+          "recall@10": {
+            "delta": -0.085,
+            "lo": -0.2317,
+            "hi": 0.0542
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0347,
+            "lo": -0.1608,
+            "hi": 0.0444
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.375,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0593,
+            "lo": -0.1252,
+            "hi": -0.0056
+          },
+          "recall@10": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.2336,
+            "lo": -0.5,
+            "hi": -0.0461
+          },
+          "recall@10": {
+            "delta": -0.25,
+            "lo": -0.625,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0451,
+            "lo": 0.0036,
+            "hi": 0.0988
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0615,
+            "lo": 0.0,
+            "hi": 0.1845
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0779,
+            "lo": -0.1302,
+            "hi": -0.0195
+          },
+          "recall@10": {
+            "delta": -0.2,
+            "lo": -0.2875,
+            "hi": -0.1125
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0241,
+            "lo": -0.1964,
+            "hi": 0.1461
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.5,
+            "hi": 0.25
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)",
+        "HyDE hypothesis by keyword heuristic (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid+rerank",
+        "n_questions": 136,
+        "n_top10_differs": 136,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+rerank+decompose",
+      "settings": {
+        "name": "hybrid+rerank+decompose",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": true,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+rerank"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4529,
+        "recall@5": 0.687,
+        "recall@10": 0.7433,
+        "recall@50": 0.9397,
+        "mrr@10": 0.3955,
+        "mean_unique_paths@50": 46.1,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4325,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
+            "mrr@10": 0.3579,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2224,
+            "recall@10": 0.4625,
+            "recall@50": 0.975,
+            "mrr@10": 0.1672,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3989,
+            "recall@10": 0.6042,
+            "recall@50": 1.0,
+            "mrr@10": 0.397,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3449,
+            "recall@10": 0.4304,
+            "recall@50": 1.0,
+            "mrr@10": 0.2878,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4329,
+            "recall@10": 0.5938,
+            "recall@50": 0.9375,
+            "mrr@10": 0.474,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4837,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.35,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.875,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7558
+      },
+      "latency": {
+        "route": {
+          "n": 160,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 160,
+          "p50_ms": 0.38,
+          "p95_ms": 0.58,
+          "mean_ms": 0.4
+        },
+        "embed": {
+          "n": 160,
+          "p50_ms": 0.29,
+          "p95_ms": 0.44,
+          "mean_ms": 0.3
+        },
+        "vector_search": {
+          "n": 160,
+          "p50_ms": 0.03,
+          "p95_ms": 0.04,
+          "mean_ms": 0.03
+        },
+        "rerank": {
+          "n": 160,
+          "p50_ms": 2.45,
+          "p95_ms": 3.03,
+          "mean_ms": 2.47
+        }
+      },
+      "wall_ms": 546.82,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "decompose": 12
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4529,
+          "lo": 0.414,
+          "hi": 0.4974
+        },
+        "recall@10": {
+          "mean": 0.7433,
+          "lo": 0.6871,
+          "hi": 0.7976
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": 0.0003,
+          "lo": -0.0054,
+          "hi": 0.0057
+        },
+        "recall@10": {
+          "delta": -0.0037,
+          "lo": -0.0147,
+          "hi": 0.0074
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid+rerank",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0211,
+            "lo": -0.0258,
+            "hi": 0.0889
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": -0.1875,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0055,
+            "lo": 0.0,
+            "hi": 0.0164
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0207,
+            "lo": -0.1031,
+            "hi": 0.0328
+          },
+          "recall@10": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)",
+        "decomposition by heuristic (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid+rerank",
+        "n_questions": 136,
+        "n_top10_differs": 12,
+        "n_list_differs": 12
+      }
+    },
+    {
+      "config": "hybrid+rerank+corrective",
+      "settings": {
+        "name": "hybrid+rerank+corrective",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": true,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+rerank"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4525,
+        "recall@5": 0.6851,
+        "recall@10": 0.747,
+        "recall@50": 0.989,
+        "mrr@10": 0.3917,
+        "mean_unique_paths@50": 46.79,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4325,
+            "recall@10": 0.8,
+            "recall@50": 1.0,
+            "mrr@10": 0.3579,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2169,
+            "recall@10": 0.4625,
+            "recall@50": 1.0,
+            "mrr@10": 0.1609,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3778,
+            "recall@10": 0.6042,
+            "recall@50": 1.0,
+            "mrr@10": 0.3345,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3449,
+            "recall@10": 0.4304,
+            "recall@50": 1.0,
+            "mrr@10": 0.2878,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4535,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4837,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.35,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.875,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.767
+      },
+      "latency": {
+        "route": {
+          "n": 232,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 232,
+          "p50_ms": 0.4,
+          "p95_ms": 0.56,
+          "mean_ms": 0.4
+        },
+        "embed": {
+          "n": 232,
+          "p50_ms": 0.31,
+          "p95_ms": 0.44,
+          "mean_ms": 0.33
+        },
+        "vector_search": {
+          "n": 232,
+          "p50_ms": 0.03,
+          "p95_ms": 0.03,
+          "mean_ms": 0.03
+        },
+        "rerank": {
+          "n": 232,
+          "p50_ms": 2.61,
+          "p95_ms": 2.96,
+          "mean_ms": 2.57
+        }
+      },
+      "wall_ms": 892.95,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "corrective_decompose": 10,
+        "corrective_refine_no_list_change": 44,
+        "corrective_rewrite": 76
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4525,
+          "lo": 0.4126,
+          "hi": 0.4966
+        },
+        "recall@10": {
+          "mean": 0.747,
+          "lo": 0.6904,
+          "hi": 0.8028
+        },
+        "recall@50": {
+          "mean": 0.989,
+          "lo": 0.9706,
+          "hi": 1.0
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@50": {
+          "delta": 0.0493,
+          "lo": 0.0257,
+          "hi": 0.0735
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid+rerank",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0813,
+            "lo": 0.0437,
+            "hi": 0.125
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)",
+        "corrective grader by heuristic (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid+rerank",
+        "n_questions": 136,
+        "n_top10_differs": 0,
+        "n_list_differs": 63
+      }
+    },
+    {
+      "config": "hybrid+rerank+hyde+corrective",
+      "settings": {
+        "name": "hybrid+rerank+hyde+corrective",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": true,
+        "decompose": false,
+        "corrective": true,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+rerank"
+      },
+      "retrieval": {
+        "ndcg@10": 0.3877,
+        "recall@5": 0.4151,
+        "recall@10": 0.59,
+        "recall@50": 0.989,
+        "mrr@10": 0.3512,
+        "mean_unique_paths@50": 47.68,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.3545,
+            "recall@10": 0.6,
+            "recall@50": 1.0,
+            "mrr@10": 0.3003,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.1576,
+            "recall@10": 0.4,
+            "recall@50": 1.0,
+            "mrr@10": 0.1001,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3431,
+            "recall@10": 0.4792,
+            "recall@50": 1.0,
+            "mrr@10": 0.3438,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.2954,
+            "recall@10": 0.3454,
+            "recall@50": 1.0,
+            "mrr@10": 0.3283,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4986,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5208,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4596,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.3639,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6414,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.6042,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7689,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7817
+      },
+      "latency": {
+        "hyde": {
+          "n": 136,
+          "p50_ms": 0.51,
+          "p95_ms": 0.92,
+          "mean_ms": 0.56
+        },
+        "route": {
+          "n": 252,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 252,
+          "p50_ms": 0.24,
+          "p95_ms": 0.43,
+          "mean_ms": 0.28
+        },
+        "embed": {
+          "n": 252,
+          "p50_ms": 0.22,
+          "p95_ms": 0.39,
+          "mean_ms": 0.23
+        },
+        "vector_search": {
+          "n": 252,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 252,
+          "p50_ms": 1.38,
+          "p95_ms": 2.67,
+          "mean_ms": 1.73
+        }
+      },
+      "wall_ms": 749.53,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "corrective_decompose": 11,
+        "corrective_refine_no_list_change": 29,
+        "corrective_rewrite": 94,
+        "hyde": 136
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3877,
+          "lo": 0.3325,
+          "hi": 0.4492
+        },
+        "recall@10": {
+          "mean": 0.59,
+          "lo": 0.5198,
+          "hi": 0.6623
+        },
+        "recall@50": {
+          "mean": 0.989,
+          "lo": 0.9706,
+          "hi": 1.0
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": -0.0648,
+          "lo": -0.1048,
+          "hi": -0.0263
+        },
+        "recall@10": {
+          "delta": -0.157,
+          "lo": -0.2195,
+          "hi": -0.0994
+        },
+        "recall@50": {
+          "delta": 0.0493,
+          "lo": 0.0257,
+          "hi": 0.0735
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid+rerank",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0495,
+            "lo": -0.1787,
+            "hi": 0.0486
+          },
+          "recall@10": {
+            "delta": -0.085,
+            "lo": -0.2317,
+            "hi": 0.0542
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0347,
+            "lo": -0.1608,
+            "hi": 0.0444
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.375,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0593,
+            "lo": -0.1252,
+            "hi": -0.0056
+          },
+          "recall@10": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.2336,
+            "lo": -0.5,
+            "hi": -0.0461
+          },
+          "recall@10": {
+            "delta": -0.25,
+            "lo": -0.625,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0451,
+            "lo": 0.0036,
+            "hi": 0.0988
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0615,
+            "lo": 0.0,
+            "hi": 0.1845
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0779,
+            "lo": -0.1302,
+            "hi": -0.0195
+          },
+          "recall@10": {
+            "delta": -0.2,
+            "lo": -0.2875,
+            "hi": -0.1125
+          },
+          "recall@50": {
+            "delta": 0.0813,
+            "lo": 0.0437,
+            "hi": 0.125
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0241,
+            "lo": -0.1964,
+            "hi": 0.1461
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.5,
+            "hi": 0.25
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)",
+        "HyDE hypothesis by keyword heuristic (no LLM)",
+        "corrective grader by heuristic (no LLM)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid+rerank",
+        "n_questions": 136,
+        "n_top10_differs": 136,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+rerank+adaptive",
+      "settings": {
+        "name": "hybrid+rerank+adaptive",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": true,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+rerank"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4525,
+        "recall@5": 0.6851,
+        "recall@10": 0.747,
+        "recall@50": 0.9397,
+        "mrr@10": 0.3917,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.4325,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
+            "mrr@10": 0.3579,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.2169,
+            "recall@10": 0.4625,
+            "recall@50": 0.975,
+            "mrr@10": 0.1609,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.3778,
+            "recall@10": 0.6042,
+            "recall@50": 1.0,
+            "mrr@10": 0.3345,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.3449,
+            "recall@10": 0.4304,
+            "recall@50": 1.0,
+            "mrr@10": 0.2878,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.4535,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.4792,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.4837,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.35,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.875,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.22,
+          "p95_ms": 0.41,
+          "mean_ms": 0.24
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.18,
+          "p95_ms": 0.37,
+          "mean_ms": 0.21
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 1.33,
+          "p95_ms": 2.51,
+          "mean_ms": 1.45
+        }
+      },
+      "wall_ms": 281.43,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "adaptive_retrieve": 136
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4525,
+          "lo": 0.4126,
+          "hi": 0.4966
+        },
+        "recall@10": {
+          "mean": 0.747,
+          "lo": 0.6904,
+          "hi": 0.8028
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid+rerank",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)",
+        "retrieve-or-skip by regex (no model)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid+rerank",
+        "n_questions": 136,
+        "n_top10_differs": 0,
+        "n_list_differs": 0
+      }
+    },
+    {
+      "config": "hybrid+rerank+graphrag",
+      "settings": {
+        "name": "hybrid+rerank+graphrag",
+        "embedder": "hash",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": true,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+rerank"
+      },
+      "retrieval": {
+        "ndcg@10": 0.4918,
+        "recall@5": 0.6509,
+        "recall@10": 0.688,
+        "recall@50": 0.9397,
+        "mrr@10": 0.5005,
+        "mean_unique_paths@50": 45.8,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.5421,
+            "recall@10": 0.8,
+            "recall@50": 0.9187,
+            "mrr@10": 0.5521,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.3153,
+            "recall@10": 0.6188,
+            "recall@50": 0.975,
+            "mrr@10": 0.2626,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.2588,
+            "recall@10": 0.375,
+            "recall@50": 1.0,
+            "mrr@10": 0.2083,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.4991,
+            "recall@10": 0.5117,
+            "recall@50": 1.0,
+            "mrr@10": 0.5726,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.3965,
+            "recall@10": 0.375,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5625,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.3847,
+            "recall@10": 0.625,
+            "recall@50": 1.0,
+            "mrr@10": 0.3073,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.8125,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.7917,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.1974,
+            "recall@10": 0.25,
+            "recall@50": 0.8333,
+            "mrr@10": 0.1852,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7508
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.23,
+          "p95_ms": 0.42,
+          "mean_ms": 0.27
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 0.19,
+          "p95_ms": 0.33,
+          "mean_ms": 0.22
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 1.33,
+          "p95_ms": 2.57,
+          "mean_ms": 1.62
+        },
+        "graphrag": {
+          "n": 132,
+          "p50_ms": 0.07,
+          "p95_ms": 0.14,
+          "mean_ms": 0.09
+        }
+      },
+      "wall_ms": 337.49,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "fired": {
+        "graphrag": 132
+      },
+      "graphrag": {
+        "n_communities": 1,
+        "community_sizes": [
+          107
+        ],
+        "n_member_files": 54,
+        "n_corpus_files": 61,
+        "discriminates": false,
+        "clustering": "connected components (no Leiden)",
+        "summaries": "extractive (no LLM)"
+      },
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "hash",
+          "revision": null,
+          "neural": false,
+          "dim": 256,
+          "device": null,
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.4918,
+          "lo": 0.4495,
+          "hi": 0.5377
+        },
+        "recall@10": {
+          "mean": 0.688,
+          "lo": 0.6281,
+          "hi": 0.749
+        },
+        "recall@50": {
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+rerank",
+        "ndcg@10": {
+          "delta": 0.0393,
+          "lo": -0.0094,
+          "hi": 0.0839
+        },
+        "recall@10": {
+          "delta": -0.059,
+          "lo": -0.1075,
+          "hi": -0.0142
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "hybrid+rerank",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1542,
+            "lo": 0.0679,
+            "hi": 0.2582
+          },
+          "recall@10": {
+            "delta": 0.0813,
+            "lo": 0.0167,
+            "hi": 0.1542
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.119,
+            "lo": -0.4122,
+            "hi": 0.1204
+          },
+          "recall@10": {
+            "delta": -0.2292,
+            "lo": -0.4792,
+            "hi": -0.0417
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0984,
+            "lo": 0.0308,
+            "hi": 0.1959
+          },
+          "recall@10": {
+            "delta": 0.1562,
+            "lo": 0.0,
+            "hi": 0.4062
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0625,
+            "lo": -0.375,
+            "hi": 0.1875
+          },
+          "recall@10": {
+            "delta": -0.125,
+            "lo": -0.375,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0571,
+            "lo": -0.2184,
+            "hi": 0.1425
+          },
+          "recall@10": {
+            "delta": -0.2812,
+            "lo": -0.5312,
+            "hi": -0.0625
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.5099,
+            "lo": -0.8433,
+            "hi": -0.1667
+          },
+          "recall@10": {
+            "delta": -0.5,
+            "lo": -0.8333,
+            "hi": -0.1667
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.1096,
+            "lo": 0.0853,
+            "hi": 0.1355
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "hybrid+rerank",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.099,
+            "lo": -0.4312,
+            "hi": 0.1813
+          },
+          "recall@10": {
+            "delta": -0.25,
+            "lo": -0.625,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ],
+      "fallbacks": [
+        "hash embedder (no model)",
+        "overlap reranker (no model)",
+        "regex triples, connected components, extractive summaries (no LLM, no Leiden)"
+      ],
+      "vs_parent": {
+        "parent": "hybrid+rerank",
+        "n_questions": 136,
+        "n_top10_differs": 118,
+        "n_list_differs": 131
+      }
+    }
+  ],
+  "frontier": {
+    "parents": [
+      "hybrid",
+      "hybrid+rerank"
+    ],
+    "arms": [
+      "hybrid+rankgpt",
+      "hybrid+multiquery",
+      "hybrid+hipporag",
+      "hybrid+hops=1",
+      "hybrid+hops=2",
+      "hybrid+fixed-chunks",
+      "hybrid+contextual",
+      "hybrid+rerank+hyde",
+      "hybrid+rerank+decompose",
+      "hybrid+rerank+corrective",
+      "hybrid+rerank+hyde+corrective",
+      "hybrid+rerank+adaptive",
+      "hybrid+rerank+graphrag"
+    ],
+    "not_evaluated": [
+      {
+        "arm": "hybrid+late-chunking",
+        "reason": "late chunking pools a model's token embeddings; the hash embedder (character n-grams) has none, so this arm exists only in the real-model run (make bench-frontier-neural)"
+      }
+    ],
+    "verdict_rule": "paired bootstrap interval of nDCG@10 (arm minus parent): above zero, covers zero, or below zero"
+  }
+}

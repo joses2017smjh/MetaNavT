@@ -53,6 +53,10 @@ bench/external/
 # LLM-in-the-loop injection results; the episodes JSONL next to it is tracked as well
 !bench/results/agent_injection.json
 !bench/results/agent_injection_episodes.meta.json
+# prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
+!bench/results/frontier.json
+!bench/results/frontier_neural.json
+!bench/results/rerank_arms.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log
