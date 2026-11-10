@@ -25,6 +25,9 @@ FILES = {
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection.json",
+    "frontier": "bench/results/frontier.json",
+    "frontier_neural": "bench/results/frontier_neural.json",
+    "rerank_arms": "bench/results/rerank_arms.json",
 }
 
 
@@ -217,6 +220,75 @@ def claims(root: Path = ROOT) -> list[dict]:
             out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"], "command": "make bench-jury", "source": src,
                         "not_shown": "a measure of order bias, not of answer quality"})
     out += _agent_injection_claims(root)
+    out += _frontier_claims(root)
+    out += _rerank_arm_claims(root)
+    return out
+
+
+def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
+    """The reranker prototypes against the cross-encoder: paired deltas and the latency they buy."""
+    from app.eval.report import verdict
+
+    blob = _load(FILES["rerank_arms"], root)
+    if not blob:
+        return []
+    out: list[dict] = []
+    src = f"{FILES['rerank_arms']} @ {blob['git_sha']}"
+    cmd = "make bench-rerank-arms"
+    for scope in ("test_split", "all_questions"):
+        rows = {r["config"]: r for r in blob[scope]["results"]}
+        teacher = rows.get("hybrid+bge-rerank@bge-small") or {}
+        for name, row in rows.items():
+            if "student" not in name and "listwise" not in name:
+                continue
+            student = row.get("student") or {}
+            stand_in = f"student backend: {student['fallback']}" if student.get("fallback") else "no stand-in: the model ran"
+            for block in row.get("deltas") or []:
+                d = block["ndcg@10"]
+                value, ci = _ci(d, "delta")
+                lat, tlat = row.get("rerank_latency") or {}, teacher.get("rerank_latency") or {}
+                out.append({"claim": f"Reranker prototype `{name}` minus `{block['reference']}`, paired delta in nDCG@10 ({'held-out test questions' if scope == 'test_split' else 'all questions'})",
+                            "value": value, "ci": ci, "n": row["n"], "command": cmd, "source": src,
+                            "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
+                                         f"both rerank the fused top {blob['candidates']['retrieve_k']} of a {blob['n_files']}-file synthetic fixture"})
+    return out
+
+
+def _frontier_claims(root: Path = ROOT) -> list[dict]:
+    """One row per prototype arm and per stack: the paired delta against its parent, the verdict word, the stand-ins."""
+    from app.eval.report import verdict
+
+    out: list[dict] = []
+    for key, command, stack in (
+        ("frontier", "make bench-frontier", "CPU stand-ins"),
+        ("frontier_neural", "make bench-frontier-neural", "bge-small-en-v1.5 + bge-reranker-v2-m3"),
+    ):
+        blob = _load(FILES[key], root)
+        if not blob:
+            continue
+        by = _rows(blob)
+        n = blob["n_gold"]
+        src = f"{FILES[key]} @ {blob['git_sha']}"
+        for name in (blob.get("frontier") or {}).get("arms", []):
+            row = by.get(name)
+            block = ((row or {}).get("delta_vs_previous") or {}).get("ndcg@10")
+            if not row or not block:
+                continue
+            value, ci = _ci(block, "delta")
+            vs = row.get("vs_parent") or {}
+            limits = [f"verdict from the interval: {verdict(block)}"]
+            if 0.0 < block["lo"] < 0.0005 or -0.0005 < block["hi"] < 0.0:
+                limits.append(f"a bound sits at the edge of zero (interval as stored: [{block['lo']:+.4f}, {block['hi']:+.4f}])")
+            limits.append("stand-ins: " + ("; ".join(row.get("fallbacks") or []) or "none, both models loaded"))
+            if vs:
+                limits.append(f"first ten files differ from the parent's on {vs['n_top10_differs']} of {vs['n_questions']} questions")
+            g = row.get("graphrag")
+            if g and not g["discriminates"]:
+                limits.append(f"the community step gave {g['n_communities']} community holding {g['n_member_files']} of {g['n_corpus_files']} files, "
+                              "so the summaries cannot tell files apart and this is a member / non-member split")
+            limits.append(f"a {blob['n_files']}-file synthetic fixture")
+            out.append({"claim": f"Prototype arm `{name}` minus its parent `{row['settings']['parent']}` ({stack}), paired delta in nDCG@10",
+                        "value": value, "ci": ci, "n": n, "command": command, "source": src, "not_shown": "; ".join(limits)})
     return out
 
 
@@ -266,13 +338,14 @@ BULLETS = '''## Resume bullets (from the rows above only)
 
 Capstone team work, 2024-25 (six-person Oregon State team; my role: retrieval and data APIs):
 
-- Built the retrieval and data APIs of a FastAPI + Next.js + PostgreSQL/pgvector research-file assistant: hybrid lexical + vector search served over Postgres, typed retrieval endpoints with byte-range citations, and the human-in-the-loop file-change gate.
+- Built the retrieval and data APIs of a FastAPI + Next.js + PostgreSQL/pgvector research-file assistant.
 
 Solo work in this fork, 2026:
 
 - Designed an LLM-free retrieval benchmark (frozen 61-file fixture, 136 scripted questions in eight categories whose answers and relevant paths are computed from the corpus registry) with paired-bootstrap confidence intervals, a random-list baseline for recall, and a CI regression gate; the README's numbers are generated from the committed results files and a test fails on drift.
 - Measured hybrid BM25 + dense retrieval with reciprocal rank fusion and a cross-encoder reranker on the fixture and on BEIR SciFact: with real models, hybrid and the reranker beat BM25 with intervals above zero, and our BM25 reproduces Anserini's published SciFact baseline within noise; found and fixed a reranker API bug that had made every earlier reranker row a silent fallback.
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and gates the gap against the in-memory bench; no silent fallbacks, per-request stage latency and scores.
+- Added a typed retrieval endpoint that returns byte-range citations, and a human-in-the-loop gate for file changes: an agent can only propose a change, and applying it needs an operator-signed, single-use approval bound to the reviewed action.
 - Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published; on the first full run the reference slice was saturated, so the gate stayed closed and no judge score was published.
 - Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
 '''
@@ -285,7 +358,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **What does the parity tolerance mean?** The API over Postgres and the in-memory bench use different lexical legs (Postgres full-text with ts_rank_cd versus Okapi BM25) and different chunkers, so they are not expected to be identical. The gate is the largest gap in nDCG@10 the parity job tolerates; it is set just above the width of the paired interval between the two rows on the committed run, so a broken leg would still fail it. Both rows are reported.
 
-**What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. GraphRAG, HippoRAG, Paper2Code, the MATLAB checkpoint, multimodal pages and the RL stub run in demos but have no measured result; the README keeps them under "Prototypes (not evaluated)".
+**What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. Paper2Code, the MATLAB checkpoint, multimodal pages and the RL stub run in demos but have no measured result; the engineering reference keeps them under "Prototypes (not evaluated)". The retrieval prototypes (GraphRAG community routing, HippoRAG PPR, hop expansion, HyDE, multi-query, decomposition, corrective and adaptive retrieval, the chunking variants) are benchmark arms: each has a row above with its parent, a paired interval, the verdict that interval supports and the stand-ins it ran on. An arm whose interval covers zero is reported as no measured effect, and an arm that lost stays in the table.
 
 **Why did the router's number change?** The earlier README compared the routed row against plain RRF, which credited the reranker's share of the gain to the router. Against its real parent, the reranked hybrid, the router is a tie overall and a gain on the exact-path slice with n = 8. The generated table prints the honest pair.
 

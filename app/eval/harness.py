@@ -13,7 +13,7 @@ from typing import Any
 
 from app.agent.corrective import evaluate_retrieval, determine_correction
 from app.agent.decompose import heuristic_decompose, should_decompose
-from app.agent.deep_research import multi_query_retrieve
+from app.agent.deep_research import expand_queries, multi_query_retrieve
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
@@ -31,8 +31,10 @@ from app.eval.ragas_metrics import (
     faithfulness,
 )
 from app.graph.file_graph import build_file_graph, expand_with_graph
-from app.graph.hipporag import apply_hipporag, triples_from_chunks
+from app.graph.graphrag import boost_by_communities, build_graphrag, community_stats, match_communities
+from app.graph.hipporag import apply_hipporag, should_apply, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
+from app.retrieval.adaptive import RetrievalDecision, should_retrieve
 from app.retrieval.distill import triples_from_hits, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
@@ -75,6 +77,10 @@ class BenchConfig:
     hyde: bool = False
     decompose: bool = False
     corrective: bool = False
+    adaptive: bool = False  # skip retrieval when app.retrieval.adaptive says SKIP
+    graphrag: bool = False  # rank-fuse the files of the community summaries the query matches
+    contextual: bool = False  # prepend a situating prefix to every chunk before indexing
+    late_chunking: bool = False  # pool document-level token embeddings per chunk (needs a token-level model)
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
 
 
@@ -86,6 +92,11 @@ def _paths_from_hits(hits: list[RetrievalHit]) -> list[str]:
     return seen
 
 
+def _count(fired: dict[str, int] | None, key: str) -> None:
+    if fired is not None:
+        fired[key] = fired.get(key, 0) + 1
+
+
 def _retrieve(
     index: InMemoryHybridIndex,
     query: str,
@@ -94,12 +105,25 @@ def _retrieve(
     clusters,
     graph,
     *,
-    category: str = "",
     hippo_triples=None,
+    communities=None,
+    fired: dict[str, int] | None = None,
 ) -> tuple[list[str], object]:
+    """One query through one config. Takes the question text only: no gold field
+    (category, answer, relevant paths) may reach retrieval, so every gate below
+    uses what a served system would have (the router's own prediction).
+
+    `fired` counts the questions on which each optional mechanism triggered, so
+    an arm that ties its parent can say whether it ever ran."""
+    if cfg.adaptive:
+        decision = should_retrieve(query).decision
+        _count(fired, f"adaptive_{decision.value}")
+        if decision == RetrievalDecision.SKIP:
+            return [], []
     if cfg.decompose and should_decompose(query):
         subs = heuristic_decompose(query)
         if len(subs) > 1:
+            _count(fired, "decompose")
             all_hits: list[RetrievalHit] = []
             for sub_q in subs:
                 sub_result = index.retrieve(sub_q, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
@@ -135,11 +159,14 @@ def _retrieve(
         ]
         result = None
     elif cfg.multi_query:
+        if len({q.lower() for q in expand_queries(query, n=3)}) > 1:
+            _count(fired, "multi_query")
         with timer.stage("multi_query"):
             result = multi_query_retrieve(index, query, n=3, k=cfg.retrieve_k)
         hits = result.hits
     else:
         if cfg.hyde:
+            _count(fired, "hyde")
             with timer.stage("hyde"):
                 hyde_vec = hyde_embed(query, index.embedder)
             result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
@@ -162,13 +189,17 @@ def _retrieve(
         evaluated = evaluate_retrieval(query, pairs_for_eval)
         action = determine_correction(query, evaluated)
         if action.strategy == "rewrite" and action.rewritten_query:
+            _count(fired, "corrective_rewrite")
             retry = index.retrieve(action.rewritten_query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
             seen = {h.chunk.chunk_id for h in hits}
             for rh in retry.hits:
                 if rh.chunk.chunk_id not in seen:
                     hits.append(rh)
                     seen.add(rh.chunk.chunk_id)
+        elif action.strategy == "refine":
+            _count(fired, "corrective_refine_no_list_change")  # sentence extraction for the generator; the ranked list is untouched
         elif action.strategy == "decompose" and action.sub_queries:
+            _count(fired, "corrective_decompose")
             for sub_q in action.sub_queries:
                 sub_r = index.retrieve(sub_q, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
                 seen = {h.chunk.chunk_id for h in hits}
@@ -181,15 +212,26 @@ def _retrieve(
         hits = prefer_current(hits, clusters, query)
 
     if cfg.hipporag and hippo_triples:
+        # Gate = the router's prediction. The gold category is never passed (it was, before M7: a label leak).
+        if should_apply(query, router=index.router):
+            _count(fired, "hipporag")
         with timer.stage("hipporag"):
-            hits = apply_hipporag(
-                query, hits, hippo_triples, category=category, router=index.router
-            )
+            hits = apply_hipporag(query, hits, hippo_triples, router=index.router)
         if result is not None:
             result.hits = hits
 
+    if cfg.graphrag and communities:
+        matched = match_communities(query, communities)
+        if matched:
+            _count(fired, "graphrag")
+            with timer.stage("graphrag"):
+                hits = boost_by_communities(hits, matched)
+            if result is not None:
+                result.hits = hits
+
     paths = _paths_from_hits(hits)
     if cfg.graph_hops and graph is not None:
+        _count(fired, "graph_hops")
         paths = expand_with_graph(paths, graph, hops=cfg.graph_hops)
     return paths, result if result is not None else hits
 
@@ -240,6 +282,8 @@ def run_config(
     gold: list[GoldQuestion],
     files_root: Path,
     n_files: int | None = None,
+    *,
+    keep_retrieved: bool = False,
 ) -> dict[str, Any]:
     index = build_index(
         files_root,
@@ -250,7 +294,13 @@ def run_config(
         enable_rerank=cfg.enable_rerank,
         reranker=cfg.reranker,
         chunk_strategy=cfg.chunk_strategy,
+        contextual=cfg.contextual,
     )
+    late = None
+    if cfg.late_chunking:
+        from app.chunking.late import late_chunk_index
+
+        late = late_chunk_index(index, files_root)
     clusters = cluster_versions(index.chunks) if cfg.staleness_tier1 else {}
     graph = None
     if cfg.graph_hops:
@@ -263,6 +313,8 @@ def run_config(
             files.append((chunk.path, chunk.text, chunk.mtime))
         graph = build_file_graph(files)
     hippo_triples = triples_from_chunks(index.chunks) if cfg.hipporag else None
+    communities = build_graphrag(index.chunks) if cfg.graphrag else None
+    fired: dict[str, int] = {}
     jury = default_jury(_jury_complete()) if cfg.jury else None
 
     timer = StageTimer()
@@ -276,7 +328,7 @@ def run_config(
     jury_sf_labels: list[str] = []
 
     if gold:  # warm-up: caches, CUDA kernels; retrieval is deterministic so results are unaffected
-        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, category=gold[0].category, hippo_triples=hippo_triples)
+        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, hippo_triples=hippo_triples, communities=communities)
     t0 = time.perf_counter()
     for q in gold:
         paths, payload = _retrieve(
@@ -286,8 +338,9 @@ def run_config(
             timer,
             clusters,
             graph,
-            category=q.category,
             hippo_triples=hippo_triples,
+            communities=communities,
+            fired=fired,
         )
         per_query.append(
             {
@@ -336,6 +389,14 @@ def run_config(
     if cfg.e2e:
         payload["e2e"] = aggregate_e2e(e2e_rows).as_dict()
     payload["_per_query_scores"] = retrieval.per_query  # gold order; used for the bootstrap, then dropped
+    if keep_retrieved:
+        payload["_retrieved"] = [row["retrieved"] for row in per_query]  # gold order; compared with the parent, then dropped
+    if fired:
+        payload["fired"] = dict(sorted(fired.items()))
+    if communities is not None:
+        payload["graphrag"] = community_stats(communities, len({c.path for c in index.chunks}))
+    if late is not None:
+        payload["late_chunking"] = late
     payload["reranker_name"] = getattr(index, "reranker_name", cfg.reranker)
     payload["reranker_loaded"] = bool(getattr(index, "reranker_loaded", False))
     rerank_model = getattr(getattr(index, "rerank_fn", None), "model", None)
@@ -396,81 +457,117 @@ DEFAULT_CONFIGS = [
 ]
 
 
+# Prototype arms (make bench-frontier). Each is one switch away from its parent, so the
+# paired delta isolates the mechanism. Parents are not listed here: frontier_configs()
+# prepends them, and `hybrid+bge-rerank` is itself the reranked parent of the real-model run.
+_F = dict(mode="hybrid", enable_router=False, staleness_tier1=False, e2e=False, log_triples=False)
+FRONTIER_PARENT, FRONTIER_RERANK_PARENT = "hybrid", "hybrid+rerank"
 FRONTIER_CONFIGS = [
-    BenchConfig(
-        name="hybrid+bge-rerank",
-        mode="hybrid",
-        enable_rerank=True,
-        enable_router=False,
-        staleness_tier1=False,
-        reranker="BAAI/bge-reranker-v2-m3",
-        log_triples=True,
-    ),
-    BenchConfig(
-        name="hybrid+rankgpt",
-        mode="hybrid",
-        enable_rerank=True,
-        enable_router=False,
-        staleness_tier1=False,
-        reranker="rankgpt",
-        log_triples=True,
-    ),
-    BenchConfig(
-        name="hybrid+multiquery",
-        mode="hybrid",
-        enable_rerank=False,
-        enable_router=False,
-        staleness_tier1=False,
-        multi_query=True,
-        log_triples=False,
-    ),
-    BenchConfig(
-        name="hybrid+hipporag",
-        mode="hybrid",
-        enable_rerank=False,
-        enable_router=True,
-        staleness_tier1=False,
-        hipporag=True,
-        log_triples=False,
-    ),
-    BenchConfig(
-        name="hybrid+hyde",
-        mode="hybrid",
-        enable_rerank=True,
-        enable_router=True,
-        staleness_tier1=False,
-        hyde=True,
-        log_triples=True,
-    ),
-    BenchConfig(
-        name="hybrid+decompose",
-        mode="hybrid",
-        enable_rerank=True,
-        enable_router=True,
-        staleness_tier1=False,
-        decompose=True,
-        log_triples=True,
-    ),
-    BenchConfig(
-        name="hybrid+corrective",
-        mode="hybrid",
-        enable_rerank=True,
-        enable_router=True,
-        staleness_tier1=False,
-        corrective=True,
-        log_triples=True,
-    ),
-    BenchConfig(
-        name="hybrid+hyde+corrective",
-        mode="hybrid",
-        enable_rerank=True,
-        enable_router=True,
-        staleness_tier1=False,
-        hyde=True,
-        corrective=True,
-        log_triples=True,
-    ),
+    BenchConfig(name="hybrid+bge-rerank", enable_rerank=True, reranker=BGE_RERANKER, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+rankgpt", enable_rerank=True, reranker="rankgpt", parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+multiquery", enable_rerank=False, multi_query=True, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+hipporag", enable_rerank=False, hipporag=True, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+hops=1", enable_rerank=False, graph_hops=1, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+hops=2", enable_rerank=False, graph_hops=2, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+fixed-chunks", enable_rerank=False, chunk_strategy="fixed", parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+contextual", enable_rerank=False, contextual=True, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+late-chunking", enable_rerank=False, late_chunking=True, parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+hyde", enable_rerank=True, hyde=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+decompose", enable_rerank=True, decompose=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+corrective", enable_rerank=True, corrective=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+hyde+corrective", enable_rerank=True, hyde=True, corrective=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+adaptive", enable_rerank=True, adaptive=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+graphrag", enable_rerank=True, graphrag=True, parent=FRONTIER_RERANK_PARENT, **_F),
 ]
+# Arms a run cannot score, with the reason; written into the results file instead of a row.
+FRONTIER_NOT_EVALUATED = {
+    "hybrid+late-chunking": "late chunking pools a model's token embeddings; the hash embedder (character n-grams) has none, "
+                            "so this arm exists only in the real-model run (make bench-frontier-neural)",
+}
+
+
+def _neural_name(name: str) -> str:
+    return name.replace("hybrid+rerank", "hybrid+bge-rerank") + "@bge-small"
+
+
+def frontier_configs(neural: bool = False) -> list[BenchConfig]:
+    """Parent rows first, then every prototype arm with its parent named.
+
+    CPU fallbacks: hash embedder and overlap reranker (the parents are the
+    `hybrid` and `hybrid+rerank` rows of the default bench). neural=True: the
+    same arms over bge-small and the real bge-reranker-v2-m3, with their own
+    parent rows, so each results file is self-contained.
+    """
+    parents = [
+        BenchConfig(name=FRONTIER_PARENT, enable_rerank=False, **_F),
+        BenchConfig(name=FRONTIER_RERANK_PARENT, enable_rerank=True, parent=FRONTIER_PARENT, **_F),
+    ]
+    arms = [c for c in FRONTIER_CONFIGS if c.name != "hybrid+bge-rerank"]
+    if not neural:
+        return parents + [c for c in arms if c.name not in FRONTIER_NOT_EVALUATED]
+    out = []
+    for c in parents + arms:
+        out.append(replace(
+            c,
+            name=_neural_name(c.name),
+            parent=_neural_name(c.parent) if c.parent else None,
+            embedder=BGE_SMALL,
+            reranker=BGE_RERANKER if c.reranker == "overlap" else c.reranker,
+        ))
+    return out
+
+
+def fallback_labels(row: dict[str, Any]) -> list[str]:
+    """Every stand-in a row's number depends on, so tables can print them next to it."""
+    st = row.get("settings") or {}
+    labels = []
+    if st.get("embedder") in {"hash", "tfidf"}:
+        labels.append(f"{st['embedder']} embedder (no model)")
+    if st.get("enable_rerank"):
+        if st.get("reranker") == "overlap":
+            labels.append("overlap reranker (no model)")
+        elif st.get("reranker") in {"rankgpt", "listwise"} and not row.get("reranker_loaded"):
+            labels.append("listwise rerank by token overlap (no LLM)")
+        elif not row.get("reranker_loaded"):
+            labels.append("overlap reranker (cross-encoder not loaded)")
+    for flag, label in (
+        ("multi_query", "query expansion by keyword heuristic (no LLM)"),
+        ("hipporag", "PPR over regex triples with a hand-written path prior (no LLM extraction)"),
+        ("hyde", "HyDE hypothesis by keyword heuristic (no LLM)"),
+        ("decompose", "decomposition by heuristic (no LLM)"),
+        ("corrective", "corrective grader by heuristic (no LLM)"),
+        ("adaptive", "retrieve-or-skip by regex (no model)"),
+        ("graphrag", "regex triples, connected components, extractive summaries (no LLM, no Leiden)"),
+        ("contextual", "chunk prefix from path words (no LLM)"),
+    ):
+        if st.get(flag):
+            labels.append(label)
+    return labels
+
+
+def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[list[str]]]) -> dict[str, Any]:
+    """Per arm: its fallback labels and on how many questions its list differs from the parent's."""
+    names = {row["config"] for row in results}
+    for row in results:
+        row["fallbacks"] = fallback_labels(row)
+        parent = (row.get("settings") or {}).get("parent")
+        mine, theirs = retrieved.get(row["config"]), retrieved.get(parent or "")
+        if not mine or not theirs or len(mine) != len(theirs):
+            continue
+        row["vs_parent"] = {
+            "parent": parent,
+            "n_questions": len(mine),
+            "n_top10_differs": sum(1 for a, b in zip(mine, theirs) if a[:10] != b[:10]),
+            "n_list_differs": sum(1 for a, b in zip(mine, theirs) if a != b),
+        }
+    parents = [n for n in (FRONTIER_PARENT, FRONTIER_RERANK_PARENT, _neural_name(FRONTIER_PARENT), _neural_name(FRONTIER_RERANK_PARENT)) if n in names]
+    neural = any(n.endswith("@bge-small") for n in names)
+    return {
+        "parents": parents,
+        "arms": [row["config"] for row in results if row["config"] not in parents],
+        "not_evaluated": [] if neural else [{"arm": k, "reason": v} for k, v in FRONTIER_NOT_EVALUATED.items()],
+        "verdict_rule": "paired bootstrap interval of nDCG@10 (arm minus parent): above zero, covers zero, or below zero",
+    }
 
 
 def run_bench(
@@ -480,12 +577,15 @@ def run_bench(
     e2e: bool | None = None,
     out: Path | None = None,
     device: str = "auto",
+    frontier: bool = False,
 ) -> dict[str, Any]:
     """Score every config on fixture v1.
 
     Without `out`, results go to bench/results/<sha>.json and latest.json (the
     default bench). With `out`, only that file is written, so neural runs never
-    touch the CI baseline.
+    touch the CI baseline. `frontier` adds what a prototype arm needs next to
+    its delta: fallback labels, per-category deltas vs parent for every
+    category, and the number of questions whose list differs from the parent's.
     """
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
@@ -506,11 +606,13 @@ def run_bench(
     results = []
     all_triples = []
     scores_by_config: dict[str, list[dict[str, float]]] = {}
+    retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"])
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier)
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
+        retrieved_by_config[cfg.name] = row.pop("_retrieved", [])
         results.append(row)
     names = {c.name for c in configs}
     boot = attach_confidence(
@@ -519,6 +621,7 @@ def run_bench(
         n_queries=len(gold),
         categories=[q.category for q in gold],
         comparisons=[pair for pair in NEURAL_COMPARISONS if set(pair) <= names],
+        all_categories=frontier,
     )
 
     sha = git_sha(root)
@@ -533,6 +636,8 @@ def run_bench(
         "bootstrap": boot,
         "results": results,
     }
+    if frontier:
+        blob["frontier"] = attach_frontier(results, retrieved_by_config)
     out_dir = root / "bench" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     if out is not None:
@@ -564,6 +669,7 @@ def attach_confidence(
     n_boot: int = DEFAULT_N_BOOT,
     categories: list[str] | None = None,
     comparisons: list[tuple[str, str]] | None = None,
+    all_categories: bool = False,
 ) -> dict:
     """Add per-config 95% CIs and paired deltas in place.
 
@@ -573,6 +679,9 @@ def attach_confidence(
                         older result files and ad-hoc runs still get a delta.
     delta_vs_parent_by_category: for rows in CATEGORY_DELTAS, the paired delta vs
                         parent restricted to that category, with n and small_n.
+    delta_vs_parent_by_category_all: with all_categories (the frontier run), the
+                        same paired delta for every category, so an arm aimed at one
+                        kind of question shows where it moved.
     One index matrix is shared by every config, so all deltas are paired. Missing
     references yield None rather than an error. Returns the bootstrap settings;
     `comparisons` (extra row pairs) are returned under "comparisons".
@@ -635,6 +744,10 @@ def attach_confidence(
         row["delta_vs_previous"] = deltas(name, previous)
         category = CATEGORY_DELTAS.get(name)
         row["delta_vs_parent_by_category"] = category_delta(name, previous, category) if category and previous else None
+        if all_categories and previous:
+            row["delta_vs_parent_by_category_all"] = [
+                block for block in (category_delta(name, previous, c) for c in sorted(set(categories or []))) if block
+            ]
     settings = bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
     if comparisons:
         settings["comparisons"] = [
@@ -687,7 +800,7 @@ def _parse_args(argv: list[str] | None = None):
     p.add_argument(
         "--frontier",
         action="store_true",
-        help="Phase 7–9 extra configs only (bge, RankGPT, multi-query, HippoRAG)",
+        help="prototype arms with their parent rows -> bench/results/frontier.json (with --neural: real models -> frontier_neural.json)",
     )
     p.add_argument(
         "--neural",
@@ -718,20 +831,25 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit(1)
         return
     jury = args.jury or os.environ.get("JUDGE", "").strip().lower() in {"1", "true", "yes"}
-    if args.neural:
+    if args.frontier:
+        configs = frontier_configs(neural=args.neural)
+        if args.out is None:  # never the default bench outputs: latest.json belongs to `make bench`
+            args.out = Path("bench/results/frontier_neural.json" if args.neural else "bench/results/frontier.json")
+    elif args.neural:
         configs = list(NEURAL_CONFIGS)
-    elif args.frontier:
-        configs = list(FRONTIER_CONFIGS)
     else:
         configs = list(DEFAULT_CONFIGS)
     if args.only:
         wanted = {n.strip() for n in args.only.split(",") if n.strip()}
+        if args.frontier:  # an arm's delta needs its parent row (and the reranked parent needs plain hybrid)
+            for _ in range(2):
+                wanted |= {c.parent for c in configs if c.name in wanted and c.parent}
         configs = [c for c in configs if c.name in wanted]
     if jury:
         configs = [replace(c, jury=True) for c in configs]
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    blob = run_bench(configs=configs, out=args.out, device=args.device)
+    blob = run_bench(configs=configs, out=args.out, device=args.device, frontier=args.frontier)
     print(markdown_table(blob))
     print(f"wrote {blob['output']}")
 

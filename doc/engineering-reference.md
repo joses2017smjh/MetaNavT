@@ -472,7 +472,7 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 **Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`.
 
-All six are in `make bench-frontier` as `hybrid+hyde`, `hybrid+decompose`, `hybrid+corrective`, and `hybrid+hyde+corrective`.
+HyDE, decomposition, corrective retrieval and adaptive retrieval are arms of `make bench-frontier` (`hybrid+rerank+hyde`, `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+hyde+corrective`, `hybrid+rerank+adaptive`), each scored against the reranked hybrid it is added to; what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). The semantic cache and citation verification have no harness flag and no benchmark row.
 
 ### Graph + staleness
 
@@ -486,7 +486,7 @@ Tier 2 runs at query time on the top-k only: same entity, disagreeing `learning_
   <img src="../doc/figures/hops.svg" alt="Recall@50 vs graph hops" width="820"/>
 </p>
 
-One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446**, at ~6x wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding.
+One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446**, at ~6x wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding. The same two settings are arms of `make bench-frontier` with a paired interval against plain hybrid: both are below zero ([generated table](../README.md#bench-frontier)).
 
 ### Indexing that does not redo the whole tree
 
@@ -824,17 +824,82 @@ make bench-agent-injection-rescore   # recomputes every score and the summary fr
 
 ## Prototypes (not evaluated)
 
-Everything in this section runs and is shown in the GIFs, but none of it has a
-measured result on the gold set or on an external benchmark. It is kept out of
-the tables above on purpose: no number in this README describes these modules.
-What is measured is the retrieval pipeline (the sections above); these are
-demos of mechanisms built on top of it. Modules: `app/graph/graphrag.py`,
-`app/graph/hipporag.py`, `app/artifacts/` (Paper2Code, spec / patch / sandbox),
-`app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`.
+This section has two parts. The retrieval prototypes below have a benchmark arm:
+a row in a committed results file with a named parent, a paired bootstrap delta
+and its interval, produced by `make bench-frontier` (CPU stand-ins) and
+`make bench-frontier-neural` (real models). The rest of the section (the
+artifact pipeline, Paper2Code, MATLAB, multimodal pages, Search-R1) runs and is
+shown in the GIFs but has no measured result on the gold set or on an external
+benchmark, and stays labelled as a prototype. No number is typed here: the
+numbers are in the generated tables this section links to.
+
+### Retrieval prototypes with a benchmark arm
+
+Generated tables: [CPU stand-ins](../README.md#bench-frontier) and
+[real models](../README.md#bench-frontier-neural). Each arm is one switch away
+from its parent (plain hybrid, or hybrid plus the reranker), both parents are
+computed in the same run, and the verdict word is computed from the interval of
+the paired nDCG@10 delta: above zero, covers zero, or below zero. Every row
+lists the stand-ins it ran on. On the CPU stand-ins every row uses the hash
+embedder and, where it reranks, the overlap reranker. The real-model run uses
+bge-small-en-v1.5 and the bge-reranker-v2-m3 cross-encoder and is the one that
+carries the verdicts. The query-side mechanisms are keyword or regex
+heuristics, not models, in both runs.
+
+| arm | what it changes | CPU stand-ins | real models | what the intervals support |
+|---|---|---|---|---|
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. |
+| HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
+| Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix, not an LLM-written one. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. |
+| Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
+| HyDE (`hybrid+rerank+hyde`) | fuses a second dense list from a pseudo-document into the reranked order | below zero | below zero | Evaluated: a recorded loss for the keyword-heuristic hypothesis. No LLM-written hypothesis was scored. |
+| Decomposition (`hybrid+rerank+decompose`) | retrieves per sub-query and merges | covers zero | covers zero | Evaluated: no measured effect; it fires on few questions (the count is in the table). |
+| Corrective retrieval (`hybrid+rerank+corrective`) | grades the top hits and retries with a rewrite or sub-queries | covers zero: identical first ten files | covers zero: identical first ten files | Evaluated: it fires on most questions but only appends candidates after the existing list, so it cannot change the top ten. |
+| HyDE + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is HyDE's; the corrective step adds nothing to the top ten. |
+| Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
+| GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval in either run and is not kept in the served path. |
+| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM is not evaluated. |
+
+In the real-model table the arm names carry the model suffix (for example
+`hybrid+bge-rerank+graphrag@bge-small`), and the reranked parent is the
+cross-encoder row.
+
+The two reranker prototypes have their own generated table
+([reranker prototypes against the cross-encoder](../README.md#bench-rerank-arms),
+`make bench-rerank-arms`). The distilled student (`app/retrieval/distill.py`)
+is fitted on the cross-encoder's scores for half of the questions, with the
+features it has when it serves, and scored on the other half: it is below zero
+against the cross-encoder it imitates and below zero against the un-reranked
+hybrid list, at a small fraction of the rerank latency. That student is the
+linear least-squares fallback, because LightGBM is not installed where the
+benchmark ran; a gradient-boosted student is not evaluated. Listwise reranking
+by an LLM (`app/retrieval/rankgpt.py`) has a harness
+(`make bench-rerank-arms LISTWISE_MODEL=<ollama model>`) but no row: on the
+benchmark node the local model was too slow per question to finish the gold
+set inside the run, and its replies mixed prose with the permutation, which
+the parser would read as ranks.
+
+Still without a benchmark row: a gradient-boosted distilled student, listwise
+reranking by an LLM, an LLM-written contextual prefix or HyDE hypothesis,
+GraphRAG with LLM extraction or modularity clustering, Tier 2 conflict notes
+(`app/graph/conflicts.py`), hierarchy summaries, the semantic cache and
+citation verification.
+
+### Modules with no measured result
+
+Everything from here to the end of this section runs and is shown in the GIFs,
+but none of it has a measured result on the gold set or on an external
+benchmark. It is kept out of the benchmark tables on purpose. Modules:
+`app/artifacts/` (Paper2Code, spec / patch / sandbox),
+`app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`. The
+two graph demos below replay hand-picked cases; the category-level result for
+both mechanisms is the table above.
 
 ### GraphRAG community summaries and HippoRAG PPR
 
-_The community summary and the PPR rerank are demos; the measured graph result is the hops sweep in the Graph + staleness section, where blind expansion lost._
+_The GIF is a demo of the community summary. As benchmark arms, community routing and the PPR rerank are in the table above; blind hop expansion lost._
 
 
 <p align="center">
@@ -851,7 +916,7 @@ run:47  —has_learning_rate→  3e-4
 
 ### Multi-hop graph cases
 
-_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion; not a category-level result._
+_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion and the gold category as the gate; not a category-level result. The benchmark arm gates on the router instead (table above)._
 
 
 <p align="center">
@@ -985,6 +1050,10 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
 
+**Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
+
+**API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it, and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
+
 **Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
 
 **Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
@@ -997,8 +1066,21 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 
 ## Run it
 
-`pyproject.toml` is the single dependency spec. Pick the extra for what you
-want to run (`requirements.txt` is generated from it by `make lock`):
+`pyproject.toml` is the single dependency spec (version ranges). `make lock`
+resolves it into pinned files: `requirements.txt` (eval + app) and one
+`requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
+`agent`, `dev`), each compiled under `requirements.txt` as a constraint so a
+package has the same version in every file. The image and every CI job install
+their pinned file first and then the package with `--no-deps`
+(`make install-locked` does the same locally); `make lock-check`, which is
+also a test and a CI step, fails when a pinned file no longer covers
+`pyproject.toml`. The `ml` and `otel` extras have no pinned file: the image
+installs them from their ranges with the pinned app file as a constraint, so
+they are not reproducible to the same degree. `make lint` runs ruff with the
+narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
+names, shadowed imports); CI runs it as its own job.
+
+Pick the extra for what you want to run:
 
 | extra | installs | for |
 |---|---|---|
@@ -1037,8 +1119,8 @@ docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash
-pip install -e ".[eval,app]"         # add ,ml for real embeddings / reranker
-cp .env.example .env                 # RETRIEVE_K=50, RERANK_TOP_N=8, ENABLE_ROUTER=true
+pip install -e ".[eval,app]"         # add ,ml for real embeddings / reranker (or `make install-locked` for the pinned versions CI uses)
+cp .env.example .env                 # RETRIEVE_K=50, RERANK_TOP_N=8, ENABLE_ROUTER=true; METANAVIT_API_KEY empty = open API
 docker compose up db                 # or any Postgres with pgvector
 ollama serve && ollama pull qwen2.5:14b
 
@@ -1054,6 +1136,8 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 ---
 
 ## What we are not claiming
+
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover the decision log and the file-index tables only, with no down-migrations. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 

@@ -35,6 +35,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from app.api.routers import api_router
+from app.api.security import GuardedStaticFiles, security_status
 from app.middlewares.frontend import FrontendProxyMiddleware
 from app.observability import configure_logging, tracing_status
 from app.settings import init_settings
@@ -81,12 +82,16 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health():
-    """200 with index stats once retrieval is ready; 503 with the startup error otherwise."""
+    """200 with index stats once retrieval is ready; 503 with the startup error otherwise.
+
+    Never behind the API key (orchestrator probes must reach it). Both answers say
+    whether authentication and the request budget are on (app/api/security.py).
+    """
     state = getattr(app.state, "retrieval", None)
     if state is None:
         return JSONResponse(
             status_code=503,
-            content={"status": "unavailable", "error": getattr(app.state, "startup_error", None)},
+            content={"status": "unavailable", "error": getattr(app.state, "startup_error", None), **security_status()},
         )
     n_nodes = await run_in_threadpool(state.vsm.count_nodes)
     reranker = getattr(state.retriever, "reranker_info", None) or {}
@@ -120,12 +125,13 @@ async def health():
         "degraded": degraded,
         "indexing": state.indexing,
         "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
+        **security_status(),
     }
     return JSONResponse(status_code=503, content=payload) if device_errors else payload
 
 
 
-def mount_static_files(directory, path, html=False):
+def mount_static_files(directory, path, html=False, static_cls=StaticFiles):
     """
     Mount static file directories to serve through FastAPI.
     
@@ -133,22 +139,25 @@ def mount_static_files(directory, path, html=False):
         directory: Local directory path to mount
         path: URL path to mount the directory at
         html: Whether to serve index.html for directory roots
+        static_cls: StaticFiles, or GuardedStaticFiles for mounts under /api
     """
     if os.path.exists(directory):
         logger.info(f"Mounting static files '{directory}' at '{path}'")
         app.mount(
             path,
-            StaticFiles(directory=directory, check_dir=False, html=html),
+            static_cls(directory=directory, check_dir=False, html=html),
             name=f"{directory}-static",
         )
 
 
 app.include_router(api_router, prefix="/api")
 
+# Mounts are not routes of api_router, so its dependencies do not reach them: the
+# guarded class applies the same API key check and request budget to /api/files/*.
 # Mount the data files to serve the file viewer
-mount_static_files(DATA_DIR, "/api/files/data")
+mount_static_files(DATA_DIR, "/api/files/data", static_cls=GuardedStaticFiles)
 # Mount the output files from tools
-mount_static_files("output", "/api/files/output")
+mount_static_files("output", "/api/files/output", static_cls=GuardedStaticFiles)
  # Development mode: Use frontend proxy if configured
 if environment == "dev":
     frontend_endpoint = os.getenv("FRONTEND_ENDPOINT")

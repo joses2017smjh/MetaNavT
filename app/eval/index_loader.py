@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.chunking.contextual import prepend_context
 from app.eval.hashing import content_hash
 from app.eval.ingest import BENCH_POLICY, SKIP_NAMES, file_chunks, ingest_report, iter_corpus_files, plan_ingest, scan_directory
 from app.retrieval.embedders import HashEmbedder, TfidfEmbedder
@@ -15,29 +16,39 @@ from app.retrieval.context import path_context
 __all__ = ["SKIP_NAMES", "iter_corpus_files", "load_chunks", "load_chunks_with_report", "build_index"]
 
 
-def load_chunks_with_report(root: Path, strategy: str = "auto", *, include_path_context: bool = False) -> tuple[list[Chunk], dict]:
+def load_chunks_with_report(
+    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False
+) -> tuple[list[Chunk], dict]:
     """Chunks for every accepted file plus the ingestion report (files seen, indexed, rejected by reason).
 
     Scanning and chunking are app.eval.ingest, shared with the served indexer
     (app/engine/ingest.py). The benchmark policy accepts every decodable,
     non-empty file; an undecodable file is counted, not skipped silently.
+
+    `contextual` prepends a situating prefix to each chunk's indexed text
+    (app/chunking/contextual.py). No LLM is wired in here: the prefix is the
+    path-words heuristic of app/retrieval/context.py, and it is labelled as such
+    wherever its numbers appear. Citations still use `evidence_raw`.
     """
     root = Path(root)
     scan = scan_directory(root, BENCH_POLICY)
     chunks: list[Chunk] = []
     for source in scan.files:
         for piece in file_chunks(source.path, source.text, strategy):
+            indexed_text = piece.text
+            if contextual:
+                indexed_text = prepend_context(piece.text, path_context(source.path))
             chunks.append(
                 Chunk(
                     chunk_id=piece.chunk_id,
                     path=source.path,
-                    text=piece.text,
+                    text=indexed_text,
                     start_byte=piece.start_byte,
                     end_byte=piece.end_byte,
                     mtime=source.mtime,
                     content_hash=source.sha256,
                     metadata={"kind": piece.kind, "evidence_raw": piece.raw, "source_span_sha256": content_hash(piece.raw),
-                              "text_is_verbatim": piece.text == piece.raw,
+                              "text_is_verbatim": indexed_text == piece.raw,
                               **({"search_context": path_context(source.path)} if include_path_context else {})},
                 )
             )
@@ -47,8 +58,8 @@ def load_chunks_with_report(root: Path, strategy: str = "auto", *, include_path_
     return chunks, report
 
 
-def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False) -> list[Chunk]:
-    return load_chunks_with_report(root, strategy, include_path_context=include_path_context)[0]
+def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False) -> list[Chunk]:
+    return load_chunks_with_report(root, strategy, include_path_context=include_path_context, contextual=contextual)[0]
 
 
 def build_index(
@@ -62,8 +73,11 @@ def build_index(
     reranker: str = "overlap",
     chunk_strategy: str = "auto",
     include_path_context: bool = False,
+    contextual: bool = False,
 ) -> InMemoryHybridIndex:
-    chunks, ingest = load_chunks_with_report(root, strategy=chunk_strategy, include_path_context=include_path_context)
+    chunks, ingest = load_chunks_with_report(
+        root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual
+    )
     if embedder_name == "hash":
         embedder = HashEmbedder()
     elif embedder_name == "tfidf":

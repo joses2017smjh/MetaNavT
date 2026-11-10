@@ -126,6 +126,10 @@ class ToolFactory:
                     raise ValueError(f"Invalid tools in {module}")
                 return tools
                 
+        except SyntaxError as e:
+            # A module that does not parse is a configuration error too: name the
+            # tool instead of letting a bare SyntaxError reach the chat route.
+            raise ValueError(f"Tool module {tool_name} does not parse: {e}") from e
         except ImportError as e:
             raise ValueError(f"Import failed for {tool_name}: {e}")
         except AttributeError as e:

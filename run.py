@@ -2,11 +2,11 @@ import asyncio
 import os
 import shutil
 import socket
+import sys
 from asyncio.subprocess import Process
 from pathlib import Path
 from shutil import which
 from subprocess import CalledProcessError, run
-import uvicorn
 
 import dotenv
 import rich
@@ -174,8 +174,11 @@ async def _run_backend(envs: dict[str, str | None] = {}) -> Process:
     
     rich.print(f"\n[bold]Starting backend on port {APP_PORT}...[/bold]")
     
-    # Run uvicorn directly instead of using poetry
-    uvicorn.run(app="main:app", host=APP_HOST, port=APP_PORT, reload=True)
+    # Run uvicorn as a child process (not poetry) so `envs` applies and the caller gets a Process
+    process = await asyncio.create_subprocess_exec(
+        sys.executable, "-m", "uvicorn", "main:app", "--host", APP_HOST, "--port", str(APP_PORT), "--reload",
+        env=envs,
+    )
     
     # Wait for port to start
     timeout = 30

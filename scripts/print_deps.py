@@ -1,7 +1,10 @@
-"""Print the pinned requirement strings for pyproject.toml's base deps plus the given extras.
+"""Print the requirement ranges of pyproject.toml's base deps plus the given extras.
 
-Used by the Dockerfile so dependencies install in a cached layer before the
-source tree is copied:  python scripts/print_deps.py app,ml > /tmp/requirements.txt
+These are ranges, not pins: the pinned sets are requirements.txt and
+requirements/*.txt (`make lock`). The Dockerfile uses this only for extras that
+have no pinned file (ml, otel), under the pinned app file as a constraint:
+    python scripts/print_deps.py app,ml > /tmp/extras.txt
+    pip install -c requirements/app.txt -r /tmp/extras.txt
 """
 
 import sys

@@ -29,14 +29,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 WORKDIR /app
 
-# Dependencies first (cached layer), from the single source of truth.
-COPY pyproject.toml scripts/print_deps.py ./scripts/
-# Install torch from the selected wheel index before the ml extra. CPU remains
-# the default; docker-compose.gpu.yml explicitly selects CUDA wheels.
+# Dependencies first (cached layer), from the lock: requirements/app.txt is the pinned
+# `app` extra written by `make lock`, installed exactly as committed. The default build
+# (EXTRAS=app) resolves nothing else.
+# Extras with no pinned file (ml, otel) are still ranges from pyproject.toml; they are
+# installed afterwards with the pinned file as a constraint, so they can add packages
+# but cannot move a pinned one. Torch comes from the selected wheel index before the
+# ml extra. CPU remains the default; docker-compose.gpu.yml explicitly selects CUDA wheels.
+COPY pyproject.toml scripts/print_deps.py requirements/app.txt ./scripts/
 RUN mv scripts/pyproject.toml . \
-    && python scripts/print_deps.py "${EXTRAS}" > /tmp/requirements.txt \
-    && (case ",${EXTRAS}," in *,ml,*) pip install torch --index-url "${TORCH_INDEX_URL}" ;; esac) \
-    && pip install -r /tmp/requirements.txt
+    && pip install -r scripts/app.txt \
+    && if [ "${EXTRAS}" != "app" ]; then \
+         (case ",${EXTRAS}," in *,ml,*) pip install torch --index-url "${TORCH_INDEX_URL}" ;; esac) \
+         && python scripts/print_deps.py "${EXTRAS}" > /tmp/extras.txt \
+         && pip install -c scripts/app.txt -r /tmp/extras.txt ; \
+       fi
 
 # Source tree, installed in place so bench/ and app/ resolve from /app.
 COPY . .

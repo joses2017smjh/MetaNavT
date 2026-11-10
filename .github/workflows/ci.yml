@@ -17,6 +17,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    # ruff with the narrow defect-only rule set in pyproject.toml ([tool.ruff.lint]):
+    # syntax errors, undefined names, shadowed imports. Also checks that the pinned
+    # requirement files every other job installs still cover pyproject.toml.
+    name: lint (ruff) + lock check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements/dev.txt
+      - name: Install (dev tools only, pinned)
+        run: python -m pip install -r requirements/dev.txt
+      - name: Lint
+        run: make lint
+      - name: Pinned files match pyproject.toml
+        run: make lock-check
+
   eval:
     # Frozen fixture v1, hash embeddings, overlap reranker: no downloads, no database.
     name: eval (py${{ matrix.python }})
@@ -32,9 +53,12 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install (eval extra only)
-        run: python -m pip install -e ".[eval]"
+          cache-dependency-path: requirements/eval.txt
+      - name: Install (eval extra only, pinned; then the package with no resolution)
+        run: |
+          python -m pip install -r requirements/eval.txt
+          python -m pip install --no-deps -e .
+          python -m pip check
       - name: Eval tests
         run: make test-eval
       - name: Verify real robotics snapshot and split integrity
@@ -60,9 +84,12 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install (eval + app extras)
-        run: python -m pip install -e ".[eval,app]"
+          cache-dependency-path: requirements.txt
+      - name: Install (eval + app extras, pinned; then the package with no resolution)
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install --no-deps -e .
+          python -m pip check
       - name: Unit, engine and API contract tests
         run: make test-unit
 
@@ -111,11 +138,14 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install (eval + app extras)
-        run: python -m pip install -e ".[eval,app]"
-      - name: SQL RRF == Python RRF, incremental indexing (tests/database, live Postgres)
-        run: python -m pytest tests/database -q
+          cache-dependency-path: requirements.txt
+      - name: Install (eval + app extras, pinned; then the package with no resolution)
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install --no-deps -e .
+          python -m pip check
+      - name: SQL RRF == Python RRF, dense leg == in-memory dense search, incremental indexing, schema migrations (tests/database, live Postgres)
+        run: python -m pytest tests/database -q -rs
       - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &

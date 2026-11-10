@@ -61,7 +61,9 @@ make freeze-corpus   # rebuilds files + gold + MANIFEST hashes
 make bench           # writes bench/results/<git-sha>.json (LLM-free)
 make bench-compare   # this run vs bench/results/main.json
 make bench-jury      # extra Phase 6 jury columns (heuristic; JUDGE=1 uses Ollama if up)
-make bench-frontier  # Phase 7–9 extra configs (bge, RankGPT, multi-query, HippoRAG)
+make bench-frontier  # prototype arms vs their parent rows (CPU stand-ins) -> bench/results/frontier.json
+make bench-frontier-neural  # the same arms with bge-small + bge-reranker-v2-m3 -> bench/results/frontier_neural.json
+make bench-rerank-arms      # distilled student (and optional listwise LLM) vs the cross-encoder -> bench/results/rerank_arms.json
 make sweeps          # HNSW, halfvec/binary, hops, GraphRAG
 make figures         # doc/figures/*.svg for the README
 make matlab-demo     # approval-gated CSV aggregation → MATLAB .m + PNG
@@ -84,16 +86,18 @@ One design change at a time. Default bench configs:
 5. `hybrid+rerank+router`
 6. `hybrid+rerank+router+staleness`
 
-Frontier configs (`make bench-frontier` only):
+Frontier arms (`make bench-frontier`; each is one switch away from its parent, and the two parents, `hybrid` and `hybrid+rerank`, are computed in the same run):
 
-7. `hybrid+bge-rerank`     (loads `BAAI/bge-reranker-v2-m3` if cached; else overlap, labeled)
-8. `hybrid+rankgpt`        (listwise permutation; heuristic listwise in CI)
-9. `hybrid+multiquery`     (3 paraphrases, RRF union)
-10. `hybrid+hipporag`      (PPR boost on aggregation / multi-hop)
-11. `hybrid+hyde`           (HyDE pseudo-doc embedding fused with RRF)
-12. `hybrid+decompose`     (multi-hop sub-query decomposition + merged retrieval)
-13. `hybrid+corrective`    (CRAG post-retrieval quality gate + corrective rewrite)
-14. `hybrid+hyde+corrective` (HyDE + CRAG combined)
+7. `hybrid+rankgpt`        (parent `hybrid`; listwise permutation, token-overlap fallback unless an LLM is wired in)
+8. `hybrid+multiquery`     (parent `hybrid`; heuristic paraphrases, RRF union)
+9. `hybrid+hipporag`       (parent `hybrid`; PPR boost gated by the router's own prediction)
+10. `hybrid+hops=1`, `hybrid+hops=2` (parent `hybrid`; file-graph neighbour expansion)
+11. `hybrid+fixed-chunks`, `hybrid+contextual`, `hybrid+late-chunking` (parent `hybrid`; chunking variants, late chunking in the real-model run only)
+12. `hybrid+rerank+hyde`, `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+hyde+corrective` (parent `hybrid+rerank`)
+13. `hybrid+rerank+adaptive` (parent `hybrid+rerank`; retrieve-or-skip gate)
+14. `hybrid+rerank+graphrag` (parent `hybrid+rerank`; community-summary routing)
+
+`hybrid+bge-rerank` stays in `FRONTIER_CONFIGS` but is not a frontier arm: it is the reranked parent of the real-model run and a row of `make bench-neural`.
 
 Jury is **not** a retrieval config. `make bench-jury` adds e2e columns to whatever configs you run.
 

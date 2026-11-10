@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity ingest-runs explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -15,8 +15,31 @@ install-app:    ## + FastAPI, LlamaIndex, Postgres client (what the Docker image
 install-ml:     ## + torch, sentence-transformers, HuggingFace embeddings
 	$(PYTHON) -m pip install -e ".[eval,app,ml]"
 
-lock:           ## regenerate requirements.txt from pyproject.toml (eval + app extras)
-	$(PYTHON) -m piptools compile --upgrade --extra eval --extra app --strip-extras -o requirements.txt pyproject.toml
+install-locked: ## the pinned versions CI and the image use: requirements.txt, then the package with no resolution
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install --no-deps -e .
+
+# requirements.txt (eval + app) is the one resolution. Every requirements/<profile>.txt is
+# compiled under it as a constraint (-c), so a package has the same version in every file
+# and each CI job / the image installs exactly its own extras, pinned.
+#   make lock                  upgrade everything to the newest allowed versions
+#   make lock LOCK_UPGRADE=    keep the current pins; only add or drop what pyproject.toml changed
+LOCK_UPGRADE ?= --upgrade
+PIP_COMPILE = $(PYTHON) -m piptools compile --strip-extras
+lock:           ## regenerate requirements.txt and requirements/*.txt from pyproject.toml
+	$(PIP_COMPILE) $(LOCK_UPGRADE) --extra eval --extra app -o requirements.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra eval -o requirements/eval.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra app -o requirements/app.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile -o requirements/mobile.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile --extra agent -o requirements/agent.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra dev -o requirements/dev.txt pyproject.toml
+
+lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or disagrees with requirements.txt
+	$(PYTHON) scripts/check_lock.py
+
+# ---- lint ------------------------------------------------------------------
+lint:           ## ruff, narrow defect-only rule set from pyproject.toml (needs requirements/dev.txt)
+	$(PYTHON) -m ruff check .
 
 # ---- tests -----------------------------------------------------------------
 test: test-eval test-unit
@@ -64,8 +87,15 @@ bench-jury-rescore: ## recompute the deterministic checks + summary of bench/res
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
 
-bench-frontier:
-	$(PYTHON) -m app.eval.harness --frontier
+bench-frontier: ## prototype arms vs their parent rows, hash embedder + overlap reranker fallbacks -> bench/results/frontier.json
+	$(PYTHON) -m app.eval.harness --frontier --out bench/results/frontier.json
+
+bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]) -> bench/results/frontier_neural.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --frontier --neural --out bench/results/frontier_neural.json
+
+LISTWISE_MODEL ?=
+bench-rerank-arms: ## distilled student vs the cross-encoder it imitates (needs .[ml]); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.rerank_arms $(if $(LISTWISE_MODEL),--listwise-model $(LISTWISE_MODEL)) --out bench/results/rerank_arms.json
 
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
 bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)

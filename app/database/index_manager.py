@@ -36,7 +36,7 @@ class IndexManager(DatabaseManager):
         - Path blocking for system directories
         - Connection pooling from parent DatabaseManager
         
-    Tables Created:
+    Tables (created by the schema migrations, app/database/migrations/):
         - indexed_files: Stores file metadata and processing status
         - directory_processing_results: Tracks directory processing state
     """
@@ -68,7 +68,7 @@ class IndexManager(DatabaseManager):
 
     def _create_tables(self) -> None:
         """
-        Create database tables for file and directory tracking.
+        Ensure the tables for file and directory tracking exist (schema migrations).
         
         Tables:
             indexed_files:
@@ -85,37 +85,14 @@ class IndexManager(DatabaseManager):
                 - is_applicable: Whether directory should be processed
                 - mtime: Directory modification time
         """
+        # The DDL lives in app/database/migrations/0001_baseline.sql (it used to be inline
+        # here, with content_hash added by a later ALTER). The runner is idempotent and
+        # takes an advisory lock, so two processes starting together do not both run DDL.
+        from .migrate import apply_migrations
+
         with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                # Create indexed_files table
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS indexed_files (
-                        file_path TEXT NOT NULL,
-                        process_name TEXT NOT NULL,
-                        process_version TEXT NOT NULL,
-                        mtime BIGINT NOT NULL,
-                        data BYTEA,
-                        content_hash TEXT,
-                        PRIMARY KEY (file_path, process_name, process_version)
-                    );
-                """)
-                cur.execute("""
-                    ALTER TABLE indexed_files
-                    ADD COLUMN IF NOT EXISTS content_hash TEXT;
-                """)
-                
-                # Create directory_processing_results table
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS directory_processing_results (
-                        dir_path TEXT NOT NULL,
-                        process_name TEXT NOT NULL,
-                        process_version TEXT NOT NULL,
-                        is_applicable BOOLEAN NOT NULL,
-                        mtime BIGINT NOT NULL,
-                        PRIMARY KEY (dir_path, process_name, process_version)
-                    );
-                """)
-                logger.info("Database tables created successfully")
+            apply_migrations(conn)
+        logger.info("Database tables are at the newest schema migration")
 
     def is_path_blocked(self, path: str) -> bool:
         """

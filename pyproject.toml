@@ -66,8 +66,10 @@ ml = [
     "scikit-learn>=1.4",
     "pillow>=10",
 ]
+# Tooling only: `make lock` (pip-tools) and `make lint` (ruff). Never needed at run time.
 dev = [
     "pip-tools>=7.4",
+    "ruff>=0.6",
 ]
 # Independent metric parity for external benchmark evidence (optional).
 eval-trec = [
@@ -89,3 +91,19 @@ exclude = ["tests*"]
 
 [tool.setuptools.package-data]
 "app.mobile" = ["fixtures/*", "fixtures/**/*", "fixture-provenance.json"]
+
+# `make lint` / the CI lint job. Deliberately narrow: every rule here flags a defect, not a
+# style choice, so the gate can fail the build without blanket ignores.
+#   E9   syntax and I/O errors (a module that does not parse)
+#   F63  comparisons that are always true or false (`is` with a literal, assert on a tuple)
+#   F7   statements that cannot run (return/yield/break outside their scope)
+#   F82  undefined names, undefined __all__ entries, locals read before assignment
+#   F811 a name (usually an import) redefined before it is used
+#   F402 an import shadowed by a loop variable
+# Not selected: F401 (unused imports). The tree has many, including files under the
+# frozen bench/corpus fixture, so it could not be made green with real fixes.
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "F811", "F402"]

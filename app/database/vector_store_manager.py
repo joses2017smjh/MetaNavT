@@ -43,6 +43,31 @@ from .db_base_manager import DatabaseManager
 load_dotenv()
 logger = logging.getLogger("uvicorn")
 
+
+def describe_dsn(dsn: str | None) -> str:
+    """Host, port and database name of a connection string, for log lines.
+
+    Never returns the user or the password. Accepts the URL form
+    (postgresql://user:pw@host:5432/db) and the libpq keyword form
+    (dbname=db user=u password=pw host=h port=5432). A string that cannot be
+    parsed yields "None" fields: the parser's own error message quotes the
+    whole string, so it is deliberately not logged.
+    """
+    host = port = database = None
+    text = dsn or ""
+    try:
+        fields = psycopg2.extensions.parse_dsn(text)
+        host, port, database = fields.get("host"), fields.get("port"), fields.get("dbname")
+    except psycopg2.Error:
+        if "://" in text:  # SQLAlchemy-style scheme such as postgresql+psycopg2://
+            try:
+                parsed = urlparse(text)
+                host, port, database = parsed.hostname, parsed.port, parsed.path.lstrip("/") or None
+            except ValueError:
+                pass
+    return f"host={host} port={port} database={database}"
+
+
 class VectorStoreManager(DatabaseManager):
     """Manages vector store operations using pgvector and pg_search extensions."""
     
@@ -168,8 +193,9 @@ class VectorStoreManager(DatabaseManager):
             asyncpg_conn_str = conn_string_env.replace(
                 original_scheme, "postgresql+asyncpg://"
             )
-            logger.info(f"PGVectorStore will use psycopg2_conn_str: {psycopg2_conn_str}")
-            logger.info(f"PGVectorStore will use asyncpg_conn_str: {asyncpg_conn_str}")
+            # Host and database only. The connection strings carry the password and
+            # must never be formatted into a log line (tests/engine/test_log_redaction.py).
+            logger.info(f"PGVectorStore will connect to {describe_dsn(conn_string_env)} (psycopg2 and asyncpg drivers)")
             
             # Log the database name expected by DatabaseManager's pool
             # Assuming self.DATABASE_NAME is set in DatabaseManager's __init__
