@@ -43,6 +43,29 @@ def triples_from_hits(query: str, hits, max_mtime: float = 1.0) -> list[RerankTr
     return triples
 
 
+def serving_features(query: str, pairs: Sequence[tuple[Chunk, float]]) -> list[dict[str, float]]:
+    """The features a student has when it reranks a fused list: the fused score and
+    rank, text overlap and path facts. No dense or BM25 score, and never the teacher."""
+    max_mtime = max((c.mtime for c, _ in pairs), default=1.0) or 1.0
+    return [
+        extract_features(query, chunk, rrf=rrf, rrf_rank=rank, max_mtime=max_mtime)
+        for rank, (chunk, rrf) in enumerate(pairs, start=1)
+    ]
+
+
+def triples_from_pairs(query: str, pairs: Sequence[tuple[Chunk, float]], teacher_scores: dict[str, float]) -> list[RerankTriple]:
+    """Training rows whose features are exactly what DistilledReranker.__call__ computes.
+
+    triples_from_hits (the bench log) is not that: it records the dense and BM25
+    scores, which the student does not get when it serves, and the hit's rank after
+    the teacher reranked it, which leaks the label into a feature."""
+    return [
+        RerankTriple(query=query, chunk_id=chunk.chunk_id, path=chunk.path, ce_score=float(teacher_scores[chunk.chunk_id]), features=feats)
+        for (chunk, _), feats in zip(pairs, serving_features(query, pairs))
+        if chunk.chunk_id in teacher_scores
+    ]
+
+
 def write_triples(path: str | Path, triples: Iterable[RerankTriple]) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -134,19 +157,7 @@ class DistilledReranker:
     def __call__(
         self, query: str, pairs: Sequence[tuple[Chunk, float]]
     ) -> list[tuple[Chunk, float]]:
-        max_mtime = max((c.mtime for c, _ in pairs), default=1.0) or 1.0
-        feats = []
-        for rank, (chunk, rrf) in enumerate(pairs, start=1):
-            feats.append(
-                extract_features(
-                    query,
-                    chunk,
-                    rrf=rrf,
-                    rrf_rank=rank,
-                    max_mtime=max_mtime,
-                )
-            )
-        scores = self.predict_scores(feats)
+        scores = self.predict_scores(serving_features(query, pairs))
         ranked = list(zip([p[0] for p in pairs], scores))
         ranked.sort(key=lambda item: item[1], reverse=True)
         return ranked

@@ -116,6 +116,29 @@ class SentenceTransformerEmbedder:
         )
         return np.asarray(vecs, dtype=np.float32)
 
+    def token_embeddings(self, text: str, max_tokens: int = 510) -> tuple[np.ndarray, list[tuple[int, int]]]:
+        """Token-level embeddings of a whole document plus each token's character span
+        (for late chunking). Longer documents are encoded in consecutive windows of
+        `max_tokens`, so a token's context is its window, not always the full file."""
+        import torch
+
+        tokenizer = self._model.tokenizer
+        enc = tokenizer(text, add_special_tokens=False, return_offsets_mapping=True, truncation=False, verbose=False)
+        ids, offsets = list(enc["input_ids"]), [(int(a), int(b)) for a, b in enc["offset_mapping"]]
+        transformer = self._model[0].auto_model
+        device = next(transformer.parameters()).device
+        parts = []
+        for i in range(0, len(ids), max_tokens):
+            window = [tokenizer.cls_token_id, *ids[i : i + max_tokens], tokenizer.sep_token_id]
+            with torch.no_grad():
+                hidden = transformer(
+                    input_ids=torch.tensor([window], device=device),
+                    attention_mask=torch.ones((1, len(window)), dtype=torch.long, device=device),
+                ).last_hidden_state[0, 1:-1]
+            parts.append(hidden.float().cpu().numpy())
+        mat = np.concatenate(parts) if parts else np.zeros((0, self.dim), dtype=np.float32)
+        return mat.astype(np.float32), offsets
+
 
 def cosine_scores(query_vec: np.ndarray, doc_mat: np.ndarray) -> np.ndarray:
     q = query_vec.reshape(1, -1)

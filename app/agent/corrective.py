@@ -163,6 +163,9 @@ def _refine_ambiguous(
                 chunk_id=ec.chunk.chunk_id + "_refined",
                 path=ec.chunk.path,
                 text=refined_text,
+                start_byte=ec.chunk.start_byte,  # the span of the chunk the sentences came from
+                end_byte=ec.chunk.end_byte,
+                mtime=ec.chunk.mtime,
             ))
     return refined
 

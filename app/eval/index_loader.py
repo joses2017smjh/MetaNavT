@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.chunking.contextual import situate_chunk
 from app.chunking.structure import chunk_text
 from app.eval.hashing import content_hash
 from app.retrieval.embedders import HashEmbedder, TfidfEmbedder
@@ -27,7 +28,11 @@ def iter_corpus_files(root: Path) -> list[Path]:
     return files
 
 
-def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False) -> list[Chunk]:
+def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False) -> list[Chunk]:
+    """`contextual` prepends a situating prefix to each chunk's indexed text
+    (app/chunking/contextual.py). No LLM is wired in here: the prefix is the
+    path-words heuristic of app/retrieval/context.py, and it is labelled as such
+    wherever its numbers appear. Citations still use `evidence_raw`."""
     root = Path(root)
     chunks: list[Chunk] = []
     for path in iter_corpus_files(root):
@@ -48,17 +53,20 @@ def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: boo
             end_byte = len(text[:span.end].encode("utf-8"))
             raw_span = text[span.start:span.end]
             cid = chunk_id_for(rel, start_byte, end_byte)
+            indexed_text = span.text
+            if contextual:
+                indexed_text = situate_chunk(rel, text, span, llm=lambda _prompt, _rel=rel: path_context(_rel)).embedded_text
             chunks.append(
                 Chunk(
                     chunk_id=cid,
                     path=rel,
-                    text=span.text,
+                    text=indexed_text,
                     start_byte=start_byte,
                     end_byte=end_byte,
                     mtime=st.st_mtime,
                     content_hash=digest,
                     metadata={"kind": span.kind, "evidence_raw": raw_span, "source_span_sha256": content_hash(raw_span),
-                              "text_is_verbatim": span.text == raw_span,
+                              "text_is_verbatim": indexed_text == raw_span,
                               **({"search_context": path_context(rel)} if include_path_context else {})},
                 )
             )
@@ -76,8 +84,9 @@ def build_index(
     reranker: str = "overlap",
     chunk_strategy: str = "auto",
     include_path_context: bool = False,
+    contextual: bool = False,
 ) -> InMemoryHybridIndex:
-    chunks = load_chunks(root, strategy=chunk_strategy, include_path_context=include_path_context)
+    chunks = load_chunks(root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual)
     if embedder_name == "hash":
         embedder = HashEmbedder()
     elif embedder_name == "tfidf":
