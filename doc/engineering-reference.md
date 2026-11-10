@@ -798,12 +798,26 @@ In the real-model table the arm names carry the model suffix (for example
 `hybrid+bge-rerank+graphrag@bge-small`), and the reranked parent is the
 cross-encoder row.
 
-Still without a benchmark row: the distilled student reranker
-(`app/retrieval/distill.py`; the benchmark logs its training triples but no
-student is scored), listwise reranking by an LLM, an LLM-written contextual
-prefix or HyDE hypothesis, GraphRAG with LLM extraction or modularity
-clustering, Tier 2 conflict notes (`app/graph/conflicts.py`), hierarchy
-summaries, the semantic cache and citation verification.
+The two reranker prototypes have their own generated table
+([reranker prototypes against the cross-encoder](../README.md#bench-rerank-arms),
+`make bench-rerank-arms`). The distilled student (`app/retrieval/distill.py`)
+is fitted on the cross-encoder's scores for half of the questions, with the
+features it has when it serves, and scored on the other half: it is below zero
+against the cross-encoder it imitates and below zero against the un-reranked
+hybrid list, at a small fraction of the rerank latency. That student is the
+linear least-squares fallback, because LightGBM is not installed where the
+benchmark ran; a gradient-boosted student is not evaluated. Listwise reranking
+by an LLM (`app/retrieval/rankgpt.py`) has a harness
+(`make bench-rerank-arms LISTWISE_MODEL=<ollama model>`) but no row: on the
+benchmark node the local model was too slow per question to finish the gold
+set inside the run, and its replies mixed prose with the permutation, which
+the parser would read as ranks.
+
+Still without a benchmark row: a gradient-boosted distilled student, listwise
+reranking by an LLM, an LLM-written contextual prefix or HyDE hypothesis,
+GraphRAG with LLM extraction or modularity clustering, Tier 2 conflict notes
+(`app/graph/conflicts.py`), hierarchy summaries, the semantic cache and
+citation verification.
 
 ### Modules with no measured result
 
