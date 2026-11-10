@@ -25,13 +25,15 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 
 plans_router = r = APIRouter()
+
+MAX_RECENT_DECISIONS = 500  # upper bound on ?limit= for GET /decisions/recent
 
 
 class PlanCreate(BaseModel):
@@ -214,7 +216,7 @@ async def create_plan(body: PlanCreate, request: Request) -> PlanView:
 
 
 @r.get("/decisions/recent")
-async def recent_decisions(request: Request, limit: int = 50) -> list[dict[str, Any]]:
+async def recent_decisions(request: Request, limit: int = Query(50, ge=1, le=MAX_RECENT_DECISIONS)) -> list[dict[str, Any]]:
     store = _store(request)
     if store.log is None:
         return []
