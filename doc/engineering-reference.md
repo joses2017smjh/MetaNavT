@@ -490,7 +490,48 @@ One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446*
 
 ### Indexing that does not redo the whole tree
 
-The Index Manager tracks path, mtime, and now a content hash on `indexed_files`. Unchanged bytes skip re-embed. Blocked system paths never enter the crawl. `ON CONFLICT` upserts keep Postgres current without dropping the table.
+With `INDEX_ON_START`, every API start runs one indexing step
+([app/engine/ingest.py](../app/engine/ingest.py)) under a Postgres advisory lock:
+
+1. **Scan.** Every file under `DATA_DIR` is read once and either accepted or
+   rejected with a reason: unsupported type, too large, undecodable, empty,
+   duplicate content ([app/eval/ingest.py](../app/eval/ingest.py), the same scan
+   the benchmark loader uses, with a stricter policy).
+2. **Diff.** Each accepted file's SHA-256 is compared with a manifest table
+   (`ingest_manifest_<table>`: path, content hash, chunk count, chunker version
+   and embedder). Files are new, changed, unchanged or removed.
+3. **Limit.** If more files are rejected than `INGEST_MAX_REJECTED` allows, the
+   run fails before it writes anything. CI and docker-compose set the limit to
+   zero; unset, rejections are counted but not fatal.
+4. **Apply.** Rows of removed files are deleted. For each new or changed file
+   its old rows are deleted by path, its chunks are embedded and inserted, and
+   only then is it listed in the manifest. Unchanged files are not read by the
+   embedder and their rows are not rewritten.
+5. **Report.** The run returns the counts of files seen, indexed, unchanged,
+   removed and rejected by reason. The report is logged and served by
+   `GET /health` under `indexing`.
+
+The step is idempotent and can be interrupted: because the manifest row is
+written last and old rows are deleted before new ones are inserted, the next
+run repeats the unfinished files and leaves one set of rows. Two replicas that
+start together serialise on the lock; the second finds nothing to do.
+
+What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
+runs against a live Postgres in CI's `parity` job (unchanged re-run embeds
+nothing, an edit re-embeds one file, a delete removes its rows, the rejection
+limit, an interrupted run, two concurrent runs);
+[tests/eval/test_ingest.py](../tests/eval/test_ingest.py) covers the scan, the
+diff and the accounting without a database. `make ingest-runs` records four
+consecutive runs on a copy of the fixture in
+[bench/results/ingest_runs.json](../bench/results/ingest_runs.json).
+
+Limits: a file is identified by its bytes, so a rename is a delete plus an
+insert; files are embedded one at a time inside the startup hook; the type
+gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
+are counted as rejected, not parsed. The older `indexed_files` table in
+`app/database/index_manager.py` is not used by this path, and the legacy
+`python -m app.engine.generate` CLI still splits with `SentenceSplitter` and
+does not consult the manifest.
 
 ### pgvector knobs on a trade-off curve
 
@@ -617,12 +658,26 @@ RRF on identical input lists, against a live Postgres in CI.
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
-The gap has known causes, and both rows are reported rather than one being
-declared "the" number: the lexical legs differ (Okapi BM25 over the bench's
-structure-aware chunks versus Postgres `ts_rank_cd` over OR-joined terms on
-`SentenceSplitter` chunks), and so do the chunk boundaries; the dense leg uses
-the same hash embeddings on different chunk texts. Path-level relevance absorbs
-most of the chunking difference. CI's `parity` job runs this on every push.
+The run behind that block was recorded when the API still chunked with
+LlamaIndex `SentenceSplitter`. The API now indexes with the bench's chunker:
+both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
+and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
+compares the chunk boundaries and texts of the two paths on the fixture. The
+dense leg therefore embeds identical texts in both rows. The run recorded after
+that change is
+[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
+(and `parity_shared_chunker_restart.json`, the same command after a restart on
+the indexed database). In those files the API row scores above the in-memory
+row, the paired interval excludes zero, and the gate does not pass at the
+tolerance they record (`/gate`); the tolerance was not changed. Sharing the
+chunker removed one difference and did not make the rows agree.
+
+The remaining differences, with both rows reported rather than one being
+declared "the" number: the lexical legs (Okapi BM25 versus Postgres
+`ts_rank_cd` over OR-joined terms), the order of equal scores (the SQL orders
+ties by `node_id`, the in-memory fusion by first-seen order), and the
+exact-path route (the in-memory index searches paths; the API runs its lexical
+list alone). CI's `parity` job runs this on every push.
 
 **Served reranker configuration, chosen from the SciFact table.** With a
 reranker configured, the API reranks the fused top 20 (`RERANK_DEPTH`) and
@@ -917,7 +972,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
 
-**Index Manager.** `app/database/index_manager.py` stores path, mtime, process version, content hash. Loaders crawl the tree, skip blocked paths, and only re-embed what changed.
+**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
 
 **Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
 

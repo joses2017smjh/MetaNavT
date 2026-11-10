@@ -94,7 +94,7 @@ class RetrieveResponse(BaseModel):
 
 
 def _path(meta: dict) -> Optional[str]:
-    # `path` is relative to DATA_DIR (app.engine.bootstrap); file_path is absolute.
+    # `path` is relative to DATA_DIR (app.engine.ingest); file_path is absolute.
     return meta.get("path") or meta.get("file_path") or meta.get("file_name")
 
 
