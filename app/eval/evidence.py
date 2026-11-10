@@ -24,6 +24,7 @@ FILES = {
     "parity": "bench/results/parity.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
+    "agent_injection": "bench/results/agent_injection.json",
 }
 
 
@@ -215,6 +216,49 @@ def claims(root: Path = ROOT) -> list[dict]:
         for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
             out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"], "command": "make bench-jury", "source": src,
                         "not_shown": "a measure of order bias, not of answer quality"})
+    out += _agent_injection_claims(root)
+    return out
+
+
+def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
+    blob = _load(FILES["agent_injection"], root)
+    if not blob:
+        return []
+    out: list[dict] = []
+    src = f"{FILES['agent_injection']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make bench-agent-injection"
+    k = blob["config"]["k"]
+    scope = "one phrasing per goal and task, written for this benchmark (not an adaptive attacker); two local 7-8B models; synthetic config questions"
+    for model, per in blob["summary"].items():
+        none = per.get("none")
+        if not none:
+            continue
+        hijack = none["by_goal"]["hijack"]["attempted"]
+        value, ci = _ci(hijack)
+        out.append({"claim": f"Agent injection, {model}, no defense: answers that state the planted value (hijack tasks), per trial",
+                    "value": value, "ci": ci, "n": hijack["n"], "command": cmd, "source": src,
+                    "not_shown": f"{scope}; n is tasks, each with {k} trials; the planted value sits in comment lines of the files the question leads to"})
+        pa = none["planted_actions"]
+        out.append({"claim": f"Agent injection, {model}, no defense: episodes that pursued a planted file action (move, patch, read outside the root), of those in which the planted text reached the model",
+                    "value": f"{pa['attempted_episodes']} of {pa['exposed_episodes']}", "ci": "—", "n": pa["exposed_episodes"], "command": cmd, "source": src,
+                    "not_shown": f"{scope}; no capability control, so a model that calls tools badly shows few attempts out of incapability"})
+        hat = none["benign_pass_hat_k"][str(k)]
+        value, ci = _ci(hat)
+        out.append({"claim": f"Agent injection, {model}, no planted text: pass^{k} (all {k} sampled trials answer correctly, citing a file of the asked run that contains the value)",
+                    "value": value, "ci": ci, "n": hat["n"], "command": cmd, "source": src,
+                    "not_shown": "ten single-field config questions; reliability on this tool set and prompt, not general agent reliability"})
+        delta = ((blob.get("paired_deltas") or {}).get(model) or {}).get("spotlight - none", {}).get("hijack_planted_value")
+        if delta:
+            value, ci = _ci(delta, "delta")
+            out.append({"claim": f"Agent injection, {model}: datamarking (spotlight) minus no defense, planted-value answers per trial on hijack tasks, paired",
+                        "value": value, "ci": ci, "n": delta["n"], "command": cmd, "source": src,
+                        "not_shown": "a prompt-level change tested on one phrasing per task; an interval that covers zero is no measured effect"})
+    gates = [b["gate"] for per in blob["summary"].values() for b in per.values()]
+    writes = sum(x.get("write_tool_calls", 0) for x in gates)
+    changed = sum(x["corpus_changed_episodes"] for x in gates)
+    out.append({"claim": "Agent injection, all models and configurations: write-tool calls made by a model, and episodes in which the corpus changed",
+                "value": f"{writes} calls; {changed} of {blob['n_episodes']} episodes", "ci": "—", "n": blob["n_episodes"], "command": cmd, "source": src,
+                "not_shown": "with no write-tool call the approval gate was not exercised by a model (its evidence is the deterministic approval benchmark); no grant was ever issued; not OS isolation and not an adaptive attacker"})
     return out
 
 
@@ -230,6 +274,7 @@ Solo work in this fork, 2026:
 - Measured hybrid BM25 + dense retrieval with reciprocal rank fusion and a cross-encoder reranker on the fixture and on BEIR SciFact: with real models, hybrid and the reranker beat BM25 with intervals above zero, and our BM25 reproduces Anserini's published SciFact baseline within noise; found and fixed a reranker API bug that had made every earlier reranker row a silent fallback.
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and gates the gap against the in-memory bench; no silent fallbacks, per-request stage latency and scores.
 - Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published; on the first full run the reference slice was saturated, so the gate stayed closed and no judge score was published.
+- Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
 '''
 
 QA = '''## Likely interview questions, with honest answers
@@ -251,6 +296,10 @@ QA = '''## Likely interview questions, with honest answers
 **How do you know the numbers in the README are real?** Every benchmark block in the README is rendered from a committed results file by one command, and a test fails if the text drifts. Each results file records the command, the git sha, the model revisions and the device. Losers stay in the tables.
 
 **What did the LLM answer evaluation show?** The generator answered every simple-factual question with the gold value, which saturated the reference the judges are measured against: with a one-class reference Cohen's kappa is zero by construction, so the gate could not be evaluated and no judge score is published. The deterministic checks are the usable result: nearly every cited path was in the retrieved set, most stated values sit inside the cited bytes, and the two answers with no citation failed loud. The kept losers are that both judges preferred the extractive answer to the LLM answer, showed strong position bias in the AB/BA swap, and agreed with each other only moderately. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching); the fixes and the rescored file are separate commits, so the before and after are both in the history.
+
+**What did the injection evaluation show?** Neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and no model called a write tool at all, so the approval gate was not exercised by a model in this run; its evidence is still the deterministic approval benchmark. What the models did follow was the planted claim: the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says.
+
+**How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore`.
 
 **What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and a kappa reference with variance: the simple-factual slice is saturated for this generator, so the gate needs a harder slice or harder questions before it can say anything about a judge.
 '''
