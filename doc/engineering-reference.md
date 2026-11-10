@@ -668,16 +668,29 @@ that change is
 [bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
 (and `parity_shared_chunker_restart.json`, the same command after a restart on
 the indexed database). In those files the API row scores above the in-memory
-row, the paired interval excludes zero, and the gate does not pass at the
-tolerance they record (`/gate`); the tolerance was not changed. Sharing the
-chunker removed one difference and did not make the rows agree.
+row and the paired interval excludes zero (`/gate` in those files, which
+predate the change below). Sharing the chunker removed one difference and did
+not make the rows agree.
+
+What is checked exactly is the dense leg:
+[tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)
+indexes the fixture through the served indexer, runs the dense CTE of
+`hybrid_tsrank.sql` at `RETRIEVE_K` for every gold question, and requires the
+same chunks in the same order with the same scores as the in-memory dense
+search (scores equal in exact arithmetic are compared as a set). The end-to-end
+nDCG@10 gap is reported with its paired interval and not gated; `make parity`
+fails only when the API is broken (a question without an answer or with zero
+hits). On the fixture the planner answers the dense CTE with a sequential scan;
+when the HNSW index is used instead, a scan returns at most `hnsw.ef_search`
+rows (pgvector's default is below `RETRIEVE_K`), so the dense list is cut short.
+The test reports the plan and `ef_search` when it fails.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
 `ts_rank_cd` over OR-joined terms), the order of equal scores (the SQL orders
 ties by `node_id`, the in-memory fusion by first-seen order), and the
 exact-path route (the in-memory index searches paths; the API runs its lexical
-list alone). CI's `parity` job runs this on every push.
+list alone). CI's `parity` job runs the dense-leg test and the parity report on every push.
 
 **Served reranker configuration, chosen from the SciFact table.** With a
 reranker configured, the API reranks the fused top 20 (`RERANK_DEPTH`) and
