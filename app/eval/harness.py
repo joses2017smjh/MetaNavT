@@ -699,23 +699,22 @@ def _parse_args(argv: list[str] | None = None):
     p.add_argument("--only", default=None, help="comma-separated config names to run (subset of the selected list)")
     p.add_argument("--backend", default="memory", choices=["memory", "api"], help="api: replay the gold set through POST /api/retrieve/ (see app/eval/parity.py)")
     p.add_argument("--url", default="http://localhost:8000", help="API base URL for --backend api")
-    p.add_argument("--tolerance", type=float, default=None, help="--backend api: largest allowed |nDCG@10 gap| between api and in-memory rows (exit 1 beyond it)")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     if args.backend == "api":
-        from app.eval.parity import DEFAULT_TOLERANCE, markdown_table as parity_table, run as parity_run
+        from app.eval.parity import markdown_table as parity_table, run as parity_run
 
-        blob = parity_run(args.url, tolerance=args.tolerance if args.tolerance is not None else DEFAULT_TOLERANCE)
+        blob = parity_run(args.url)
         out = args.out or (project_root() / "bench" / "results" / "parity.json")
         out = out if out.is_absolute() else project_root() / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
         print(parity_table(blob))
         print(f"wrote {out}")
-        if not blob["gate"]["ok"]:
+        if not blob["api_ok"]:  # a broken API, not the size of the gap
             raise SystemExit(1)
         return
     jury = args.jury or os.environ.get("JUDGE", "").strip().lower() in {"1", "true", "yes"}

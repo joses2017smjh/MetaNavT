@@ -111,11 +111,10 @@ demos: matlab-demo demo-data figures gifs
 
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
-PARITY_TOLERANCE ?= 0.06
 PARITY_OUT ?= bench/results/parity.json
 
-parity:         ## replay the gold set through a running API and gate |nDCG@10 gap| <= PARITY_TOLERANCE
-	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT) --tolerance $(PARITY_TOLERANCE)
+parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails only if the API is broken)
+	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
 
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
 	$(PYTHON) -m app.engine.ingest_runs

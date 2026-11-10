@@ -380,14 +380,15 @@ def parity_table(blob: dict | None) -> str:
             f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
             f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"
         )
-    g = blob.get("gate") or {}
+    g = blob.get("gap") or blob.get("gate") or {}  # files recorded before the gate was dropped carry "gate"
     d = g.get("paired_delta_api_minus_in_memory") or {}
     if g:
         lines += [
             "",
-            f"Gate: nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI "
-            f"{_delta(d) if d else '—'} ({_zero_note(d) if d else 'no interval'}); tolerance {g.get('tolerance')}; "
-            f"{'passes' if g.get('ok') else 'FAILS'}. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; "
+            f"nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI "
+            f"{_delta(d) if d else '—'} ({_zero_note(d) if d else 'no interval'}). The gap is reported, not gated: "
+            f"the lexical legs differ by design (ts_rank_cd vs BM25); the dense leg is checked for exact agreement "
+            f"by tests/database/test_dense_parity.py. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; "
             f"the in-memory figure is the search stage only.",
         ]
     return "\n".join(lines)

@@ -70,8 +70,11 @@ jobs:
     # Postgres + pgvector service, fixture v1 indexed with the hash embedder (the same
     # chunker as the bench, app/chunking through app/eval/ingest.py), the API
     # started in the background, then the 136 gold questions replayed through
-    # POST /api/retrieve/ and scored like the bench. Fails if nDCG@10 differs from
-    # the in-memory harness by more than the tolerance (app/eval/parity.py).
+    # POST /api/retrieve/ and scored like the bench. The live-database tests include
+    # the exact check: the dense leg equals the in-memory dense search on every gold
+    # question (tests/database/test_dense_parity.py). The end-to-end nDCG@10 gap is
+    # reported with its paired interval, not gated (the lexical legs differ by design);
+    # the step fails only when the API is broken (app/eval/parity.py).
     name: parity (API over Postgres vs in-memory bench)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -117,7 +120,7 @@ jobs:
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
           python scripts/smoke_retrieve.py --require-bm25
-      - name: Parity eval
+      - name: Parity eval (reports the nDCG@10 gap; fails only on a broken API)
         run: make parity
       - name: API log
         if: always()

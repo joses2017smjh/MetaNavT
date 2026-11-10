@@ -31,7 +31,7 @@ def test_render_covers_every_block_and_names_the_seed():
     assert wrap("bench-table", "x").startswith("<!-- bench-table:start")
     assert "beats BM25?" in blocks["bench-neural"] and "bge-reranker-v2-m3" in blocks["bench-neural"]
     assert "Published BM25" in blocks["bench-beir"] and "beats BM25?" in blocks["bench-beir"]
-    assert "api:postgres" in blocks["bench-parity"] and "Gate:" in blocks["bench-parity"]
+    assert "api:postgres" in blocks["bench-parity"] and "reported, not gated" in blocks["bench-parity"] and "Gate:" not in blocks["bench-parity"]
     assert "api-latency" in blocks and ("| stack |" in blocks["api-latency"] or "no api_latency" in blocks["api-latency"])
     assert "bench-jury" in blocks and ("kappa" in blocks["bench-jury"] or "make bench-jury" in blocks["bench-jury"])
 
