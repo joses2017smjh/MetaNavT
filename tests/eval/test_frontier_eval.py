@@ -240,3 +240,38 @@ def test_late_chunking_pools_document_tokens_only_for_files_with_several_chunks(
     assert np.array_equal(index.doc_mat[2], before[2])  # a one-chunk file keeps its ordinary vector
     with pytest.raises(ValueError):
         late_chunk_index(InMemoryHybridIndex(chunks, enable_rerank=False, enable_router=False), tmp_path)
+
+
+# ---- the committed results files -------------------------------------------------------------
+
+@pytest.mark.parametrize("rel", ["bench/results/frontier.json", "bench/results/frontier_neural.json"])
+def test_committed_frontier_file_is_self_contained(rel):
+    import json
+
+    from app.eval.harness import project_root
+
+    path = project_root() / rel
+    if not path.exists():
+        pytest.skip(f"{rel} not produced yet")
+    blob = json.loads(path.read_text())
+    for key in ("git_sha", "timestamp", "command", "device", "corpus_sha256", "n_gold", "n_files", "bootstrap"):
+        assert blob.get(key), key
+    assert "--frontier" in blob["command"]
+    rows = {r["config"]: r for r in blob["results"]}
+    parents, arms = blob["frontier"]["parents"], blob["frontier"]["arms"]
+    assert len(parents) == 2 and set(parents) <= set(rows) and arms
+    for name in arms:
+        row = rows[name]
+        parent = row["settings"]["parent"]
+        assert parent in parents, name
+        delta = row["delta_vs_previous"]
+        assert delta["reference"] == parent
+        for metric in ("ndcg@10", "recall@10", "recall@50"):
+            assert delta[metric]["lo"] <= delta[metric]["delta"] <= delta[metric]["hi"], (name, metric)
+        assert row["vs_parent"]["n_questions"] == blob["n_gold"]
+        assert row["fallbacks"] is not None and row["delta_vs_parent_by_category_all"]
+        # an arm whose list never differs from its parent's must have a zero-width delta, and the row says what fired
+        if row["vs_parent"]["n_list_differs"] == 0:
+            assert delta["ndcg@10"] == {"delta": 0.0, "lo": 0.0, "hi": 0.0} and row.get("fired")
+    graph = [r for n, r in rows.items() if "graphrag" in n]
+    assert graph and all("n_communities" in r["graphrag"] and "discriminates" in r["graphrag"] for r in graph)
