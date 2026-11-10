@@ -21,7 +21,7 @@ FILES = {
     "main": "bench/results/main.json",
     "neural": "bench/results/neural.json",
     "beir": "bench/results/beir_scifact.json",
-    "parity": "bench/results/parity.json",
+    "parity": "bench/results/parity_shared_chunker.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection.json",
@@ -163,11 +163,11 @@ def claims(root: Path = ROOT) -> list[dict]:
         by = _rows(parity)
         api, mem = by.get("api:postgres"), next((r for k, r in by.items() if k.startswith("in_memory")), None)
         if api and mem:
-            g = parity.get("gate", {})
+            g = parity.get("gap") or parity.get("gate") or {}  # files recorded before the gate was dropped carry "gate"
             d = g.get("paired_delta_api_minus_in_memory") or {}
             dv, ci = _ci(d, "delta") if d else ("—", "—")
             out.append({"claim": "API over Postgres + pgvector vs the in-memory bench (same switches), nDCG@10 gap", "value": dv, "ci": ci, "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
-                        "not_shown": f"tolerance {g.get('tolerance')}; different lexical leg (ts_rank_cd vs Okapi BM25) and chunker; CI re-runs it on every push to main and every pull request"})
+                        "not_shown": "reported, not gated: the lexical legs differ by design (ts_rank_cd vs Okapi BM25); chunks and embeddings are shared, and tests/database/test_dense_parity.py requires the dense leg to match exactly; CI re-runs the parity job on every push to main and every pull request"})
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
@@ -344,7 +344,7 @@ Solo work in this fork, 2026:
 
 - Designed an LLM-free retrieval benchmark (frozen 61-file fixture, 136 scripted questions in eight categories whose answers and relevant paths are computed from the corpus registry) with paired-bootstrap confidence intervals, a random-list baseline for recall, and a CI regression gate; the README's numbers are generated from the committed results files and a test fails on drift.
 - Measured hybrid BM25 + dense retrieval with reciprocal rank fusion and a cross-encoder reranker on the fixture and on BEIR SciFact: with real models, hybrid and the reranker beat BM25 with intervals above zero, and our BM25 reproduces Anserini's published SciFact baseline within noise; found and fixed a reranker API bug that had made every earlier reranker row a silent fallback.
-- Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and gates the gap against the in-memory bench; no silent fallbacks, per-request stage latency and scores.
+- Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and reports the gap to the in-memory bench with its interval, and a live-database test that requires the dense leg to equal the in-memory dense search on every gold question; no silent fallbacks, per-request stage latency and scores.
 - Added a typed retrieval endpoint that returns byte-range citations, and a human-in-the-loop gate for file changes: an agent can only propose a change, and applying it needs an operator-signed, single-use approval bound to the reviewed action.
 - Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published; on the first full run the reference slice was saturated, so the gate stayed closed and no judge score was published.
 - Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
@@ -356,7 +356,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **Why did hybrid tie BM25 on the fixture?** With hash embeddings (no model) and a token-overlap reranker, the dense leg adds coverage but not ranking; the paired nDCG@10 delta versus BM25 covers zero. With bge-small and the bge reranker the same pipeline beats BM25 with intervals above zero, on the fixture and on SciFact. The CI table is the download-free story; the neural table is the quality story.
 
-**What does the parity tolerance mean?** The API over Postgres and the in-memory bench use different lexical legs (Postgres full-text with ts_rank_cd versus Okapi BM25) and different chunkers, so they are not expected to be identical. The gate is the largest gap in nDCG@10 the parity job tolerates; it is set just above the width of the paired interval between the two rows on the committed run, so a broken leg would still fail it. Both rows are reported.
+**Why is the parity gap reported and not gated?** The API and the in-memory bench now index the same chunks with the same embeddings, so the dense half must match, and a live-database test requires it to match exactly on every gold question. The lexical halves differ by design (Postgres full-text with ts_rank_cd and ties broken by row id, against Okapi BM25), so the end-to-end nDCG@10 gap is a measured difference, not a defect: the parity job reports it with its paired interval and fails only when the API is broken.
 
 **What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. Paper2Code, the MATLAB checkpoint, multimodal pages and the RL stub run in demos but have no measured result; the engineering reference keeps them under "Prototypes (not evaluated)". The retrieval prototypes (GraphRAG community routing, HippoRAG PPR, hop expansion, HyDE, multi-query, decomposition, corrective and adaptive retrieval, the chunking variants) are benchmark arms: each has a row above with its parent, a paired interval, the verdict that interval supports and the stand-ins it ran on. An arm whose interval covers zero is reported as no measured effect, and an arm that lost stays in the table.
 
