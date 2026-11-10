@@ -19,8 +19,9 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury.json"
@@ -44,6 +45,7 @@ SOURCES = {
     "agent-injection": AGENT_INJECTION_FILE,
     "bench-frontier": FRONTIER_FILE,
     "bench-frontier-neural": FRONTIER_NEURAL_FILE,
+    "bench-rerank-arms": RERANK_ARMS_FILE,
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -711,6 +713,51 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
     return "\n".join(lines)
 
 
+def _delta_to(row: dict, reference_suffix: str) -> dict | None:
+    for block in row.get("deltas") or []:
+        if block["reference"].endswith(reference_suffix):
+            return block.get("ndcg@10")
+    return None
+
+
+def rerank_arms_table(blob: dict | None) -> str:
+    """Reranker prototypes against the cross-encoder: the distilled student (test questions) and listwise LLM rerank."""
+    if not blob:
+        return f"_{RERANK_ARMS_FILE} is missing; run `make bench-rerank-arms`._"
+    cand = blob["candidates"]
+    split = blob["split"]
+    lines = [
+        f"Reranker prototypes on fixture v1 (`make bench-rerank-arms`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. The student is fitted on the cross-encoder's "
+        f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
+        f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",
+        "",
+        "| arm | questions | nDCG@10 [95% CI] | Δ nDCG@10 vs cross-encoder [95% CI] | verdict | Δ nDCG@10 vs un-reranked hybrid [95% CI] | verdict | rerank p50 / p95 ms | stand-ins (fallbacks) |",
+        "|---|---:|---:|---:|:---:|---:|:---:|---:|---|",
+    ]
+    for scope, label in (("test_split", "test split"), ("all_questions", "all")):
+        for row in blob[scope]["results"]:
+            name = row["config"]
+            if scope == "all_questions" and "listwise" not in name:
+                continue  # the parents on all questions are the rows of the real-model table above
+            vs_ce, vs_hybrid = _delta_to(row, "hybrid+bge-rerank@bge-small"), _delta_to(row, "hybrid@bge-small")
+            lat = row.get("rerank_latency")
+            student = row.get("student") or {}
+            stand_in = student.get("fallback") and f"student: {student['fallback']}"
+            latency = f"{lat['p50_ms']} / {lat['p95_ms']}" if lat else "—"
+            lines.append(
+                f"| {name} | {row['n']} ({label}) | {_ci(row, 'ndcg@10')} | {_delta4(vs_ce)} | {verdict(vs_ce) if vs_ce else '—'} | "
+                f"{_delta4(vs_hybrid)} | {verdict(vs_hybrid) if vs_hybrid else '—'} | {latency} | {stand_in or 'none'} |"
+            )
+    lw = blob.get("listwise") or {}
+    if lw.get("evaluated"):
+        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama, one prompt per question over the top {lw['window']} candidates "
+                      f"({lw['passage_chars']} characters each); {lw['n_failed_calls']} of {blob['n_gold']} calls returned nothing. Every completion is in the results file."]
+    else:
+        lines += ["", f"Listwise reranking by an LLM (`app/retrieval/rankgpt.py`): not evaluated in this run ({lw.get('reason', 'not run')})."]
+    return "\n".join(lines)
+
+
 def _mean(block: dict | None) -> str:
     return "n/a" if not block or block.get("mean") is None else f"{block['mean']:.3f}"
 
@@ -736,6 +783,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_FILE)),
         "bench-frontier": frontier_table(_load(root, FRONTIER_FILE)),
         "bench-frontier-neural": frontier_table(_load(root, FRONTIER_NEURAL_FILE), FRONTIER_NEURAL_FILE, "make bench-frontier-neural"),
+        "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
     }
 
 

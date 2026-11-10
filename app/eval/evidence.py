@@ -27,6 +27,7 @@ FILES = {
     "agent_injection": "bench/results/agent_injection.json",
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
+    "rerank_arms": "bench/results/rerank_arms.json",
 }
 
 
@@ -220,6 +221,36 @@ def claims(root: Path = ROOT) -> list[dict]:
                         "not_shown": "a measure of order bias, not of answer quality"})
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
+    out += _rerank_arm_claims(root)
+    return out
+
+
+def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
+    """The reranker prototypes against the cross-encoder: paired deltas and the latency they buy."""
+    from app.eval.report import verdict
+
+    blob = _load(FILES["rerank_arms"], root)
+    if not blob:
+        return []
+    out: list[dict] = []
+    src = f"{FILES['rerank_arms']} @ {blob['git_sha']}"
+    cmd = "make bench-rerank-arms"
+    for scope in ("test_split", "all_questions"):
+        rows = {r["config"]: r for r in blob[scope]["results"]}
+        teacher = rows.get("hybrid+bge-rerank@bge-small") or {}
+        for name, row in rows.items():
+            if "student" not in name and "listwise" not in name:
+                continue
+            student = row.get("student") or {}
+            stand_in = f"student backend: {student['fallback']}" if student.get("fallback") else "no stand-in: the model ran"
+            for block in row.get("deltas") or []:
+                d = block["ndcg@10"]
+                value, ci = _ci(d, "delta")
+                lat, tlat = row.get("rerank_latency") or {}, teacher.get("rerank_latency") or {}
+                out.append({"claim": f"Reranker prototype `{name}` minus `{block['reference']}`, paired delta in nDCG@10 ({'held-out test questions' if scope == 'test_split' else 'all questions'})",
+                            "value": value, "ci": ci, "n": row["n"], "command": cmd, "source": src,
+                            "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
+                                         f"both rerank the fused top {blob['candidates']['retrieve_k']} of a {blob['n_files']}-file synthetic fixture"})
     return out
 
 

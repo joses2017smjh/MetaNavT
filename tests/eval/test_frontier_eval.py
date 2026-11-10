@@ -326,3 +326,69 @@ def test_evidence_table_has_a_row_for_every_frontier_arm():
             mine = [r for r in rows if f"`{name}`" in r["claim"] and FILES[key] in r["source"]]
             assert len(mine) == 1, name
             assert "verdict from the interval" in mine[0]["not_shown"] and "stand-ins" in mine[0]["not_shown"]
+
+
+# ---- reranker prototypes against the cross-encoder ---------------------------------------------
+
+def test_student_training_rows_use_serving_features_not_the_teacher_rank():
+    from app.retrieval.distill import DistilledReranker, serving_features, triples_from_hits, triples_from_pairs
+    from app.retrieval.types import RetrievalHit
+
+    index = _tiny_index()
+    query = "what learning rate did run 47 use"
+    pairs = [(h.chunk, h.score) for h in index.retrieve(query, k=5).hits]
+    teacher = {chunk.chunk_id: float(10 - i) for i, (chunk, _) in enumerate(reversed(pairs))}  # the teacher reverses the list
+    rows = triples_from_pairs(query, pairs, teacher)
+    assert [r.features for r in rows] == serving_features(query, pairs)
+    assert [r.features["rrf_rank"] for r in rows] == [1.0, 2.0, 3.0]  # the fused rank, whatever the teacher said
+    assert all(r.features["dense_cosine"] == 0.0 and r.features["bm25_score"] == 0.0 for r in rows)  # absent when serving
+    assert [r.ce_score for r in rows] == [teacher[c.chunk_id] for c, _ in pairs]
+    # The bench log is a different thing: after a rerank its rank feature is the teacher's own order.
+    reranked = [RetrievalHit(c, teacher[c.chunk_id], rank, rerank=teacher[c.chunk_id]) for rank, (c, _) in enumerate(reversed(pairs), start=1)]
+    assert [t.features["rrf_rank"] for t in triples_from_hits(query, reranked)] == [1.0, 2.0, 3.0]
+    student = DistilledReranker().fit(rows * 3)
+    assert {c.chunk_id for c, _ in student(query, pairs)} == {c.chunk_id for c, _ in pairs}
+
+
+def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():
+    from app.eval.gold import load_gold
+    from app.eval.harness import project_root
+    from app.eval.rerank_arms import score_rows, split_questions
+
+    gold = load_gold(project_root() / "bench" / "gold" / "questions.jsonl")
+    train, test = split_questions(gold)
+    assert not set(train) & set(test) and sorted(train + test) == list(range(len(gold)))
+    cats = lambda ids: {c: sum(1 for i in ids if gold[i].category == c) for c in {q.category for q in gold}}  # noqa: E731
+    assert all(abs(cats(train)[c] - cats(test)[c]) <= 1 for c in cats(train))
+    perfect = [list(q.relevant_ids()) for q in gold]
+    empty = [[] for _ in gold]
+    rows, boot = score_rows({"good": perfect, "bad": empty}, gold, test, {"good": [1.0] * len(gold)}, 61, [("bad", "good")])
+    by = {r["config"]: r for r in rows}
+    assert by["good"]["n"] == len(test) == boot["n_queries"] and by["good"]["retrieval"]["ndcg@10"] == 1.0
+    assert by["good"]["rerank_latency"]["n"] == len(test)
+    (delta,) = by["bad"]["deltas"]
+    assert delta["reference"] == "good" and delta["ndcg@10"] == {"delta": -1.0, "lo": -1.0, "hi": -1.0}
+    assert set(delta) == {"reference", "ndcg@10", "recall@10", "recall@50"}
+
+
+def test_rerank_arms_block_reads_verdicts_off_the_file():
+    import json
+
+    from app.eval.harness import project_root
+    from app.eval.report import RERANK_ARMS_FILE, rerank_arms_table, verdict
+
+    assert "make bench-rerank-arms" in rerank_arms_table(None)
+    path = project_root() / RERANK_ARMS_FILE
+    if not path.exists():
+        pytest.skip(f"{RERANK_ARMS_FILE} not produced yet")
+    blob = json.loads(path.read_text())
+    text = rerank_arms_table(blob)
+    student = next(r for r in blob["test_split"]["results"] if "student" in r["config"])
+    line = next(l for l in text.splitlines() if l.startswith(f"| {student['config']} |"))
+    vs_teacher = next(b for b in student["deltas"] if b["reference"].endswith("bge-rerank@bge-small"))["ndcg@10"]
+    assert f"| {verdict(vs_teacher)} |" in line and str(student["rerank_latency"]["p50_ms"]) in line
+    if student["student"]["fallback"]:
+        assert student["student"]["fallback"] in line  # the stand-in is named in the row
+    assert set(blob["split"]["train_ids"]).isdisjoint(blob["split"]["test_ids"])
+    if not blob["listwise"]["evaluated"]:
+        assert "not evaluated in this run" in text

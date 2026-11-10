@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-frontier-neural bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-frontier-neural bench-rerank-arms bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -69,6 +69,10 @@ bench-frontier: ## prototype arms vs their parent rows, hash embedder + overlap 
 
 bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]) -> bench/results/frontier_neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --frontier --neural --out bench/results/frontier_neural.json
+
+LISTWISE_MODEL ?=
+bench-rerank-arms: ## distilled student vs the cross-encoder it imitates (needs .[ml]); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.rerank_arms $(if $(LISTWISE_MODEL),--listwise-model $(LISTWISE_MODEL)) --out bench/results/rerank_arms.json
 
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
 bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)
