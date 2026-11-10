@@ -145,23 +145,16 @@ class DecisionLog:
         self.ensure_table()
 
     def ensure_table(self) -> None:
+        """Bring the schema to the newest migration (app/database/migrations/).
+
+        This replaces the inline CREATE TABLE IF NOT EXISTS that used to live here:
+        plan_decisions is created by migration 0001, and the runner takes an advisory
+        lock so two replicas starting together do not both run DDL.
+        """
+        from app.database.migrate import apply_migrations
+
         with self.vsm.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    f"""CREATE TABLE IF NOT EXISTS {self.TABLE} (
-                        id BIGSERIAL PRIMARY KEY,
-                        plan_id TEXT NOT NULL,
-                        src TEXT NOT NULL,
-                        dst TEXT NOT NULL,
-                        action TEXT NOT NULL,
-                        actor TEXT,
-                        note TEXT,
-                        decided_at TIMESTAMPTZ NOT NULL,
-                        result TEXT NOT NULL,
-                        payload JSONB
-                    );"""
-                )
-            conn.commit()
+            apply_migrations(conn)
 
     def write(self, record: dict[str, Any]) -> None:
         with self.vsm.get_connection() as conn:

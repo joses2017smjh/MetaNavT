@@ -141,6 +141,8 @@ jobs:
           python -m pip check
       - name: SQL RRF == Python RRF (tests/database, live Postgres)
         run: python -m pytest tests/database/test_hybrid_sql.py -q
+      - name: Schema migrations upgrade from the previous version without losing rows (tests/database, live Postgres)
+        run: python -m pytest tests/database/test_migrations.py -q -rs
       - name: Start the API (indexes bench/corpus/files on first start)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
