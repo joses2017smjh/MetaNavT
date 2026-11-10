@@ -72,3 +72,50 @@ def late_chunk_vectors(
 ) -> np.ndarray:
     tok_spans = char_spans_to_token_spans(text, char_spans, tokens=[])
     return mean_pool_spans(token_embeddings, tok_spans)
+
+
+def late_chunk_index(index, files_root, *, max_tokens: int = 510) -> dict:
+    """Swap in late-chunked dense vectors for the chunks of files that have several chunks.
+
+    The embedder must expose `token_embeddings(text, max_tokens) -> (matrix, [(char_start, char_end)])`
+    for a whole document. A chunk's vector becomes the mean of the document-level token
+    embeddings inside its span. A file that is one chunk keeps its ordinary vector: its
+    chunk already sees the whole document, so pooling would only change the pooling
+    method, not the context. Returns the counts a results row needs.
+    """
+    from collections import defaultdict
+    from pathlib import Path
+
+    token_fn = getattr(index.embedder, "token_embeddings", None)
+    if token_fn is None:
+        raise ValueError("late chunking needs an embedder with token_embeddings(); the hash embedder has no tokens")
+    rows_by_path: dict[str, list[int]] = defaultdict(list)
+    for row, chunk in enumerate(index.chunks):
+        rows_by_path[chunk.path].append(row)
+    pooled = files = 0
+    for path, rows in rows_by_path.items():
+        if len(rows) < 2:
+            continue
+        raw = (Path(files_root) / path).read_bytes()
+        tokens, offsets = token_fn(raw.decode("utf-8"), max_tokens=max_tokens)
+        spans: list[tuple[int, tuple[int, int]]] = []
+        for row in rows:
+            chunk = index.chunks[row]
+            start, end = len(raw[: chunk.start_byte].decode("utf-8")), len(raw[: chunk.end_byte].decode("utf-8"))
+            inside = [i for i, (a, b) in enumerate(offsets) if a >= start and b <= end and b > a]
+            if inside:
+                spans.append((row, (inside[0], inside[-1] + 1)))
+        if not spans:
+            continue
+        vectors = mean_pool_spans(np.asarray(tokens, dtype=np.float32), [span for _, span in spans])
+        for (row, _), vec in zip(spans, vectors):
+            index.doc_mat[row] = vec
+        pooled += len(spans)
+        files += 1
+    return {
+        "n_chunks_late_pooled": pooled,
+        "n_chunks": len(index.chunks),
+        "n_files_with_several_chunks": files,
+        "window_tokens": max_tokens,
+        "pooling": "mean of document-level token embeddings per chunk span; queries and one-chunk files keep the model's own pooling",
+    }

@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-frontier-neural bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -64,8 +64,11 @@ bench-jury-rescore: ## recompute the deterministic checks + summary of bench/res
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
 
-bench-frontier:
-	$(PYTHON) -m app.eval.harness --frontier
+bench-frontier: ## prototype arms vs their parent rows, hash embedder + overlap reranker fallbacks -> bench/results/frontier.json
+	$(PYTHON) -m app.eval.harness --frontier --out bench/results/frontier.json
+
+bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]) -> bench/results/frontier_neural.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --frontier --neural --out bench/results/frontier_neural.json
 
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
 bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)
