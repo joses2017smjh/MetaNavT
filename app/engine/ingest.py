@@ -8,8 +8,9 @@ INDEX_ON_START is set. One run, under a Postgres advisory lock:
   2. diff the accepted files' SHA-256 against the manifest table (one row per
      indexed file: path, content hash, chunk count, chunker version + embedder);
   3. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
-  4. delete the rows of removed files; for each new or changed file delete its
-     rows by path, embed and insert its chunks, then list it in the manifest;
+  4. delete the rows of removed files; for each new or changed file embed its
+     chunks, delete its old rows by path, insert the new ones, then list it in
+     the manifest;
   5. delete chunks whose path the manifest does not list.
 
 An unchanged re-run embeds nothing. The step can be interrupted anywhere: a
@@ -134,10 +135,10 @@ def index_directory(
         chunks_embedded = 0
         for path in plan.to_index:
             source = by_path[path]
-            chunks_deleted += vsm.forget_file(path)
             nodes = build_nodes(source)
             for node, vector in zip(nodes, embed_fn([n.text for n in nodes])):
                 node.embedding = list(vector)
+            chunks_deleted += vsm.forget_file(path)  # after embedding: an embedder failure leaves the old rows in place
             store.add(nodes)
             vsm.record_file(path, source.sha256, len(nodes), pipeline)
             chunks_embedded += len(nodes)

@@ -202,6 +202,17 @@ def test_an_interrupted_run_never_leaves_the_manifest_ahead_of_the_rows(run):
     assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()  # one set of rows, no duplicates
     run.assert_manifest_matches_rows()
 
+    # An embedder failure on an edited file leaves that file's previous rows and manifest entry in place.
+    before, old_hash = run.rows(), vsm.ingest_manifest()[EDITED]["content_hash"]
+    with (run.corpus / EDITED).open("a") as handle:
+        handle.write("note: edited\n")
+    calls["n"] = 9  # the next embed call fails
+    with pytest.raises(RuntimeError, match="embedder died"):
+        run.index(embed_fn=failing_embed)
+    assert run.rows() == before and vsm.ingest_manifest()[EDITED]["content_hash"] == old_hash
+    assert run.index()["indexed_changed"] == 1
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+
 
 def test_two_replicas_starting_together_index_once(run):
     first, second = run.managers[0], run.manager()

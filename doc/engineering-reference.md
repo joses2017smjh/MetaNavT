@@ -504,9 +504,9 @@ With `INDEX_ON_START`, every API start runs one indexing step
    run fails before it writes anything. CI and docker-compose set the limit to
    zero; unset, rejections are counted but not fatal.
 4. **Apply.** Rows of removed files are deleted. For each new or changed file
-   its old rows are deleted by path, its chunks are embedded and inserted, and
-   only then is it listed in the manifest. Unchanged files are not read by the
-   embedder and their rows are not rewritten.
+   its chunks are embedded, its old rows are deleted by path, the new rows are
+   inserted, and only then is it listed in the manifest. Unchanged files are
+   not sent to the embedder and their rows are not rewritten.
 5. **Report.** The run returns the counts of files seen, indexed, unchanged,
    removed and rejected by reason. The report is logged and served by
    `GET /health` under `indexing`.
