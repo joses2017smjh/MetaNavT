@@ -773,24 +773,30 @@ from its parent (plain hybrid, or hybrid plus the reranker), both parents are
 computed in the same run, and the verdict word is computed from the interval of
 the paired nDCG@10 delta: above zero, covers zero, or below zero. Every row
 lists the stand-ins it ran on. On the CPU stand-ins every row uses the hash
-embedder and, where it reranks, the overlap reranker; the query-side mechanisms
-are keyword or regex heuristics, not models, in both runs.
+embedder and, where it reranks, the overlap reranker. The real-model run uses
+bge-small-en-v1.5 and the bge-reranker-v2-m3 cross-encoder and is the one that
+carries the verdicts. The query-side mechanisms are keyword or regex
+heuristics, not models, in both runs.
 
-| arm | what it changes | verdict on the CPU stand-ins | status |
-|---|---|---|---|
-| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | Evaluated. The rewrites are keyword rules written against this fixture. |
-| HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | Evaluated. Before this run the gate read the gold category of each question; it no longer does. |
-| Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero for one hop and for two | Evaluated: a recorded loss. The default stays at zero hops. |
-| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
-| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | Evaluated with a path-words prefix, not an LLM-written one. |
-| Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated on the stand-ins (the hash embedder has no token embeddings) | Real-model run only. |
-| HyDE (`hybrid+rerank+hyde`) | fuses a second dense list from a pseudo-document | below zero | Evaluated: a recorded loss for the keyword-heuristic hypothesis. No LLM-written hypothesis was scored. |
-| Decomposition (`hybrid+rerank+decompose`) | retrieves per sub-query and merges | covers zero | Evaluated: no measured effect; it fires on few questions (the count is in the table). |
-| Corrective retrieval (`hybrid+rerank+corrective`) | grades the top hits and retries with a rewrite or sub-queries | covers zero: identical first ten files | Evaluated: it fires on most questions but only appends candidates after the existing list, so it cannot change the top ten. |
-| HyDE + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | Evaluated: the loss is HyDE's; the corrective step adds nothing to the top ten. |
-| Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
-| GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval and is not kept in the served path. |
-| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | Evaluated only with its token-overlap fallback. Listwise reranking by an LLM is not evaluated. |
+| arm | what it changes | CPU stand-ins | real models | what the intervals support |
+|---|---|---|---|---|
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. |
+| HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
+| Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix, not an LLM-written one. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. |
+| Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
+| HyDE (`hybrid+rerank+hyde`) | fuses a second dense list from a pseudo-document into the reranked order | below zero | below zero | Evaluated: a recorded loss for the keyword-heuristic hypothesis. No LLM-written hypothesis was scored. |
+| Decomposition (`hybrid+rerank+decompose`) | retrieves per sub-query and merges | covers zero | covers zero | Evaluated: no measured effect; it fires on few questions (the count is in the table). |
+| Corrective retrieval (`hybrid+rerank+corrective`) | grades the top hits and retries with a rewrite or sub-queries | covers zero: identical first ten files | covers zero: identical first ten files | Evaluated: it fires on most questions but only appends candidates after the existing list, so it cannot change the top ten. |
+| HyDE + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is HyDE's; the corrective step adds nothing to the top ten. |
+| Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
+| GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval in either run and is not kept in the served path. |
+| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM is not evaluated. |
+
+In the real-model table the arm names carry the model suffix (for example
+`hybrid+bge-rerank+graphrag@bge-small`), and the reranked parent is the
+cross-encoder row.
 
 Still without a benchmark row: the distilled student reranker
 (`app/retrieval/distill.py`; the benchmark logs its training triples but no
