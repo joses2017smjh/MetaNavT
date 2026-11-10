@@ -245,7 +245,7 @@ Same 136 questions, same metrics, same paired bootstrap (`make parity`, results 
 | in_memory:hybrid+router+staleness | 0.515 [0.462, 0.570] | 0.705 [0.643, 0.765] | 0.938 | in-memory Okapi BM25 | app/chunking (structure-aware) | 0.02 / 0.02 |
 | api:postgres | 0.535 [0.493, 0.581] | 0.786 [0.736, 0.837] | 0.950 | ts_rank_cd | SentenceSplitter(512, 50) | 9.89 / 33.3 |
 
-Gate: nDCG@10 gap, API minus in-memory, +0.0203 with paired 95% CI +0.020 [-0.026, +0.065] (the interval covers zero); tolerance 0.06; passes. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; the in-memory figure is the search stage only.
+nDCG@10 gap, API minus in-memory, +0.0203 with paired 95% CI +0.020 [-0.026, +0.065] (the interval covers zero). The gap is reported, not gated: the lexical legs differ by design (ts_rank_cd vs BM25); the dense leg is checked for exact agreement by tests/database/test_dense_parity.py. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; the in-memory figure is the search stage only.
 <!-- bench-parity:end -->
 
 <a id="api-latency"></a>

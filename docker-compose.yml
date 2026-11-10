@@ -47,7 +47,8 @@ services:
       RERANKER_MODEL: none
       RETRIEVAL_MODE: sql          # one SQL round trip (app/database/sql/); python = the reference path
       DATA_DIR: bench/corpus/files
-      INDEX_ON_START: "true"
+      INDEX_ON_START: "true"       # every start: diff DATA_DIR against the manifest, embed only what changed
+      INGEST_MAX_REJECTED: "0"     # refuse to start if a file is rejected (undecodable, empty, too large, ...)
       CHUNK_SIZE: "512"
       CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"

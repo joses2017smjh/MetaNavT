@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -141,10 +141,13 @@ demos: matlab-demo demo-data figures gifs
 
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
-PARITY_TOLERANCE ?= 0.06
+PARITY_OUT ?= bench/results/parity.json
 
-parity:         ## replay the gold set through a running API and gate |nDCG@10 gap| <= PARITY_TOLERANCE
-	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out bench/results/parity.json --tolerance $(PARITY_TOLERANCE)
+parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails only if the API is broken)
+	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
+
+ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
+	$(PYTHON) -m app.engine.ingest_runs
 
 explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN -> doc/sql/
 	$(PYTHON) scripts/explain_hybrid.py

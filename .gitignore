@@ -36,6 +36,9 @@ bench/results/*.json
 !bench/results/neural.json
 !bench/results/beir_scifact.json
 !bench/results/parity.json
+!bench/results/parity_shared_chunker.json
+!bench/results/parity_shared_chunker_restart.json
+!bench/results/ingest_runs.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json
 !bench/results/robotics_file_lookup_2026-10-07.json

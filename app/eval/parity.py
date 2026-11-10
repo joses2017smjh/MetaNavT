@@ -1,7 +1,7 @@
 """Parity: replay the gold questions through POST /api/retrieve/ and score them like the bench.
 
     python -m app.eval.harness --backend api --url http://localhost:8000 \
-        --out bench/results/parity.json --tolerance 0.06
+        --out bench/results/parity.json
 
 Two rows come out of one run:
   in_memory  the bench harness on fixture v1 with the same switches the API
@@ -10,15 +10,25 @@ Two rows come out of one run:
   api        the same 136 questions through the running API (Postgres +
              pgvector, SQL hybrid) -> app/engine/retriever.py in mode "sql"
 Both are scored with the same path-level metrics and the same paired bootstrap.
-The gate compares nDCG@10 between the two rows against --tolerance.
+The run reports the nDCG@10 gap (API minus in-memory) with its paired 95% interval;
+the gap is a measurement, not a pass/fail gate. The exact check is the dense leg
+(tests/database/test_dense_parity.py). The run fails (exit 1) only when the API is
+broken: a request error, a question without an answer, or a question with zero hits.
 
-Why they differ at all (both are reported, neither is "the" number):
-- lexical leg: in-memory Okapi BM25 over the bench's structure-aware chunks vs
-  Postgres ts_rank_cd over websearch_to_tsquery (OR-joined terms) on
-  SentenceSplitter chunks; different tokenizer, no IDF saturation in ts_rank_cd
-- chunking: app/chunking (YAML/log-aware) vs LlamaIndex SentenceSplitter(512, 50)
-- dense leg: identical hash embeddings, but over different chunk texts
-Path-level relevance absorbs most chunking differences; the rest is the gap.
+The same in both rows: the chunks. The API indexes DATA_DIR with the bench's
+chunker (app/eval/ingest.file_chunks, called by app/eval/index_loader.py and
+app/engine/ingest.py), so the dense leg embeds identical texts with identical
+hash embeddings. Results files recorded before that change (bench/results/parity.json)
+have an API row chunked with LlamaIndex SentenceSplitter(512, 50).
+
+Why the rows still differ (both are reported, neither is "the" number):
+- lexical leg: in-memory Okapi BM25 vs Postgres ts_rank_cd over
+  websearch_to_tsquery (OR-joined terms); different tokenizer, no IDF
+  saturation in ts_rank_cd
+- ties: the SQL orders equal scores by node_id, the in-memory fusion by
+  first-seen order
+- exact-path route: the in-memory index searches paths
+  (InMemoryHybridIndex.search_path); the API runs its lexical list alone
 """
 
 from __future__ import annotations
@@ -48,7 +58,6 @@ IN_MEMORY = BenchConfig(
     e2e=False,
 )
 API_ROW = "api:postgres"
-DEFAULT_TOLERANCE = 0.06
 
 
 def post_retrieve(url: str, query: str, k: int = 50, timeout: float = 60.0) -> dict:
@@ -80,6 +89,7 @@ def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
     per_query = []
     stage_sums: dict[str, float] = {}
     sample: dict | None = None
+    zero_hit: list[str] = []
     t0 = time.perf_counter()
     for q in gold:
         t = time.perf_counter()
@@ -89,6 +99,8 @@ def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
             stage_sums[name] = stage_sums.get(name, 0.0) + float(ms)
             timer.record(f"server:{name}", float(ms))
         paths = list(dict.fromkeys(h["path"] for h in body.get("hits", []) if h.get("path")))
+        if not body.get("hits"):
+            zero_hit.append(q.id)
         per_query.append({"id": q.id, "retrieved": paths, "relevant": q.relevant_ids(), "category": q.category})
         if sample is None:
             sample = {k2: body.get(k2) for k2 in ("route", "retrieval_mode", "bm25_backend", "embedding_provider", "reranker_loaded", "staleness")}
@@ -101,11 +113,22 @@ def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
         "latency": timer.summary(),
         "wall_ms": round(wall_ms, 2),
         "n_queries": len(per_query),
+        "zero_hit_queries": zero_hit,
         "_per_query_scores": retrieval.per_query,
     }
 
 
-def run(url: str, *, tolerance: float = DEFAULT_TOLERANCE, root: Path | None = None, k: int = 50) -> dict[str, Any]:
+def api_problems(api: dict, n_gold: int) -> list[str]:
+    """Why the API row cannot be trusted (empty when it can). The nDCG@10 gap is not one of them."""
+    problems = []
+    if api["n_queries"] != n_gold:
+        problems.append(f"{n_gold - api['n_queries']} of {n_gold} questions have no answer")
+    if api.get("zero_hit_queries"):
+        problems.append(f"{len(api['zero_hit_queries'])} questions returned zero hits: {', '.join(api['zero_hit_queries'][:10])}")
+    return problems
+
+
+def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
@@ -120,14 +143,13 @@ def run(url: str, *, tolerance: float = DEFAULT_TOLERANCE, root: Path | None = N
     boot = attach_confidence(results, scores, n_queries=len(gold))
 
     gap = round(api["retrieval"]["ndcg@10"] - mem["retrieval"]["ndcg@10"], 4)
-    gate = {
+    problems = api_problems(api, len(gold))
+    gap_report = {
         "metric": "ndcg@10",
         "in_memory": mem["retrieval"]["ndcg@10"],
         "api": api["retrieval"]["ndcg@10"],
         "gap": gap,
-        "tolerance": tolerance,
         "paired_delta_api_minus_in_memory": (api.get("delta_vs_previous") or {}).get("ndcg@10"),
-        "ok": abs(gap) <= tolerance,
     }
     return {
         "git_sha": git_sha(root),
@@ -139,7 +161,9 @@ def run(url: str, *, tolerance: float = DEFAULT_TOLERANCE, root: Path | None = N
         "n_files": manifest["n_files"],
         "api_health": health,
         "bootstrap": boot,
-        "gate": gate,
+        "gap": gap_report,
+        "api_ok": not problems,
+        "api_problems": problems,
         "results": results,
     }
 
@@ -158,11 +182,13 @@ def markdown_table(blob: dict) -> str:
         e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
         lex = row["settings"].get("bm25_backend") or "in-memory Okapi BM25"
         lines.append(f"| {row['config']} | {ci(row, 'ndcg@10')} | {ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | {lex} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |")
-    g = blob["gate"]
+    g = blob.get("gap") or blob["gate"]  # files recorded before the gate was dropped carry "gate"
     d = g.get("paired_delta_api_minus_in_memory") or {}
     lines.append("")
     lines.append(
-        f"gate: nDCG@10 gap api - in_memory = {g['gap']:+.4f} (tolerance {g['tolerance']}); "
-        f"paired 95% CI {d.get('lo', '?'):+.3f} .. {d.get('hi', '?'):+.3f}; {'OK' if g['ok'] else 'FAIL'}"
+        f"nDCG@10 gap api - in_memory = {g['gap']:+.4f}; "
+        f"paired 95% CI {d.get('lo', '?'):+.3f} .. {d.get('hi', '?'):+.3f} (reported, not gated)"
     )
+    if blob.get("api_problems"):
+        lines.append("API problems: " + "; ".join(blob["api_problems"]))
     return "\n".join(lines)
