@@ -252,3 +252,29 @@ def test_two_replicas_starting_together_index_once(run):
     node_ids = [node_id for _, node_id, _ in run.rows()]
     assert sorted(node_ids) == run.expected_ids() and len(set(node_ids)) == len(node_ids)  # a single set of rows
     run.assert_manifest_matches_rows()
+
+
+def test_committed_ingest_runs_match_a_fresh_run(monkeypatch):
+    """bench/results/ingest_runs.json (make ingest-runs) is what the four runs produce today."""
+    import json
+
+    from app.engine.ingest_runs import OUT, record_runs
+
+    dsn = os.environ["PG_TEST_DSN"]
+    for name in ("PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "PGVECTOR_TABLE", "EMBEDDING_DIM"):
+        monkeypatch.setenv(name, dsn)  # record_runs sets its own; monkeypatch restores the originals afterwards
+    committed = json.loads(OUT.read_text())
+
+    runs = record_runs(dsn)
+
+    assert runs == committed["runs"]
+    by_name = {row["run"]: row for row in runs}
+    n_files = by_name["first_start"]["report"]["files_seen"]
+    assert by_name["first_start"]["report"]["files_indexed"] == n_files
+    assert by_name["unchanged_restart"]["texts_sent_to_embedder"] == 0 and by_name["unchanged_restart"]["report"]["files_unchanged"] == n_files
+    edit = by_name["edit_one_file"]["report"]
+    assert (edit["files_indexed"], edit["indexed_changed"], edit["files_unchanged"]) == (1, 1, n_files - 1)
+    assert by_name["edit_one_file"]["texts_sent_to_embedder"] == edit["chunks_embedded"] < by_name["first_start"]["texts_sent_to_embedder"]
+    delete = by_name["delete_one_file"]["report"]
+    assert (delete["files_seen"], delete["files_removed"], delete["files_indexed"]) == (n_files - 1, 1, 0)
+    assert by_name["delete_one_file"]["rows_in_table"] == by_name["edit_one_file"]["rows_in_table"] - delete["chunks_deleted"]
