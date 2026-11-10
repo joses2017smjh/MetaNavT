@@ -4,7 +4,6 @@ Code Artifact Generation Module (legacy LlamaIndex tool).
 Prefer app.artifacts for eval, MCP, and HITL writes. This module still
 feeds the FastAPI FunctionAgent. Templates below are the 2024 e2b demo
 list; the v3 path uses python-lib / pytest / research-repro instead.
-"""
 
 Key Features:
 - Template-based code generation (Jupyter, Next.js, Vue, Streamlit, Gradio)
