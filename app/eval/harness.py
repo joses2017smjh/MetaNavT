@@ -94,9 +94,11 @@ def _retrieve(
     clusters,
     graph,
     *,
-    category: str = "",
     hippo_triples=None,
 ) -> tuple[list[str], object]:
+    """One query through one config. Takes the question text only: no gold field
+    (category, answer, relevant paths) may reach retrieval, so every gate below
+    uses what a served system would have (the router's own prediction)."""
     if cfg.decompose and should_decompose(query):
         subs = heuristic_decompose(query)
         if len(subs) > 1:
@@ -182,9 +184,8 @@ def _retrieve(
 
     if cfg.hipporag and hippo_triples:
         with timer.stage("hipporag"):
-            hits = apply_hipporag(
-                query, hits, hippo_triples, category=category, router=index.router
-            )
+            # Gate = the router's prediction. The gold category is never passed (it was, before M7: a label leak).
+            hits = apply_hipporag(query, hits, hippo_triples, router=index.router)
         if result is not None:
             result.hits = hits
 
@@ -276,7 +277,7 @@ def run_config(
     jury_sf_labels: list[str] = []
 
     if gold:  # warm-up: caches, CUDA kernels; retrieval is deterministic so results are unaffected
-        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, category=gold[0].category, hippo_triples=hippo_triples)
+        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, hippo_triples=hippo_triples)
     t0 = time.perf_counter()
     for q in gold:
         paths, payload = _retrieve(
@@ -286,7 +287,6 @@ def run_config(
             timer,
             clusters,
             graph,
-            category=q.category,
             hippo_triples=hippo_triples,
         )
         per_query.append(
