@@ -32,7 +32,7 @@ LATENCY_FILES = {
 }
 NEURAL_FILE = "bench/results/neural.json"
 BEIR_FILE = "bench/results/beir_scifact.json"
-PARITY_FILE = "bench/results/parity.json"
+PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
