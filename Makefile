@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-frontier-neural bench-rerank-arms bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -15,8 +15,31 @@ install-app:    ## + FastAPI, LlamaIndex, Postgres client (what the Docker image
 install-ml:     ## + torch, sentence-transformers, HuggingFace embeddings
 	$(PYTHON) -m pip install -e ".[eval,app,ml]"
 
-lock:           ## regenerate requirements.txt from pyproject.toml (eval + app extras)
-	$(PYTHON) -m piptools compile --upgrade --extra eval --extra app --strip-extras -o requirements.txt pyproject.toml
+install-locked: ## the pinned versions CI and the image use: requirements.txt, then the package with no resolution
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install --no-deps -e .
+
+# requirements.txt (eval + app) is the one resolution. Every requirements/<profile>.txt is
+# compiled under it as a constraint (-c), so a package has the same version in every file
+# and each CI job / the image installs exactly its own extras, pinned.
+#   make lock                  upgrade everything to the newest allowed versions
+#   make lock LOCK_UPGRADE=    keep the current pins; only add or drop what pyproject.toml changed
+LOCK_UPGRADE ?= --upgrade
+PIP_COMPILE = $(PYTHON) -m piptools compile --strip-extras
+lock:           ## regenerate requirements.txt and requirements/*.txt from pyproject.toml
+	$(PIP_COMPILE) $(LOCK_UPGRADE) --extra eval --extra app -o requirements.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra eval -o requirements/eval.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra app -o requirements/app.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile -o requirements/mobile.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile --extra agent -o requirements/agent.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra dev -o requirements/dev.txt pyproject.toml
+
+lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or disagrees with requirements.txt
+	$(PYTHON) scripts/check_lock.py
+
+# ---- lint ------------------------------------------------------------------
+lint:           ## ruff, narrow defect-only rule set from pyproject.toml (needs requirements/dev.txt)
+	$(PYTHON) -m ruff check .
 
 # ---- tests -----------------------------------------------------------------
 test: test-eval test-unit

@@ -64,10 +64,10 @@ def extract_triples(path: str, text: str) -> list[Triple]:
     for bark in BARK_RE.findall(text or ""):
         if run_ent:
             triples.append(Triple(run_ent, "uses_bark", f"bark:{bark.lower()}", path))
-    for field, value in FIELD_RE.findall(text or ""):
+    for field_name, value in FIELD_RE.findall(text or ""):
         if run_ent:
             triples.append(
-                Triple(run_ent, f"has_{field.lower()}", value.lower(), path)
+                Triple(run_ent, f"has_{field_name.lower()}", value.lower(), path)
             )
     if run_ent and path:
         triples.append(Triple(run_ent, "documented_in", f"file:{path.replace(chr(92), '/')}", path))

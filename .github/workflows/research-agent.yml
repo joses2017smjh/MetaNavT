@@ -3,9 +3,9 @@ name: Read-only research agent
 on:
   push:
     branches: [main]
-    paths: ['app/agent/companion*', 'app/mcp/research_companion.py', 'app/mobile/**', 'app/api/routers/**', 'tests/eval/test_companion_agent.py', 'tests/mcp/test_research_companion.py', 'pyproject.toml', '.github/workflows/research-agent.yml']
+    paths: ['app/agent/companion*', 'app/mcp/research_companion.py', 'app/mobile/**', 'app/api/routers/**', 'tests/eval/test_companion_agent.py', 'tests/mcp/test_research_companion.py', 'pyproject.toml', 'requirements/agent.txt', '.github/workflows/research-agent.yml']
   pull_request:
-    paths: ['app/agent/companion*', 'app/mcp/research_companion.py', 'app/mobile/**', 'app/api/routers/**', 'tests/eval/test_companion_agent.py', 'tests/mcp/test_research_companion.py', 'pyproject.toml', '.github/workflows/research-agent.yml']
+    paths: ['app/agent/companion*', 'app/mcp/research_companion.py', 'app/mobile/**', 'app/api/routers/**', 'tests/eval/test_companion_agent.py', 'tests/mcp/test_research_companion.py', 'pyproject.toml', 'requirements/agent.txt', '.github/workflows/research-agent.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,5 +23,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install -e '.[eval,mobile,agent]'
+      # eval + mobile + agent extras, pinned (make lock); then the package with no resolution
+      - run: |
+          python -m pip install -r requirements/agent.txt
+          python -m pip install --no-deps -e .
+          python -m pip check
       - run: python -m pytest -q tests/eval/test_companion_agent.py tests/mcp/test_research_companion.py

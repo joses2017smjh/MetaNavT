@@ -786,7 +786,6 @@ if __name__ == "__main__":
     from app.engine.agents.file_access_agent import create_file_access_agent
     from app.engine.agents.python_exec_agent import create_python_exec_agent
     try:
-        from llama_index.llms.ollama import Ollama
         from llama_index.embeddings.huggingface import HuggingFaceEmbedding
         from llama_index.llms.ollama.base import DEFAULT_REQUEST_TIMEOUT, Ollama
     except ImportError:

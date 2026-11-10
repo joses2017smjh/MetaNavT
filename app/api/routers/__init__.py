@@ -3,11 +3,16 @@
 Importing an individual read-only route does not initialize the chat dependency
 tree. The lightweight mobile fixture can therefore use the same retrieval
 contract with just FastAPI, while ``main:app`` retains every production route.
+
+``api_router`` carries the two opt-in dependencies from app/api/security.py: the
+API key check (METANAVIT_API_KEY) and the per-replica request budget
+(RATE_LIMIT_PER_MINUTE). Both do nothing unless configured. An individual
+router imported on its own, as the mobile fixture does, does not carry them.
 """
 
 from importlib import import_module
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 _ROUTERS = {
     "chat_router": ("chat", "/chat"),
@@ -26,7 +31,9 @@ def __getattr__(name):
         globals()[name] = router
         return router
     if name == "api_router":
-        router = APIRouter()
+        from app.api.security import enforce_request_budget, require_api_key
+
+        router = APIRouter(dependencies=[Depends(require_api_key), Depends(enforce_request_budget)])
         for attribute, (_, prefix) in _ROUTERS.items():
             router.include_router(__getattr__(attribute), prefix=prefix)
         globals()[name] = router

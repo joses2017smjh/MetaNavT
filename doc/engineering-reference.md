@@ -982,6 +982,10 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
 
+**Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
+
+**API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it, and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
+
 **Index Manager.** `app/database/index_manager.py` stores path, mtime, process version, content hash. Loaders crawl the tree, skip blocked paths, and only re-embed what changed.
 
 **Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
@@ -994,8 +998,21 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 
 ## Run it
 
-`pyproject.toml` is the single dependency spec. Pick the extra for what you
-want to run (`requirements.txt` is generated from it by `make lock`):
+`pyproject.toml` is the single dependency spec (version ranges). `make lock`
+resolves it into pinned files: `requirements.txt` (eval + app) and one
+`requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
+`agent`, `dev`), each compiled under `requirements.txt` as a constraint so a
+package has the same version in every file. The image and every CI job install
+their pinned file first and then the package with `--no-deps`
+(`make install-locked` does the same locally); `make lock-check`, which is
+also a test and a CI step, fails when a pinned file no longer covers
+`pyproject.toml`. The `ml` and `otel` extras have no pinned file: the image
+installs them from their ranges with the pinned app file as a constraint, so
+they are not reproducible to the same degree. `make lint` runs ruff with the
+narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
+names, shadowed imports); CI runs it as its own job.
+
+Pick the extra for what you want to run:
 
 | extra | installs | for |
 |---|---|---|
@@ -1034,8 +1051,8 @@ docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash
-pip install -e ".[eval,app]"         # add ,ml for real embeddings / reranker
-cp .env.example .env                 # RETRIEVE_K=50, RERANK_TOP_N=8, ENABLE_ROUTER=true
+pip install -e ".[eval,app]"         # add ,ml for real embeddings / reranker (or `make install-locked` for the pinned versions CI uses)
+cp .env.example .env                 # RETRIEVE_K=50, RERANK_TOP_N=8, ENABLE_ROUTER=true; METANAVIT_API_KEY empty = open API
 docker compose up db                 # or any Postgres with pgvector
 ollama serve && ollama pull qwen2.5:14b
 
@@ -1051,6 +1068,8 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 ---
 
 ## What we are not claiming
+
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover the decision log and the file-index tables only, with no down-migrations. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 

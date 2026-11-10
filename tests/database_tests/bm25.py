@@ -325,7 +325,6 @@ def main():
 
 def insert_test_documents():
     """Insert test documents to demonstrate BM25 vs Vector search."""
-    import json, uuid
     from app.database.vector_store_manager import get_vector_store_manager
 
     vsm = get_vector_store_manager()
