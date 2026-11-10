@@ -25,6 +25,8 @@ FILES = {
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection.json",
+    "frontier": "bench/results/frontier.json",
+    "frontier_neural": "bench/results/frontier_neural.json",
 }
 
 
@@ -217,6 +219,45 @@ def claims(root: Path = ROOT) -> list[dict]:
             out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"], "command": "make bench-jury", "source": src,
                         "not_shown": "a measure of order bias, not of answer quality"})
     out += _agent_injection_claims(root)
+    out += _frontier_claims(root)
+    return out
+
+
+def _frontier_claims(root: Path = ROOT) -> list[dict]:
+    """One row per prototype arm and per stack: the paired delta against its parent, the verdict word, the stand-ins."""
+    from app.eval.report import verdict
+
+    out: list[dict] = []
+    for key, command, stack in (
+        ("frontier", "make bench-frontier", "CPU stand-ins"),
+        ("frontier_neural", "make bench-frontier-neural", "bge-small-en-v1.5 + bge-reranker-v2-m3"),
+    ):
+        blob = _load(FILES[key], root)
+        if not blob:
+            continue
+        by = _rows(blob)
+        n = blob["n_gold"]
+        src = f"{FILES[key]} @ {blob['git_sha']}"
+        for name in (blob.get("frontier") or {}).get("arms", []):
+            row = by.get(name)
+            block = ((row or {}).get("delta_vs_previous") or {}).get("ndcg@10")
+            if not row or not block:
+                continue
+            value, ci = _ci(block, "delta")
+            vs = row.get("vs_parent") or {}
+            limits = [f"verdict from the interval: {verdict(block)}"]
+            if 0.0 < block["lo"] < 0.0005 or -0.0005 < block["hi"] < 0.0:
+                limits.append(f"a bound sits at the edge of zero (interval as stored: [{block['lo']:+.4f}, {block['hi']:+.4f}])")
+            limits.append("stand-ins: " + ("; ".join(row.get("fallbacks") or []) or "none, both models loaded"))
+            if vs:
+                limits.append(f"first ten files differ from the parent's on {vs['n_top10_differs']} of {vs['n_questions']} questions")
+            g = row.get("graphrag")
+            if g and not g["discriminates"]:
+                limits.append(f"the community step gave {g['n_communities']} community holding {g['n_member_files']} of {g['n_corpus_files']} files, "
+                              "so the summaries cannot tell files apart and this is a member / non-member split")
+            limits.append(f"a {blob['n_files']}-file synthetic fixture")
+            out.append({"claim": f"Prototype arm `{name}` minus its parent `{row['settings']['parent']}` ({stack}), paired delta in nDCG@10",
+                        "value": value, "ci": ci, "n": n, "command": command, "source": src, "not_shown": "; ".join(limits)})
     return out
 
 
@@ -285,7 +326,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **What does the parity tolerance mean?** The API over Postgres and the in-memory bench use different lexical legs (Postgres full-text with ts_rank_cd versus Okapi BM25) and different chunkers, so they are not expected to be identical. The gate is the largest gap in nDCG@10 the parity job tolerates; it is set just above the width of the paired interval between the two rows on the committed run, so a broken leg would still fail it. Both rows are reported.
 
-**What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. GraphRAG, HippoRAG, Paper2Code, the MATLAB checkpoint, multimodal pages and the RL stub run in demos but have no measured result; the README keeps them under "Prototypes (not evaluated)".
+**What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. Paper2Code, the MATLAB checkpoint, multimodal pages and the RL stub run in demos but have no measured result; the engineering reference keeps them under "Prototypes (not evaluated)". The retrieval prototypes (GraphRAG community routing, HippoRAG PPR, hop expansion, HyDE, multi-query, decomposition, corrective and adaptive retrieval, the chunking variants) are benchmark arms: each has a row above with its parent, a paired interval, the verdict that interval supports and the stand-ins it ran on. An arm whose interval covers zero is reported as no measured effect, and an arm that lost stays in the table.
 
 **Why did the router's number change?** The earlier README compared the routed row against plain RRF, which credited the reranker's share of the gain to the router. Against its real parent, the reranked hybrid, the router is a tie overall and a gain on the exact-path slice with n = 8. The generated table prints the honest pair.
 

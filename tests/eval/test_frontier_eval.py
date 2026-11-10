@@ -275,3 +275,54 @@ def test_committed_frontier_file_is_self_contained(rel):
             assert delta["ndcg@10"] == {"delta": 0.0, "lo": 0.0, "hi": 0.0} and row.get("fired")
     graph = [r for n, r in rows.items() if "graphrag" in n]
     assert graph and all("n_communities" in r["graphrag"] and "discriminates" in r["graphrag"] for r in graph)
+
+
+# ---- reporting: generated only ---------------------------------------------------------------
+
+def test_verdict_word_comes_from_the_interval_alone():
+    from app.eval.report import verdict
+
+    assert verdict({"delta": 0.05, "lo": 0.01, "hi": 0.09}) == "above zero"
+    assert verdict({"delta": 0.05, "lo": -0.01, "hi": 0.09}) == "covers zero"
+    assert verdict({"delta": -0.05, "lo": -0.09, "hi": -0.01}) == "below zero"
+    assert verdict({"delta": 0.0, "lo": 0.0, "hi": 0.0}) == "covers zero"  # an arm identical to its parent
+    assert verdict(None) == "n/a"
+
+
+def test_frontier_block_has_one_row_per_arm_with_parent_verdict_and_stand_ins():
+    import json
+
+    from app.eval.harness import project_root
+    from app.eval.report import FRONTIER_FILE, frontier_table, verdict
+
+    blob = json.loads((project_root() / FRONTIER_FILE).read_text())
+    text = frontier_table(blob)
+    assert blob["git_sha"] in text and "make bench-frontier" in text
+    rows = {r["config"]: r for r in blob["results"]}
+    for name in blob["frontier"]["arms"]:
+        line = next(l for l in text.splitlines() if l.startswith(f"| {name} |"))
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        assert cells[1] == rows[name]["settings"]["parent"]
+        assert cells[4] == verdict(rows[name]["delta_vs_previous"]["ndcg@10"])
+        assert "hash embedder (no model)" in cells[-1]  # every stand-in is named in the row
+    assert "1 community" in text and "cannot tell one file from another" in text
+    assert "hybrid+late-chunking`: not evaluated in this run" in text
+    assert "is missing; run `make bench-frontier`" in frontier_table(None)
+
+
+def test_evidence_table_has_a_row_for_every_frontier_arm():
+    import json
+
+    from app.eval.evidence import FILES, claims
+    from app.eval.harness import project_root
+
+    rows = claims()
+    for key in ("frontier", "frontier_neural"):
+        path = project_root() / FILES[key]
+        if not path.exists():
+            continue
+        blob = json.loads(path.read_text())
+        for name in blob["frontier"]["arms"]:
+            mine = [r for r in rows if f"`{name}`" in r["claim"] and FILES[key] in r["source"]]
+            assert len(mine) == 1, name
+            assert "verdict from the interval" in mine[0]["not_shown"] and "stand-ins" in mine[0]["not_shown"]

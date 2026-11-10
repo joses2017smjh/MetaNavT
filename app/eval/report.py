@@ -19,8 +19,10 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural"), "doc/demo.html": ("demo-stats",)}
+FRONTIER_FILE = "bench/results/frontier.json"
+FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury.json"
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"
 LATENCY_FILES = {
@@ -40,6 +42,8 @@ SOURCES = {
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
     "agent-injection": AGENT_INJECTION_FILE,
+    "bench-frontier": FRONTIER_FILE,
+    "bench-frontier-neural": FRONTIER_NEURAL_FILE,
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -607,6 +611,106 @@ def agent_injection_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
+def verdict(block: dict | None) -> str:
+    """The decision word for a paired delta, read off its interval and nothing else."""
+    if not block:
+        return "n/a"
+    if block["lo"] > 0.0:
+        return "above zero"
+    if block["hi"] < 0.0:
+        return "below zero"
+    return "covers zero"
+
+
+def _fired(row: dict) -> str:
+    fired = row.get("fired") or {}
+    if fired:
+        return ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in fired.items())
+    st = row.get("settings") or {}
+    return "every question (reranker swap)" if st.get("reranker") in {"rankgpt", "listwise"} else "every question (index-time change)"
+
+
+def _delta4(block: dict | None) -> str:
+    """Four decimals, as stored: a bound that rounds to +0.000 must not hide which side of zero it is on."""
+    if not block:
+        return "—"
+    return f"{block['delta']:+.4f} [{block['lo']:+.4f}, {block['hi']:+.4f}]"
+
+
+FRONTIER_CATEGORY_ARMS = ("hipporag", "graphrag")  # the graph arms are aimed at these kinds of question
+FRONTIER_CATEGORIES = ("aggregation", "multi_hop", "comparative")
+
+
+def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "make bench-frontier") -> str:
+    """One row per prototype arm: parent, paired delta, interval, verdict word, what fired, stand-ins."""
+    if not blob:
+        return f"_{rel} is missing; run `{target}`._"
+    by = _rows(blob)
+    meta = blob.get("frontier") or {}
+    parents, arms = meta.get("parents") or [], meta.get("arms") or []
+    n = blob.get("n_gold")
+    lines = [
+        f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Each arm is one switch away from its parent and both parents are computed in the same run. The verdict is read off "
+        f"the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "
+        f"\"Fired\" counts the questions (of {n}) on which the arm's mechanism triggered; \"top 10 differs\" counts the questions "
+        f"whose first ten files differ from the parent's. The last column names every stand-in the row's number depends on.",
+        "",
+        "| arm | parent | nDCG@10 [95% CI] | Δ nDCG@10 vs parent [95% CI] | verdict | Δ Recall@10 vs parent [95% CI] | fired on | top 10 differs | stand-ins (fallbacks) |",
+        "|---|---|---:|---:|:---:|---:|---|---:|---|",
+    ]
+    for name in parents + arms:
+        row = by.get(name)
+        if not row:
+            continue
+        dp = row.get("delta_vs_previous") or {}
+        vs = row.get("vs_parent") or {}
+        is_parent = name in parents
+        lines.append(
+            f"| {name}{' (parent row)' if is_parent else ''} | {_parent_of(row)} | {_ci(row, 'ndcg@10')} | {_delta4(dp.get('ndcg@10'))} | "
+            f"{verdict(dp.get('ndcg@10')) if dp else '—'} | {_delta(dp.get('recall@10'))} | {'—' if is_parent else _fired(row)} | "
+            f"{vs.get('n_top10_differs', '—')} | {'; '.join(row.get('fallbacks') or []) or 'none: models loaded'} |"
+        )
+    notes = []
+    for name in arms:
+        row = by.get(name) or {}
+        g = row.get("graphrag")
+        if g:
+            sizes = ", ".join(str(x) for x in g["community_sizes"])
+            notes.append(
+                f"- `{name}`: the community step ({g['clustering']}; summaries {g['summaries']}) produced {g['n_communities']} "
+                f"communit{'y' if g['n_communities'] == 1 else 'ies'} (members: {sizes}) holding {g['n_member_files']} of {g['n_corpus_files']} files. "
+                + ("With one community the summaries cannot tell one file from another: every member file gets the same bonus, so the arm "
+                   "is a member / non-member split and its delta says nothing about community summaries as a ranking signal."
+                   if not g["discriminates"] else "Files in different communities receive different bonuses.")
+            )
+        vs = row.get("vs_parent") or {}
+        if vs and vs.get("n_top10_differs") == 0:
+            why = "its ranked list never differs from the parent's" if vs.get("n_list_differs") == 0 else (
+                f"its list differs from the parent's on {vs['n_list_differs']} questions, but only below rank 10")
+            notes.append(f"- `{name}`: same first ten files as `{vs['parent']}` on all {vs['n_questions']} questions ({why}); fired: {_fired(row)}.")
+        lc = row.get("late_chunking")
+        if lc:
+            notes.append(f"- `{name}`: {lc['n_chunks_late_pooled']} of {lc['n_chunks']} chunks ({lc['n_files_with_several_chunks']} files with several chunks) "
+                         f"were re-pooled; {lc['pooling']}.")
+    for item in meta.get("not_evaluated") or []:
+        notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
+    if notes:
+        lines += ["", *notes]
+    cat_lines = []
+    for name in arms:
+        if not any(key in name for key in FRONTIER_CATEGORY_ARMS):
+            continue
+        for block in (by.get(name) or {}).get("delta_vs_parent_by_category_all") or []:
+            if block["category"] in FRONTIER_CATEGORIES:
+                d = block.get("ndcg@10")
+                cat_lines.append(f"| {name} | {block['category']} | {block['n']}{' (small n)' if block.get('small_n') else ''} | {_delta4(d)} | {verdict(d)} |")
+    if cat_lines:
+        lines += ["", "Graph arms on the question categories they are aimed at (paired vs parent; every category is in the results file):", "",
+                  "| arm | category | n | Δ nDCG@10 vs parent [95% CI] | verdict |", "|---|---|---:|---:|:---:|", *cat_lines]
+    return "\n".join(lines)
+
+
 def _mean(block: dict | None) -> str:
     return "n/a" if not block or block.get("mean") is None else f"{block['mean']:.3f}"
 
@@ -630,6 +734,8 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_FILE)),
+        "bench-frontier": frontier_table(_load(root, FRONTIER_FILE)),
+        "bench-frontier-neural": frontier_table(_load(root, FRONTIER_NEURAL_FILE), FRONTIER_NEURAL_FILE, "make bench-frontier-neural"),
     }
 
 

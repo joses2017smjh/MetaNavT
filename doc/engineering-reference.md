@@ -472,7 +472,7 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 **Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`.
 
-All six are in `make bench-frontier` as `hybrid+hyde`, `hybrid+decompose`, `hybrid+corrective`, and `hybrid+hyde+corrective`.
+HyDE, decomposition, corrective retrieval and adaptive retrieval are arms of `make bench-frontier` (`hybrid+rerank+hyde`, `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+hyde+corrective`, `hybrid+rerank+adaptive`), each scored against the reranked hybrid it is added to; what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). The semantic cache and citation verification have no harness flag and no benchmark row.
 
 ### Graph + staleness
 
@@ -486,7 +486,7 @@ Tier 2 runs at query time on the top-k only: same entity, disagreeing `learning_
   <img src="../doc/figures/hops.svg" alt="Recall@50 vs graph hops" width="820"/>
 </p>
 
-One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446**, at ~6x wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding.
+One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446**, at ~6x wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding. The same two settings are arms of `make bench-frontier` with a paired interval against plain hybrid: both are below zero ([generated table](../README.md#bench-frontier)).
 
 ### Indexing that does not redo the whole tree
 
@@ -756,17 +756,62 @@ make bench-agent-injection-rescore   # recomputes every score and the summary fr
 
 ## Prototypes (not evaluated)
 
-Everything in this section runs and is shown in the GIFs, but none of it has a
-measured result on the gold set or on an external benchmark. It is kept out of
-the tables above on purpose: no number in this README describes these modules.
-What is measured is the retrieval pipeline (the sections above); these are
-demos of mechanisms built on top of it. Modules: `app/graph/graphrag.py`,
-`app/graph/hipporag.py`, `app/artifacts/` (Paper2Code, spec / patch / sandbox),
-`app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`.
+This section has two parts. The retrieval prototypes below have a benchmark arm:
+a row in a committed results file with a named parent, a paired bootstrap delta
+and its interval, produced by `make bench-frontier` (CPU stand-ins) and
+`make bench-frontier-neural` (real models). The rest of the section (the
+artifact pipeline, Paper2Code, MATLAB, multimodal pages, Search-R1) runs and is
+shown in the GIFs but has no measured result on the gold set or on an external
+benchmark, and stays labelled as a prototype. No number is typed here: the
+numbers are in the generated tables this section links to.
+
+### Retrieval prototypes with a benchmark arm
+
+Generated tables: [CPU stand-ins](../README.md#bench-frontier) and
+[real models](../README.md#bench-frontier-neural). Each arm is one switch away
+from its parent (plain hybrid, or hybrid plus the reranker), both parents are
+computed in the same run, and the verdict word is computed from the interval of
+the paired nDCG@10 delta: above zero, covers zero, or below zero. Every row
+lists the stand-ins it ran on. On the CPU stand-ins every row uses the hash
+embedder and, where it reranks, the overlap reranker; the query-side mechanisms
+are keyword or regex heuristics, not models, in both runs.
+
+| arm | what it changes | verdict on the CPU stand-ins | status |
+|---|---|---|---|
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | Evaluated. The rewrites are keyword rules written against this fixture. |
+| HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | Evaluated. Before this run the gate read the gold category of each question; it no longer does. |
+| Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero for one hop and for two | Evaluated: a recorded loss. The default stays at zero hops. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | Evaluated with a path-words prefix, not an LLM-written one. |
+| Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated on the stand-ins (the hash embedder has no token embeddings) | Real-model run only. |
+| HyDE (`hybrid+rerank+hyde`) | fuses a second dense list from a pseudo-document | below zero | Evaluated: a recorded loss for the keyword-heuristic hypothesis. No LLM-written hypothesis was scored. |
+| Decomposition (`hybrid+rerank+decompose`) | retrieves per sub-query and merges | covers zero | Evaluated: no measured effect; it fires on few questions (the count is in the table). |
+| Corrective retrieval (`hybrid+rerank+corrective`) | grades the top hits and retries with a rewrite or sub-queries | covers zero: identical first ten files | Evaluated: it fires on most questions but only appends candidates after the existing list, so it cannot change the top ten. |
+| HyDE + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | Evaluated: the loss is HyDE's; the corrective step adds nothing to the top ten. |
+| Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
+| GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval and is not kept in the served path. |
+| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | Evaluated only with its token-overlap fallback. Listwise reranking by an LLM is not evaluated. |
+
+Still without a benchmark row: the distilled student reranker
+(`app/retrieval/distill.py`; the benchmark logs its training triples but no
+student is scored), listwise reranking by an LLM, an LLM-written contextual
+prefix or HyDE hypothesis, GraphRAG with LLM extraction or modularity
+clustering, Tier 2 conflict notes (`app/graph/conflicts.py`), hierarchy
+summaries, the semantic cache and citation verification.
+
+### Modules with no measured result
+
+Everything from here to the end of this section runs and is shown in the GIFs,
+but none of it has a measured result on the gold set or on an external
+benchmark. It is kept out of the benchmark tables on purpose. Modules:
+`app/artifacts/` (Paper2Code, spec / patch / sandbox),
+`app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`. The
+two graph demos below replay hand-picked cases; the category-level result for
+both mechanisms is the table above.
 
 ### GraphRAG community summaries and HippoRAG PPR
 
-_The community summary and the PPR rerank are demos; the measured graph result is the hops sweep in the Graph + staleness section, where blind expansion lost._
+_The GIF is a demo of the community summary. As benchmark arms, community routing and the PPR rerank are in the table above; blind hop expansion lost._
 
 
 <p align="center">
@@ -783,7 +828,7 @@ run:47  —has_learning_rate→  3e-4
 
 ### Multi-hop graph cases
 
-_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion; not a category-level result._
+_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion and the gold category as the gate; not a category-level result. The benchmark arm gates on the router instead (table above)._
 
 
 <p align="center">
