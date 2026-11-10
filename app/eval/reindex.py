@@ -1,4 +1,8 @@
-"""Content-hash incremental reindex: only files whose sha256 changed."""
+"""Content-hash diff for incremental reindex: which files to embed again, which to drop.
+
+Called by app/eval/ingest.plan_ingest, which the served indexer (app/engine/ingest.py) runs
+on every API start with INDEX_ON_START.
+"""
 
 from __future__ import annotations
 
@@ -19,9 +23,17 @@ def files_to_reindex(
     current: Mapping[str, str],
     previous: Mapping[str, str],
 ) -> list[str]:
-    """Return paths that are new or whose hash changed. Deletes are ignored here."""
+    """Return paths that are new or whose hash changed. Deletes are files_to_remove."""
     out = []
     for path, digest in current.items():
         if previous.get(path) != digest:
             out.append(path)
     return sorted(out)
+
+
+def files_to_remove(
+    current: Mapping[str, str],
+    previous: Mapping[str, str],
+) -> list[str]:
+    """Return paths that were indexed before and are gone now."""
+    return sorted(path for path in previous if path not in current)

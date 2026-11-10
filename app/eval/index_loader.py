@@ -4,65 +4,51 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.chunking.structure import chunk_text
 from app.eval.hashing import content_hash
+from app.eval.ingest import BENCH_POLICY, SKIP_NAMES, file_chunks, ingest_report, iter_corpus_files, plan_ingest, scan_directory
 from app.retrieval.embedders import HashEmbedder, TfidfEmbedder
-from app.retrieval.hybrid import Chunk, InMemoryHybridIndex, chunk_id_for
+from app.retrieval.hybrid import Chunk, InMemoryHybridIndex
 from app.retrieval.rerank import CrossEncoderReranker, OverlapReranker
 from app.retrieval.router import QueryRouter
 from app.retrieval.context import path_context
 
+__all__ = ["SKIP_NAMES", "iter_corpus_files", "load_chunks", "load_chunks_with_report", "build_index"]
 
-SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
 
+def load_chunks_with_report(root: Path, strategy: str = "auto", *, include_path_context: bool = False) -> tuple[list[Chunk], dict]:
+    """Chunks for every accepted file plus the ingestion report (files seen, indexed, rejected by reason).
 
-def iter_corpus_files(root: Path) -> list[Path]:
-    files = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
-        if any(part in SKIP_NAMES for part in path.parts):
-            continue
-        files.append(path)
-    return files
+    Scanning and chunking are app.eval.ingest, shared with the served indexer
+    (app/engine/ingest.py). The benchmark policy accepts every decodable,
+    non-empty file; an undecodable file is counted, not skipped silently.
+    """
+    root = Path(root)
+    scan = scan_directory(root, BENCH_POLICY)
+    chunks: list[Chunk] = []
+    for source in scan.files:
+        for piece in file_chunks(source.path, source.text, strategy):
+            chunks.append(
+                Chunk(
+                    chunk_id=piece.chunk_id,
+                    path=source.path,
+                    text=piece.text,
+                    start_byte=piece.start_byte,
+                    end_byte=piece.end_byte,
+                    mtime=source.mtime,
+                    content_hash=source.sha256,
+                    metadata={"kind": piece.kind, "evidence_raw": piece.raw, "source_span_sha256": content_hash(piece.raw),
+                              "text_is_verbatim": piece.text == piece.raw,
+                              **({"search_context": path_context(source.path)} if include_path_context else {})},
+                )
+            )
+    # An in-memory build has no previous run: every accepted file is new.
+    report = ingest_report(scan, plan_ingest(scan.hashes(), {}))
+    report["chunks_embedded"] = len(chunks)
+    return chunks, report
 
 
 def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False) -> list[Chunk]:
-    root = Path(root)
-    chunks: list[Chunk] = []
-    for path in iter_corpus_files(root):
-        rel = str(path.relative_to(root)).replace("\\", "/")
-        try:
-            # Preserve physical CRLF bytes as well as Unicode for citations.
-            text = path.read_bytes().decode("utf-8")
-        except UnicodeDecodeError:
-            continue
-        st = path.stat()
-        digest = content_hash(text)
-        spans = chunk_text(text, path=rel, strategy=strategy)
-        if not spans:
-            spans = chunk_text(text, path=rel, strategy="fixed")
-        for span in spans:
-            # Structure chunkers report character positions; citations use UTF-8 bytes.
-            start_byte = len(text[:span.start].encode("utf-8"))
-            end_byte = len(text[:span.end].encode("utf-8"))
-            raw_span = text[span.start:span.end]
-            cid = chunk_id_for(rel, start_byte, end_byte)
-            chunks.append(
-                Chunk(
-                    chunk_id=cid,
-                    path=rel,
-                    text=span.text,
-                    start_byte=start_byte,
-                    end_byte=end_byte,
-                    mtime=st.st_mtime,
-                    content_hash=digest,
-                    metadata={"kind": span.kind, "evidence_raw": raw_span, "source_span_sha256": content_hash(raw_span),
-                              "text_is_verbatim": span.text == raw_span,
-                              **({"search_context": path_context(rel)} if include_path_context else {})},
-                )
-            )
-    return chunks
+    return load_chunks_with_report(root, strategy, include_path_context=include_path_context)[0]
 
 
 def build_index(
@@ -77,7 +63,7 @@ def build_index(
     chunk_strategy: str = "auto",
     include_path_context: bool = False,
 ) -> InMemoryHybridIndex:
-    chunks = load_chunks(root, strategy=chunk_strategy, include_path_context=include_path_context)
+    chunks, ingest = load_chunks_with_report(root, strategy=chunk_strategy, include_path_context=include_path_context)
     if embedder_name == "hash":
         embedder = HashEmbedder()
     elif embedder_name == "tfidf":
@@ -126,4 +112,5 @@ def build_index(
     index.reranker_name = reranker
     index.reranker_loaded = reranker_loaded
     index.reranker_fallback = reranker_fallback
+    index.ingest_report = ingest
     return index
