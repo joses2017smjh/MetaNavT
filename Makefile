@@ -112,9 +112,10 @@ demos: matlab-demo demo-data figures gifs
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
 PARITY_TOLERANCE ?= 0.06
+PARITY_OUT ?= bench/results/parity.json
 
 parity:         ## replay the gold set through a running API and gate |nDCG@10 gap| <= PARITY_TOLERANCE
-	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out bench/results/parity.json --tolerance $(PARITY_TOLERANCE)
+	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT) --tolerance $(PARITY_TOLERANCE)
 
 explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN -> doc/sql/
 	$(PYTHON) scripts/explain_hybrid.py

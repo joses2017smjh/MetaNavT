@@ -12,13 +12,20 @@ Two rows come out of one run:
 Both are scored with the same path-level metrics and the same paired bootstrap.
 The gate compares nDCG@10 between the two rows against --tolerance.
 
-Why they differ at all (both are reported, neither is "the" number):
-- lexical leg: in-memory Okapi BM25 over the bench's structure-aware chunks vs
-  Postgres ts_rank_cd over websearch_to_tsquery (OR-joined terms) on
-  SentenceSplitter chunks; different tokenizer, no IDF saturation in ts_rank_cd
-- chunking: app/chunking (YAML/log-aware) vs LlamaIndex SentenceSplitter(512, 50)
-- dense leg: identical hash embeddings, but over different chunk texts
-Path-level relevance absorbs most chunking differences; the rest is the gap.
+The same in both rows: the chunks. The API indexes DATA_DIR with the bench's
+chunker (app/eval/ingest.file_chunks, called by app/eval/index_loader.py and
+app/engine/ingest.py), so the dense leg embeds identical texts with identical
+hash embeddings. Results files recorded before that change (bench/results/parity.json)
+have an API row chunked with LlamaIndex SentenceSplitter(512, 50).
+
+Why the rows still differ (both are reported, neither is "the" number):
+- lexical leg: in-memory Okapi BM25 vs Postgres ts_rank_cd over
+  websearch_to_tsquery (OR-joined terms); different tokenizer, no IDF
+  saturation in ts_rank_cd
+- ties: the SQL orders equal scores by node_id, the in-memory fusion by
+  first-seen order
+- exact-path route: the in-memory index searches paths
+  (InMemoryHybridIndex.search_path); the API runs its lexical list alone
 """
 
 from __future__ import annotations

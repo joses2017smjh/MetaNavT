@@ -373,7 +373,9 @@ def parity_table(blob: dict | None) -> str:
         e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
         is_api = row["config"].startswith("api")
         lex = (row.get("settings") or {}).get("bm25_backend") if is_api else "in-memory Okapi BM25"
-        chunker = "SentenceSplitter(512, 50)" if is_api else "app/chunking (structure-aware)"
+        # The API reports its chunker since it shares the bench's; a file without the field predates that.
+        served = ((blob.get("api_health") or {}).get("indexing") or {}).get("chunker") or "SentenceSplitter(512, 50)"
+        chunker = served if is_api else "app/chunking (structure-aware)"
         lines.append(
             f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
             f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"

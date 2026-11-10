@@ -67,7 +67,8 @@ jobs:
         run: make test-unit
 
   parity:
-    # Postgres + pgvector service, fixture v1 indexed with the hash embedder, the API
+    # Postgres + pgvector service, fixture v1 indexed with the hash embedder (the same
+    # chunker as the bench, app/chunking through app/eval/ingest.py), the API
     # started in the background, then the 136 gold questions replayed through
     # POST /api/retrieve/ and scored like the bench. Fails if nDCG@10 differs from
     # the in-memory harness by more than the tolerance (app/eval/parity.py).
@@ -95,6 +96,7 @@ jobs:
       RERANKER_MODEL: none
       DATA_DIR: bench/corpus/files
       INDEX_ON_START: "true"
+      INGEST_MAX_REJECTED: "0"   # a fixture file that stops being indexable fails the start
       CHUNK_SIZE: "512"
       CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
@@ -109,9 +111,9 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install (eval + app extras)
         run: python -m pip install -e ".[eval,app]"
-      - name: SQL RRF == Python RRF (tests/database, live Postgres)
-        run: python -m pytest tests/database/test_hybrid_sql.py -q
-      - name: Start the API (indexes bench/corpus/files on first start)
+      - name: SQL RRF == Python RRF, incremental indexing (tests/database, live Postgres)
+        run: python -m pytest tests/database -q
+      - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
           python scripts/smoke_retrieve.py --require-bm25

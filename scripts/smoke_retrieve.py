@@ -90,8 +90,8 @@ def main() -> int:
         if health.get("degraded") or body.get("degraded"):
             problems.append(f"degraded components: {health.get('degraded') or body.get('degraded')}")
     indexing = health.get("indexing") or {}
-    if indexing.get("indexed") and health.get("n_nodes") != indexing.get("n_nodes"):
-        problems.append(f"table has {health.get('n_nodes')} rows but indexing wrote {indexing.get('n_nodes')} (stray rows?)")
+    if "n_nodes" in indexing and health.get("n_nodes") != indexing.get("n_nodes"):
+        problems.append(f"table has {health.get('n_nodes')} rows but the ingest manifest accounts for {indexing.get('n_nodes')} (stray rows?)")
     if problems:
         print("SMOKE FAILED:", "; ".join(problems))
         return 1
