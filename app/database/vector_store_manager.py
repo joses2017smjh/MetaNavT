@@ -23,9 +23,11 @@ Dependencies:
     - psycopg2 for database connections
     - asyncpg for async operations
 """
+import hashlib
 import os
 import logging
 import re
+from contextlib import contextmanager
 from pathlib import Path
 from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
@@ -505,6 +507,94 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.info(f"count_nodes: data table not readable yet ({e.__class__.__name__})")
             return 0
+
+    # ------------------------------------------------------------------ ingest manifest (incremental indexing)
+    # One row per indexed file: path, SHA-256 of its bytes, chunk count. It is the
+    # source of truth for the diff app/engine/ingest.py runs on every start. A file's
+    # manifest row is written only after its chunks are in the data table, and is
+    # deleted in the same transaction as those chunks, so the manifest never lists a
+    # file whose rows are missing.
+
+    @property
+    def manifest_table(self) -> str:
+        return f"ingest_manifest_{self.table_name}"
+
+    @contextmanager
+    def ingest_lock(self):
+        """Session-level advisory lock around the diff-and-index step.
+
+        Two replicas that start together serialise here: the second waits, then
+        diffs against the manifest the first one wrote and finds nothing to do.
+        The lock lives on its own connection, so closing it (or the process
+        dying) releases it.
+        """
+        name = f"metanavit.ingest:{self.schema_name}.{self.data_table}"
+        key = int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+        conn = psycopg2.connect(self.conn_string)
+        conn.autocommit = True
+        started = time.perf_counter()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT pg_try_advisory_lock(%s);", (key,))
+                waited = not cur.fetchone()[0]
+                if waited:
+                    logger.info("Another process is indexing; waiting for the ingest lock")
+                    cur.execute("SELECT pg_advisory_lock(%s);", (key,))
+            yield {"waited": waited, "waited_ms": round((time.perf_counter() - started) * 1000.0, 1)}
+        finally:
+            conn.close()
+
+    def ensure_ingest_manifest(self) -> None:
+        """Create the manifest table and the path index the per-file delete uses. Call under ingest_lock."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "CREATE TABLE IF NOT EXISTS {manifest} ("
+                    "path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, n_chunks INTEGER NOT NULL, "
+                    "indexed_at TIMESTAMPTZ NOT NULL DEFAULT now());"
+                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                cur.execute(sql.SQL("CREATE INDEX IF NOT EXISTS {index} ON {table} ((metadata_->>'path'));").format(
+                    index=sql.Identifier(f"{self.data_table}_path_idx"),
+                    table=sql.Identifier(self.schema_name, self.data_table)))
+
+    def ingest_manifest(self) -> dict[str, dict]:
+        """{path: {"content_hash", "n_chunks"}} for every file the manifest lists."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT path, content_hash, n_chunks FROM {manifest};").format(
+                    manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                return {r[0]: {"content_hash": r[1], "n_chunks": int(r[2])} for r in cur.fetchall()}
+
+    def forget_file(self, path: str) -> int:
+        """Delete a file's chunks (by path metadata) and its manifest row in one transaction; return chunks deleted."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("DELETE FROM {manifest} WHERE path = %s;").format(
+                    manifest=sql.Identifier(self.schema_name, self.manifest_table)), (path,))
+                cur.execute(sql.SQL("DELETE FROM {table} WHERE metadata_->>'path' = %s;").format(
+                    table=sql.Identifier(self.schema_name, self.data_table)), (path,))
+                return int(cur.rowcount)
+
+    def record_file(self, path: str, content_hash: str, n_chunks: int) -> None:
+        """List a file in the manifest. Call only after its chunks are committed to the data table."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "INSERT INTO {manifest} (path, content_hash, n_chunks) VALUES (%s, %s, %s) "
+                    "ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash, "
+                    "n_chunks = EXCLUDED.n_chunks, indexed_at = now();"
+                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)), (path, content_hash, int(n_chunks)))
+
+    def delete_unlisted_chunks(self) -> int:
+        """Delete chunks whose path the manifest does not list (an interrupted run, or rows from before the manifest)."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "DELETE FROM {table} t WHERE t.metadata_->>'path' IS NOT NULL "
+                    "AND NOT EXISTS (SELECT 1 FROM {manifest} m WHERE m.path = t.metadata_->>'path');"
+                ).format(table=sql.Identifier(self.schema_name, self.data_table),
+                         manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                return int(cur.rowcount)
 
     def close(self) -> None:
         """Close all connections and cleanup resources."""

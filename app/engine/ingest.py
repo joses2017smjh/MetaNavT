@@ -1,0 +1,138 @@
+"""Incremental, accountable indexing of DATA_DIR into pgvector (the served path).
+
+build_retrieval_state() calls index_directory() on every API start when
+INDEX_ON_START is set. One run, under a Postgres advisory lock:
+
+  1. scan DATA_DIR and sort every file into accepted or rejected-with-a-reason
+     (app/eval/ingest.py, the same scan and chunker the benchmark loader uses);
+  2. diff the accepted files' SHA-256 against the manifest table (one row per
+     indexed file: path, content hash, chunk count);
+  3. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
+  4. delete the rows of removed files; for each new or changed file delete its
+     rows by path, embed and insert its chunks, then list it in the manifest;
+  5. delete chunks whose path the manifest does not list.
+
+An unchanged re-run embeds nothing. The step can be interrupted anywhere: a
+file is listed in the manifest only after its chunks are committed, and a
+file's old rows are deleted before its new ones are inserted, so the next run
+repeats the unfinished files and leaves one set of rows.
+
+The report (counts of files seen, indexed, unchanged, removed and rejected by
+reason) is returned, logged, and served by /health under "indexing".
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Callable, Optional
+
+from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
+
+from app.eval.ingest import SERVED_MAX_BYTES, SERVED_SUFFIXES, IngestPolicy, IngestRejected, SourceFile, file_chunks, plan_and_report, scan_directory
+
+logger = logging.getLogger("uvicorn")
+
+EmbedFn = Callable[[list], list]
+
+
+def policy_from_env() -> IngestPolicy:
+    """INGEST_SUFFIXES (comma-separated, "*" = every type) and INGEST_MAX_FILE_BYTES override the defaults."""
+    raw = os.getenv("INGEST_SUFFIXES", "").strip()
+    if raw == "*":
+        suffixes = None
+    elif raw:
+        suffixes = frozenset(s if s.startswith(".") else f".{s}" for s in (part.strip().lower() for part in raw.split(",")) if s)
+    else:
+        suffixes = SERVED_SUFFIXES
+    return IngestPolicy(suffixes=suffixes, max_bytes=int(os.getenv("INGEST_MAX_FILE_BYTES", SERVED_MAX_BYTES)), dedup=True)
+
+
+def max_rejected_from_env() -> Optional[int]:
+    """INGEST_MAX_REJECTED: fail the run when more files than this are rejected. Unset = count only."""
+    raw = os.getenv("INGEST_MAX_REJECTED", "").strip()
+    return int(raw) if raw else None
+
+
+def build_nodes(source: SourceFile, strategy: str = "auto") -> list[TextNode]:
+    """One TextNode per chunk of a file, with the benchmark's chunk ids, texts and byte ranges."""
+    nodes = []
+    for piece in file_chunks(source.path, source.text, strategy):
+        metadata = {
+            "path": source.path,  # relative to DATA_DIR, the bench's path form
+            "file_path": source.abs_path,
+            "file_name": Path(source.path).name,
+            "mtime": source.mtime,  # staleness clusters
+            "content_hash": source.sha256,
+            "start_byte": piece.start_byte,
+            "end_byte": piece.end_byte,
+            "kind": piece.kind,
+            "text_is_verbatim": piece.text == piece.raw,
+        }
+        nodes.append(
+            TextNode(
+                id_=piece.chunk_id,
+                text=piece.text,
+                metadata=metadata,
+                # Embed and rank on the text alone, as the bench does; metadata stays out of the vectors.
+                excluded_embed_metadata_keys=list(metadata),
+                excluded_llm_metadata_keys=list(metadata),
+                relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=source.path)},
+            )
+        )
+    return nodes
+
+
+def index_directory(
+    vsm,
+    data_dir: str,
+    *,
+    embed_fn: EmbedFn,
+    policy: Optional[IngestPolicy] = None,
+    max_rejected: Optional[int] = None,
+) -> dict:
+    """Bring the vector table in line with data_dir and return the run's report.
+
+    embed_fn maps a list of chunk texts to a list of vectors. Raises
+    IngestRejected (nothing written) when more than max_rejected files are rejected.
+    """
+    root = Path(data_dir).resolve()
+    if not root.is_dir():
+        raise FileNotFoundError(f"DATA_DIR {data_dir!r} is not a directory")
+    policy = policy or policy_from_env()
+    with vsm.ingest_lock() as lock:
+        store = vsm.get_vector_store()  # creates the data table on first use
+        vsm.ensure_ingest_manifest()
+        manifest = vsm.ingest_manifest()
+        scan = scan_directory(root, policy)
+        try:
+            plan, report = plan_and_report(scan, {p: row["content_hash"] for p, row in manifest.items()}, max_rejected=max_rejected)
+        except IngestRejected as exc:
+            logger.error(f"Indexing refused: {exc}")
+            raise
+        by_path = {f.path: f for f in scan.files}
+        chunks_deleted = sum(vsm.forget_file(path) for path in plan.removed)
+        chunks_embedded = 0
+        for path in plan.to_index:
+            source = by_path[path]
+            chunks_deleted += vsm.forget_file(path)
+            nodes = build_nodes(source)
+            for node, vector in zip(nodes, embed_fn([n.text for n in nodes])):
+                node.embedding = list(vector)
+            store.add(nodes)
+            vsm.record_file(path, source.sha256, len(nodes))
+            chunks_embedded += len(nodes)
+        unlisted = vsm.delete_unlisted_chunks()
+        report.update(
+            indexed=bool(plan.to_index),
+            data_dir=data_dir,
+            chunks_embedded=chunks_embedded,
+            chunks_deleted=chunks_deleted,
+            unlisted_chunks_deleted=unlisted,
+            n_nodes=sum(row["n_chunks"] for row in vsm.ingest_manifest().values()),
+            lock=lock,
+        )
+    logger.info(f"Indexing report: {json.dumps(report, sort_keys=True)}")
+    return report
