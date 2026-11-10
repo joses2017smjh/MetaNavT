@@ -21,6 +21,9 @@ annotated-types==0.8.0
 anyio==4.15.1
     # via
     #   httpx
+    #   httpx2
+    #   mcp
+    #   sse-starlette
     #   starlette
     #   watchfiles
 asyncpg==0.31.0
@@ -28,7 +31,10 @@ asyncpg==0.31.0
     #   llama-index-vector-stores-postgres
     #   metanavit (pyproject.toml)
 attrs==26.1.0
-    # via aiohttp
+    # via
+    #   aiohttp
+    #   jsonschema
+    #   referencing
 banks==2.5.1
     # via llama-index-core
 beautifulsoup4==4.15.0
@@ -38,6 +44,8 @@ certifi==2026.7.22
     #   httpcore
     #   httpx
     #   requests
+cffi==2.1.1
+    # via cryptography
 charset-normalizer==3.5.1
     # via requests
 click==8.5.0
@@ -48,6 +56,8 @@ cloudpickle==3.1.2
     # via joblib
 colorama==0.4.6
     # via griffecli
+cryptography==50.0.2
+    # via pyjwt
 dataclasses-json==0.6.7
     # via llama-index-core
 defusedxml==0.7.1
@@ -86,9 +96,12 @@ griffelib==2.3.0
 h11==0.16.0
     # via
     #   httpcore
+    #   httpcore2
     #   uvicorn
 httpcore==1.0.9
     # via httpx
+httpcore2==2.16.0
+    # via httpx2
 httptools==0.8.0
     # via uvicorn
 httpx==0.28.1
@@ -96,10 +109,13 @@ httpx==0.28.1
     #   llama-index-core
     #   metanavit (pyproject.toml)
     #   ollama
+httpx2==2.16.0
+    # via mcp
 idna==3.20
     # via
     #   anyio
     #   httpx
+    #   httpx2
     #   requests
     #   yarl
 iniconfig==2.3.0
@@ -108,6 +124,10 @@ jinja2==3.1.6
     # via banks
 joblib==1.6.0
     # via nltk
+jsonschema==4.26.0
+    # via mcp
+jsonschema-specifications==2025.9.1
+    # via jsonschema
 llama-index-core==0.12.52.post1
     # via
     #   llama-index-llms-ollama
@@ -130,6 +150,10 @@ markupsafe==3.0.3
     # via jinja2
 marshmallow==3.26.2
     # via dataclasses-json
+mcp==2.3.0
+    # via metanavit (pyproject.toml)
+mcp-types==2.3.0
+    # via mcp
 mdurl==0.1.2
     # via markdown-it-py
 multidict==6.9.1
@@ -151,6 +175,8 @@ numpy==2.4.6
     #   pandas
 ollama==0.6.2
     # via llama-index-llms-ollama
+opentelemetry-api==1.45.2
+    # via mcp
 packaging==26.3
     # via
     #   marshmallow
@@ -177,6 +203,8 @@ psycopg2-binary==2.9.13
     # via
     #   llama-index-vector-stores-postgres
     #   metanavit (pyproject.toml)
+pycparser==3.12
+    # via cffi
 pydantic==2.13.5
     # via
     #   banks
@@ -184,6 +212,8 @@ pydantic==2.13.5
     #   llama-index-core
     #   llama-index-instrumentation
     #   llama-index-workflows
+    #   mcp
+    #   mcp-types
     #   metanavit (pyproject.toml)
     #   ollama
 pydantic-core==2.46.5
@@ -192,6 +222,8 @@ pygments==2.21.0
     # via
     #   pytest
     #   rich
+pyjwt==2.15.1
+    # via mcp
 pypdf==5.9.0
     # via llama-index-readers-file
 pytest==9.1.1
@@ -206,6 +238,8 @@ python-dotenv==1.2.3
     # via
     #   metanavit (pyproject.toml)
     #   uvicorn
+python-multipart==0.0.33
+    # via mcp
 pytz==2026.3.post1
     # via pandas
 pyyaml==6.0.3
@@ -213,6 +247,10 @@ pyyaml==6.0.3
     #   llama-index-core
     #   metanavit (pyproject.toml)
     #   uvicorn
+referencing==0.37.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2026.9.10
     # via
     #   nltk
@@ -223,8 +261,14 @@ requests==2.34.2
     #   tiktoken
 rich==15.0.0
     # via metanavit (pyproject.toml)
+rpds-py==2026.9.1
+    # via
+    #   jsonschema
+    #   referencing
 six==1.17.0
     # via python-dateutil
+snowballstemmer==3.1.1
+    # via metanavit (pyproject.toml)
 soupsieve==2.9.2
     # via beautifulsoup4
 sqlalchemy==2.0.54
@@ -232,8 +276,13 @@ sqlalchemy==2.0.54
     #   llama-index-core
     #   llama-index-vector-stores-postgres
     #   metanavit (pyproject.toml)
+sse-starlette==3.7.0
+    # via mcp
 starlette==1.6.0
-    # via fastapi
+    # via
+    #   fastapi
+    #   mcp
+    #   sse-starlette
 striprtf==0.0.26
     # via llama-index-readers-file
 tenacity==9.1.4
@@ -244,6 +293,10 @@ tqdm==4.70.1
     # via
     #   llama-index-core
     #   nltk
+truststore==0.10.5
+    # via
+    #   httpcore2
+    #   httpx2
 typing-extensions==4.16.0
     # via
     #   aiohttp
@@ -252,10 +305,15 @@ typing-extensions==4.16.0
     #   anyio
     #   beautifulsoup4
     #   fastapi
+    #   httpx2
     #   llama-index-core
     #   llama-index-workflows
+    #   mcp
+    #   mcp-types
+    #   opentelemetry-api
     #   pydantic
     #   pydantic-core
+    #   referencing
     #   sqlalchemy
     #   starlette
     #   typing-inspect
@@ -267,13 +325,16 @@ typing-inspect==0.9.0
 typing-inspection==0.4.4
     # via
     #   fastapi
+    #   mcp
     #   pydantic
 tzdata==2026.4
     # via pandas
 urllib3==2.8.0
     # via requests
 uvicorn==0.53.0
-    # via metanavit (pyproject.toml)
+    # via
+    #   mcp
+    #   metanavit (pyproject.toml)
 uvloop==0.22.1
     # via uvicorn
 watchfiles==1.3.0

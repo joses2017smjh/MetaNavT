@@ -929,8 +929,21 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 
 ## Run it
 
-`pyproject.toml` is the single dependency spec. Pick the extra for what you
-want to run (`requirements.txt` is generated from it by `make lock`):
+`pyproject.toml` is the single dependency spec (version ranges). `make lock`
+resolves it into pinned files: `requirements.txt` (eval + app) and one
+`requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
+`agent`, `dev`), each compiled under `requirements.txt` as a constraint so a
+package has the same version in every file. The image and every CI job install
+their pinned file first and then the package with `--no-deps`
+(`make install-locked` does the same locally); `make lock-check`, which is
+also a test and a CI step, fails when a pinned file no longer covers
+`pyproject.toml`. The `ml` and `otel` extras have no pinned file: the image
+installs them from their ranges with the pinned app file as a constraint, so
+they are not reproducible to the same degree. `make lint` runs ruff with the
+narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
+names, shadowed imports); CI runs it as its own job.
+
+Pick the extra for what you want to run:
 
 | extra | installs | for |
 |---|---|---|
