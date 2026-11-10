@@ -6,7 +6,7 @@ INDEX_ON_START is set. One run, under a Postgres advisory lock:
   1. scan DATA_DIR and sort every file into accepted or rejected-with-a-reason
      (app/eval/ingest.py, the same scan and chunker the benchmark loader uses);
   2. diff the accepted files' SHA-256 against the manifest table (one row per
-     indexed file: path, content hash, chunk count);
+     indexed file: path, content hash, chunk count, chunker version + embedder);
   3. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
   4. delete the rows of removed files; for each new or changed file delete its
      rows by path, embed and insert its chunks, then list it in the manifest;
@@ -23,6 +23,7 @@ reason) is returned, logged, and served by /health under "indexing".
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -31,7 +32,7 @@ from typing import Callable, Optional
 
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 
-from app.eval.ingest import SERVED_MAX_BYTES, SERVED_SUFFIXES, IngestPolicy, IngestRejected, SourceFile, file_chunks, plan_and_report, scan_directory
+from app.eval.ingest import CHUNKER_VERSION, SERVED_MAX_BYTES, SERVED_SUFFIXES, IngestPolicy, IngestRejected, SourceFile, file_chunks, plan_and_report, scan_directory
 
 logger = logging.getLogger("uvicorn")
 
@@ -56,12 +57,24 @@ def max_rejected_from_env() -> Optional[int]:
     return int(raw) if raw else None
 
 
+def node_id_for(path: str, start_byte: int, end_byte: int) -> str:
+    """Deterministic row id: the SHA-1 the benchmark's chunk id truncates, without the path prefix.
+
+    hybrid_*.sql breaks score ties by node_id. An id that starts with the path
+    would order ties by directory name (configs/ before logs/), a ranking signal
+    nobody chose; the bare digest keeps tie order unrelated to the path, as the
+    random ids were before, and the same on every machine.
+    """
+    return hashlib.sha1(f"{path}:{start_byte}:{end_byte}".encode()).hexdigest()
+
+
 def build_nodes(source: SourceFile, strategy: str = "auto") -> list[TextNode]:
-    """One TextNode per chunk of a file, with the benchmark's chunk ids, texts and byte ranges."""
+    """One TextNode per chunk of a file, with the benchmark's chunk texts and byte ranges."""
     nodes = []
     for piece in file_chunks(source.path, source.text, strategy):
         metadata = {
             "path": source.path,  # relative to DATA_DIR, the bench's path form
+            "chunk_id": piece.chunk_id,  # the benchmark's id for this chunk: path::<first 12 hex of the node id>
             "file_path": source.abs_path,
             "file_name": Path(source.path).name,
             "mtime": source.mtime,  # staleness clusters
@@ -73,7 +86,7 @@ def build_nodes(source: SourceFile, strategy: str = "auto") -> list[TextNode]:
         }
         nodes.append(
             TextNode(
-                id_=piece.chunk_id,
+                id_=node_id_for(source.path, piece.start_byte, piece.end_byte),
                 text=piece.text,
                 metadata=metadata,
                 # Embed and rank on the text alone, as the bench does; metadata stays out of the vectors.
@@ -92,23 +105,27 @@ def index_directory(
     embed_fn: EmbedFn,
     policy: Optional[IngestPolicy] = None,
     max_rejected: Optional[int] = None,
+    embedder: str = "",
 ) -> dict:
     """Bring the vector table in line with data_dir and return the run's report.
 
-    embed_fn maps a list of chunk texts to a list of vectors. Raises
-    IngestRejected (nothing written) when more than max_rejected files are rejected.
+    embed_fn maps a list of chunk texts to a list of vectors; `embedder` names it.
+    A file indexed by another chunker version or embedder counts as changed.
+    Raises IngestRejected (nothing written) when more than max_rejected files are rejected.
     """
     root = Path(data_dir).resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"DATA_DIR {data_dir!r} is not a directory")
     policy = policy or policy_from_env()
+    pipeline = f"{CHUNKER_VERSION}|{embedder}"
     with vsm.ingest_lock() as lock:
         store = vsm.get_vector_store()  # creates the data table on first use
         vsm.ensure_ingest_manifest()
         manifest = vsm.ingest_manifest()
         scan = scan_directory(root, policy)
         try:
-            plan, report = plan_and_report(scan, {p: row["content_hash"] for p, row in manifest.items()}, max_rejected=max_rejected)
+            known = {p: row["content_hash"] if row["pipeline"] == pipeline else "" for p, row in manifest.items()}
+            plan, report = plan_and_report(scan, known, max_rejected=max_rejected)
         except IngestRejected as exc:
             logger.error(f"Indexing refused: {exc}")
             raise
@@ -122,12 +139,13 @@ def index_directory(
             for node, vector in zip(nodes, embed_fn([n.text for n in nodes])):
                 node.embedding = list(vector)
             store.add(nodes)
-            vsm.record_file(path, source.sha256, len(nodes))
+            vsm.record_file(path, source.sha256, len(nodes), pipeline)
             chunks_embedded += len(nodes)
         unlisted = vsm.delete_unlisted_chunks()
         report.update(
             indexed=bool(plan.to_index),
             data_dir=data_dir,
+            pipeline=pipeline,
             chunks_embedded=chunks_embedded,
             chunks_deleted=chunks_deleted,
             unlisted_chunks_deleted=unlisted,

@@ -34,6 +34,7 @@ from app.retrieval.hybrid import chunk_id_for
 SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
 REPORT_SCHEMA = "ingest-report-v1"
 CHUNKER = "app/chunking (structure-aware)"
+CHUNKER_VERSION = "app.chunking/auto/v1"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
 # Gate order is the order of this tuple; a file is counted under the first gate it fails.
 REJECT_REASONS = ("unsupported_type", "too_large", "undecodable", "empty", "duplicate_content")
 REJECTED_SAMPLE = 20  # paths listed in a report; the counts always cover every file

@@ -61,9 +61,11 @@ class Run:
                 return cur.fetchall()
 
     def expected_ids(self) -> list[str]:
+        """Row ids for the chunks the benchmark loader cuts from the same directory."""
+        from app.engine.ingest import node_id_for
         from app.eval.index_loader import load_chunks
 
-        return sorted(c.chunk_id for c in load_chunks(self.corpus))
+        return sorted(node_id_for(c.path, c.start_byte, c.end_byte) for c in load_chunks(self.corpus))
 
     def assert_manifest_matches_rows(self):
         """The manifest lists exactly the files that have rows, with the right chunk counts."""
@@ -102,7 +104,7 @@ def test_first_run_indexes_everything_and_an_unchanged_rerun_embeds_nothing(run)
     expected = run.expected_ids()
     assert (first["files_seen"], first["files_indexed"], first["files_unchanged"], first["files_rejected"]) == (n_files, n_files, 0, 0)
     assert first["chunks_embedded"] == len(run.embedded) == len(expected) == first["n_nodes"]
-    assert sorted(node_id for _, node_id, _ in run.rows()) == expected  # the benchmark loader's chunk ids
+    assert sorted(node_id for _, node_id, _ in run.rows()) == expected  # one row per benchmark chunk
     run.assert_manifest_matches_rows()
 
     before, run.embedded = run.rows(), []
@@ -110,6 +112,10 @@ def test_first_run_indexes_everything_and_an_unchanged_rerun_embeds_nothing(run)
     assert run.embedded == [] and second["chunks_embedded"] == 0 and second["indexed"] is False
     assert (second["files_seen"], second["files_indexed"], second["files_unchanged"], second["files_removed"]) == (n_files, 0, n_files, 0)
     assert run.rows() == before  # not one row rewritten
+
+    third = run.index(embedder="another-model")  # rows made by another embedder or chunker version are stale
+    assert (third["files_indexed"], third["indexed_changed"], third["files_unchanged"]) == (n_files, n_files, 0)
+    assert sorted(node_id for _, node_id, _ in run.rows()) == expected
 
 
 def test_an_edit_reembeds_only_that_file_and_a_delete_removes_its_rows(run):
@@ -181,10 +187,10 @@ def test_an_interrupted_run_never_leaves_the_manifest_ahead_of_the_rows(run):
     vsm = run.managers[0]
     real_record, state = vsm.record_file, {"armed": True}
 
-    def record_once_fails(path, content_hash, n_chunks):
+    def record_once_fails(*args):
         if state.pop("armed", False):
             raise RuntimeError("killed before the manifest write")
-        return real_record(path, content_hash, n_chunks)
+        return real_record(*args)
 
     vsm.record_file = record_once_fails
     with pytest.raises(RuntimeError, match="killed before the manifest write"):

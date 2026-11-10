@@ -65,6 +65,7 @@ def build_retrieval_state() -> RetrievalState:
             vsm,
             os.getenv("DATA_DIR", "data"),
             embed_fn=Settings.embed_model.get_text_embedding_batch,
+            embedder=str(getattr(Settings.embed_model, "model_name", "") or type(Settings.embed_model).__name__),
             max_rejected=max_rejected_from_env(),
         )
     vsm.ensure_text_index()  # GIN on to_tsvector('english', text) for the lexical CTE

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from llama_index.core.schema import MetadataMode
 
-from app.engine.ingest import build_nodes, max_rejected_from_env, policy_from_env
+from app.engine.ingest import build_nodes, max_rejected_from_env, node_id_for, policy_from_env
 from app.eval.index_loader import load_chunks
 from app.eval.ingest import SERVED_MAX_BYTES, SERVED_POLICY, SERVED_SUFFIXES, scan_directory
 
@@ -23,8 +23,11 @@ def test_served_nodes_have_the_benchmark_chunk_boundaries_on_the_fixture():
     nodes = [node for source in scan.files for node in build_nodes(source)]
     bench = load_chunks(FIXTURE)
 
-    served = [(n.node_id, n.metadata["path"], n.metadata["start_byte"], n.metadata["end_byte"], n.text) for n in nodes]
+    served = [(n.metadata["chunk_id"], n.metadata["path"], n.metadata["start_byte"], n.metadata["end_byte"], n.text) for n in nodes]
     assert served == [(c.chunk_id, c.path, c.start_byte, c.end_byte, c.text) for c in bench]
+    # Row ids are the chunk id's digest without the path prefix, so SQL tie-breaks do not follow directory names.
+    assert [n.node_id for n in nodes] == [node_id_for(c.path, c.start_byte, c.end_byte) for c in bench]
+    assert all(c.chunk_id == f"{c.path}::{n.node_id[:12]}" for c, n in zip(bench, nodes))
     assert [n.metadata["content_hash"] for n in nodes] == [c.content_hash for c in bench]
     assert [n.metadata["text_is_verbatim"] for n in nodes] == [c.metadata["text_is_verbatim"] for c in bench]
     assert len({n.node_id for n in nodes}) == len(nodes)
