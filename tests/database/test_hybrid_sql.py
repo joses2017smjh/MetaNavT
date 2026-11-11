@@ -7,6 +7,7 @@ The hash embedder is used, so no model downloads.
 
 import os
 import uuid
+from contextlib import contextmanager
 
 import pytest
 
@@ -109,9 +110,10 @@ TIE_ROWS = {  # cosine with QUERY_VECTOR: 1.0, 0.894, 0.707 (twice, the same vec
 }
 
 
-@pytest.fixture(params=["tie-b", "tie-a"], ids=["larger-id-stored-first", "smaller-id-stored-first"])
-def tie_table(request, vsm):
-    """A table where the 3rd and 4th nearest rows are the same vector; `param` is stored first of the two."""
+@contextmanager
+def vector_table(vectors: dict, order: list[str]):
+    """(manager, forced) over a scratch table holding `vectors` (node_id -> vector), stored in `order`,
+    with the start-up indexes; `forced` cannot plan a sequential scan. The table is dropped on exit."""
     from llama_index.core.schema import TextNode
     from psycopg2.extensions import make_dsn
 
@@ -125,19 +127,27 @@ def tie_table(request, vsm):
         forced = VectorStoreManager(conn_string=make_dsn(dsn, options="-c enable_seqscan=off -c jit=off"))
     finally:
         os.environ["PGVECTOR_TABLE"] = saved
+    try:
+        manager.get_vector_store().add(
+            [TextNode(id_=nid, text=f"document {nid}", embedding=vectors[nid], metadata={"path": f"{nid}.txt"}) for nid in order]
+        )
+        manager.ensure_text_index()
+        manager.ensure_hnsw()
+        yield manager, forced
+    finally:
+        with manager.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'DROP TABLE IF EXISTS "{manager.schema_name}"."{manager.data_table}";')
+        forced.close()
+        manager.close()
+
+
+@pytest.fixture(params=["tie-b", "tie-a"], ids=["larger-id-stored-first", "smaller-id-stored-first"])
+def tie_table(request, vsm):
+    """A table where the 3rd and 4th nearest rows are the same vector; `param` is stored first of the two."""
     first = request.param
-    order = ["near-1", "near-2", first, "tie-a" if first == "tie-b" else "tie-b", "far"]
-    manager.get_vector_store().add(
-        [TextNode(id_=nid, text=f"document {nid}", embedding=TIE_ROWS[nid], metadata={"path": f"{nid}.txt"}) for nid in order]
-    )
-    manager.ensure_text_index()
-    manager.ensure_hnsw()
-    yield manager, forced
-    with manager.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{manager.schema_name}"."{manager.data_table}";')
-    forced.close()
-    manager.close()
+    with vector_table(TIE_ROWS, ["near-1", "near-2", first, "tie-a" if first == "tie-b" else "tie-b", "far"]) as managers:
+        yield managers
 
 
 def test_a_tie_at_the_dense_cut_keeps_the_smaller_node_id(tie_table):
@@ -150,6 +160,26 @@ def test_a_tie_at_the_dense_cut_keeps_the_smaller_node_id(tie_table):
         assert [r["dense_rank"] for r in rows] == [1, 2, 3] and all(r["bm25_rank"] is None for r in rows), label
     plan = forced.explain_hybrid("qqqq", QUERY_VECTOR, k=3)
     assert f"Index Scan using {forced.table_name}_embedding_hnsw" in plan, plan  # the tie-break keeps the index usable
+
+
+ZERO_ROWS = {  # cosine with QUERY_VECTOR: 1.0, 0.894, 0.707, NaN (an all-zero vector), 0.0
+    "near-1": TIE_ROWS["near-1"],
+    "near-2": TIE_ROWS["near-2"],
+    "near-3": TIE_ROWS["tie-a"],
+    "zero": [0.0] * TIE_DIM,
+    "far": TIE_ROWS["far"],
+}
+
+
+def test_a_zero_vector_does_not_take_a_place_at_the_dense_cut(vsm):
+    """An all-zero embedding (the hash embedder gives one to text under 3 characters) has a NaN cosine
+    distance, which Postgres sorts after every number. The scan reads 2k = 6 rows, more than the table
+    has, so the zero row reaches the level that cuts at k; it must not be kept ahead of real neighbours."""
+    with vector_table(ZERO_ROWS, list(ZERO_ROWS)) as (manager, forced):
+        for label, m in (("planner's choice", manager), ("HNSW forced", forced)):
+            rows = m.hybrid_search("qqqq", QUERY_VECTOR, k=3)  # no lexical match: the fused list is the dense list
+            dense = [r["node_id"] for r in sorted(rows, key=lambda r: r["dense_rank"])]
+            assert dense == ["near-1", "near-2", "near-3"], (label, dense)
 
 
 # ---------------------------------------------------------------- the lexical list's query text in Postgres

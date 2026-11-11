@@ -1,6 +1,6 @@
 -- EXPLAIN (ANALYZE, BUFFERS) of app/database/sql/hybrid_tsrank.sql
--- generated 2026-11-11T09:35:46.106850+00:00 at git e0d711d by scripts/explain_hybrid.py --synthetic-rows 10000 --out doc/sql/hybrid_explain_synthetic_10k.txt
--- statement sha256 3c11f3d822e67e835edc5403b3195d1d9f582c2f57abac18c2f97b1b64950c76 (the file as planned, committed or not)
+-- generated 2026-11-11T10:37:41.369432+00:00 at git a8059cf by scripts/explain_hybrid.py --synthetic-rows 10000 --out doc/sql/hybrid_explain_synthetic_10k.txt
+-- statement sha256 149b37e62b7b8411542f49120fa0e11f4030fc5cc7ac6405fa8d062f9d87eb40 (the file as planned, committed or not)
 -- PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
 -- pgvector 0.8.6; lexical backend ts_rank_cd; table public.data_explain_synthetic (10000 SYNTHETIC rows: seeded generated text (scripts/explain_hybrid.py synthetic_documents), hash-embedded; not data); ANALYZE before EXPLAIN
 -- query: 'current learning rate for run 47', k=50, rrf_k=60, hash embedder dim 256
@@ -10,62 +10,69 @@
 --   data_explain_synthetic_text_tsv_gin: CREATE INDEX data_explain_synthetic_text_tsv_gin ON public.data_explain_synthetic USING gin (to_tsvector('english'::regconfig, (text)::text))
 --   explain_synthetic_embedding_hnsw: CREATE INDEX explain_synthetic_embedding_hnsw ON public.data_explain_synthetic USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')
 --   explain_synthetic_idx_1: CREATE INDEX explain_synthetic_idx_1 ON public.data_explain_synthetic USING btree (((metadata_ ->> 'ref_doc_id'::text)))
-Limit  (cost=3293.87..3294.00 rows=50 width=482) (actual time=124.425..124.442 rows=50 loops=1)
-  Buffers: shared hit=5859
+Limit  (cost=3224.58..3224.71 rows=50 width=482) (actual time=124.710..124.724 rows=50 loops=1)
+  Buffers: shared hit=5881
   CTE lexical_params
     ->  Result  (cost=0.00..0.01 rows=1 width=32) (actual time=0.001..0.001 rows=1 loops=1)
-  ->  Sort  (cost=3293.86..3293.99 rows=50 width=482) (actual time=124.424..124.436 rows=50 loops=1)
-        Sort Key: ((COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric) + COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric))) DESC, (COALESCE(nearest.node_id, t_2.node_id))
-        Sort Method: quicksort  Memory: 86kB
-        Buffers: shared hit=5859
-        ->  Hash Join  (cost=1102.58..3292.45 rows=50 width=482) (actual time=117.293..124.291 rows=96 loops=1)
-              Hash Cond: ((t.node_id)::text = (COALESCE(nearest.node_id, t_2.node_id))::text)
-              Buffers: shared hit=5856
-              ->  Seq Scan on data_explain_synthetic t  (cost=0.00..2101.00 rows=10000 width=406) (actual time=0.009..2.820 rows=10000 loops=1)
+  ->  Sort  (cost=3224.57..3224.70 rows=50 width=482) (actual time=124.709..124.719 rows=50 loops=1)
+        Sort Key: ((COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric) + COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric))) DESC, (COALESCE(s.node_id, t_2.node_id))
+        Sort Method: quicksort  Memory: 87kB
+        Buffers: shared hit=5881
+        ->  Hash Join  (cost=1033.29..3223.16 rows=50 width=482) (actual time=117.835..124.583 rows=96 loops=1)
+              Hash Cond: ((t.node_id)::text = (COALESCE(s.node_id, t_2.node_id))::text)
+              Buffers: shared hit=5878
+              ->  Seq Scan on data_explain_synthetic t  (cost=0.00..2101.00 rows=10000 width=406) (actual time=0.008..2.572 rows=10000 loops=1)
                     Buffers: shared hit=2001
-              ->  Hash  (cost=1101.95..1101.95 rows=50 width=60) (actual time=117.244..117.253 rows=96 loops=1)
+              ->  Hash  (cost=1032.66..1032.66 rows=50 width=60) (actual time=117.793..117.798 rows=96 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 15kB
-                    Buffers: shared hit=3855
-                    ->  Hash Full Join  (cost=1100.26..1101.95 rows=50 width=60) (actual time=117.172..117.222 rows=96 loops=1)
-                          Hash Cond: ((nearest.node_id)::text = (t_2.node_id)::text)
-                          Buffers: shared hit=3855
-                          ->  WindowAgg  (cost=881.59..882.59 rows=50 width=32) (actual time=2.852..2.872 rows=50 loops=1)
-                                Buffers: shared hit=2599
-                                ->  Limit  (cost=881.59..881.71 rows=50 width=24) (actual time=2.847..2.855 rows=50 loops=1)
-                                      Buffers: shared hit=2599
-                                      ->  Sort  (cost=881.59..881.84 rows=100 width=24) (actual time=2.846..2.850 rows=50 loops=1)
-                                            Sort Key: (('1'::double precision - nearest.distance)) DESC, nearest.node_id
-                                            Sort Method: quicksort  Memory: 32kB
-                                            Buffers: shared hit=2599
-                                            ->  Subquery Scan on nearest  (cost=736.58..878.27 rows=100 width=24) (actual time=2.627..2.820 rows=100 loops=1)
-                                                  Buffers: shared hit=2599
-                                                  ->  Limit  (cost=736.58..878.02 rows=100 width=24) (actual time=2.625..2.807 rows=100 loops=1)
-                                                        Buffers: shared hit=2599
-                                                        ->  Index Scan using explain_synthetic_embedding_hnsw on data_explain_synthetic t_1  (cost=736.58..14880.00 rows=10000 width=24) (actual time=2.624..2.799 rows=100 loops=1)
-                                                              Order By: (embedding <=> '[0,0,0,0,0,0,0.13245323,0,0,0,0,0.13245323,0.13245323,0,0.13245323,0,0,0,0,0,0,0,0,0,0,0,-0.26490647,0,0,0,0.13245323,0,0.13245323,0,0,0,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0,0,0.26490647,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0.13245323,0,-0.13245323,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,-0.13245323,0,-0.13245323,0,0.13245323,0,0,-0.13245323,0.13245323,0,0,-0.13245323,0.13245323,-0.13245323,0,0,0.13245323,0,0.13245323,0,-0.13245323,0,0,0,0.13245323,0,0,0,0,0,0,0.13245323,-0.13245323,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.13245323,0,0,0,0,0,-0.13245323,0,0,0,-0.13245323,0.13245323,0,0,0.13245323,0,0,0,0,0,-0.13245323,0,0.13245323,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0.13245323,0,0,0,-0.13245323,0,0,0,0,0,0,-0.13245323,0,0.13245323,0,0,0,0,0,0,0,0.13245323,0,0,0.13245323,0.13245323,0,0,0,0,0,0,-0.13245323,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,-0.13245323,0,0,0.13245323,-0.13245323,0,0,0]'::vector)
-                                                              Buffers: shared hit=2599
-                          ->  Hash  (cost=218.05..218.05 rows=50 width=28) (actual time=114.312..114.317 rows=50 loops=1)
+                    Buffers: shared hit=3877
+                    ->  Hash Full Join  (cost=1030.97..1032.66 rows=50 width=60) (actual time=117.709..117.759 rows=96 loops=1)
+                          Hash Cond: ((s.node_id)::text = (t_2.node_id)::text)
+                          Buffers: shared hit=3877
+                          ->  WindowAgg  (cost=812.30..813.30 rows=50 width=32) (actual time=2.637..2.658 rows=50 loops=1)
+                                Buffers: shared hit=2621
+                                ->  Sort  (cost=812.30..812.42 rows=50 width=24) (actual time=2.633..2.637 rows=50 loops=1)
+                                      Sort Key: s.dense_score DESC, s.node_id
+                                      Sort Method: quicksort  Memory: 27kB
+                                      Buffers: shared hit=2621
+                                      ->  Subquery Scan on s  (cost=738.01..810.89 rows=50 width=24) (actual time=2.565..2.619 rows=50 loops=1)
+                                            Buffers: shared hit=2621
+                                            ->  Limit  (cost=738.01..810.39 rows=50 width=32) (actual time=2.564..2.611 rows=50 loops=1)
+                                                  Buffers: shared hit=2621
+                                                  ->  Incremental Sort  (cost=738.01..882.77 rows=100 width=32) (actual time=2.563..2.606 rows=50 loops=1)
+                                                        Sort Key: nearest.distance, nearest.node_id
+                                                        Presorted Key: nearest.distance
+                                                        Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+                                                        Buffers: shared hit=2621
+                                                        ->  Subquery Scan on nearest  (cost=736.58..878.27 rows=100 width=32) (actual time=2.481..2.583 rows=51 loops=1)
+                                                              Buffers: shared hit=2621
+                                                              ->  Limit  (cost=736.58..878.02 rows=100 width=24) (actual time=2.479..2.576 rows=51 loops=1)
+                                                                    Buffers: shared hit=2621
+                                                                    ->  Index Scan using explain_synthetic_embedding_hnsw on data_explain_synthetic t_1  (cost=736.58..14880.00 rows=10000 width=24) (actual time=2.479..2.572 rows=51 loops=1)
+                                                                          Order By: (embedding <=> '[0,0,0,0,0,0,0.13245323,0,0,0,0,0.13245323,0.13245323,0,0.13245323,0,0,0,0,0,0,0,0,0,0,0,-0.26490647,0,0,0,0.13245323,0,0.13245323,0,0,0,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0,0,0.26490647,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0.13245323,0,-0.13245323,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,-0.13245323,0,-0.13245323,0,0.13245323,0,0,-0.13245323,0.13245323,0,0,-0.13245323,0.13245323,-0.13245323,0,0,0.13245323,0,0.13245323,0,-0.13245323,0,0,0,0.13245323,0,0,0,0,0,0,0.13245323,-0.13245323,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.13245323,0,0,0,0,0,-0.13245323,0,0,0,-0.13245323,0.13245323,0,0,0.13245323,0,0,0,0,0,-0.13245323,0,0.13245323,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0.13245323,0,0,0,-0.13245323,0,0,0,0,0,0,-0.13245323,0,0.13245323,0,0,0,0,0,0,0,0.13245323,0,0,0.13245323,0.13245323,0,0,0,0,0,0,-0.13245323,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,-0.13245323,0,0,0.13245323,-0.13245323,0,0,0]'::vector)
+                                                                          Buffers: shared hit=2621
+                          ->  Hash  (cost=218.05..218.05 rows=50 width=28) (actual time=115.066..115.069 rows=50 loops=1)
                                 Buckets: 1024  Batches: 1  Memory Usage: 12kB
                                 Buffers: shared hit=1256
-                                ->  WindowAgg  (cost=217.05..218.05 rows=50 width=28) (actual time=114.273..114.294 rows=50 loops=1)
+                                ->  WindowAgg  (cost=217.05..218.05 rows=50 width=28) (actual time=115.031..115.053 rows=50 loops=1)
                                       Buffers: shared hit=1256
-                                      ->  Limit  (cost=217.05..217.17 rows=50 width=20) (actual time=114.266..114.274 rows=50 loops=1)
+                                      ->  Limit  (cost=217.05..217.17 rows=50 width=20) (actual time=115.026..115.034 rows=50 loops=1)
                                             Buffers: shared hit=1256
-                                            ->  Sort  (cost=217.05..217.17 rows=50 width=20) (actual time=114.265..114.269 rows=50 loops=1)
+                                            ->  Sort  (cost=217.05..217.17 rows=50 width=20) (actual time=115.025..115.029 rows=50 loops=1)
                                                   Sort Key: (ts_rank_cd(to_tsvector('english'::regconfig, (t_2.text)::text), p.tsq)) DESC, t_2.node_id
                                                   Sort Method: top-N heapsort  Memory: 29kB
                                                   Buffers: shared hit=1256
-                                                  ->  Nested Loop  (cost=13.08..215.64 rows=50 width=20) (actual time=0.790..113.888 rows=1752 loops=1)
+                                                  ->  Nested Loop  (cost=13.08..215.64 rows=50 width=20) (actual time=0.751..114.619 rows=1752 loops=1)
                                                         Buffers: shared hit=1253
-                                                        ->  CTE Scan on lexical_params p  (cost=0.00..0.02 rows=1 width=32) (actual time=0.002..0.004 rows=1 loops=1)
-                                                        ->  Bitmap Heap Scan on data_explain_synthetic t_2  (cost=13.08..202.49 rows=50 width=339) (actual time=0.645..2.391 rows=1752 loops=1)
+                                                        ->  CTE Scan on lexical_params p  (cost=0.00..0.02 rows=1 width=32) (actual time=0.003..0.004 rows=1 loops=1)
+                                                        ->  Bitmap Heap Scan on data_explain_synthetic t_2  (cost=13.08..202.49 rows=50 width=339) (actual time=0.609..2.147 rows=1752 loops=1)
                                                               Recheck Cond: (to_tsvector('english'::regconfig, (text)::text) @@ p.tsq)
                                                               Heap Blocks: exact=1242
                                                               Buffers: shared hit=1253
-                                                              ->  Bitmap Index Scan on data_explain_synthetic_text_tsv_gin  (cost=0.00..13.07 rows=50 width=0) (actual time=0.476..0.476 rows=1752 loops=1)
+                                                              ->  Bitmap Index Scan on data_explain_synthetic_text_tsv_gin  (cost=0.00..13.07 rows=50 width=0) (actual time=0.422..0.423 rows=1752 loops=1)
                                                                     Index Cond: (to_tsvector('english'::regconfig, (text)::text) @@ p.tsq)
                                                                     Buffers: shared hit=11
 Planning:
-  Buffers: shared hit=300
-Planning Time: 1.220 ms
-Execution Time: 124.599 ms
+  Buffers: shared hit=298
+Planning Time: 1.194 ms
+Execution Time: 124.858 ms

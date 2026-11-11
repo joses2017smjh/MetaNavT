@@ -11,11 +11,14 @@ dense AS (
     SELECT node_id, dense_score,
            row_number() OVER (ORDER BY dense_score DESC, node_id) AS dense_rank
     FROM (
-        -- The cut at k orders equal scores by node_id. That key cannot go into the
+        -- The cut at k orders equal distances by node_id. That key cannot go into the
         -- index-ordered scan below: an index ordering operator must match every ORDER
         -- BY key, so a second key would leave the HNSW index unused. The scan reads the
         -- 2k nearest rows instead and this level keeps k of them, so a tie at the cut
-        -- is decided by node_id unless the tied rows run past the 2k read.
+        -- is decided by node_id unless the tied rows run past the 2k read. This level
+        -- sorts by distance ascending, as the scan does: an all-zero embedding has a NaN
+        -- distance, which sorts after every number, and a descending score would put it
+        -- first.
         SELECT node_id, 1 - distance AS dense_score
         FROM (
             SELECT t.node_id, t.embedding <=> p.qvec AS distance
@@ -24,7 +27,7 @@ dense AS (
             ORDER BY t.embedding <=> p.qvec
             LIMIT 2 * %(k)s
         ) nearest
-        ORDER BY dense_score DESC, node_id
+        ORDER BY distance, node_id
         LIMIT %(k)s
     ) s
 ),

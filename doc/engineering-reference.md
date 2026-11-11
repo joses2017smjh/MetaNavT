@@ -753,10 +753,12 @@ its transaction only, so no pooled connection keeps the value. `/health` reports
 the depth and these settings under `dense_search`. Equal scores at the dense list's
 cut are decided by `node_id`, like every other tie in the statement: the
 index-ordered scan reads twice the depth, and the statement keeps the first
-`RETRIEVE_K` of those rows by score, then `node_id` (a second sort key inside the
+`RETRIEVE_K` of those rows by distance, then `node_id` (a second sort key inside the
 index scan would leave the index unused). `tests/database/test_hybrid_sql.py`
 puts two rows at the same distance across the cut, stored in either order, and
-requires the smaller `node_id` with and without the index. `node_id` order is not
+requires the smaller `node_id` with and without the index. It also requires that an
+all-zero embedding, whose cosine distance is NaN, does not take a place at the cut
+from a real neighbour. `node_id` order is not
 the in-memory index's corpus order, which is why the dense test compares tied
 chunks as a set.
 
