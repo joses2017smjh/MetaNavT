@@ -608,8 +608,9 @@ routed by suffix. A Python file gets one chunk per top-level function or class,
 starting at its first decorator, one for the code before the first definition,
 and one for each non-blank stretch of module-level code between or after
 definitions (constants, registration calls, a main guard), so every non-blank
-line is in exactly one chunk; lines are counted the way `ast` counts them (a
-form feed is not a line break). A module without definitions, or one that does
+line is in exactly one chunk, except where the windows of a chunk re-cut for
+length (below) overlap; lines are counted the way `ast` counts them (a form
+feed is not a line break). A module without definitions, or one that does
 not parse, takes the fixed character window. A CSV file gives one chunk per
 record, read with the `csv` module so a quoted line break stays in its row, and
 each row's searched text starts with the header record; a CSV that does not

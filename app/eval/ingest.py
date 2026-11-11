@@ -47,7 +47,8 @@ CHUNKER = "app/chunking (structure-aware)"
 CHUNKER_VERSION = "app.chunking/auto/v2"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
 # v2: Python module-level code between and after definitions is chunked and a definition starts at its first
 # decorator; long JSON values and Python chunks are re-cut with the window; CSV records come from the csv module;
-# Markdown headings inside fenced code and the YAML header follow the rules in app/chunking/structure.py.
+# Markdown headings inside fenced code and the YAML header follow the rules in app/chunking/structure.py; every
+# rule ends a line only at \r\n, \r or \n (str.splitlines also split at a form feed, U+2028 and other separators).
 
 # Gate order is the order of this tuple; a file is counted under the first gate it fails.
 # outside_root comes first: a file outside the root is rejected before its size or bytes are read.

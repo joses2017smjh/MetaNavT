@@ -122,7 +122,7 @@ def _csv_records(text: str, lines: list[tuple[int, int]]) -> list[tuple[int, int
         for row in reader:
             records.append((lines[consumed][0], lines[reader.line_num - 1][1], len(row), reader.line_num - consumed))
             consumed = reader.line_num
-    except csv.Error:  # an unclosed quote, a quote inside an unquoted field, a field over the size limit
+    except csv.Error:  # an unclosed quote, text after a closing quote, a field over the size limit
         return None
     width = next((n_fields for _, _, n_fields, _ in records if n_fields), 0)
     if any(n_lines > 1 and n_fields != width for _, _, n_fields, n_lines in records):
