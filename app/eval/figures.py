@@ -164,9 +164,19 @@ def _esc(s: str) -> str:
     )
 
 
-def write_static_story_svgs(out_dir: Path) -> None:
-    """Pipeline / query-trace / staleness cards. Numbers live in ablation.svg."""
+def recall50_bm25_to_hybrid(blob: dict | None, arrow: str = "→") -> str:
+    """"Recall@50  <bm25_only> → <hybrid>" from a results file (main.json), or "" when either row is missing."""
+    rows = {row["config"]: row["retrieval"] for row in (blob or {}).get("results", [])}
+    if "bm25_only" not in rows or "hybrid" not in rows:
+        return ""
+    return f"Recall@50  {rows['bm25_only']['recall@50']:.3f} {arrow} {rows['hybrid']['recall@50']:.3f}"
+
+
+def write_static_story_svgs(out_dir: Path, blob: dict | None = None) -> None:
+    """Pipeline / query-trace / staleness cards. Numbers live in ablation.svg; the one
+    the hybrid card shows is read from `blob` (main.json), never typed here."""
     out_dir.mkdir(parents=True, exist_ok=True)
+    hybrid_recall = _esc(recall50_bm25_to_hybrid(blob))
     # query trace
     rows = [
         ("route", "semantic  (not a path, not an aggregation verb)", BLUE),
@@ -382,7 +392,7 @@ def write_static_story_svgs(out_dir: Path) -> None:
   <text x="468" y="140" fill="{TEXT}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">1  configs where fusion is off</text>
   <text x="468" y="164" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">paraphrase of “fusion was off”</text>
   <text x="468" y="196" fill="{GOLD}" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">RRF keeps fusion.py at rank 1</text>
-  <text x="468" y="220" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Recall@50  0.843 → 0.938</text>
+  <text x="468" y="220" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">{hybrid_recall}</text>
 </svg>
 '''
     )
@@ -411,13 +421,13 @@ def write_static_story_svgs(out_dir: Path) -> None:
 
 def write_from_results(root: Path) -> None:
     out_dir = root / "doc" / "figures"
-    write_static_story_svgs(out_dir)
     # The committed baseline is the artifact the README table is rendered from, so the
     # figures read it too (falling back to latest.json before a baseline exists).
     results_dir = root / "bench" / "results"
     source = results_dir / "main.json"
     if not source.exists():
         source = results_dir / "latest.json"
+    write_static_story_svgs(out_dir, json.loads(source.read_text()) if source.exists() else None)
     if source.exists():
         blob = json.loads(source.read_text())
         ndcg, rec10, rec50 = [], [], []
