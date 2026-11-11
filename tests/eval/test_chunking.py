@@ -105,6 +105,18 @@ def test_auto_strategy_by_extension():
     assert yml and yml[0].kind == "yaml"
 
 
+def test_auto_routes_csv_and_python_and_a_named_strategy_ignores_the_suffix():
+    table = "run,rmse\n47,0.0521\n"
+    assert _spans(chunk_text(table, path="results/ablation.csv")) == [(0, 9, "csv_header"), (9, len(table), "csv_row")]
+    module = "import os\n\n\ndef f():\n    return 1\n"
+    f = module.index("def f")
+    assert _spans(chunk_text(module, path="src/train.py")) == [(0, f, "ast"), (f, len(module), "ast")]
+    assert _spans(chunk_text(module, path="notes.txt", strategy="ast")) == [(0, f, "ast"), (f, len(module), "ast")]
+    notes = "# A\nhello\n# B\nworld\n"
+    b = notes.index("# B")
+    assert _spans(chunk_text(notes, path="notes.txt", strategy="markdown")) == [(0, b, "markdown"), (b, len(notes), "markdown")]
+
+
 def test_fixed_window_spans_overlap_and_skip_blank_windows():
     text = "abcdefghijklmnopqrstuvwxyz"
     assert _spans(fixed_size_chunks(text, size=10, overlap=3)) == [(0, 10, "fixed"), (7, 17, "fixed"), (14, 24, "fixed"), (21, 26, "fixed")]
@@ -178,6 +190,15 @@ def test_small_yaml_is_one_chunk_and_a_long_one_splits_at_top_level_keys():
     starts = [0, len(blocks[0]), len(blocks[0]) + len(blocks[1])]
     assert _spans(spans) == [(starts[0], starts[1], "yaml"), (starts[1], starts[2], "yaml"), (starts[2], len(text), "yaml")]
     assert [s.text for s in spans] == [head, head + blocks[1], head + blocks[2]]  # run_id travels with every block
+
+
+def test_a_long_yaml_with_one_top_level_block_stays_one_chunk():
+    """Nothing to split before: a long config with one top-level key, or none, is one chunk (YAML has no re-cut)."""
+    one_key = "model:\n" + "".join(f"  layer_{i}: 1\n" for i in range(200))
+    a_list = "".join(f"- layer_{i}\n" for i in range(300))
+    for text in (one_key, a_list):
+        assert len(text) >= 2000
+        assert yaml_chunks(text) == [Span(0, len(text), text, "yaml")]
 
 
 def test_a_long_yaml_carries_the_run_id_block_or_the_first_key_as_its_header():
