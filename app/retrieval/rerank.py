@@ -93,6 +93,7 @@ class RerankTriple:
     path: str
     ce_score: float
     features: dict[str, float]
+    teacher: str | None = None  # what ce_score is, when the caller records it (the bench log does)
 
 
 class OverlapReranker:
@@ -242,13 +243,30 @@ def cross_encoder_scores(model, pairs: Sequence[Sequence[str]], batch_size: int 
 
 
 class CrossEncoderReranker:
-    def __init__(self, model=None, model_name: str = "BAAI/bge-reranker-v2-m3"):
+    """A cross-encoder as a rerank_fn (scores on SCORE_SCALE).
+
+    When no model loads (weights not cached, no sentence-transformers) calling it
+    raises, unless the caller asked for the overlap fallback with
+    allow_fallback=True: then `fallback` is "overlap" and the scores are
+    OverlapReranker's. A caller that allows it must label its results:
+    build_index records reranker_fallback, bge_reranker returns loaded=False.
+    """
+
+    def __init__(self, model=None, model_name: str = "BAAI/bge-reranker-v2-m3", *, allow_fallback: bool = False):
         self.model = model if model is not None else get_cross_encoder(model_name)
+        self.model_name = model_name
+        self.allow_fallback = allow_fallback
+        self.fallback = "overlap" if self.model is None and allow_fallback else None
 
     def __call__(
         self, query: str, pairs: Sequence[tuple[Chunk, float]]
     ) -> list[tuple[Chunk, float]]:
         if self.model is None:
+            if not self.allow_fallback:
+                raise RuntimeError(
+                    f"cross-encoder {self.model_name!r} is not loaded; construct CrossEncoderReranker(allow_fallback=True) "
+                    "to rerank with token overlap instead, and label the results as such"
+                )
             return OverlapReranker()(query, pairs)
         scores = cross_encoder_scores(self.model, [(query, chunk.text) for chunk, _ in pairs])
         ranked = [(pairs[i][0], scores[i]) for i in range(len(pairs))]

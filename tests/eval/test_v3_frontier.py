@@ -141,13 +141,121 @@ def test_rankgpt_permutation_and_heuristic_rerank():
     assert ranked[0][0].chunk_id == "b"
 
 
+def test_listwise_parser_reads_only_a_full_bracketed_permutation():
+    from app.retrieval.rankgpt import read_permutation
+
+    assert read_permutation("[3] > [1] > [2]", 3).order == [2, 0, 1]
+    assert read_permutation("  [2] > [1] >\n[3]\n", 3).status == "permutation"
+    fused = [0, 1, 2]
+    # Prose with stray numbers and file names is not a ranking: the fused order is kept and the case is named.
+    prose = "Passage [2] cites configs/run_047.yaml, so the order is 2 > 1 > 3."
+    assert parse_perm(prose, 3) == fused  # the old parser read this as [1, 0, 2]
+    assert read_permutation(prose, 3).status == "not_a_chain"
+    assert read_permutation("run_047 first: [3] > [1] > [2]", 3).status == "not_a_chain"
+    assert read_permutation("3 1 2", 3).status == "not_a_chain"
+    assert read_permutation("[3] > [1]", 3).status == "partial"
+    assert parse_perm("[3] > [1]", 3) == fused  # a partial permutation is counted, not completed
+    assert read_permutation("[3] > [3] > [1]", 3).status == "repeated_id"
+    assert read_permutation("[4] > [1] > [2]", 3).status == "out_of_range"
+    assert read_permutation("[0] > [1] > [2]", 3).status == "out_of_range"
+    assert read_permutation("", 3).status == read_permutation(None, 3).status == "no_completion"
+    for raw in ("", "x", "[3] > [1]", "[4] > [1] > [2]"):
+        assert read_permutation(raw, 3).order == fused
+
+
+def test_listwise_rerank_keeps_the_fused_order_unless_the_reply_is_a_permutation():
+    chunks = [Chunk(c, f"configs/run_04{i}.yaml", f"text {c}", 0, 6) for i, c in enumerate("abc")]
+    pairs = [(chunk, 1.0 - 0.1 * i) for i, chunk in enumerate(chunks)]
+    prompts: list[str] = []
+    replies = iter(["[3] > [1] > [2]", "The best is configs/run_047.yaml ([2]), then 1 and 3."])
+
+    def complete(prompt: str) -> str:
+        prompts.append(prompt)
+        return next(replies)
+
+    gpt = RankGPTReranker(complete=complete, window=20)
+    assert [c.chunk_id for c, _ in gpt("q", pairs)] == ["c", "a", "b"] and gpt.last_parse.status == "permutation"
+    assert [c.chunk_id for c, _ in gpt("q", pairs)] == ["a", "b", "c"] and gpt.last_parse.status == "not_a_chain"
+    # The answer format is asked for after the passages, with the number of ids to rank.
+    assert prompts[0].rstrip().splitlines()[-1].startswith("Answer with the ranking of all 3 passages")
+    assert RankGPTReranker()("q", pairs) and RankGPTReranker().last_parse is None  # heuristic path: no reply to parse
+
+
+def test_listwise_arm_records_parse_status_per_question_and_failed_calls_apart():
+    from app.eval.gold import GoldQuestion
+    from app.eval.rerank_arms import listwise_arm
+
+    chunks = [Chunk(c, f"logs/run_04{i}.out", f"text {c}", 0, 6) for i, c in enumerate("abc")]
+    pairs = [(chunk, 1.0 - 0.1 * i) for i, chunk in enumerate(chunks)]
+    gold = [GoldQuestion(id=f"q{i}", question=f"question {i}", category="simple_factual", answer="", relevant_paths=["logs/run_040.out"])
+            for i in range(5)]
+    replies = iter(["[2] > [1] > [3]", "Ranking: [2] > [1] > [3]", None, "[2] > [1]", "[3] > [2] > [1]"])
+    orders, latency, block = listwise_arm(gold, [pairs] * 5, lambda prompt: next(replies), window=20)
+    assert orders[0] == ["logs/run_041.out", "logs/run_040.out", "logs/run_042.out"]
+    assert orders[1] == orders[2] == orders[3] == ["logs/run_040.out", "logs/run_041.out", "logs/run_042.out"]
+    assert len(latency) == 5 and [c["id"] for c in block["completions"]] == ["q0", "q1", "q2", "q3", "q4"]
+    assert [c["parse"] for c in block["completions"]] == ["permutation", "not_a_chain", "no_completion", "partial", "permutation"]
+    assert block["n_failed_calls"] == 1 and block["n_parse_failures"] == 2  # a failed call is not also a parse failure
+    assert block["parse_failure_ids"] == ["q1", "q3"] and block["fused_order_kept_ids"] == ["q1", "q2", "q3"]
+    assert block["parse"] == {"permutation": 2, "no_completion": 1, "not_a_chain": 1, "out_of_range": 0, "repeated_id": 0, "partial": 1}
+
+
+def test_listwise_row_says_how_many_questions_kept_the_fused_order(tmp_path):
+    import json
+
+    from app.eval.evidence import _rerank_arm_claims
+    from app.eval.gold import GoldQuestion
+    from app.eval.rerank_arms import HYBRID, TEACHER, listwise_arm, score_rows
+    from app.eval.report import rerank_arms_table
+
+    chunks = [Chunk(c, f"logs/run_04{i}.out", f"text {c}", 0, 6) for i, c in enumerate("abc")]
+    pairs = [(chunk, 1.0 - 0.1 * i) for i, chunk in enumerate(chunks)]
+    gold = [GoldQuestion(id=f"q{i}", question=f"question {i}", category="simple_factual", answer="", relevant_paths=["logs/run_041.out"])
+            for i in range(4)]
+    replies = iter(["[2] > [1] > [3]", "Ranking: [2] > [1] > [3]", None, "[2] > [1]"])
+    orders, latency, block = listwise_arm(gold, [pairs] * 4, lambda prompt: next(replies), window=20)
+    name = "hybrid+listwise(stub)@bge-small"
+    fused = [["logs/run_040.out", "logs/run_041.out", "logs/run_042.out"]] * 4
+    rows, boot = score_rows({HYBRID: fused, TEACHER: orders, name: orders}, gold, list(range(4)), {name: latency}, 61,
+                            [(TEACHER, HYBRID), (name, HYBRID), (name, TEACHER)])
+    blob = {"git_sha": "abc1234", "n_gold": 4, "n_files": 61, "device": {}, "candidates": {"config": HYBRID, "retrieve_k": 50},
+            "split": {"rule": "r", "train_ids": [], "test_ids": []}, "test_split": {"bootstrap": boot, "results": []},
+            "all_questions": {"bootstrap": boot, "results": rows},
+            "listwise": {"evaluated": True, "config": name, "model": "stub", "window": 20, "passage_chars": 280,
+                         "options": {"temperature": 0.0, "seed": 0}, **block}}
+    text = rerank_arms_table(blob)
+    line = next(l for l in text.splitlines() if l.startswith(f"| {name} |"))
+    assert "fused order kept on 3 of 4 questions" in line
+    assert "Of 4 calls, 1 reply was a permutation, 2 replies were not (1 not a chain, 1 partial) and 1 call returned nothing" in text
+    assert "include 3 questions in the fused order" in text
+    (tmp_path / "bench" / "results").mkdir(parents=True)
+    (tmp_path / "bench" / "results" / "rerank_arms.json").write_text(json.dumps(blob))
+    claims = [c for c in _rerank_arm_claims(tmp_path) if name in c["claim"]]
+    assert len(claims) == 2 and all("3 of 4 questions keep the fused order" in c["not_shown"] for c in claims)
+    # The file does not record where Ollama ran, so the rows do not say it.
+    assert all("the listwise model its first 20 (`stub` through Ollama) of a 61-file" in c["not_shown"] for c in claims)
+
+
 def test_bge_reranker_labels_fallback_when_model_missing():
     fn, loaded = bge_reranker("definitely-not-a-real-model-xxxxx")
     assert loaded is False
-    assert isinstance(fn, CrossEncoderReranker)
+    assert isinstance(fn, CrossEncoderReranker) and fn.fallback == "overlap"
     pairs = [(Chunk("c", "a.yaml", "hello world", 0, 11), 0.5)]
     out = fn("hello", pairs)
     assert out[0][0].chunk_id == "c"
+
+
+def test_cross_encoder_without_a_model_refuses_unless_the_fallback_is_asked_for():
+    import pytest
+
+    pairs = [(Chunk("a", "a.yaml", "zzz", 0, 3), 0.9), (Chunk("b", "b.yaml", "hello world", 0, 11), 0.1)]
+    direct = CrossEncoderReranker(model_name="definitely-not-a-real-model-xxxxx")
+    assert direct.model is None and direct.fallback is None
+    with pytest.raises(RuntimeError, match="allow_fallback"):
+        direct("hello", pairs)  # no overlap scores under a cross-encoder's name
+    allowed = CrossEncoderReranker(model_name="definitely-not-a-real-model-xxxxx", allow_fallback=True)
+    assert allowed.fallback == "overlap"
+    assert [(c.chunk_id, s) for c, s in allowed("hello", pairs)] == [(c.chunk_id, s) for c, s in OverlapReranker()("hello", pairs)]
 
 
 def test_index_loader_records_honest_fallback(tmp_path):
@@ -156,7 +264,8 @@ def test_index_loader_records_honest_fallback(tmp_path):
     if idx.reranker_loaded:
         assert not idx.reranker_fallback
     else:
-        assert idx.reranker_fallback == "overlap"
+        assert idx.reranker_fallback == "overlap" == idx.rerank_fn.fallback
+        assert idx.retrieve("learning rate").hits  # the loader asked for the fallback, so the rerank runs
     gpt = build_index(tmp_path, embedder_name="hash", reranker="rankgpt")
     assert gpt.reranker_fallback == "overlap-listwise"
 

@@ -9,9 +9,16 @@ bge-small on fixture v1, the list the cross-encoder itself reranks.
                      (no dense or BM25 score, the fused rank, never the teacher's
                      rank) and is scored on the TEST questions only. Its parent is
                      the cross-encoder it imitates, on the same test questions.
+                     Two students on the same rows: linear least squares (with an
+                     intercept) and LightGBM trees. Without lightgbm (the
+                     `distill` extra) the LightGBM arm is recorded as not
+                     evaluated, never replaced by least squares.
   listwise rerank    app/retrieval/rankgpt.py with a local model through Ollama:
                      one prompt per question over the top `window` candidates.
-                     Every raw completion is stored, so the row can be rescored.
+                     Every raw completion is stored with how it was read, so the
+                     row can be rescored. A reply that is not a full permutation
+                     of the window keeps the fused order; those questions are
+                     counted and named, apart from calls that returned nothing.
 
 Each arm gets a paired bootstrap delta with an interval against the
 cross-encoder and against the un-reranked hybrid list, plus per-question rerank
@@ -37,13 +44,15 @@ from app.eval.gold import GoldQuestion, load_gold
 from app.eval.harness import BGE_RERANKER, BGE_SMALL, CI_METRICS, git_sha, project_root
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.metrics import aggregate_retrieval
-from app.eval.provenance import command_line, device_info, model_device, model_provenance
+from app.eval.provenance import command_line, device_info, model_device, model_provenance, scrub
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
-from app.retrieval.distill import DistilledReranker, triples_from_pairs
-from app.retrieval.rankgpt import RankGPTReranker
+from app.retrieval.distill import LIGHTGBM_PARAMS, LIGHTGBM_ROUNDS, DistilledReranker, triples_from_pairs
+from app.retrieval.rankgpt import PARSE_STATUSES, PASSAGE_CHARS, RankGPTReranker, listwise_prompt
 from app.retrieval.rerank import CrossEncoderReranker
 
 HYBRID, TEACHER, STUDENT = "hybrid@bge-small", "hybrid+bge-rerank@bge-small", "hybrid+distilled-student@bge-small"
+STUDENT_LGBM = "hybrid+distilled-student(lightgbm)@bge-small"
+STUDENTS = {STUDENT: "numpy_lstsq", STUDENT_LGBM: "lightgbm"}  # row -> DistilledReranker backend
 OLLAMA_OPTIONS = {"temperature": 0.0, "seed": 0, "num_ctx": 8192, "num_predict": 200}
 
 
@@ -78,6 +87,71 @@ def ollama_complete(prompt: str, model: str, base_url: str) -> str | None:
             return json.loads(resp.read().decode()).get("response")
     except Exception:
         return None
+
+
+def ollama_model_info(model: str, base_url: str) -> dict[str, Any]:
+    """The server version and the digest of the weights Ollama served for `model` (None when it does not say)."""
+    def get(route: str) -> dict:
+        try:
+            with urllib.request.urlopen(base_url.rstrip("/") + route, timeout=30) as resp:
+                return json.loads(resp.read().decode())
+        except Exception:
+            return {}
+
+    tags = [m for m in get("/api/tags").get("models", []) if model in (m.get("name"), m.get("model"))]
+    return {"ollama_version": get("/api/version").get("version"), "digest": tags[0].get("digest") if tags else None}
+
+
+def listwise_arm(gold: list[GoldQuestion], candidates: list[list[tuple[Any, float]]], complete: Callable[[str], str | None], *,
+                 window: int) -> tuple[list[list[str]], list[float], dict[str, Any]]:
+    """One listwise permutation per question over the top `window` candidates.
+
+    Returns the ranked paths and the rerank latency (ms) per question, and a block that stores
+    every raw completion with its call time and how it was read (app/retrieval/rankgpt.py
+    read_permutation). A question keeps the fused order when its call returned nothing
+    (n_failed_calls) or its reply is not a full permutation (n_parse_failures); both are named
+    by question id, and a failed call is not also counted as a parse failure."""
+    calls: list[tuple[str | None, float]] = []
+
+    def recorded(prompt: str) -> str:
+        t0 = time.perf_counter()
+        text = complete(prompt)
+        calls.append((text, (time.perf_counter() - t0) * 1000.0))
+        return text or ""
+
+    reranker = RankGPTReranker(complete=recorded, window=window)
+    orders: list[list[str]] = []
+    latency: list[float] = []
+    entries: list[dict[str, Any]] = []
+    for q, pairs in zip(gold, candidates):
+        before = len(calls)
+        t0 = time.perf_counter()
+        ranked = reranker(q.question, pairs)
+        latency.append((time.perf_counter() - t0) * 1000.0)
+        orders.append(_paths(ranked))
+        for text, ms in calls[before:]:
+            entries.append({"id": q.id, "ms": round(ms, 1), "parse": reranker.last_parse.status, "completion": text})
+    counts = {status: sum(1 for e in entries if e["parse"] == status) for status in PARSE_STATUSES}
+    block = {
+        "n_calls": len(entries),
+        "n_failed_calls": counts["no_completion"],
+        "n_parse_failures": sum(counts.values()) - counts["permutation"] - counts["no_completion"],
+        "parse": counts,
+        "parse_failure_ids": [e["id"] for e in entries if e["parse"] not in ("permutation", "no_completion")],
+        "fused_order_kept_ids": [e["id"] for e in entries if e["parse"] != "permutation"],
+        "completions": entries,
+    }
+    return orders, latency, block
+
+
+def _student_model(backend: str) -> dict[str, Any]:
+    """What a student row records about its model, beyond the backend name."""
+    if backend == "lightgbm":
+        import lightgbm
+
+        return {"model": "LightGBM regression trees (lightgbm.train)", "library": "lightgbm", "version": lightgbm.__version__,
+                "params": dict(LIGHTGBM_PARAMS), "rounds": LIGHTGBM_ROUNDS}
+    return {"model": "linear least squares with an intercept column (numpy.linalg.lstsq)", "library": "numpy", "version": np.__version__}
 
 
 def score_rows(orders: dict[str, list[list[str]]], gold: list[GoldQuestion], ids: list[int], latency: dict[str, list[float]],
@@ -141,27 +215,31 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
         orders[TEACHER].append(_paths(ranked))
         teacher_scores.append({chunk.chunk_id: float(score) for chunk, score in ranked})
 
-    # Student: fitted on the train questions' teacher scores, scored on the test questions.
+    # Students: fitted on the train questions' teacher scores, scored on the test questions.
     triples = [t for i in train_ids for t in triples_from_pairs(gold[i].question, candidates[i], teacher_scores[i])]
-    student = DistilledReranker().fit(triples)
-    orders[STUDENT] = []
-    latency[STUDENT] = []
-    for q, pairs in zip(gold, candidates):
-        t0 = time.perf_counter()
-        ranked = student(q.question, pairs)
-        latency[STUDENT].append((time.perf_counter() - t0) * 1000.0)
-        orders[STUDENT].append(_paths(ranked))
-    test_rows, boot_test = score_rows({k: orders[k] for k in (HYBRID, TEACHER, STUDENT)}, gold, test_ids, latency, manifest["n_files"],
-                                      [(TEACHER, HYBRID), (STUDENT, TEACHER), (STUDENT, HYBRID)])
+    students: dict[str, dict[str, Any]] = {}
+    not_evaluated: list[dict[str, str]] = []
+    for name, backend in STUDENTS.items():
+        try:
+            student = DistilledReranker().fit(triples, backend=backend)
+        except ImportError as exc:  # only a missing library; a fitting error stops the run
+            not_evaluated.append({"arm": name, "reason": f"{backend} could not be imported ({scrub(str(exc))}); it is in the `distill` "
+                                                         "extra (requirements/distill.txt)"})
+            continue
+        orders[name], latency[name] = [], []
+        for q, pairs in zip(gold, candidates):
+            t0 = time.perf_counter()
+            ranked = student(q.question, pairs)
+            latency[name].append((time.perf_counter() - t0) * 1000.0)
+            orders[name].append(_paths(ranked))
+        students[name] = {"backend": student.backend, "fallback": None, **_student_model(student.backend),
+                          "n_train_questions": len(train_ids), "n_train_triples": len(triples),
+                          "features": list(student.feature_names), "teacher": BGE_RERANKER}
+    test_rows, boot_test = score_rows({k: orders[k] for k in (HYBRID, TEACHER, *students)}, gold, test_ids, latency, manifest["n_files"],
+                                      [(TEACHER, HYBRID), *((name, ref) for name in students for ref in (TEACHER, HYBRID))])
     by_test = {r["config"]: r for r in test_rows}
-    by_test[STUDENT]["student"] = {
-        "backend": student.backend,
-        "fallback": None if student.backend == "lightgbm" else "linear least squares (LightGBM not installed)",
-        "n_train_questions": len(train_ids),
-        "n_train_triples": len(triples),
-        "features": list(student.feature_names),
-        "teacher": BGE_RERANKER,
-    }
+    for name, block in students.items():
+        by_test[name]["student"] = block
 
     # Listwise: one LLM permutation per question over the top `window` candidates.
     listwise: dict[str, Any] = {"evaluated": False, "reason": "no --listwise-model given"}
@@ -170,29 +248,16 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
     if listwise_model or complete:
         name = f"hybrid+listwise({listwise_model or 'injected'})@bge-small"
         fn = complete or (lambda prompt: ollama_complete(prompt, listwise_model, ollama_url))
-        raw: list[dict[str, Any]] = []
-
-        def recorded(prompt: str) -> str:
-            t0 = time.perf_counter()
-            text = fn(prompt)
-            raw.append({"completion": text, "ms": round((time.perf_counter() - t0) * 1000.0, 1)})
-            return text or ""
-
-        reranker = RankGPTReranker(complete=recorded, window=window)
-        all_orders[name], latency[name] = [], []
-        for q, pairs in zip(gold, candidates):
-            t0, before = time.perf_counter(), len(raw)
-            ranked = reranker(q.question, pairs)
-            latency[name].append((time.perf_counter() - t0) * 1000.0)
-            all_orders[name].append(_paths(ranked))
-            for entry in raw[before:]:
-                entry["id"] = q.id
-        failed = sum(1 for r in raw if not r["completion"])
-        if failed == len(raw):
+        served = ollama_model_info(listwise_model, ollama_url) if complete is None else {}
+        all_orders[name], latency[name], block = listwise_arm(gold, candidates, fn, window=window)
+        if block["n_failed_calls"] == block["n_calls"]:
             raise SystemExit(f"no completion from {listwise_model} at {ollama_url}; is `ollama serve` running?")
         all_deltas += [(name, HYBRID), (name, TEACHER)]
-        listwise = {"evaluated": True, "config": name, "model": listwise_model or "injected", "window": window, "options": OLLAMA_OPTIONS,
-                    "passage_chars": 280, "n_failed_calls": failed, "completions": raw}
+        first = [f"{chunk.path}\n{(chunk.text or '')[:PASSAGE_CHARS]}" for chunk, _ in candidates[0][:window]] if candidates else []
+        listwise = {"evaluated": True, "config": name, "model": listwise_model or "injected", **served, "window": window,
+                    "options": OLLAMA_OPTIONS, "passage_chars": PASSAGE_CHARS,
+                    "fallback": "a question whose call returned nothing or whose reply is not a full permutation keeps the fused order",
+                    "example_prompt": {"id": gold[0].id, "prompt": listwise_prompt(gold[0].question, first)} if first else None, **block}
     all_rows, boot_all = score_rows(all_orders, gold, all_ids, latency, manifest["n_files"], all_deltas)
 
     return {
@@ -215,6 +280,7 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
         "test_split": {"bootstrap": boot_test, "results": test_rows},
         "all_questions": {"bootstrap": boot_all, "results": all_rows},
         "listwise": listwise,
+        "not_evaluated": not_evaluated,
     }
 
 

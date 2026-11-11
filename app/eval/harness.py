@@ -39,7 +39,7 @@ from app.graph.hipporag import apply_hipporag, should_apply, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
 from app.retrieval.adaptive import RetrievalDecision, should_retrieve
 from app.retrieval.cache import SemanticCache
-from app.retrieval.distill import triples_from_hits, write_triples
+from app.retrieval.distill import bench_log_triples, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
 
@@ -437,7 +437,6 @@ def run_config(
     e2e_rows = []
     triples = []
     routes: dict[str, int] = {}
-    max_mtime = max((c.mtime for c in index.chunks), default=1.0)
     jury_sf_answers: list[str] = []
     jury_sf_golds: list[str] = []
     jury_sf_labels: list[str] = []
@@ -480,8 +479,8 @@ def run_config(
         result = payload if hasattr(payload, "hits") else None
         if result is not None:
             routes[result.route.route.value] = routes.get(result.route.route.value, 0) + 1
-            if cfg.log_triples:
-                triples.extend(triples_from_hits(q.question, result.hits, max_mtime=max_mtime))
+            if cfg.log_triples:  # serving features of the list the reranker received, labelled with its scores
+                triples.extend(bench_log_triples(q.question, result))
         if cfg.e2e:
             hits = result.hits[:8] if result is not None else payload[:8]
             contexts = [h.chunk.text for h in hits]
