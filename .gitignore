@@ -52,6 +52,7 @@ bench/external/
 
 # Signed approval / structured evidence regression artifacts
 !bench/results/trusted_actions.json
+!bench/results/trusted_actions_v2.json
 !bench/results/evidence_consistency.json
 # LLM-in-the-loop injection results; the episodes JSONL next to it is tracked as well
 !bench/results/agent_injection.json
