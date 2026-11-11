@@ -233,3 +233,12 @@ def test_make_target_writes_the_committed_results_file():
     makefile = (ROOT / "Makefile").read_text()
     assert "bench-served-scale:" in makefile and "-m app.eval.served_scale" in makefile
     assert served_scale.RESULTS_FILE == "bench/results/served_scale_fiqa.json"
+
+
+def test_the_results_files_are_not_ignored_by_git():
+    import subprocess
+
+    # bench/results/*.json is ignored except for a list of committed artifacts; these two must be on it
+    for rel in (served_scale.RESULTS_FILE, served_scale.HNSW_FILE, served_scale.TREC_DIR + "/api-hybrid.run"):
+        ignored = subprocess.run(["git", "check-ignore", "-q", rel], cwd=ROOT).returncode
+        assert ignored == 1, f"{rel} is ignored by .gitignore"

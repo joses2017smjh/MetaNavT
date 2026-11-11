@@ -38,6 +38,9 @@ bench/results/*.json
 !bench/results/beir_scifact_bm25_ablation.json
 !bench/results/beir_scifact_rerank_cap.json
 !bench/results/beir_fiqa.json
+# the served path at FiQA scale and pgvector on its table (make bench-served-scale)
+!bench/results/served_scale_fiqa.json
+!bench/results/pgvector_hnsw.json
 !bench/results/parity.json
 !bench/results/parity_shared_chunker.json
 !bench/results/parity_shared_chunker_restart.json
