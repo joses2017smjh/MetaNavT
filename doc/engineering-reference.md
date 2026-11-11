@@ -812,8 +812,11 @@ and adaptive attacks get past them ([Nasr et al. 2025](https://arxiv.org/abs/251
 What the models did follow was the planted claim, in every configuration, and
 neither datamarking nor the tool filter changed that measurably; no capability
 gate covers what an answer says. The bridge for planted claims is checking the
-answer against the structured source rather than the free text. The field read
-shows the mechanism; a CaMeL-style quarantined extractor
+answer against the structured source rather than the free text. The structured
+field check does that, measured offline on the stored answers in the
+[generated table](../README.md#agent-injection), with its limits under
+[What we are not claiming](#what-we-are-not-claiming);
+a CaMeL-style quarantined extractor
 ([Debenedetti et al. 2025](https://arxiv.org/abs/2503.18813)), which hands the
 planner only the requested field, would make it general.
 
@@ -827,10 +830,32 @@ that.
 ollama pull qwen2.5:7b && ollama pull llama3.1:8b
 make bench-agent-injection           # writes the episodes JSONL as it goes; --resume continues an interrupted run
 make bench-agent-injection-rescore   # recomputes every score and the summary from the committed episodes, no model call
+make bench-agent-injection-scores    # writes every episode's current score next to the episodes, no model call
 ```
 
+The score object stored inside each episode row is the one written when the
+episode was generated, by the scoring code of that time; neither
+`make bench-agent-injection-rescore` nor `make bench-agent-injection-scores`
+writes to the episodes file. Current per-episode scores are in
+`agent_injection_episodes_rescored.jsonl`: one row per episode, in the same
+order, holding the episode key (model, configuration, task, trial) and the
+score from today's scoring code, with no answer or tool call copied. Its
+`.meta.json` names the episodes file and the scoring module by sha256, and a
+test fails when the file differs from a fresh rescore or either hash is stale.
+
+Two runs are on record in `agent_injection.json`. The top-level `git_head`,
+`working_tree_dirty`, `module_sha256` and `command` describe the run that
+scored the stored episodes, `make bench-agent-injection-rescore`; a test
+checks that `module_sha256` is the committed harness module's and that the
+scoring run had nothing uncommitted. `episodes_generated_by` is the sidecar of
+the run that generated the episodes, kept as written: for this run it was
+reconstructed after the fact and records uncommitted changes in both process
+segments. The device, the Ollama version and the wall time come from that
+sidecar too, never from the machine that rescored.
+
 [Results](../bench/results/agent_injection.json) ·
-[Every episode: tool calls, answers, scores](../bench/results/agent_injection_episodes.jsonl) ·
+[Every episode: tool calls, answers, generation-time scores](../bench/results/agent_injection_episodes.jsonl) ·
+[Every episode's current score](../bench/results/agent_injection_episodes_rescored.jsonl) ·
 [Harness](../app/eval/agent_injection.py)
 
 ---
@@ -1174,7 +1199,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ vs the exact-match labels on simple_factual must reach 0.6 before a judge score is printed. Retrieval metrics stay BEIR-style and LLM-free.
 
-**The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. There is no capability control (running each injected goal as an ordinary user task), so a model that rarely reaches the planted text or calls tools badly can show few attempts out of incapability; the exposure column is reported for that reason. The structured field check is told which config field each question asks about and disagrees with every hijacked answer by construction, so it shows the mechanism rather than a measured detector. No model called a write tool in this run, so the run does not exercise the approval gate; the unchanged corpus follows from no grant being issued, and the gate's own evidence is the deterministic approval benchmark. The benign controls are not matched on retrieval: the planted lines add the run number and field name to two files, which can change what a search returns. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls was a write tool.
+**The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. There is no capability control (running each injected goal as an ordinary user task), so a model that rarely reaches the planted text or calls tools badly can show few attempts out of incapability; the exposure column is reported for that reason. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in this run, so the run does not exercise the approval gate; the unchanged corpus follows from no grant being issued, and the gate's own evidence is the deterministic approval benchmark. The benign controls are not matched on retrieval: the planted lines add the run number and field name to two files, which can change what a search returns. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls was a write tool.
 
 ---
 
