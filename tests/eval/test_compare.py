@@ -1,8 +1,9 @@
 """The bench regression gate: metric-only comparison of latest.json vs main.json."""
 
 import json
+from pathlib import Path
 
-from app.eval.compare import DEFAULT_THRESHOLD, compare, main, regressions
+from app.eval.compare import DEFAULT_THRESHOLD, compare, exact_differences, main, regressions
 
 
 def _blob(sha, **per_config):
@@ -97,3 +98,47 @@ def test_cli_exit_codes(tmp_path, capsys):
     assert main(["--current", str(cur_path), "--baseline", str(missing), "--fail-on-regression"]) == 2
     assert main(["--current", str(cur_path), "--baseline", str(missing)]) == 0
     assert main(["--current", str(missing), "--baseline", str(base_path)]) == 2
+
+
+# ---- make bench-check: exact reproduction of main.json
+
+MAIN = Path(__file__).resolve().parents[2] / "bench" / "results" / "main.json"
+
+
+def _main_blob() -> dict:
+    return json.loads(MAIN.read_text())
+
+
+def test_exact_passes_on_identical_results_whatever_the_timings_and_provenance():
+    base, cur = _main_blob(), _main_blob()
+    for row in cur["results"]:
+        row["latency"], row["wall_ms"] = {}, row["wall_ms"] + 1.0
+    cur.update(git_sha="0000000", timestamp="later", command="python -m app.eval.harness --out x.json", device={"device": "cuda"})
+    assert exact_differences(cur, base) == []
+
+
+def test_exact_fails_on_one_unit_in_the_last_decimal_anywhere():
+    base = _main_blob()
+    for mutate, expected in (
+        (lambda b: b["results"][2]["retrieval"].__setitem__("ndcg@10", round(b["results"][2]["retrieval"]["ndcg@10"] + 0.0001, 4)), "hybrid.retrieval.ndcg@10"),
+        (lambda b: b["results"][0]["retrieval"].__setitem__("random_recall@50", round(b["results"][0]["retrieval"]["random_recall@50"] - 0.0001, 4)), "dense_only.retrieval.random_recall@50"),
+        (lambda b: b["results"][5]["ci"]["recall@10"].__setitem__("hi", round(b["results"][5]["ci"]["recall@10"]["hi"] + 0.0001, 4)), "ci.recall@10.hi"),
+        (lambda b: b["results"][5]["retrieval"]["by_category"]["staleness"].__setitem__("mrr@10", 0.0), "by_category.staleness.mrr@10"),
+        (lambda b: b["bootstrap"].__setitem__("seed", 1), "bootstrap.seed"),
+        (lambda b: b["mtimes"].__setitem__("source", "disk"), "mtimes.source"),
+        (lambda b: b["results"].pop(), "rows:"),
+    ):
+        cur = _main_blob()
+        mutate(cur)
+        problems = exact_differences(cur, base)
+        assert problems and any(expected in p for p in problems), (expected, problems)
+
+
+def test_exact_cli_exit_codes(tmp_path):
+    base = _main_blob()
+    (tmp_path / "main.json").write_text(json.dumps(base))
+    (tmp_path / "same.json").write_text(json.dumps(base))
+    base["results"][1]["retrieval"]["mrr@10"] = round(base["results"][1]["retrieval"]["mrr@10"] + 0.0001, 4)
+    (tmp_path / "moved.json").write_text(json.dumps(base))
+    assert main(["--exact", "--current", str(tmp_path / "same.json"), "--baseline", str(tmp_path / "main.json")]) == 0
+    assert main(["--exact", "--current", str(tmp_path / "moved.json"), "--baseline", str(tmp_path / "main.json")]) == 1

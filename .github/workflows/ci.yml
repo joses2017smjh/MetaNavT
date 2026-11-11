@@ -67,6 +67,8 @@ jobs:
         run: make bench
       - name: Regression gate (nDCG@10 / Recall@50 vs bench/results/main.json)
         run: make bench-gate
+      - name: Exact reproduction (every field of every row equals bench/results/main.json; timings excepted)
+        run: make bench-check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
