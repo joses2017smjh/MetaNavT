@@ -552,6 +552,16 @@ def test_rerank_arms_without_lightgbm_records_that_arm_as_not_evaluated(monkeypa
     assert f"`{STUDENT_LGBM}`: not evaluated in this run." in rerank_arms_table(blob)
 
 
+def test_rerank_arms_stops_when_a_student_fails_to_fit(monkeypatch, tmp_path):
+    """Only a missing library records the LightGBM arm as not evaluated; an error while fitting stops the run."""
+
+    def broken(params, dataset, num_boost_round):
+        raise ValueError("bad input")
+
+    with pytest.raises(ValueError, match="bad input"):
+        _stand_in_rerank_arms(monkeypatch, tmp_path, _fake_lightgbm(broken))
+
+
 def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():
     from app.eval.gold import load_gold
     from app.eval.harness import project_root
