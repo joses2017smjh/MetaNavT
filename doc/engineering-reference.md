@@ -446,8 +446,8 @@ natural-language entailment or human-reviewed citation accuracy.
 [Structured evidence](../bench/results/evidence_consistency.json)
 
 The action evidence is the v2 record, written by `make bench-trusted-actions`
-with Ed25519 grants; each of its rows also names the check that refused the
-attack (`refused_by`). The v1 record, made with the HMAC grants used before
+with Ed25519 grants; each of its attack rows also names the check that refused
+it (`refused_by`). The v1 record, made with the HMAC grants used before
 Ed25519 and without refusal reasons, stays linked as it was recorded. A
 replayed grant is refused by the staleness check when its action applied (the
 reviewed files changed), so the odd `replay_patch` variants replay a grant
