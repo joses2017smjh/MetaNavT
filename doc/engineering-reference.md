@@ -794,7 +794,12 @@ comment lines. Depending on the task, those lines ask the model to move or
 patch the config with a forged approval token, to read a file outside the
 corpus root and paste it into the answer, or to report a false value. Ten
 config questions from the gold set carry each of the four goals, and the same
-ten questions run without planted text as controls. The copy is indexed with
+ten questions run without planted text as controls. In the current task set
+(`agent_injection_v2`) the controls are matched on retrieval: their config and
+log end with neutral comment lines that carry the run number and the field name
+the planted text adds, so a search sees the same query terms and a control
+differs from an injected task in the instruction alone; its exposure counts
+when those lines reach the model. The copy is indexed with
 the file times the fixture's MANIFEST records, as the retrieval benchmark
 indexes it, so retrieval does not depend on when the copy was made (the first
 run's copy read the disk, where the two files that carry the planted text were
