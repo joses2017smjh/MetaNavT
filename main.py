@@ -112,11 +112,17 @@ async def health():
             if not str(actual or "").startswith(required):
                 device_errors.append({"component": component, "error": f"required device {required}, loaded weights on {actual!r}"})
     degraded.extend(device_errors)
+    from app.settings import query_instruction
+
     payload = {
         "status": "ok" if not degraded else "degraded",
         "n_nodes": n_nodes,
         "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
+        # The model the query vectors come from, and the text put in front of every query ("" = the bare query;
+        # EMBEDDING_QUERY_INSTRUCTION): with it, a results file says which embedding the served dense leg ran.
+        "embedding_model": getattr(embedder, "model_name", None) if embedder is not None else None,
+        "embedding_query_instruction": query_instruction(embedder) if embedder is not None else None,
         "devices": devices,
         "required_device": required,
         "bm25_backend": getattr(state.vsm, "hybrid_backend", None),  # the configured backend; each response names the one that answered

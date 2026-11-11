@@ -845,6 +845,30 @@ router and Tier 1 and moves Tier 1 in front of the reranker, into
 `bench/results/rerank_depth.json`, with each row's paired delta against its parent
 and on how many questions its list differs from the parent's.
 
+**The query vector, and the model-backed parity run.** With real models the
+served HuggingFace embedder (LlamaIndex `HuggingFaceEmbedding`) puts its per-model
+instruction in front of every query by default (for the BGE English models,
+"Represent this question for searching relevant passages: "), and nothing in front
+of documents. Every committed model-backed benchmark row embeds the bare query
+(`SentenceTransformerEmbedder`), so the two dense legs got different query vectors
+from the same model. `EMBEDDING_QUERY_INSTRUCTION=none` makes the served path embed
+the bare query, as the benchmark does; the default keeps the instruction, so served
+runs recorded before it (the latency files) keep describing the default. `/health`
+reports `embedding_model` and `embedding_query_instruction`, and
+`tests/engine/test_query_instruction.py` covers the setting (passing an empty
+instruction to the LlamaIndex constructor would not work: it falls back to the
+per-model default, so the setting changes the loaded model's query prompt).
+`make parity` takes the in-memory row's configuration by name (`PARITY_CONFIG`,
+CI's hash configuration by default). The model-backed run compares an API serving
+bge-small-en-v1.5 with the bare query and bge-reranker-v2-m3 at the served
+settings with `in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first`,
+the same models and settings in memory (Tier 1 before the reranker, as served),
+into `bench/results/parity_neural.json`; the file records both sides' settings
+next to each other (`settings`, and `settings_differ` for any that differ), and the
+README parity block renders it next to the hash run. It is one GPU run, not a CI
+job. `DENSE_PARITY_EMBEDDER=served` runs the dense-leg check with the embed model the
+API builds from the environment against the benchmark's embedder of the same model.
+
 **No silent fallbacks.** `RERANKER_MODEL` set but not loadable is a startup
 error (`/health` 503 with the reason) unless `RERANKER_REQUIRED=false`, in
 which case `/health` reports `degraded` and every response lists the missing

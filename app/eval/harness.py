@@ -622,7 +622,10 @@ def run_config(
             **model_provenance(cfg.embedder, "embedder"),
             "dim": int(getattr(index.embedder, "dim", 0)),
             "device": model_device(getattr(index.embedder, "_model", None)),
-            "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used, same text both sides
+            # bge-v1.5 recommends a query prefix; the benchmark embeds the bare query. The served HuggingFace embedder
+            # adds LlamaIndex's prefix unless EMBEDDING_QUERY_INSTRUCTION=none (app/settings.py), as the model-backed
+            # parity run sets it.
+            "query_instruction": None,
             **({"library": _sklearn_versions()} if cfg.embedder == "tfidf" else {}),
         },
         "reranker": {
@@ -1115,15 +1118,17 @@ def _parse_args(argv: list[str] | None = None):
     p.add_argument("--only", default=None, help="comma-separated config names to run (subset of the selected list)")
     p.add_argument("--backend", default="memory", choices=["memory", "api"], help="api: replay the gold set through POST /api/retrieve/ (see app/eval/parity.py)")
     p.add_argument("--url", default="http://localhost:8000", help="API base URL for --backend api")
+    p.add_argument("--parity-config", default=None,
+                   help="--backend api: the named in-memory configuration to compare with (app/eval/parity.py IN_MEMORY_CONFIGS; default the hash one CI runs)")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     if args.backend == "api":
-        from app.eval.parity import markdown_table as parity_table, run as parity_run
+        from app.eval.parity import IN_MEMORY, markdown_table as parity_table, run as parity_run
 
-        blob = parity_run(args.url)
+        blob = parity_run(args.url, in_memory=args.parity_config or IN_MEMORY.name)
         out = args.out or (project_root() / "bench" / "results" / "parity.json")
         out = out if out.is_absolute() else project_root() / out
         out.parent.mkdir(parents=True, exist_ok=True)

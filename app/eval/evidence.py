@@ -23,6 +23,7 @@ FILES = {
     "beir": "bench/results/beir_scifact.json",
     "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
+    "parity_neural": "bench/results/parity_neural.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection.json",
@@ -201,6 +202,16 @@ def claims(root: Path = ROOT) -> list[dict]:
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
+    neural_parity = _load(FILES["parity_neural"], root)
+    if neural_parity:
+        d = (neural_parity.get("gap") or {}).get("paired_delta_api_minus_in_memory") or {}
+        dv, ci = _ci(d, "delta") if d else ("—", "—")
+        differ = ", ".join(neural_parity.get("settings_differ") or []) or "none"
+        device = (neural_parity.get("device") or {}).get("device_name")
+        out.append({"claim": "API with bge-small + bge-reranker-v2-m3 (fp16, max_length 512, depth 20) vs the in-memory bench with the same settings, nDCG@10 gap",
+                    "value": dv, "ci": ci, "n": neural_parity["n_gold"], "command": f"make parity PARITY_CONFIG={neural_parity.get('in_memory_config')}",
+                    "source": f"{FILES['parity_neural']} @ {neural_parity['git_sha']}",
+                    "not_shown": f"one run in a Slurm GPU job ({device}), not re-run by CI; reported, not gated; settings that differ between the two sides: {differ}"})
     lat = _load(FILES["latency"], root)
     if lat:
         h = lat.get("health", {}).get("reranker", {})

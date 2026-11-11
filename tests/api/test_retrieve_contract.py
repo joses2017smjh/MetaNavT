@@ -160,6 +160,16 @@ def test_response_and_health_list_degraded_components_and_the_reranker(ready_cli
     assert h["dense_search"] == {"depth": 50, "settings": {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}, "pgvector": "0.8.6"}
 
 
+def test_health_names_the_embedding_model_and_its_query_instruction(ready_client):
+    """M17 (A19): a results file that copies /health says which model embedded the queries, and how."""
+    from app.engine.embeddings import HashEmbedding
+
+    assert ready_client.get("/health").json()["embedding_model"] is None  # no index in the fake state
+    ready_client.app.state.retrieval.index = type("_Index", (), {"_embed_model": HashEmbedding(256)})()
+    h = ready_client.get("/health").json()
+    assert h["embedding_model"] == "hash-256" and h["embedding_query_instruction"] == "" and h["embed_model"] == "HashEmbedding"
+
+
 def test_health_refuses_unverified_required_cuda_device(ready_client, monkeypatch):
     monkeypatch.setenv("RETRIEVAL_REQUIRE_DEVICE", "cuda")
     response = ready_client.get("/health")
