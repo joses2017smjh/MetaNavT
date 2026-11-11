@@ -397,11 +397,11 @@ The Next.js app type-checks and exports statically (`npm run build` in `.fronten
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
 
-Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
+Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
 
 | tool | contract |
 |---|---|
-| `search_semantic` / `search_lexical` | retrieve |
+| `search_semantic` / `search_lexical` | hybrid (BM25 and dense, fused) / BM25 retrieval over the start-time index |
 | `read_file(path, byte_range)` | citations resolve to bytes |
 | `list_dir` / `stat` | navigate the tree, not just vectors |
 | `propose_move` | returns a plan. never executes |
@@ -410,7 +410,7 @@ Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in t
 | `propose_artifact` | spec → generate → sandbox. never writes |
 | `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
-| `exec_sandboxed` | AST-gated Python. no `os`, no pip |
+| `exec_sandboxed` | AST-gated Python subset: every import and every attribute access is refused; a correctness runner, not an OS sandbox |
 | `inspect_spreadsheet` | schema, types, missingness, five-row preview |
 | `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
 | `apply_visualization` | user approves or overrides chart, then writes/runs MATLAB |

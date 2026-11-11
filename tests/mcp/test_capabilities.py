@@ -147,3 +147,16 @@ def test_authorized_patch_preserves_unrelated_crlf_bytes(tmp_path):
     token = sign_review(plan["review"], key, actor="operator")
     tools.apply_patch(plan["plan_id"], approval_token=token)
     assert target.read_bytes() == b"changed\r\nsecond\r\n"
+
+
+@pytest.mark.parametrize("code", ["import math\nprint(math.pi)", "from math import pi\nprint(pi)", "print('a'.upper())",
+                                  "print((1).real)", "print(print.__self__)", "import os as _\nprint(1)"])
+def test_expression_tool_refuses_every_import_and_attribute_access(tmp_path, code):
+    result = FilesystemTools(root=tmp_path).exec_sandboxed(code)
+    assert result["ok"] is False and result["stdout"] == ""
+    assert result["error"] == "imports and attribute access are unavailable in the MCP expression tool"
+
+
+def test_expression_tool_runs_plain_expressions(tmp_path):
+    result = FilesystemTools(root=tmp_path).exec_sandboxed("print(sum(range(4)))")
+    assert result["ok"] and result["stdout"].strip() == "6"
