@@ -2,7 +2,7 @@
   <rect width="860" height="280" fill="#121212"/>
   <rect x="12" y="12" width="836" height="256" rx="16" fill="#1A1A24" stroke="#2A2A38"/>
   <text x="32" y="44" fill="#F4F4F8" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">What you run at localhost:8000</text>
-  <text x="32" y="66" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Same radial gradient. Next.js talks to FastAPI. FastAPI talks to pgvector + ParadeDB.</text>
+  <text x="32" y="66" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Same radial gradient. Next.js talks to FastAPI. FastAPI talks to Postgres: pgvector and full text.</text>
   <rect x="32" y="92" width="250" height="140" rx="12" fill="#121212" stroke="#C2D5FF"/>
   <text x="157" y="128" text-anchor="middle" fill="#C2D5FF" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Next.js</text>
   <text x="157" y="156" text-anchor="middle" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">.frontend/</text>
@@ -13,6 +13,6 @@
   <text x="429" y="180" text-anchor="middle" fill="#F4F4F8" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">route · retrieve · agents</text>
   <rect x="576" y="92" width="250" height="140" rx="12" fill="#121212" stroke="#BABAE9"/>
   <text x="701" y="128" text-anchor="middle" fill="#BABAE9" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Postgres</text>
-  <text x="701" y="156" text-anchor="middle" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">pgvector + ParadeDB</text>
-  <text x="701" y="180" text-anchor="middle" fill="#F4F4F8" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">dense + BM25 + mtime</text>
+  <text x="701" y="156" text-anchor="middle" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">pgvector + full text</text>
+  <text x="701" y="180" text-anchor="middle" fill="#F4F4F8" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">dense + ts_rank_cd + mtime</text>
 </svg>

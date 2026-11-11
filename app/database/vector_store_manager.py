@@ -34,14 +34,55 @@ from urllib.parse import urlparse
 from psycopg2 import sql
 from dotenv import load_dotenv
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
+import unicodedata
 import uuid
 import time
 import psycopg2
+import psycopg2.errors
 
 from .db_base_manager import DatabaseManager
 
 load_dotenv()
 logger = logging.getLogger("uvicorn")
+
+# hnsw.ef_search bounds for the served statement (VectorStoreManager.search_settings):
+# pgvector's own default, kept as the floor, and the largest value pgvector accepts.
+HNSW_EF_SEARCH_DEFAULT = 40
+HNSW_EF_SEARCH_MAX = 1000
+# Words websearch_to_tsquery reads as an operator rather than a term (lowercase; it ignores case).
+WEBSEARCH_OPERATOR_WORDS = frozenset({"or"})
+# The lexical list's backend, chosen by LEXICAL_BACKEND and never detected. ts_rank_cd (Postgres
+# full text, the default) is what CI and every served-path results file ran; paradedb (ParadeDB
+# pg_search BM25, sql/hybrid_paradedb.sql) has not been run by any test or results file.
+LEXICAL_BACKENDS = ("ts_rank_cd", "paradedb")
+
+
+def lexical_backend_setting() -> str:
+    """LEXICAL_BACKEND, lowercased; unset or empty is ts_rank_cd, an unknown value is a ValueError."""
+    value = os.getenv("LEXICAL_BACKEND", "").strip().lower() or "ts_rank_cd"
+    if value not in LEXICAL_BACKENDS:
+        raise ValueError(f"LEXICAL_BACKEND must be one of {', '.join(LEXICAL_BACKENDS)}, got {value!r}")
+    return value
+
+
+def word_runs(text: str):
+    """Runs of word characters (letters and digits of any script, "_": what the regex \\w matches)
+    and of the combining marks that follow them, in order.
+
+    \\w alone splits a word at every mark that is not a letter: Devanagari vowel signs and
+    virama, Arabic short vowels, a diacritic with no precomposed form. Postgres's text search
+    parser keeps such a word whole, so a term split there could never match it. A mark only
+    continues a run: one with no word before it (an emoji's variation selector) starts none.
+    """
+    run: list[str] = []
+    for ch in text:
+        if ch.isalnum() or ch == "_" or (run and unicodedata.category(ch).startswith("M")):
+            run.append(ch)
+        elif run:
+            yield "".join(run)
+            run = []
+    if run:
+        yield "".join(run)
 
 
 def describe_dsn(dsn: str | None) -> str:
@@ -69,7 +110,7 @@ def describe_dsn(dsn: str | None) -> str:
 
 
 class VectorStoreManager(DatabaseManager):
-    """Manages vector store operations using pgvector and pg_search extensions."""
+    """Manages vector store operations using pgvector (and pg_search only with LEXICAL_BACKEND=paradedb)."""
     
     def __init__(self, conn_string: str = None):
         """Initialize vector store manager with connection pooling."""
@@ -83,6 +124,8 @@ class VectorStoreManager(DatabaseManager):
         # table. Before M0 they targeted the bare table_name, which PGVectorStore
         # never writes to, so production BM25 searched an empty table.
         self.data_table = f"data_{self.table_name}"
+        # The configured lexical backend (LEXICAL_BACKEND); a bad value fails here, at start-up.
+        self.lexical_backend = lexical_backend_setting()
         # Which lexical backend answered the last search_bm25 call:
         # paradedb | ts_rank_cd | ilike | none. Surfaced by /health and /api/retrieve.
         self.last_bm25_backend: str | None = None
@@ -100,9 +143,10 @@ class VectorStoreManager(DatabaseManager):
         
         self.vector_store = None
         
-        # Ensure required extensions exist
+        # Ensure required extensions exist (pg_search only for the ParadeDB backend)
         self._ensure_vector_extension()
-        self._ensure_pg_search_extension()
+        if self.lexical_backend == "paradedb":
+            self._ensure_pg_search_extension()
         
         # PGVectorStore creates data_<table_name> itself on first use (see get_vector_store).
         
@@ -261,95 +305,98 @@ class VectorStoreManager(DatabaseManager):
                     f"PGVectorStore failed .add/delete on data table '{self.schema_name}.{self.data_table}'."
                 ) from e
 
-            # BM25 Index Creation - attempt it but don't fail if it doesn't work
-            logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
-            try:
-                with self.get_connection() as conn:
-                    bm25_created = self._create_bm25_index(conn)
-                if bm25_created:
-                    logger.info("BM25 index creation/verification successful")
-                else:
-                     logger.warning("BM25 index creation failed, but continuing anyway")  
-            except Exception as e:
-                logger.warning(f"BM25 index creation failed: {e}", exc_info=True)
-                logger.warning("Continuing without BM25 search capability")
-                # We'll continue without BM25 functionality
+            # ParadeDB BM25 index: only for LEXICAL_BACKEND=paradedb. Attempted, not required.
+            if self.lexical_backend == "paradedb":
+                logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
+                try:
+                    with self.get_connection() as conn:
+                        bm25_created = self._create_bm25_index(conn)
+                    if bm25_created:
+                        logger.info("BM25 index creation/verification successful")
+                    else:
+                        logger.warning("BM25 index creation failed, but continuing anyway")
+                except Exception as e:
+                    logger.warning(f"BM25 index creation failed: {e}", exc_info=True)
+                    logger.warning("Continuing without BM25 search capability")
 
         return self.vector_store
 
     def search_bm25(self, query: str, limit: int = 5) -> list[dict]:
         """
-        Perform BM25 search using the 'text' column.
-        
-        If BM25 search fails, falls back to a basic text search.
+        Perform BM25 search using the 'text' column (the python retrieval mode).
+
+        With LEXICAL_BACKEND=paradedb, ParadeDB's BM25 first; otherwise, or if that fails
+        or finds nothing, Postgres full text (ts_rank_cd), then ILIKE. last_bm25_backend
+        names the one that answered.
         """
         if not query:
             raise ValueError("Search query cannot be empty")
 
         results = []
         
-        # Try multiple BM25 query formats
-        try:
-            table_identifier = sql.Identifier(self.schema_name, self.data_table)
+        # ParadeDB BM25, two query formats: only for LEXICAL_BACKEND=paradedb (never detected).
+        if self.hybrid_backend == "paradedb":
+            try:
+                table_identifier = sql.Identifier(self.schema_name, self.data_table)
             
-            # Format 1: Standard BM25 search with @@@ operator
-            search_sql = sql.SQL("""
-                SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
-                FROM {table}
-                WHERE text @@@ {query}
-                ORDER BY score DESC
-                LIMIT %s;
-            """).format(
-                table=table_identifier,
-                query=sql.Literal(query)
-            )
+                # Format 1: Standard BM25 search with @@@ operator
+                search_sql = sql.SQL("""
+                    SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
+                    FROM {table}
+                    WHERE text @@@ {query}
+                    ORDER BY score DESC
+                    LIMIT %s;
+                """).format(
+                    table=table_identifier,
+                    query=sql.Literal(query)
+                )
             
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Set search_path
-                    cur.execute("SET search_path TO paradedb, public;")
+                with self.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        # Set search_path
+                        cur.execute("SET search_path TO paradedb, public;")
                     
-                    # Execute search and log the actual SQL
-                    logger.debug(f"BM25 search query: {search_sql.as_string(conn)}")
-                    cur.execute(search_sql, (limit,))
-                    results = cur.fetchall()
+                        # Execute search and log the actual SQL
+                        logger.debug(f"BM25 search query: {search_sql.as_string(conn)}")
+                        cur.execute(search_sql, (limit,))
+                        results = cur.fetchall()
             
-            if results:
-                logger.info(f"BM25 search successful, found {len(results)} results")
-                self.last_bm25_backend = "paradedb"
-                return self._bm25_rows(results)
+                if results:
+                    logger.info(f"BM25 search successful, found {len(results)} results")
+                    self.last_bm25_backend = "paradedb"
+                    return self._bm25_rows(results)
             
-            # Format 2: Try more flexible tokenized search
-            tokenized_query = " OR ".join(query.split())
-            search_sql2 = sql.SQL("""
-                SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
-                FROM {table}
-                WHERE text @@@ {query}
-                ORDER BY score DESC
-                LIMIT %s;
-            """).format(
-                table=table_identifier,
-                query=sql.Literal(tokenized_query)
-            )
+                # Format 2: Try more flexible tokenized search
+                tokenized_query = " OR ".join(query.split())
+                search_sql2 = sql.SQL("""
+                    SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
+                    FROM {table}
+                    WHERE text @@@ {query}
+                    ORDER BY score DESC
+                    LIMIT %s;
+                """).format(
+                    table=table_identifier,
+                    query=sql.Literal(tokenized_query)
+                )
             
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Set search_path
-                    cur.execute("SET search_path TO paradedb, public;")
+                with self.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        # Set search_path
+                        cur.execute("SET search_path TO paradedb, public;")
                     
-                    # Execute tokenized search
-                    logger.debug(f"BM25 tokenized search query: {search_sql2.as_string(conn)}")
-                    cur.execute(search_sql2, (limit,))
-                    results = cur.fetchall()
+                        # Execute tokenized search
+                        logger.debug(f"BM25 tokenized search query: {search_sql2.as_string(conn)}")
+                        cur.execute(search_sql2, (limit,))
+                        results = cur.fetchall()
             
-            if results:
-                logger.info(f"BM25 tokenized search successful, found {len(results)} results")
-                self.last_bm25_backend = "paradedb"
-                return self._bm25_rows(results)
+                if results:
+                    logger.info(f"BM25 tokenized search successful, found {len(results)} results")
+                    self.last_bm25_backend = "paradedb"
+                    return self._bm25_rows(results)
             
-        except Exception as e:
-            logger.warning(f"BM25 search failed: {e}")
-            # Fall back to basic search
+            except Exception as e:
+                logger.warning(f"BM25 search failed: {e}")
+                # Fall back to basic search
         
         # If BM25 search failed or returned no results, try full-text search fallback
         try:
@@ -403,19 +450,22 @@ class VectorStoreManager(DatabaseManager):
 
     @property
     def hybrid_backend(self) -> str:
-        """'paradedb' when pg_search is installed, else 'ts_rank_cd'. Checked once."""
+        """The lexical backend: LEXICAL_BACKEND (default ts_rank_cd), never detected. Checked once.
+
+        An installed pg_search is not used unless paradedb is configured, and paradedb
+        configured without pg_search raises instead of falling back to ts_rank_cd.
+        """
         cached = getattr(self, "_hybrid_backend", None)
         if cached:
             return cached
-        backend = "ts_rank_cd"
-        try:
+        backend = getattr(self, "lexical_backend", None) or lexical_backend_setting()
+        if backend == "paradedb":
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1 FROM pg_extension WHERE extname = 'pg_search';")
-                    if cur.fetchone() is not None:
-                        backend = "paradedb"
-        except Exception as e:
-            logger.info(f"hybrid_backend: could not check pg_search ({e.__class__.__name__}); using ts_rank_cd")
+                    installed = cur.fetchone() is not None
+            if not installed:
+                raise RuntimeError("LEXICAL_BACKEND=paradedb, but the pg_search extension is not installed in this database")
         self._hybrid_backend = backend
         return backend
 
@@ -430,11 +480,18 @@ class VectorStoreManager(DatabaseManager):
     def lexical_query(query: str) -> str:
         """OR-join the query terms for websearch_to_tsquery, so the lexical list has
         BM25-like OR semantics instead of websearch's default AND. Stopwords are
-        dropped by the 'english' configuration on the Postgres side."""
+        dropped by the 'english' configuration on the Postgres side.
+
+        A term is a run of word characters of any script (letters, digits, "_") and the
+        combining marks among them, in the NFC form of the query (word_runs), so an accented
+        word stays one term ("café", not "caf"), and so does a word written with separate
+        vowel signs ("हिन्दी"). Quotes and a leading "-", websearch's other operators, are
+        never part of a term; its operator word "or" is dropped (an English stopword as well).
+        """
         terms = []
-        for tok in re.findall(r"[A-Za-z0-9_]+", query or ""):
+        for tok in word_runs(unicodedata.normalize("NFC", query or "")):
             t = tok.lower()
-            if t not in terms:
+            if t not in terms and t not in WEBSEARCH_OPERATOR_WORDS:
                 terms.append(t)
         return " or ".join(terms)
 
@@ -444,11 +501,82 @@ class VectorStoreManager(DatabaseManager):
             return None
         return "[" + ",".join(f"{float(x):.8g}" for x in embedding) + "]"
 
-    def hybrid_search(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> list[dict]:
+    @property
+    def pgvector_version(self) -> tuple[int, ...] | None:
+        """Installed pgvector version, e.g. (0, 8, 6); None when it is not installed or not readable."""
+        cached = getattr(self, "_pgvector_version", None)
+        if cached is not None:
+            return cached or None
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector';")
+                    row = cur.fetchone()
+        except Exception as e:  # not cached: the next call asks again
+            logger.info(f"pgvector_version: could not read it ({e.__class__.__name__})")
+            return None
+        self._pgvector_version = tuple(int(p) for p in re.findall(r"\d+", row[0])[:3]) if row else ()
+        return self._pgvector_version or None
+
+    def search_settings(self, k: int) -> dict:
+        """Settings the hybrid statement runs with for a dense list of depth k, by parameter name.
+
+        hnsw.ef_search is the HNSW scan's candidate list: a scan returns at most that many
+        rows (pgvector's default, 40, is below RETRIEVE_K, 50), and its first rows are
+        approximate. The dense CTE reads twice the depth from the index and orders a tie at
+        the cut by node_id among those rows, so ef_search is twice the depth, at least the
+        default and at most pgvector's limit. hnsw.iterative_scan = strict_order (pgvector
+        0.8 and later) lets a scan that runs out of candidates keep searching instead of
+        returning fewer rows, and keeps its rows in distance order, which the statement's
+        LIMIT relies on. Both apply only to the statement's own transaction
+        (settings_sql).
+        """
+        version = self.pgvector_version
+        settings: dict = {}
+        if version and version >= (0, 5, 0):  # the first release with HNSW
+            settings["hnsw.ef_search"] = min(HNSW_EF_SEARCH_MAX, max(2 * int(k), HNSW_EF_SEARCH_DEFAULT))
+        if version and version >= (0, 8, 0):
+            settings["hnsw.iterative_scan"] = "strict_order"
+        return settings
+
+    def settings_sql(self, k: int, statement_timeout_ms: int | None = None) -> tuple[str, dict]:
+        """One statement that sets search_settings(k), and statement_timeout_ms if given: (sql, its parameters).
+
+        set_config(..., is_local => true) has SET LOCAL semantics: the values end with the
+        transaction (the pool's connections are not in autocommit, and get_connection commits
+        after its block), so the next statement on the same pooled connection runs with the
+        server defaults again; a session-level SET would stay on whichever pooled connection
+        ran it. hybrid_search sends this statement and the hybrid statement in one execute: one
+        round trip, one transaction. ("", {}) when there is nothing to set.
+        """
+        settings = dict(self.search_settings(k))
+        if statement_timeout_ms is not None:  # 0 would mean no limit in Postgres
+            settings["statement_timeout"] = max(1, int(statement_timeout_ms))
+        if not settings:
+            return "", {}
+        calls, params = [], {}
+        for i, (name, value) in enumerate(settings.items()):
+            calls.append(f"set_config(%(setting_{i})s, %(setting_value_{i})s, true)")
+            params[f"setting_{i}"], params[f"setting_value_{i}"] = name, str(value)
+        return "SELECT " + ", ".join(calls) + ";\n", params
+
+    def apply_search_settings(self, cur, k: int) -> dict:
+        """Set search_settings(k) on the cursor's transaction, for a caller that runs its own statement after."""
+        statement, params = self.settings_sql(k)
+        if statement:
+            cur.execute(statement, params)
+        return self.search_settings(k)
+
+    def hybrid_search(
+        self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None
+    ) -> list[dict]:
         """One round trip: dense top-k + lexical top-k + RRF in SQL (see sql/hybrid_*.sql).
 
         query_embedding=None runs the lexical list only (router skip_embed). Each row:
         node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf.
+        The statement runs in its own transaction with search_settings(k), and with
+        statement_timeout_ms as its statement_timeout when given: Postgres cancels it
+        there, the transaction is rolled back and this raises TimeoutError.
         """
         backend = self.hybrid_backend
         params = {
@@ -457,9 +585,13 @@ class VectorStoreManager(DatabaseManager):
             "k": int(k),
             "rrf_k": float(rrf_k),
         }
+        settings, settings_params = self.settings_sql(k, statement_timeout_ms)
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(self.hybrid_sql(backend), params)
+                try:  # the settings and the statement in one execute: one round trip, one transaction
+                    cur.execute(settings + self.hybrid_sql(backend), {**params, **settings_params})
+                except psycopg2.errors.QueryCanceled as exc:
+                    raise TimeoutError(f"hybrid statement cancelled by its statement_timeout ({statement_timeout_ms} ms)") from exc
                 rows = cur.fetchall()
         self.last_bm25_backend = backend if any(r[3] is not None for r in rows) else "none"
         return [
@@ -477,7 +609,7 @@ class VectorStoreManager(DatabaseManager):
         ]
 
     def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> str:
-        """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query, for doc/sql/."""
+        """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query with the settings hybrid_search uses, for doc/sql/."""
         backend = self.hybrid_backend
         params = {
             "qvec": self.vector_literal(query_embedding),
@@ -485,9 +617,10 @@ class VectorStoreManager(DatabaseManager):
             "k": int(k),
             "rrf_k": float(rrf_k),
         }
+        settings, settings_params = self.settings_sql(k)
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), params)
+                cur.execute(settings + "EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), {**params, **settings_params})
                 return "\n".join(r[0] for r in cur.fetchall())
 
     def ensure_text_index(self) -> bool:
@@ -686,15 +819,6 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.warning(f"HNSW index not created: {e}")
             return False
-
-    def set_ef_search(self, ef_search: int) -> None:
-        with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SET hnsw.ef_search = %s", (int(ef_search),))
-                try:
-                    cur.execute("SET hnsw.iterative_scan = relaxed_order")
-                except Exception:
-                    pass
 
     def ensure_halfvec(self) -> bool:
         """2x storage cut. Requires pgvector with halfvec."""

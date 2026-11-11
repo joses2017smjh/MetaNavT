@@ -362,7 +362,7 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
   <img src="../doc/gifs/hybrid.gif" alt="BM25 vs dense then RRF on the fusion-module question" width="820"/>
 </p>
 
-ParadeDB BM25 in production (`ts_rank_cd` fallback). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
+The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
 ### A router that skips work
 
@@ -577,7 +577,7 @@ does not consult the manifest.
   <img src="../doc/figures/storage.svg" alt="float32 vs halfvec vs binary+rescore" width="820"/>
 </p>
 
-`halfvec` is 2x smaller (same Recall@10 as float32 on this corpus). Binary quantization is 32x smaller and recovers 0.594 Recall@10 after a float rescoring pass. `m` / `ef_construction` at build; `ef_search` at query; iterative scans so a path/mtime filter does not silently under-return. The in-memory NSW analogue on **hash** vectors saturates around Recall@10 0.52 — that space is not a manifold. The same SQL lives on `VectorStoreManager.ensure_hnsw` / `ensure_halfvec` / `ensure_binary` for `bge-large`.
+`halfvec` stores half the bytes of float32 and binary quantization one bit per dimension; [bench/results/sweeps.json](../bench/results/sweeps.json) (`make sweeps`) records each one's Recall@10 against float32 (binary after a float rescoring pass) and the HNSW `ef_search` sweep, which the figures above plot. All of it is the **in-memory NSW analogue** (`app/retrieval/pgvector_tune.py`) over **hash** vectors, where recall saturates early: that space is not a manifold. In Postgres, start-up creates an HNSW index on the embedding column (`ensure_hnsw`: `m` and `ef_construction` at build), and each hybrid statement sets `hnsw.ef_search` (twice the dense depth) and `hnsw.iterative_scan` for its own transaction. The planner decides whether to use the index: it scans the table on fixture v1 and reads the index over generated rows (the two plans under `doc/sql/`). Nothing measures the index's recall against the exact scan at a realistic size with a real embedder yet. `ensure_halfvec` and `ensure_binary` exist on `VectorStoreManager` with no caller, and the served statement reads only the float32 column.
 
 ---
 
@@ -680,14 +680,29 @@ chosen from that table in the API section below, not picked up front.
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
 one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsrank.sql))
-with a pgvector top-k CTE (`<=>`, HNSW index), a full-text top-k CTE
-(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 when
-`pg_search` is installed), and reciprocal rank fusion computed in SQL, then
+with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
+(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 only with
+`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
+reciprocal rank fusion computed in SQL, then
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. `k` is validated (1-50),
-bad bodies are 422, a down backend is 503. The committed
-[EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1.
+bad bodies are 422, a down backend is 503, and a retrieval that runs past its
+time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
+statement gets the rest of the budget as its `statement_timeout`, so Postgres
+cancels it and its connection goes back to the pool rolled back; the embedding
+and reranking stages are checked when they end, so a late one stops the request
+before the next stage. A model call cannot be interrupted: when one hangs, the
+route answers shortly after the budget and the call keeps its worker thread
+until it returns (`tests/api/test_retrieve_contract.py`,
+`tests/database/test_retrieve_timeout.py`). The committed
+[EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1
+(`make explain-sql`): at that size the dense list is a sequential scan and the lexical list a GIN bitmap scan.
+[hybrid_explain_synthetic_10k.txt](../doc/sql/hybrid_explain_synthetic_10k.txt)
+(`make explain-sql-synthetic`) is the same statement over generated rows with
+hash vectors in a scratch table, synthetic text rather than data: there the planner
+reads the dense list from the HNSW index on its own. Both plans run with the
+statement's per-transaction settings, which their headers list with the SHA-256 of the statement file they planned.
 `tests/database/test_hybrid_sql.py` checks that the SQL fusion equals the Python
 RRF on identical input lists, against a live Postgres in CI.
 
@@ -719,10 +734,33 @@ same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
 fails only when the API is broken (a question without an answer or with zero
-hits). On the fixture the planner answers the dense CTE with a sequential scan;
-when the HNSW index is used instead, a scan returns at most `hnsw.ef_search`
-rows (pgvector's default is below `RETRIEVE_K`), so the dense list is cut short.
-The test reports the plan and `ef_search` when it fails.
+hits). On the fixture the planner answers the dense CTE with a sequential scan.
+A second test forces the HNSW index (`enable_seqscan` off), requires the whole
+served statement to be planned on it, and requires the same `RETRIEVE_K` rows
+for every gold question. On the fixture that scan reaches every row (the
+statement reads twice the depth, more rows than the fixture has), so the test
+checks the plan and the depth, not the index's recall: an HNSW scan is
+approximate, and its recall at a realistic size is not measured yet. Two things
+kept the index from serving the full list before: the `params` CTE, read by both
+lists, was materialized, which made the query vector a column and left the dense
+list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
+rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
+query vector in a `NOT MATERIALIZED` CTE of its own (the tsquery stays a
+materialized value, which keeps the lexical list's GIN plan), and `hybrid_search`
+sets `hnsw.ef_search` to twice the depth (plus `hnsw.iterative_scan =
+strict_order` on pgvector 0.8 or later) in the same execute as the statement, for
+its transaction only, so no pooled connection keeps the value. `/health` reports
+the depth and these settings under `dense_search`. Equal scores at the dense list's
+cut are decided by `node_id`, like every other tie in the statement: the
+index-ordered scan reads twice the depth, and the statement keeps the first
+`RETRIEVE_K` of those rows by distance, then `node_id` (a second sort key inside the
+index scan would leave the index unused). `tests/database/test_hybrid_sql.py`
+puts two rows at the same distance across the cut, stored in either order, and
+requires the smaller `node_id` with and without the index. It also requires that an
+all-zero embedding, whose cosine distance is NaN, does not take a place at the cut
+from a real neighbour. `node_id` order is not
+the in-memory index's corpus order, which is why the dense test compares tied
+chunks as a set.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
@@ -1170,7 +1208,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
-**Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
+**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The vector schema, the HNSW index and the per-statement search settings on `VectorStoreManager`; its `ensure_halfvec` / `ensure_binary` helpers have no caller.
 
 **Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
 
@@ -1228,9 +1266,9 @@ curl -s -X POST localhost:8000/api/retrieve/ \
 python3 scripts/smoke_retrieve.py     # the check CI runs: hits, every hit has a path
 ```
 
-The compose stack is labelled honestly: `pgvector/pgvector:pg16` has no
-ParadeDB `pg_search`, so lexical search falls back to Postgres `ts_rank_cd`
-(`bm25_backend` in the response), embeddings are the hash adapter
+The compose stack is labelled honestly: lexical search is Postgres `ts_rank_cd`,
+the default `LEXICAL_BACKEND` (`bm25_backend` in the response; the
+`pgvector/pgvector:pg16` image has no ParadeDB `pg_search`), embeddings are the hash adapter
 (`embedding_provider`), and no reranker is loaded (`reranker_loaded`). For
 real models use the override, which installs the `ml` extra and loads
 bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:
