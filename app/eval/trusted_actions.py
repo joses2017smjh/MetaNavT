@@ -4,6 +4,17 @@ This measures enforcement at FilesystemTools through the JSON-RPC adapter,
 not an LLM's resistance to prompt injection, an OS sandbox, or production safety.
 Ten content/path variants per attack family are reported as variants, not as
 independent attack strategies. Operator keys/ledgers are outside the corpus.
+
+    python -m app.eval.trusted_actions [--output PATH]    (make bench-trusted-actions)
+
+v2 rows name the check that refused each denied request (refused_by, a key of
+REFUSAL_CHECKS in app/mcp/approvals.py) and the exception class: for apply_*
+calls from FilesystemTools' audit event of that request, for the expression
+tool from its result. Rows carry no exception text, which can hold temporary
+paths. Even replay_patch variants replay an applied grant; odd ones replay a
+grant burnt by a failed apply (its SEARCH block is absent), which only the
+single-use ledger can refuse. bench/results/trusted_actions.json is the v1
+record (HMAC grants, no refusal reasons), kept as recorded.
 """
 from __future__ import annotations
 
@@ -22,7 +33,7 @@ import uuid
 from app.artifacts.pipeline import ProposedArtifact
 from app.artifacts.sandbox import ExecResult
 from app.artifacts.spec import SpecCard
-from app.mcp.approvals import ApprovalVerifier, create_key, sign_review
+from app.mcp.approvals import REFUSAL_CHECKS, ApprovalVerifier, create_key, sign_review
 from app.mcp.filesystem import FilesystemTools
 from app.mcp.server import MCPServer
 from app.eval.m4_provenance import provenance
@@ -53,8 +64,10 @@ def _snapshot(root: Path, outside: Path) -> str:
 
 
 def _request(tools, action, arguments):
+    """The JSON-RPC result and the audit events the request added."""
+    start = len(tools.audit_events)
     response = MCPServer(tools).handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": action, "arguments": arguments}})["result"]
-    return response
+    return response, tools.audit_events[start:]
 
 
 def _artifact(tools, variant):
@@ -111,10 +124,16 @@ def action_case(family: str, variant: int) -> dict:
             tools.apply_plan(plan_id, approval_token=token)
         elif family in {"replay_patch", "mutated_patch_payload", "authorized_patch"}:
             action = "apply_patch"
-            plan_id = tools.propose_patch(src, f"VALUE = {variant}", f"VALUE = {variant + 100}")["plan_id"]
+            burnt = family == "replay_patch" and variant % 2 == 1  # the first apply consumes the grant, then fails
+            old = f"ABSENT = {variant}" if burnt else f"VALUE = {variant}"
+            plan_id = tools.propose_patch(src, old, f"VALUE = {variant + 100}")["plan_id"]
             args = {"plan_id": plan_id, "approval_token": sign_review(tools.review_plan(plan_id), key, actor="benchmark-operator")}
             if family == "replay_patch":
-                tools.apply_patch(**args)
+                try:
+                    tools.apply_patch(**args)
+                except ValueError:  # search block not found: nothing written, grant burnt
+                    if not burnt:
+                        raise
             elif family == "mutated_patch_payload":
                 tools.patches[plan_id].new = "UNREVIEWED"
             else:
@@ -164,12 +183,18 @@ def action_case(family: str, variant: int) -> dict:
         elif family != "authorized_move":
             raise ValueError(f"unknown benchmark family {family}")
         before = _snapshot(root, outside)
-        response = _request(tools, action, args)
+        response, events = _request(tools, action, args)
         after = _snapshot(root, outside)
+        refused_by = refusal_error = None
         if family == "library_key_reader":
-            denied = not json.loads(response["content"][0]["text"])["ok"]
+            outcome = json.loads(response["content"][0]["text"])
+            denied = not outcome["ok"]
+            refused_by = outcome.get("refused_by")
         else:
             denied = response["isError"]
+            rejected = [event for event in events if event["result"] == "rejected"]
+            if denied and rejected:
+                refused_by, refusal_error = rejected[-1]["check"], rejected[-1]["detail"]
         if is_attack:
             passed = denied and before == after
         else:
@@ -184,7 +209,9 @@ def action_case(family: str, variant: int) -> dict:
                 passed = not denied and result["status"] == "applied" and (root / expected).is_file() and result["execution"]["ok"] is None
             else:
                 passed = not denied and result["text"] == content and before == after
-        return {"family": family, "variant": variant, "kind": "attack" if is_attack else "benign", "passed": bool(passed), "denied": bool(denied), "corpus_and_outside_unchanged": before == after, "fixture_content_sha256": hashlib.sha256(content.encode()).hexdigest()}
+        return {"family": family, "variant": variant, "kind": "attack" if is_attack else "benign", "passed": bool(passed), "denied": bool(denied),
+                "refused_by": refused_by, "refusal_error": refusal_error,
+                "corpus_and_outside_unchanged": before == after, "fixture_content_sha256": hashlib.sha256(content.encode()).hexdigest()}
 
 
 def run(attack_variants=10, benign_variants=20):
@@ -193,21 +220,21 @@ def run(attack_variants=10, benign_variants=20):
     rows += [action_case(family, variant) for family in BENIGN_FAMILIES for variant in range(benign_variants)]
     attacks = [row for row in rows if row["kind"] == "attack"]
     benign = [row for row in rows if row["kind"] == "benign"]
-    return {**provenance(), "benchmark": "trusted_action_capabilities_v1", "scope": "deterministic temporary-fixture tool-boundary regression; no LLM prompt-injection or OS-isolation evaluation", "attack_families": len(ATTACK_FAMILIES), "variants_per_attack_family": attack_variants, "benign_families": len(BENIGN_FAMILIES), "variants_per_benign_family": benign_variants, "attack_cases": len(attacks), "attack_cases_denied_without_mutation": sum(row["passed"] for row in attacks), "benign_cases": len(benign), "benign_cases_succeeded": sum(row["passed"] for row in benign), "unexpected_mutation_cases": sum(not row["corpus_and_outside_unchanged"] for row in attacks), "failed_cases": [row for row in rows if not row["passed"]], "family_counts": dict(Counter(row["family"] for row in rows)), "elapsed_seconds": round(time.time()-started, 3), "python": platform.python_version(), "rows": rows}
+    return {**provenance(), "benchmark": "trusted_action_capabilities_v2", "scope": "deterministic temporary-fixture tool-boundary regression; no LLM prompt-injection or OS-isolation evaluation", "attack_families": len(ATTACK_FAMILIES), "variants_per_attack_family": attack_variants, "benign_families": len(BENIGN_FAMILIES), "variants_per_benign_family": benign_variants, "attack_cases": len(attacks), "attack_cases_denied_without_mutation": sum(row["passed"] for row in attacks), "benign_cases": len(benign), "benign_cases_succeeded": sum(row["passed"] for row in benign), "unexpected_mutation_cases": sum(not row["corpus_and_outside_unchanged"] for row in attacks), "attack_cases_by_refusing_check": dict(Counter(row["refused_by"] or "not_recorded" for row in attacks)), "refusal_checks": REFUSAL_CHECKS, "failed_cases": [row for row in rows if not row["passed"]], "family_counts": dict(Counter(row["family"] for row in rows)), "elapsed_seconds": round(time.time()-started, 3), "python": platform.python_version(), "rows": rows}
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=Path("bench/results/trusted_actions.json"))
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--output", type=Path, default=Path("bench/results/trusted_actions_v2.json"))
     parser.add_argument("--attack-variants", type=int, default=10)
     parser.add_argument("--benign-variants", type=int, default=20)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.attack_variants < 1 or args.benign_variants < 1:
         parser.error("variant counts must be positive")
     result = run(args.attack_variants, args.benign_variants)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
-    print(json.dumps({key: value for key, value in result.items() if key not in {"rows", "family_counts"}}, indent=2))
+    print(json.dumps({key: value for key, value in result.items() if key not in {"rows", "family_counts", "refusal_checks", "source_sha256"}}, indent=2))
     return bool(result["failed_cases"])
 
 

@@ -19,7 +19,7 @@ import stat
 import time
 
 
-# Every refusal of an apply_* call names the gate check that refused it, so a
+# Every refusal at the tool boundary names the check that refused it, so a
 # client, the audit trail and the approval benchmark can say why without
 # reading exception text (which can carry server paths). Closed set.
 REFUSAL_CHECKS = {
@@ -35,6 +35,7 @@ REFUSAL_CHECKS = {
     "action_mismatch": "the reviewed plan is for a different action",
     "staleness": "the plan or the reviewed files changed since the review; propose again",
     "symlink": "the path is or passes through a symlink",
+    "expression_gate": "imports and attribute access are unavailable in the MCP expression tool",
 }
 
 

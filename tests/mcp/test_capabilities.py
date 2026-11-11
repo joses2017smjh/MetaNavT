@@ -1,14 +1,24 @@
 """Capability integrity, replay transactions and actual mutation boundaries."""
 from concurrent.futures import ThreadPoolExecutor
+import getpass
+import hashlib
 import json
 from pathlib import Path
+import socket
 import sqlite3
 import time
+import uuid
 
 import pytest
+from app.artifacts.pipeline import ProposedArtifact
+from app.artifacts.sandbox import ExecResult
+from app.artifacts.spec import SpecCard
 from app.eval.trusted_actions import ATTACK_FAMILIES, BENIGN_FAMILIES, action_case
-from app.mcp.approvals import ApprovalError, ApprovalVerifier, create_key, sign_review
-from app.mcp.filesystem import ApprovalRequired, FilesystemTools
+from app.eval.trusted_actions import main as write_benchmark
+from app.mcp.approvals import REFUSAL_CHECKS, ApprovalError, ApprovalVerifier, create_key, sign_review
+from app.mcp.filesystem import ApprovalRequired, FilesystemTools, refusal_check
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("family", ATTACK_FAMILIES + BENIGN_FAMILIES)
@@ -160,3 +170,123 @@ def test_expression_tool_refuses_every_import_and_attribute_access(tmp_path, cod
 def test_expression_tool_runs_plain_expressions(tmp_path):
     result = FilesystemTools(root=tmp_path).exec_sandboxed("print(sum(range(4)))")
     assert result["ok"] and result["stdout"].strip() == "6"
+
+
+
+# The check that refuses each attack family, read from what the request raised.
+# A tuple is indexed by variant modulo its length.
+EXPECTED_REFUSAL = {
+    "missing_capability": "capability_required",
+    "boolean_true": "approval_argument", "boolean_false": "approval_argument",
+    "truthy_string_false": "approval_argument", "numeric_approval": "approval_argument",
+    "malformed_token": ("capability_required", "malformed", "signature", "malformed"),  # "", "broken", "!!!.bad", "a.b.c"
+    "forged_signature": "signature",
+    "different_plan": "binding", "different_session": "binding",
+    "expired_token": "expiry",
+    "replay_move": "staleness",  # the applied move took the reviewed source away
+    "replay_patch": ("staleness", "ledger"),  # an applied grant; a grant burnt by a failed apply
+    "changed_source_content": "staleness", "replaced_source_inode": "staleness", "mutated_move_payload": "staleness",
+    "source_symlink": "symlink", "parent_symlink": "symlink",
+    "destination_exists": "staleness", "mutated_patch_payload": "staleness",
+    "visualization_options_changed": "binding",
+    "mutated_artifact_code": "staleness",
+    "library_key_reader": "expression_gate",
+}
+
+
+@pytest.mark.parametrize("family", ATTACK_FAMILIES)
+def test_benchmark_rows_name_the_check_that_refused_them(family):
+    assert set(EXPECTED_REFUSAL) == set(ATTACK_FAMILIES)
+    expected = EXPECTED_REFUSAL[family]
+    for variant in range(4):
+        row = action_case(family, variant)
+        check = expected if isinstance(expected, str) else expected[variant % len(expected)]
+        assert row["passed"] and row["refused_by"] == check, row
+        assert row["refusal_error"] is not None or family == "library_key_reader"
+
+
+def _digest(root: Path) -> str:
+    rows = [[str(p.relative_to(root)), hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "dir"] for p in sorted(root.rglob("*"))]
+    return hashlib.sha256(json.dumps(rows).encode()).hexdigest()
+
+
+def _grants(verifier) -> int:
+    with sqlite3.connect(verifier.ledger) as db:
+        return db.execute("SELECT count(*) FROM grants").fetchone()[0]
+
+
+def _signed(tools, key, kind, move_plan, *, burnt=False):
+    """(apply, plan_id, token) for one reviewed proposal; with `burnt`, the first apply is set up to fail after authorization."""
+    if kind == "move":
+        return tools.apply_plan, move_plan["plan_id"], sign_review(move_plan["review"], key, actor="operator")
+    if kind == "patch":  # a burnt patch: its SEARCH block is absent from the file
+        plan = tools.propose_patch("source", "absent text" if burnt else "original", "changed")
+        return tools.apply_patch, plan["plan_id"], sign_review(plan["review"], key, actor="operator")
+    if kind == "artifact":  # a burnt artifact: its sandbox run failed, which apply_artifact refuses after authorization
+        plan_id = str(uuid.uuid4())
+        spec = SpecCard(goal="fixture", template="python-lib", citations=[{"path": "source"}], file_path="generated/artifact.py")
+        tools.artifacts[plan_id] = ProposedArtifact(plan_id, spec, "VALUE = 1\n", ExecResult(not burnt, "", "", "failed" if burnt else ""), "code")
+        return tools.apply_artifact, plan_id, sign_review(tools._register_review(plan_id), key, actor="operator")
+    (tools.root / "data.csv").write_text("group,value\na,1\nb,2\n")
+    plan = tools.propose_visualization("data.csv", "average value by group")
+    options = {"chart_type": "bar", "execute": False, "backend": "auto"}
+    token = sign_review(tools.review_plan(plan["plan_id"], **options), key, actor="operator")
+    return (lambda plan_id, approval_token: tools.apply_visualization(plan_id, approval_token=approval_token, **options)), plan["plan_id"], token
+
+
+@pytest.mark.parametrize("kind,error", [("move", FileNotFoundError), ("patch", ApprovalError),
+                                        ("artifact", FileExistsError), ("visualization", FileExistsError)])
+def test_replay_of_an_applied_capability_is_refused_by_the_staleness_check(tmp_path, kind, error):
+    tools, key, verifier, plan = _setup(tmp_path)
+    apply, plan_id, token = _signed(tools, key, kind, plan)
+    assert apply(plan_id, approval_token=token)["status"] == "applied"
+    applied = _digest(tools.root)
+    with pytest.raises(error) as refused:
+        apply(plan_id, approval_token=token)
+    assert refusal_check(refused.value) == "staleness"
+    assert tools.audit_events[-1]["result"] == "rejected" and tools.audit_events[-1]["check"] == "staleness"
+    assert _digest(tools.root) == applied and _grants(verifier) == 1
+
+
+@pytest.mark.parametrize("kind", ["move", "patch", "artifact", "visualization"])
+def test_replay_of_a_burnt_capability_is_refused_by_the_ledger(tmp_path, kind, monkeypatch):
+    tools, key, verifier, plan = _setup(tmp_path)
+    apply, plan_id, token = _signed(tools, key, kind, plan, burnt=True)
+
+    def fail(*args, **kwargs):
+        raise OSError("simulated failure after authorization")
+    if kind == "move":
+        monkeypatch.setattr("app.mcp.filesystem.move_file", fail)
+    elif kind == "visualization":
+        monkeypatch.setattr("app.mcp.filesystem.create_file", fail)
+    before = _digest(tools.root)
+    with pytest.raises(Exception) as failed:
+        apply(plan_id, approval_token=token)
+    assert refusal_check(failed.value) is None  # authorized and consumed; the action itself failed
+    assert _digest(tools.root) == before and _grants(verifier) == 1
+    with pytest.raises(ApprovalError) as refused:
+        apply(plan_id, approval_token=token)
+    assert refusal_check(refused.value) == "ledger"
+    assert tools.audit_events[-1]["check"] == "ledger"
+    assert _digest(tools.root) == before and _grants(verifier) == 1
+    with sqlite3.connect(verifier.ledger) as db:
+        assert db.execute("SELECT detail FROM audit ORDER BY id DESC LIMIT 1").fetchone()[0] == "ApprovalError (ledger)"
+
+
+def test_benchmark_writer_records_the_refusing_check_and_no_host_user_or_path(tmp_path):
+    outputs = [tmp_path / "first.json", tmp_path / "second.json"]
+    for output in outputs:
+        assert write_benchmark(["--output", str(output), "--attack-variants", "2", "--benign-variants", "1"]) is False
+    first, second = (json.loads(output.read_text()) for output in outputs)
+    assert first["benchmark"] == "trusted_action_capabilities_v2" and first["refusal_checks"] == REFUSAL_CHECKS
+    assert first["rows"] == second["rows"]  # deterministic rows
+    attacks = [row for row in first["rows"] if row["kind"] == "attack"]
+    assert len(attacks) == 2 * len(ATTACK_FAMILIES) and all(row["passed"] for row in first["rows"])
+    assert all(row["refused_by"] in REFUSAL_CHECKS for row in attacks)
+    assert first["attack_cases_by_refusing_check"]["ledger"] == 1  # replay_patch variant 1
+    text = outputs[0].read_text()
+    for needle in (str(tmp_path), str(ROOT), str(Path.home())):
+        assert needle not in text
+    for name in (socket.gethostname(), getpass.getuser()):
+        if len(name) >= 4 and name not in {"root", "runner", "user", "admin", "ubuntu", "nobody", "jovyan"}:
+            assert name not in text

@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs bench-trusted-actions
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -103,6 +103,10 @@ bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool
 
 bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json from the committed episodes (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
+
+TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
+bench-trusted-actions: ## approval-gate regression on temporary fixtures (no LLM); each row names the refusing check -> $(TRUSTED_ACTIONS_OUT)
+	$(PYTHON) -m app.eval.trusted_actions --output $(TRUSTED_ACTIONS_OUT)
 
 freeze-corpus:
 	$(PYTHON) bench/corpus/build.py

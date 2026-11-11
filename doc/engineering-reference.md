@@ -436,6 +436,13 @@ natural-language entailment or human-reviewed citation accuracy.
 [Action evidence](../bench/results/trusted_actions.json) ·
 [Structured evidence](../bench/results/evidence_consistency.json)
 
+The action evidence above is the v1 record. `make bench-trusted-actions` re-runs
+the benchmark into `bench/results/trusted_actions_v2.json`, whose rows also name
+the check that refused each attack (`refused_by`). A replayed grant is refused by
+the staleness check when its action applied (the reviewed files changed), so the
+odd `replay_patch` variants replay a grant burnt by a failed apply instead: only
+the single-use ledger can refuse those.
+
 The boolean `approved=True` no longer authorizes a write. The operator key and
 SQLite replay ledger must live outside every agent-readable/indexed root, with
 private file permissions. Without configured approval state, file writes are
