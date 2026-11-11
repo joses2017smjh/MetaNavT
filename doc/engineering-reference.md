@@ -565,10 +565,12 @@ start together serialise on the lock; the second finds nothing to do.
 
 "Failed" is not a counted category. Every failure (the embedder or the
 database raising, the rejection limit, a verification mismatch) aborts the run
-with an exception, which fails the API start, instead of being counted in a
-report; files the run had not finished keep their previous rows and manifest
-entry, and the next start repeats them. A file is counted only as indexed,
-unchanged or rejected with a reason.
+with an exception instead of being counted in a report. The API process stays
+up with the error recorded: `GET /health` answers 503 with it and
+`/api/retrieve` answers 503 until a later start succeeds. Files the run had not
+finished keep their previous rows and manifest entry, and the next start
+repeats them. A file is counted only as indexed, unchanged or rejected with a
+reason.
 
 What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
 runs against a live Postgres in CI's `parity` job (unchanged re-run embeds

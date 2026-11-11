@@ -40,7 +40,7 @@ from app.eval.reindex import files_to_reindex, files_to_remove
 from app.retrieval.hybrid import chunk_id_for
 
 SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
-REPORT_SCHEMA = "ingest-report-v2"  # v2: the outside_root reason
+REPORT_SCHEMA = "ingest-report-v2"  # v2: the outside_root reason; the served report's reconciliation block
 CHUNKER = "app/chunking (structure-aware)"
 CHUNKER_VERSION = "app.chunking/auto/v2"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
 # v2: Python module-level code between and after definitions is chunked and a definition starts at its first

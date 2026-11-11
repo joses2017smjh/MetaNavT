@@ -27,9 +27,10 @@ The report (counts of files seen, indexed, unchanged, removed and rejected by
 reason, and the reconciliation) is returned, logged, and served by /health
 under "indexing". "Failed" is not a counted category: a failure (the embedder
 or the database raising, the rejection limit, a verification mismatch) aborts
-the run with an exception, which fails the API start; files the run had not
-finished keep their previous rows and manifest entry, and the next run repeats
-them.
+the run with an exception. main.py's lifespan records it: the process stays up,
+/health answers 503 with the error and /api/retrieve answers 503 until a later
+start succeeds. Files the run had not finished keep their previous rows and
+manifest entry, and the next run repeats them.
 """
 
 from __future__ import annotations
