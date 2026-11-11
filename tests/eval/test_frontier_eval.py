@@ -81,7 +81,8 @@ def test_frontier_configs_put_parents_first_and_name_a_parent_for_every_arm():
     assert not set(FRONTIER_NOT_EVALUATED) & set(names)  # no token embeddings on the hash embedder
     for wanted in ("hybrid+multiquery", "hybrid+hipporag", "hybrid+hops=1", "hybrid+fixed-chunks", "hybrid+contextual",
                    "hybrid+rerank+hyde", "hybrid+rerank+decompose", "hybrid+rerank+corrective", "hybrid+rerank+hyde+corrective",
-                   "hybrid+rerank+adaptive", "hybrid+rerank+graphrag", "hybrid+hyde", "dense_only+hyde", "hybrid+hyde+rerank"):
+                   "hybrid+rerank+adaptive", "hybrid+rerank+graphrag", "hybrid+hyde", "dense_only+hyde", "hybrid+hyde+rerank",
+                   "hybrid+rerank+cache"):
         assert wanted in names
     stages = {c.name: c.hyde_stage for c in cpu if c.hyde}
     assert stages == {"hybrid+hyde": "first_stage", "dense_only+hyde": "first_stage", "hybrid+hyde+rerank": "first_stage",
@@ -299,14 +300,23 @@ def test_the_cache_arm_scores_the_served_lists_and_records_hits_wrong_hits_and_p
     from app.eval.probes import Probe
     from app.retrieval.cache import SemanticCache
 
+    puts: list[str] = []
+
+    class CountingCache(SemanticCache):
+        def put(self, query, result):
+            puts.append(query)
+            super().put(query, result)
+
     # Below the default threshold, so the run-40 and run-41 questions (about 0.89 apart on the hash embedder) collide.
-    monkeypatch.setattr(harness, "SemanticCache", functools.partial(SemanticCache, similarity_threshold=0.85))
+    monkeypatch.setattr(harness, "SemanticCache", functools.partial(CountingCache, similarity_threshold=0.85))
     root = project_root()
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     # q001 asks run 40's learning rate; q006 and q011 ask the same of runs 41 and 42 (one character apart).
     picked = [q for q in gold if q.id in {"q001", "q006", "q011", "q123"}]
+    picked.append(replace(picked[0], id="q001-again"))  # the same text again: a hit with the list retrieval returns anyway
     probes = [Probe("p1", "q001", "learning rate run 40", "keywords", "simple_factual", ["configs/run_040.yaml"]),
-              Probe("p2", "q123", "can you open configs/run_047.yaml?", "ask", "exact_path", ["configs/run_047.yaml"])]
+              Probe("p2", "q123", "can you open configs/run_047.yaml?", "ask", "exact_path", ["configs/run_047.yaml"]),
+              Probe("p3", "q123", "zebra marmalade quantum", "keywords", "exact_path", ["configs/run_047.yaml"])]
     base = BenchConfig(name="hybrid+rerank", mode="hybrid", enable_rerank=True, enable_router=False, staleness_tier1=False,
                        e2e=False, log_triples=False)
     files = root / "bench" / "corpus" / "files"
@@ -315,8 +325,9 @@ def test_the_cache_arm_scores_the_served_lists_and_records_hits_wrong_hits_and_p
     block = row["cache"]
     assert block["threshold"] == 0.85 and block["max_entries"] >= len(picked)
     g = block["gold"]
-    assert g["n"] == 4 and g["hits"] + g["misses"] == 4 and g["hits"] >= 1 and g["hits"] == row["fired"]["cache_hit"]
-    assert g["wrong_hits"] >= 1  # run 41's question served run 40's files
+    assert g["n"] == 5 and g["hits"] + g["misses"] == 5 and g["hits"] >= 1 and g["hits"] == row["fired"]["cache_hit"]
+    assert 1 <= g["wrong_hits"] < g["hits"]  # run 41's question served run 40's files; the repeat is a hit, not a wrong one
+    assert g["lookups"][-1] == {**g["lookups"][-1], "hit": True, "served_from": "q001", "same_list": True}
     assert g["lookups"][0]["hit"] is False  # the warm-up retrieval did not seed the cache
     for i, event in enumerate(g["lookups"]):
         ids = [q.id for q in picked]
@@ -328,8 +339,11 @@ def test_the_cache_arm_scores_the_served_lists_and_records_hits_wrong_hits_and_p
     assert g["wrong_hits"] == sum(1 for e in g["lookups"] if e["hit"] and not e["same_list"])
     assert g["min_margin_to_threshold"] >= 0.0
     pb = block["probes"]
-    assert pb["n"] == 2 and pb["hits_from_source"] + pb["hits_from_other"] + pb["misses"] == 2
-    assert pb["added_to_cache"] is False and len(block["gold"]["lookups"]) == 4
+    assert pb["n"] == 3 and pb["hits_from_source"] + pb["hits_from_other"] + pb["misses"] == 3
+    assert pb["lookups"][-1]["hit"] is False  # an unrelated probe misses ...
+    # ... and is not stored: only the gold questions that missed were put into the cache
+    assert puts == [q.question for q, e in zip(picked, g["lookups"]) if not e["hit"]]
+    assert pb["added_to_cache"] is False and len(block["gold"]["lookups"]) == len(picked)
     assert {"served", "fresh", "delta", "lo", "hi"} <= set(pb["ndcg@10"])
     json.dumps(row)  # the row stays serialisable
 
@@ -451,7 +465,7 @@ def test_late_chunking_pools_document_tokens_only_for_files_with_several_chunks(
 def test_committed_frontier_file_is_self_contained(rel):
     import json
 
-    from app.eval.harness import project_root
+    from app.eval.harness import FRONTIER_CPU_ONLY, FRONTIER_NOT_EVALUATED, FRONTIER_PARENTS, _neural_name, frontier_configs, project_root
 
     path = project_root() / rel
     if not path.exists():
@@ -462,7 +476,18 @@ def test_committed_frontier_file_is_self_contained(rel):
     assert "--frontier" in blob["command"]
     rows = {r["config"]: r for r in blob["results"]}
     parents, arms = blob["frontier"]["parents"], blob["frontier"]["arms"]
-    assert 2 <= len(parents) <= 3 and set(parents) <= set(rows) and arms
+    neural = rel.endswith("_neural.json")
+    assert parents == [_neural_name(p) if neural else p for p in FRONTIER_PARENTS] and set(parents) <= set(rows) and arms
+    # The file holds the rows the code defines, in order: an arm added or dropped in the code needs a re-recorded file.
+    assert list(rows) == [c.name for c in frontier_configs(neural=neural)]
+    assert [i["arm"] for i in blob["frontier"]["not_evaluated"]] == list(FRONTIER_CPU_ONLY if neural else FRONTIER_NOT_EVALUATED)
+    # The cache arm's accounting agrees with its own lookups (hits, wrong hits, probe outcomes).
+    (cached,) = [r for r in blob["results"] if r["settings"].get("cache")]
+    g, pb = cached["cache"]["gold"], cached["cache"]["probes"]
+    hits = [e for e in g["lookups"] if e["hit"]]
+    assert g["n"] == len(g["lookups"]) == blob["n_gold"] and g["hits"] == len(hits) == (cached.get("fired") or {}).get("cache_hit", 0)
+    assert g["wrong_hits"] == sum(1 for e in hits if not e["same_list"]) and g["misses"] == g["n"] - g["hits"]
+    assert pb["hits_from_source"] + pb["hits_from_other"] + pb["misses"] == pb["n"] == len(pb["lookups"]) == blob["probes"]["n"]
     for name in arms:
         row = rows[name]
         parent = row["settings"]["parent"]
