@@ -660,6 +660,25 @@ def hyde_wiring(settings: dict) -> str | None:
             + ("the reranker, which has the last word" if settings.get("enable_rerank") else "anything else (no reranker)"))
 
 
+def cache_note(cache: dict) -> str:
+    """What the cache arm's row cannot show in its delta: hits, wrong hits, and the paraphrase probes."""
+    g = cache["gold"]
+    text = (f"semantic cache (`app/retrieval/cache.py`, threshold {cache['threshold']} on the {cache['similarity']}), the {g['n']} gold "
+            f"questions replayed in gold order into an empty cache: {g['hits']} hits, {g['wrong_hits']} of them wrong (the cached list "
+            f"differs from what retrieval returns for that question); the closest similarity was {g['min_margin_to_threshold']} "
+            f"from the threshold.")
+    pb = cache.get("probes")
+    if pb:
+        d = pb["ndcg@10"]
+        text += (f" Then {pb['n']} paraphrases of gold questions (`{pb['file']}`: rule-based rewrites whose relevant paths are inherited, "
+                 f"not gold labels) were looked up without being added: {pb['hits_from_source']} hits from the rewritten question's own "
+                 f"entry, {pb['hits_from_other']} from another question's, {pb['misses']} misses; nDCG@10 of what was served minus fresh "
+                 f"retrieval for the paraphrase: {_delta4(d)} ({verdict(d)}).")
+    else:
+        text += " No paraphrase probes were looked up, so true hits are not measured."
+    return text
+
+
 def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "make bench-frontier") -> str:
     """One row per prototype arm: parent, paired delta, interval, verdict word, what fired, stand-ins."""
     if not blob:
@@ -715,6 +734,9 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         wiring = hyde_wiring(row.get("settings") or {})
         if wiring:
             notes.append(f"- `{name}`: {wiring}.")
+        cache = row.get("cache")
+        if cache:
+            notes.append(f"- `{name}`: {cache_note(cache)}")
     for item in meta.get("not_evaluated") or []:
         notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
     if notes:

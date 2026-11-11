@@ -283,6 +283,11 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
             wiring = hyde_wiring(row.get("settings") or {})
             if wiring:
                 limits.append(wiring)
+            cache = row.get("cache")
+            if cache:
+                g = cache["gold"]
+                limits.append(f"cache threshold {cache['threshold']}: {g['hits']} hits on {g['n']} gold questions in gold order, "
+                              f"{g['wrong_hits']} of them wrong")
             if vs:
                 limits.append(f"first ten files differ from the parent's on {vs['n_top10_differs']} of {vs['n_questions']} questions")
             g = row.get("graphrag")

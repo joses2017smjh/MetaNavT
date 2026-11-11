@@ -269,6 +269,71 @@ def test_switches_added_after_main_json_stay_out_of_the_settings_of_rows_that_do
     assert bench_settings(hyde)["hyde_stage"] == "first_stage"
 
 
+# ---- semantic cache: hits are served from the cache and counted ---------------------------------
+
+def test_a_cache_hit_returns_the_cached_list_and_is_counted():
+    from app.eval.harness import _serve_from_cache
+    from app.retrieval.cache import SemanticCache
+    from app.retrieval.embedders import HashEmbedder
+
+    cache = SemanticCache(HashEmbedder(), similarity_threshold=0.85)  # the hash embedder puts these two at about 0.88
+    served, event = _serve_from_cache(cache, "what learning rate did run 47 use", "q1", ["configs/run_047.yaml"])
+    assert served == ["configs/run_047.yaml"] and event["hit"] is False and cache.stats.misses == 1
+    # A near-duplicate whose own retrieval would return another file: served from the cache, a wrong hit.
+    served, event = _serve_from_cache(cache, "what learning rate did run 46 use", "q2", ["configs/run_046.yaml"])
+    assert served == ["configs/run_047.yaml"] and cache.stats.hits == 1
+    assert event["hit"] is True and event["served_from"] == "q1" and event["same_list"] is False
+    assert 0.85 <= event["similarity"] < 1.0
+    # The same text again: a hit whose list is what retrieval returns anyway.
+    served, event = _serve_from_cache(cache, "what learning rate did run 47 use", "q3", ["configs/run_047.yaml"])
+    assert event["hit"] and event["same_list"] and event["similarity"] == pytest.approx(1.0)
+
+
+def test_the_cache_arm_scores_the_served_lists_and_records_hits_wrong_hits_and_probes(monkeypatch):
+    import functools
+    import json
+
+    import app.eval.harness as harness
+    from app.eval.gold import load_gold
+    from app.eval.harness import BenchConfig, project_root, run_config
+    from app.eval.probes import Probe
+    from app.retrieval.cache import SemanticCache
+
+    # Below the default threshold, so the run-40 and run-41 questions (about 0.89 apart on the hash embedder) collide.
+    monkeypatch.setattr(harness, "SemanticCache", functools.partial(SemanticCache, similarity_threshold=0.85))
+    root = project_root()
+    gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
+    # q001 asks run 40's learning rate; q006 and q011 ask the same of runs 41 and 42 (one character apart).
+    picked = [q for q in gold if q.id in {"q001", "q006", "q011", "q123"}]
+    probes = [Probe("p1", "q001", "learning rate run 40", "keywords", "simple_factual", ["configs/run_040.yaml"]),
+              Probe("p2", "q123", "can you open configs/run_047.yaml?", "ask", "exact_path", ["configs/run_047.yaml"])]
+    base = BenchConfig(name="hybrid+rerank", mode="hybrid", enable_rerank=True, enable_router=False, staleness_tier1=False,
+                       e2e=False, log_triples=False)
+    files = root / "bench" / "corpus" / "files"
+    plain = run_config(base, picked, files, keep_retrieved=True)
+    row = run_config(replace(base, name="hybrid+rerank+cache", cache=True), picked, files, keep_retrieved=True, probes=probes)
+    block = row["cache"]
+    assert block["threshold"] == 0.85 and block["max_entries"] >= len(picked)
+    g = block["gold"]
+    assert g["n"] == 4 and g["hits"] + g["misses"] == 4 and g["hits"] >= 1 and g["hits"] == row["fired"]["cache_hit"]
+    assert g["wrong_hits"] >= 1  # run 41's question served run 40's files
+    assert g["lookups"][0]["hit"] is False  # the warm-up retrieval did not seed the cache
+    for i, event in enumerate(g["lookups"]):
+        ids = [q.id for q in picked]
+        if event["hit"]:  # the scored list is the cached one: the list served for the question it came from
+            assert row["_retrieved"][i] == row["_retrieved"][ids.index(event["served_from"])]
+            assert event["same_list"] == (row["_retrieved"][i] == plain["_retrieved"][i])
+        else:
+            assert row["_retrieved"][i] == plain["_retrieved"][i]
+    assert g["wrong_hits"] == sum(1 for e in g["lookups"] if e["hit"] and not e["same_list"])
+    assert g["min_margin_to_threshold"] >= 0.0
+    pb = block["probes"]
+    assert pb["n"] == 2 and pb["hits_from_source"] + pb["hits_from_other"] + pb["misses"] == 2
+    assert pb["added_to_cache"] is False and len(block["gold"]["lookups"]) == 4
+    assert {"served", "fresh", "delta", "lo", "hi"} <= set(pb["ndcg@10"])
+    json.dumps(row)  # the row stays serialisable
+
+
 def test_contextual_chunks_index_a_prefix_and_keep_the_cited_bytes():
     from app.eval.harness import project_root
     from app.eval.index_loader import load_chunks

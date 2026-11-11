@@ -17,10 +17,12 @@ from app.agent.deep_research import expand_queries, multi_query_retrieve
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
+from app.eval.hashing import content_hash
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
+from app.eval.probes import load_probes
 from app.eval.provenance import command_line, device_info, model_device, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
@@ -35,6 +37,7 @@ from app.graph.graphrag import boost_by_communities, build_graphrag, community_s
 from app.graph.hipporag import apply_hipporag, should_apply, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
 from app.retrieval.adaptive import RetrievalDecision, should_retrieve
+from app.retrieval.cache import SemanticCache
 from app.retrieval.distill import triples_from_hits, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
@@ -81,6 +84,7 @@ class BenchConfig:
     adaptive: bool = False  # skip retrieval when app.retrieval.adaptive says SKIP
     graphrag: bool = False  # rank-fuse the files of the community summaries the query matches
     contextual: bool = False  # prepend a situating prefix to every chunk before indexing
+    cache: bool = False  # serve near-duplicate questions from app.retrieval.cache.SemanticCache (gold order, empty at the start)
     late_chunking: bool = False  # pool document-level token embeddings per chunk (needs a token-level model)
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
 
@@ -92,7 +96,9 @@ class BenchConfig:
 HYDE_STAGES = ("first_stage", "after_rerank")
 # Switches added after bench/results/main.json was recorded. A row's settings carry them only when it sets them,
 # so rows that do not use them keep the settings they were recorded with (`make bench-check` compares settings).
-LATER_SETTINGS = ("hyde_stage",)
+LATER_SETTINGS = ("hyde_stage", "cache")
+# The cache arm also looks up these paraphrases of gold questions after the gold replay (app/eval/probes.py).
+CACHE_PROBES = "bench/probes/paraphrases.jsonl"
 
 
 def bench_settings(cfg: BenchConfig) -> dict[str, Any]:
@@ -262,6 +268,62 @@ def _retrieve(
     return paths, result if result is not None else hits
 
 
+def _serve_from_cache(cache: SemanticCache, query: str, qid: str, fresh: list[str]) -> tuple[list[str], dict[str, Any]]:
+    """One lookup of the cache arm. A hit serves the cached file list; a miss serves `fresh` (what retrieval
+    returned for this question) and stores it. The event says which entry a hit came from and whether its
+    list is the one retrieval returns anyway (`same_list`); a hit with a different list is a wrong hit."""
+    cached = cache.get(query)
+    sim = None if cache.last_similarity is None else round(cache.last_similarity, 6)
+    if cached is None:
+        cache.put(query, {"id": qid, "paths": list(fresh)})
+        return fresh, {"id": qid, "hit": False, "similarity": sim}
+    served = list(cached["paths"])
+    return served, {"id": qid, "hit": True, "served_from": cached["id"], "similarity": sim, "same_list": served == list(fresh)}
+
+
+def _min_margin(events: list[dict[str, Any]], threshold: float) -> float | None:
+    sims = [e["similarity"] for e in events if e.get("similarity") is not None]
+    return round(min(abs(x - threshold) for x in sims), 6) if sims else None
+
+
+def _replay_probes(cache: SemanticCache, probes: list, fresh_paths, n_files: int | None) -> dict[str, Any]:
+    """Look up each paraphrase probe in the cache the gold replay filled, without adding it. A hit served
+    from the rewritten question's own entry is a true hit; from another question's entry, a false one.
+    nDCG@10 of what is served against fresh retrieval for the probe, on the relevant paths it inherits."""
+    events, served_rows, fresh_rows = [], [], []
+    for probe in probes:
+        fresh = fresh_paths(probe.question)
+        cached = cache.get(probe.question)
+        sim = None if cache.last_similarity is None else round(cache.last_similarity, 6)
+        served = list(cached["paths"]) if cached is not None else fresh
+        event: dict[str, Any] = {"id": probe.id, "source_id": probe.source_id, "rule": probe.rule, "hit": cached is not None,
+                                 "similarity": sim}
+        if cached is not None:
+            event.update(served_from=cached["id"], same_list=served == fresh)
+        events.append(event)
+        served_rows.append({"id": probe.id, "retrieved": served, "relevant": list(probe.relevant_paths)})
+        fresh_rows.append({"id": probe.id, "retrieved": fresh, "relevant": list(probe.relevant_paths)})
+    served_scores = [r["ndcg@10"] for r in aggregate_retrieval(served_rows, n_files=n_files).per_query]
+    fresh_scores = [r["ndcg@10"] for r in aggregate_retrieval(fresh_rows, n_files=n_files).per_query]
+    idx = resample_indices(len(probes))
+    d, lo, hi = paired_delta_ci(served_scores, fresh_scores, idx)
+    hits = [e for e in events if e["hit"]]
+    return {
+        "file": CACHE_PROBES,
+        "n": len(probes),
+        "added_to_cache": False,
+        "hits_from_source": sum(1 for e in hits if e["served_from"] == e["source_id"]),
+        "hits_from_other": sum(1 for e in hits if e["served_from"] != e["source_id"]),
+        "misses": len(events) - len(hits),
+        "hits_with_a_list_fresh_retrieval_would_not_return": sum(1 for e in hits if not e["same_list"]),
+        "min_margin_to_threshold": _min_margin(events, cache.similarity_threshold),
+        "ndcg@10": {"served": round(sum(served_scores) / len(probes), 4), "fresh": round(sum(fresh_scores) / len(probes), 4),
+                    "delta": round(d, 4), "lo": round(lo, 4), "hi": round(hi, 4),
+                    "note": "served minus fresh retrieval, paired bootstrap over the probes; relevant paths inherited, not judged"},
+        "lookups": events,
+    }
+
+
 def _jury_complete():
     """Optional Ollama backend. Probe once; stay heuristic if the daemon is down."""
     flag = os.environ.get("JUDGE", "").strip().lower()
@@ -311,8 +373,10 @@ def run_config(
     *,
     keep_retrieved: bool = False,
     mtimes: str = "auto",
+    probes: list | None = None,
 ) -> dict[str, Any]:
-    """Score one config. `mtimes` is where chunk mtimes come from (index_loader.MTIME_MODES)."""
+    """Score one config. `mtimes` is where chunk mtimes come from (index_loader.MTIME_MODES).
+    `probes` (app.eval.probes.Probe) are looked up after the gold replay by the cache arm only."""
     index = build_index(
         files_root,
         embedder_name=cfg.embedder,
@@ -358,6 +422,10 @@ def run_config(
 
     if gold:  # warm-up: caches, CUDA kernels; retrieval is deterministic so results are unaffected
         _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, hippo_triples=hippo_triples, communities=communities)
+    # Built after the warm-up, so the first gold question meets an empty cache. Fresh retrieval still runs on
+    # every question (a hit's list is compared with it), so this row's latency is not the cache's.
+    cache = SemanticCache(index.embedder) if cfg.cache else None
+    cache_events: list[dict[str, Any]] = []
     t0 = time.perf_counter()
     for q in gold:
         paths, payload = _retrieve(
@@ -371,6 +439,12 @@ def run_config(
             communities=communities,
             fired=fired,
         )
+        if cache is not None:
+            with timer.stage("cache_lookup"):
+                paths, event = _serve_from_cache(cache, q.question, q.id, paths)
+            cache_events.append(event)
+            if event["hit"]:
+                _count(fired, "cache_hit")
         per_query.append(
             {
                 "id": q.id,
@@ -426,6 +500,29 @@ def run_config(
         payload["graphrag"] = community_stats(communities, len({c.path for c in index.chunks}))
     if late is not None:
         payload["late_chunking"] = late
+    if cache is not None:
+        hits = [e for e in cache_events if e["hit"]]
+        payload["cache"] = {
+            "class": "app.retrieval.cache.SemanticCache",
+            "threshold": cache.similarity_threshold,
+            "max_entries": cache.max_entries,
+            "ttl_seconds": cache.ttl_seconds,
+            "similarity": f"cosine of the index embedder's vectors ({cfg.embedder})",
+            "cached_value": "the question's final file list",
+            "gold": {
+                "n": len(cache_events),
+                "order": "gold order, cache empty at the start",
+                "hits": len(hits),
+                "misses": len(cache_events) - len(hits),
+                "wrong_hits": sum(1 for e in hits if not e["same_list"]),
+                "min_margin_to_threshold": _min_margin(cache_events, cache.similarity_threshold),
+                "lookups": cache_events,
+            },
+        }
+        if probes:
+            fresh = lambda text: _retrieve(index, text, cfg, StageTimer(), clusters, graph,  # noqa: E731
+                                           hippo_triples=hippo_triples, communities=communities)[0]
+            payload["cache"]["probes"] = _replay_probes(cache, probes, fresh, n_files)
     payload["reranker_name"] = getattr(index, "reranker_name", cfg.reranker)
     payload["reranker_loaded"] = bool(getattr(index, "reranker_loaded", False))
     rerank_model = getattr(getattr(index, "rerank_fn", None), "model", None)
@@ -514,6 +611,7 @@ FRONTIER_CONFIGS = [
                 parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+adaptive", enable_rerank=True, adaptive=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+graphrag", enable_rerank=True, graphrag=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+cache", enable_rerank=True, cache=True, parent=FRONTIER_RERANK_PARENT, **_F),
 ]
 # Arms a run cannot score, with the reason; written into the results file instead of a row.
 FRONTIER_NOT_EVALUATED = {
@@ -652,12 +750,15 @@ def run_bench(
     # (an error if it has none), and the header says so.
     mtimes = mtime_provenance(files_root, "manifest", base=root)
 
+    probe_path = root / CACHE_PROBES
+    probes = load_probes(probe_path) if any(c.cache for c in configs) and probe_path.exists() else None
+
     results = []
     all_triples = []
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier, mtimes="manifest")
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier, mtimes="manifest", probes=probes)
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
@@ -686,6 +787,9 @@ def run_bench(
         "bootstrap": boot,
         "results": results,
     }
+    if probes:
+        blob["probes"] = {"file": CACHE_PROBES, "sha256": content_hash(probe_path.read_text()), "n": len(probes),
+                          "made_by": "python -m app.eval.probes", "labels": "inherited from the rewritten gold question, not judged"}
     if frontier:
         blob["frontier"] = attach_frontier(results, retrieved_by_config)
     out_dir = root / "bench" / "results"
