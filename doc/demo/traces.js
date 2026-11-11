@@ -1,6 +1,6 @@
 window.METANAVIT_DEMO = {
   "meta": {
-    "git_sha": "8907b0c",
+    "git_sha": "da13c84",
     "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
     "n_gold": 136,
     "n_files": 61,
@@ -552,7 +552,8 @@ window.METANAVIT_DEMO = {
           "configs/archive/run_047_v1.yaml",
           "configs/archive/run_046_v1.yaml",
           "configs/archive/run_048_v1.yaml"
-        ]
+        ],
+        "ppr_applied": true
       },
       "conflicts": [
         {
@@ -723,7 +724,8 @@ window.METANAVIT_DEMO = {
           "paper/draft_v1.md",
           "configs/archive/run_048_v1.yaml",
           "configs/archive/run_047_v1.yaml"
-        ]
+        ],
+        "ppr_applied": true
       },
       "conflicts": [
         {
@@ -831,7 +833,7 @@ window.METANAVIT_DEMO = {
         ]
       },
       "method_result": {
-        "label": "typed PPR rank fusion",
+        "label": "current-version filter; PPR gate off",
         "gold_rank": 1,
         "recall@50": 1.0,
         "hits": [
@@ -839,57 +841,57 @@ window.METANAVIT_DEMO = {
             "path": "src/trellis_wires.py",
             "rank": 1,
             "status": "gold",
-            "score": 0.034426,
+            "score": 0.245958,
             "rrf": 0.032787
           },
           {
             "path": "src/dinov2_encoder.py",
             "rank": 2,
             "status": "candidate",
-            "score": 0.033589,
+            "score": 0.139845,
             "rrf": 0.026333
           },
           {
             "path": "configs/run_048.yaml",
             "rank": 3,
             "status": "gold",
-            "score": 0.032002,
+            "score": 0.120032,
             "rrf": 0.026905
           },
           {
-            "path": "configs/run_047.yaml",
+            "path": "configs/run_044.yaml",
             "rank": 4,
+            "status": "candidate",
+            "score": 0.119967,
+            "rrf": 0.025604
+          },
+          {
+            "path": "configs/run_047.yaml",
+            "rank": 5,
             "status": "gold",
-            "score": 0.031778,
+            "score": 0.119954,
             "rrf": 0.025333
           },
           {
-            "path": "configs/run_055.yaml",
-            "rank": 5,
-            "status": "candidate",
-            "score": 0.03055,
-            "rrf": 0.02208
-          },
-          {
-            "path": "src/fusion.py",
+            "path": "configs/run_049.yaml",
             "rank": 6,
             "status": "candidate",
-            "score": 0.030242,
-            "rrf": 0.031746
-          },
-          {
-            "path": "configs/run_049.yaml",
-            "rank": 7,
-            "status": "candidate",
-            "score": 0.029857,
+            "score": 0.119862,
             "rrf": 0.023504
           },
           {
-            "path": "configs/run_046.yaml",
+            "path": "configs/run_055.yaml",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.119791,
+            "rrf": 0.02208
+          },
+          {
+            "path": "configs/run_040.yaml",
             "rank": 8,
-            "status": "gold",
-            "score": 0.029031,
-            "rrf": 0.023138
+            "status": "candidate",
+            "score": 0.119456,
+            "rrf": 0.015385
           }
         ],
         "dropped": [
@@ -897,7 +899,8 @@ window.METANAVIT_DEMO = {
           "configs/archive/run_048_v1.yaml",
           "configs/archive/run_047_v1.yaml",
           "paper/draft_v1.md"
-        ]
+        ],
+        "ppr_applied": false
       },
       "conflicts": [
         {
@@ -1111,7 +1114,8 @@ window.METANAVIT_DEMO = {
           "configs/archive/run_046_v1.yaml",
           "configs/archive/run_047_v1.yaml",
           "configs/archive/run_048_v1.yaml"
-        ]
+        ],
+        "ppr_applied": true
       },
       "conflicts": [
         {
