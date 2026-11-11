@@ -304,7 +304,8 @@ def test_benchmark_writer_records_the_refusing_check_and_no_host_user_or_path(tm
     assert first["attack_cases_by_refusing_check"]["ledger"] == 1  # replay_patch variant 1
     text = outputs[0].read_text()
     for needle in (str(tmp_path), str(ROOT), str(Path.home())):
-        assert needle not in text
+        if len(needle) >= 5:  # a home of "/" would match every relative path
+            assert needle not in text
     for name in (socket.gethostname(), getpass.getuser()):
         if len(name) >= 4 and name not in {"root", "runner", "user", "admin", "ubuntu", "nobody", "jovyan"}:
             assert name not in text
