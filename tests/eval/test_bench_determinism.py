@@ -1,4 +1,4 @@
-"""The benchmark gives the same rows on any machine: mtimes come from the fixture's MANIFEST."""
+"""The benchmark gives the same rows on any machine: mtimes from the fixture's MANIFEST, a defined dense order."""
 
 import json
 import os
@@ -7,11 +7,15 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from app.eval.gold import load_gold
 from app.eval.harness import DEFAULT_CONFIGS, FRONTIER_CONFIGS, run_bench, run_config
 from app.eval.index_loader import fixture_manifest, load_chunks, load_chunks_with_report, mtime_provenance
+from app.retrieval.embedders import HashEmbedder
+from app.retrieval.hybrid import DENSE_SCORE_DECIMALS, InMemoryHybridIndex, dense_scores, rank_by_score
+from app.retrieval.types import Chunk
 
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "bench" / "corpus"
@@ -105,3 +109,43 @@ def test_fixture_manifest_needs_the_fixture_layout(tmp_path):
         load_chunks(tmp_path / "plain", mtimes="manifest")
     with pytest.raises(ValueError, match="unknown mtimes mode"):
         load_chunks(tmp_path / "plain", mtimes="checkout")
+
+
+def test_rank_by_score_keeps_row_order_for_ties():
+    assert list(rank_by_score(np.array([0.3, 0.7, 0.3, 0.5, 0.3]), 5)) == [1, 3, 0, 2, 4]
+    mixed = np.full(200, 0.5)
+    mixed[::7] = 0.25  # two large tie groups: numpy's default argsort (introsort, SIMD) need not keep row order
+    assert list(rank_by_score(mixed, 200)) == [i for i in range(200) if i % 7] + list(range(0, 200, 7))
+    assert list(rank_by_score(mixed, 3)) == [1, 2, 3]
+    assert list(rank_by_score(np.array([0.0, -0.0, 0.0]), 3)) == [0, 1, 2]  # signed zeros tie
+
+
+def test_dense_scores_round_away_last_bit_differences():
+    """Rows that tie in exact arithmetic: summed in another order their floats can differ in the last bit; rounded, they tie."""
+    assert (0.1 + 0.2) + 0.3 != (0.3 + 0.2) + 0.1  # the same three numbers, another summation order
+    permuted = np.array([[0.1, 0.2, 0.3], [0.3, 0.2, 0.1], [0.3, 0.1, 0.2]], dtype=np.float32)
+    s = dense_scores(np.ones(3, dtype=np.float32), permuted)
+    assert s.dtype == np.float64 and s[0] == s[1] == s[2]
+    assert list(rank_by_score(s, 3)) == [0, 1, 2]
+    rng = np.random.RandomState(0)
+    docs, q = rng.randn(5, 64).astype(np.float32), rng.randn(64).astype(np.float32)
+    s = dense_scores(q, docs)
+    assert np.array_equal(s, np.round(s, DENSE_SCORE_DECIMALS))
+    d64, q64 = docs.astype(np.float64), q.astype(np.float64)
+    exact = (d64 / np.linalg.norm(d64, axis=1, keepdims=True)) @ (q64 / np.linalg.norm(q64))
+    assert np.allclose(s, exact, rtol=0, atol=10.0 ** -DENSE_SCORE_DECIMALS)
+
+
+def test_dense_search_breaks_exact_ties_by_corpus_order():
+    """Forty chunks in two groups of identical text: every score ties with its group, so corpus order decides."""
+    texts = ("learning_rate: 3e-4 encoder dinov2", "bark_type: birch fusion true")
+    corpus = [Chunk(chunk_id=f"c{i:02d}", path=f"f{i:02d}.yaml", text=texts[i % 3 == 0], start_byte=0, end_byte=9) for i in range(40)]
+    query = "learning_rate for the dinov2 encoder"
+    first, second = [c.chunk_id for c in corpus if c.text == texts[0]], [c.chunk_id for c in corpus if c.text == texts[1]]
+
+    forward = InMemoryHybridIndex(corpus, embedder=HashEmbedder())
+    backward = InMemoryHybridIndex(corpus[::-1], embedder=HashEmbedder())
+
+    assert [c.chunk_id for c, _ in forward.search_dense(query, k=40)] == first + second
+    assert [c.chunk_id for c, _ in backward.search_dense(query, k=40)] == first[::-1] + second[::-1]
+    assert [c.chunk_id for c, _ in forward.search_dense(query, k=5)] == first[:5]
