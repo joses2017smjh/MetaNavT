@@ -3,8 +3,18 @@
   "split": "test",
   "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
   "zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "expected_zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "files_sha256": {
+    "corpus.jsonl": "dec31c8182f3d744c7d2c09423756fd1d17cbef75808db13ba01cc0aab4d1ac6",
+    "queries.jsonl": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+    "qrels/test.tsv": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+  },
+  "corpus_sha256": "7394141cfad041e3b3cc0925871a7347213f880f40ed68ea27b7eaf351b0b7a1",
+  "runner_sha256": "b7e2e1961d6afef2d1875e81722beedcab9fe5f883fedec216d250099e630687",
   "n_docs": 5183,
   "n_queries": 300,
+  "full_split_queries": 300,
+  "query_selection": "full split",
   "document_text": "title + ' ' + text",
   "published": {
     "bm25_ndcg@10": 0.6789,
@@ -13,21 +23,21 @@
     "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4",
     "document_text": "title + ' ' + text (same as our rows)"
   },
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
   "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
-  "git_sha": "ee782ab",
-  "timestamp": "2026-09-23T16:12:07.911793+00:00",
-  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=/scratch/sanchej7/hf_cache CUDA_VISIBLE_DEVICES=1 python -m app.eval.beir --out bench/results/beir_scifact.json",
+  "git_sha": "2583576",
+  "timestamp": "2026-11-11T09:23:36.245167+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --data-dir <path>/beir_external --out bench/results/beir_scifact.json",
   "device": {
     "requested": "auto",
-    "python": "3.11.13",
-    "platform": "Linux-5.14.0-611.55.1.el9_7.x86_64-x86_64-with-glibc2.34",
-    "cpu_count": 48,
-    "hostname": "cn-gpu6.hpc.engr.oregonstate.edu",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 40,
     "torch": "2.5.1+cu121",
     "cuda_available": true,
     "device": "cuda",
-    "device_name": "Quadro RTX 8000",
-    "threads": 2,
+    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "threads": 1,
     "sentence_transformers": "6.1.0"
   },
   "bootstrap": {
@@ -68,23 +78,35 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 19.42,
-          "p95_ms": 29.23,
-          "mean_ms": 20.09
+          "p50_ms": 2.54,
+          "p95_ms": 4.57,
+          "mean_ms": 2.6
         },
         "total": {
           "n": 300,
-          "p50_ms": 19.43,
-          "p95_ms": 29.24,
-          "mean_ms": 20.11
+          "p50_ms": 2.55,
+          "p95_ms": 4.59,
+          "mean_ms": 2.61
         }
       },
       "build_ms": {
-        "bm25_index_ms": 16299.96,
-        "total_ms": 16299.96
+        "bm25_index_ms": 25157.52,
+        "total_ms": 25157.52
       },
-      "wall_ms": 6041.85,
+      "wall_ms": 795.13,
       "models": {},
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.6767,
@@ -138,23 +160,35 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 28.46,
-          "p95_ms": 41.54,
-          "mean_ms": 28.71
+          "p50_ms": 5.52,
+          "p95_ms": 9.24,
+          "mean_ms": 5.45
         },
         "total": {
           "n": 300,
-          "p50_ms": 28.48,
-          "p95_ms": 41.56,
-          "mean_ms": 28.72
+          "p50_ms": 5.53,
+          "p95_ms": 9.25,
+          "mean_ms": 5.47
         }
       },
       "build_ms": {
-        "bm25_index_ms": 501.64,
-        "total_ms": 501.64
+        "bm25_index_ms": 1096.64,
+        "total_ms": 1096.64
       },
-      "wall_ms": 8627.59,
+      "wall_ms": 1652.55,
       "models": {},
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.6009,
@@ -238,29 +272,29 @@
       "latency": {
         "embed": {
           "n": 300,
-          "p50_ms": 8.65,
-          "p95_ms": 13.68,
-          "mean_ms": 9.29
+          "p50_ms": 13.06,
+          "p95_ms": 13.54,
+          "mean_ms": 13.07
         },
         "dense": {
           "n": 300,
-          "p50_ms": 7.52,
-          "p95_ms": 27.46,
-          "mean_ms": 10.74
+          "p50_ms": 1.55,
+          "p95_ms": 2.01,
+          "mean_ms": 1.6
         },
         "total": {
           "n": 300,
-          "p50_ms": 17.09,
-          "p95_ms": 37.12,
-          "mean_ms": 20.06
+          "p50_ms": 14.64,
+          "p95_ms": 15.59,
+          "mean_ms": 14.69
         }
       },
       "build_ms": {
-        "embedder_load_ms": 9826.47,
-        "doc_embeddings_ms": 28.15,
-        "total_ms": 9854.62
+        "embedder_load_ms": 13035.17,
+        "doc_embeddings_ms": 21805.64,
+        "total_ms": 34840.81
       },
-      "wall_ms": 6034.57,
+      "wall_ms": 4424.11,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -272,6 +306,18 @@
           "query_instruction": null
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.72,
@@ -355,21 +401,21 @@
       "latency": {
         "embed": {
           "n": 300,
-          "p50_ms": 8.74,
-          "p95_ms": 19.48,
-          "mean_ms": 10.56
+          "p50_ms": 13.11,
+          "p95_ms": 13.73,
+          "mean_ms": 13.19
         },
         "dense": {
           "n": 300,
-          "p50_ms": 8.35,
-          "p95_ms": 28.27,
-          "mean_ms": 11.8
+          "p50_ms": 1.52,
+          "p95_ms": 2.02,
+          "mean_ms": 1.56
         },
         "total": {
           "n": 300,
-          "p50_ms": 19.07,
-          "p95_ms": 41.98,
-          "mean_ms": 22.39
+          "p50_ms": 14.66,
+          "p95_ms": 15.67,
+          "mean_ms": 14.77
         }
       },
       "build_ms": {
@@ -377,7 +423,7 @@
         "doc_embeddings_ms": 0.0,
         "total_ms": 0.0
       },
-      "wall_ms": 6736.77,
+      "wall_ms": 4450.12,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -389,6 +435,18 @@
           "query_instruction": "Represent this sentence for searching relevant passages: "
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.7127,
@@ -472,33 +530,33 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 21.72,
-          "p95_ms": 32.01,
-          "mean_ms": 22.41
+          "p50_ms": 2.86,
+          "p95_ms": 5.1,
+          "mean_ms": 2.94
         },
         "embed": {
           "n": 300,
-          "p50_ms": 8.73,
-          "p95_ms": 9.86,
-          "mean_ms": 8.89
+          "p50_ms": 13.13,
+          "p95_ms": 13.67,
+          "mean_ms": 13.13
         },
         "dense": {
           "n": 300,
-          "p50_ms": 4.48,
-          "p95_ms": 21.62,
-          "mean_ms": 7.35
+          "p50_ms": 1.6,
+          "p95_ms": 2.02,
+          "mean_ms": 1.64
         },
         "fuse": {
           "n": 300,
           "p50_ms": 0.11,
-          "p95_ms": 0.14,
-          "mean_ms": 0.12
+          "p95_ms": 0.13,
+          "mean_ms": 0.11
         },
         "total": {
           "n": 300,
-          "p50_ms": 36.81,
-          "p95_ms": 53.48,
-          "mean_ms": 38.8
+          "p50_ms": 17.76,
+          "p95_ms": 20.25,
+          "mean_ms": 17.85
         }
       },
       "build_ms": {
@@ -507,7 +565,7 @@
         "doc_embeddings_ms": 0.0,
         "total_ms": 0.01
       },
-      "wall_ms": 11655.31,
+      "wall_ms": 5373.15,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -519,6 +577,18 @@
           "query_instruction": null
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.7379,
@@ -602,49 +672,49 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 21.58,
-          "p95_ms": 30.84,
-          "mean_ms": 22.24
+          "p50_ms": 3.34,
+          "p95_ms": 5.74,
+          "mean_ms": 3.37
         },
         "embed": {
           "n": 300,
-          "p50_ms": 8.89,
-          "p95_ms": 9.59,
-          "mean_ms": 9.38
+          "p50_ms": 14.08,
+          "p95_ms": 15.16,
+          "mean_ms": 14.13
         },
         "dense": {
           "n": 300,
-          "p50_ms": 5.25,
-          "p95_ms": 18.1,
-          "mean_ms": 6.5
+          "p50_ms": 2.09,
+          "p95_ms": 2.48,
+          "mean_ms": 2.16
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.12,
-          "p95_ms": 0.14,
-          "mean_ms": 0.12
+          "p50_ms": 0.14,
+          "p95_ms": 0.15,
+          "mean_ms": 0.14
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 884.98,
-          "p95_ms": 1704.02,
-          "mean_ms": 992.7
+          "p50_ms": 961.36,
+          "p95_ms": 1843.33,
+          "mean_ms": 1066.53
         },
         "total": {
           "n": 300,
-          "p50_ms": 923.21,
-          "p95_ms": 1745.23,
-          "mean_ms": 1030.99
+          "p50_ms": 980.75,
+          "p95_ms": 1864.28,
+          "mean_ms": 1086.4
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.0,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 5554.34,
-        "total_ms": 5554.34
+        "reranker_load_ms": 11127.05,
+        "total_ms": 11127.05
       },
-      "wall_ms": 309325.89,
+      "wall_ms": 326037.31,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -668,6 +738,18 @@
           "score_scale": "sigmoid probability in [0, 1]"
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.7522,
@@ -723,10 +805,10 @@
       }
     },
     {
-      "config": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
       "parent": "hybrid+bge-rerank@bge-small",
       "settings": {
-        "name": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "name": "hybrid+bge-rerank@bge-small/fp32-512/top20",
         "mode": "hybrid",
         "analyzer": "beir",
         "k1": 0.9,
@@ -737,7 +819,7 @@
         "k": 100,
         "rrf_k": 60,
         "parent": "hybrid+bge-rerank@bge-small",
-        "precision": "fp16",
+        "precision": "fp32",
         "max_length": 512,
         "query_instruction": null
       },
@@ -751,49 +833,49 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 21.77,
-          "p95_ms": 35.0,
-          "mean_ms": 25.91
+          "p50_ms": 3.38,
+          "p95_ms": 5.78,
+          "mean_ms": 3.4
         },
         "embed": {
           "n": 300,
-          "p50_ms": 8.84,
-          "p95_ms": 13.25,
-          "mean_ms": 10.69
+          "p50_ms": 14.13,
+          "p95_ms": 14.63,
+          "mean_ms": 14.14
         },
         "dense": {
           "n": 300,
-          "p50_ms": 5.44,
-          "p95_ms": 21.31,
-          "mean_ms": 7.8
+          "p50_ms": 2.07,
+          "p95_ms": 2.19,
+          "mean_ms": 2.1
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.12,
-          "p95_ms": 0.22,
-          "mean_ms": 0.17
+          "p50_ms": 0.15,
+          "p95_ms": 0.16,
+          "mean_ms": 0.15
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 154.75,
-          "p95_ms": 188.97,
-          "mean_ms": 159.17
+          "p50_ms": 702.95,
+          "p95_ms": 716.29,
+          "mean_ms": 702.76
         },
         "total": {
           "n": 300,
-          "p50_ms": 191.21,
-          "p95_ms": 244.41,
-          "mean_ms": 203.8
+          "p50_ms": 722.84,
+          "p95_ms": 736.4,
+          "mean_ms": 722.61
         }
       },
       "build_ms": {
-        "bm25_index_ms": 0.0,
+        "bm25_index_ms": 0.01,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 5156.34,
-        "total_ms": 5156.34
+        "reranker_load_ms": 3995.42,
+        "total_ms": 3995.43
       },
-      "wall_ms": 61169.88,
+      "wall_ms": 216911.6,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -811,12 +893,24 @@
           "neural": true,
           "loaded": true,
           "device": "cuda:0",
-          "precision": "fp16",
-          "dtype": "torch.float16",
+          "precision": "fp32",
+          "dtype": "torch.float32",
           "max_length": 512,
           "score_scale": "sigmoid probability in [0, 1]"
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.7538,
@@ -872,6 +966,167 @@
       }
     },
     {
+      "config": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "precision": "fp16",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7538,
+        "recall@10": 0.8712,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7232,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 3.29,
+          "p95_ms": 5.71,
+          "mean_ms": 3.36
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 13.8,
+          "p95_ms": 14.4,
+          "mean_ms": 13.9
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.08,
+          "p95_ms": 2.18,
+          "mean_ms": 2.11
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.15,
+          "p95_ms": 0.16,
+          "mean_ms": 0.15
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 212.8,
+          "p95_ms": 222.81,
+          "mean_ms": 213.49
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 232.47,
+          "p95_ms": 243.55,
+          "mean_ms": 233.08
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 3896.2,
+        "total_ms": 3896.21
+      },
+      "wall_ms": 70054.12,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp16",
+          "dtype": "torch.float16",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]"
+        }
+      },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7538,
+          "lo": 0.7107,
+          "hi": 0.794
+        },
+        "recall@10": {
+          "mean": 0.8712,
+          "lo": 0.8324,
+          "hi": 0.9083
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0772,
+          "lo": 0.0538,
+          "hi": 0.1021
+        },
+        "recall@10": {
+          "delta": 0.0682,
+          "lo": 0.0408,
+          "hi": 0.0977
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
       "config": "hybrid+bge-rerank@bge-small/fp16-512/top50",
       "parent": "hybrid+bge-rerank@bge-small/fp16-512/top20",
       "settings": {
@@ -900,39 +1155,39 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 21.54,
-          "p95_ms": 30.96,
-          "mean_ms": 22.19
+          "p50_ms": 3.36,
+          "p95_ms": 5.89,
+          "mean_ms": 3.4
         },
         "embed": {
           "n": 300,
-          "p50_ms": 8.8,
-          "p95_ms": 9.3,
-          "mean_ms": 8.87
+          "p50_ms": 13.98,
+          "p95_ms": 14.35,
+          "mean_ms": 13.98
         },
         "dense": {
           "n": 300,
-          "p50_ms": 5.5,
-          "p95_ms": 6.26,
-          "mean_ms": 5.57
+          "p50_ms": 2.06,
+          "p95_ms": 2.14,
+          "mean_ms": 2.08
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.12,
-          "p95_ms": 0.14,
-          "mean_ms": 0.12
+          "p50_ms": 0.15,
+          "p95_ms": 0.16,
+          "mean_ms": 0.15
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 340.8,
-          "p95_ms": 375.04,
-          "mean_ms": 343.53
+          "p50_ms": 468.75,
+          "p95_ms": 519.52,
+          "mean_ms": 475.78
         },
         "total": {
           "n": 300,
-          "p50_ms": 378.08,
-          "p95_ms": 413.1,
-          "mean_ms": 380.34
+          "p50_ms": 489.4,
+          "p95_ms": 538.72,
+          "mean_ms": 495.45
         }
       },
       "build_ms": {
@@ -942,7 +1197,7 @@
         "reranker_load_ms": 0.0,
         "total_ms": 0.0
       },
-      "wall_ms": 114131.1,
+      "wall_ms": 148717.57,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -966,6 +1221,18 @@
           "score_scale": "sigmoid probability in [0, 1]"
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.7415,
@@ -1049,49 +1316,49 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 21.65,
-          "p95_ms": 31.25,
-          "mean_ms": 22.34
+          "p50_ms": 3.42,
+          "p95_ms": 5.83,
+          "mean_ms": 3.43
         },
         "embed": {
           "n": 300,
-          "p50_ms": 8.65,
-          "p95_ms": 9.28,
-          "mean_ms": 8.68
+          "p50_ms": 14.02,
+          "p95_ms": 14.48,
+          "mean_ms": 14.01
         },
         "dense": {
           "n": 300,
-          "p50_ms": 5.27,
-          "p95_ms": 7.19,
-          "mean_ms": 5.74
+          "p50_ms": 2.07,
+          "p95_ms": 2.18,
+          "mean_ms": 2.1
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.12,
-          "p95_ms": 0.14,
-          "mean_ms": 0.12
+          "p50_ms": 0.16,
+          "p95_ms": 0.17,
+          "mean_ms": 0.16
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 629.19,
-          "p95_ms": 689.03,
-          "mean_ms": 631.34
+          "p50_ms": 880.49,
+          "p95_ms": 955.43,
+          "mean_ms": 879.41
         },
         "total": {
           "n": 300,
-          "p50_ms": 668.4,
-          "p95_ms": 729.87,
-          "mean_ms": 668.28
+          "p50_ms": 899.81,
+          "p95_ms": 976.15,
+          "mean_ms": 899.17
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.0,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 0.0,
-        "total_ms": 0.0
+        "reranker_load_ms": 0.01,
+        "total_ms": 0.01
       },
-      "wall_ms": 200512.39,
+      "wall_ms": 269798.07,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -1115,6 +1382,18 @@
           "score_scale": "sigmoid probability in [0, 1]"
         }
       },
+      "metric_cross_check": {
+        "status": "passed",
+        "implementation": "pytrec_eval/trec_eval",
+        "n_queries": 300,
+        "metrics": [
+          "ndcg@10",
+          "recall@10",
+          "recall@100"
+        ],
+        "max_absolute_difference": 0.0
+      },
+      "trec": null,
       "ci": {
         "ndcg@10": {
           "mean": 0.7363,

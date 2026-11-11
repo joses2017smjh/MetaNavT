@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -25,6 +26,14 @@ def load_manifest(path: str | Path) -> dict:
     return json.loads(Path(path).read_text())
 
 
+def aggregate_sha256(entries: list[dict]) -> str:
+    """The manifest's aggregate as bench/corpus/build.py writes it: sha256 over "path:sha256" of every entry, in path order."""
+    h = hashlib.sha256()
+    for entry in sorted(entries, key=lambda e: e["path"]):
+        h.update(f"{entry['path']}:{entry['sha256']}".encode())
+    return h.hexdigest()
+
+
 def verify_manifest(files_root: Path, manifest: dict) -> list[str]:
     """Return a list of mismatch descriptions (empty = ok).
 
@@ -32,8 +41,17 @@ def verify_manifest(files_root: Path, manifest: dict) -> list[str]:
     copy whose line endings were rewritten (a checkout with core.autocrlf=true) still
     matches it, while the loader (app/eval/ingest.py) reads the bytes and indexes other
     text. The size on disk must therefore also equal the manifest's `bytes`.
+
+    Results headers copy `aggregate_sha256` and `n_files` from the manifest, so both are
+    recomputed from the listed entries: an entry edited to match an edited file passes
+    every per-file check and is caught here.
     """
     errors = []
+    if manifest.get("n_files") != len(manifest["files"]):
+        errors.append(f"n_files mismatch: n_files is {manifest.get('n_files')}, the manifest lists {len(manifest['files'])} files")
+    recomputed = aggregate_sha256(manifest["files"])
+    if manifest.get("aggregate_sha256") != recomputed:
+        errors.append(f"aggregate mismatch: aggregate_sha256 is {manifest.get('aggregate_sha256')}, the listed entries hash to {recomputed}")
     listed = {entry["path"]: entry for entry in manifest["files"]}
     on_disk = {
         str(p.relative_to(files_root)).replace("\\", "/"): p
