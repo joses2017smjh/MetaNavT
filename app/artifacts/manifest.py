@@ -99,8 +99,23 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _through_symlink(root: Path, path: Path) -> bool:
+    """True when `path`, or a directory between `root` and it, is a symlink."""
+    current = root
+    for part in path.relative_to(root).parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
 def collect_run_artifact(root: str | Path, run_id: str | int) -> ArtifactBundle:
-    """Pack every file whose path or body mentions this run id."""
+    """Pack every file whose path or body mentions this run id.
+
+    A file that is, or is reached through, a symlink is left out entirely (no
+    path, hash, size or text), as the MCP read tools refuse such paths: a link
+    could otherwise bring text from outside `root` into the bundle.
+    """
     root = Path(root)
     rid = str(int(str(run_id).strip()))
     needle = re.compile(rf"run[_\-\s]?0*{re.escape(rid)}\b", re.I)
@@ -108,7 +123,7 @@ def collect_run_artifact(root: str | Path, run_id: str | int) -> ArtifactBundle:
     claims: list[str] = []
     citations: list[dict] = []
     for path in sorted(root.rglob("*")):
-        if not path.is_file():
+        if _through_symlink(root, path) or not path.is_file():
             continue
         rel = str(path.relative_to(root)).replace("\\", "/")
         try:

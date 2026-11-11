@@ -142,6 +142,23 @@ def test_directory_move_and_symlink_reads_are_refused(tmp_path):
         tools.read_file("alias/file")
 
 
+def test_collect_run_artifact_leaves_out_files_reached_through_a_symlink(tmp_path):
+    from app.mcp.filesystem import build_root_index
+    root, outside = tmp_path / "corpus", tmp_path / "outside"
+    (root / "configs").mkdir(parents=True)
+    (outside / "dir").mkdir(parents=True)
+    (root / "configs" / "run_047.yaml").write_text("run_id: 47 learning_rate: 3e-4\n")
+    (outside / "secret.md").write_text("Run 47 outside claim zqxjfilemarker, long enough to be taken as a claim.\n")
+    (outside / "dir" / "run_047.log").write_text("run 47 outside log zqxjdirmarker\n")
+    (root / "paper_run_047.md").symlink_to(outside / "secret.md")
+    (root / "linkdir").symlink_to(outside / "dir", target_is_directory=True)
+    for index in (None, build_root_index(root)):  # both paths of the tool
+        bundle = FilesystemTools(root=root, index=index).call("collect_run_artifact", {"run_id": "47"})
+        assert [f["path"] for f in bundle["files"]] == ["configs/run_047.yaml"], bundle["files"]
+        text = json.dumps(bundle)
+        assert "zqxj" not in text and "paper_run_047" not in text and "linkdir" not in text
+
+
 def test_generated_goal_and_citation_newlines_cannot_execute_library_key_reader(tmp_path):
     from app.artifacts.templates import render
     from app.artifacts.spec import SpecCard

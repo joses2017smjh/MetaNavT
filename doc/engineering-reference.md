@@ -405,7 +405,7 @@ The Next.js app type-checks and exports statically (`npm run build` in `.fronten
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
 
-Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches, and it leaves out files reached through a symlink, whose paths `read_file` and `stat` refuse. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
+Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. Files reached through a symlink are left out of the index and of `collect_run_artifact`'s packs, and `read_file` and `stat` refuse their paths. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
 
 | tool | contract |
 |---|---|
@@ -414,7 +414,7 @@ Any MCP client can drive the corpus over stdio, through either server. Each inde
 | `list_dir` / `stat` | navigate the tree, not just vectors |
 | `propose_move` | returns a plan. never executes |
 | `apply_plan` | requires an externally signed, single-use `approval_token` |
-| `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper) |
+| `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper); files reached through a symlink are left out |
 | `propose_artifact` | spec → generate → sandbox. never writes |
 | `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
