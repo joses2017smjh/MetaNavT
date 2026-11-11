@@ -397,11 +397,11 @@ The Next.js app type-checks and exports statically (`npm run build` in `.fronten
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
 
-Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches, and it leaves out files reached through a symlink, whose paths the read tools refuse. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
+Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches, and it leaves out files reached through a symlink, whose paths `read_file` and `stat` refuse. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
 
 | tool | contract |
 |---|---|
-| `search_semantic` / `search_lexical` | hybrid (BM25 and dense, fused) / BM25 retrieval over the start-time index |
+| `search_semantic` / `search_lexical` | routed hybrid search over the start-time index (BM25 and dense fused, then the overlap reranker; the router skips the reranker for aggregation queries and gives a path-like query path lookup and BM25 only) / BM25 over the same index |
 | `read_file(path, byte_range)` | citations resolve to bytes |
 | `list_dir` / `stat` | navigate the tree, not just vectors |
 | `propose_move` | returns a plan. never executes |
@@ -410,7 +410,7 @@ Any MCP client can drive the corpus over stdio, through either server. Each inde
 | `propose_artifact` | spec → generate → sandbox. never writes |
 | `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
-| `exec_sandboxed` | AST-gated Python subset: every import and every attribute access is refused; a correctness runner, not an OS sandbox |
+| `exec_sandboxed` | AST-gated Python subset: import statements and attribute expressions (`x.y`) are refused and the builtins are an allowlist without `__import__` or `getattr`, though a `match` class pattern can still read an attribute; a correctness runner, not an OS sandbox |
 | `inspect_spreadsheet` | schema, types, missingness, five-row preview |
 | `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
 | `apply_visualization` | user approves or overrides chart, then writes/runs MATLAB |
@@ -453,11 +453,12 @@ every agent-readable/indexed root: whoever can replace the public key can mint
 grants, and whoever can replace the ledger can replay them. Without configured
 approval state, file writes are refused. A capability binds the session, operation, paths, reviewed content and
 source fingerprints, expires quickly, and is consumed transactionally before
-mutation. Symlink paths and implicit overwrites are refused. A refusal names the
-check that refused it (`REFUSAL_CHECKS` in `app/mcp/approvals.py`: signature,
-expiry, ledger, staleness and the rest); the SDK server returns that name and a
-fixed description as a tool error, and a call without a capability gets the
-structured `approval_required` result.
+mutation. Symlink paths and implicit overwrites are refused. The audit trail
+names the check that refused an `apply_*` call (`REFUSAL_CHECKS` in
+`app/mcp/approvals.py`: signature, expiry, ledger, staleness and the rest). The
+SDK server also returns that name and a fixed description as a tool error, and
+gives a call without a capability the structured `approval_required` result;
+the JSON-RPC server returns the exception's message, as before.
 
 ```bash
 # Run as the trusted operator; choose paths outside the indexed corpus.
