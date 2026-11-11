@@ -21,6 +21,7 @@ FILES = {
     "main": "bench/results/main.json",
     "neural": "bench/results/neural.json",
     "beir": "bench/results/beir_scifact.json",
+    "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
@@ -36,16 +37,37 @@ def _load(rel: str, root: Path = ROOT) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def _ci(block: dict | None, key: str = "mean") -> tuple[str, str]:
+def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, str]:
     if not block:
         return "—", "—"
     if key == "delta":
-        return f"{block['delta']:+.3f}", f"[{block['lo']:+.3f}, {block['hi']:+.3f}]"
-    return f"{block[key]:.3f}", f"[{block['lo']:.3f}, {block['hi']:.3f}]"
+        return f"{block['delta']:+.{digits}f}", f"[{block['lo']:+.{digits}f}, {block['hi']:+.{digits}f}]"
+    return f"{block[key]:.{digits}f}", f"[{block['lo']:.{digits}f}, {block['hi']:.{digits}f}]"
 
 
 def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
+
+
+def _p50(row: dict, stage: str = "total"):
+    return ((row.get("latency") or {}).get(stage) or {}).get("p50_ms")
+
+
+def _reranker_split_claims(blob: dict, file: str, command: str) -> list[dict]:
+    """SciFact reranker at depth 20: max_length 512 vs uncapped (both fp32), then fp16 vs fp32 (both capped)."""
+    by, n = _rows(blob), blob["n_queries"]
+    src, gpu = f"{file} @ {blob['git_sha']}", (blob.get("device") or {}).get("device_name", "the recorded device")
+    rer, f32c, f16 = (by.get(f"hybrid+bge-rerank@bge-small{v}") for v in ("", "/fp32-512/top20", "/fp16-512/top20"))
+    out = []
+    if rer and f32c and f32c.get("parent") == rer["config"]:
+        d, ci = _ci((f32c.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
+        out.append({"claim": "BEIR SciFact, reranker max_length 512 vs uncapped (both fp32, depth 20), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": command, "source": src,
+                    "not_shown": f"the cap alone; rerank-stage p50 {_p50(f32c, 'rerank')} ms vs {_p50(rer, 'rerank')} ms per query on {gpu}; CPU latency is a different table"})
+    if f32c and f16 and f16.get("parent") == f32c["config"]:
+        d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
+        out.append({"claim": "BEIR SciFact, reranker fp16 vs fp32 (both max_length 512, depth 20; fp16 is the served setting on CUDA, the CPU stack serves fp32), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": command, "source": src,
+                    "not_shown": f"the precision alone; rerank-stage p50 {_p50(f16, 'rerank')} ms vs {_p50(f32c, 'rerank')} ms per query on {gpu}; CPU latency is a different table"})
+    return out
 
 
 def _templated(root: Path = ROOT) -> int:
@@ -129,7 +151,7 @@ def claims(root: Path = ROOT) -> list[dict]:
         src = f"{FILES['beir']} @ {beir['git_sha']}"
         bm = by.get("bm25")
         if bm and bm.get("vs_published"):
-            v, ci = _ci(bm["ci"]["ndcg@10"])
+            v, ci = _ci(bm["ci"]["ndcg@10"], digits=4)  # the precision of the published score and the difference
             out.append({"claim": "BEIR SciFact, our BM25 with the Anserini analyzer and document text: nDCG@10", "value": v, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": f"Anserini's published flat BM25 is {bm['vs_published']['published_bm25_ndcg@10']:.4f} ({bm['vs_published']['delta']:+.4f}); this validates the lexical baseline, not the product"})
         for name, label in (("dense@bge-small", "BEIR SciFact, dense bge-small vs BM25, paired delta in nDCG@10"),
@@ -146,13 +168,21 @@ def claims(root: Path = ROOT) -> list[dict]:
             d, ci = _ci((rer.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             out.append({"claim": "BEIR SciFact, reranker over the hybrid it reranks (incremental), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": "the increment over hybrid is a tie on SciFact even though both beat BM25"})
+        # The capped fp32 row joined the ladder after the first SciFact file: there, fp16 + cap is one step from fp32
+        # uncapped. The cap and the precision one at a time come from beir_scifact.json once its ladder has that row,
+        # else from the file that measured it (make bench-beir-rerank-cap), on the GPU that file names.
         f16 = by.get("hybrid+bge-rerank@bge-small/fp16-512/top20")
-        if f16 and rer:
+        if f16 and rer and f16.get("parent") == rer["config"]:
             d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             l16 = (f16.get("latency") or {}).get("total") or {}
             l32 = (rer.get("latency") or {}).get("total") or {}
             out.append({"claim": "BEIR SciFact, reranker fp16 + max_length 512 vs fp32 uncapped (the served setting on CUDA; the CPU stack serves fp32), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": f"p50 {l16.get('p50_ms')} ms vs {l32.get('p50_ms')} ms on the GPU; CPU latency is a different table"})
+        split, split_file, split_cmd = beir, FILES["beir"], "make bench-beir"
+        if "hybrid+bge-rerank@bge-small/fp32-512/top20" not in by:
+            split, split_file, split_cmd = _load(FILES["beir_rerank_cap"], root), FILES["beir_rerank_cap"], "make bench-beir-rerank-cap"
+        if split:
+            out += _reranker_split_claims(split, split_file, split_cmd)
         d50 = by.get("hybrid+bge-rerank@bge-small/fp16-512/top50")
         if d50:
             d, ci = _ci((d50.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
@@ -380,7 +410,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **Why did hybrid tie BM25 on the fixture?** With hash embeddings (no model) and a token-overlap reranker, the dense leg adds coverage but not ranking; the paired nDCG@10 delta versus BM25 covers zero. With bge-small and the bge reranker the same pipeline beats BM25 with intervals above zero, on the fixture and on SciFact. The CI table is the download-free story; the neural table is the quality story.
 
-**Why is the parity gap reported and not gated?** The API and the in-memory bench now index the same chunks with the same embeddings, so the dense half must match, and a live-database test requires it to match exactly on every gold question. The lexical halves differ by design (Postgres full-text with ts_rank_cd and ties broken by row id, against Okapi BM25), so the end-to-end nDCG@10 gap is a measured difference, not a defect: the parity job reports it with its paired interval and fails only when the API is broken.
+**Why is the parity gap reported and not gated?** The API and the in-memory bench now index the same chunks with the same embeddings, so the dense half must match, and a live-database test requires it to match exactly on every gold question. The lexical halves differ by design (Postgres full-text with ts_rank_cd and ties broken by row id, against Okapi BM25), so the end-to-end nDCG@10 gap is a measured difference, not a defect: the parity job reports it with its paired interval and fails only when the API is broken or the fixture on disk differs from its MANIFEST.
 
 **What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. Paper2Code, the MATLAB checkpoint, multimodal pages and the RL stub run in demos but have no measured result; the engineering reference keeps them under "Prototypes (not evaluated)". The retrieval prototypes (GraphRAG community routing, HippoRAG PPR, hop expansion, HyDE, multi-query, decomposition, corrective and adaptive retrieval, the chunking variants) are benchmark arms: each has a row above with its parent, a paired interval, the verdict that interval supports and the stand-ins it ran on. An arm whose interval covers zero is reported as no measured effect, and an arm that lost stays in the table.
 

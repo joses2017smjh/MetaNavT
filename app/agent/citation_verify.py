@@ -1,7 +1,10 @@
 """Literal citation/value checks, not semantic entailment or fact verification.
 
 Strict mode checks only the exact cited UTF-8 byte range. Structure-aware chunks
-may include synthetic search headers; their raw source span is used instead.
+may include synthetic search headers; their raw source span is used instead. A
+chunk that records the sha256 of its raw span (source_span_sha256, written by the
+benchmark loader app/eval/index_loader.py) is cited only while the span still
+hashes to it; the served nodes carry neither the hash nor evidence_raw.
 Matching a number or token does not establish its subject, unit, polarity or
 currency. Use evidence_checks for explicit structured fact comparisons.
 """
@@ -12,6 +15,7 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Sequence
 
+from app.eval.hashing import content_hash
 from app.retrieval.types import Chunk
 
 
@@ -100,8 +104,9 @@ def cited_chunks(
 ) -> list[Chunk]:
     """Return raw evidence sliced to the requested range, never its whole chunk.
 
-    Missing/invalid ranges, UTF-8 mid-character boundaries and transformed
-    chunks without a raw span fail closed. A bare path selects its raw chunks.
+    Missing/invalid ranges, UTF-8 mid-character boundaries, transformed
+    chunks without a raw span and a raw span that no longer matches its
+    recorded source_span_sha256 fail closed. A bare path selects its raw chunks.
     """
     keep: list[Chunk] = []
     for cit in citations or []:
@@ -126,6 +131,9 @@ def cited_chunks(
                 raw = chunk.text
             if not isinstance(raw, str):
                 continue
+            span_hash = chunk.metadata.get("source_span_sha256")
+            if span_hash is not None and content_hash(raw) != span_hash:
+                continue  # changed after indexing, possibly to the same length, which the range check cannot see
             lo, hi = chunk.start_byte, chunk.end_byte
             data = raw.encode("utf-8")
             if ranged:

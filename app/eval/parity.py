@@ -12,8 +12,10 @@ Two rows come out of one run:
 Both are scored with the same path-level metrics and the same paired bootstrap.
 The run reports the nDCG@10 gap (API minus in-memory) with its paired 95% interval;
 the gap is a measurement, not a pass/fail gate. The exact check is the dense leg
-(tests/database/test_dense_parity.py). The run fails (exit 1) only when the API is
+(tests/database/test_dense_parity.py). The run fails (exit 1) when the API is
 broken: a request error, a question without an answer, or a question with zero hits.
+Before it contacts the API it refuses (RuntimeError) a bench/corpus/files that differs
+from bench/corpus/MANIFEST.json (app/eval/corpus.verify_manifest), as the bench does.
 
 The same in both rows: the chunks. The API indexes DATA_DIR with the bench's
 chunker (app/eval/ingest.file_chunks, called by app/eval/index_loader.py and
@@ -40,7 +42,7 @@ from pathlib import Path
 from typing import Any
 from urllib import error, request
 
-from app.eval.corpus import load_manifest, mtime_mismatches
+from app.eval.corpus import load_manifest, mtime_mismatches, verify_manifest
 from app.eval.gold import load_gold
 from app.eval.harness import BenchConfig, attach_confidence, project_root, run_config
 from app.eval.index_loader import mtime_provenance
@@ -134,6 +136,11 @@ def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
+    # Both rows read bench/corpus/files (the in-memory index here, the API through DATA_DIR) and the header
+    # copies the MANIFEST's aggregate, so a copy that differs from the MANIFEST is refused before anything runs.
+    drift = verify_manifest(files_root, manifest)
+    if drift:
+        raise RuntimeError("corpus drift:\n" + "\n".join(drift))
     health = wait_for_health(url)
 
     mem = run_config(IN_MEMORY, gold, files_root, n_files=manifest["n_files"], mtimes="manifest")

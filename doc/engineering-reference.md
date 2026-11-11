@@ -160,11 +160,27 @@ the measured results rather than a newly validated automatic selector.
 [Full NFCorpus results](../bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) ·
 [Full FiQA results](../bench/results/revamp_20261007/beir_fiqa_gpu.json)
 
+FiQA with the reranker (`make bench-beir-fiqa`; [results](../bench/results/beir_fiqa.json),
+[generated table](../README.md#bench-beir-fiqa)) runs BM25, dense and hybrid again
+next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512, first
+in fp32 and then in fp16, each row paired with its parent, with a TREC run file
+for every row in `bench/results/beir_fiqa_trec`. Its document embeddings are the
+cached bge-small matrix of the October run (the GPU that computed it is the one
+[beir_fiqa_gpu.json](../bench/results/revamp_20261007/beir_fiqa_gpu.json) names);
+the queries and the reranker ran on the GPU the new file names.
+
 On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
 **512-token cap and top-20 depth fixed** reduces warm offline total p95 from
 **216.52 to 77.15 ms** (64.4%). nDCG changes from **0.3555 to 0.3554**. This
 isolates precision more directly than the historical SciFact joint precision/
 truncation comparison. It excludes model load, index build and HTTP concurrency.
+On SciFact the cap and the precision are now also measured one at a time:
+fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
+before it, in the ladder behind the [generated SciFact table](../README.md#bench-beir)
+(`make bench-beir`); the evidence table quotes both steps with their rerank-stage
+latency. `make bench-beir-rerank-cap` runs only the hybrid and those three rows
+([results](../bench/results/beir_scifact_rerank_cap.json)); their metrics equal
+the ladder's.
 
 ### Real robotics experiment lookup
 
@@ -504,7 +520,7 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 **Semantic Query Cache**. Near-duplicate queries ("learning rate run 47" vs "what is the learning rate for run 47") hit an in-memory LRU cache with cosine-similarity lookup (threshold 0.92) instead of re-running the full pipeline. TTL eviction prevents stale results. Optional JSON persistence. `app/retrieval/cache.py`. In the benchmark it is the `hybrid+rerank+cache` arm: the gold questions are replayed in gold order into an empty cache, a hit serves the cached file list, and the row counts hits and wrong hits (a cached list that differs from what retrieval returns for that question). The gold set's templated questions differ only in a run id, so this replay measures the false-hit risk. True hits are measured on paraphrases of gold questions ([bench/probes/](../bench/probes/README.md), rule-based rewrites that inherit the relevant paths of the question they rewrite; not gold labels), looked up after the replay without being added.
 
-**Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`.
+**Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`. In strict mode (values must sit inside the cited bytes) a chunk is cited from its raw source span (`evidence_raw`), and the benchmark loader also records that span's SHA-256 (`source_span_sha256`); a span that no longer hashes to it was changed after indexing and is not cited, which catches a same-length edit the byte-range check cannot see. No served path calls this check today (its callers are the offline evaluations `app/eval/llm_eval.py` and `app/eval/evidence_consistency.py`), and the served nodes (`app/engine/ingest.py`) carry neither `evidence_raw` nor the hash.
 
 HyDE, decomposition, corrective retrieval, adaptive retrieval and the semantic cache are arms of `make bench-frontier` (first-stage HyDE: `hybrid+hyde` against `hybrid`, `dense_only+hyde` against `dense_only`, `hybrid+hyde+rerank` against `hybrid+rerank`; HyDE after the reranker: `hybrid+rerank+hyde`, `hybrid+rerank+hyde+corrective`; `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+adaptive`, `hybrid+rerank+cache`), each scored against the row it is one switch away from; the real-model run adds HyDE with an LLM-written hypothesis (`hybrid+hyde-llm`, `hybrid+hyde-llm+rerank`, the hypotheses stored by `make frontier-generations`); what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). Citation verification has no harness flag and no benchmark row.
 
@@ -648,10 +664,25 @@ results file header on the recorded device; CI does not download models, and
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
 against. The `bm25` row uses the BEIR analyzer (Porter stemming, Lucene
-stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row is the fixture's
-tokenizer, kept so the gap is visible.
+stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row switches to the
+fixture's analyzer (no stemming, no stopwords) and the fixture's k1=1.5,
+b=0.75 at once, so its gap is the three changes together, not a tokenizer
+effect. `make bench-beir-bm25-ablation` splits it on the CPU: one row changes
+the analyzer alone, one changes k1 and b alone, each paired against `bm25`.
+The dense leg ranks the way the fixture benchmark's does (float64 cosine
+rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
+postings lists of the query's terms and keeps the top k with a heap; it
+returns the same scores in the same order as scoring every document
+(`tests/eval/test_bm25_postings.py`). The ladder file behind the first
+table (`bench/results/beir_scifact.json`) was recorded again after both
+changes, with the capped fp32 row added. The nine rows it shares with the
+earlier recording keep every metric, interval and the published-score
+difference; what changed is the timing columns (per-query latency and build
+time), the GPU, and the fp16 row's paired delta, which is now against fp32 at
+the same cap.
 
-[Current generated bench-beir evidence](../README.md#bench-beir).
+[Current generated bench-beir evidence](../README.md#bench-beir) ·
+[BM25 settings one at a time](../README.md#bench-beir-bm25).
 
 **How to read these.** With real models the picture flips: hybrid RRF and the
 complete reranked pipeline beat BM25 with intervals that exclude zero, on the fixture
@@ -671,7 +702,7 @@ fixture-specific mechanisms; their gains are reported per category with the
 small n they rest on, and they are not part of the SciFact rows.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
-uncapped and fp16 with `max_length` 512 side by side, and sweeps the rerank
+uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
 depth (20, 50, 100), each with its own p50/p95; the served configuration is
 chosen from that table in the API section below, not picked up front.
 
@@ -738,8 +769,10 @@ indexes the fixture through the served indexer, runs the dense CTE of
 same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
-fails only when the API is broken (a question without an answer or with zero
-hits). On the fixture the planner answers the dense CTE with a sequential scan.
+fails when the API is broken (a question without an answer or with zero hits)
+and, before it contacts the API, when `bench/corpus/files` differs from its
+MANIFEST (the check the bench runs, `verify_manifest` in
+[app/eval/corpus.py](../app/eval/corpus.py)). On the fixture the planner answers the dense CTE with a sequential scan.
 A second test forces the HNSW index (`enable_seqscan` off), requires the whole
 served statement to be planned on it, and requires the same `RETRIEVE_K` rows
 for every gold question. On the fixture that scan reaches every row (the
@@ -1081,16 +1114,16 @@ run:47  —has_learning_rate→  3e-4
 
 ### Multi-hop graph cases
 
-_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion and the gold category as the gate; not a category-level result. The benchmark arm gates on the router instead (table above)._
+_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion behind the same gate as the benchmark arm (table above): the router's own prediction, never the gold category. Each trace records whether PPR ran (`ppr_applied`) and labels the method list accordingly; the best gold ranks are in [`doc/demo/traces.json`](../doc/demo/traces.json). Not a category-level result._
 
 
 <p align="center">
-  <img src="../doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114 comparing single-query hybrid with typed PPR rank fusion" width="820"/>
+  <img src="../doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114: single-query hybrid against the method list of each trace, typed PPR rank fusion where the router selects it" width="820"/>
 </p>
 
-- `q107`: config/log evidence moves from best gold rank 22 to rank 4 for the baseline→minimum-RMSE→bark→config chain.
-- `q108`: the requested Slurm evidence moves from rank 24 to rank 5 without adding any path outside the fused top-50.
-- `q114`: lexical `src/trellis_wires.py` stays rank 1 while graph evidence brings runs 46/47/48 into the same context.
+- `q107`: the router routes it to aggregation, so PPR runs; config/log evidence for the baseline→minimum-RMSE→bark→config chain ranks higher than in the control.
+- `q108`: PPR runs and the requested Slurm evidence ranks higher than in the control, without adding any path outside the fused top-50.
+- `q114`: the router sends it down the semantic route, so PPR does not run and the method list is the current-version filter's (the trace says `ppr_applied: false`). Until the demo stopped reading the gold category (`multi_hop`), this case showed a PPR list.
 - `q100`: all five configs below the `0.0550` baseline remain covered. GraphRAG summarizes the global community; deterministic aggregation still computes the count.
 
 PPR now fuses **ranks**, not raw PPR mass with RRF scores. Raw PPR was on a different scale and could swamp a strong lexical hit. A typed path prior (`source`, `slurm`, `checkpoint`, `paper`, `config`) only reranks candidates already retrieved.
