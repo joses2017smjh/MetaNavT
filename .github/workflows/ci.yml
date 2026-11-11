@@ -67,6 +67,8 @@ jobs:
         run: make bench
       - name: Regression gate (nDCG@10 / Recall@50 vs bench/results/main.json)
         run: make bench-gate
+      - name: Exact reproduction (every field of every row equals bench/results/main.json; timings excepted)
+        run: make bench-check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -146,6 +148,8 @@ jobs:
           python -m pip check
       - name: SQL RRF == Python RRF, dense leg == in-memory dense search, incremental indexing, schema migrations (tests/database, live Postgres)
         run: python -m pytest tests/database -q -rs
+      - name: Fixture mtimes from the MANIFEST (the served staleness filter reads disk mtimes; a checkout's are arbitrary)
+        run: make fixture-mtimes
       - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &

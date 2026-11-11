@@ -84,7 +84,7 @@ def _components(triples: Sequence[Triple]) -> list[set[str]]:
         adj[t.dst].add(t.src)
     seen: set[str] = set()
     out: list[set[str]] = []
-    for n in nodes:
+    for n in sorted(nodes):  # a set of strings iterates in PYTHONHASHSEED order; equal-size components keep this order
         if n in seen:
             continue
         stack = [n]

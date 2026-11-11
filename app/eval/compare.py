@@ -2,6 +2,7 @@
 
     python -m app.eval.compare                       # report latest.json vs main.json
     python -m app.eval.compare --fail-on-regression  # exit 1 if a gated metric drops
+    python -m app.eval.compare --exact               # exit 1 unless every row reproduces main.json exactly
 
 Gate: for every config in the baseline, each metric in GATED_METRICS (nDCG@10,
 Recall@10, Recall@50) must not be lower than the baseline by more than
@@ -14,6 +15,13 @@ them with `make bench-baseline`.
 
 Only the retrieval metrics are compared. Timestamps, latencies and the heuristic
 e2e block differ from run to run and are ignored.
+
+--exact (make bench-check) is the reproduction check: the bench is meant to give
+the same numbers on any machine, so every field of every row (metrics, per-category
+metrics, intervals, deltas, the e2e block, settings, routes) and the header fields
+that define the run (corpus, gold set, bootstrap, mtimes) must equal the baseline,
+in both directions. Only timings, the timestamp, the command, the machine and the
+commit may differ.
 """
 
 from __future__ import annotations
@@ -101,6 +109,45 @@ def regressions(
     return problems
 
 
+VOLATILE_ROW_KEYS = frozenset({"latency", "wall_ms"})  # timings: the only row fields allowed to differ
+EXACT_HEADER_KEYS = ("corpus_sha256", "n_gold", "n_files", "bootstrap", "mtimes")
+
+
+def _leaf_differences(path: str, a, b, out: list[str]) -> None:
+    if isinstance(a, dict) and isinstance(b, dict):
+        for key in list(a) + [k for k in b if k not in a]:
+            if key not in a or key not in b:
+                out.append(f"{path}.{key}: only in {'baseline' if key in a else 'current'}")
+            else:
+                _leaf_differences(f"{path}.{key}", a[key], b[key], out)
+    elif isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        for i, (x, y) in enumerate(zip(a, b)):
+            _leaf_differences(f"{path}[{i}]", x, y, out)
+    elif a != b or type(a) is not type(b):
+        out.append(f"{path}: baseline {a!r}, current {b!r}")
+
+
+def exact_differences(current: dict, baseline: dict) -> list[str]:
+    """Every difference between two results files outside timings and provenance (empty = reproduced)."""
+    out: list[str] = []
+    for key in EXACT_HEADER_KEYS:
+        _leaf_differences(key, baseline.get(key), current.get(key), out)
+    base_rows, cur_rows = baseline.get("results", []), current.get("results", [])
+    if [r["config"] for r in base_rows] != [r["config"] for r in cur_rows]:
+        out.append(f"rows: baseline {[r['config'] for r in base_rows]}, current {[r['config'] for r in cur_rows]}")
+    cur_map = _by_config(current)
+    for base_row in base_rows:
+        cur_row = cur_map.get(base_row["config"])
+        if cur_row is None:
+            continue
+        _leaf_differences(base_row["config"], _without_timings(base_row), _without_timings(cur_row), out)
+    return out
+
+
+def _without_timings(row: dict) -> dict:
+    return {k: v for k, v in row.items() if k not in VOLATILE_ROW_KEYS}
+
+
 def default_paths(root: Path) -> tuple[Path, Path]:
     results = root / "bench" / "results"
     return results / "latest.json", results / "main.json"
@@ -114,6 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--baseline", type=Path, default=default_baseline, help="committed baseline (default: bench/results/main.json)")
     p.add_argument("--fail-on-regression", action="store_true", help="exit 1 when a gated metric drops beyond --threshold")
     p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"largest tolerated drop per gated metric (default {DEFAULT_THRESHOLD})")
+    p.add_argument("--exact", action="store_true", help="exit 1 unless every field of every row equals the baseline (timings excepted)")
     args = p.parse_args(argv)
 
     if not args.current.exists():
@@ -125,6 +173,17 @@ def main(argv: list[str] | None = None) -> int:
 
     current = load_result(args.current)
     baseline = load_result(args.baseline)
+    if args.exact:
+        differences = exact_differences(current, baseline)
+        rows = len(baseline.get("results", []))
+        if not differences:
+            print(f"exact: OK, {args.current.name} reproduces {args.baseline.name} in every field of {rows} rows "
+                  f"(current sha {current.get('git_sha')}, baseline sha {baseline.get('git_sha')})")
+            return 0
+        print(f"exact: {len(differences)} differences from {args.baseline.name} (only timings may differ):")
+        for line in differences[:50]:
+            print(f"  - {line}")
+        return 1
     print(compare(current, baseline))
     notes: list[str] = []
     problems = regressions(current, baseline, threshold=args.threshold, notes=notes)

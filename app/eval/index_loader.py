@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from app.chunking.contextual import prepend_context
@@ -13,11 +14,72 @@ from app.retrieval.rerank import CrossEncoderReranker, OverlapReranker
 from app.retrieval.router import QueryRouter
 from app.retrieval.context import path_context
 
-__all__ = ["SKIP_NAMES", "iter_corpus_files", "load_chunks", "load_chunks_with_report", "build_index"]
+__all__ = [
+    "SKIP_NAMES", "MTIME_MODES", "iter_corpus_files", "fixture_manifest", "mtime_provenance",
+    "load_chunks", "load_chunks_with_report", "build_index",
+]
+
+# Where a chunk's mtime comes from. The staleness filter (app/graph/staleness.py) and the file
+# graph's co-modified edges compare mtimes, so they decide benchmark rows. A git checkout sets
+# every file's mtime to the moment it was written (on some filesystems the same whole second for
+# every file), which is why the benchmark reads a frozen fixture's mtimes from its MANIFEST:
+#   auto      the manifest when `root` is a frozen fixture (see fixture_manifest), else the disk
+#   manifest  the manifest; an error when there is none
+#   disk      os.stat st_mtime, as the served indexer (app/engine/ingest.py) always does
+MTIME_MODES = ("auto", "manifest", "disk")
+MANIFEST_NAME = "MANIFEST.json"
+
+
+def fixture_manifest(root: Path) -> Path | None:
+    """The frozen fixture's MANIFEST.json when `root` is its files directory, else None.
+
+    The layout is bench/corpus/MANIFEST.json next to bench/corpus/files: a
+    MANIFEST.json beside `root` whose `root` field names a directory with the
+    same name as `root` and that lists every file with its intended mtime
+    (written by bench/corpus/build.py). A copy of the fixture made the same way
+    (the files directory and the MANIFEST beside it) is a fixture too.
+    """
+    candidate = Path(root).parent / MANIFEST_NAME
+    try:
+        manifest = json.loads(candidate.read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), list):
+        return None
+    files = manifest["files"]
+    if Path(str(manifest.get("root", ""))).name != Path(root).name:
+        return None
+    if not all(isinstance(e, dict) and "path" in e and "mtime" in e for e in files):
+        return None
+    return candidate
+
+
+def _manifest_mtimes(manifest_path: Path) -> dict[str, float]:
+    return {str(e["path"]): float(e["mtime"]) for e in json.loads(manifest_path.read_text())["files"]}
+
+
+def mtime_provenance(root: Path, mtimes: str = "auto", *, base: Path | None = None) -> dict:
+    """What a results header records about the mtimes a load of `root` uses.
+
+    The manifest is named relative to `base` (the repository root in the
+    harness: bench/corpus/MANIFEST.json), or by its parent directory's name.
+    """
+    if mtimes not in MTIME_MODES:
+        raise ValueError(f"unknown mtimes mode {mtimes!r}; expected one of {MTIME_MODES}")
+    manifest = fixture_manifest(root) if mtimes != "disk" else None
+    if mtimes == "manifest" and manifest is None:
+        raise ValueError(f"mtimes='manifest' but there is no fixture {MANIFEST_NAME} beside {root}")
+    if manifest is None:
+        return {"source": "disk", "field": "st_mtime"}
+    try:
+        name = manifest.resolve().relative_to(Path(base).resolve()).as_posix() if base is not None else None
+    except ValueError:
+        name = None
+    return {"source": "manifest", "file": name or f"{manifest.parent.name}/{MANIFEST_NAME}", "field": "files[].mtime"}
 
 
 def load_chunks_with_report(
-    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False
+    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto"
 ) -> tuple[list[Chunk], dict]:
     """Chunks for every accepted file plus the ingestion report (files seen, indexed, rejected by reason).
 
@@ -29,11 +91,24 @@ def load_chunks_with_report(
     (app/chunking/contextual.py). No LLM is wired in here: the prefix is the
     path-words heuristic of app/retrieval/context.py, and it is labelled as such
     wherever its numbers appear. Citations still use `evidence_raw`.
+
+    `mtimes` (MTIME_MODES): by default a frozen fixture's chunks carry the
+    mtimes its MANIFEST records, so a fresh checkout scores like the one that
+    recorded the results; any other directory keeps the disk's. The choice is
+    in the report as `mtimes` (mtime_provenance). A fixture file the manifest
+    does not list is an error, not a silent fallback to the disk.
     """
     root = Path(root)
+    provenance = mtime_provenance(root, mtimes)
+    listed = _manifest_mtimes(fixture_manifest(root)) if provenance["source"] == "manifest" else None
     scan = scan_directory(root, BENCH_POLICY)
+    if listed is not None:
+        unlisted = [s.path for s in scan.files if s.path not in listed]
+        if unlisted:
+            raise ValueError(f"{len(unlisted)} files under {root} are not in its {MANIFEST_NAME}: {unlisted[:5]}")
     chunks: list[Chunk] = []
     for source in scan.files:
+        mtime = listed[source.path] if listed is not None else source.mtime
         for piece in file_chunks(source.path, source.text, strategy):
             indexed_text = piece.text
             if contextual:
@@ -45,7 +120,7 @@ def load_chunks_with_report(
                     text=indexed_text,
                     start_byte=piece.start_byte,
                     end_byte=piece.end_byte,
-                    mtime=source.mtime,
+                    mtime=mtime,
                     content_hash=source.sha256,
                     metadata={"kind": piece.kind, "evidence_raw": piece.raw, "source_span_sha256": content_hash(piece.raw),
                               "text_is_verbatim": indexed_text == piece.raw,
@@ -55,11 +130,14 @@ def load_chunks_with_report(
     # An in-memory build has no previous run: every accepted file is new.
     report = ingest_report(scan, plan_ingest(scan.hashes(), {}))
     report["chunks_embedded"] = len(chunks)
+    report["mtimes"] = provenance
     return chunks, report
 
 
-def load_chunks(root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False) -> list[Chunk]:
-    return load_chunks_with_report(root, strategy, include_path_context=include_path_context, contextual=contextual)[0]
+def load_chunks(
+    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto"
+) -> list[Chunk]:
+    return load_chunks_with_report(root, strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes)[0]
 
 
 def build_index(
@@ -74,9 +152,10 @@ def build_index(
     chunk_strategy: str = "auto",
     include_path_context: bool = False,
     contextual: bool = False,
+    mtimes: str = "auto",
 ) -> InMemoryHybridIndex:
     chunks, ingest = load_chunks_with_report(
-        root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual
+        root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes
     )
     if embedder_name == "hash":
         embedder = HashEmbedder()

@@ -1,3 +1,6 @@
 
 # Frozen benchmark evidence keeps its exact source bytes and legacy whitespace.
 bench/robotics/** -text -whitespace
+# Fixture v1 is checked out byte for byte: the bench loader reads bytes (a CRLF checkout, e.g. core.autocrlf=true,
+# would index other text and score other numbers).
+bench/corpus/** -text

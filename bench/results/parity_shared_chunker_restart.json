@@ -1,13 +1,12 @@
 {
-  "git_sha": "be56caf",
-  "timestamp": "2026-11-10T02:51:09.271429+00:00",
-  "command": "python -m app.eval.harness --backend api --url http://127.0.0.1:33417 --out bench/results/parity_shared_chunker_restart.json --tolerance 0.06",
+  "git_sha": "1d8cbc1",
+  "timestamp": "2026-11-11T06:44:56.316461+00:00",
+  "command": "python -m app.eval.harness --backend api --url http://127.0.0.1:39209 --out bench/results/parity_shared_chunker_restart.json",
   "device": {
     "requested": "cpu",
     "python": "3.11.16",
-    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
-    "cpu_count": 96,
-    "hostname": "dgx2-5.hpc.engr.oregonstate.edu",
+    "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+    "cpu_count": 64,
     "torch": null,
     "cuda_available": false,
     "device": "cpu",
@@ -18,6 +17,18 @@
   "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
   "n_gold": 136,
   "n_files": 61,
+  "mtimes": {
+    "in_memory": {
+      "source": "manifest",
+      "file": "bench/corpus/MANIFEST.json",
+      "field": "files[].mtime"
+    },
+    "api": {
+      "source": "disk",
+      "dir": "bench/corpus/files",
+      "equal_to_manifest": true
+    }
+  },
   "api_health": {
     "status": "ok",
     "n_nodes": 71,
@@ -71,7 +82,7 @@
       "n_nodes": 71,
       "lock": {
         "waited": false,
-        "waited_ms": 0.5
+        "waited_ms": 0.3
       }
     },
     "observability": {
@@ -81,6 +92,17 @@
         "enabled": false,
         "reason": "OTEL_EXPORTER_OTLP_ENDPOINT not set"
       }
+    },
+    "auth": {
+      "enabled": false,
+      "scheme": "X-API-Key header or Authorization: Bearer",
+      "scope": "<path>/api routes and <path>/files mounts; <path>/health is always open"
+    },
+    "rate_limit": {
+      "enabled": false,
+      "per_minute": null,
+      "burst": null,
+      "scope": "per replica (in-process buckets)"
     }
   },
   "bootstrap": {
@@ -91,19 +113,19 @@
     "n_queries": 136,
     "level": 0.95
   },
-  "gate": {
+  "gap": {
     "metric": "ndcg@10",
-    "in_memory": 0.5199,
-    "api": 0.6263,
-    "gap": 0.1064,
-    "tolerance": 0.06,
+    "in_memory": 0.5159,
+    "api": 0.5858,
+    "gap": 0.0699,
     "paired_delta_api_minus_in_memory": {
-      "delta": 0.1064,
-      "lo": 0.059,
-      "hi": 0.1546
-    },
-    "ok": false
+      "delta": 0.0699,
+      "lo": 0.0259,
+      "hi": 0.1135
+    }
   },
+  "api_ok": true,
+  "api_problems": [],
   "results": [
     {
       "config": "in_memory:hybrid+router+staleness",
@@ -127,57 +149,61 @@
         "hyde": false,
         "decompose": false,
         "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
         "parent": null
       },
       "retrieval": {
-        "ndcg@10": 0.5199,
-        "recall@5": 0.5611,
-        "recall@10": 0.6815,
-        "recall@50": 0.9176,
-        "mrr@10": 0.5259,
+        "ndcg@10": 0.5159,
+        "recall@5": 0.575,
+        "recall@10": 0.7054,
+        "recall@50": 0.9397,
+        "mrr@10": 0.5095,
         "mean_unique_paths@50": 40.28,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "ndcg@10": 0.5697,
+            "ndcg@10": 0.5235,
             "recall@10": 0.7438,
             "recall@50": 0.9187,
-            "mrr@10": 0.5946,
+            "mrr@10": 0.5292,
             "n": 80.0
           },
           "conditional": {
-            "ndcg@10": 0.1992,
-            "recall@10": 0.4313,
+            "ndcg@10": 0.2313,
+            "recall@10": 0.4625,
             "recall@50": 0.975,
-            "mrr@10": 0.1533,
+            "mrr@10": 0.1753,
             "n": 8.0
           },
           "comparative": {
-            "ndcg@10": 0.3811,
+            "ndcg@10": 0.3701,
             "recall@10": 0.5417,
             "recall@50": 1.0,
-            "mrr@10": 0.3681,
+            "mrr@10": 0.3889,
             "n": 8.0
           },
           "aggregation": {
-            "ndcg@10": 0.3612,
+            "ndcg@10": 0.3394,
             "recall@10": 0.4646,
             "recall@50": 1.0,
-            "mrr@10": 0.3343,
+            "mrr@10": 0.251,
             "n": 10.0
           },
           "multi_hop": {
-            "ndcg@10": 0.4166,
-            "recall@10": 0.5938,
-            "recall@50": 0.875,
-            "mrr@10": 0.4583,
+            "ndcg@10": 0.4892,
+            "recall@10": 0.6562,
+            "recall@50": 0.9375,
+            "mrr@10": 0.5208,
             "n": 8.0
           },
           "staleness": {
-            "ndcg@10": 0.3016,
-            "recall@10": 0.5,
-            "recall@50": 0.75,
-            "mrr@10": 0.2417,
+            "ndcg@10": 0.5516,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.4917,
             "n": 8.0
           },
           "exact_path": {
@@ -188,10 +214,10 @@
             "n": 8.0
           },
           "semantic": {
-            "ndcg@10": 0.6052,
-            "recall@10": 0.6667,
-            "recall@50": 0.75,
-            "mrr@10": 0.5833,
+            "ndcg@10": 0.7073,
+            "recall@10": 0.75,
+            "recall@50": 0.8333,
+            "mrr@10": 0.75,
             "n": 6.0
           }
         },
@@ -203,36 +229,36 @@
       "latency": {
         "route": {
           "n": 136,
-          "p50_ms": 0.02,
-          "p95_ms": 0.04,
-          "mean_ms": 0.02
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.37,
-          "p95_ms": 0.51,
-          "mean_ms": 0.38
+          "p50_ms": 0.21,
+          "p95_ms": 0.29,
+          "mean_ms": 0.21
         },
         "embed": {
           "n": 128,
-          "p50_ms": 0.28,
-          "p95_ms": 0.43,
-          "mean_ms": 0.3
+          "p50_ms": 0.2,
+          "p95_ms": 0.28,
+          "mean_ms": 0.22
         },
         "vector_search": {
           "n": 128,
-          "p50_ms": 0.02,
-          "p95_ms": 0.03,
-          "mean_ms": 0.02
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "lexical": {
           "n": 8,
-          "p50_ms": 0.59,
-          "p95_ms": 0.63,
-          "mean_ms": 0.6
+          "p50_ms": 0.32,
+          "p95_ms": 0.36,
+          "mean_ms": 0.33
         }
       },
-      "wall_ms": 136.48,
+      "wall_ms": 85.33,
       "routes": {
         "semantic": 95,
         "aggregation_query": 33,
@@ -262,19 +288,19 @@
       },
       "ci": {
         "ndcg@10": {
-          "mean": 0.5199,
-          "lo": 0.4621,
-          "hi": 0.5783
+          "mean": 0.5159,
+          "lo": 0.4628,
+          "hi": 0.5706
         },
         "recall@10": {
-          "mean": 0.6815,
-          "lo": 0.6199,
-          "hi": 0.7451
+          "mean": 0.7054,
+          "lo": 0.6433,
+          "hi": 0.7654
         },
         "recall@50": {
-          "mean": 0.9176,
-          "lo": 0.8809,
-          "hi": 0.9522
+          "mean": 0.9397,
+          "lo": 0.9103,
+          "hi": 0.9676
         }
       },
       "delta_vs_bm25_only": null,
@@ -284,7 +310,7 @@
     {
       "config": "api:postgres",
       "settings": {
-        "url": "http://127.0.0.1:33417",
+        "url": "http://127.0.0.1:39209",
         "k": 50,
         "route": "semantic",
         "retrieval_mode": "sql",
@@ -298,68 +324,68 @@
         }
       },
       "retrieval": {
-        "ndcg@10": 0.6263,
-        "recall@5": 0.7122,
-        "recall@10": 0.7851,
-        "recall@50": 0.9246,
-        "mrr@10": 0.6132,
+        "ndcg@10": 0.5858,
+        "recall@5": 0.7223,
+        "recall@10": 0.7988,
+        "recall@50": 0.9467,
+        "mrr@10": 0.5473,
         "mean_unique_paths@50": 40.77,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "ndcg@10": 0.6769,
-            "recall@10": 0.8688,
+            "ndcg@10": 0.591,
+            "recall@10": 0.8562,
             "recall@50": 0.9437,
-            "mrr@10": 0.6521,
+            "mrr@10": 0.5396,
             "n": 80.0
           },
           "conditional": {
-            "ndcg@10": 0.338,
-            "recall@10": 0.6562,
+            "ndcg@10": 0.3361,
+            "recall@10": 0.6312,
             "recall@50": 1.0,
-            "mrr@10": 0.2396,
+            "mrr@10": 0.25,
             "n": 8.0
           },
           "comparative": {
-            "ndcg@10": 0.6551,
+            "ndcg@10": 0.6306,
             "recall@10": 0.7292,
             "recall@50": 1.0,
             "mrr@10": 0.75,
             "n": 8.0
           },
           "aggregation": {
-            "ndcg@10": 0.5475,
-            "recall@10": 0.5436,
+            "ndcg@10": 0.4941,
+            "recall@10": 0.5499,
             "recall@50": 1.0,
-            "mrr@10": 0.5783,
+            "mrr@10": 0.4217,
             "n": 10.0
           },
           "multi_hop": {
-            "ndcg@10": 0.6164,
-            "recall@10": 0.7188,
-            "recall@50": 0.9375,
-            "mrr@10": 0.6792,
+            "ndcg@10": 0.6416,
+            "recall@10": 0.7812,
+            "recall@50": 1.0,
+            "mrr@10": 0.6687,
             "n": 8.0
           },
           "staleness": {
-            "ndcg@10": 0.5515,
-            "recall@10": 0.75,
-            "recall@50": 0.75,
-            "mrr@10": 0.5104,
+            "ndcg@10": 0.7052,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6083,
             "n": 8.0
           },
           "exact_path": {
-            "ndcg@10": 0.5789,
+            "ndcg@10": 0.625,
             "recall@10": 0.625,
             "recall@50": 0.75,
-            "mrr@10": 0.5625,
+            "mrr@10": 0.625,
             "n": 8.0
           },
           "semantic": {
-            "ndcg@10": 0.6052,
-            "recall@10": 0.6667,
-            "recall@50": 0.7917,
-            "mrr@10": 0.5833,
+            "ndcg@10": 0.6563,
+            "recall@10": 0.75,
+            "recall@50": 0.875,
+            "mrr@10": 0.6389,
             "n": 6.0
           }
         },
@@ -371,72 +397,73 @@
       "latency": {
         "e2e": {
           "n": 136,
-          "p50_ms": 11.04,
-          "p95_ms": 12.07,
-          "mean_ms": 10.75
+          "p50_ms": 7.41,
+          "p95_ms": 8.61,
+          "mean_ms": 7.3
         },
         "server:route": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.04,
-          "mean_ms": 0.03
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
         },
         "server:embed": {
           "n": 128,
-          "p50_ms": 0.47,
-          "p95_ms": 0.61,
-          "mean_ms": 0.48
+          "p50_ms": 0.34,
+          "p95_ms": 0.44,
+          "mean_ms": 0.35
         },
         "server:hybrid_sql": {
           "n": 136,
-          "p50_ms": 7.13,
-          "p95_ms": 8.18,
-          "mean_ms": 6.92
+          "p50_ms": 4.76,
+          "p95_ms": 5.55,
+          "mean_ms": 4.63
         },
         "server:staleness": {
           "n": 136,
-          "p50_ms": 0.38,
-          "p95_ms": 0.4,
-          "mean_ms": 0.37
+          "p50_ms": 0.22,
+          "p95_ms": 0.27,
+          "mean_ms": 0.23
         },
         "server:total": {
           "n": 136,
-          "p50_ms": 8.69,
-          "p95_ms": 9.74,
-          "mean_ms": 8.46
+          "p50_ms": 5.76,
+          "p95_ms": 6.82,
+          "mean_ms": 5.66
         }
       },
-      "wall_ms": 1465.44,
+      "wall_ms": 995.42,
       "n_queries": 136,
+      "zero_hit_queries": [],
       "ci": {
         "ndcg@10": {
-          "mean": 0.6263,
-          "lo": 0.5709,
-          "hi": 0.6851
+          "mean": 0.5858,
+          "lo": 0.5383,
+          "hi": 0.6375
         },
         "recall@10": {
-          "mean": 0.7851,
-          "lo": 0.7324,
-          "hi": 0.8362
+          "mean": 0.7988,
+          "lo": 0.7483,
+          "hi": 0.8488
         },
         "recall@50": {
-          "mean": 0.9246,
-          "lo": 0.886,
-          "hi": 0.9596
+          "mean": 0.9467,
+          "lo": 0.9154,
+          "hi": 0.9743
         }
       },
       "delta_vs_bm25_only": null,
       "delta_vs_previous": {
         "reference": "in_memory:hybrid+router+staleness",
         "ndcg@10": {
-          "delta": 0.1064,
-          "lo": 0.059,
-          "hi": 0.1546
+          "delta": 0.0699,
+          "lo": 0.0259,
+          "hi": 0.1135
         },
         "recall@10": {
-          "delta": 0.1036,
-          "lo": 0.0507,
-          "hi": 0.1595
+          "delta": 0.0934,
+          "lo": 0.0422,
+          "hi": 0.1454
         },
         "recall@50": {
           "delta": 0.007,

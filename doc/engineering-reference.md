@@ -207,12 +207,20 @@ pip install -e ".[eval]"   # numpy, pydantic, pytest
 make test-eval             # evaluation tests
 make bench                 # writes bench/results/<git-sha>.json and latest.json
 make bench-gate            # latest.json vs the committed baseline bench/results/main.json
+make bench-check           # re-runs the bench; every field of every row must equal main.json
 ```
 
-CI runs exactly this on every push and pull request (Python 3.11 and 3.12),
-and fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than 0.002 below
-`main.json`. The bench is deterministic, so that threshold is rounding noise,
-not tolerance. To accept a change on purpose: `make bench-baseline`, review
+CI runs exactly this on every push and pull request (Python 3.11 and 3.12).
+The gate fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than
+0.002 below `main.json`; `make bench-check` fails on any difference at all
+outside timings, in either direction. The bench gives the same numbers on any
+machine and checkout: the staleness filter and the file graph compare mtimes,
+and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
+(a checkout sets them to the moment it wrote each file); dense scores are
+computed in float64, rounded to 10 decimals and ranked with ties in corpus
+order, so neither the last bit of the CPU's BLAS kernel nor numpy's sort
+implementation decides an order. The results header records where the mtimes
+came from. To accept a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use
@@ -385,7 +393,7 @@ flowchart LR
   V -->|empty / uncited| X[fail loud]
 ```
 
-Hard cap on iterations. Unresolvable citation = failed generation. Empty retrieval refuses to guess. Specialized agents (file reader, Python exec, task router) still sit under FastAPI; retrieval is no longer a one-shot `top_k`.
+Hard cap on iterations. Unresolvable citation = failed generation. Empty retrieval refuses to guess. Specialized agents (file reader, Python exec when switched on, task router) still sit under FastAPI; retrieval is no longer a one-shot `top_k`.
 
 ### MCP filesystem, with a human interrupt
 
@@ -614,6 +622,7 @@ of the score.
 make bench            # bench/results/<git-sha>.json and latest.json
 make bench-compare    # latest.json vs bench/results/main.json (report)
 make bench-gate       # same, exit 1 on regression (what CI runs)
+make bench-check      # re-run, exit 1 unless every field of every row equals main.json (CI runs it too)
 make bench-table      # renders the generated blocks from main.json (bench-table-write updates them in place)
 make figures          # regenerates the SVGs above
 make sweeps           # HNSW, halfvec, hops, GraphRAG
@@ -683,19 +692,23 @@ RRF on identical input lists, against a live Postgres in CI.
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
-The run behind that block was recorded when the API still chunked with
-LlamaIndex `SentenceSplitter`. The API now indexes with the bench's chunker:
-both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
-and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
-compares the chunk boundaries and texts of the two paths on the fixture. The
-dense leg therefore embeds identical texts in both rows. The run recorded after
-that change is
+That block renders
 [bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
-(and `parity_shared_chunker_restart.json`, the same command after a restart on
-the indexed database). In those files the API row scores above the in-memory
-row and the paired interval excludes zero (`/gate` in those files, which
-predate the change below). Sharing the chunker removed one difference and did
-not make the rows agree.
+(`parity_shared_chunker_restart.json` is the same command after a restart on
+the indexed database). Both runs were made after the API took the bench's
+chunker: both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
+and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
+compares the chunk boundaries and texts of the two paths on the fixture, so the
+dense leg embeds identical texts in both rows. (The earlier
+[bench/results/parity.json](../bench/results/parity.json) was recorded when the
+API still chunked with LlamaIndex `SentenceSplitter`.) Both rows also see the
+same file mtimes, which the staleness filter compares: the in-memory row reads
+the fixture's MANIFEST, and the API reads the disk after `make fixture-mtimes`
+has set it to the MANIFEST's values (CI runs it before starting the API; a
+checkout's own mtimes are arbitrary, and the API keeps reading the disk as a
+served system should). The API row scores above the in-memory row and the
+paired interval excludes zero: sharing the chunker removed one difference and
+did not make the rows agree.
 
 What is checked exactly is the dense leg:
 [tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)
@@ -1071,13 +1084,15 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). Pending plans live in the API process's memory (one worker); the decision log is the durable record and `GET /api/plans/decisions/recent` reads it back. The page background is the four-stop radial gradient in `globals.css`.
 
-**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, Python exec, artifacts). Agents hand off through a task router. Retrieval is now hybrid + loop, not a single dense `top_k`.
+**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
 **Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
 
 **Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
 
 **API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it, and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
+
+**Python execution in chat.** The chat route's Python tool runs code the model writes, so it is off by default: `config/tools.yaml` does not list it, and `get_chat_engine()` builds the code agent only when `ENABLE_PYTHON_EXEC` is set and `METANAVIT_API_KEY` is configured. With the flag but no key the tool stays off and a warning says why; since the bundled web UI sends no key, turning it on suits API clients or a proxy that adds the header. When it is on, each call runs the code in a child process (`app/engine/tools/python_exec_runner.py`), never in the API process: the child starts in a new session with its own environment reduced to `PATH`, `HOME`, locale, `TZ` and `TMPDIR`, plus one-thread settings for the maths libraries (the API key and the connection string are not in it), lowers its own CPU-time, address-space and file-size limits before the code runs (`PYTHON_EXEC_TIMEOUT_SECONDS`, `PYTHON_EXEC_MAX_MEMORY_MB`), and its process group is killed at the time limit and again when the call returns, so a background process left in the group does not outlive the call. The result keeps its fields (output, error, result, figure path). This is a separate process with limits, not OS isolation: the code runs as the API's OS user and can read what that user can read, including the API process's start-up environment under `/proc` and a `.env` file in the working directory, and a process it starts in a session of its own leaves the group and is not killed. `tests/engine/test_python_exec_child.py` covers the default, the key requirement, the other process, the limits and the kill.
 
 **Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
 

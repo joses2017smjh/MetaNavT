@@ -10,7 +10,8 @@ Configuration (tools.yaml)
 
 import importlib
 import logging
-import os
+from contextvars import ContextVar
+from pathlib import Path
 from typing import Dict, List, Union, Any, Optional
 
 import yaml
@@ -20,18 +21,26 @@ from llama_index.core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 
-# Global registry to store tool calls
-tool_call_registry = []
+# config/tools.yaml at the repository root, found from this package and not from the
+# working directory: an API started elsewhere used to load no tools and say nothing.
+TOOLS_CONFIG = Path(__file__).resolve().parents[3] / "config" / "tools.yaml"
+
+# Tool calls recorded per request. This used to be one module-level list that nothing
+# cleared: it grew for the life of the process and every request saw the others' calls.
+# Now each context has its own list, started by clear_tool_calls() (get_chat_engine()
+# starts one per request). There is no default list: outside a started registry a
+# call is not recorded anywhere.
+_tool_calls: ContextVar[Optional[List[Dict[str, Any]]]] = ContextVar("tool_calls", default=None)
 
 def get_tool_call_registry():
-    """Get the recorded tool calls"""
-    return tool_call_registry
+    """Get the tool calls recorded in the current context (empty if none was started)"""
+    calls = _tool_calls.get()
+    return calls if calls is not None else []
 
 
 def clear_tool_calls():
-    """Clear the tool call registry"""
-    global tool_call_registry
-    tool_call_registry = []
+    """Start a new, empty tool call registry for the current context"""
+    _tool_calls.set([])
 
 def add_tool_call(
     name: str,
@@ -43,7 +52,9 @@ def add_tool_call(
         "output": output,
     }
 
-    tool_call_registry.append(call_info)
+    calls = _tool_calls.get()
+    if calls is not None:
+        calls.append(call_info)
 
 
 def create_tool_callback(tool_name: str, tool_description: str):
@@ -59,6 +70,11 @@ def create_tool_callback(tool_name: str, tool_description: str):
 
     Note: Unable to access inputs from the callback unless its part of the output
     """
+    # A sync tool and its callback run on an executor thread, which does not see the
+    # request's context variables, so the callback keeps the registry of the context
+    # that builds the tool: the request's, since tools are built per request.
+    calls = _tool_calls.get()
+
     def _callback(result: Any) -> Any:
         """Callback that records tool execution results"""
         # Record the output with tool metadata
@@ -67,8 +83,10 @@ def create_tool_callback(tool_name: str, tool_description: str):
             "description": tool_description,
             "output": result,
         }
-        tool_call_registry.append(call_info)
-        logger.info(f"Tool call recorded: {call_info}")
+        if calls is not None:
+            calls.append(call_info)
+        # Name and size only: tool outputs (file contents, code results) stay out of the INFO log
+        logger.info(f"Tool call recorded: {tool_name} ({len(str(result))} characters of output)")
         # Return the original result (required by FunctionTool)
         return result
     
@@ -154,8 +172,10 @@ class ToolFactory:
         )
 
         # Load and process tool configurations
-        if os.path.exists("config/tools.yaml"):
-            with open("config/tools.yaml", "r") as f:
+        if not TOOLS_CONFIG.exists():
+            logger.warning(f"No tool config at {TOOLS_CONFIG}: the agents get no configured tools")
+        else:
+            with open(TOOLS_CONFIG, "r") as f:
                 tool_configs = yaml.safe_load(f)
                 for tool_type, config_entries in tool_configs.items():
                     for tool_name, config in config_entries.items():

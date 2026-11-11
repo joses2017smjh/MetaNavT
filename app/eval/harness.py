@@ -17,7 +17,7 @@ from app.agent.deep_research import expand_queries, multi_query_retrieve
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
-from app.eval.index_loader import build_index
+from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
@@ -284,7 +284,9 @@ def run_config(
     n_files: int | None = None,
     *,
     keep_retrieved: bool = False,
+    mtimes: str = "auto",
 ) -> dict[str, Any]:
+    """Score one config. `mtimes` is where chunk mtimes come from (index_loader.MTIME_MODES)."""
     index = build_index(
         files_root,
         embedder_name=cfg.embedder,
@@ -295,6 +297,7 @@ def run_config(
         reranker=cfg.reranker,
         chunk_strategy=cfg.chunk_strategy,
         contextual=cfg.contextual,
+        mtimes=mtimes,
     )
     late = None
     if cfg.late_chunking:
@@ -602,13 +605,17 @@ def run_bench(
     if e2e is False:
         for c in configs:
             c.e2e = False
+    # The staleness filter and the file graph compare mtimes. A checkout sets them to the moment
+    # each file was written, so every config indexes the mtimes the MANIFEST records instead
+    # (an error if it has none), and the header says so.
+    mtimes = mtime_provenance(files_root, "manifest", base=root)
 
     results = []
     all_triples = []
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier)
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier, mtimes="manifest")
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
@@ -633,6 +640,7 @@ def run_bench(
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
+        "mtimes": mtimes,  # what the staleness filter and the file graph compared
         "bootstrap": boot,
         "results": results,
     }
