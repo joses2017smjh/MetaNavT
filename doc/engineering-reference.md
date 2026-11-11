@@ -1208,7 +1208,7 @@ Pick the extra for what you want to run:
 
 | extra | installs | for |
 |---|---|---|
-| `eval` | numpy, pydantic, pytest | `make bench`, `make test-eval` (the CPU benchmark above) |
+| `eval` | numpy, pydantic, pytest, scikit-learn | `make bench`, `make test-eval` (the CPU benchmark above), `make bench-frontier` (its TF-IDF rows need scikit-learn) |
 | `app` | FastAPI, LlamaIndex, psycopg2/pgvector | the API and the Postgres path |
 | `ml` | torch, sentence-transformers, HF embeddings | real embedders and the bge reranker |
 

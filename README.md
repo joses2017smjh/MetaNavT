@@ -406,7 +406,7 @@ Prototype arms on fixture v1 (`make bench-frontier`, cpu (cpu), torch None, sent
 - `hybrid+hyde-llm+rerank`: not evaluated in this run. LLM-written generations (make frontier-generations) are scored with the real models only (make bench-frontier-neural); the hash embedder rows keep the keyword and path-words heuristics.
 - `hybrid+contextual-llm`: not evaluated in this run. LLM-written generations (make frontier-generations) are scored with the real models only (make bench-frontier-neural); the hash embedder rows keep the keyword and path-words heuristics.
 
-Arms compared directly (row minus other, same paired bootstrap): the two HyDE wirings, and each LLM-written arm against the heuristic arm it replaces.
+Arms compared directly (row minus other, same paired bootstrap): the two HyDE wirings.
 
 | row | other | Δ nDCG@10 [95% CI] | verdict | Δ Recall@10 [95% CI] |
 |---|---|---:|:---:|---:|

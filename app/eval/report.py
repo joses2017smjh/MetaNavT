@@ -820,8 +820,11 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         lines += ["", *notes]
     comparisons = [c for c in (blob.get("bootstrap") or {}).get("comparisons") or [] if c.get("ndcg@10") and c["row"] in by and c["other"] in by]
     if comparisons:
-        lines += ["", "Arms compared directly (row minus other, same paired bootstrap): the two HyDE wirings, and each LLM-written arm against "
-                      "the heuristic arm it replaces.", "",
+        # Name only the kinds of comparison this file holds: the CPU run has no LLM-written arm.
+        llm_rows = [bool((by[c["row"]].get("settings") or {}).get("generations")) for c in comparisons]
+        kinds = (["the two HyDE wirings"] if not all(llm_rows) else []) + (
+            ["each LLM-written arm against the heuristic arm it replaces"] if any(llm_rows) else [])
+        lines += ["", f"Arms compared directly (row minus other, same paired bootstrap): {', and '.join(kinds)}.", "",
                   "| row | other | Δ nDCG@10 [95% CI] | verdict | Δ Recall@10 [95% CI] |", "|---|---|---:|:---:|---:|",
                   *(f"| {c['row']} | {c['other']} | {_delta4(c['ndcg@10'])} | {verdict(c['ndcg@10'])} | {_delta(c.get('recall@10'))} |"
                     for c in comparisons)]

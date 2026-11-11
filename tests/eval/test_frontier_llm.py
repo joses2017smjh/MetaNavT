@@ -150,6 +150,7 @@ def test_a_run_with_llm_arms_records_model_prompts_and_temperature_in_its_header
     assert ("hybrid+contextual-llm", "hybrid+contextual") in comp  # LLM-written against the heuristic prefix
     text = frontier_table(json.loads(out.read_text()))
     assert "stub:0b" in text and "temperature 0.0" in text
+    assert "same paired bootstrap): each LLM-written arm against the heuristic arm it replaces." in text  # no HyDE wiring pair here
 
 
 def test_committed_generations_cover_the_fixture_and_are_the_ones_the_neural_rows_read():

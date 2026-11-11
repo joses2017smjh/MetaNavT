@@ -254,6 +254,9 @@ def test_the_frontier_block_and_the_evidence_name_each_hyde_wiring(tmp_path):
     notes = {line.split("`")[1]: line for line in frontier_table(blob).splitlines() if line.startswith("- `")}
     assert "HyDE after the reranker" in notes["hybrid+rerank+hyde"] and "order does not survive" in notes["hybrid+rerank+hyde"]
     assert "HyDE in the first stage" in notes["hybrid+hyde+rerank"] and "the reranker, which has the last word" in notes["hybrid+hyde+rerank"]
+    # the direct comparison is the wiring pair only; a run without LLM-written arms does not announce their comparisons
+    assert "Arms compared directly (row minus other, same paired bootstrap): the two HyDE wirings." in frontier_table(blob)
+    assert "LLM-written arm against" not in frontier_table(blob)
     claims = {c["claim"].split("`")[1]: c["not_shown"] for c in _frontier_claims(tmp_path)}
     assert "HyDE after the reranker" in claims["hybrid+rerank+hyde"] and "HyDE in the first stage" in claims["hybrid+hyde+rerank"]
 
