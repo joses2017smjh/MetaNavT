@@ -507,7 +507,7 @@ def test_frontier_block_has_one_row_per_arm_with_parent_verdict_and_stand_ins():
         cells = [c.strip() for c in line.strip("|").split("|")]
         assert cells[1] == rows[name]["settings"]["parent"]
         assert cells[4] == verdict(rows[name]["delta_vs_previous"]["ndcg@10"])
-        assert "hash embedder (no model)" in cells[-1]  # every stand-in is named in the row
+        assert f"{rows[name]['settings']['embedder']} embedder (no model)" in cells[-1]  # every stand-in is named in the row
     assert "1 community" in text and "cannot tell one file from another" in text
     assert "hybrid+late-chunking`: not evaluated in this run" in text
     assert "is missing; run `make bench-frontier`" in frontier_table(None)
