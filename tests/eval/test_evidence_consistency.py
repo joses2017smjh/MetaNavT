@@ -1,5 +1,6 @@
 """Real byte slices and explicitly scoped structured fact checks."""
 from dataclasses import replace
+import hashlib
 import json
 import pytest
 
@@ -96,3 +97,27 @@ def test_named_claim_path_cannot_borrow_a_value_from_another_cited_file():
     claim = Claim("second value is 0.999", value="0.999", cited_path="second.txt")
     result = verify_claims([claim], [first, second], citations=[first.path, second.path], cited_only=True)
     assert result.verified_count == 1 and claim.evidence_snippet == second.text
+
+
+def test_altered_raw_evidence_is_rejected_through_the_span_hash(tmp_path):
+    """The loader records the sha256 of each chunk's raw span (metadata source_span_sha256). Raw evidence edited after
+    indexing is not cited, including a same-length edit that the byte-range check cannot see and a bare-path citation,
+    which has no range to check."""
+    (tmp_path / "facts.md").write_text("α calibration\nvalue: 0.055\n")
+    (chunk,) = load_chunks(tmp_path)
+    raw = chunk.metadata["evidence_raw"]
+    assert chunk.metadata["source_span_sha256"] == hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    ranged = {"path": chunk.path, "start_byte": chunk.start_byte, "end_byte": chunk.end_byte}
+    for citation in (ranged, chunk.path):
+        result = verify_claims([Claim("value", value="0.055")], [chunk], citations=[citation], cited_only=True)
+        assert result.verified_count == 1
+
+    altered = replace(chunk, metadata={**chunk.metadata, "evidence_raw": raw.replace("0.055", "0.099")})
+    assert len(altered.metadata["evidence_raw"].encode()) == len(raw.encode()) == chunk.end_byte - chunk.start_byte
+    for citation in (ranged, chunk.path):
+        assert cited_chunks([altered], [citation]) == []
+        result = verify_claims([Claim("value", value="0.099")], [altered], citations=[citation], cited_only=True)
+        assert (result.verified_count, result.hallucinated_values) == (0, ["0.099"])
+    # Evidence without a recorded hash (built in code, or a served node) is checked as before.
+    unhashed = replace(altered, metadata={k: v for k, v in altered.metadata.items() if k != "source_span_sha256"})
+    assert [c.text for c in cited_chunks([unhashed], [ranged])] == [raw.replace("0.055", "0.099")]

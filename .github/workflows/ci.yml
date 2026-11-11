@@ -105,7 +105,8 @@ jobs:
     # served statement must still return RETRIEVE_K rows
     # (tests/database/test_dense_parity.py). The end-to-end nDCG@10 gap is
     # reported with its paired interval, not gated (the lexical legs differ by design);
-    # the step fails only when the API is broken (app/eval/parity.py).
+    # the step fails only when the API is broken or bench/corpus/files differs from its
+    # MANIFEST (app/eval/parity.py).
     name: parity (API over Postgres vs in-memory bench)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -156,7 +157,7 @@ jobs:
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
           python scripts/smoke_retrieve.py --require-bm25
-      - name: Parity eval (reports the nDCG@10 gap; fails only on a broken API)
+      - name: Parity eval (reports the nDCG@10 gap; fails on a broken API or a drifted fixture)
         run: make parity
       - name: API log
         if: always()
