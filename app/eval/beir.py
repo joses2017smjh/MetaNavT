@@ -20,7 +20,9 @@ paired delta is against that parent, not against list order): bm25 ->
 dense@bge-small -> hybrid@bge-small -> hybrid+bge-rerank (top 20, fp32,
 library-default token cap) -> fp32 with max_length 512 -> fp16 at the same cap -> rerank depth
 50 -> 100. dense@bge-small+instruction is the bge-v1.5 query prefix on the
-query side only (document embeddings are cached). Metrics: nDCG@10,
+query side only (document embeddings are cached). The dense leg ranks as the
+fixture benchmark does (app/retrieval/hybrid.py): float64 cosine rounded to 10
+decimals, exact ties in corpus order. Metrics: nDCG@10,
 Recall@10, Recall@100 and MRR@10 with 95% paired bootstrap CIs; per-query
 latency p50/p95 end to end and per stage, measured after a warm-up query and
 with index / embedding / model build time reported separately (build_ms);
@@ -50,8 +52,9 @@ from app.eval.metrics import mrr_at_k, ndcg_at_k, recall_at_k
 from app.eval.provenance import command_line, device_info, git_sha, model_device, model_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
-from app.retrieval.embedders import HashEmbedder, cosine_scores
+from app.retrieval.embedders import HashEmbedder
 from app.retrieval.fuse import rrf_score_map
+from app.retrieval.hybrid import dense_scores, rank_by_score, unit_rows
 from app.retrieval.rerank import OverlapReranker, cross_encoder_scores, get_cross_encoder
 from app.retrieval.types import Chunk
 
@@ -276,6 +279,7 @@ class Engine:
         self._bm25: dict[tuple[str, float, float], BM25Index] = {}
         self._embedders: dict[str, Any] = {}
         self._doc_mats: dict[str, np.ndarray] = {}
+        self._unit_mats: dict[str, np.ndarray] = {}
         self._rerankers: dict[str, Any] = {}
         self.provenance: dict[str, dict] = {}
 
@@ -325,6 +329,13 @@ class Engine:
         self._doc_mats[name] = mat
         return mat
 
+    def unit_matrix(self, name: str) -> np.ndarray:
+        """The document matrix as float64 unit rows, built once per embedder: per query the dense
+        leg is then one matrix-vector product (see dense_scores in app/retrieval/hybrid.py)."""
+        if name not in self._unit_mats:
+            self._unit_mats[name] = unit_rows(self.doc_matrix(name))
+        return self._unit_mats[name]
+
     @staticmethod
     def reranker_key(name: str, precision: str = "fp32", max_length: int | None = None) -> str:
         return f"{name}|{precision}|{max_length or 'uncapped'}"
@@ -373,7 +384,7 @@ class Engine:
             self.embedder(cfg.embedder)
             parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
             t = time.perf_counter()
-            self.doc_matrix(cfg.embedder)
+            self.unit_matrix(cfg.embedder)  # the cached (or computed) embeddings, then their float64 unit rows
             parts["doc_embeddings_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
         if cfg.reranker:
             t = time.perf_counter()
@@ -394,13 +405,15 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
             bm25_hits = engine.bm25(cfg.analyzer, cfg.k1, cfg.b).search(query, k=cfg.k)
     if cfg.mode in {"dense", "hybrid"}:
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
-        mat = engine.doc_matrix(cfg.embedder)
+        unit = engine.unit_matrix(cfg.embedder)
         with timer.stage("embed"):
             qv = engine.embedder(cfg.embedder).encode([(cfg.query_instruction or "") + query])[0]
         with timer.stage("dense"):
-            scores = cosine_scores(qv, mat)
-            order = np.argsort(-scores)[: cfg.k]
-            dense_hits = [(engine.chunks[i].chunk_id, float(scores[i])) for i in order]
+            # The fixture benchmark's dense ranking (M10): float64 cosine rounded to DENSE_SCORE_DECIMALS,
+            # descending, exact ties in corpus order. np.argsort over float32 cosines left ties to the sort
+            # implementation and near-ties to the float32 summation order.
+            scores = dense_scores(qv, unit, unit=True)
+            dense_hits = [(engine.chunks[i].chunk_id, float(scores[i])) for i in rank_by_score(scores, cfg.k)]
     if cfg.mode == "bm25":
         ids = [d for d, _ in bm25_hits]
     elif cfg.mode == "dense":

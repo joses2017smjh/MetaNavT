@@ -146,3 +146,41 @@ def test_empty_config_selection_and_subset_published_claim_refused(tmp_path):
     blob = beir.run(tmp_path, [beir.BeirConfig(name="bm25", mode="bm25")], download=False, max_queries=1, n_boot=10)
     assert blob["n_queries"] == 1 and blob["full_split_queries"] == 2
     assert blob["published"] is None and "subset" in blob["query_selection"]
+
+
+def test_dense_ties_keep_corpus_order():
+    """Forty documents in two groups of identical text tie exactly within a group; corpus order decides, as in
+    app/retrieval/hybrid.py (M10). numpy's default argsort over float32 scores need not keep it."""
+    from app.eval.latency import StageTimer
+
+    texts = ("learning_rate: 3e-4 encoder dinov2", "bark_type: birch fusion true")
+    corpus = {f"d{i:02d}": texts[i % 3 == 0] for i in range(40)}
+    first, second = [d for d, t in corpus.items() if t == texts[0]], [d for d, t in corpus.items() if t == texts[1]]
+    cfg = beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", k=40)
+    query = "learning_rate for the dinov2 encoder"
+
+    forward = beir.Engine(beir.chunks_from_corpus(corpus))
+    backward = beir.Engine(beir.chunks_from_corpus(dict(reversed(list(corpus.items())))))
+
+    assert beir.retrieve(forward, cfg, query, StageTimer()) == first + second
+    assert beir.retrieve(backward, cfg, query, StageTimer()) == first[::-1] + second[::-1]
+    assert beir.retrieve(forward, beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", k=5), query, StageTimer()) == first[:5]
+
+
+def test_dense_ranking_is_the_fixture_benchmarks_ranking():
+    """The BEIR dense leg ranks with app/retrieval/hybrid.py's dense_scores and rank_by_score: same scores, same order."""
+    import numpy as np
+
+    from app.eval.latency import StageTimer
+    from app.retrieval.hybrid import dense_scores, rank_by_score
+
+    rng = np.random.RandomState(7)
+    corpus = {f"d{i:03d}": " ".join(rng.choice(["cell", "star", "fibre", "sleep", "vaccine", "heart", "diet"], size=6)) for i in range(120)}
+    engine = beir.Engine(beir.chunks_from_corpus(corpus))
+    cfg = beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", k=50)
+    mat = engine.doc_matrix("hash")
+    for query in ("cell star", "sleep and diet", "vaccine heart fibre"):
+        qv = engine.embedder("hash").encode([query])[0]
+        assert np.array_equal(dense_scores(qv, engine.unit_matrix("hash"), unit=True), dense_scores(qv, mat))
+        expected = [engine.chunks[i].chunk_id for i in rank_by_score(dense_scores(qv, mat), 50)]
+        assert beir.retrieve(engine, cfg, query, StageTimer()) == expected

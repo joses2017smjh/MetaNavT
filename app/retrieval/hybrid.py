@@ -28,12 +28,20 @@ RerankFn = Callable[[str, list[tuple[Chunk, float]]], list[tuple[Chunk, float]]]
 DENSE_SCORE_DECIMALS = 10
 
 
-def dense_scores(query_vec: np.ndarray, doc_mat: np.ndarray) -> np.ndarray:
-    """Cosine of the query with every row, in float64, rounded to DENSE_SCORE_DECIMALS."""
-    q = np.asarray(query_vec, dtype=np.float64).ravel()
+def unit_rows(doc_mat: np.ndarray) -> np.ndarray:
+    """The rows in float64 scaled to unit length: the document side of dense_scores."""
     docs = np.asarray(doc_mat, dtype=np.float64)
+    return docs / np.maximum(np.linalg.norm(docs, axis=1, keepdims=True), 1e-12)
+
+
+def dense_scores(query_vec: np.ndarray, doc_mat: np.ndarray, *, unit: bool = False) -> np.ndarray:
+    """Cosine of the query with every row, in float64, rounded to DENSE_SCORE_DECIMALS.
+
+    unit=True: doc_mat is already unit_rows(matrix), so a caller that scores many queries
+    against one large matrix (the BEIR runner) normalises it once; the scores are the same."""
+    q = np.asarray(query_vec, dtype=np.float64).ravel()
     q = q / max(float(np.linalg.norm(q)), 1e-12)
-    docs = docs / np.maximum(np.linalg.norm(docs, axis=1, keepdims=True), 1e-12)
+    docs = doc_mat if unit else unit_rows(doc_mat)
     return np.round(docs @ q, DENSE_SCORE_DECIMALS)
 
 
