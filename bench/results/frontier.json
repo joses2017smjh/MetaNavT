@@ -1,13 +1,12 @@
 {
-  "git_sha": "a66e914",
-  "timestamp": "2026-11-10T02:42:39.964095+00:00",
+  "git_sha": "bac4afc",
+  "timestamp": "2026-11-11T06:37:36.037335+00:00",
   "command": "python -m app.eval.harness --frontier --out bench/results/frontier.json",
   "device": {
     "requested": "auto",
     "python": "3.11.16",
-    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
-    "cpu_count": 96,
-    "hostname": "dgx2-5.hpc.engr.oregonstate.edu",
+    "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+    "cpu_count": 64,
     "torch": null,
     "cuda_available": false,
     "device": "cpu",
@@ -18,6 +17,11 @@
   "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
   "n_gold": 136,
   "n_files": 61,
+  "mtimes": {
+    "source": "manifest",
+    "file": "bench/corpus/MANIFEST.json",
+    "field": "files[].mtime"
+  },
   "bootstrap": {
     "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
     "rng": "numpy.random.RandomState.randint",
@@ -135,24 +139,24 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.47,
-          "p95_ms": 1.0,
-          "mean_ms": 0.62
+          "p50_ms": 0.22,
+          "p95_ms": 0.29,
+          "mean_ms": 0.22
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.36,
-          "p95_ms": 1.26,
-          "mean_ms": 0.6
+          "p50_ms": 0.2,
+          "p95_ms": 0.28,
+          "mean_ms": 0.21
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.05,
-          "mean_ms": 0.07
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
         }
       },
-      "wall_ms": 220.67,
+      "wall_ms": 75.72,
       "routes": {
         "semantic": 136
       },
@@ -310,30 +314,30 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.41,
-          "p95_ms": 0.65,
-          "mean_ms": 0.54
+          "p50_ms": 0.2,
+          "p95_ms": 0.27,
+          "mean_ms": 0.21
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.33,
-          "p95_ms": 0.55,
-          "mean_ms": 0.46
+          "p50_ms": 0.2,
+          "p95_ms": 0.28,
+          "mean_ms": 0.21
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.04,
-          "mean_ms": 0.03
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 2.71,
-          "p95_ms": 5.78,
-          "mean_ms": 3.26
+          "p50_ms": 1.24,
+          "p95_ms": 1.43,
+          "mean_ms": 1.25
         }
       },
-      "wall_ms": 630.42,
+      "wall_ms": 244.7,
       "routes": {
         "semantic": 136
       },
@@ -685,30 +689,30 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.4,
-          "p95_ms": 0.68,
-          "mean_ms": 0.52
+          "p50_ms": 0.22,
+          "p95_ms": 0.29,
+          "mean_ms": 0.22
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.3,
-          "p95_ms": 0.47,
-          "mean_ms": 0.33
+          "p50_ms": 0.21,
+          "p95_ms": 0.3,
+          "mean_ms": 0.22
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.04,
-          "mean_ms": 0.03
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 0.99,
-          "p95_ms": 1.29,
-          "mean_ms": 1.03
+          "p50_ms": 0.51,
+          "p95_ms": 0.65,
+          "mean_ms": 0.52
         }
       },
-      "wall_ms": 290.86,
+      "wall_ms": 149.79,
       "routes": {
         "semantic": 136
       },
@@ -1055,12 +1059,12 @@
       "latency": {
         "multi_query": {
           "n": 136,
-          "p50_ms": 2.71,
-          "p95_ms": 4.72,
-          "mean_ms": 3.2
+          "p50_ms": 1.58,
+          "p95_ms": 2.04,
+          "mean_ms": 1.62
         }
       },
-      "wall_ms": 446.2,
+      "wall_ms": 226.5,
       "routes": {
         "semantic": 136
       },
@@ -1416,30 +1420,30 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.42,
-          "p95_ms": 0.71,
-          "mean_ms": 0.49
+          "p50_ms": 0.2,
+          "p95_ms": 0.28,
+          "mean_ms": 0.21
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.3,
-          "p95_ms": 0.48,
-          "mean_ms": 0.37
+          "p50_ms": 0.19,
+          "p95_ms": 0.27,
+          "mean_ms": 0.2
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.05,
-          "mean_ms": 0.03
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "hipporag": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 3.36,
-          "mean_ms": 0.75
+          "p50_ms": 0.01,
+          "p95_ms": 1.36,
+          "mean_ms": 0.33
         }
       },
-      "wall_ms": 265.74,
+      "wall_ms": 119.5,
       "routes": {
         "semantic": 136
       },
@@ -1716,44 +1720,44 @@
         "parent": "hybrid"
       },
       "retrieval": {
-        "ndcg@10": 0.383,
+        "ndcg@10": 0.3966,
         "recall@5": 0.4801,
-        "recall@10": 0.5761,
+        "recall@10": 0.5802,
         "recall@50": 0.9855,
-        "mrr@10": 0.3473,
+        "mrr@10": 0.3644,
         "mean_unique_paths@50": 50.0,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
-            "ndcg@10": 0.4035,
-            "recall@10": 0.6312,
+            "ndcg@10": 0.4235,
+            "recall@10": 0.6375,
             "recall@50": 1.0,
-            "mrr@10": 0.3484,
+            "mrr@10": 0.3721,
             "n": 80.0
           },
           "conditional": {
-            "ndcg@10": 0.119,
+            "ndcg@10": 0.1273,
             "recall@10": 0.2687,
             "recall@50": 1.0,
-            "mrr@10": 0.1108,
+            "mrr@10": 0.1272,
             "n": 8.0
           },
           "comparative": {
-            "ndcg@10": 0.2853,
+            "ndcg@10": 0.2916,
             "recall@10": 0.4792,
             "recall@50": 0.875,
-            "mrr@10": 0.2639,
+            "mrr@10": 0.2765,
             "n": 8.0
           },
           "aggregation": {
-            "ndcg@10": 0.1346,
-            "recall@10": 0.236,
+            "ndcg@10": 0.1467,
+            "recall@10": 0.2422,
             "recall@50": 0.9528,
-            "mrr@10": 0.1444,
+            "mrr@10": 0.1647,
             "n": 10.0
           },
           "multi_hop": {
-            "ndcg@10": 0.4107,
+            "ndcg@10": 0.4116,
             "recall@10": 0.625,
             "recall@50": 0.9375,
             "mrr@10": 0.4375,
@@ -1790,29 +1794,29 @@
         "route": {
           "n": 136,
           "p50_ms": 0.0,
-          "p95_ms": 0.01,
+          "p95_ms": 0.0,
           "mean_ms": 0.0
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.44,
-          "p95_ms": 0.92,
-          "mean_ms": 0.71
+          "p50_ms": 0.21,
+          "p95_ms": 0.27,
+          "mean_ms": 0.21
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.35,
-          "p95_ms": 0.64,
-          "mean_ms": 0.55
+          "p50_ms": 0.21,
+          "p95_ms": 0.29,
+          "mean_ms": 0.22
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.05,
-          "mean_ms": 0.05
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         }
       },
-      "wall_ms": 1714.75,
+      "wall_ms": 641.2,
       "routes": {
         "semantic": 136
       },
@@ -1843,14 +1847,14 @@
       },
       "ci": {
         "ndcg@10": {
-          "mean": 0.383,
-          "lo": 0.3264,
-          "hi": 0.4416
+          "mean": 0.3966,
+          "lo": 0.3397,
+          "hi": 0.4563
         },
         "recall@10": {
-          "mean": 0.5761,
-          "lo": 0.5051,
-          "hi": 0.6478
+          "mean": 0.5802,
+          "lo": 0.5093,
+          "hi": 0.6532
         },
         "recall@50": {
           "mean": 0.9855,
@@ -1862,14 +1866,14 @@
       "delta_vs_previous": {
         "reference": "hybrid",
         "ndcg@10": {
-          "delta": -0.0718,
-          "lo": -0.1012,
-          "hi": -0.0439
+          "delta": -0.0582,
+          "lo": -0.0882,
+          "hi": -0.0301
         },
         "recall@10": {
-          "delta": -0.0862,
-          "lo": -0.1554,
-          "hi": -0.0224
+          "delta": -0.0821,
+          "lo": -0.1522,
+          "hi": -0.0166
         },
         "recall@50": {
           "delta": 0.0458,
@@ -1885,14 +1889,14 @@
           "n": 10,
           "small_n": true,
           "ndcg@10": {
-            "delta": -0.1938,
-            "lo": -0.3186,
-            "hi": -0.0641
+            "delta": -0.1818,
+            "lo": -0.2979,
+            "hi": -0.0597
           },
           "recall@10": {
-            "delta": -0.2175,
-            "lo": -0.4078,
-            "hi": -0.0328
+            "delta": -0.2112,
+            "lo": -0.4042,
+            "hi": -0.0285
           },
           "recall@50": {
             "delta": -0.0472,
@@ -1906,9 +1910,9 @@
           "n": 8,
           "small_n": true,
           "ndcg@10": {
-            "delta": -0.0578,
-            "lo": -0.2059,
-            "hi": 0.0762
+            "delta": -0.0515,
+            "lo": -0.2007,
+            "hi": 0.0813
           },
           "recall@10": {
             "delta": -0.0625,
@@ -1927,9 +1931,9 @@
           "n": 8,
           "small_n": true,
           "ndcg@10": {
-            "delta": -0.0533,
-            "lo": -0.1459,
-            "hi": 0.0247
+            "delta": -0.045,
+            "lo": -0.1401,
+            "hi": 0.0351
           },
           "recall@10": {
             "delta": -0.1313,
@@ -1969,9 +1973,9 @@
           "n": 8,
           "small_n": true,
           "ndcg@10": {
-            "delta": -0.0222,
-            "lo": -0.1249,
-            "hi": 0.1053
+            "delta": -0.0214,
+            "lo": -0.1246,
+            "hi": 0.1062
           },
           "recall@10": {
             "delta": 0.0,
@@ -2011,14 +2015,14 @@
           "n": 80,
           "small_n": false,
           "ndcg@10": {
-            "delta": -0.0769,
-            "lo": -0.1118,
-            "hi": -0.0447
+            "delta": -0.0568,
+            "lo": -0.0932,
+            "hi": -0.0233
           },
           "recall@10": {
-            "delta": -0.0875,
-            "lo": -0.1812,
-            "hi": -0.0063
+            "delta": -0.0813,
+            "lo": -0.175,
+            "hi": 0.0063
           },
           "recall@50": {
             "delta": 0.0813,
@@ -2161,29 +2165,29 @@
         "route": {
           "n": 136,
           "p50_ms": 0.0,
-          "p95_ms": 0.01,
+          "p95_ms": 0.0,
           "mean_ms": 0.0
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.43,
-          "p95_ms": 0.75,
-          "mean_ms": 0.57
+          "p50_ms": 0.21,
+          "p95_ms": 0.27,
+          "mean_ms": 0.21
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.34,
-          "p95_ms": 0.79,
-          "mean_ms": 0.64
+          "p50_ms": 0.22,
+          "p95_ms": 0.29,
+          "mean_ms": 0.22
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.04,
-          "mean_ms": 0.03
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
         }
       },
-      "wall_ms": 1930.14,
+      "wall_ms": 761.67,
       "routes": {
         "semantic": 136
       },
@@ -2537,24 +2541,24 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.4,
-          "p95_ms": 0.65,
-          "mean_ms": 0.53
+          "p50_ms": 0.19,
+          "p95_ms": 0.26,
+          "mean_ms": 0.2
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.3,
-          "p95_ms": 0.47,
-          "mean_ms": 0.31
+          "p50_ms": 0.19,
+          "p95_ms": 0.27,
+          "mean_ms": 0.2
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.05,
-          "mean_ms": 0.03
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         }
       },
-      "wall_ms": 145.49,
+      "wall_ms": 71.31,
       "routes": {
         "semantic": 136
       },
@@ -2793,8 +2797,8 @@
       "vs_parent": {
         "parent": "hybrid",
         "n_questions": 136,
-        "n_top10_differs": 104,
-        "n_list_differs": 135
+        "n_top10_differs": 103,
+        "n_list_differs": 134
       }
     },
     {
@@ -2905,24 +2909,24 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.45,
-          "p95_ms": 1.79,
-          "mean_ms": 0.66
+          "p50_ms": 0.25,
+          "p95_ms": 0.31,
+          "mean_ms": 0.25
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.31,
-          "p95_ms": 0.73,
-          "mean_ms": 0.42
+          "p50_ms": 0.22,
+          "p95_ms": 0.28,
+          "mean_ms": 0.23
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.05,
-          "mean_ms": 0.03
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
         }
       },
-      "wall_ms": 191.83,
+      "wall_ms": 83.44,
       "routes": {
         "semantic": 136
       },
@@ -3268,9 +3272,9 @@
       "latency": {
         "hyde": {
           "n": 136,
-          "p50_ms": 0.83,
-          "p95_ms": 1.45,
-          "mean_ms": 0.93
+          "p50_ms": 0.5,
+          "p95_ms": 0.7,
+          "mean_ms": 0.52
         },
         "route": {
           "n": 136,
@@ -3280,30 +3284,30 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.42,
-          "p95_ms": 0.65,
-          "mean_ms": 0.45
+          "p50_ms": 0.28,
+          "p95_ms": 0.32,
+          "mean_ms": 0.26
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.3,
-          "p95_ms": 0.5,
-          "mean_ms": 0.32
+          "p50_ms": 0.25,
+          "p95_ms": 0.29,
+          "mean_ms": 0.24
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.03,
-          "p95_ms": 0.04,
-          "mean_ms": 0.03
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 2.67,
-          "p95_ms": 3.74,
-          "mean_ms": 3.0
+          "p50_ms": 1.49,
+          "p95_ms": 1.83,
+          "mean_ms": 1.52
         }
       },
-      "wall_ms": 706.81,
+      "wall_ms": 392.65,
       "routes": {
         "semantic": 136
       },
@@ -3659,30 +3663,30 @@
         },
         "bm25": {
           "n": 160,
-          "p50_ms": 0.38,
-          "p95_ms": 0.58,
-          "mean_ms": 0.4
+          "p50_ms": 0.21,
+          "p95_ms": 0.28,
+          "mean_ms": 0.21
         },
         "embed": {
           "n": 160,
-          "p50_ms": 0.29,
-          "p95_ms": 0.44,
-          "mean_ms": 0.3
+          "p50_ms": 0.21,
+          "p95_ms": 0.28,
+          "mean_ms": 0.22
         },
         "vector_search": {
           "n": 160,
-          "p50_ms": 0.03,
-          "p95_ms": 0.04,
-          "mean_ms": 0.03
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "rerank": {
           "n": 160,
-          "p50_ms": 2.45,
-          "p95_ms": 3.03,
-          "mean_ms": 2.47
+          "p50_ms": 1.25,
+          "p95_ms": 1.53,
+          "mean_ms": 1.27
         }
       },
-      "wall_ms": 546.82,
+      "wall_ms": 294.72,
       "routes": {
         "semantic": 136
       },
@@ -4038,30 +4042,30 @@
         },
         "bm25": {
           "n": 232,
-          "p50_ms": 0.4,
-          "p95_ms": 0.56,
-          "mean_ms": 0.4
+          "p50_ms": 0.21,
+          "p95_ms": 0.29,
+          "mean_ms": 0.22
         },
         "embed": {
           "n": 232,
-          "p50_ms": 0.31,
-          "p95_ms": 0.44,
-          "mean_ms": 0.33
+          "p50_ms": 0.23,
+          "p95_ms": 0.3,
+          "mean_ms": 0.23
         },
         "vector_search": {
           "n": 232,
-          "p50_ms": 0.03,
-          "p95_ms": 0.03,
-          "mean_ms": 0.03
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "rerank": {
           "n": 232,
-          "p50_ms": 2.61,
-          "p95_ms": 2.96,
-          "mean_ms": 2.57
+          "p50_ms": 1.28,
+          "p95_ms": 1.68,
+          "mean_ms": 1.32
         }
       },
-      "wall_ms": 892.95,
+      "wall_ms": 476.02,
       "routes": {
         "semantic": 136
       },
@@ -4413,9 +4417,9 @@
       "latency": {
         "hyde": {
           "n": 136,
-          "p50_ms": 0.51,
-          "p95_ms": 0.92,
-          "mean_ms": 0.56
+          "p50_ms": 0.42,
+          "p95_ms": 0.69,
+          "mean_ms": 0.44
         },
         "route": {
           "n": 252,
@@ -4425,30 +4429,30 @@
         },
         "bm25": {
           "n": 252,
-          "p50_ms": 0.24,
-          "p95_ms": 0.43,
-          "mean_ms": 0.28
+          "p50_ms": 0.22,
+          "p95_ms": 0.3,
+          "mean_ms": 0.23
         },
         "embed": {
           "n": 252,
           "p50_ms": 0.22,
-          "p95_ms": 0.39,
-          "mean_ms": 0.23
+          "p95_ms": 0.3,
+          "mean_ms": 0.22
         },
         "vector_search": {
           "n": 252,
-          "p50_ms": 0.02,
-          "p95_ms": 0.03,
-          "mean_ms": 0.02
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
         },
         "rerank": {
           "n": 252,
-          "p50_ms": 1.38,
-          "p95_ms": 2.67,
-          "mean_ms": 1.73
+          "p50_ms": 1.29,
+          "p95_ms": 1.55,
+          "mean_ms": 1.31
         }
       },
-      "wall_ms": 749.53,
+      "wall_ms": 594.51,
       "routes": {
         "semantic": 136
       },
@@ -4808,30 +4812,30 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.22,
-          "p95_ms": 0.41,
+          "p50_ms": 0.24,
+          "p95_ms": 0.31,
           "mean_ms": 0.24
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.18,
-          "p95_ms": 0.37,
-          "mean_ms": 0.21
+          "p50_ms": 0.26,
+          "p95_ms": 0.31,
+          "mean_ms": 0.26
         },
         "vector_search": {
           "n": 136,
-          "p50_ms": 0.01,
-          "p95_ms": 0.03,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
           "mean_ms": 0.02
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 1.33,
-          "p95_ms": 2.51,
-          "mean_ms": 1.45
+          "p50_ms": 1.54,
+          "p95_ms": 1.77,
+          "mean_ms": 1.53
         }
       },
-      "wall_ms": 281.43,
+      "wall_ms": 299.82,
       "routes": {
         "semantic": 136
       },
@@ -5187,36 +5191,36 @@
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.23,
-          "p95_ms": 0.42,
-          "mean_ms": 0.27
+          "p50_ms": 0.22,
+          "p95_ms": 0.28,
+          "mean_ms": 0.22
         },
         "embed": {
           "n": 136,
-          "p50_ms": 0.19,
-          "p95_ms": 0.33,
-          "mean_ms": 0.22
+          "p50_ms": 0.23,
+          "p95_ms": 0.29,
+          "mean_ms": 0.23
         },
         "vector_search": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.03,
+          "p95_ms": 0.02,
           "mean_ms": 0.02
         },
         "rerank": {
           "n": 136,
-          "p50_ms": 1.33,
-          "p95_ms": 2.57,
-          "mean_ms": 1.62
+          "p50_ms": 1.31,
+          "p95_ms": 1.62,
+          "mean_ms": 1.33
         },
         "graphrag": {
           "n": 132,
           "p50_ms": 0.07,
-          "p95_ms": 0.14,
-          "mean_ms": 0.09
+          "p95_ms": 0.09,
+          "mean_ms": 0.08
         }
       },
-      "wall_ms": 337.49,
+      "wall_ms": 284.39,
       "routes": {
         "semantic": 136
       },
