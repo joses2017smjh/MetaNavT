@@ -891,8 +891,12 @@ benchmark ran; a gradient-boosted student is not evaluated. Listwise reranking
 by an LLM (`app/retrieval/rankgpt.py`) has a harness
 (`make bench-rerank-arms LISTWISE_MODEL=<ollama model>`) but no row: on the
 benchmark node the local model was too slow per question to finish the gold
-set inside the run, and its replies mixed prose with the permutation, which
-the parser would read as ranks.
+set inside the run, and its replies mixed prose with the permutation. The
+parser reads a reply only when the whole reply is a bracketed permutation of
+the window (`[2] > [1] > ...`, every passage once); prose, bare numbers, file
+names such as `run_047`, a partial or repeated list all keep the fused order,
+and the results file stores each completion with its parse status and counts
+the questions that kept the fused order, apart from calls that returned nothing.
 
 Still without a benchmark row: a gradient-boosted distilled student, listwise
 reranking by an LLM, an LLM-written contextual prefix or HyDE hypothesis,

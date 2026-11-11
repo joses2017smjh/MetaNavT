@@ -11,7 +11,10 @@ bge-small on fixture v1, the list the cross-encoder itself reranks.
                      the cross-encoder it imitates, on the same test questions.
   listwise rerank    app/retrieval/rankgpt.py with a local model through Ollama:
                      one prompt per question over the top `window` candidates.
-                     Every raw completion is stored, so the row can be rescored.
+                     Every raw completion is stored with how it was read, so the
+                     row can be rescored. A reply that is not a full permutation
+                     of the window keeps the fused order; those questions are
+                     counted and named, apart from calls that returned nothing.
 
 Each arm gets a paired bootstrap delta with an interval against the
 cross-encoder and against the un-reranked hybrid list, plus per-question rerank
@@ -40,7 +43,7 @@ from app.eval.metrics import aggregate_retrieval
 from app.eval.provenance import command_line, device_info, model_device, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.distill import DistilledReranker, triples_from_pairs
-from app.retrieval.rankgpt import RankGPTReranker
+from app.retrieval.rankgpt import PARSE_STATUSES, PASSAGE_CHARS, RankGPTReranker, listwise_prompt
 from app.retrieval.rerank import CrossEncoderReranker
 
 HYBRID, TEACHER, STUDENT = "hybrid@bge-small", "hybrid+bge-rerank@bge-small", "hybrid+distilled-student@bge-small"
@@ -78,6 +81,61 @@ def ollama_complete(prompt: str, model: str, base_url: str) -> str | None:
             return json.loads(resp.read().decode()).get("response")
     except Exception:
         return None
+
+
+def ollama_model_info(model: str, base_url: str) -> dict[str, Any]:
+    """The server version and the digest of the weights Ollama served for `model` (None when it does not say)."""
+    def get(route: str) -> dict:
+        try:
+            with urllib.request.urlopen(base_url.rstrip("/") + route, timeout=30) as resp:
+                return json.loads(resp.read().decode())
+        except Exception:
+            return {}
+
+    tags = [m for m in get("/api/tags").get("models", []) if model in (m.get("name"), m.get("model"))]
+    return {"ollama_version": get("/api/version").get("version"), "digest": tags[0].get("digest") if tags else None}
+
+
+def listwise_arm(gold: list[GoldQuestion], candidates: list[list[tuple[Any, float]]], complete: Callable[[str], str | None], *,
+                 window: int) -> tuple[list[list[str]], list[float], dict[str, Any]]:
+    """One listwise permutation per question over the top `window` candidates.
+
+    Returns the ranked paths and the rerank latency (ms) per question, and a block that stores
+    every raw completion with its call time and how it was read (app/retrieval/rankgpt.py
+    read_permutation). A question keeps the fused order when its call returned nothing
+    (n_failed_calls) or its reply is not a full permutation (n_parse_failures); both are named
+    by question id, and a failed call is not also counted as a parse failure."""
+    calls: list[tuple[str | None, float]] = []
+
+    def recorded(prompt: str) -> str:
+        t0 = time.perf_counter()
+        text = complete(prompt)
+        calls.append((text, (time.perf_counter() - t0) * 1000.0))
+        return text or ""
+
+    reranker = RankGPTReranker(complete=recorded, window=window)
+    orders: list[list[str]] = []
+    latency: list[float] = []
+    entries: list[dict[str, Any]] = []
+    for q, pairs in zip(gold, candidates):
+        before = len(calls)
+        t0 = time.perf_counter()
+        ranked = reranker(q.question, pairs)
+        latency.append((time.perf_counter() - t0) * 1000.0)
+        orders.append(_paths(ranked))
+        for text, ms in calls[before:]:
+            entries.append({"id": q.id, "ms": round(ms, 1), "parse": reranker.last_parse.status, "completion": text})
+    counts = {status: sum(1 for e in entries if e["parse"] == status) for status in PARSE_STATUSES}
+    block = {
+        "n_calls": len(entries),
+        "n_failed_calls": counts["no_completion"],
+        "n_parse_failures": sum(counts.values()) - counts["permutation"] - counts["no_completion"],
+        "parse": counts,
+        "parse_failure_ids": [e["id"] for e in entries if e["parse"] not in ("permutation", "no_completion")],
+        "fused_order_kept_ids": [e["id"] for e in entries if e["parse"] != "permutation"],
+        "completions": entries,
+    }
+    return orders, latency, block
 
 
 def score_rows(orders: dict[str, list[list[str]]], gold: list[GoldQuestion], ids: list[int], latency: dict[str, list[float]],
@@ -170,29 +228,16 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
     if listwise_model or complete:
         name = f"hybrid+listwise({listwise_model or 'injected'})@bge-small"
         fn = complete or (lambda prompt: ollama_complete(prompt, listwise_model, ollama_url))
-        raw: list[dict[str, Any]] = []
-
-        def recorded(prompt: str) -> str:
-            t0 = time.perf_counter()
-            text = fn(prompt)
-            raw.append({"completion": text, "ms": round((time.perf_counter() - t0) * 1000.0, 1)})
-            return text or ""
-
-        reranker = RankGPTReranker(complete=recorded, window=window)
-        all_orders[name], latency[name] = [], []
-        for q, pairs in zip(gold, candidates):
-            t0, before = time.perf_counter(), len(raw)
-            ranked = reranker(q.question, pairs)
-            latency[name].append((time.perf_counter() - t0) * 1000.0)
-            all_orders[name].append(_paths(ranked))
-            for entry in raw[before:]:
-                entry["id"] = q.id
-        failed = sum(1 for r in raw if not r["completion"])
-        if failed == len(raw):
+        served = ollama_model_info(listwise_model, ollama_url) if complete is None else {}
+        all_orders[name], latency[name], block = listwise_arm(gold, candidates, fn, window=window)
+        if block["n_failed_calls"] == block["n_calls"]:
             raise SystemExit(f"no completion from {listwise_model} at {ollama_url}; is `ollama serve` running?")
         all_deltas += [(name, HYBRID), (name, TEACHER)]
-        listwise = {"evaluated": True, "config": name, "model": listwise_model or "injected", "window": window, "options": OLLAMA_OPTIONS,
-                    "passage_chars": 280, "n_failed_calls": failed, "completions": raw}
+        first = [f"{chunk.path}\n{(chunk.text or '')[:PASSAGE_CHARS]}" for chunk, _ in candidates[0][:window]] if candidates else []
+        listwise = {"evaluated": True, "config": name, "model": listwise_model or "injected", **served, "window": window,
+                    "options": OLLAMA_OPTIONS, "passage_chars": PASSAGE_CHARS,
+                    "fallback": "a question whose call returned nothing or whose reply is not a full permutation keeps the fused order",
+                    "example_prompt": {"id": gold[0].id, "prompt": listwise_prompt(gold[0].question, first)} if first else None, **block}
     all_rows, boot_all = score_rows(all_orders, gold, all_ids, latency, manifest["n_files"], all_deltas)
 
     return {

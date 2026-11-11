@@ -738,6 +738,7 @@ def rerank_arms_table(blob: dict | None) -> str:
         "| arm | questions | nDCG@10 [95% CI] | Δ nDCG@10 vs cross-encoder [95% CI] | verdict | Δ nDCG@10 vs un-reranked hybrid [95% CI] | verdict | rerank p50 / p95 ms | stand-ins (fallbacks) |",
         "|---|---:|---:|---:|:---:|---:|:---:|---:|---|",
     ]
+    lw = blob.get("listwise") or {}
     for scope, label in (("test_split", "test split"), ("all_questions", "all")):
         for row in blob[scope]["results"]:
             name = row["config"]
@@ -747,15 +748,23 @@ def rerank_arms_table(blob: dict | None) -> str:
             lat = row.get("rerank_latency")
             student = row.get("student") or {}
             stand_in = student.get("fallback") and f"student: {student['fallback']}"
+            if lw.get("evaluated") and name == lw.get("config") and lw.get("fused_order_kept_ids"):
+                stand_in = f"fused order kept on {len(lw['fused_order_kept_ids'])} of {lw['n_calls']} questions (no reply, or not a full permutation)"
             latency = f"{lat['p50_ms']} / {lat['p95_ms']}" if lat else "—"
             lines.append(
                 f"| {name} | {row['n']} ({label}) | {_ci(row, 'ndcg@10')} | {_delta4(vs_ce)} | {verdict(vs_ce) if vs_ce else '—'} | "
                 f"{_delta4(vs_hybrid)} | {verdict(vs_hybrid) if vs_hybrid else '—'} | {latency} | {stand_in or 'none'} |"
             )
-    lw = blob.get("listwise") or {}
     if lw.get("evaluated"):
-        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama, one prompt per question over the top {lw['window']} candidates "
-                      f"({lw['passage_chars']} characters each); {lw['n_failed_calls']} of {blob['n_gold']} calls returned nothing. Every completion is in the results file."]
+        opts = lw.get("options") or {}
+        parse = lw.get("parse") or {}
+        failures = ", ".join(f"{parse[k]} {k.replace('_', ' ')}" for k in ("not_a_chain", "partial", "repeated_id", "out_of_range") if parse.get(k))
+        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama (temperature {opts.get('temperature')}, seed {opts.get('seed')}), one prompt per "
+                      f"question over the top {lw['window']} candidates ({lw['passage_chars']} characters of each). A reply counts only when the whole "
+                      f"reply is a permutation of the window, `[2] > [1] > ...`; anything else keeps the fused order. {parse.get('permutation', 0)} of "
+                      f"{lw['n_calls']} replies were permutations, {lw['n_parse_failures']} were not ({failures or 'none'}), and {lw['n_failed_calls']} "
+                      f"calls returned nothing, so the row's numbers include {len(lw.get('fused_order_kept_ids') or [])} questions in the fused order. "
+                      "Every completion and its parse status is in the results file."]
     else:
         lines += ["", f"Listwise reranking by an LLM (`app/retrieval/rankgpt.py`): not evaluated in this run ({lw.get('reason', 'not run')})."]
     return "\n".join(lines)
