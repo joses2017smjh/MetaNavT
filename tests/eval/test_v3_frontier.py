@@ -232,6 +232,8 @@ def test_listwise_row_says_how_many_questions_kept_the_fused_order(tmp_path):
     (tmp_path / "bench" / "results" / "rerank_arms.json").write_text(json.dumps(blob))
     claims = [c for c in _rerank_arm_claims(tmp_path) if name in c["claim"]]
     assert len(claims) == 2 and all("3 of 4 questions keep the fused order" in c["not_shown"] for c in claims)
+    # The file does not record where Ollama ran, so the rows do not say it.
+    assert all("the listwise model its first 20 (`stub` through Ollama) of a 61-file" in c["not_shown"] for c in claims)
 
 
 def test_bge_reranker_labels_fallback_when_model_missing():

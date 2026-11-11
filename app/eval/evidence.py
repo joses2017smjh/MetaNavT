@@ -250,8 +250,9 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
             if lw.get("evaluated") and name == lw.get("config"):
                 stand_in = (f"{len(lw.get('fused_order_kept_ids') or [])} of {lw['n_calls']} questions keep the fused order "
                             f"({lw['n_failed_calls']} calls returned nothing, {lw['n_parse_failures']} replies were not a full permutation)")
+                # The file records the model, its digest and the Ollama version, not where Ollama ran: say no more than that.
                 reranks = (f"the cross-encoder reranks the fused top {blob['candidates']['retrieve_k']}, the listwise model its first "
-                           f"{lw['window']} (`{lw['model']}` through Ollama on the same GPU)")
+                           f"{lw['window']} (`{lw['model']}` through Ollama)")
             for block in row.get("deltas") or []:
                 d = block["ndcg@10"]
                 value, ci = _ci(d, "delta")
