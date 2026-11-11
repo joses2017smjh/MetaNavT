@@ -100,11 +100,13 @@ def test_preflight_stops_when_the_model_refuses_the_companions_request():
     assert checked["returned_fields"] == ["content", "role"] and checked["returned_tool_calls"] is False
 
 
-def test_publishable_rows_drop_local_paths_and_say_so():
-    rows = live._publishable([{"id": "q1", "response": {"answer": "see /home/someone/x.txt"}},
-                              {"id": "q2", "response": {"answer": "configs/run_047.yaml"}}])
-    assert rows[0]["scrubbed"] and "/home/someone" not in json.dumps(rows[0])
-    assert rows[1]["scrubbed"] is False and rows[1]["response"]["answer"] == "configs/run_047.yaml"
+def test_publishable_rows_keep_corpus_text_and_scrub_only_rows_naming_this_machine(tmp_path):
+    shebang = {"id": "q1", "route": "/api/chat", "response": {"text": "#!/bin/bash\n#SBATCH --gres=gpu:1"}}
+    assert live.publishable(shebang, live.local_paths(tmp_path)) == {**shebang, "scrubbed": False}
+    local = {"id": "q2", "route": "/api/chat", "question": "q", "response": {"answer": f"see {tmp_path}/x.txt"}}
+    out = live.publishable(local, live.local_paths(tmp_path))
+    assert out["scrubbed"] and str(tmp_path) not in json.dumps(out)
+    assert out["route"] == "/api/chat" and out["response"]["answer"] == "see <path>/x.txt"
 
 
 def test_recorded_command_names_the_dsn_instead_of_recording_it():

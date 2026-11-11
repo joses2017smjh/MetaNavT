@@ -53,7 +53,7 @@ import httpx
 from app.eval import companion_score as cs
 from app.eval import served_stack
 from app.eval.agent_injection import TICKET, build_tasks
-from app.eval.provenance import sanitize_command, scrub
+from app.eval.provenance import _scrub_names, sanitize_command, scrub  # names only: see publishable()
 
 ROOT = Path(__file__).resolve().parents[2]
 BENCHMARK = "companion_live_v1"
@@ -247,7 +247,7 @@ def recorded_command(argv: Sequence[str] | None = None) -> str:
     return sanitize_command(argv, os.environ)
 
 
-def run_provenance() -> dict:
+def run_provenance(sources: Sequence[str] = SOURCES) -> dict:
     try:
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
@@ -255,7 +255,7 @@ def run_provenance() -> dict:
         head, dirty = None, None
     return {"run_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "git_head": head,
             "working_tree_dirty": dirty,
-            "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in SOURCES}}
+            "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sources}}
 
 
 def _api_block(api: served_stack.ServedAPI, corpus: str, data_dir: Path, preflight: dict) -> dict:
@@ -263,15 +263,30 @@ def _api_block(api: served_stack.ServedAPI, corpus: str, data_dir: Path, preflig
             "health": scrub(api.health), "env": served_stack.public_env(api.env), "preflight": preflight}
 
 
-def _publishable(rows: list[dict]) -> list[dict]:
-    """Rows as written: every string scrubbed of local paths, user and host names (provenance.scrub); a row whose
-    stored response or detail changed says so, and its scores are computed from what is stored."""
-    out = []
-    for row in rows:
-        clean = scrub(row)
-        clean["scrubbed"] = clean != row
-        out.append(clean)
-    return out
+QUESTION_FIELDS = ("id", "kind", "category", "question", "gold_id", "gold", "planted_value", "route")
+
+
+def leaks(value: Any, local_paths: Sequence[str]) -> bool:
+    """`value` names this machine: its user or host name (provenance's rules), or a local absolute path."""
+    text = json.dumps(value, ensure_ascii=False)
+    return any(p and p in text for p in local_paths) or _scrub_names(text) != text
+
+
+def publishable(row: dict, local_paths: Sequence[str], keep: Sequence[str] = QUESTION_FIELDS) -> dict:
+    """The row as written. Corpus and model text are stored as they are: provenance.scrub would also rewrite
+    fixture lines such as #!/bin/bash and break the excerpt hashes the scores check. A row that names this
+    machine (a user or host name, the repository, temporary or home directory) is scrubbed outside its question
+    fields, says so, and is scored from what is stored."""
+    if not leaks(row, local_paths):
+        return {**row, "scrubbed": False}
+    return {**{k: (v if k in keep else scrub(v)) for k, v in row.items()}, "scrubbed": True}
+
+
+def local_paths(*extra: Path) -> list[str]:
+    paths = {str(ROOT), str(ROOT.resolve()), str(Path.home())}
+    for path in extra:
+        paths.update({str(path), str(Path(path).resolve())})
+    return sorted(paths, key=len, reverse=True)
 
 
 def run(*, model: str, ollama_url: str, pg_dsn: str, timeout: float, limit: int | None,
@@ -289,6 +304,7 @@ def run(*, model: str, ollama_url: str, pg_dsn: str, timeout: float, limit: int 
     info = ollama_info(ollama_url, model)
     with tempfile.TemporaryDirectory(prefix="metanavit-companion-live-") as tmp:
         tmp = Path(tmp)
+        local = local_paths(tmp, *([log_dir] if log_dir else []))
         clean_dir = served_stack.copy_fixture(tmp / "clean")
         planted_dir = served_stack.copy_fixture(tmp / "planted")
         served_stack.plant(planted_dir, planted_additions(tasks))
@@ -339,7 +355,7 @@ def run(*, model: str, ollama_url: str, pg_dsn: str, timeout: float, limit: int 
                          "n_planted": len(planted_questions)},
         "ticket": TICKET,
         "planted_tasks": tasks,
-        "rows": _publishable(rows + planted_rows),
+        "rows": [publishable(row, local) for row in rows + planted_rows],
         "wall_s": round(time.monotonic() - started, 1),
     }
     return cs.rescore(report)
