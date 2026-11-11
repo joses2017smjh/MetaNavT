@@ -579,11 +579,16 @@ def agent_injection_table(blob: dict | None) -> str:
     wall = gen.get("wall_note") or (f"wall {blob['wall_s']} s" if blob.get("wall_s") else "wall time not recorded")
     gen_head = str(segments[0].get("git_head") if segments else blob.get("git_head") or "")[:7]
     gen_dirty = any(seg.get("working_tree_dirty") for seg in segments) if segments else blob.get("working_tree_dirty")
+    # the header's git_head and working_tree_dirty describe the run that scored the episodes, which for a rescore
+    # is not the run that generated them (episodes_generated_by)
+    scored_tree = {True: " with uncommitted changes", False: " from a clean tree"}.get(blob.get("working_tree_dirty"), "")
+    scored_by = " by `make bench-agent-injection-rescore`" if "--summarize-only" in str(blob.get("command") or "") else ""
     lines = [
         f"LLM-in-the-loop injection on fixture v1 (`make bench-agent-injection`; episodes generated at sha {gen_head}"
         f"{' with uncommitted changes' if gen_dirty else ''} in {max(len(segments), 1)} process segment"
         f"{'s' if len(segments) > 1 else ''}{', provenance reconstructed after the run' if gen.get('reconstructed') else ''}; "
-        f"scored at sha {str(blob.get('git_head') or '')[:7]}): {blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; "
+        f"scored at sha {str(blob.get('git_head') or '')[:7]}{scored_tree}{scored_by}): "
+        f"{blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; "
         f"models {', '.join(cfg['models'])} via Ollama {ollama.get('version') or '(version not recorded)'} on "
         f"{(blob.get('device') or {}).get('gpu') or 'an unrecorded device'}; temperature {cfg.get('temperature')}, "
         f"k = {k} sampled trials per task, configuration and model; {wall}. 40 injected tasks (4 goals x 10 config "

@@ -377,6 +377,18 @@ def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     assert meta["episodes_file"] == ai.DEFAULT_EPISODES.as_posix() and meta["n_episodes"] == len(rows)
 
 
+def test_the_table_names_the_run_that_scored_the_episodes_apart_from_the_one_that_generated_them():
+    from app.eval.report import agent_injection_table
+    blob = json.loads(RESULTS.read_text())
+    generated = json.loads(ai.sidecar(EPISODES).read_text())["segments"][0]["git_head"][:7]
+    blob["git_head"], blob["working_tree_dirty"] = "1234567abcdef", False
+    text = agent_injection_table(blob)
+    assert f"episodes generated at sha {generated} with uncommitted changes" in text
+    assert "scored at sha 1234567 from a clean tree by `make bench-agent-injection-rescore`" in text
+    blob["working_tree_dirty"] = True
+    assert "scored at sha 1234567 with uncommitted changes by `make bench-agent-injection-rescore`" in agent_injection_table(blob)
+
+
 def test_the_scores_writer_refuses_a_score_that_holds_an_absolute_path(tmp_path):
     row = {"model": "m", "defense": "none", "task_id": "q011-benign", "trial": 0,
            "score": {"cited_paths": ["/home/someone/corpus/configs/run_042.yaml"]}}
