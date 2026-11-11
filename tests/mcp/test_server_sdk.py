@@ -1,7 +1,9 @@
 """Spawn app/mcp/server_sdk.py over stdio with the official SDK client; list and call tools."""
 
 import asyncio
+import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 from app.mcp.approvals import create_key, sign_review
@@ -13,6 +15,9 @@ from mcp import ClientSession  # noqa: E402
 from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
+FIXTURE = ROOT / "bench" / "corpus" / "files"
+# numpy in the server process stays single-threaded on shared hosts.
+THREADS = {"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}
 
 
 def _text(result) -> str:
@@ -24,6 +29,11 @@ def _payload(result):
     if structured:
         return structured.get("result", structured) if isinstance(structured, dict) and set(structured) == {"result"} else structured
     return json.loads(_text(result))
+
+
+def _blocks(result) -> list:
+    """A list result: the SDK sends one text block per item."""
+    return [json.loads(c.text) for c in result.content if getattr(c, "text", None)]
 
 
 async def _drive(corpus: Path, private: Path) -> dict:
@@ -66,3 +76,42 @@ def test_sdk_server_lists_and_calls_tools(tmp_path, tmp_path_factory):
     assert out["plan"]["status"] == "pending_approval"
     assert out["refused"].get("error") == "approval_required"  # the gate survives the SDK port
     assert out["applied"]["status"] == "applied" and (tmp_path / "configs" / "archive" / "run_047.yaml").exists()
+
+
+def _tree_digest(root: Path) -> str:
+    rows = [[str(p.relative_to(root)), hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "dir"] for p in sorted(root.rglob("*"))]
+    return hashlib.sha256(json.dumps(rows).encode()).hexdigest()
+
+
+async def _search_and_propose(corpus: Path) -> dict:
+    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp.server_sdk", "--root", str(corpus)], cwd=str(ROOT), env={"PYTHONPATH": str(ROOT), **THREADS})
+    out: dict = {}
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            for name, arguments in (("search_semantic", {"query": "learning rate of run_047", "k": 5}),
+                                    ("search_lexical", {"query": "run_047", "k": 5}),
+                                    ("propose_artifact", {"query": "write a test for the fusion module"})):
+                called = await session.call_tool(name, arguments)
+                assert not called.is_error, _text(called)
+                out[name] = _payload(called) if name == "propose_artifact" else _blocks(called)
+    return out
+
+
+def test_sdk_server_searches_and_proposes_on_the_fixture(tmp_path):
+    corpus = tmp_path / "corpus"
+    shutil.copytree(FIXTURE, corpus)  # a copy: nothing here can touch bench/corpus
+    before = _tree_digest(corpus)
+    out = asyncio.run(_search_and_propose(corpus))
+
+    for name in ("search_semantic", "search_lexical"):
+        hits = out[name]
+        assert 0 < len(hits) <= 5
+        assert all((corpus / hit["path"]).is_file() for hit in hits)
+        assert any("run_047" in hit["path"] or "run_047" in hit["text"] for hit in hits)
+    proposal = out["propose_artifact"]
+    assert proposal["status"] == "pending_approval" and proposal["exec"]["ok"]
+    assert proposal["review"]["action"] == "apply_artifact"
+    assert proposal["spec"]["citations"] and all((corpus / c["path"]).is_file() for c in proposal["spec"]["citations"])
+    assert not (corpus / proposal["spec"]["file_path"]).exists()  # a proposal never writes
+    assert _tree_digest(corpus) == before

@@ -1,12 +1,15 @@
 """MetaNaviT filesystem tools as an MCP server on the official Python SDK (mcp >= 2).
 
-    python -m app.mcp.server_sdk [--root DIR]      # stdio transport, for any MCP client
+    python -m app.mcp.server_sdk [--root DIR] [--embedder NAME | --no-index]   # stdio transport, for any MCP client
 
 Every FilesystemTools tool spec (search, read, list, propose_move, apply_plan,
 artifacts, patches, visualizations) is registered from tool_specs(), so the
 tool list is the same as the hand-rolled server in app/mcp/server.py, which is
 kept for clients pinned to its 2024-11-05 framing. The approval gate is
 content-bound: apply_* refuses without an operator-issued capability.
+Search and propose_artifact use an index built over the root at start, as in
+app/mcp/server.py (hash embedder and overlap reranker unless --embedder names
+another; --no-index, or a root with no indexable file, starts without one).
 
 tests/mcp/test_server_sdk.py spawns this module over stdio with the SDK's
 client, lists the tools and calls them.
@@ -17,15 +20,19 @@ from __future__ import annotations
 import argparse
 import inspect
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
 from mcp.server.mcpserver import MCPServer
-from app.mcp.filesystem import ApprovalRequired, FilesystemTools
+from app.mcp.filesystem import DEFAULT_EMBEDDER, ApprovalRequired, FilesystemTools, build_root_index, index_summary
 
 
-def build_server(root: str | Path, name: str = "metanavit-filesystem") -> MCPServer:
-    tools = FilesystemTools(root=Path(root))
+def build_server(root: str | Path, name: str = "metanavit-filesystem", *, embedder: str | None = DEFAULT_EMBEDDER) -> MCPServer:
+    """`embedder=None` starts without a search index."""
+    index = None if embedder is None else build_root_index(Path(root), embedder)
+    print(index_summary(index), file=sys.stderr, flush=True)
+    tools = FilesystemTools(root=Path(root), index=index)
     server = MCPServer(name=name, instructions="Search, read and propose changes to a research file tree. apply_* needs an operator-issued capability; caller approval flags never authorize.")
 
     for spec in tools.tool_specs():
@@ -84,9 +91,11 @@ def _register(server: MCPServer, name: str, spec: dict[str, Any], handler) -> No
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--root", default=os.getenv("DATA_DIR", "bench/corpus/files"))
+    p.add_argument("--embedder", default=DEFAULT_EMBEDDER, help="hash (default), tfidf, st or st:<model>")
+    p.add_argument("--no-index", action="store_true", help="start without a search index (large roots)")
     p.add_argument("--transport", default="stdio", choices=["stdio"])
     args = p.parse_args(argv)
-    server = build_server(args.root)
+    server = build_server(args.root, embedder=None if args.no_index else args.embedder)
     server.run(transport=args.transport)
     return 0
 

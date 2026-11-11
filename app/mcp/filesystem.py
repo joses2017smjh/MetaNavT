@@ -37,6 +37,40 @@ class ApprovalRequired(Exception):
         self.plan_id = plan_id
 
 
+DEFAULT_EMBEDDER = "hash"
+
+
+def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHybridIndex | None:
+    """The search index both stdio servers build over their root at start.
+
+    app/eval/index_loader.build_index with its defaults, as the agent-injection
+    evaluation indexes its corpus copy: chunker "auto", router on, the overlap
+    reranker (token overlap, no model) and, unless `embedder` names another, the
+    hash embedder (no learned weights). None when no file under `root` can be
+    indexed. The index is a snapshot taken at start: it does not follow later
+    writes, including applied moves and patches.
+    """
+    from app.eval.index_loader import build_index
+    from app.eval.ingest import BENCH_POLICY, scan_directory
+
+    try:
+        return build_index(Path(root), embedder_name=embedder)
+    except ValueError:  # the index refuses zero chunks; anything else is re-raised
+        if scan_directory(Path(root), BENCH_POLICY).files:
+            raise
+        return None
+
+
+def index_summary(index: InMemoryHybridIndex | None) -> str:
+    """One start-up line for stderr (stdout carries the protocol)."""
+    if index is None:
+        return "metanavit-filesystem: no index; search_semantic, search_lexical and propose_artifact are unavailable"
+    files = len({chunk.path for chunk in index.chunks})
+    return (f"metanavit-filesystem: indexed {len(index.chunks)} chunks from {files} files at start "
+            f"(embedder {index.embedder.name}, reranker {getattr(index, 'reranker_name', 'none')}); "
+            "the index does not follow later writes")
+
+
 def _serialized(method):
     @wraps(method)
     def wrapped(self, plan_id, *args, **kwargs):
