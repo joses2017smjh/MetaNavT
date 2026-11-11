@@ -401,7 +401,7 @@ def write_static_story_svgs(out_dir: Path, blob: dict | None = None) -> None:
   <rect width="860" height="280" fill="{BG}"/>
   <rect x="12" y="12" width="836" height="256" rx="16" fill="{PANEL}" stroke="{GRID}"/>
   <text x="32" y="44" fill="{TEXT}" font-size="18" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">What you run at localhost:8000</text>
-  <text x="32" y="66" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Same radial gradient. Next.js talks to FastAPI. FastAPI talks to pgvector + ParadeDB.</text>
+  <text x="32" y="66" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Same radial gradient. Next.js talks to FastAPI. FastAPI talks to Postgres: pgvector and full text.</text>
   <rect x="32" y="92" width="250" height="140" rx="12" fill="#121212" stroke="{SKY}"/>
   <text x="157" y="128" text-anchor="middle" fill="{SKY}" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Next.js</text>
   <text x="157" y="156" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">.frontend/</text>
@@ -412,8 +412,8 @@ def write_static_story_svgs(out_dir: Path, blob: dict | None = None) -> None:
   <text x="429" y="180" text-anchor="middle" fill="{TEXT}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">route · retrieve · agents</text>
   <rect x="576" y="92" width="250" height="140" rx="12" fill="#121212" stroke="{LAVENDER}"/>
   <text x="701" y="128" text-anchor="middle" fill="{LAVENDER}" font-size="14" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif">Postgres</text>
-  <text x="701" y="156" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">pgvector + ParadeDB</text>
-  <text x="701" y="180" text-anchor="middle" fill="{TEXT}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">dense + BM25 + mtime</text>
+  <text x="701" y="156" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">pgvector + full text</text>
+  <text x="701" y="180" text-anchor="middle" fill="{TEXT}" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">dense + ts_rank_cd + mtime</text>
 </svg>
 '''
     )

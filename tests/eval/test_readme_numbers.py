@@ -40,6 +40,7 @@ def test_missing_neural_files_render_a_pointer_not_a_crash(tmp_path):
     blob = json.loads((ROOT / "bench" / "results" / "main.json").read_text())
     blocks = render(blob, tmp_path)
     assert "make bench-neural" in blocks["bench-neural"] and "make bench-beir" in blocks["bench-beir"]
+    assert "make bench-beir-bm25-ablation" in blocks["bench-beir-bm25"] and "make bench-beir-fiqa" in blocks["bench-beir-fiqa"]
     assert "make parity" in blocks["bench-parity"]
 
 
@@ -48,3 +49,19 @@ def test_check_reports_missing_markers_and_drift():
     assert any("markers missing" in p for p in check("no blocks here", blob))
     drifted = "\n".join(wrap(name, body + " EDITED") for name, body in render(blob).items())
     assert any("differs" in p for p in check(drifted, blob, BLOCKS, ROOT))
+
+
+def test_beir_published_comparison_prints_the_score_it_subtracts():
+    """B05: the SciFact sentence and the evidence row quote our nDCG@10 to four decimals, the precision of the
+    difference printed next to it, so the subtraction closes."""
+    from app.eval.evidence import claims
+    from app.eval.report import beir_table
+
+    blob = json.loads((ROOT / "bench" / "results" / "beir_scifact.json").read_text())
+    bm25 = {r["config"]: r for r in blob["results"]}["bm25"]
+    score, vp = bm25["retrieval"]["ndcg@10"], bm25["vs_published"]
+    assert round(score - vp["published_bm25_ndcg@10"], 4) == vp["delta"]
+    sentence = f"scores nDCG@10 {score:.4f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f})"
+    assert sentence in beir_table(blob)
+    row = next(c for c in claims() if c["claim"].startswith("BEIR SciFact, our BM25"))
+    assert row["value"] == f"{score:.4f}" and f"{vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f})" in row["not_shown"]

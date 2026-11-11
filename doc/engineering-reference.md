@@ -160,11 +160,27 @@ the measured results rather than a newly validated automatic selector.
 [Full NFCorpus results](../bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) ·
 [Full FiQA results](../bench/results/revamp_20261007/beir_fiqa_gpu.json)
 
+FiQA with the reranker (`make bench-beir-fiqa`; [results](../bench/results/beir_fiqa.json),
+[generated table](../README.md#bench-beir-fiqa)) runs BM25, dense and hybrid again
+next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512, first
+in fp32 and then in fp16, each row paired with its parent, with a TREC run file
+for every row in `bench/results/beir_fiqa_trec`. Its document embeddings are the
+cached bge-small matrix of the October run (the GPU that computed it is the one
+[beir_fiqa_gpu.json](../bench/results/revamp_20261007/beir_fiqa_gpu.json) names);
+the queries and the reranker ran on the GPU the new file names.
+
 On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
 **512-token cap and top-20 depth fixed** reduces warm offline total p95 from
 **216.52 to 77.15 ms** (64.4%). nDCG changes from **0.3555 to 0.3554**. This
 isolates precision more directly than the historical SciFact joint precision/
 truncation comparison. It excludes model load, index build and HTTP concurrency.
+On SciFact the cap and the precision are now also measured one at a time:
+fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
+before it, in the ladder behind the [generated SciFact table](../README.md#bench-beir)
+(`make bench-beir`); the evidence table quotes both steps with their rerank-stage
+latency. `make bench-beir-rerank-cap` runs only the hybrid and those three rows
+([results](../bench/results/beir_scifact_rerank_cap.json)); their metrics equal
+the ladder's.
 
 ### Real robotics experiment lookup
 
@@ -203,7 +219,7 @@ fixture, hash embeddings and overlap reranking; it needs no Ollama server,
 Postgres instance, GPU or model download, and takes a few seconds.
 
 ```bash
-pip install -e ".[eval]"   # numpy, pydantic, pytest
+pip install -e ".[eval]"   # numpy, pydantic, pytest, scikit-learn (no LlamaIndex, no torch)
 make test-eval             # evaluation tests
 make bench                 # writes bench/results/<git-sha>.json and latest.json
 make bench-gate            # latest.json vs the committed baseline bench/results/main.json
@@ -362,7 +378,7 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
   <img src="../doc/gifs/hybrid.gif" alt="BM25 vs dense then RRF on the fusion-module question" width="820"/>
 </p>
 
-ParadeDB BM25 in production (`ts_rank_cd` fallback). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
+The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
 ### A router that skips work
 
@@ -494,7 +510,7 @@ the current implementation requires the signed grant.
 
 Six techniques from 2023–2026 RAG research, wired into the bench harness with ablation flags.
 
-**HyDE** (Hypothetical Document Embedding). Instead of embedding the raw query, generate a pseudo-document from the query tokens and embed that. The hypothesis is closer to the answer space, so cosine similarity is more meaningful. Fused with the original ranking via RRF. `app/retrieval/hyde.py`.
+**HyDE** (Hypothetical Document Embedding). Instead of embedding the raw query, generate a pseudo-document from the query tokens and embed that (averaged with the query's own vector). The hypothesis is closer to the answer space, so cosine similarity is more meaningful. `app/retrieval/hyde.py`. The benchmark has two wirings (`hyde_stage` in `app/eval/harness.py`). First stage: the HyDE vector replaces the query vector in the dense leg, the dense list is RRF-fused with BM25 as usual, and the reranker, when there is one, orders the fused candidates and has the last word. After the reranker: retrieve and rerank with the raw query, then RRF-fuse the reranked list with a HyDE dense list and re-sort. That second wiring is how every HyDE row recorded before the first-stage arms existed was produced; its re-sort overrides the reranker's order and it never adds a HyDE hit outside the reranked list, so its rows measure that wiring, not HyDE as a dense query. They are kept under their old names.
 
 **Query Decomposition**. Compound multi-hop queries ("compare the learning rate and encoder between run 40 and run 47") are split into sub-queries, each retrieved independently, then merged by best-score dedup. Heuristic splitter (syntactic cues); LLM decomposition available when a model is loaded. `app/agent/decompose.py`.
 
@@ -502,11 +518,11 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 **Adaptive Retrieval**. Not every query needs the full pipeline. Greetings, meta-questions, and textbook definitions skip retrieval entirely. Corpus-specific signals (run IDs, file extensions, config terms) trigger retrieval. Neutral on the gold set — every gold question needs retrieval. `app/retrieval/adaptive.py`.
 
-**Semantic Query Cache**. Near-duplicate queries ("learning rate run 47" vs "what is the learning rate for run 47") hit an in-memory LRU cache with cosine-similarity lookup (threshold 0.92) instead of re-running the full pipeline. TTL eviction prevents stale results. Optional JSON persistence. `app/retrieval/cache.py`.
+**Semantic Query Cache**. Near-duplicate queries ("learning rate run 47" vs "what is the learning rate for run 47") hit an in-memory LRU cache with cosine-similarity lookup (threshold 0.92) instead of re-running the full pipeline. TTL eviction prevents stale results. Optional JSON persistence. `app/retrieval/cache.py`. In the benchmark it is the `hybrid+rerank+cache` arm: the gold questions are replayed in gold order into an empty cache, a hit serves the cached file list, and the row counts hits and wrong hits (a cached list that differs from what retrieval returns for that question). The gold set's templated questions differ only in a run id, so this replay measures the false-hit risk. True hits are measured on paraphrases of gold questions ([bench/probes/](../bench/probes/README.md), rule-based rewrites that inherit the relevant paths of the question they rewrite; not gold labels), looked up after the replay without being added.
 
 **Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`.
 
-HyDE, decomposition, corrective retrieval and adaptive retrieval are arms of `make bench-frontier` (`hybrid+rerank+hyde`, `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+hyde+corrective`, `hybrid+rerank+adaptive`), each scored against the reranked hybrid it is added to; what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). The semantic cache and citation verification have no harness flag and no benchmark row.
+HyDE, decomposition, corrective retrieval, adaptive retrieval and the semantic cache are arms of `make bench-frontier` (first-stage HyDE: `hybrid+hyde` against `hybrid`, `dense_only+hyde` against `dense_only`, `hybrid+hyde+rerank` against `hybrid+rerank`; HyDE after the reranker: `hybrid+rerank+hyde`, `hybrid+rerank+hyde+corrective`; `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+adaptive`, `hybrid+rerank+cache`), each scored against the row it is one switch away from; the real-model run adds HyDE with an LLM-written hypothesis (`hybrid+hyde-llm`, `hybrid+hyde-llm+rerank`, the hypotheses stored by `make frontier-generations`); what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). Citation verification has no harness flag and no benchmark row.
 
 ### Graph + staleness
 
@@ -577,7 +593,7 @@ does not consult the manifest.
   <img src="../doc/figures/storage.svg" alt="float32 vs halfvec vs binary+rescore" width="820"/>
 </p>
 
-`halfvec` is 2x smaller (same Recall@10 as float32 on this corpus). Binary quantization is 32x smaller and recovers 0.594 Recall@10 after a float rescoring pass. `m` / `ef_construction` at build; `ef_search` at query; iterative scans so a path/mtime filter does not silently under-return. The in-memory NSW analogue on **hash** vectors saturates around Recall@10 0.52 — that space is not a manifold. The same SQL lives on `VectorStoreManager.ensure_hnsw` / `ensure_halfvec` / `ensure_binary` for `bge-large`.
+`halfvec` stores half the bytes of float32 and binary quantization one bit per dimension; [bench/results/sweeps.json](../bench/results/sweeps.json) (`make sweeps`) records each one's Recall@10 against float32 (binary after a float rescoring pass) and the HNSW `ef_search` sweep, which the figures above plot. All of it is the **in-memory NSW analogue** (`app/retrieval/pgvector_tune.py`) over **hash** vectors, where recall saturates early: that space is not a manifold. In Postgres, start-up creates an HNSW index on the embedding column (`ensure_hnsw`: `m` and `ef_construction` at build), and each hybrid statement sets `hnsw.ef_search` (twice the dense depth) and `hnsw.iterative_scan` for its own transaction. The planner decides whether to use the index: it scans the table on fixture v1 and reads the index over generated rows (the two plans under `doc/sql/`). Nothing measures the index's recall against the exact scan at a realistic size with a real embedder yet. `ensure_halfvec` and `ensure_binary` exist on `VectorStoreManager` with no caller, and the served statement reads only the float32 column.
 
 ---
 
@@ -647,10 +663,25 @@ results file header on the recorded device; CI does not download models, and
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
 against. The `bm25` row uses the BEIR analyzer (Porter stemming, Lucene
-stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row is the fixture's
-tokenizer, kept so the gap is visible.
+stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row switches to the
+fixture's analyzer (no stemming, no stopwords) and the fixture's k1=1.5,
+b=0.75 at once, so its gap is the three changes together, not a tokenizer
+effect. `make bench-beir-bm25-ablation` splits it on the CPU: one row changes
+the analyzer alone, one changes k1 and b alone, each paired against `bm25`.
+The dense leg ranks the way the fixture benchmark's does (float64 cosine
+rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
+postings lists of the query's terms and keeps the top k with a heap; it
+returns the same scores in the same order as scoring every document
+(`tests/eval/test_bm25_postings.py`). The ladder file behind the first
+table (`bench/results/beir_scifact.json`) was recorded again after both
+changes, with the capped fp32 row added. The nine rows it shares with the
+earlier recording keep every metric, interval and the published-score
+difference; what changed is the timing columns (per-query latency and build
+time), the GPU, and the fp16 row's paired delta, which is now against fp32 at
+the same cap.
 
-[Current generated bench-beir evidence](../README.md#bench-beir).
+[Current generated bench-beir evidence](../README.md#bench-beir) ·
+[BM25 settings one at a time](../README.md#bench-beir-bm25).
 
 **How to read these.** With real models the picture flips: hybrid RRF and the
 complete reranked pipeline beat BM25 with intervals that exclude zero, on the fixture
@@ -670,7 +701,7 @@ fixture-specific mechanisms; their gains are reported per category with the
 small n they rest on, and they are not part of the SciFact rows.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
-uncapped and fp16 with `max_length` 512 side by side, and sweeps the rerank
+uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
 depth (20, 50, 100), each with its own p50/p95; the served configuration is
 chosen from that table in the API section below, not picked up front.
 
@@ -680,14 +711,29 @@ chosen from that table in the API section below, not picked up front.
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
 one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsrank.sql))
-with a pgvector top-k CTE (`<=>`, HNSW index), a full-text top-k CTE
-(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 when
-`pg_search` is installed), and reciprocal rank fusion computed in SQL, then
+with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
+(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 only with
+`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
+reciprocal rank fusion computed in SQL, then
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. `k` is validated (1-50),
-bad bodies are 422, a down backend is 503. The committed
-[EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1.
+bad bodies are 422, a down backend is 503, and a retrieval that runs past its
+time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
+statement gets the rest of the budget as its `statement_timeout`, so Postgres
+cancels it and its connection goes back to the pool rolled back; the embedding
+and reranking stages are checked when they end, so a late one stops the request
+before the next stage. A model call cannot be interrupted: when one hangs, the
+route answers shortly after the budget and the call keeps its worker thread
+until it returns (`tests/api/test_retrieve_contract.py`,
+`tests/database/test_retrieve_timeout.py`). The committed
+[EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1
+(`make explain-sql`): at that size the dense list is a sequential scan and the lexical list a GIN bitmap scan.
+[hybrid_explain_synthetic_10k.txt](../doc/sql/hybrid_explain_synthetic_10k.txt)
+(`make explain-sql-synthetic`) is the same statement over generated rows with
+hash vectors in a scratch table, synthetic text rather than data: there the planner
+reads the dense list from the HNSW index on its own. Both plans run with the
+statement's per-transaction settings, which their headers list with the SHA-256 of the statement file they planned.
 `tests/database/test_hybrid_sql.py` checks that the SQL fusion equals the Python
 RRF on identical input lists, against a live Postgres in CI.
 
@@ -719,10 +765,33 @@ same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
 fails only when the API is broken (a question without an answer or with zero
-hits). On the fixture the planner answers the dense CTE with a sequential scan;
-when the HNSW index is used instead, a scan returns at most `hnsw.ef_search`
-rows (pgvector's default is below `RETRIEVE_K`), so the dense list is cut short.
-The test reports the plan and `ef_search` when it fails.
+hits). On the fixture the planner answers the dense CTE with a sequential scan.
+A second test forces the HNSW index (`enable_seqscan` off), requires the whole
+served statement to be planned on it, and requires the same `RETRIEVE_K` rows
+for every gold question. On the fixture that scan reaches every row (the
+statement reads twice the depth, more rows than the fixture has), so the test
+checks the plan and the depth, not the index's recall: an HNSW scan is
+approximate, and its recall at a realistic size is not measured yet. Two things
+kept the index from serving the full list before: the `params` CTE, read by both
+lists, was materialized, which made the query vector a column and left the dense
+list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
+rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
+query vector in a `NOT MATERIALIZED` CTE of its own (the tsquery stays a
+materialized value, which keeps the lexical list's GIN plan), and `hybrid_search`
+sets `hnsw.ef_search` to twice the depth (plus `hnsw.iterative_scan =
+strict_order` on pgvector 0.8 or later) in the same execute as the statement, for
+its transaction only, so no pooled connection keeps the value. `/health` reports
+the depth and these settings under `dense_search`. Equal scores at the dense list's
+cut are decided by `node_id`, like every other tie in the statement: the
+index-ordered scan reads twice the depth, and the statement keeps the first
+`RETRIEVE_K` of those rows by distance, then `node_id` (a second sort key inside the
+index scan would leave the index unused). `tests/database/test_hybrid_sql.py`
+puts two rows at the same distance across the cut, stored in either order, and
+requires the smaller `node_id` with and without the index. It also requires that an
+all-zero embedding, whose cosine distance is NaN, does not take a place at the cut
+from a real neighbour. `node_id` order is not
+the in-memory index's corpus order, which is why the dense test compares tied
+chunks as a set.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
@@ -747,7 +816,13 @@ component. A reranker call that fails at request time serves that request in
 RRF order and says so in `degraded`; the lexical leg failing in Python mode
 does the same. `/health` reports the reranker's model, revision, device,
 precision, `max_length` and depth. `tests/engine/test_hybrid_retriever.py`
-fails if a configured reranker could fall back without a trace.
+fails if a configured reranker could fall back without a trace. The benchmark's
+in-memory `CrossEncoderReranker` (`app/retrieval/rerank.py`) follows the same
+rule: with no model loaded a call raises, unless the caller asked for the
+overlap fallback (`allow_fallback=True`, which sets its `fallback` attribute).
+The benchmark loader asks for it and labels the row `reranker_fallback:
+overlap`; `make bench-rerank-arms` does not, and stops when the cross-encoder
+is missing.
 
 [Current generated api-latency evidence](../README.md#api-latency).
 
@@ -950,14 +1025,22 @@ numbers are in the generated tables this section links to.
 
 Generated tables: [CPU stand-ins](../README.md#bench-frontier) and
 [real models](../README.md#bench-frontier-neural). Each arm is one switch away
-from its parent (plain hybrid, or hybrid plus the reranker), both parents are
-computed in the same run, and the verdict word is computed from the interval of
-the paired nDCG@10 delta: above zero, covers zero, or below zero. Every row
-lists the stand-ins it ran on. On the CPU stand-ins every row uses the hash
-embedder and, where it reranks, the overlap reranker. The real-model run uses
+from its parent (plain hybrid, hybrid plus the reranker, or dense only), the
+parent rows are computed in the same run, and the verdict word is computed from
+the interval of the paired nDCG@10 delta: above zero, covers zero, or below
+zero. Every row lists the stand-ins it ran on. On the CPU stand-ins every row
+uses a model-free embedder (the hash embedder, or TF-IDF in its own two rows)
+and, where it reranks, the overlap reranker. The real-model run uses
 bge-small-en-v1.5 and the bge-reranker-v2-m3 cross-encoder and is the one that
 carries the verdicts. The query-side mechanisms are keyword or regex
-heuristics, not models, in both runs.
+heuristics, not models, in both runs, with one exception: the LLM-written arms
+of the real-model run read HyDE hypotheses and chunk prefixes that qwen2.5:7b
+wrote once through Ollama (`make frontier-generations`, temperature 0). They are
+stored with the model, its digest and both prompts in
+[bench/results/frontier_generations.json](../bench/results/frontier_generations.json),
+so those rows are rescored without the model. The generated tables also compare
+some arms directly (row minus other, same bootstrap): the two HyDE wirings, and
+each LLM-written arm against the heuristic arm it replaces.
 
 | arm | what it changes | CPU stand-ins | real models | what the intervals support |
 |---|---|---|---|---|
@@ -965,15 +1048,22 @@ heuristics, not models, in both runs.
 | HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
 | Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
 | Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
-| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix, not an LLM-written one. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. |
+| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. The LLM-written prefix is the next row. |
+| LLM-written contextual prefixes (`hybrid+contextual-llm`) | prepends the situating description qwen2.5:7b wrote for each chunk (`app/chunking/contextual.py` prompt, stored) | not evaluated (real models only) | covers zero | Evaluated with bge-small: no measured effect against plain hybrid, and above zero against the path-words prefix in the direct comparison. The loss of `hybrid+contextual` belongs to the path-words prefix, not to contextual prefixes in general; an LLM-written prefix is still not a measured gain. |
 | Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
-| HyDE (`hybrid+rerank+hyde`) | fuses a second dense list from a pseudo-document into the reranked order | below zero | below zero | Evaluated: a recorded loss for the keyword-heuristic hypothesis. No LLM-written hypothesis was scored. |
+| HyDE in the first stage (`hybrid+hyde`) | the keyword-heuristic HyDE vector is the dense leg's query, fused with BM25; no reranker | below zero | below zero | Evaluated: a recorded loss. |
+| HyDE in the first stage, dense only (`dense_only+hyde`) | the same vector as the only query | below zero | below zero | Evaluated: a recorded loss. |
+| HyDE in the first stage, then the reranker (`hybrid+hyde+rerank`) | the same vector in the first stage; the reranker orders the fused candidates and has the last word | covers zero | covers zero | Evaluated: no measured effect once the reranker has the last word (the interval's lower bound is zero in the real-model run). On this fixture that tie is close to forced: the reranker rescores the fused top `retrieve_k` candidates, most of the fixture's chunks, so a first-stage change can only swap candidates at the tail of that list, and with real models the arm's Recall@50 is unchanged. In the direct comparison it is above zero against the after-reranker wiring in both runs, so that wiring's loss came from the re-sort. |
+| LLM-written HyDE hypothesis (`hybrid+hyde-llm`, `hybrid+hyde-llm+rerank`) | the first-stage arms with the hypothesis qwen2.5:7b wrote for each question (`app/retrieval/hyde.py` prompt, stored) | not evaluated (real models only) | below zero without the reranker; covers zero with it | Evaluated with bge-small: the LLM hypothesis beats the keyword one in the direct comparison without the reranker but still loses to plain hybrid; with the reranker neither hypothesis has a measured effect (the same close-to-forced tie as the row above). |
+| HyDE after the reranker (`hybrid+rerank+hyde`) | RRF-fuses a second dense list from a pseudo-document with the reranked list and re-sorts, overriding the reranker's order | below zero | below zero | Evaluated: a recorded loss of this wiring, which is how every HyDE row before the first-stage arms was produced. The re-sort overrides the reranker and no HyDE hit outside the reranked list is added, so the loss is not evidence about HyDE as a dense query (see the first-stage rows above). |
 | Decomposition (`hybrid+rerank+decompose`) | retrieves per sub-query and merges | covers zero | covers zero | Evaluated: no measured effect; it fires on few questions (the count is in the table). |
 | Corrective retrieval (`hybrid+rerank+corrective`) | grades the top hits and retries with a rewrite or sub-queries | covers zero: identical first ten files | covers zero: identical first ten files | Evaluated: it fires on most questions but only appends candidates after the existing list, so it cannot change the top ten. |
-| HyDE + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is HyDE's; the corrective step adds nothing to the top ten. |
+| HyDE after the reranker + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is that of the after-reranker HyDE wiring; the corrective step adds nothing to the top ten. |
 | Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
 | GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval in either run and is not kept in the served path. |
-| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM is not evaluated. |
+| Semantic cache (`hybrid+rerank+cache`) | serves the cached file list of a near-duplicate earlier question (cosine threshold 0.92), replaying the gold set in gold order | below zero | below zero | Evaluated on the gold set as a false-hit test: every hit served another gold question's file list, and every such list differs from what retrieval returns for the question; most hits are templated questions that differ only in a run id (each hit and the question it was served from are in the results file). A recorded loss on this gold set. On the paraphrase probes (`bench/probes/`, rule-based, not gold labels) most probes hit their own question's entry with bge-small and the served lists are not measurably worse than fresh retrieval; with the hash embedder most probes miss. The counts are in the table notes. |
+| TF-IDF embedder (`dense_only@tfidf`, `hybrid@tfidf`) | replaces the hash embedder with TF-IDF and truncated SVD fitted on the indexed chunks | above zero, dense only and hybrid | not evaluated (model-free; CPU run only) | Evaluated: a better model-free stand-in than the hash embedder on this fixture. It is fitted on the fixture's own chunks, so the gain is not evidence about other corpora. |
+| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated here only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM has its own row in the reranker prototypes table below. |
 
 In the real-model table the arm names carry the model suffix (for example
 `hybrid+bge-rerank+graphrag@bge-small`), and the reranked parent is the
@@ -981,24 +1071,61 @@ cross-encoder row.
 
 The two reranker prototypes have their own generated table
 ([reranker prototypes against the cross-encoder](../README.md#bench-rerank-arms),
-`make bench-rerank-arms`). The distilled student (`app/retrieval/distill.py`)
-is fitted on the cross-encoder's scores for half of the questions, with the
-features it has when it serves, and scored on the other half: it is below zero
-against the cross-encoder it imitates and below zero against the un-reranked
-hybrid list, at a small fraction of the rerank latency. That student is the
-linear least-squares fallback, because LightGBM is not installed where the
-benchmark ran; a gradient-boosted student is not evaluated. Listwise reranking
-by an LLM (`app/retrieval/rankgpt.py`) has a harness
-(`make bench-rerank-arms LISTWISE_MODEL=<ollama model>`) but no row: on the
-benchmark node the local model was too slow per question to finish the gold
-set inside the run, and its replies mixed prose with the permutation, which
-the parser would read as ranks.
+`make bench-rerank-arms`). Two distilled students (`app/retrieval/distill.py`)
+are fitted on the same rows: the cross-encoder's scores for half of the
+questions, with the features a student has when it serves. Both are scored on
+the other half, at a small fraction of the cross-encoder's rerank latency.
+Linear least squares (with an intercept column) is below zero against the
+cross-encoder it imitates and below zero against the un-reranked hybrid list.
+LightGBM trees (`lightgbm.train`, one thread, a fixed seed, deterministic
+mode; the `distill` extra, pinned in `requirements/distill.txt`) are below
+zero against the cross-encoder and cover zero against hybrid. Each student row
+records its model, library version and, for LightGBM, its parameters. Without
+the library the LightGBM arm is recorded as not evaluated; it is never
+replaced by least squares under its name.
 
-Still without a benchmark row: a gradient-boosted distilled student, listwise
-reranking by an LLM, an LLM-written contextual prefix or HyDE hypothesis,
-GraphRAG with LLM extraction or modularity clustering, Tier 2 conflict notes
-(`app/graph/conflicts.py`), hierarchy summaries, the semantic cache and
-citation verification.
+The intercept changes no prediction on fixture v1: every fixture file is one
+of the five file types the student flags, so those flags already sum to one
+for every chunk (`tests/eval/test_frontier_eval.py` pins this), and re-run
+with the intercept every metric and interval of the least-squares row is
+unchanged. It matters on a corpus with other file types. Earlier rows had no intercept
+column, and the student's `recency` feature (a chunk's mtime over the newest
+mtime in its candidate list) is why the least-squares row moved when the
+benchmark switched to the MANIFEST mtimes: on a checkout where every file has
+the same mtime the feature is the constant 1 and carries nothing, while under
+the MANIFEST mtimes it varies slightly and the fit gives it weight, and the
+held-out nDCG@10 fell. The commit that re-recorded that row called the
+constant column the missing intercept; it was not, since the file-type flags
+already provide one. The feature is kept as it is; whether a student should
+see checkout mtimes at all is an open question, not one settled on the test
+split.
+
+Listwise reranking by an LLM (`app/retrieval/rankgpt.py`;
+`make bench-rerank-arms LISTWISE_MODEL=qwen2.5:7b`) sends one prompt per
+question through Ollama (temperature 0, a fixed seed) with the first `window`
+fused candidates, twenty by default, and asks for their ranking only. On all
+questions it is above zero against the un-reranked hybrid list and below zero
+against the cross-encoder, and it is far slower per question than the
+cross-encoder. The parser reads a reply only when the whole reply is a
+bracketed permutation of the window (`[2] > [1] > ...`, every passage once);
+prose, bare numbers, file names such as `run_047`, a partial or repeated list
+all keep the fused order. The table counts those questions, so the row mixes
+reranked questions with questions left in the fused order. The failed replies
+are partial lists (some of them the prompt's three-id example copied
+verbatim), lists that repeat an id, bracketed ids without the separators, and
+an id outside the window. The results file stores every completion with its
+parse status, the model's digest and the Ollama version.
+
+Separately, `make bench` logs one row per fused candidate of the hash-embedder
+hybrid rows to `bench/results/<sha>.triples.jsonl` (git-ignored; nothing in
+the repository reads it): the same serving features, labelled with the overlap
+reranker's score, or with the fused score itself where no rerank ran (the
+row's `teacher` field says which). It records no dense or BM25 score and no
+rank after the rerank, so it cannot leak the label into a feature.
+
+Still without a benchmark row: GraphRAG with LLM extraction or modularity
+clustering, Tier 2 conflict notes (`app/graph/conflicts.py`), hierarchy
+summaries and citation verification.
 
 ### Modules with no measured result
 
@@ -1161,7 +1288,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
-**Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
+**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The vector schema, the HNSW index and the per-statement search settings on `VectorStoreManager`; its `ensure_halfvec` / `ensure_binary` helpers have no caller.
 
 **Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
 
@@ -1199,7 +1326,7 @@ Pick the extra for what you want to run:
 
 | extra | installs | for |
 |---|---|---|
-| `eval` | numpy, pydantic, pytest | `make bench`, `make test-eval` (the CPU benchmark above) |
+| `eval` | numpy, pydantic, pytest, scikit-learn | `make bench`, `make test-eval` (the CPU benchmark above), `make bench-frontier` (its TF-IDF rows need scikit-learn) |
 | `app` | FastAPI, LlamaIndex, psycopg2/pgvector | the API and the Postgres path |
 | `ml` | torch, sentence-transformers, HF embeddings | real embedders and the bge reranker |
 
@@ -1219,9 +1346,9 @@ curl -s -X POST localhost:8000/api/retrieve/ \
 python3 scripts/smoke_retrieve.py     # the check CI runs: hits, every hit has a path
 ```
 
-The compose stack is labelled honestly: `pgvector/pgvector:pg16` has no
-ParadeDB `pg_search`, so lexical search falls back to Postgres `ts_rank_cd`
-(`bm25_backend` in the response), embeddings are the hash adapter
+The compose stack is labelled honestly: lexical search is Postgres `ts_rank_cd`,
+the default `LEXICAL_BACKEND` (`bm25_backend` in the response; the
+`pgvector/pgvector:pg16` image has no ParadeDB `pg_search`), embeddings are the hash adapter
 (`embedding_provider`), and no reranker is loaded (`reranker_loaded`). For
 real models use the override, which installs the `ml` extra and loads
 bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:
@@ -1273,7 +1400,7 @@ Status: M0 to M5 are merged. Open items, in priority order:
 3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
 4. **ParadeDB BM25 in the production path**, gated by the same parity job.
 5. **Injection evaluation, next steps:** an injection-as-user-task capability control, a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
-6. Optional: distill the winning retriever (`distill_winner`), listwise RankGPT with a real LLM, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 

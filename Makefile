@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -6,7 +6,7 @@ export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
 SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
 # ---- setup -----------------------------------------------------------------
-install:        ## bench + eval tests only: numpy, pydantic, pytest (no LlamaIndex, no torch)
+install:        ## bench + eval tests only: numpy, pydantic, pytest, scikit-learn (no LlamaIndex, no torch)
 	$(PYTHON) -m pip install -e ".[eval]"
 
 install-app:    ## + FastAPI, LlamaIndex, Postgres client (what the Docker image installs)
@@ -33,6 +33,7 @@ lock:           ## regenerate requirements.txt and requirements/*.txt from pypro
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile -o requirements/mobile.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile --extra agent -o requirements/agent.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra dev -o requirements/dev.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra distill -o requirements/distill.txt pyproject.toml
 
 lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or disagrees with requirements.txt
 	$(PYTHON) scripts/check_lock.py
@@ -91,14 +92,21 @@ bench-jury-rescore: ## recompute the deterministic checks + summary of bench/res
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
 
+probes:         ## derived probe files outside the frozen fixture (paraphrases of gold questions; not gold labels) -> bench/probes/
+	$(PYTHON) -m app.eval.probes
+
 bench-frontier: ## prototype arms vs their parent rows, hash embedder + overlap reranker fallbacks -> bench/results/frontier.json
 	$(PYTHON) -m app.eval.harness --frontier --out bench/results/frontier.json
 
-bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]) -> bench/results/frontier_neural.json
+FRONTIER_LLM ?= qwen2.5:7b
+frontier-generations: ## LLM-written HyDE hypotheses (gold questions) and chunk prefixes through Ollama, stored -> bench/results/frontier_generations.json
+	$(PYTHON) -m app.eval.frontier_llm --model $(FRONTIER_LLM) --out bench/results/frontier_generations.json
+
+bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]; reads frontier_generations.json, no model call) -> bench/results/frontier_neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --frontier --neural --out bench/results/frontier_neural.json
 
 LISTWISE_MODEL ?=
-bench-rerank-arms: ## distilled student vs the cross-encoder it imitates (needs .[ml]); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
+bench-rerank-arms: ## distilled students vs the cross-encoder they imitate (needs .[ml]; the LightGBM student needs .[distill], else it is recorded as not evaluated); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.rerank_arms $(if $(LISTWISE_MODEL),--listwise-model $(LISTWISE_MODEL)) --out bench/results/rerank_arms.json
 
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
@@ -135,8 +143,21 @@ sweeps:
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
 
+# The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
+BEIR_DATA_DIR ?= bench/external
 bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
-	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --out bench/results/beir_scifact.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact.json
+
+bench-beir-bm25-ablation: ## BEIR SciFact BM25 (CPU, no model): the analyzer alone, k1/b alone and both, each vs bm25 -> bench/results/beir_scifact_bm25_ablation.json
+	$(PYTHON) -m app.eval.beir --ladder bm25-ablation --device cpu --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact_bm25_ablation.json
+
+BEIR_RERANK_CAP_ROWS = hybrid@bge-small,hybrid+bge-rerank@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20,hybrid+bge-rerank@bge-small/fp16-512/top20
+bench-beir-rerank-cap: ## BEIR SciFact reranker at depth 20: fp32 uncapped -> fp32 max_length 512 -> fp16 512, each vs its parent -> bench/results/beir_scifact_rerank_cap.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --data-dir $(BEIR_DATA_DIR) --only $(BEIR_RERANK_CAP_ROWS) --out bench/results/beir_scifact_rerank_cap.json
+
+BEIR_FIQA_ROWS = bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20,hybrid+bge-rerank@bge-small/fp16-512/top20
+bench-beir-fiqa: ## BEIR FiQA: BM25 / dense / hybrid / + bge-reranker at depth 20 (fp32, then fp16; max_length 512), TREC runs -> bench/results/beir_fiqa.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa --data-dir $(BEIR_DATA_DIR) --only $(BEIR_FIQA_ROWS) --trec-dir bench/results/beir_fiqa_trec --out bench/results/beir_fiqa.json
 
 .PHONY: robotics-verify bench-robotics
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split
@@ -170,8 +191,11 @@ parity:         ## replay the gold set through a running API; report the nDCG@10
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
 	$(PYTHON) -m app.engine.ingest_runs
 
-explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN -> doc/sql/
+explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN (fixture v1 already indexed) -> doc/sql/hybrid_explain.txt
 	$(PYTHON) scripts/explain_hybrid.py
+
+explain-sql-synthetic: ## the same over 10k generated hash-vector rows in a scratch table on PG_TEST_DSN -> doc/sql/hybrid_explain_synthetic_10k.txt
+	$(PYTHON) scripts/explain_hybrid.py --synthetic-rows 10000 --out doc/sql/hybrid_explain_synthetic_10k.txt
 
 # ---- docker ----------------------------------------------------------------
 docker-smoke:   ## build the compose stack, wait for /health, POST one query, tear down

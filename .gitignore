@@ -35,6 +35,9 @@ bench/results/*.json
 # neural / external results are committed artifacts (see their headers for the command)
 !bench/results/neural.json
 !bench/results/beir_scifact.json
+!bench/results/beir_scifact_bm25_ablation.json
+!bench/results/beir_scifact_rerank_cap.json
+!bench/results/beir_fiqa.json
 !bench/results/parity.json
 !bench/results/parity_shared_chunker.json
 !bench/results/parity_shared_chunker_restart.json
@@ -62,6 +65,8 @@ bench/external/
 # prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
 !bench/results/frontier.json
 !bench/results/frontier_neural.json
+# the LLM-written HyDE hypotheses and chunk prefixes the real-model frontier reads (make frontier-generations)
+!bench/results/frontier_generations.json
 !bench/results/rerank_arms.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.

@@ -1,6 +1,7 @@
 """BEIR SciFact, NFCorpus and FiQA with reproducible external evaluation.
 
     python -m app.eval.beir --out bench/results/beir_scifact.json [--device auto|cpu|cuda] [--rerank-top 20]
+    python -m app.eval.beir --ladder bm25-ablation --device cpu --out bench/results/beir_scifact_bm25_ablation.json
 
 Dataset: SciFact (Wadden et al., 2020) in the BEIR packaging (Thakur et al.,
 2021): 5,183 abstracts, 300 test queries with binary qrels. Downloaded once to
@@ -13,14 +14,18 @@ stopwords), k1=0.9, b=0.4: nDCG@10 = 0.6789
 The `bm25` row uses the same document text, analyzer and parameters, so the
 two are comparable. A `bm25@default-tokenizer` row is kept next to it because
 that tokenizer (no stemming, no stopwords, k1=1.5, b=0.75) is what fixture v1
-is scored with.
+is scored with. That row changes the analyzer, k1 and b at once; the
+bm25-ablation ladder adds one row per change (the analyzer alone; k1 and b
+alone), each paired against bm25.
 
 Rows form an explicit ablation chain (each row names its `parent`, and the
 paired delta is against that parent, not against list order): bm25 ->
 dense@bge-small -> hybrid@bge-small -> hybrid+bge-rerank (top 20, fp32,
 library-default token cap) -> fp32 with max_length 512 -> fp16 at the same cap -> rerank depth
 50 -> 100. dense@bge-small+instruction is the bge-v1.5 query prefix on the
-query side only (document embeddings are cached). Metrics: nDCG@10,
+query side only (document embeddings are cached). The dense leg ranks as the
+fixture benchmark does (app/retrieval/hybrid.py): float64 cosine rounded to 10
+decimals, exact ties in corpus order. Metrics: nDCG@10,
 Recall@10, Recall@100 and MRR@10 with 95% paired bootstrap CIs; per-query
 latency p50/p95 end to end and per stage, measured after a warm-up query and
 with index / embedding / model build time reported separately (build_ms);
@@ -50,8 +55,9 @@ from app.eval.metrics import mrr_at_k, ndcg_at_k, recall_at_k
 from app.eval.provenance import command_line, device_info, git_sha, model_device, model_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
-from app.retrieval.embedders import HashEmbedder, cosine_scores
+from app.retrieval.embedders import HashEmbedder
 from app.retrieval.fuse import rrf_score_map
+from app.retrieval.hybrid import dense_scores, rank_by_score, unit_rows
 from app.retrieval.rerank import OverlapReranker, cross_encoder_scores, get_cross_encoder
 from app.retrieval.types import Chunk
 
@@ -111,6 +117,15 @@ DEFAULT_CONFIGS = [
     BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top50", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=50, parent=RERANK_FP16, precision="fp16", max_length=512),
     BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top100", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=100, parent="hybrid+bge-rerank@bge-small/fp16-512/top50", precision="fp16", max_length=512),
 ]
+# bm25@default-tokenizer changes the analyzer, k1 and b at once. These rows change the analyzer
+# alone and (k1, b) alone, each paired against bm25, next to the combined row; CPU only, no model.
+BM25_ABLATION_CONFIGS = [
+    DEFAULT_CONFIGS[0],
+    BeirConfig(name="bm25@default-analyzer", mode="bm25", analyzer="default", parent="bm25"),
+    BeirConfig(name="bm25@k1-1.5-b-0.75", mode="bm25", k1=1.5, b=0.75, parent="bm25"),
+    DEFAULT_CONFIGS[1],
+]
+LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS}
 
 
 # ---------------------------------------------------------------- data
@@ -276,6 +291,7 @@ class Engine:
         self._bm25: dict[tuple[str, float, float], BM25Index] = {}
         self._embedders: dict[str, Any] = {}
         self._doc_mats: dict[str, np.ndarray] = {}
+        self._unit_mats: dict[str, np.ndarray] = {}
         self._rerankers: dict[str, Any] = {}
         self.provenance: dict[str, dict] = {}
 
@@ -325,6 +341,13 @@ class Engine:
         self._doc_mats[name] = mat
         return mat
 
+    def unit_matrix(self, name: str) -> np.ndarray:
+        """The document matrix as float64 unit rows, built once per embedder: per query the dense
+        leg is then one matrix-vector product (see dense_scores in app/retrieval/hybrid.py)."""
+        if name not in self._unit_mats:
+            self._unit_mats[name] = unit_rows(self.doc_matrix(name))
+        return self._unit_mats[name]
+
     @staticmethod
     def reranker_key(name: str, precision: str = "fp32", max_length: int | None = None) -> str:
         return f"{name}|{precision}|{max_length or 'uncapped'}"
@@ -373,7 +396,7 @@ class Engine:
             self.embedder(cfg.embedder)
             parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
             t = time.perf_counter()
-            self.doc_matrix(cfg.embedder)
+            self.unit_matrix(cfg.embedder)  # the cached (or computed) embeddings, then their float64 unit rows
             parts["doc_embeddings_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
         if cfg.reranker:
             t = time.perf_counter()
@@ -394,13 +417,15 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
             bm25_hits = engine.bm25(cfg.analyzer, cfg.k1, cfg.b).search(query, k=cfg.k)
     if cfg.mode in {"dense", "hybrid"}:
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
-        mat = engine.doc_matrix(cfg.embedder)
+        unit = engine.unit_matrix(cfg.embedder)
         with timer.stage("embed"):
             qv = engine.embedder(cfg.embedder).encode([(cfg.query_instruction or "") + query])[0]
         with timer.stage("dense"):
-            scores = cosine_scores(qv, mat)
-            order = np.argsort(-scores)[: cfg.k]
-            dense_hits = [(engine.chunks[i].chunk_id, float(scores[i])) for i in order]
+            # The fixture benchmark's dense ranking (M10): float64 cosine rounded to DENSE_SCORE_DECIMALS,
+            # descending, exact ties in corpus order. np.argsort over float32 cosines left ties to the sort
+            # implementation and near-ties to the float32 summation order.
+            scores = dense_scores(qv, unit, unit=True)
+            dense_hits = [(engine.chunks[i].chunk_id, float(scores[i])) for i in rank_by_score(scores, cfg.k)]
     if cfg.mode == "bm25":
         ids = [d for d, _ in bm25_hits]
     elif cfg.mode == "dense":
@@ -506,6 +531,14 @@ def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_S
     return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
 
 
+def measured_parents(configs: list[BeirConfig]) -> list[BeirConfig]:
+    """A bounded sweep may omit the expensive uncapped reranker. In that case,
+    evaluate the capped reranker as a component addition against the measured
+    hybrid baseline, rather than leaving its paired delta empty."""
+    names = {cfg.name for cfg in configs}
+    return [replace(cfg, parent="hybrid@bge-small") if cfg.name == RERANK_FP32_512 and cfg.parent not in names and "hybrid@bge-small" in names else cfg for cfg in configs]
+
+
 def run(
     data_dir: Path,
     configs: list[BeirConfig] | None = None,
@@ -526,12 +559,7 @@ def run(
         raise ValueError(f"unsupported dataset {dataset!r}")
     if configs is not None and not configs:
         raise ValueError("at least one config is required")
-    configs = configs if configs is not None else DEFAULT_CONFIGS
-    names = {cfg.name for cfg in configs}
-    # A bounded sweep may omit the expensive uncapped reranker. In that
-    # case, evaluate the capped reranker as a component addition against the
-    # measured hybrid baseline, rather than leaving its paired delta empty.
-    configs = [replace(cfg, parent="hybrid@bge-small") if cfg.name == RERANK_FP32_512 and cfg.parent not in names and "hybrid@bge-small" in names else cfg for cfg in configs]
+    configs = measured_parents(configs if configs is not None else DEFAULT_CONFIGS)
     spec = DATASETS[dataset]
     dataset_root = download_dataset(data_dir, dataset, sha256=dataset_sha256) if download else data_dir / dataset
     corpus, queries, qrels = load_beir(dataset_root, split)
@@ -617,12 +645,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=root / "bench" / "results" / "beir_scifact.json")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     p.add_argument("--rerank-top", type=int, default=None, help="override every reranked row's depth (default: each row's own rerank_top)")
-    p.add_argument("--only", default=None, help="comma-separated config names")
+    p.add_argument("--ladder", choices=tuple(LADDERS), default="default", help="the config list: the default ladder, or bm25-ablation (analyzer only, k1/b only, both)")
+    p.add_argument("--only", default=None, help="comma-separated config names (from the chosen ladder)")
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    configs = list(DEFAULT_CONFIGS)
+    configs = list(LADDERS[args.ladder])
     if args.rerank_top is not None:  # the first SciFact sweep silently ran every depth row at 20 because of a default here
         configs = [BeirConfig(**{**asdict(c), "rerank_top": args.rerank_top}) for c in configs]
     if args.only:

@@ -39,6 +39,10 @@ click==8.5.0
     # via
     #   -c requirements.txt
     #   uvicorn
+cloudpickle==3.1.2
+    # via
+    #   -c requirements.txt
+    #   joblib
 cryptography==50.0.2
     # via
     #   -c requirements.txt
@@ -84,6 +88,10 @@ iniconfig==2.3.0
     # via
     #   -c requirements.txt
     #   pytest
+joblib==1.6.0
+    # via
+    #   -c requirements.txt
+    #   scikit-learn
 jsonschema==4.26.0
     # via
     #   -c requirements.txt
@@ -100,10 +108,16 @@ mcp-types==2.3.0
     # via
     #   -c requirements.txt
     #   mcp
+narwhals==2.28.0
+    # via
+    #   -c requirements.txt
+    #   scikit-learn
 numpy==2.4.6
     # via
     #   -c requirements.txt
     #   metanavit (pyproject.toml)
+    #   scikit-learn
+    #   scipy
 opentelemetry-api==1.45.2
     # via
     #   -c requirements.txt
@@ -170,6 +184,14 @@ rpds-py==2026.9.1
     #   -c requirements.txt
     #   jsonschema
     #   referencing
+scikit-learn==1.9.1
+    # via
+    #   -c requirements.txt
+    #   metanavit (pyproject.toml)
+scipy==1.17.1
+    # via
+    #   -c requirements.txt
+    #   scikit-learn
 snowballstemmer==3.1.1
     # via
     #   -c requirements.txt
@@ -184,6 +206,10 @@ starlette==1.6.0
     #   fastapi
     #   mcp
     #   sse-starlette
+threadpoolctl==3.8.0
+    # via
+    #   -c requirements.txt
+    #   scikit-learn
 truststore==0.10.5
     # via
     #   -c requirements.txt

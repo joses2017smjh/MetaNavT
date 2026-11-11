@@ -1,7 +1,8 @@
 """Okapi BM25 over an in-memory corpus.
 
 Used by the bench harness so retrieval metrics do not require ParadeDB.
-Production still uses pg_search / ts_rank_cd via VectorStoreManager.
+The served path ranks its lexical list with Postgres ts_rank_cd (VectorStoreManager;
+ParadeDB's pg_search only with LEXICAL_BACKEND=paradedb, which nothing has run).
 
 Two analyzers:
 - "default": lowercase, keep `_ . / -` inside tokens (paths and config keys stay
@@ -11,10 +12,19 @@ Two analyzers:
   lowercase, alphanumeric tokens, Lucene's English stopword list, Porter
   stemming. Opt-in, used by the external SciFact benchmark so our BM25 is
   comparable to the published number. Needs the `snowballstemmer` package.
+
+Search reads the postings lists of the query's terms (document index and term
+frequency per document that contains the term), so a query touches only the
+documents that share a term with it, and keeps the top k with a heap. A
+document's score is the same sum, in the same order, as score_doc (one term at a
+time in the order the query first uses it, starting from 0.0), so every float
+equals the one scoring all documents gave; ties keep corpus order, and
+documents with no query term (score 0) are never returned.
 """
 
 from __future__ import annotations
 
+import heapq
 import math
 import re
 from collections import Counter, defaultdict
@@ -73,7 +83,11 @@ class BM25Index:
         self.avgdl: float = 0.0
         self.df: dict[str, int] = defaultdict(int)
         self.tf: list[Counter] = []
+        # term -> (indices of the documents that contain it, ascending; its frequency in each)
+        self.postings: dict[str, tuple[list[int], list[int]]] = {}
         self.n: int = 0
+        self._norms: list[float] = []
+        self._norms_key: tuple[float, float] | None = None
 
     def fit(self, doc_ids: Sequence[str], texts: Sequence[str]) -> "BM25Index":
         if len(doc_ids) != len(texts):
@@ -82,15 +96,22 @@ class BM25Index:
         self.tf = []
         self.doc_len = []
         self.df = defaultdict(int)
-        for text in texts:
+        self.postings = {}
+        for i, text in enumerate(texts):
             tokens = self._tokenize(text)
             counts = Counter(tokens)
             self.tf.append(counts)
             self.doc_len.append(len(tokens))
-            for term in counts:
+            for term, f in counts.items():
                 self.df[term] += 1
+                posting = self.postings.get(term)
+                if posting is None:
+                    posting = self.postings[term] = ([], [])
+                posting[0].append(i)
+                posting[1].append(f)
         self.n = len(self.doc_ids)
         self.avgdl = (sum(self.doc_len) / self.n) if self.n else 0.0
+        self._norms_key = None
         return self
 
     def idf(self, term: str) -> float:
@@ -98,6 +119,7 @@ class BM25Index:
         return math.log(1.0 + (self.n - n_t + 0.5) / (n_t + 0.5))
 
     def score_doc(self, query_tokens: Sequence[str], doc_index: int) -> float:
+        """One document's score; search reaches the same float through the postings."""
         if self.n == 0:
             return 0.0
         score = 0.0
@@ -112,10 +134,27 @@ class BM25Index:
             score += self.idf(term) * (f * (self.k1 + 1.0) / (f + denom_norm)) * qtf
         return score
 
+    def _length_norms(self) -> list[float]:
+        """score_doc's denom_norm for every document, computed once per (k1, b)."""
+        if self._norms_key != (self.k1, self.b):
+            self._norms = [self.k1 * (1.0 - self.b + self.b * dl / (self.avgdl or 1.0)) for dl in self.doc_len]
+            self._norms_key = (self.k1, self.b)
+        return self._norms
+
     def search(self, query: str, k: int = 50) -> list[tuple[str, float]]:
+        """The k highest-scoring documents that contain a query term: score descending, ties in corpus order."""
         tokens = self._tokenize(query)
-        if not tokens or self.n == 0:
+        if not tokens or self.n == 0 or k < 1:
             return []
-        scored = [(self.doc_ids[i], self.score_doc(tokens, i)) for i in range(self.n)]
-        scored.sort(key=lambda pair: pair[1], reverse=True)
-        return [(doc_id, score) for doc_id, score in scored[:k] if score > 0]
+        norms = self._length_norms()
+        k1_plus_1 = self.k1 + 1.0
+        scores: dict[int, float] = {}
+        for term, qtf in Counter(tokens).items():  # score_doc's term order
+            posting = self.postings.get(term)
+            if posting is None:
+                continue
+            idf = self.idf(term)
+            for i, f in zip(*posting):
+                scores[i] = scores.get(i, 0.0) + idf * (f * k1_plus_1 / (f + norms[i])) * qtf
+        top = heapq.nsmallest(k, scores.items(), key=lambda item: (-item[1], item[0]))
+        return [(self.doc_ids[i], score) for i, score in top if score > 0]

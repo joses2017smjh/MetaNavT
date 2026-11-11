@@ -17,6 +17,7 @@ from typing import Any, Callable, List, Optional
 from llama_index.core.retrievers import BaseRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 
+from app.engine.budget import Deadline, StageTimeout
 from app.eval.latency import StageTimer
 from app.graph.staleness import prefer_current
 from app.observability import span
@@ -165,15 +166,26 @@ class HybridRetriever(BaseRetriever):
         return self._mode
 
     @property
+    def depth(self) -> int:
+        """Depth of the dense list (and of the lexical and fused lists in SQL mode): RETRIEVE_K."""
+        return self._similarity_top_k
+
+    @property
     def staleness_enabled(self) -> bool:
         return bool(self._clusters)
 
     # ------------------------------------------------------------------ public
 
-    def retrieve_detailed(self, query_str: str, top_n: Optional[int] = None) -> RetrievalOutcome:
-        """Route, retrieve, fuse, prefer current versions, rerank; return everything per request."""
+    def retrieve_detailed(self, query_str: str, top_n: Optional[int] = None, deadline: Optional[Deadline] = None) -> RetrievalOutcome:
+        """Route, retrieve, fuse, prefer current versions, rerank; return everything per request.
+
+        With a deadline, a stage that ends past its budget raises StageTimeout naming it,
+        and the hybrid statement runs with the rest of the budget as its statement_timeout.
+        """
+        deadline = deadline or Deadline()
         timer = StageTimer()
         t0 = time.perf_counter()
+        deadline.stage = "route"
         with span("retrieve", mode=self._mode), timer.stage("route"), span("route"):
             route = self._router.route(query_str) if self._enable_router else None
         skip_embed = bool(route and route.skip_embed())
@@ -181,22 +193,26 @@ class HybridRetriever(BaseRetriever):
         n = top_n or self._rerank_top_n
 
         if self._mode == "sql":
-            fused, scores, counts, backend = self._fuse_sql(query_str, timer, skip_embed)
+            fused, scores, counts, backend = self._fuse_sql(query_str, timer, skip_embed, deadline)
         else:
-            fused, scores, counts, backend = self._fuse_python(query_str, timer, skip_embed)
+            fused, scores, counts, backend = self._fuse_python(query_str, timer, skip_embed, deadline)
         counts["fused"] = len(fused)
 
         staleness = {"enabled": self.staleness_enabled, "applied": False, "dropped": 0}
         if self._clusters and fused:
+            deadline.stage = "staleness"
             with timer.stage("staleness"), span("staleness"):
                 before = len(fused)
                 fused = self._prefer_current(query_str, fused)
                 staleness.update(applied=True, dropped=before - len(fused))
+            deadline.check("staleness")
 
         degraded: List[dict] = []
         if self._reranker and fused and not skip_rerank:
+            deadline.stage = "rerank"
             with timer.stage("rerank"), span("rerank", depth=self._rerank_depth, n=len(fused)):
                 fused, rerank_error = self._rerank(query_str, fused, n=n)
+            deadline.check("rerank")
             if rerank_error:
                 degraded.append({"component": "rerank", "error": rerank_error})
             else:
@@ -235,14 +251,23 @@ class HybridRetriever(BaseRetriever):
 
     _bm25_degraded: List[dict] = []
 
-    def _fuse_sql(self, query_str: str, timer: StageTimer, skip_embed: bool):
+    def _fuse_sql(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline):
         self._bm25_degraded = []
         qvec = None
         if not skip_embed:
+            deadline.stage = "embed"
             with timer.stage("embed"), span("embed"):
                 qvec = self._embed_fn(query_str)
+            deadline.check("embed")
+        deadline.stage = "hybrid_sql"
+        bounds = {}
+        if deadline.bounded:  # Postgres cancels the statement at the end of the budget (0 would mean no limit)
+            bounds["statement_timeout_ms"] = max(1, int(deadline.remaining_s() * 1000))
         with timer.stage("hybrid_sql"), span("hybrid_sql", k=self._similarity_top_k):
-            rows = self._vsm.hybrid_search(query_str, qvec, k=self._similarity_top_k, rrf_k=self._rrf_k)
+            try:
+                rows = self._vsm.hybrid_search(query_str, qvec, k=self._similarity_top_k, rrf_k=self._rrf_k, **bounds)
+            except TimeoutError as exc:
+                raise StageTimeout("hybrid_sql", deadline.budget_s) from exc
         fused: List[NodeWithScore] = []
         scores: dict[str, dict[str, Optional[float]]] = {}
         for r in rows:
@@ -256,14 +281,18 @@ class HybridRetriever(BaseRetriever):
         }
         return fused, scores, counts, getattr(self._vsm, "last_bm25_backend", None)
 
-    def _fuse_python(self, query_str: str, timer: StageTimer, skip_embed: bool):
+    def _fuse_python(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline):
         self._bm25_degraded = []
+        deadline.stage = "bm25"
         with timer.stage("bm25"), span("bm25"):
             bm25_nodes = self._bm25_retrieve(query_str)
+        deadline.check("bm25")
         vector_results: List[NodeWithScore] = []
         if not skip_embed:
+            deadline.stage = "embed"
             with timer.stage("embed"), span("embed"):
                 vector_results = self._vector_retriever.retrieve(query_str)
+            deadline.check("embed")
         with timer.stage("vector_search"), span("vector_search"):
             if not bm25_nodes:
                 fused = list(vector_results)

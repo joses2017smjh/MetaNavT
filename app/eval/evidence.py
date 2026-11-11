@@ -21,6 +21,7 @@ FILES = {
     "main": "bench/results/main.json",
     "neural": "bench/results/neural.json",
     "beir": "bench/results/beir_scifact.json",
+    "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
@@ -36,16 +37,37 @@ def _load(rel: str, root: Path = ROOT) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def _ci(block: dict | None, key: str = "mean") -> tuple[str, str]:
+def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, str]:
     if not block:
         return "—", "—"
     if key == "delta":
-        return f"{block['delta']:+.3f}", f"[{block['lo']:+.3f}, {block['hi']:+.3f}]"
-    return f"{block[key]:.3f}", f"[{block['lo']:.3f}, {block['hi']:.3f}]"
+        return f"{block['delta']:+.{digits}f}", f"[{block['lo']:+.{digits}f}, {block['hi']:+.{digits}f}]"
+    return f"{block[key]:.{digits}f}", f"[{block['lo']:.{digits}f}, {block['hi']:.{digits}f}]"
 
 
 def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
+
+
+def _p50(row: dict, stage: str = "total"):
+    return ((row.get("latency") or {}).get(stage) or {}).get("p50_ms")
+
+
+def _reranker_split_claims(blob: dict, file: str, command: str) -> list[dict]:
+    """SciFact reranker at depth 20: max_length 512 vs uncapped (both fp32), then fp16 vs fp32 (both capped)."""
+    by, n = _rows(blob), blob["n_queries"]
+    src, gpu = f"{file} @ {blob['git_sha']}", (blob.get("device") or {}).get("device_name", "the recorded device")
+    rer, f32c, f16 = (by.get(f"hybrid+bge-rerank@bge-small{v}") for v in ("", "/fp32-512/top20", "/fp16-512/top20"))
+    out = []
+    if rer and f32c and f32c.get("parent") == rer["config"]:
+        d, ci = _ci((f32c.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
+        out.append({"claim": "BEIR SciFact, reranker max_length 512 vs uncapped (both fp32, depth 20), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": command, "source": src,
+                    "not_shown": f"the cap alone; rerank-stage p50 {_p50(f32c, 'rerank')} ms vs {_p50(rer, 'rerank')} ms per query on {gpu}; CPU latency is a different table"})
+    if f32c and f16 and f16.get("parent") == f32c["config"]:
+        d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
+        out.append({"claim": "BEIR SciFact, reranker fp16 vs fp32 (both max_length 512, depth 20; fp16 is the served setting on CUDA, the CPU stack serves fp32), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": command, "source": src,
+                    "not_shown": f"the precision alone; rerank-stage p50 {_p50(f16, 'rerank')} ms vs {_p50(f32c, 'rerank')} ms per query on {gpu}; CPU latency is a different table"})
+    return out
 
 
 def _templated(root: Path = ROOT) -> int:
@@ -129,7 +151,7 @@ def claims(root: Path = ROOT) -> list[dict]:
         src = f"{FILES['beir']} @ {beir['git_sha']}"
         bm = by.get("bm25")
         if bm and bm.get("vs_published"):
-            v, ci = _ci(bm["ci"]["ndcg@10"])
+            v, ci = _ci(bm["ci"]["ndcg@10"], digits=4)  # the precision of the published score and the difference
             out.append({"claim": "BEIR SciFact, our BM25 with the Anserini analyzer and document text: nDCG@10", "value": v, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": f"Anserini's published flat BM25 is {bm['vs_published']['published_bm25_ndcg@10']:.4f} ({bm['vs_published']['delta']:+.4f}); this validates the lexical baseline, not the product"})
         for name, label in (("dense@bge-small", "BEIR SciFact, dense bge-small vs BM25, paired delta in nDCG@10"),
@@ -146,13 +168,21 @@ def claims(root: Path = ROOT) -> list[dict]:
             d, ci = _ci((rer.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             out.append({"claim": "BEIR SciFact, reranker over the hybrid it reranks (incremental), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": "the increment over hybrid is a tie on SciFact even though both beat BM25"})
+        # The capped fp32 row joined the ladder after the first SciFact file: there, fp16 + cap is one step from fp32
+        # uncapped. The cap and the precision one at a time come from beir_scifact.json once its ladder has that row,
+        # else from the file that measured it (make bench-beir-rerank-cap), on the GPU that file names.
         f16 = by.get("hybrid+bge-rerank@bge-small/fp16-512/top20")
-        if f16 and rer:
+        if f16 and rer and f16.get("parent") == rer["config"]:
             d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             l16 = (f16.get("latency") or {}).get("total") or {}
             l32 = (rer.get("latency") or {}).get("total") or {}
             out.append({"claim": "BEIR SciFact, reranker fp16 + max_length 512 vs fp32 uncapped (the served setting on CUDA; the CPU stack serves fp32), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": f"p50 {l16.get('p50_ms')} ms vs {l32.get('p50_ms')} ms on the GPU; CPU latency is a different table"})
+        split, split_file, split_cmd = beir, FILES["beir"], "make bench-beir"
+        if "hybrid+bge-rerank@bge-small/fp32-512/top20" not in by:
+            split, split_file, split_cmd = _load(FILES["beir_rerank_cap"], root), FILES["beir_rerank_cap"], "make bench-beir-rerank-cap"
+        if split:
+            out += _reranker_split_claims(split, split_file, split_cmd)
         d50 = by.get("hybrid+bge-rerank@bge-small/fp16-512/top50")
         if d50:
             d, ci = _ci((d50.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
@@ -227,14 +257,14 @@ def claims(root: Path = ROOT) -> list[dict]:
 
 def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
     """The reranker prototypes against the cross-encoder: paired deltas and the latency they buy."""
-    from app.eval.report import verdict
+    from app.eval.report import rerank_arms_command, verdict
 
     blob = _load(FILES["rerank_arms"], root)
     if not blob:
         return []
     out: list[dict] = []
     src = f"{FILES['rerank_arms']} @ {blob['git_sha']}"
-    cmd = "make bench-rerank-arms"
+    cmd = rerank_arms_command(blob)
     for scope in ("test_split", "all_questions"):
         rows = {r["config"]: r for r in blob[scope]["results"]}
         teacher = rows.get("hybrid+bge-rerank@bge-small") or {}
@@ -243,6 +273,16 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                 continue
             student = row.get("student") or {}
             stand_in = f"student backend: {student['fallback']}" if student.get("fallback") else "no stand-in: the model ran"
+            if student.get("model") and not student.get("fallback"):
+                stand_in = f"student: {student['model']}"
+            lw = blob.get("listwise") or {}
+            reranks = f"both rerank the fused top {blob['candidates']['retrieve_k']}"
+            if lw.get("evaluated") and name == lw.get("config"):
+                stand_in = (f"{len(lw.get('fused_order_kept_ids') or [])} of {lw['n_calls']} questions keep the fused order "
+                            f"({lw['n_failed_calls']} calls returned nothing, {lw['n_parse_failures']} replies were not a full permutation)")
+                # The file records the model, its digest and the Ollama version, not where Ollama ran: say no more than that.
+                reranks = (f"the cross-encoder reranks the fused top {blob['candidates']['retrieve_k']}, the listwise model its first "
+                           f"{lw['window']} (`{lw['model']}` through Ollama)")
             for block in row.get("deltas") or []:
                 d = block["ndcg@10"]
                 value, ci = _ci(d, "delta")
@@ -250,13 +290,13 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                 out.append({"claim": f"Reranker prototype `{name}` minus `{block['reference']}`, paired delta in nDCG@10 ({'held-out test questions' if scope == 'test_split' else 'all questions'})",
                             "value": value, "ci": ci, "n": row["n"], "command": cmd, "source": src,
                             "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
-                                         f"both rerank the fused top {blob['candidates']['retrieve_k']} of a {blob['n_files']}-file synthetic fixture"})
+                                         f"{reranks} of a {blob['n_files']}-file synthetic fixture"})
     return out
 
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:
     """One row per prototype arm and per stack: the paired delta against its parent, the verdict word, the stand-ins."""
-    from app.eval.report import verdict
+    from app.eval.report import hyde_wiring, llm_note, verdict
 
     out: list[dict] = []
     for key, command, stack in (
@@ -280,6 +320,16 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
             if 0.0 < block["lo"] < 0.0005 or -0.0005 < block["hi"] < 0.0:
                 limits.append(f"a bound sits at the edge of zero (interval as stored: [{block['lo']:+.4f}, {block['hi']:+.4f}])")
             limits.append("stand-ins: " + ("; ".join(row.get("fallbacks") or []) or "none, both models loaded"))
+            wiring = hyde_wiring(row.get("settings") or {})
+            if wiring:
+                limits.append(wiring)
+            if row.get("llm"):
+                limits.append(llm_note(row["llm"]).rstrip("."))
+            cache = row.get("cache")
+            if cache:
+                g = cache["gold"]
+                limits.append(f"cache threshold {cache['threshold']}: {g['hits']} hits on {g['n']} gold questions in gold order, "
+                              f"{g['wrong_hits']} of them wrong (the cached list differs from what retrieval returns for that question)")
             if vs:
                 limits.append(f"first ten files differ from the parent's on {vs['n_top10_differs']} of {vs['n_questions']} questions")
             g = row.get("graphrag")

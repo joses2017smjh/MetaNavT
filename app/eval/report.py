@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -32,6 +32,8 @@ LATENCY_FILES = {
 }
 NEURAL_FILE = "bench/results/neural.json"
 BEIR_FILE = "bench/results/beir_scifact.json"
+BEIR_BM25_FILE = "bench/results/beir_scifact_bm25_ablation.json"
+BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 SOURCES = {
     "bench-headline": "bench/results/main.json",
@@ -39,6 +41,8 @@ SOURCES = {
     "demo-stats": "bench/results/main.json",
     "bench-neural": NEURAL_FILE,
     "bench-beir": BEIR_FILE,
+    "bench-beir-bm25": BEIR_BM25_FILE,
+    "bench-beir-fiqa": BEIR_FIQA_FILE,
     "bench-parity": PARITY_FILE,
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
@@ -63,17 +67,17 @@ def _rows(blob: dict) -> dict[str, dict]:
     return {row["config"]: row for row in blob.get("results", [])}
 
 
-def _ci(row: dict | None, metric: str) -> str:
+def _ci(row: dict | None, metric: str, digits: int = 3) -> str:
     block = (row or {}).get("ci", {}).get(metric) if row else None
     if not block:
         return "—"
-    return f"{block['mean']:.3f} [{block['lo']:.3f}, {block['hi']:.3f}]"
+    return f"{block['mean']:.{digits}f} [{block['lo']:.{digits}f}, {block['hi']:.{digits}f}]"
 
 
-def _delta(block: dict | None) -> str:
+def _delta(block: dict | None, digits: int = 3) -> str:
     if not block:
         return "—"
-    return f"{block['delta']:+.3f} [{block['lo']:+.3f}, {block['hi']:+.3f}]"
+    return f"{block['delta']:+.{digits}f} [{block['lo']:+.{digits}f}, {block['hi']:+.{digits}f}]"
 
 
 def _zero_note(block: dict | None) -> str:
@@ -313,16 +317,51 @@ def _rerank_settings(row: dict) -> str:
     return f"{st.get('precision', 'fp32')} / {ml} / top {st.get('rerank_top')}"
 
 
-def beir_table(blob: dict | None) -> str:
+RERANK_FP32, RERANK_FP32_512, RERANK_FP16 = (f"hybrid+bge-rerank@bge-small{v}" for v in ("", "/fp32-512/top20", "/fp16-512/top20"))
+# (row, the parent its paired delta is against, what that one change is). The capped fp32 row joined the ladder
+# after the first SciFact file, whose fp16 row was paired with fp32 uncapped: the label follows the recorded parent.
+BEIR_STEPS = (
+    ("dense@bge-small", "bm25", "Dense bge-small vs BM25"),
+    ("dense@bge-small+instruction", "dense@bge-small", "The bge-v1.5 query instruction vs no instruction"),
+    ("hybrid@bge-small", "dense@bge-small", "Hybrid RRF over dense"),
+    (RERANK_FP32, "hybrid@bge-small", "bge-reranker-v2-m3 (top 20, fp32, uncapped) over the hybrid"),
+    (RERANK_FP32_512, RERANK_FP32, "max_length 512 vs uncapped (both fp32)"),
+    (RERANK_FP32_512, "hybrid@bge-small", "bge-reranker-v2-m3 (top 20, fp32, max_length 512) over the hybrid"),
+    (RERANK_FP16, RERANK_FP32_512, "fp16 vs fp32 (both max_length 512)"),
+    (RERANK_FP16, RERANK_FP32, "fp16 with max_length 512 vs fp32 uncapped"),
+    ("hybrid+bge-rerank@bge-small/fp16-512/top50", RERANK_FP16, "Rerank depth 50 vs 20"),
+    ("hybrid+bge-rerank@bge-small/fp16-512/top100", "hybrid+bge-rerank@bge-small/fp16-512/top50", "Depth 100 vs 50"),
+)
+TREC_CHECK_NAMES = {"ndcg@10": "nDCG@10", "recall@10": "Recall@10", "recall@100": "Recall@100", "mrr@10": "MRR@10"}
+
+
+def beir_table(blob: dict | None, file: str = BEIR_FILE, command: str = "make bench-beir", dataset: str = "SciFact", digits: int = 3) -> str:
+    """A BEIR results file as a table plus one sentence per single-change step (BEIR_STEPS); digits=4 prints the
+    precision the file stores (a block added after the SciFact one uses it, so a bound next to zero keeps its sign)."""
     if not blob:
-        return f"_{BEIR_FILE} is missing; run `make bench-beir`._"
-    pub = blob.get("published", {})
+        return f"_{file} is missing; run `{command}`._"
+    pub = blob.get("published") or {}
     url = pub.get("url")
     cite = f"[Anserini BEIR regression, flat BM25]({url})" if url else pub.get("source", "")
+    if pub:
+        reference = f"Published BM25 nDCG@10 = {pub.get('bm25_ndcg@10'):.4f}, {cite}, {pub.get('analyzer')}."
+    else:
+        rows = blob.get("results", [])
+        trec_dirs = sorted({str(Path(r["trec"]["run"]).parent) for r in rows if r.get("trec")})
+        reference = f"No published reference is claimed. Relevance: {blob.get('relevance', 'not recorded')}."
+        if rows and all(r.get("trec") for r in rows):
+            reference += f" Every row wrote a TREC run file ({', '.join(trec_dirs)}; paths and sha256 in the results file)"
+            # Name the metrics the cross-check re-computed (its "metrics" list), not every stored one: mrr@10 is not checked.
+            checks = [r.get("metric_cross_check") or {} for r in rows]
+            names = [TREC_CHECK_NAMES.get(m, m) for m in checks[0].get("metrics") or [] if all(m in (c.get("metrics") or []) for c in checks)]
+            if names and {c.get("status") for c in checks} == {"passed"}:
+                listed = f"{', '.join(names[:-1])} and {names[-1]}" if len(names) > 1 else names[0]
+                reference += f", and pytrec_eval (trec_eval) re-computed {listed} for every query of every row."
+            else:
+                reference += "."
     lines = [
-        f"BEIR SciFact test split (`make bench-beir`): {blob.get('n_docs')} documents ({blob.get('document_text', 'title + text')}), "
-        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {blob.get('git_sha')}. Published BM25 nDCG@10 = "
-        f"{pub.get('bm25_ndcg@10'):.4f}, {cite}, {pub.get('analyzer')}. Each row names its parent; per-query p50/p95 exclude "
+        f"BEIR {dataset} test split (`{command}`): {blob.get('n_docs')} documents ({blob.get('document_text', 'title + text')}), "
+        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {blob.get('git_sha')}. {reference} Each row names its parent; per-query p50/p95 exclude "
         f"build (index, document embeddings, model load: the build column) and one warm-up query.",
         "",
         "| config | parent | models (revision) | reranker precision / max_length / depth | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25 | beats BM25? | p50 / p95 ms | build s |",
@@ -333,30 +372,64 @@ def beir_table(blob: dict | None) -> str:
         db = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
         lat = (row.get("latency") or {}).get("total") or {}
         build = ((row.get("build_ms") or {}).get("total_ms") or 0) / 1000
+        models = _models(row) if row.get("models") else "none (BM25 only)"  # BEIR records no model for a BM25 row
         lines.append(
-            f"| {row['config']} | {row.get('parent') or '—'} | {_models(row)} | {_rerank_settings(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
-            f"{_ci(row, 'recall@100')} | {_delta(dp)} | {_delta(db)} | {_beats(db)} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} | {build:.1f} |"
+            f"| {row['config']} | {row.get('parent') or '—'} | {models} | {_rerank_settings(row)} | {_ci(row, 'ndcg@10', digits)} | {_ci(row, 'recall@10', digits)} | "
+            f"{_ci(row, 'recall@100', digits)} | {_delta(dp, digits)} | {_delta(db, digits)} | {_beats(db)} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} | {build:.1f} |"
         )
     by = _rows(blob)
     parts = []
     bm25 = by.get("bm25")
     if bm25 and bm25.get("vs_published"):
         vp = bm25["vs_published"]
-        parts.append(f"Our BM25 with the same analyzer and document text scores nDCG@10 {bm25['retrieval']['ndcg@10']:.3f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f}).")
-    for name, label in (
-        ("dense@bge-small", "Dense bge-small vs BM25"),
-        ("dense@bge-small+instruction", "The bge-v1.5 query instruction vs no instruction"),
-        ("hybrid@bge-small", "Hybrid RRF over dense"),
-        ("hybrid+bge-rerank@bge-small", "bge-reranker-v2-m3 (top 20, fp32, uncapped) over the hybrid"),
-        ("hybrid+bge-rerank@bge-small/fp16-512/top20", "fp16 with max_length 512 vs fp32 uncapped"),
-        ("hybrid+bge-rerank@bge-small/fp16-512/top50", "Rerank depth 50 vs 20"),
-        ("hybrid+bge-rerank@bge-small/fp16-512/top100", "Depth 100 vs 50"),
-    ):
+        parts.append(f"Our BM25 with the same analyzer and document text scores nDCG@10 {bm25['retrieval']['ndcg@10']:.4f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f}).")
+    for name, parent, label in BEIR_STEPS:
         row = by.get(name)
-        if row:
+        if row and row.get("parent") == parent:
             d = (row.get("delta_vs_parent") or {}).get("ndcg@10")
             lat = (row.get("latency") or {}).get("total") or {}
-            parts.append(f"{label}: nDCG@10 {_delta(d)} ({_zero_note(d)}), p50 {lat.get('p50_ms', '—')} ms.")
+            parts.append(f"{label}: nDCG@10 {_delta(d, digits)} ({_zero_note(d)}), p50 {lat.get('p50_ms', '—')} ms.")
+    if parts:
+        lines += ["", " ".join(parts)]
+    return "\n".join(lines)
+
+
+ANALYZER_LABELS = {"beir": "Lucene English (Porter stemming, stopwords)", "default": "fixture default (no stemming, no stopwords)"}
+BM25_SINGLE_CHANGES = (("bm25@default-analyzer", "The analyzer alone"), ("bm25@k1-1.5-b-0.75", "k1 and b alone"), ("bm25@default-tokenizer", "All three together"))
+
+
+def beir_bm25_table(blob: dict | None) -> str:
+    """SciFact BM25 rows that change the analyzer and (k1, b) one at a time, each paired against bm25."""
+    if not blob:
+        return f"_{BEIR_BM25_FILE} is missing; run `make bench-beir-bm25-ablation`._"
+    boot = blob.get("bootstrap") or {}
+    lines = [
+        f"BM25 on BEIR SciFact, one setting at a time (`make bench-beir-bm25-ablation`; {(blob.get('device') or {}).get('device', '?')}, "
+        f"no model; results sha {blob.get('git_sha')}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
+        "`bm25@default-tokenizer` (also in the table above) changes the analyzer, k1 and b at once; `bm25@default-analyzer` "
+        "changes the analyzer alone and `bm25@k1-1.5-b-0.75` changes k1 and b alone. Every delta is paired against bm25 "
+        f"({boot.get('n_boot')} bootstrap resamples of the queries, seed {boot.get('seed')}), printed to the four decimals "
+        "the file stores so that an interval bound close to zero keeps its sign; BM25 latency is per query, after one "
+        "warm-up query, index build excluded.",
+        "",
+        "| config | analyzer | k1 | b | nDCG@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs bm25 [95% CI] | Δ Recall@100 vs bm25 [95% CI] | BM25 p50 / p95 ms |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in blob.get("results", []):
+        st = row.get("settings") or {}
+        d = row.get("delta_vs_bm25") or {}
+        lat = (row.get("latency") or {}).get("bm25") or {}
+        lines.append(
+            f"| {row['config']} | {ANALYZER_LABELS.get(st.get('analyzer'), st.get('analyzer'))} | {st.get('k1')} | {st.get('b')} | "
+            f"{_ci(row, 'ndcg@10', 4)} | {_ci(row, 'recall@100', 4)} | {_delta(d.get('ndcg@10'), 4)} | {_delta(d.get('recall@100'), 4)} | "
+            f"{lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |"
+        )
+    by = _rows(blob)
+    parts = []
+    for name, label in BM25_SINGLE_CHANGES:
+        d = ((by.get(name) or {}).get("delta_vs_bm25") or {})
+        if d.get("ndcg@10"):
+            parts.append(f"{label}: nDCG@10 {_delta(d['ndcg@10'], 4)} ({_zero_note(d['ndcg@10'])}), Recall@100 {_delta(d.get('recall@100'), 4)} ({_zero_note(d.get('recall@100'))}).")
     if parts:
         lines += ["", " ".join(parts)]
     return "\n".join(lines)
@@ -697,6 +770,51 @@ FRONTIER_CATEGORY_ARMS = ("hipporag", "graphrag")  # the graph arms are aimed at
 FRONTIER_CATEGORIES = ("aggregation", "multi_hop", "comparative")
 
 
+def hyde_wiring(settings: dict) -> str | None:
+    """Where a HyDE arm's dense list enters the ranking (app.eval.harness.HYDE_STAGES), in words."""
+    if not settings.get("hyde"):
+        return None
+    if settings.get("hyde_stage") in (None, "after_rerank"):  # a file recorded before M18 has no stage: this was its wiring
+        return ("HyDE after the reranker: the reranked list is RRF-fused with the HyDE dense list and re-sorted, so the reranker's "
+                "order does not survive and no HyDE hit outside the reranked list is added (the wiring of every HyDE row recorded "
+                "before the first-stage arms existed)")
+    if settings.get("mode") == "dense":
+        return "HyDE in the first stage: the HyDE vector is the dense query"
+    return ("HyDE in the first stage: the HyDE vector is the dense leg's query, fused with BM25 before "
+            + ("the reranker, which has the last word" if settings.get("enable_rerank") else "anything else (no reranker)"))
+
+
+def cache_note(cache: dict) -> str:
+    """What the cache arm's row cannot show in its delta: hits, wrong hits, and the paraphrase probes."""
+    g = cache["gold"]
+    text = (f"semantic cache (`app/retrieval/cache.py`, threshold {cache['threshold']} on the {cache['similarity']}), the {g['n']} gold "
+            f"questions replayed in gold order into an empty cache: {g['hits']} hits, {g['wrong_hits']} of them wrong (the cached list "
+            f"differs from what retrieval returns for that question); the closest similarity was {g['min_margin_to_threshold']} "
+            f"from the threshold.")
+    pb = cache.get("probes")
+    if pb:
+        d = pb["ndcg@10"]
+        text += (f" Then {pb['n']} paraphrases of gold questions (`{pb['file']}`: rule-based rewrites whose relevant paths are inherited, "
+                 f"not gold labels) were looked up without being added: {pb['hits_from_source']} hits from the rewritten question's own "
+                 f"entry, {pb['hits_from_other']} from another question's, {pb['misses']} misses; nDCG@10 of what was served minus fresh "
+                 f"retrieval for the paraphrase: {_delta4(d)} ({verdict(d)}).")
+    else:
+        text += " No paraphrase probes were looked up, so true hits are not measured."
+    return text
+
+
+def llm_note(llm: dict) -> str:
+    """Which stored LLM generations a row read, and how many of its calls failed."""
+    parts = []
+    for kind, what, fallback in (("hyde", "HyDE hypotheses", "the keyword hypothesis was used for those questions"),
+                                 ("context", "chunk prefixes", "those chunks were indexed without a prefix")):
+        block = llm.get(kind)
+        if block:
+            failed = f"{block['n_failed']} of {block['n']} calls failed" + (f" ({fallback})" if block["n_failed"] else "")
+            parts.append(f"{what} written by `{llm['model']}` and read from `{llm['file']}`; {failed}")
+    return "; ".join(parts) + "."
+
+
 def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "make bench-frontier") -> str:
     """One row per prototype arm: parent, paired delta, interval, verdict word, what fired, stand-ins."""
     if not blob:
@@ -707,7 +825,7 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
     n = blob.get("n_gold")
     lines = [
         f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Each arm is one switch away from its parent and both parents are computed in the same run. The verdict is read off "
+        f"Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off "
         f"the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "
         f"\"Fired\" counts the questions (of {n}) on which the arm's mechanism triggered; \"top 10 differs\" counts the questions "
         f"whose first ten files differ from the parent's. The last column names every stand-in the row's number depends on.",
@@ -749,10 +867,40 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         if lc:
             notes.append(f"- `{name}`: {lc['n_chunks_late_pooled']} of {lc['n_chunks']} chunks ({lc['n_files_with_several_chunks']} files with several chunks) "
                          f"were re-pooled; {lc['pooling']}.")
+        wiring = hyde_wiring(row.get("settings") or {})
+        if wiring:
+            notes.append(f"- `{name}`: {wiring}.")
+        cache = row.get("cache")
+        if cache:
+            notes.append(f"- `{name}`: {cache_note(cache)}")
+        emb = (row.get("models") or {}).get("embedder") or {}
+        if emb.get("library"):
+            libs = ", ".join(f"{k} {v}" for k, v in emb["library"].items())
+            notes.append(f"- `{name}`: model-free embedder `{emb.get('model')}` fitted on the indexed chunks ({emb.get('dim')} dimensions; {libs}).")
+        llm = row.get("llm")
+        if llm:
+            notes.append(f"- `{name}`: {llm_note(llm)}")
     for item in meta.get("not_evaluated") or []:
         notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
+    gen = blob.get("generations")
+    if gen:
+        ollama = gen.get("ollama") or {}
+        opts = ", ".join(f"{k} {v}" for k, v in (gen.get("options") or {}).items())
+        notes.append(f"- LLM-written arms: `{gen['model']}` through Ollama {ollama.get('version') or '(version not recorded)'}"
+                     f"{', digest ' + str(ollama['digest'])[:12] if ollama.get('digest') else ''}; {opts}. The prompts are in the results "
+                     f"header (`generations.prompts`) and every generation is stored in `{gen['file']}`, so the rows are rescored without the model.")
     if notes:
         lines += ["", *notes]
+    comparisons = [c for c in (blob.get("bootstrap") or {}).get("comparisons") or [] if c.get("ndcg@10") and c["row"] in by and c["other"] in by]
+    if comparisons:
+        # Name only the kinds of comparison this file holds: the CPU run has no LLM-written arm.
+        llm_rows = [bool((by[c["row"]].get("settings") or {}).get("generations")) for c in comparisons]
+        kinds = (["the two HyDE wirings"] if not all(llm_rows) else []) + (
+            ["each LLM-written arm against the heuristic arm it replaces"] if any(llm_rows) else [])
+        lines += ["", f"Arms compared directly (row minus other, same paired bootstrap): {', and '.join(kinds)}.", "",
+                  "| row | other | Δ nDCG@10 [95% CI] | verdict | Δ Recall@10 [95% CI] |", "|---|---|---:|:---:|---:|",
+                  *(f"| {c['row']} | {c['other']} | {_delta4(c['ndcg@10'])} | {verdict(c['ndcg@10'])} | {_delta(c.get('recall@10'))} |"
+                    for c in comparisons)]
     cat_lines = []
     for name in arms:
         if not any(key in name for key in FRONTIER_CATEGORY_ARMS):
@@ -774,6 +922,18 @@ def _delta_to(row: dict, reference_suffix: str) -> dict | None:
     return None
 
 
+def _count(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
+def rerank_arms_command(blob: dict) -> str:
+    """The make command that reproduces the file: the listwise model is part of it when that arm ran."""
+    lw = blob.get("listwise") or {}
+    if lw.get("evaluated") and lw.get("model") and lw["model"] != "injected":
+        return f"make bench-rerank-arms LISTWISE_MODEL={lw['model']}"
+    return "make bench-rerank-arms"
+
+
 def rerank_arms_table(blob: dict | None) -> str:
     """Reranker prototypes against the cross-encoder: the distilled student (test questions) and listwise LLM rerank."""
     if not blob:
@@ -781,14 +941,15 @@ def rerank_arms_table(blob: dict | None) -> str:
     cand = blob["candidates"]
     split = blob["split"]
     lines = [
-        f"Reranker prototypes on fixture v1 (`make bench-rerank-arms`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. The student is fitted on the cross-encoder's "
+        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. A student is fitted on the cross-encoder's "
         f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
         f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",
         "",
         "| arm | questions | nDCG@10 [95% CI] | Δ nDCG@10 vs cross-encoder [95% CI] | verdict | Δ nDCG@10 vs un-reranked hybrid [95% CI] | verdict | rerank p50 / p95 ms | stand-ins (fallbacks) |",
         "|---|---:|---:|---:|:---:|---:|:---:|---:|---|",
     ]
+    lw = blob.get("listwise") or {}
     for scope, label in (("test_split", "test split"), ("all_questions", "all")):
         for row in blob[scope]["results"]:
             name = row["config"]
@@ -798,15 +959,32 @@ def rerank_arms_table(blob: dict | None) -> str:
             lat = row.get("rerank_latency")
             student = row.get("student") or {}
             stand_in = student.get("fallback") and f"student: {student['fallback']}"
+            if lw.get("evaluated") and name == lw.get("config") and lw.get("fused_order_kept_ids"):
+                stand_in = f"fused order kept on {len(lw['fused_order_kept_ids'])} of {lw['n_calls']} questions (no reply, or not a full permutation)"
             latency = f"{lat['p50_ms']} / {lat['p95_ms']}" if lat else "—"
             lines.append(
                 f"| {name} | {row['n']} ({label}) | {_ci(row, 'ndcg@10')} | {_delta4(vs_ce)} | {verdict(vs_ce) if vs_ce else '—'} | "
                 f"{_delta4(vs_hybrid)} | {verdict(vs_hybrid) if vs_hybrid else '—'} | {latency} | {stand_in or 'none'} |"
             )
-    lw = blob.get("listwise") or {}
+    models = [f"`{row['config']}` is {row['student']['model']}, {row['student']['library']} {row['student']['version']}"
+              for row in blob["test_split"]["results"] if (row.get("student") or {}).get("model")]
+    if models:
+        lines += ["", "Students: " + "; ".join(models) + "." + (" They are fitted on the same train rows and differ only in the model."
+                                                               if len(models) > 1 else "")]
+    for item in blob.get("not_evaluated") or []:
+        lines += ["", f"`{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}."]
     if lw.get("evaluated"):
-        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama, one prompt per question over the top {lw['window']} candidates "
-                      f"({lw['passage_chars']} characters each); {lw['n_failed_calls']} of {blob['n_gold']} calls returned nothing. Every completion is in the results file."]
+        opts = lw.get("options") or {}
+        parse = lw.get("parse") or {}
+        failures = ", ".join(f"{parse[k]} {k.replace('_', ' ')}" for k in ("not_a_chain", "partial", "repeated_id", "out_of_range") if parse.get(k))
+        kept = len(lw.get("fused_order_kept_ids") or [])
+        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama (temperature {opts.get('temperature')}, seed {opts.get('seed')}), one prompt per "
+                      f"question over the top {lw['window']} candidates ({lw['passage_chars']} characters of each). A reply counts only when the whole "
+                      f"reply is a permutation of the window, `[2] > [1] > ...`; anything else keeps the fused order. Of {lw['n_calls']} calls, "
+                      f"{_count(parse.get('permutation', 0), 'reply was a permutation', 'replies were permutations')}, "
+                      f"{_count(lw['n_parse_failures'], 'reply was not', 'replies were not')} ({failures or 'none'}) and "
+                      f"{_count(lw['n_failed_calls'], 'call returned nothing', 'calls returned nothing')}, so the row's numbers include "
+                      f"{_count(kept, 'question', 'questions')} in the fused order. Every completion and its parse status is in the results file."]
     else:
         lines += ["", f"Listwise reranking by an LLM (`app/retrieval/rankgpt.py`): not evaluated in this run ({lw.get('reason', 'not run')})."]
     return "\n".join(lines)
@@ -831,6 +1009,8 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "demo-stats": demo_stats(blob),
         "bench-neural": neural_table(_load(root, NEURAL_FILE)),
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
+        "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
+        "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),
         "bench-parity": parity_table(_load(root, PARITY_FILE)),
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),

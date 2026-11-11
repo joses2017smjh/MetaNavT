@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Sequence
 
@@ -28,12 +28,20 @@ RerankFn = Callable[[str, list[tuple[Chunk, float]]], list[tuple[Chunk, float]]]
 DENSE_SCORE_DECIMALS = 10
 
 
-def dense_scores(query_vec: np.ndarray, doc_mat: np.ndarray) -> np.ndarray:
-    """Cosine of the query with every row, in float64, rounded to DENSE_SCORE_DECIMALS."""
-    q = np.asarray(query_vec, dtype=np.float64).ravel()
+def unit_rows(doc_mat: np.ndarray) -> np.ndarray:
+    """The rows in float64 scaled to unit length: the document side of dense_scores."""
     docs = np.asarray(doc_mat, dtype=np.float64)
+    return docs / np.maximum(np.linalg.norm(docs, axis=1, keepdims=True), 1e-12)
+
+
+def dense_scores(query_vec: np.ndarray, doc_mat: np.ndarray, *, unit: bool = False) -> np.ndarray:
+    """Cosine of the query with every row, in float64, rounded to DENSE_SCORE_DECIMALS.
+
+    unit=True: doc_mat is already unit_rows(matrix), so a caller that scores many queries
+    against one large matrix (the BEIR runner) normalises it once; the scores are the same."""
+    q = np.asarray(query_vec, dtype=np.float64).ravel()
     q = q / max(float(np.linalg.norm(q)), 1e-12)
-    docs = docs / np.maximum(np.linalg.norm(docs, axis=1, keepdims=True), 1e-12)
+    docs = doc_mat if unit else unit_rows(doc_mat)
     return np.round(docs @ q, DENSE_SCORE_DECIMALS)
 
 
@@ -54,6 +62,9 @@ class RetrievalResult:
     stages_ms: dict[str, float]
     skipped_rerank: bool = False
     skipped_embed: bool = False
+    # The fused list in fused order with its RRF scores: what rerank_fn received, or would have
+    # received when the rerank was skipped. Empty when the result was assembled elsewhere.
+    fused: list[tuple[Chunk, float]] = field(default_factory=list)
 
     @property
     def paths(self) -> list[str]:
@@ -144,7 +155,10 @@ class InMemoryHybridIndex:
         timer: StageTimer | None = None,
         k: int | None = None,
         n: int | None = None,
+        query_vec: np.ndarray | None = None,
     ) -> RetrievalResult:
+        """BM25 and dense legs, RRF, then the reranker. `query_vec` replaces the query's own
+        embedding in the dense leg (first-stage HyDE); BM25 and the reranker still read `query`."""
         retrieve_k = k or self.retrieve_k
         rerank_n = n or self.rerank_n
         local = StageTimer() if timer is None else timer
@@ -186,7 +200,7 @@ class InMemoryHybridIndex:
 
             if not skip_embed:
                 with local.stage("embed"):
-                    dense_hits = self.search_dense(query, k=retrieve_k)
+                    dense_hits = self.search_dense(query, k=retrieve_k, query_vec=query_vec)
                 stage_ms["embed"] = local.stages["embed"].samples_ms[-1]
                 ranked_ids.append([c.chunk_id for c, _ in dense_hits])
                 dense_map = {c.chunk_id: s for c, s in dense_hits}
@@ -199,6 +213,7 @@ class InMemoryHybridIndex:
         pairs: list[tuple[Chunk, float]] = [
             (self.by_id[cid], score) for cid, score in fused_sorted if cid in self.by_id
         ]
+        fused_pairs = list(pairs)
 
         rerank_scores: dict[str, float] = {}
         if not skip_rerank and self.rerank_fn and pairs:
@@ -229,6 +244,7 @@ class InMemoryHybridIndex:
             stages_ms=stage_ms,
             skipped_rerank=skip_rerank or self.rerank_fn is None,
             skipped_embed=skip_embed,
+            fused=fused_pairs,
         )
 
 

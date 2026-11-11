@@ -22,6 +22,7 @@ eval = [
     "snowballstemmer>=2.2",  # Porter stemming for the BEIR-style BM25 analyzer (pure python)
     "httpx>=0.27",  # bounded load-runner tests; no live service required
     "cryptography>=42",  # Ed25519 operator capabilities (app/mcp/approvals.py); the eval tests sign and verify them
+    "scikit-learn>=1.4",  # the TF-IDF embedder's rows in make bench-frontier (TfidfVectorizer + TruncatedSVD)
 ]
 # Read-only mobile demo: actual BM25 + hash retrieval, no LlamaIndex/database/model extras.
 mobile = [
@@ -67,6 +68,11 @@ ml = [
     "llama-index-embeddings-huggingface>=0.4",
     "scikit-learn>=1.4",
     "pillow>=10",
+]
+# The gradient-boosted distilled student of `make bench-rerank-arms` (app/retrieval/distill.py).
+# Without it that arm is recorded as not evaluated; the least-squares student needs only numpy.
+distill = [
+    "lightgbm>=4.5,<5",
 ]
 # Tooling only: `make lock` (pip-tools) and `make lint` (ruff). Never needed at run time.
 dev = [
