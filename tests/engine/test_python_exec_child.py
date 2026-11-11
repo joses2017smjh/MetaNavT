@@ -106,7 +106,7 @@ def _gone(pid: int) -> bool:
 
 
 @pytest.mark.skipif(not Path("/proc/self/stat").exists(), reason="reads process state from /proc")
-def test_code_past_its_time_limit_is_killed_with_what_it_started(exec_tool, engine_env, tmp_path):
+def test_code_past_its_time_limit_is_killed_with_its_process_group(exec_tool, engine_env, tmp_path):
     engine_env.setenv(TIMEOUT, "1")
     pids = tmp_path / "pids.txt"
     code = (
@@ -140,7 +140,7 @@ def test_the_time_limit_holds_where_os_has_no_waitid(exec_tool, engine_env, tmp_
 
 
 @pytest.mark.skipif(not Path("/proc/self/stat").exists(), reason="reads process state from /proc")
-def test_a_background_process_does_not_outlive_the_call(exec_tool, tmp_path):
+def test_a_background_process_in_its_group_does_not_outlive_the_call(exec_tool, tmp_path):
     pid_file = tmp_path / "background.pid"
     code = (
         "import subprocess\n"
@@ -157,7 +157,7 @@ def test_a_background_process_does_not_outlive_the_call(exec_tool, tmp_path):
     assert _gone(background)
 
 
-def test_the_child_has_the_limits_and_none_of_the_api_secrets(exec_tool, engine_env, tmp_path):
+def test_the_child_has_the_limits_and_a_reduced_environment(exec_tool, engine_env, tmp_path):
     engine_env.setenv(MEMORY, "256")
     engine_env.setenv(TIMEOUT, "5")
     engine_env.setenv("PG_CONNECTION_STRING", "postgresql://postgres:hunter2@127.0.0.1:1/metanavit")
@@ -173,6 +173,14 @@ def test_the_child_has_the_limits_and_none_of_the_api_secrets(exec_tool, engine_
     assert secrets == "[]"
     mib = 256 * 1024 * 1024
     assert limits == str([(mib, mib), (5, 5), (python_exec.MAX_FILE_BYTES, python_exec.MAX_FILE_BYTES), (0, 0)])
+
+
+def test_numpy_and_pandas_run_under_the_default_limits(exec_tool, tmp_path):
+    # The code agent's prompt offers pandas and numpy; the default limits must leave room for them.
+    pytest.importorskip("pandas")
+    code = "import numpy as np, pandas as pd\nresult = float(np.mean(pd.Series([1e-3, 3e-4])))"
+    out = exec_tool.call(code=code, workspace_dir=str(tmp_path)).raw_output
+    assert out["error"] == "" and out["result"] == "0.00065", out
 
 
 def test_memory_past_the_limit_is_reported_not_fatal(exec_tool, engine_env, tmp_path):

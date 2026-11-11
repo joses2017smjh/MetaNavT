@@ -12,10 +12,13 @@ The tool runs model-written code, so it is off unless switched on explicitly
     PYTHON_EXEC_TIMEOUT_SECONDS     wall-clock (and CPU) limit per call
     PYTHON_EXEC_MAX_MEMORY_MB       address-space limit per call
 When it is on, each call runs the code in a child process (python_exec_runner.py),
-never in the API process: a new session, an environment reduced to PATH, HOME,
-locale and TMPDIR (no API key, no database string), CPU, memory and file-size
-limits, and everything the code started is killed at the time limit. A child
-process is not OS isolation: it runs as the API's OS user.
+never in the API process: a new session, its own environment reduced to PATH, HOME,
+locale and TMPDIR (the API key and the database string are not in it), CPU, memory
+and file-size limits, and its process group is killed at the time limit and after
+every call. A child process is not OS isolation: it runs as the API's OS user, so it
+can still read what that user can read (the API process's start-up environment under
+/proc, a .env file in the working directory), and a process it starts in a session
+of its own leaves the group and is not killed.
 """
 
 # Standard library imports for file, system and text operations
@@ -154,13 +157,13 @@ def run_in_child(code: str, figure_path: Path, timeout_seconds: float, memory_by
         try:
             timed_out = not _wait_unreaped(proc, timeout_seconds)
         finally:
-            _kill_session(proc)  # past the limit the child; in every case whatever it left running
+            _kill_session(proc)  # past the limit the child; in every case what it left running in its group
             proc.wait()
         if timed_out:
             return {
                 "output": "",
                 "error": f"Error: execution exceeded the {timeout_seconds:g} s time limit; "
-                         f"the child process and everything it started were killed",
+                         f"the child process and its process group were killed",
                 "result": None,
             }
         report = _read_report(out)
