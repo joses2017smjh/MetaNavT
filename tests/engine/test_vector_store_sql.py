@@ -128,6 +128,7 @@ def test_both_statements_share_the_dense_cte():
         ("हिन्दी भाषा", "हिन्दी or भाषा"),
         ("كَتَبَ الوَلَدُ", "كَتَبَ or الوَلَدُ"),
         ("n̈ame", "n̈ame"),
+        ("I ❤️ cats", "i or cats"),  # a mark with no word before it (an emoji's variation selector) is no term
         ("cats or dogs", "cats or dogs"),  # websearch's operator word is not a term
         ("fusion_off_resnet OR fusion_on_resnet", "fusion_off_resnet or fusion_on_resnet"),
         ("or", ""),

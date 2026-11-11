@@ -67,15 +67,16 @@ def lexical_backend_setting() -> str:
 
 def word_runs(text: str):
     """Runs of word characters (letters and digits of any script, "_": what the regex \\w matches)
-    and of the combining marks among them, in order.
+    and of the combining marks that follow them, in order.
 
     \\w alone splits a word at every mark that is not a letter: Devanagari vowel signs and
     virama, Arabic short vowels, a diacritic with no precomposed form. Postgres's text search
-    parser keeps such a word whole, so a term split there could never match it.
+    parser keeps such a word whole, so a term split there could never match it. A mark only
+    continues a run: one with no word before it (an emoji's variation selector) starts none.
     """
     run: list[str] = []
     for ch in text:
-        if ch.isalnum() or ch == "_" or unicodedata.category(ch).startswith("M"):
+        if ch.isalnum() or ch == "_" or (run and unicodedata.category(ch).startswith("M")):
             run.append(ch)
         elif run:
             yield "".join(run)
