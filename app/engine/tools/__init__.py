@@ -10,7 +10,7 @@ Configuration (tools.yaml)
 
 import importlib
 import logging
-import os
+from pathlib import Path
 from typing import Dict, List, Union, Any, Optional
 
 import yaml
@@ -19,6 +19,10 @@ from llama_index.core.tools.tool_spec.base import BaseToolSpec
 from llama_index.core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
+
+# config/tools.yaml at the repository root, found from this package and not from the
+# working directory: an API started elsewhere used to load no tools and say nothing.
+TOOLS_CONFIG = Path(__file__).resolve().parents[3] / "config" / "tools.yaml"
 
 # Global registry to store tool calls
 tool_call_registry = []
@@ -154,8 +158,10 @@ class ToolFactory:
         )
 
         # Load and process tool configurations
-        if os.path.exists("config/tools.yaml"):
-            with open("config/tools.yaml", "r") as f:
+        if not TOOLS_CONFIG.exists():
+            logger.warning(f"No tool config at {TOOLS_CONFIG}: the agents get no configured tools")
+        else:
+            with open(TOOLS_CONFIG, "r") as f:
                 tool_configs = yaml.safe_load(f)
                 for tool_type, config_entries in tool_configs.items():
                     for tool_name, config in config_entries.items():
