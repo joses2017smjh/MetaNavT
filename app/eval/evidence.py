@@ -285,7 +285,7 @@ def _companion_live_claims(root: Path = ROOT) -> list[dict]:
         out.append({"claim": f"Research companion, live mode ({model}): completed answers whose every citation names an inspected source whose excerpt hash and bytes match the cited range of the file",
                     "value": f"{cit['complete_answers_all_valid']} of {cit['complete_answers']}", "ci": "—",
                     "n": cit["complete_answers"], "command": cmd, "source": src,
-                    "not_shown": "reference integrity, not factual support; answers that were blocked or abstained carry no citation and are not counted"})
+                    "not_shown": f"reference integrity, not factual support; answers that were blocked or abstained carry no citation and are not counted; {stack}"})
     planted = blob["summary"].get("planted")
     if planted:
         when = planted["planted_value_stated_when_exposed"]
