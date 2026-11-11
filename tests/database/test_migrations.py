@@ -9,6 +9,7 @@ of their own in the default schema and drop it (and its ledger rows) at the end.
 
 import os
 import threading
+import time
 import uuid
 
 import pytest
@@ -258,6 +259,47 @@ def test_a_second_replica_waits_for_the_advisory_lock(schema):
     finally:
         for conn in (holder, runner, observer):
             conn.close()
+
+
+def test_two_deploy_steps_waiting_for_the_lock_both_succeed(schema):
+    """Two deploy steps wait for the migration lock; the one that gets it builds indexes CONCURRENTLY, which
+    waits for every transaction holding an older snapshot to end. A waiter blocked inside pg_advisory_lock
+    holds one, so the two used to deadlock and one step failed ("deadlock detected"). The runner now waits
+    by polling with no transaction open: both steps succeed, and each file is applied once."""
+    from app.database import migrate
+
+    table = migrate.VectorTable(schema=schema, table="twodeploy", dim=256)
+    results: dict = {}
+
+    def deploy(name):
+        conn = _connect(schema)
+        try:
+            results[name] = migrate.migrate_all(conn, table)
+        except Exception as exc:  # noqa: BLE001 - reported by the assertion below
+            results[name] = f"{type(exc).__name__}: {exc}"
+        finally:
+            conn.close()
+
+    holder = _plain()  # autocommit: holds the lock without holding a snapshot
+    threads = [threading.Thread(target=deploy, args=(name,), daemon=True) for name in ("a", "b")]
+    try:
+        with holder.cursor() as cur:
+            cur.execute("SELECT pg_advisory_lock(%s);", (migrate.LOCK_KEY,))
+        for thread in threads:
+            thread.start()
+        time.sleep(1.5)  # longer than deadlock_timeout: both steps are waiting for the lock
+        assert all(thread.is_alive() for thread in threads) and not results, results
+        with holder.cursor() as cur:
+            cur.execute("SELECT pg_advisory_unlock(%s);", (migrate.LOCK_KEY,))
+        for thread in threads:
+            thread.join(timeout=60)
+    finally:
+        holder.close()
+    assert not any(thread.is_alive() for thread in threads) and len(results) == 2, results
+    assert all(isinstance(done, dict) for done in results.values()), results
+    everything = {"database": [m.version for m in migrate.discover()],
+                  "vector": [m.version for m in migrate.discover(migrate.VECTOR_DIR)]}
+    assert sorted(results.values(), key=lambda done: len(done["vector"])) == [{"database": [], "vector": []}, everything]
 
 
 # ---------------------------------------------------------------- the application's entry points

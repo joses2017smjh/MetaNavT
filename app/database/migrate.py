@@ -25,7 +25,9 @@ Three sequences, each a directory of files named NNNN_description.sql (0001_base
 
 apply_migrations(), apply_vector_migrations() and migrate_all():
   * take a session-level Postgres advisory lock first, so two deploy steps that run together
-    apply one after the other: the second waits, then finds nothing pending;
+    apply one after the other: the second waits, then finds nothing pending. It waits by
+    polling with no transaction open (_advisory_lock), never inside pg_advisory_lock, which
+    would deadlock with the first one's CREATE INDEX CONCURRENTLY;
   * refuse to run (MigrationError) if a file that was already applied has a different
     checksum now (the checksum is of the file, not of a rendered template), if the database
     is at a version this code does not have, or if the files have a gap or a duplicate version;
@@ -47,6 +49,7 @@ import logging
 import os
 import re
 import sys
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,6 +65,7 @@ COMMAND = "python -m app.database.migrate (make migrate)"
 # One fixed key for pg_advisory_lock (a signed 64-bit integer), derived from a name so it
 # cannot collide with another application's small integer keys in the same database.
 LOCK_KEY = int.from_bytes(hashlib.sha256(b"metanavit.schema_migrations").digest()[:8], "big", signed=True)
+LOCK_POLL_SECONDS = 0.2  # how often a waiting deploy step tries the lock again (_advisory_lock)
 
 CREATE_LEDGER = """CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY,
@@ -292,12 +296,27 @@ def vector_extension_schema(conn) -> str | None:
 
 
 @contextmanager
-def _advisory_lock(conn):
-    """Hold the migration lock (session level: it outlives the transactions below) for the block."""
+def _advisory_lock(conn, poll_s: float = LOCK_POLL_SECONDS):
+    """Hold the migration lock (session level: it outlives the transactions below) for the block.
+
+    It waits by trying again every poll_s seconds with no transaction open in between, not by
+    blocking in pg_advisory_lock: a session blocked there holds a snapshot, and the holder's
+    CREATE INDEX CONCURRENTLY waits for every older snapshot to go away, so the two deadlocked
+    and one deploy step failed (tests/database/test_migrations.py starts two together).
+    """
     conn.rollback()  # start from a clean transaction state
-    with conn.cursor() as cur:
-        cur.execute("SELECT pg_advisory_lock(%s);", (LOCK_KEY,))
-    conn.commit()
+    waiting = False
+    while True:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(%s);", (LOCK_KEY,))
+            locked = bool(cur.fetchone()[0])
+        conn.commit()  # end the transaction, and its snapshot, before waiting
+        if locked:
+            break
+        if not waiting:
+            logger.info("Another process holds the schema migration lock; waiting for it")
+            waiting = True
+        time.sleep(poll_s)
     try:
         yield
     finally:

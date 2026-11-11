@@ -23,6 +23,7 @@ class FakeDb:
         self.log: list[str] = []
         self.modes: list[tuple[str, bool]] = []  # (statement, autocommit) for every statement
         self.locked = False
+        self.busy_tries = 0  # how many lock attempts find the lock held by another process
 
 
 class FakeConn:
@@ -67,9 +68,16 @@ class FakeCursor:
         db, text = self.conn.db, sql.strip()
         db.log.append(text)
         db.modes.append((text, self.conn.autocommit))
-        if text.startswith("SELECT pg_advisory_lock"):
+        if text.startswith("SELECT pg_try_advisory_lock"):
             assert not db.locked, "lock taken twice"
-            db.locked = True
+            if db.busy_tries:
+                db.busy_tries -= 1
+                self.rows = [(False,)]
+            else:
+                db.locked = True
+                self.rows = [(True,)]
+        elif text.startswith("SELECT pg_advisory_lock"):
+            raise AssertionError("blocking in pg_advisory_lock holds a snapshot; CREATE INDEX CONCURRENTLY waits for it")
         elif text.startswith("SELECT pg_advisory_unlock"):
             db.locked = False
         elif text.startswith("SELECT version, checksum"):
@@ -82,6 +90,9 @@ class FakeCursor:
 
     def fetchall(self):
         return self.rows
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
 
 
 # ---------------------------------------------------------------- ordering
@@ -158,7 +169,7 @@ def test_apply_is_ordered_locked_and_idempotent(tmp_path):
     assert sorted(db.ledger) == [1, 2] and not db.locked
 
     statements = [s for s in db.log if s not in {"COMMIT", "ROLLBACK"}]
-    assert statements[0].startswith("SELECT pg_advisory_lock")  # nothing runs before the lock
+    assert statements[0].startswith("SELECT pg_try_advisory_lock")  # nothing runs before the lock
     assert statements[-1].startswith("SELECT pg_advisory_unlock")
     assert statements.index("CREATE TABLE a ();") < statements.index("CREATE TABLE b ();")
 
@@ -166,6 +177,21 @@ def test_apply_is_ordered_locked_and_idempotent(tmp_path):
     assert migrate.apply_migrations(FakeConn(db), tmp_path) == []  # a second replica, or a restart
     assert not [s for s in db.log[before:] if s.startswith("CREATE TABLE a") or s.startswith("CREATE TABLE b")]
     assert sorted(db.ledger) == [1, 2] and not db.locked
+
+
+def test_a_busy_lock_is_tried_again_with_no_transaction_open_in_between(tmp_path, monkeypatch):
+    """A waiting deploy step must not sit in a transaction (a snapshot) while another one builds an index
+    CONCURRENTLY: each try is committed before the pause (the live deadlock: tests/database/test_migrations.py)."""
+    _write(tmp_path, ("0001_a.sql", "CREATE TABLE a ();"),)
+    db = FakeDb()
+    db.busy_tries = 3
+    pauses = []
+    monkeypatch.setattr(migrate.time, "sleep", lambda s: pauses.append((s, db.log[-1])))
+    assert migrate.apply_migrations(FakeConn(db), tmp_path) == [1]
+    assert [last for _, last in pauses] == ["COMMIT"] * 3  # every pause starts after a commit
+    assert all(s == migrate.LOCK_POLL_SECONDS for s, _ in pauses)
+    assert [s for s in db.log if "advisory_lock" in s] == ["SELECT pg_try_advisory_lock(%s);"] * 4
+    assert sorted(db.ledger) == [1] and not db.locked
 
 
 def test_apply_stops_at_the_target_then_continues(tmp_path):
