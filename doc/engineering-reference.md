@@ -850,7 +850,10 @@ keeps it closed. `make bench-jury-rescore` recomputes the deterministic checks
 and the summary of the committed file from its stored answers without a model
 call, re-running retrieval and refusing if the retrieved paths differ; the file
 and the block name both the sha that generated the answers and the sha that
-rescored them.
+rescored them. The results header pins the generator and each judge by the
+manifest digest Ollama reports for its tag (`revision`), next to the server
+version, and a model run refuses to start when a tag has no digest; files
+recorded before that (`jury.json`) name the Ollama models by tag only.
 
 [Current generated bench-jury evidence](../README.md#bench-jury).
 

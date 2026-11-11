@@ -2,7 +2,10 @@
 
 Filesystem-only: the HuggingFace revision is read from the hub cache's
 refs/main file (never from the network), so a results file can name the exact
-weights that scored it and a reader can pin them.
+weights that scored it and a reader can pin them. A model served by Ollama is
+named by a tag, which can point at other weights after a pull; its revision is
+the manifest digest the server's /api/tags reports for that tag
+(ollama_model_provenance), asked of the server that ran the model.
 
 Results files are published with the repository, and this module is where
 their writers take the command and the machine description from, so neither
@@ -23,12 +26,14 @@ carries a host name, a user name or an absolute path:
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import platform
 import re
 import socket
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -81,6 +86,48 @@ def model_provenance(model_name: str | None, role: str) -> dict:
         return {"role": role, "model": model_name, "revision": None, "neural": False}
     name = model_name.split(":", 1)[1] if model_name.startswith("st:") else model_name
     return {"role": role, "model": name, "revision": hf_revision(name), "neural": True}
+
+
+def ollama_base_url(base_url: str | None = None) -> str:
+    return (base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+
+
+def _ollama_get(route: str, base_url: str | None, timeout: float) -> dict:
+    try:
+        with urllib.request.urlopen(ollama_base_url(base_url) + route, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode())
+    except (OSError, ValueError):  # not reachable, refused, HTTP error, not JSON
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def ollama_tags(base_url: str | None = None, timeout: float = 10.0) -> dict[str, dict]:
+    """The Ollama server's /api/tags entries keyed by their name and model fields; {} when it does not answer."""
+    out: dict[str, dict] = {}
+    for entry in _ollama_get("/api/tags", base_url, timeout).get("models") or []:
+        for key in (entry.get("name"), entry.get("model")):
+            if key:
+                out.setdefault(key, entry)
+    return out
+
+
+def ollama_version(base_url: str | None = None, timeout: float = 10.0) -> str | None:
+    return _ollama_get("/api/version", base_url, timeout).get("version")
+
+
+def ollama_tag_entry(model_name: str, tags: Mapping[str, Mapping]) -> Mapping:
+    """The /api/tags entry Ollama resolves `model_name` to ({} when it is not listed); a bare name means name:latest."""
+    return tags.get(model_name) or ({} if ":" in model_name else tags.get(f"{model_name}:latest")) or {}
+
+
+def ollama_model_provenance(model_name: str, role: str, tags: Mapping[str, Mapping]) -> dict:
+    """The model block of a model Ollama served: `revision` is the digest of the manifest the tag resolved to
+    (None when the server does not list the tag), so the weights are pinned, not only named."""
+    entry = ollama_tag_entry(model_name, tags)
+    details = entry.get("details") or {}
+    return {"role": role, "model": model_name, "revision": entry.get("digest"), "neural": True, "backend": "ollama",
+            "quantization": details.get("quantization_level"), "parameter_size": details.get("parameter_size"),
+            "size_bytes": entry.get("size")}
 
 
 def device_info(requested: str = "auto") -> dict:

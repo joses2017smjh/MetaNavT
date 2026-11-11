@@ -31,6 +31,10 @@ For every gold question, on fixture v1:
 
 Heuristic columns are labelled "heuristic" and stay out of README tables.
 
+The header pins every Ollama model by the manifest digest the server's
+/api/tags reports for its tag (`revision`), with the server version; a model
+run refuses to start when a tag has no digest.
+
     python -m app.eval.llm_eval --rescore bench/results/jury.json
 
 recomputes the deterministic checks and the summary from the stored answers
@@ -51,7 +55,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from app.agent.citation_verify import extract_claims, verify_claims
-from app.agent.generate import OllamaGenerator, cited_answer, ollama_available
+from app.agent.generate import OllamaGenerator, cited_answer
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
@@ -60,7 +64,17 @@ from app.eval.index_loader import build_index
 from app.eval.judge import HeuristicJudge, LlmJudge, exact_match_label, label_to_score, ollama_complete, pairwise_ab_ba
 from app.eval.jury import KAPPA_GATE, DEFAULT_JUDGE_MODELS, cohens_kappa
 from app.eval.latency import StageTimer
-from app.eval.provenance import command_line, device_info, git_sha, model_provenance, scrub
+from app.eval.provenance import (
+    command_line,
+    device_info,
+    git_sha,
+    model_provenance,
+    ollama_model_provenance,
+    ollama_tag_entry,
+    ollama_tags,
+    ollama_version,
+    scrub,
+)
 from app.graph.staleness import cluster_versions
 from app.retrieval.types import RetrievalHit
 
@@ -140,16 +154,21 @@ def run(
     )
     clusters = cluster_versions(index.chunks) if config.staleness_tier1 else {}
 
+    ollama_models = list(dict.fromkeys([generator_model, *judge_models]))
     if complete_fn is not None:
         generator = OllamaGenerator(model=generator_model, base_url=base_url)
         generator.complete = complete_fn  # type: ignore[method-assign]
         judges = [(name, LlmJudge(complete=complete_fn, name=name)) for name in judge_models]
         pair_fns = {name: complete_fn for name in judge_models}
+        tags = ollama_tags(base_url) if base_url else {}  # a test may point base_url at a fake /api/tags
     else:
-        available = ollama_available(base_url)
-        missing = [m for m in {generator_model, *judge_models} if m not in available]
+        tags = ollama_tags(base_url)
+        missing = [m for m in ollama_models if not ollama_tag_entry(m, tags)]
         if missing:
-            raise SystemExit(f"Ollama models not available: {missing}; have {available}")
+            raise SystemExit(f"Ollama models not available: {missing}; have {sorted(tags)}")
+        undigested = [m for m in ollama_models if not ollama_tag_entry(m, tags).get("digest")]
+        if undigested:  # the results would name these weights by tag only
+            raise SystemExit(f"Ollama lists no digest for {undigested}; refusing to record weights by tag alone")
         generator = OllamaGenerator(model=generator_model, base_url=base_url)
         judges = [(name, LlmJudge(model=name, name=name)) for name in judge_models]
         pair_fns = {name: (lambda prompt, _m=name: ollama_complete(prompt, model=_m) or "") for name in judge_models}
@@ -208,11 +227,12 @@ def run(
         "n_gold": len(gold),
         "config": bench_settings(config),
         "models": {
-            "generator": model_provenance(generator_model, "generator") | {"backend": "ollama", "temperature": 0.0, "seed": 0},
-            "judges": [model_provenance(m, "judge") | {"backend": "ollama"} for m in judge_models],
+            "generator": ollama_model_provenance(generator_model, "generator", tags) | {"temperature": 0.0, "seed": 0},
+            "judges": [ollama_model_provenance(m, "judge", tags) for m in judge_models],
             "embedder": model_provenance(config.embedder, "embedder"),
             "reranker": model_provenance(config.reranker, "reranker") | {"loaded": bool(getattr(index, "reranker_loaded", False))},
         },
+        "ollama": {"version": ollama_version(base_url) if tags else None},
         "kappa_gate": KAPPA_GATE,
         "latency": timer.summary(),
         "wall_s": wall_s,

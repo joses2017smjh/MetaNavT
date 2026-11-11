@@ -112,6 +112,75 @@ def test_runner_offline_with_a_fake_model(tmp_path):
     assert not set(LATER_SETTINGS) & set(blob["config"]) and blob["config"]["name"] == cfg.name
 
 
+@pytest.fixture
+def fake_ollama():
+    """An HTTP server on 127.0.0.1 that answers /api/tags and /api/version as Ollama does; no model behind it."""
+    import http.server
+    import threading
+
+    listing = {"models": []}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = {"/api/tags": listing, "/api/version": {"version": "0.0.0-test"}}.get(self.path)
+            if body is None:
+                self.send_error(404)
+                return
+            data = json.dumps(body).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield listing, f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()
+    server.server_close()
+
+
+DIGESTS = {"fake-gen": "a8b0c51577010a279d933d14c2a8ab4b268079d44c5c8830c0a93900f1827c67",
+           "fake-a": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+           "fake-b": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e"}
+HASH_CFG = dict(name="hybrid+router@hash", mode="hybrid", embedder="hash", enable_rerank=False, enable_router=True, staleness_tier1=True, log_triples=False, e2e=False)
+
+
+def _tag(name, digest):
+    return {"name": name, "model": name, "digest": digest, "size": 1000, "details": {"quantization_level": "Q4_K_M", "parameter_size": "1B"}}
+
+
+def test_the_model_blocks_name_the_digest_ollama_served(fake_ollama):
+    """A43: generator and judges are pinned by the manifest digest /api/tags reports, not by the tag alone."""
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    listing, url = fake_ollama
+    listing["models"] = [_tag(name, digest) for name, digest in DIGESTS.items()]
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a", "fake-b"], limit=2,
+                        complete_fn=lambda prompt: json.dumps({"score": 0.5, "label": "partial"}), base_url=url)
+    models = blob["models"]
+    assert models["generator"]["revision"] == DIGESTS["fake-gen"] and models["generator"]["backend"] == "ollama"
+    assert [(j["model"], j["revision"]) for j in models["judges"]] == [("fake-a", DIGESTS["fake-a"]), ("fake-b", DIGESTS["fake-b"])]
+    assert models["generator"]["quantization"] == "Q4_K_M" and blob["ollama"]["version"] == "0.0.0-test"
+
+
+def test_a_model_run_refuses_a_tag_without_a_digest(fake_ollama):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    listing, url = fake_ollama
+    listing["models"] = [_tag("fake-gen", DIGESTS["fake-gen"]), _tag("fake-a", None)]
+    with pytest.raises(SystemExit, match="no digest"):  # before any generation: the fake server has no /api/generate
+        llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=1, base_url=url)
+    with pytest.raises(SystemExit, match="not available"):
+        llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-b"], limit=1, base_url=url)
+
+
 def test_exact_match_label_treats_equal_numbers_as_equal():
     from app.eval.judge import exact_match_label
 
