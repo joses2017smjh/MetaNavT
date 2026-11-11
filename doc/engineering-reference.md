@@ -405,7 +405,7 @@ The Next.js app type-checks and exports statically (`npm run build` in `.fronten
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
 
-Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. Files reached through a symlink are left out of the index and of `collect_run_artifact`'s packs, and `read_file` and `stat` refuse their paths. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
+Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. Files reached through a symlink are left out of the index and of `collect_run_artifact`'s packs, and `read_file` and `stat` refuse their paths: the shared scanner already rejects a link whose real path leaves the root (`outside_root`, see the indexing section), the server also drops a link that stays inside it, and the start-up line on stderr counts both. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
 
 | tool | contract |
 |---|---|
@@ -528,9 +528,15 @@ With `INDEX_ON_START`, every API start runs one indexing step
 ([app/engine/ingest.py](../app/engine/ingest.py)) under a Postgres advisory lock:
 
 1. **Scan.** Every file under `DATA_DIR` is read once and either accepted or
-   rejected with a reason: unsupported type, too large, undecodable, empty,
-   duplicate content ([app/eval/ingest.py](../app/eval/ingest.py), the same scan
-   the benchmark loader uses, with a stricter policy).
+   rejected with a reason: outside the root, unsupported type, too large,
+   undecodable, empty, duplicate content ([app/eval/ingest.py](../app/eval/ingest.py),
+   the same scan the benchmark loader uses, with a stricter policy). The first
+   gate resolves every symlink: a file whose real path leaves `DATA_DIR`, or
+   lands in a directory the scan skips such as `.git`, is rejected as
+   `outside_root` before its size or bytes are read, so a link to a file
+   elsewhere on the machine is never embedded or returned by `/api/retrieve`.
+   A link that stays inside `DATA_DIR` is read like any other file, and the walk
+   does not enter symlinked directories.
 2. **Diff.** Each accepted file's SHA-256 is compared with a manifest table
    (`ingest_manifest_<table>`: path, content hash, chunk count, chunker version
    and embedder). Files are new, changed, unchanged or removed.

@@ -10,11 +10,19 @@ Both call file_chunks(), so a chunk boundary the benchmark measures is the
 boundary the API serves.
 
 The accounting follows the robotics snapshot freeze (app/eval/robotics.py):
-walk one sorted listing, pass every file through explicit gates, count every
-rejection by reason, and identify content by the SHA-256 of its raw bytes.
-A file is never dropped without being counted:
+walk one sorted listing, confine every path to the root before reading it,
+pass every file through explicit gates, count every rejection by reason, and
+identify content by the SHA-256 of its raw bytes. A file is never dropped
+without being counted:
 
   files_seen == files_indexed + files_unchanged + files_rejected
+
+Confinement: a file whose real path (every symlink resolved) is not under the
+root, or is under a directory the scan skips (.git and the caches), is
+rejected as `outside_root` before its size or bytes are read, so a link to a
+file elsewhere on the machine never reaches a chunk, an embedding or a search
+result. A link that stays inside the scanned tree is read like any other file.
+The walk does not descend into symlinked directories.
 
 `files_removed` counts paths the manifest listed that are no longer accepted
 (deleted on disk, or now rejected); their rows are deleted.
@@ -32,11 +40,12 @@ from app.eval.reindex import files_to_reindex, files_to_remove
 from app.retrieval.hybrid import chunk_id_for
 
 SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
-REPORT_SCHEMA = "ingest-report-v1"
+REPORT_SCHEMA = "ingest-report-v2"  # v2: the outside_root reason
 CHUNKER = "app/chunking (structure-aware)"
 CHUNKER_VERSION = "app.chunking/auto/v1"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
 # Gate order is the order of this tuple; a file is counted under the first gate it fails.
-REJECT_REASONS = ("unsupported_type", "too_large", "undecodable", "empty", "duplicate_content")
+# outside_root comes first: a file outside the root is rejected before its size or bytes are read.
+REJECT_REASONS = ("outside_root", "unsupported_type", "too_large", "undecodable", "empty", "duplicate_content")
 REJECTED_SAMPLE = 20  # paths listed in a report; the counts always cover every file
 
 # Suffixes the served path indexes: the ones chunk_text routes by structure, plus
@@ -129,21 +138,43 @@ def iter_corpus_files(root: Path) -> list[Path]:
     return files
 
 
+def confined_real_path(real_root: Path, path: Path) -> Path | None:
+    """`path` with every symlink resolved when that stays inside the scanned tree, else None.
+
+    The second layer of the robotics freeze's check (app/eval/robotics.py
+    confined()); the first, no absolute path and no "..", holds by construction
+    for a path the listing yielded. `real_root` is the root already resolved,
+    so a root reached through a symlinked prefix is not mistaken for an escape.
+    """
+    try:
+        rel = path.resolve().relative_to(real_root)
+    except (OSError, RuntimeError, ValueError):  # outside the root, or a symlink loop
+        return None
+    if any(part in SKIP_NAMES for part in rel.parts):  # e.g. a link to .git/config
+        return None
+    return real_root / rel
+
+
 def scan_directory(root: Path, policy: IngestPolicy = BENCH_POLICY) -> Scan:
     """Read every file under root once and sort it into accepted or rejected-with-a-reason."""
     root = Path(root)
+    real_root = root.resolve()
     scan = Scan()
     seen_hashes: set[str] = set()
     for path in iter_corpus_files(root):
         rel = str(path.relative_to(root)).replace("\\", "/")
-        st = path.stat()
+        real = confined_real_path(real_root, path)
+        if real is None:  # before its size or bytes are read
+            scan.rejected.append({"path": rel, "reason": "outside_root"})
+            continue
+        st = real.stat()  # stat and read the resolved path: a link retargeted after the check is not followed
         if policy.suffixes is not None and path.suffix.lower() not in policy.suffixes:
             scan.rejected.append({"path": rel, "reason": "unsupported_type"})
             continue
         if policy.max_bytes is not None and st.st_size > policy.max_bytes:
             scan.rejected.append({"path": rel, "reason": "too_large"})
             continue
-        data = path.read_bytes()
+        data = real.read_bytes()
         try:
             # Preserve physical CRLF bytes as well as Unicode for citations.
             text = data.decode("utf-8")

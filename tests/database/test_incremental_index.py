@@ -162,10 +162,27 @@ def test_rejections_are_counted_by_reason_and_a_limit_fails_the_run_before_any_w
     assert run.rows() == before  # nothing deleted, nothing written
 
     report = run.index(policy=policy, max_rejected=5)
-    assert report["rejected_by_reason"] == {"unsupported_type": 1, "too_large": 1, "undecodable": 1, "empty": 1, "duplicate_content": 1}
+    assert report["rejected_by_reason"] == {
+        "outside_root": 0, "unsupported_type": 1, "too_large": 1, "undecodable": 1, "empty": 1, "duplicate_content": 1,
+    }
     assert report["files_seen"] == report["files_indexed"] + report["files_unchanged"] + report["files_rejected"]
     assert report["files_removed"] == 1
     assert {row["path"] for row in report["rejected_sample"]} == {"binary.yaml", "blank.md", "weights.bin", "huge.out", "zz_copy_of_run_047.yaml"}
+    run.assert_manifest_matches_rows()
+
+
+def test_a_link_out_of_the_data_dir_is_rejected_and_no_row_holds_its_text(run, tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.yaml").write_text("api_token: zqxjsecretmarker\n")
+    (run.corpus / "configs" / "linked.yaml").symlink_to(outside / "secret.yaml")
+
+    report = run.index()
+
+    assert report["rejected_by_reason"]["outside_root"] == report["files_rejected"] == 1
+    assert report["rejected_sample"] == [{"path": "configs/linked.yaml", "reason": "outside_root"}]
+    assert run.embedded and not [text for text in run.embedded if "zqxj" in text]  # never sent to the embedder
+    assert "configs/linked.yaml" not in {path for _, _, path in run.rows()} | set(run.managers[0].ingest_manifest())
     run.assert_manifest_matches_rows()
 
 
