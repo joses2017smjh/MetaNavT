@@ -40,7 +40,7 @@ def test_missing_neural_files_render_a_pointer_not_a_crash(tmp_path):
     blob = json.loads((ROOT / "bench" / "results" / "main.json").read_text())
     blocks = render(blob, tmp_path)
     assert "make bench-neural" in blocks["bench-neural"] and "make bench-beir" in blocks["bench-beir"]
-    assert "make bench-beir-bm25-ablation" in blocks["bench-beir-bm25"]
+    assert "make bench-beir-bm25-ablation" in blocks["bench-beir-bm25"] and "make bench-beir-fiqa" in blocks["bench-beir-fiqa"]
     assert "make parity" in blocks["bench-parity"]
 
 

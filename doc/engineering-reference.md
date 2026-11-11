@@ -160,11 +160,24 @@ the measured results rather than a newly validated automatic selector.
 [Full NFCorpus results](../bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) ·
 [Full FiQA results](../bench/results/revamp_20261007/beir_fiqa_gpu.json)
 
+FiQA with the reranker (`make bench-beir-fiqa`; [results](../bench/results/beir_fiqa.json),
+[generated table](../README.md#bench-beir-fiqa)) runs BM25, dense and hybrid again
+next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512, first
+in fp32 and then in fp16, each row paired with its parent, with a TREC run file
+for every row in `bench/results/beir_fiqa_trec`. Its document embeddings are the
+cached bge-small matrix of the October run (computed on an H100); the queries and
+the reranker ran on the GPU the file names.
+
 On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
 **512-token cap and top-20 depth fixed** reduces warm offline total p95 from
 **216.52 to 77.15 ms** (64.4%). nDCG changes from **0.3555 to 0.3554**. This
 isolates precision more directly than the historical SciFact joint precision/
 truncation comparison. It excludes model load, index build and HTTP concurrency.
+On SciFact the cap and the precision are now also measured one at a time:
+fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
+before it (`make bench-beir-rerank-cap`;
+[results](../bench/results/beir_scifact_rerank_cap.json); the evidence table quotes
+both steps with their rerank-stage latency).
 
 ### Real robotics experiment lookup
 

@@ -106,6 +106,12 @@ def test_graded_relevance_and_trec_output_are_preserved(tmp_path):
     assert "vs_published" not in blob["results"][0]
     assert blob["results"][0]["trec"]["run_sha256"]
     assert (tmp_path / "trec" / "qrels.txt").read_text().startswith("q1 0 d1 2")
+    from app.eval.report import beir_table
+
+    text = beir_table(blob, "bench/results/x.json", "make x", "NFCorpus", digits=4)
+    assert text.startswith("BEIR NFCorpus test split (`make x`)") and "No published reference is claimed" in text
+    assert "Every row wrote a TREC run file" in text and "Published BM25" not in text
+    assert "| bm25 | — | none (BM25 only) |" in text and beir_table(None, "bench/results/x.json", "make x") == "_bench/results/x.json is missing; run `make x`._"
 
 
 def test_cache_identity_changes_with_corpus_content_and_order(tmp_path):
@@ -271,6 +277,11 @@ def test_reranker_step_labels_follow_the_recorded_parent(tmp_path):
     assert "fp16 with max_length 512 vs fp32 uncapped: nDCG@10" in beir_table(old)
     (root / FILES["beir"]).write_text(json.dumps(old))
     assert any("fp16 + max_length 512 vs fp32 uncapped" in c["claim"] for c in claims(root))
+    assert not any("max_length 512 vs uncapped (both fp32" in c["claim"] for c in claims(root))
+    (root / FILES["beir_rerank_cap"]).write_text(json.dumps(blob))  # the split measured in its own file
+    split = [c for c in claims(root) if "(both fp32" in c["claim"] or "fp16 vs fp32 (both" in c["claim"]]
+    assert len(split) == 2 and {c["command"] for c in split} == {"make bench-beir-rerank-cap"}
+    assert all(c["source"].startswith(FILES["beir_rerank_cap"]) for c in split)
 
 
 def test_make_selections_pair_every_row_with_a_measured_parent():
