@@ -226,7 +226,7 @@ def test_listwise_row_says_how_many_questions_kept_the_fused_order(tmp_path):
     text = rerank_arms_table(blob)
     line = next(l for l in text.splitlines() if l.startswith(f"| {name} |"))
     assert "fused order kept on 3 of 4 questions" in line
-    assert "1 of 4 replies were permutations, 2 were not (1 not a chain, 1 partial), and 1 calls returned nothing" in text
+    assert "Of 4 calls, 1 reply was a permutation, 2 replies were not (1 not a chain, 1 partial) and 1 call returned nothing" in text
     assert "include 3 questions in the fused order" in text
     (tmp_path / "bench" / "results").mkdir(parents=True)
     (tmp_path / "bench" / "results" / "rerank_arms.json").write_text(json.dumps(blob))

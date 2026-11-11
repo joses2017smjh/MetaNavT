@@ -723,6 +723,10 @@ def _delta_to(row: dict, reference_suffix: str) -> dict | None:
     return None
 
 
+def _count(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
 def rerank_arms_table(blob: dict | None) -> str:
     """Reranker prototypes against the cross-encoder: the distilled student (test questions) and listwise LLM rerank."""
     if not blob:
@@ -731,7 +735,7 @@ def rerank_arms_table(blob: dict | None) -> str:
     split = blob["split"]
     lines = [
         f"Reranker prototypes on fixture v1 (`make bench-rerank-arms`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. The student is fitted on the cross-encoder's "
+        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. A student is fitted on the cross-encoder's "
         f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
         f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",
         "",
@@ -755,16 +759,25 @@ def rerank_arms_table(blob: dict | None) -> str:
                 f"| {name} | {row['n']} ({label}) | {_ci(row, 'ndcg@10')} | {_delta4(vs_ce)} | {verdict(vs_ce) if vs_ce else '—'} | "
                 f"{_delta4(vs_hybrid)} | {verdict(vs_hybrid) if vs_hybrid else '—'} | {latency} | {stand_in or 'none'} |"
             )
+    models = [f"`{row['config']}` is {row['student']['model']}, {row['student']['library']} {row['student']['version']}"
+              for row in blob["test_split"]["results"] if (row.get("student") or {}).get("model")]
+    if models:
+        lines += ["", "Students: " + "; ".join(models) + "." + (" They are fitted on the same train rows and differ only in the model."
+                                                               if len(models) > 1 else "")]
+    for item in blob.get("not_evaluated") or []:
+        lines += ["", f"`{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}."]
     if lw.get("evaluated"):
         opts = lw.get("options") or {}
         parse = lw.get("parse") or {}
         failures = ", ".join(f"{parse[k]} {k.replace('_', ' ')}" for k in ("not_a_chain", "partial", "repeated_id", "out_of_range") if parse.get(k))
+        kept = len(lw.get("fused_order_kept_ids") or [])
         lines += ["", f"Listwise arm: `{lw['model']}` through Ollama (temperature {opts.get('temperature')}, seed {opts.get('seed')}), one prompt per "
                       f"question over the top {lw['window']} candidates ({lw['passage_chars']} characters of each). A reply counts only when the whole "
-                      f"reply is a permutation of the window, `[2] > [1] > ...`; anything else keeps the fused order. {parse.get('permutation', 0)} of "
-                      f"{lw['n_calls']} replies were permutations, {lw['n_parse_failures']} were not ({failures or 'none'}), and {lw['n_failed_calls']} "
-                      f"calls returned nothing, so the row's numbers include {len(lw.get('fused_order_kept_ids') or [])} questions in the fused order. "
-                      "Every completion and its parse status is in the results file."]
+                      f"reply is a permutation of the window, `[2] > [1] > ...`; anything else keeps the fused order. Of {lw['n_calls']} calls, "
+                      f"{_count(parse.get('permutation', 0), 'reply was a permutation', 'replies were permutations')}, "
+                      f"{_count(lw['n_parse_failures'], 'reply was not', 'replies were not')} ({failures or 'none'}) and "
+                      f"{_count(lw['n_failed_calls'], 'call returned nothing', 'calls returned nothing')}, so the row's numbers include "
+                      f"{_count(kept, 'question', 'questions')} in the fused order. Every completion and its parse status is in the results file."]
     else:
         lines += ["", f"Listwise reranking by an LLM (`app/retrieval/rankgpt.py`): not evaluated in this run ({lw.get('reason', 'not run')})."]
     return "\n".join(lines)

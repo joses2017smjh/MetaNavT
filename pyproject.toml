@@ -66,6 +66,11 @@ ml = [
     "scikit-learn>=1.4",
     "pillow>=10",
 ]
+# The gradient-boosted distilled student of `make bench-rerank-arms` (app/retrieval/distill.py).
+# Without it that arm is recorded as not evaluated; the least-squares student needs only numpy.
+distill = [
+    "lightgbm>=4.5,<5",
+]
 # Tooling only: `make lock` (pip-tools) and `make lint` (ruff). Never needed at run time.
 dev = [
     "pip-tools>=7.4",

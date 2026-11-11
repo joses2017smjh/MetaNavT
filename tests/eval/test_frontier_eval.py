@@ -392,6 +392,162 @@ def test_bench_triple_log_has_no_rank_after_the_rerank():
     assert payload["n_triples"] == len(expected) == 8 * cfg.retrieve_k
 
 
+def _student_rows(n: int = 12, path: str = "papers/p{i}.pdf"):
+    from app.retrieval.rerank import FEATURE_NAMES, RerankTriple
+
+    rows = []
+    for i in range(n):
+        feats = {name: 0.0 for name in FEATURE_NAMES}  # none of the five file-type flags is set (a .pdf)
+        feats.update(rrf_rank=float(i % 4 + 1), path_depth=float(1 + i % 3), jaccard=0.1 * (i % 5))
+        rows.append(RerankTriple("q", f"c{i}", path.format(i=i), ce_score=3.0 - 0.5 * feats["rrf_rank"], features=feats))
+    return rows
+
+
+def test_least_squares_student_has_an_intercept_when_no_file_type_flag_is_set():
+    from app.retrieval.distill import DistilledReranker
+
+    rows = _student_rows()
+    student = DistilledReranker().fit(rows, backend="numpy_lstsq")
+    assert student.backend == "numpy_lstsq"
+    preds = student.predict_scores([r.features for r in rows])
+    # The teacher is 3 - 0.5 * rank: exact for a fit with an intercept, impossible through the origin.
+    assert max(abs(p - r.ce_score) for p, r in zip(preds, rows)) < 1e-9
+
+
+def test_file_type_flags_partition_fixture_v1():
+    """Every fixture v1 chunk sets exactly one of the five file-type flags, so there they already span
+    the least-squares intercept and the explicit column changes no prediction."""
+    from app.eval.harness import project_root
+    from app.eval.index_loader import load_chunks
+    from app.retrieval.rerank import FEATURE_NAMES, extract_features
+
+    chunks = load_chunks(project_root() / "bench" / "corpus" / "files", mtimes="manifest")
+    flags = [name for name in FEATURE_NAMES if name.startswith("is_")]
+    assert len(flags) == 5 and chunks
+    assert all(sum(extract_features("q", chunk)[name] for name in flags) == 1.0 for chunk in chunks)
+
+
+class _FakeBooster:
+    """Stands in for a trained lightgbm.Booster on machines without the library."""
+
+    def __init__(self, params, dataset, rounds):
+        self.params, self.rounds = params, rounds
+        self.mean = float(sum(dataset.label) / len(dataset.label))
+
+    def predict(self, X):
+        return [self.mean] * len(X)
+
+
+def _fake_lightgbm(train):
+    import types
+
+    fake = types.ModuleType("lightgbm")
+    fake.__version__ = "0.0-test"
+    fake.Dataset = lambda X, label: types.SimpleNamespace(data=X, label=label)
+    fake.train = train
+    return fake
+
+
+def test_student_backend_is_the_one_asked_for_and_never_a_silent_substitute(monkeypatch):
+    import sys
+
+    from app.retrieval.distill import LIGHTGBM_PARAMS, LIGHTGBM_ROUNDS, DistilledReranker
+
+    rows = _student_rows()
+    monkeypatch.setitem(sys.modules, "lightgbm", _fake_lightgbm(lambda params, dataset, num_boost_round: _FakeBooster(params, dataset, num_boost_round)))
+    student = DistilledReranker().fit(rows, backend="lightgbm")
+    assert student.backend == "lightgbm" and isinstance(student.model, _FakeBooster)
+    assert student.model.params == LIGHTGBM_PARAMS and student.model.rounds == LIGHTGBM_ROUNDS
+    assert LIGHTGBM_PARAMS["num_threads"] == 1 and LIGHTGBM_PARAMS["deterministic"] is True and "seed" in LIGHTGBM_PARAMS
+    assert student.predict_scores([rows[0].features]) == [student.model.mean]
+    assert DistilledReranker().fit(rows).backend == "numpy_lstsq"  # the default needs only numpy
+    with pytest.raises(ValueError):
+        DistilledReranker().fit(rows, backend="auto")
+
+    def broken(params, dataset, num_boost_round):
+        raise ValueError("bad input")
+
+    monkeypatch.setitem(sys.modules, "lightgbm", _fake_lightgbm(broken))
+    with pytest.raises(ValueError, match="bad input"):  # a fitting error is not swallowed into least squares
+        DistilledReranker().fit(rows, backend="lightgbm")
+    monkeypatch.setitem(sys.modules, "lightgbm", None)  # the library is not installed
+    with pytest.raises(ImportError):
+        DistilledReranker().fit(rows, backend="lightgbm")
+
+
+def _stand_in_rerank_arms(monkeypatch, tmp_path, lightgbm_module):
+    """make bench-rerank-arms end to end on the login node: hash index, an overlap stand-in teacher,
+    scripted listwise replies; the blob is written where report.py and evidence.py read it."""
+    import json
+    import sys
+
+    import app.eval.rerank_arms as arms
+    from app.retrieval.rerank import OverlapReranker
+
+    class StandInTeacher:
+        def __init__(self, model_name, **kwargs):
+            self.model = object()
+
+        def __call__(self, query, pairs):
+            return OverlapReranker()(query, pairs)
+
+    real_build = arms.build_index
+    monkeypatch.setattr(arms, "build_index", lambda root, **kw: real_build(root, **{**kw, "embedder_name": "hash"}))
+    monkeypatch.setattr(arms, "CrossEncoderReranker", StandInTeacher)
+    monkeypatch.setitem(sys.modules, "lightgbm", lightgbm_module)
+    calls = iter(range(10_000))
+
+    def complete(prompt):
+        i = next(calls)
+        n = int(prompt.split("Answer with the ranking of all ")[1].split()[0])
+        if i == 3:
+            return None
+        if i in (5, 6):
+            return "The most relevant passage is configs/run_047.yaml, then [2]."
+        return " > ".join(f"[{k}]" for k in range(n, 0, -1))
+
+    blob = arms.run(complete=complete)
+    (tmp_path / "bench" / "results").mkdir(parents=True)
+    (tmp_path / "bench" / "results" / "rerank_arms.json").write_text(json.dumps(blob))
+    return blob
+
+
+def test_rerank_arms_end_to_end_with_stand_ins_records_both_students_and_the_listwise_counts(monkeypatch, tmp_path):
+    from app.eval.evidence import _rerank_arm_claims
+    from app.eval.rerank_arms import HYBRID, STUDENT, STUDENT_LGBM, TEACHER
+    from app.eval.report import rerank_arms_table
+
+    blob = _stand_in_rerank_arms(monkeypatch, tmp_path, _fake_lightgbm(lambda params, dataset, num_boost_round: _FakeBooster(params, dataset, num_boost_round)))
+    test_rows = {r["config"]: r for r in blob["test_split"]["results"]}
+    assert list(test_rows) == [HYBRID, TEACHER, STUDENT, STUDENT_LGBM] and blob["not_evaluated"] == []
+    assert test_rows[STUDENT]["student"]["backend"] == "numpy_lstsq" and test_rows[STUDENT_LGBM]["student"]["backend"] == "lightgbm"
+    assert test_rows[STUDENT_LGBM]["student"]["version"] == "0.0-test" and test_rows[STUDENT_LGBM]["student"]["fallback"] is None
+    for name in (STUDENT, STUDENT_LGBM):
+        assert [d["reference"] for d in test_rows[name]["deltas"]] == [TEACHER, HYBRID]
+    lw = blob["listwise"]
+    assert lw["evaluated"] and lw["n_calls"] == blob["n_gold"] and lw["n_failed_calls"] == 1 and lw["n_parse_failures"] == 2
+    assert len(lw["fused_order_kept_ids"]) == 3 and lw["example_prompt"]["prompt"].rstrip().endswith("no words, no explanation.")
+    listwise_row = next(r for r in blob["all_questions"]["results"] if r["config"] == lw["config"])
+    assert [d["reference"] for d in listwise_row["deltas"]] == [HYBRID, TEACHER]
+    text = rerank_arms_table(blob)
+    assert f"| {STUDENT_LGBM} |" in text and "LightGBM regression trees" in text and "linear least squares with an intercept column" in text
+    assert "fused order kept on 3 of 136 questions" in text and "include 3 questions in the fused order" in text
+    claims = _rerank_arm_claims(tmp_path)
+    assert {c["claim"].split("`")[1] for c in claims} == {STUDENT, STUDENT_LGBM, lw["config"]}
+
+
+def test_rerank_arms_without_lightgbm_records_that_arm_as_not_evaluated(monkeypatch, tmp_path):
+    from app.eval.rerank_arms import STUDENT, STUDENT_LGBM
+    from app.eval.report import rerank_arms_table
+
+    blob = _stand_in_rerank_arms(monkeypatch, tmp_path, None)  # None in sys.modules: `import lightgbm` raises ImportError
+    names = [r["config"] for r in blob["test_split"]["results"]]
+    assert STUDENT in names and STUDENT_LGBM not in names
+    (item,) = blob["not_evaluated"]
+    assert item["arm"] == STUDENT_LGBM and "distill" in item["reason"]
+    assert f"`{STUDENT_LGBM}`: not evaluated in this run." in rerank_arms_table(blob)
+
+
 def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():
     from app.eval.gold import load_gold
     from app.eval.harness import project_root

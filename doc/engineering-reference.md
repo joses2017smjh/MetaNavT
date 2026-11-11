@@ -893,7 +893,27 @@ features it has when it serves, and scored on the other half: it is below zero
 against the cross-encoder it imitates and below zero against the un-reranked
 hybrid list, at a small fraction of the rerank latency. That student is the
 linear least-squares fallback, because LightGBM is not installed where the
-benchmark ran; a gradient-boosted student is not evaluated. Separately, `make
+benchmark ran; a gradient-boosted student is not evaluated.
+
+The harness now fits two students on the same train rows: linear least squares
+with an explicit intercept column, and LightGBM trees (`lightgbm.train`, one
+thread, a fixed seed, deterministic mode; the `distill` extra, pinned in
+`requirements/distill.txt`). Each row records its model, library version and,
+for LightGBM, its parameters. Without the library the LightGBM arm is recorded
+as not evaluated; it is never replaced by least squares under its name. The
+intercept changes no prediction on fixture v1: every fixture file is one of
+the five file types the student flags, so those flags already sum to one for
+every chunk (`tests/eval/test_frontier_eval.py` pins this); it matters on a
+corpus with other file types. Earlier rows had no intercept column, and the
+student's `recency` feature (a chunk's mtime over the newest mtime in its
+candidate list) is why the least-squares row moved when the benchmark switched
+to the MANIFEST mtimes: on a checkout where every file has the same mtime the
+feature is the constant 1 and carries nothing, while under the MANIFEST mtimes
+it varies slightly and the fit gives it weight, and the held-out nDCG@10 fell.
+The commit that re-recorded that row called the constant column the missing
+intercept; it was not, since the file-type flags already provide one. The
+feature is kept as it is; whether a student should see checkout mtimes at all
+is an open question, not one settled on the test split. Separately, `make
 bench` logs one row per fused candidate of the hash-embedder hybrid rows to
 `bench/results/<sha>.triples.jsonl` (git-ignored; nothing in the repository
 reads it): the same serving features, labelled with the overlap reranker's

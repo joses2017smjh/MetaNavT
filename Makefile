@@ -33,6 +33,7 @@ lock:           ## regenerate requirements.txt and requirements/*.txt from pypro
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile -o requirements/mobile.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile --extra agent -o requirements/agent.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra dev -o requirements/dev.txt pyproject.toml
+	$(PIP_COMPILE) -c requirements.txt --extra distill -o requirements/distill.txt pyproject.toml
 
 lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or disagrees with requirements.txt
 	$(PYTHON) scripts/check_lock.py

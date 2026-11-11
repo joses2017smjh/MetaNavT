@@ -243,6 +243,8 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                 continue
             student = row.get("student") or {}
             stand_in = f"student backend: {student['fallback']}" if student.get("fallback") else "no stand-in: the model ran"
+            if student.get("model") and not student.get("fallback"):
+                stand_in = f"student: {student['model']}"
             lw = blob.get("listwise") or {}
             if lw.get("evaluated") and name == lw.get("config"):
                 stand_in = (f"{len(lw.get('fused_order_kept_ids') or [])} of {lw['n_calls']} questions keep the fused order "
