@@ -210,6 +210,28 @@ def test_chat_started_from_another_directory_still_gets_the_configured_tools(cli
     assert {"artifact", "get_file_content", "list_available_files", "query_index"} <= set(first_step), first_step
 
 
+def test_each_chat_request_records_its_tool_calls_in_its_own_registry(client, monkeypatch):
+    # The tool-call registry used to be one module-level list shared by every request.
+    from app.api.routers import chat as chat_router
+    from app.engine.tools import get_tool_call_registry
+
+    monkeypatch.setenv("ENABLE_PYTHON_EXEC", "true")  # execute_code records through the tool callback
+    monkeypatch.setenv(security.API_KEY_ENV, KEY)
+    registries = []
+    build = chat_router.get_chat_engine
+
+    def build_and_capture(*args, **kwargs):
+        engine = build(*args, **kwargs)
+        registries.append(get_tool_call_registry())  # the registry this request's tools record into
+        return engine
+
+    monkeypatch.setattr(chat_router, "get_chat_engine", build_and_capture)
+    for _ in range(2):
+        assert _chat(client, headers={"X-API-Key": KEY}).status_code == 200
+    assert len(registries) == 2 and registries[0] is not registries[1]
+    assert [[call["name"] for call in registry] for registry in registries] == [["execute_code"], ["execute_code"]]
+
+
 def test_non_streaming_chat_route_returns_the_answer_and_the_tool_calls(client):
     resp = client.post("/api/chat/request", json={"messages": [{"role": "user", "content": QUESTION}]})
     assert resp.status_code == 200, resp.text
