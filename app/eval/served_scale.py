@@ -445,22 +445,39 @@ def git_dirty(root: Path) -> bool | None:
         return None
 
 
-def hardware(device: str) -> dict:
+def machine(device: str) -> dict:
+    """What a stage ran on, without a host name: the device, the GPU and its memory, the CPU model, the job's allocation.
+    Every stage records it, because a resumed run can finish its stages on another node."""
     from app.eval.provenance import device_info
 
     info = device_info(device)
+    out = {"device": info.get("device"), "device_name": info.get("device_name"), "gpu_memory_gb": None, "cpu_model": None,
+           "allocation": {"cpus": os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get("SLURM_CPUS_ON_NODE"), "memory_mb": os.environ.get("SLURM_MEM_PER_NODE")}}
     try:
-        info["cpu_model"] = next(line.split(":", 1)[1].strip() for line in Path("/proc/cpuinfo").read_text().splitlines() if line.startswith("model name"))
+        out["cpu_model"] = next(line.split(":", 1)[1].strip() for line in Path("/proc/cpuinfo").read_text().splitlines() if line.startswith("model name"))
     except (OSError, StopIteration):
-        info["cpu_model"] = None
+        pass
     try:
         import torch  # type: ignore
 
         if torch.cuda.is_available() and device != "cpu":
-            info["gpu_memory_gb"] = round(torch.cuda.get_device_properties(0).total_memory / 2**30, 1)
+            out["gpu_memory_gb"] = round(torch.cuda.get_device_properties(0).total_memory / 2**30, 1)
     except Exception:
         pass
-    info["allocation"] = {"cpus": os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get("SLURM_CPUS_ON_NODE"), "memory_mb": os.environ.get("SLURM_MEM_PER_NODE")}
+    return out
+
+
+def stage_machines(stages: dict[str, dict]) -> dict:
+    """The machine of each recorded stage, and whether they are all the same one."""
+    machines = {s: b.get("machine") for s, b in stages.items()}
+    return {"stage_machines": machines, "one_machine": len({json.dumps(m, sort_keys=True) for m in machines.values()}) == 1}
+
+
+def hardware(device: str) -> dict:
+    """The assembling process's machine (machine()) with torch, platform and package versions."""
+    from app.eval.provenance import device_info
+
+    info = {**device_info(device), **machine(device)}
     from importlib.metadata import PackageNotFoundError, version
 
     packages = {}
@@ -518,7 +535,7 @@ class Run:
     def save(self, stage: str, blob: dict) -> dict:
         from app.eval.provenance import git_sha
 
-        blob = {"stage": stage, "git_sha": git_sha(ROOT), "finished": datetime.now(timezone.utc).isoformat(), **blob}
+        blob = {"stage": stage, "git_sha": git_sha(ROOT), "finished": datetime.now(timezone.utc).isoformat(), "machine": machine(self.args.device), **blob}
         tmp = self.stage_file(stage).with_suffix(".json.partial")
         tmp.write_text(json.dumps(blob, indent=1) + "\n")
         tmp.replace(self.stage_file(stage))
@@ -909,6 +926,7 @@ def assemble(run: Run) -> dict:
     blob["trec"] = trec_outputs(trec_dir, rankings, {q: dict(d) for q, d in run.qrels.items()}, per_query)
     blob["bootstrap"] = bootstrap_settings(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED)
     blob["hardware"] = hardware(run.args.device)
+    blob.update(stage_machines(stages))
     blob["stage_git_sha"] = {s: b.get("git_sha") for s, b in stages.items()}
     blob["stage_seconds"] = {s: b.get("stage_seconds") for s, b in stages.items()}
     blob["git_sha"] = git_sha(ROOT)
@@ -951,6 +969,7 @@ def assemble_hnsw(run: Run) -> dict:
         },
         "bootstrap": bootstrap_settings(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED),
         "hardware": hardware(run.args.device),
+        **stage_machines({s: run.done(s) for s in HNSW_STAGES}),
         "stage_git_sha": {s: run.done(s).get("git_sha") for s in HNSW_STAGES},
         "git_sha": git_sha(ROOT), "git_dirty": git_dirty(ROOT), "timestamp": datetime.now(timezone.utc).isoformat(), "command": run.command,
         "source_sha256": {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in ("app/eval/pgvector_hnsw.py", "app/eval/served_scale.py", "app/database/vector_store_manager.py", "app/database/sql/hybrid_tsrank.sql")},

@@ -201,9 +201,18 @@ def test_files_stage_writes_the_corpus_records_it_and_is_skipped_on_resume(tmp_p
     assert sorted(p.name for p in corpus.iterdir()) == ["1.txt", "2.txt", "3.txt", "4.txt", "5.txt"]
     recorded = json.loads((tmp_path / "scratch" / "state" / "files.json").read_text())
     assert recorded["n_files"] == 5 and recorded["stage"] == "files"
+    # each stage names the machine it ran on (a resumed run can finish on another node), without a host name
+    assert set(recorded["machine"]) == {"device", "device_name", "gpu_memory_gb", "cpu_model", "allocation"} and recorded["machine"]["device"] == "cpu"
     assert "not recorded yet: index" in capsys.readouterr().out
     assert served_scale.main(args_for(tmp_path, "--stages", "files", "--resume", "--embedder", "hash", "--device", "cpu")) == 3
     assert "files: recorded, skipped" in capsys.readouterr().out
+
+
+def test_stage_machines_say_whether_every_stage_ran_on_one_machine():
+    a, b = {"device_name": "GPU A", "cpu_model": "C"}, {"device_name": "GPU B", "cpu_model": "C"}
+    assert served_scale.stage_machines({"index": {"machine": a}, "replay_hybrid": {"machine": dict(a)}})["one_machine"] is True
+    split = served_scale.stage_machines({"index": {"machine": a}, "replay_hybrid": {"machine": b}})
+    assert split["one_machine"] is False and split["stage_machines"] == {"index": a, "replay_hybrid": b}
 
 
 def test_files_stage_refuses_a_directory_holding_other_files(tmp_path):
