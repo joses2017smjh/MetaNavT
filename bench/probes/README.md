@@ -18,8 +18,8 @@ rewrites (`source_id`) is a true hit; a hit served from another question's entry
 
 How they were made (`app/eval/probes.py`):
 
-- Sample: in every gold category (categories in name order), the first, the middle and the last
-  question in gold order. Eight categories, so 24 probes.
+- Sample: three questions per gold category (categories in name order): the first, the middle and
+  the last question of the category in gold order.
 - One rewrite per sampled question. Three rules take turns; a rule that would leave the question
   unchanged passes to the next one:
   - `keywords`: drop question words, auxiliaries, articles and prepositions
