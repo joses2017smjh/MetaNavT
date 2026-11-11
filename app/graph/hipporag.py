@@ -23,6 +23,13 @@ from app.retrieval.router import QueryRouter, RouteType
 from app.retrieval.types import Chunk
 
 PPR_CATEGORIES = frozenset({"aggregation", "multi_hop", "comparative"})
+# Path masses are rounded to this many decimals where they order paths. The PPR iteration
+# multiplies with BLAS (w @ p), whose summation order depends on the CPU: masses that are
+# equal in exact arithmetic can differ in the last bit (about 1e-16) on another machine, and
+# the path name must decide them, not that bit. On fixture v1 the 33 questions HippoRAG
+# applies to have 528 exactly equal adjacent masses and no distinct masses closer than
+# 1.4e-5 relative, so the rounding changes no order here.
+PPR_SORT_DECIMALS = 12
 
 
 def query_seeds(query: str) -> list[str]:
@@ -143,7 +150,7 @@ def boost_hits(
         evidenced_paths,
         key=lambda path: (
             path_intent_score(query, path),
-            path_ppr.get(path, 0.0),
+            round(path_ppr.get(path, 0.0), PPR_SORT_DECIMALS),
             path,
         ),
         reverse=True,

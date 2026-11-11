@@ -3,6 +3,8 @@
 import json
 import os
 import shutil
+import subprocess
+import sys
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -15,7 +17,7 @@ from app.eval.harness import DEFAULT_CONFIGS, FRONTIER_CONFIGS, run_bench, run_c
 from app.eval.index_loader import fixture_manifest, load_chunks, load_chunks_with_report, mtime_provenance
 from app.retrieval.embedders import HashEmbedder
 from app.retrieval.hybrid import DENSE_SCORE_DECIMALS, InMemoryHybridIndex, dense_scores, rank_by_score
-from app.retrieval.types import Chunk
+from app.retrieval.types import Chunk, RetrievalHit
 
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "bench" / "corpus"
@@ -149,3 +151,36 @@ def test_dense_search_breaks_exact_ties_by_corpus_order():
     assert [c.chunk_id for c, _ in forward.search_dense(query, k=40)] == first + second
     assert [c.chunk_id for c, _ in backward.search_dense(query, k=40)] == first[::-1] + second[::-1]
     assert [c.chunk_id for c, _ in forward.search_dense(query, k=5)] == first[:5]
+
+
+def test_hipporag_orders_exact_ties_by_path_not_the_last_bit():
+    """Two path masses equal in exact arithmetic, one ulp apart as floats (BLAS on another CPU can do this)."""
+    from app.graph.hipporag import boost_hits
+
+    x, y = (0.1 + 0.2) + 0.3, (0.3 + 0.2) + 0.1
+    assert x != y and round(x, 12) == round(y, 12)
+    hits = [RetrievalHit(chunk=Chunk(chunk_id=p, path=p, text="", start_byte=0, end_byte=1), score=1.0, rank=i)
+            for i, p in enumerate(["paper/draft_v2.md", "logs/run_046.out", "logs/run_047.out"], start=1)]
+
+    one = boost_hits(hits, {"logs/run_046.out": x, "logs/run_047.out": y}, query="which runs")
+    two = boost_hits(hits, {"logs/run_046.out": y, "logs/run_047.out": x}, query="which runs")
+
+    assert [h.chunk.path for h in one] == [h.chunk.path for h in two]
+
+
+def test_graphrag_community_order_does_not_depend_on_the_hash_seed():
+    """Equal-size communities: their order (and so their ids and the boost they give) is the same for every PYTHONHASHSEED."""
+    code = (
+        "from app.graph.graphrag import build_graphrag\n"
+        "from app.retrieval.types import Chunk\n"
+        "chunks = [Chunk(chunk_id=f'c{i}', path=f'configs/run_00{i}.yaml', text=f'encoder: {e}\\nlearning_rate: 0.00{i}\\n',"
+        " start_byte=0, end_byte=1) for i, e in ((1, 'dinov2'), (2, 'resnet'), (3, 'vit'), (4, 'convnext'))]\n"
+        "print([(c.community_id, c.members) for c in build_graphrag(chunks)])\n"
+    )
+    outputs = {
+        subprocess.run([sys.executable, "-c", code], cwd=ROOT, env={**os.environ, "PYTHONHASHSEED": str(seed)},
+                       capture_output=True, text=True, check=True).stdout
+        for seed in range(8)
+    }
+    assert len(outputs) == 1, outputs
+    assert outputs.pop().count("(") == 4  # four communities, three of them the same size
