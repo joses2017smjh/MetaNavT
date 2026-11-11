@@ -48,6 +48,16 @@ def refusal_check(exc: BaseException) -> str | None:
 DEFAULT_EMBEDDER = "hash"
 
 
+def _symlink_free(root: Path, rel: str) -> bool:
+    """True when no component of `rel` under `root` is a symlink (the path rule of FilesystemTools._safe)."""
+    current = root
+    for part in Path(rel).parts:
+        current = current / part
+        if current.is_symlink():
+            return False
+    return True
+
+
 def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHybridIndex | None:
     """The search index both stdio servers build over their root at start.
 
@@ -57,16 +67,35 @@ def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHy
     hash embedder (no learned weights). None when no file under `root` can be
     indexed. The index is a snapshot taken at start: it does not follow later
     writes, including applied moves and patches.
+
+    The shared scanner reads a symlinked file wherever it points. The tools
+    refuse paths through a symlink, so those files are left out here as well;
+    otherwise search and proposals would return text from outside the root.
     """
     from app.eval.index_loader import build_index
     from app.eval.ingest import BENCH_POLICY, scan_directory
 
+    root = Path(root).resolve()
     try:
-        return build_index(Path(root), embedder_name=embedder)
+        index = build_index(root, embedder_name=embedder)
     except ValueError:  # the index refuses zero chunks; anything else is re-raised
-        if scan_directory(Path(root), BENCH_POLICY).files:
+        if scan_directory(root, BENCH_POLICY).files:
             raise
         return None
+    kept = [chunk for chunk in index.chunks if _symlink_free(root, chunk.path)]
+    left_out = len({chunk.path for chunk in index.chunks}) - len({chunk.path for chunk in kept})
+    if left_out and not kept:
+        return None
+    if left_out:
+        # Same components, rebuilt over the kept chunks only (a fitted embedder is refitted).
+        confined = InMemoryHybridIndex(kept, embedder=index.embedder, retrieve_k=index.retrieve_k, rerank_n=index.rerank_n,
+                                       rrf_k=index.rrf_k, router=index.router, rerank_fn=index.rerank_fn,
+                                       enable_router=index.enable_router, enable_rerank=index.enable_rerank)
+        for name in ("reranker_name", "reranker_loaded", "reranker_fallback"):
+            setattr(confined, name, getattr(index, name, None))
+        index = confined
+    index.symlinked_files_left_out = left_out
+    return index
 
 
 def index_summary(index: InMemoryHybridIndex | None) -> str:
@@ -74,9 +103,11 @@ def index_summary(index: InMemoryHybridIndex | None) -> str:
     if index is None:
         return "metanavit-filesystem: no index; search_semantic, search_lexical and propose_artifact are unavailable"
     files = len({chunk.path for chunk in index.chunks})
+    left_out = getattr(index, "symlinked_files_left_out", 0)
     return (f"metanavit-filesystem: indexed {len(index.chunks)} chunks from {files} files at start "
-            f"(embedder {index.embedder.name}, reranker {getattr(index, 'reranker_name', 'none')}); "
-            "the index does not follow later writes")
+            f"(embedder {index.embedder.name}, reranker {getattr(index, 'reranker_name', 'none')}"
+            + (f"; {left_out} file{'s' if left_out != 1 else ''} reached through a symlink left out" if left_out else "")
+            + "); the index does not follow later writes")
 
 
 def _serialized(method):

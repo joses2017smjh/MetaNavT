@@ -93,10 +93,11 @@ async def _search_and_propose(corpus: Path) -> dict:
             await session.initialize()
             for name, arguments in (("search_semantic", {"query": "learning rate of run_047", "k": 5}),
                                     ("search_lexical", {"query": "run_047", "k": 5}),
-                                    ("propose_artifact", {"query": "write a test for the fusion module"})):
+                                    ("propose_artifact", {"query": "write a test for the fusion module"}),
+                                    ("collect_run_artifact", {"run_id": "47"})):
                 called = await session.call_tool(name, arguments)
                 assert not called.is_error, _text(called)
-                out[name] = _payload(called) if name == "propose_artifact" else _blocks(called)
+                out[name] = _blocks(called) if name.startswith("search_") else _payload(called)
     return out
 
 
@@ -111,6 +112,7 @@ def test_sdk_server_searches_and_proposes_on_the_fixture(tmp_path):
         assert 0 < len(hits) <= 5
         assert all((corpus / hit["path"]).is_file() for hit in hits)
         assert any("run_047" in hit["path"] or "run_047" in hit["text"] for hit in hits)
+    assert out["collect_run_artifact"]["entity"] == "run:47" and out["collect_run_artifact"]["files"]
     proposal = out["propose_artifact"]
     assert proposal["status"] == "pending_approval" and proposal["exec"]["ok"]
     assert proposal["review"]["action"] == "apply_artifact"
