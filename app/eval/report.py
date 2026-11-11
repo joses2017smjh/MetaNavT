@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -32,6 +32,7 @@ LATENCY_FILES = {
 }
 NEURAL_FILE = "bench/results/neural.json"
 BEIR_FILE = "bench/results/beir_scifact.json"
+BEIR_BM25_FILE = "bench/results/beir_scifact_bm25_ablation.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 SOURCES = {
     "bench-headline": "bench/results/main.json",
@@ -39,6 +40,7 @@ SOURCES = {
     "demo-stats": "bench/results/main.json",
     "bench-neural": NEURAL_FILE,
     "bench-beir": BEIR_FILE,
+    "bench-beir-bm25": BEIR_BM25_FILE,
     "bench-parity": PARITY_FILE,
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
@@ -357,6 +359,46 @@ def beir_table(blob: dict | None) -> str:
             d = (row.get("delta_vs_parent") or {}).get("ndcg@10")
             lat = (row.get("latency") or {}).get("total") or {}
             parts.append(f"{label}: nDCG@10 {_delta(d)} ({_zero_note(d)}), p50 {lat.get('p50_ms', '—')} ms.")
+    if parts:
+        lines += ["", " ".join(parts)]
+    return "\n".join(lines)
+
+
+ANALYZER_LABELS = {"beir": "Lucene English (Porter stemming, stopwords)", "default": "fixture default (no stemming, no stopwords)"}
+BM25_SINGLE_CHANGES = (("bm25@default-analyzer", "The analyzer alone"), ("bm25@k1-1.5-b-0.75", "k1 and b alone"), ("bm25@default-tokenizer", "All three together"))
+
+
+def beir_bm25_table(blob: dict | None) -> str:
+    """SciFact BM25 rows that change the analyzer and (k1, b) one at a time, each paired against bm25."""
+    if not blob:
+        return f"_{BEIR_BM25_FILE} is missing; run `make bench-beir-bm25-ablation`._"
+    boot = blob.get("bootstrap") or {}
+    lines = [
+        f"BM25 on BEIR SciFact, one setting at a time (`make bench-beir-bm25-ablation`; {(blob.get('device') or {}).get('device', '?')}, "
+        f"no model; results sha {blob.get('git_sha')}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
+        "`bm25@default-tokenizer` (also in the table above) changes the analyzer, k1 and b at once; `bm25@default-analyzer` "
+        "changes the analyzer alone and `bm25@k1-1.5-b-0.75` changes k1 and b alone. Every delta is paired against bm25 "
+        f"({boot.get('n_boot')} bootstrap resamples of the queries, seed {boot.get('seed')}); BM25 latency is per query, "
+        "after one warm-up query, index build excluded.",
+        "",
+        "| config | analyzer | k1 | b | nDCG@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs bm25 [95% CI] | Δ Recall@100 vs bm25 [95% CI] | BM25 p50 / p95 ms |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in blob.get("results", []):
+        st = row.get("settings") or {}
+        d = row.get("delta_vs_bm25") or {}
+        lat = (row.get("latency") or {}).get("bm25") or {}
+        lines.append(
+            f"| {row['config']} | {ANALYZER_LABELS.get(st.get('analyzer'), st.get('analyzer'))} | {st.get('k1')} | {st.get('b')} | "
+            f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@100')} | {_delta(d.get('ndcg@10'))} | {_delta(d.get('recall@100'))} | "
+            f"{lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |"
+        )
+    by = _rows(blob)
+    parts = []
+    for name, label in BM25_SINGLE_CHANGES:
+        d = ((by.get(name) or {}).get("delta_vs_bm25") or {})
+        if d.get("ndcg@10"):
+            parts.append(f"{label}: nDCG@10 {_delta(d['ndcg@10'])} ({_zero_note(d['ndcg@10'])}), Recall@100 {_delta(d.get('recall@100'))} ({_zero_note(d.get('recall@100'))}).")
     if parts:
         lines += ["", " ".join(parts)]
     return "\n".join(lines)
@@ -780,6 +822,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "demo-stats": demo_stats(blob),
         "bench-neural": neural_table(_load(root, NEURAL_FILE)),
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
+        "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE)),
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),

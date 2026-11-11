@@ -1,6 +1,7 @@
 """BEIR SciFact, NFCorpus and FiQA with reproducible external evaluation.
 
     python -m app.eval.beir --out bench/results/beir_scifact.json [--device auto|cpu|cuda] [--rerank-top 20]
+    python -m app.eval.beir --ladder bm25-ablation --device cpu --out bench/results/beir_scifact_bm25_ablation.json
 
 Dataset: SciFact (Wadden et al., 2020) in the BEIR packaging (Thakur et al.,
 2021): 5,183 abstracts, 300 test queries with binary qrels. Downloaded once to
@@ -13,7 +14,9 @@ stopwords), k1=0.9, b=0.4: nDCG@10 = 0.6789
 The `bm25` row uses the same document text, analyzer and parameters, so the
 two are comparable. A `bm25@default-tokenizer` row is kept next to it because
 that tokenizer (no stemming, no stopwords, k1=1.5, b=0.75) is what fixture v1
-is scored with.
+is scored with. That row changes the analyzer, k1 and b at once; the
+bm25-ablation ladder adds one row per change (the analyzer alone; k1 and b
+alone), each paired against bm25.
 
 Rows form an explicit ablation chain (each row names its `parent`, and the
 paired delta is against that parent, not against list order): bm25 ->
@@ -114,6 +117,15 @@ DEFAULT_CONFIGS = [
     BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top50", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=50, parent=RERANK_FP16, precision="fp16", max_length=512),
     BeirConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top100", mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, rerank_top=100, parent="hybrid+bge-rerank@bge-small/fp16-512/top50", precision="fp16", max_length=512),
 ]
+# bm25@default-tokenizer changes the analyzer, k1 and b at once. These rows change the analyzer
+# alone and (k1, b) alone, each paired against bm25, next to the combined row; CPU only, no model.
+BM25_ABLATION_CONFIGS = [
+    DEFAULT_CONFIGS[0],
+    BeirConfig(name="bm25@default-analyzer", mode="bm25", analyzer="default", parent="bm25"),
+    BeirConfig(name="bm25@k1-1.5-b-0.75", mode="bm25", k1=1.5, b=0.75, parent="bm25"),
+    DEFAULT_CONFIGS[1],
+]
+LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS}
 
 
 # ---------------------------------------------------------------- data
@@ -630,12 +642,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=root / "bench" / "results" / "beir_scifact.json")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     p.add_argument("--rerank-top", type=int, default=None, help="override every reranked row's depth (default: each row's own rerank_top)")
-    p.add_argument("--only", default=None, help="comma-separated config names")
+    p.add_argument("--ladder", choices=tuple(LADDERS), default="default", help="the config list: the default ladder, or bm25-ablation (analyzer only, k1/b only, both)")
+    p.add_argument("--only", default=None, help="comma-separated config names (from the chosen ladder)")
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    configs = list(DEFAULT_CONFIGS)
+    configs = list(LADDERS[args.ladder])
     if args.rerank_top is not None:  # the first SciFact sweep silently ran every depth row at 20 because of a default here
         configs = [BeirConfig(**{**asdict(c), "rerank_top": args.rerank_top}) for c in configs]
     if args.only:

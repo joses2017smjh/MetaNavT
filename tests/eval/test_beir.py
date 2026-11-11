@@ -184,3 +184,46 @@ def test_dense_ranking_is_the_fixture_benchmarks_ranking():
         assert np.array_equal(dense_scores(qv, engine.unit_matrix("hash"), unit=True), dense_scores(qv, mat))
         expected = [engine.chunks[i].chunk_id for i in rank_by_score(dense_scores(qv, mat), 50)]
         assert beir.retrieve(engine, cfg, query, StageTimer()) == expected
+
+
+def test_bm25_ablation_changes_one_setting_group_per_row():
+    """B03: the SciFact BM25 rows split bm25@default-tokenizer's three changes into the analyzer and (k1, b)."""
+    from dataclasses import asdict
+
+    rows = {c.name: c for c in beir.BM25_ABLATION_CONFIGS}
+    assert list(rows) == ["bm25", "bm25@default-analyzer", "bm25@k1-1.5-b-0.75", "bm25@default-tokenizer"]
+    base = asdict(rows["bm25"])
+    changed = {name: {k for k, v in asdict(c).items() if k not in {"name", "parent"} and v != base[k]} for name, c in rows.items()}
+    assert changed == {"bm25": set(), "bm25@default-analyzer": {"analyzer"}, "bm25@k1-1.5-b-0.75": {"k1", "b"},
+                       "bm25@default-tokenizer": {"analyzer", "k1", "b"}}
+    assert (base["analyzer"], base["k1"], base["b"]) == ("beir", 0.9, 0.4)
+    assert (rows["bm25@default-analyzer"].analyzer, rows["bm25@k1-1.5-b-0.75"].k1, rows["bm25@k1-1.5-b-0.75"].b) == ("default", 1.5, 0.75)
+    assert {c.parent for name, c in rows.items() if name != "bm25"} == {"bm25"} and {c.mode for c in rows.values()} == {"bm25"}
+    assert rows["bm25@default-tokenizer"] == {c.name: c for c in beir.DEFAULT_CONFIGS}["bm25@default-tokenizer"]
+    assert len(beir.DEFAULT_CONFIGS) == 10 and not {"bm25@default-analyzer", "bm25@k1-1.5-b-0.75"} & {c.name for c in beir.DEFAULT_CONFIGS}
+
+
+def test_cli_ladder_runs_the_bm25_ablation(tmp_path):
+    """`--ladder bm25-ablation` (make bench-beir-bm25-ablation) writes the four rows with paired deltas against bm25."""
+    import zipfile
+
+    _write_dataset(tmp_path)
+    with zipfile.ZipFile(tmp_path / "scifact.zip", "w") as zf:  # a local archive: no download, its own sha256 pinned on the command line
+        for p in sorted((tmp_path / "scifact").rglob("*")):
+            zf.write(p, p.relative_to(tmp_path).as_posix())
+    out = tmp_path / "ablation.json"
+    args = ["--data-dir", str(tmp_path), "--dataset-sha256", beir.sha256_of(tmp_path / "scifact.zip"), "--ladder", "bm25-ablation", "--n-boot", "20", "--out", str(out)]
+    assert beir.main(args) == 0
+    blob = json.loads(out.read_text())
+    assert [r["config"] for r in blob["results"]] == [c.name for c in beir.BM25_ABLATION_CONFIGS]
+    for row in blob["results"][1:]:
+        for key in ("delta_vs_parent", "delta_vs_bm25"):
+            assert row[key]["reference"] == "bm25" and set(row[key]) == {"reference", "ndcg@10", "recall@10", "recall@100"}
+    assert blob["results"][0]["vs_published"]["published_bm25_ndcg@10"] == 0.6789
+    from app.eval.report import beir_bm25_table
+
+    table = beir_bm25_table(blob)
+    assert all(f"| {c.name} |" in table for c in beir.BM25_ABLATION_CONFIGS) and "make bench-beir-bm25-ablation" in table
+    assert "The analyzer alone: nDCG@10" in table and "k1 and b alone: nDCG@10" in table and "All three together: nDCG@10" in table
+    assert beir.main([*args[:-2], "--only", "bm25@default-analyzer", "--out", str(out)]) == 0
+    assert [r["config"] for r in json.loads(out.read_text())["results"]] == ["bm25@default-analyzer"]

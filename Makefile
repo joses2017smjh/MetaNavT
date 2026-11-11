@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -121,8 +121,13 @@ sweeps:
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
 
+# The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
+BEIR_DATA_DIR ?= bench/external
 bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
-	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --out bench/results/beir_scifact.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact.json
+
+bench-beir-bm25-ablation: ## BEIR SciFact BM25 (CPU, no model): the analyzer alone, k1/b alone and both, each vs bm25 -> bench/results/beir_scifact_bm25_ablation.json
+	$(PYTHON) -m app.eval.beir --ladder bm25-ablation --device cpu --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact_bm25_ablation.json
 
 .PHONY: robotics-verify bench-robotics
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split

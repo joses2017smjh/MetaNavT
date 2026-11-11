@@ -621,10 +621,19 @@ results file header on the recorded device; CI does not download models, and
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
 against. The `bm25` row uses the BEIR analyzer (Porter stemming, Lucene
-stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row is the fixture's
-tokenizer, kept so the gap is visible.
+stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row switches to the
+fixture's analyzer (no stemming, no stopwords) and the fixture's k1=1.5,
+b=0.75 at once, so its gap is the three changes together, not a tokenizer
+effect. `make bench-beir-bm25-ablation` splits it on the CPU: one row changes
+the analyzer alone, one changes k1 and b alone, each paired against `bm25`.
+The dense leg ranks the way the fixture benchmark's does (float64 cosine
+rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
+postings lists of the query's terms and keeps the top k with a heap; it
+returns the same scores in the same order as scoring every document
+(`tests/eval/test_bm25_postings.py`).
 
-[Current generated bench-beir evidence](../README.md#bench-beir).
+[Current generated bench-beir evidence](../README.md#bench-beir) ·
+[BM25 settings one at a time](../README.md#bench-beir-bm25).
 
 **How to read these.** With real models the picture flips: hybrid RRF and the
 complete reranked pipeline beat BM25 with intervals that exclude zero, on the fixture
