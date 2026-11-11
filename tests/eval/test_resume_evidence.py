@@ -65,3 +65,19 @@ def test_rrf_sweep_row_when_the_tune_half_chose_the_default(tmp_path):
     (row,) = _rrf_sweep_claims(tmp_path)
     assert row["ci"] == "—" and row["n"] == len(blob["split"]["tune_ids"]) and "chose the default" in row["claim"]
     assert "nothing to compare on the held-out half" in row["not_shown"]
+
+
+def test_hybrid_drops_row_reads_its_counts_and_ranks_from_the_file():
+    """B17: the diagnosis row counts the gold files hybrid@bge-base drops and gains against dense_only@bge-base, from
+    hybrid_drops_bge_base.json, with the rank ranges that place the drops just past the fused cut."""
+    import json
+
+    blob = json.loads((ROOT / "bench" / "results" / "hybrid_drops_bge_base.json").read_text())
+    rows = [c for c in claims() if c["command"] == "make bench-hybrid-drops"]
+    assert len(rows) == 1
+    row, s = rows[0], blob["summary"]
+    assert row["source"] == f"bench/results/hybrid_drops_bge_base.json @ {blob['git_sha']}" and row["n"] == s["n_questions"]
+    assert row["value"] == f"{s['n_dropped']} dropped on {s['n_questions_with_drops']} questions, {s['n_gained']} gained"
+    fused = [d["fused"]["chunk_rank"] for q in blob["questions"] for d in q["dropped"]]
+    assert f"{min(fused)}-{max(fused)} in the fused list, which is cut at {blob['retrieve_k']}" in row["not_shown"]
+    assert f"Recall@50 delta {s['recall@50']['delta']:+.4f}" in row["not_shown"] and "not a retrieval-quality claim" in row["not_shown"]
