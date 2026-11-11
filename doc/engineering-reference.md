@@ -879,7 +879,7 @@ heuristics, not models, in both runs.
 | HyDE + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is HyDE's; the corrective step adds nothing to the top ten. |
 | Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
 | GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval in either run and is not kept in the served path. |
-| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM is not evaluated. |
+| Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated here only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM has its own row in the reranker prototypes table below. |
 
 In the real-model table the arm names carry the model suffix (for example
 `hybrid+bge-rerank+graphrag@bge-small`), and the reranked parent is the
@@ -887,51 +887,59 @@ cross-encoder row.
 
 The two reranker prototypes have their own generated table
 ([reranker prototypes against the cross-encoder](../README.md#bench-rerank-arms),
-`make bench-rerank-arms`). The distilled student (`app/retrieval/distill.py`)
-is fitted on the cross-encoder's scores for half of the questions, with the
-features it has when it serves, and scored on the other half: it is below zero
-against the cross-encoder it imitates and below zero against the un-reranked
-hybrid list, at a small fraction of the rerank latency. That student is the
-linear least-squares fallback, because LightGBM is not installed where the
-benchmark ran; a gradient-boosted student is not evaluated.
+`make bench-rerank-arms`). Two distilled students (`app/retrieval/distill.py`)
+are fitted on the same rows: the cross-encoder's scores for half of the
+questions, with the features a student has when it serves. Both are scored on
+the other half, at a small fraction of the cross-encoder's rerank latency.
+Linear least squares (with an intercept column) is below zero against the
+cross-encoder it imitates and below zero against the un-reranked hybrid list.
+LightGBM trees (`lightgbm.train`, one thread, a fixed seed, deterministic
+mode; the `distill` extra, pinned in `requirements/distill.txt`) are below
+zero against the cross-encoder and cover zero against hybrid. Each student row
+records its model, library version and, for LightGBM, its parameters. Without
+the library the LightGBM arm is recorded as not evaluated; it is never
+replaced by least squares under its name.
 
-The harness now fits two students on the same train rows: linear least squares
-with an explicit intercept column, and LightGBM trees (`lightgbm.train`, one
-thread, a fixed seed, deterministic mode; the `distill` extra, pinned in
-`requirements/distill.txt`). Each row records its model, library version and,
-for LightGBM, its parameters. Without the library the LightGBM arm is recorded
-as not evaluated; it is never replaced by least squares under its name. The
-intercept changes no prediction on fixture v1: every fixture file is one of
-the five file types the student flags, so those flags already sum to one for
-every chunk (`tests/eval/test_frontier_eval.py` pins this); it matters on a
-corpus with other file types. Earlier rows had no intercept column, and the
-student's `recency` feature (a chunk's mtime over the newest mtime in its
-candidate list) is why the least-squares row moved when the benchmark switched
-to the MANIFEST mtimes: on a checkout where every file has the same mtime the
-feature is the constant 1 and carries nothing, while under the MANIFEST mtimes
-it varies slightly and the fit gives it weight, and the held-out nDCG@10 fell.
-The commit that re-recorded that row called the constant column the missing
-intercept; it was not, since the file-type flags already provide one. The
-feature is kept as it is; whether a student should see checkout mtimes at all
-is an open question, not one settled on the test split. Separately, `make
-bench` logs one row per fused candidate of the hash-embedder hybrid rows to
-`bench/results/<sha>.triples.jsonl` (git-ignored; nothing in the repository
-reads it): the same serving features, labelled with the overlap reranker's
-score, or with the fused score itself where no rerank ran (the row's `teacher`
-field says which). It records no dense or BM25 score and no rank after the
-rerank, so it cannot leak the label into a feature. Listwise reranking
-by an LLM (`app/retrieval/rankgpt.py`) has a harness
-(`make bench-rerank-arms LISTWISE_MODEL=<ollama model>`) but no row: on the
-benchmark node the local model was too slow per question to finish the gold
-set inside the run, and its replies mixed prose with the permutation. The
-parser reads a reply only when the whole reply is a bracketed permutation of
-the window (`[2] > [1] > ...`, every passage once); prose, bare numbers, file
-names such as `run_047`, a partial or repeated list all keep the fused order,
-and the results file stores each completion with its parse status and counts
-the questions that kept the fused order, apart from calls that returned nothing.
+The intercept changes no prediction on fixture v1: every fixture file is one
+of the five file types the student flags, so those flags already sum to one
+for every chunk (`tests/eval/test_frontier_eval.py` pins this), and re-run
+with the intercept the least-squares row is unchanged in every field. It
+matters on a corpus with other file types. Earlier rows had no intercept
+column, and the student's `recency` feature (a chunk's mtime over the newest
+mtime in its candidate list) is why the least-squares row moved when the
+benchmark switched to the MANIFEST mtimes: on a checkout where every file has
+the same mtime the feature is the constant 1 and carries nothing, while under
+the MANIFEST mtimes it varies slightly and the fit gives it weight, and the
+held-out nDCG@10 fell. The commit that re-recorded that row called the
+constant column the missing intercept; it was not, since the file-type flags
+already provide one. The feature is kept as it is; whether a student should
+see checkout mtimes at all is an open question, not one settled on the test
+split.
 
-Still without a benchmark row: a gradient-boosted distilled student, listwise
-reranking by an LLM, an LLM-written contextual prefix or HyDE hypothesis,
+Listwise reranking by an LLM (`app/retrieval/rankgpt.py`;
+`make bench-rerank-arms LISTWISE_MODEL=qwen2.5:7b`) sends one prompt per
+question through Ollama (temperature 0, a fixed seed) with the first `window`
+fused candidates, twenty by default, and asks for their ranking only. On all
+questions it is above zero against the un-reranked hybrid list and below zero
+against the cross-encoder, and it is far slower per question than the
+cross-encoder. The parser reads a reply only when the whole reply is a
+bracketed permutation of the window (`[2] > [1] > ...`, every passage once);
+prose, bare numbers, file names such as `run_047`, a partial or repeated list
+all keep the fused order. The table counts those questions, so the row mixes
+reranked questions with questions left in the fused order. The failed replies
+are partial lists (some of them the prompt's three-id example copied
+verbatim), lists that repeat an id, bracketed ids without the separators, and
+an id outside the window. The results file stores every completion with its
+parse status, the model's digest and the Ollama version.
+
+Separately, `make bench` logs one row per fused candidate of the hash-embedder
+hybrid rows to `bench/results/<sha>.triples.jsonl` (git-ignored; nothing in
+the repository reads it): the same serving features, labelled with the overlap
+reranker's score, or with the fused score itself where no rerank ran (the
+row's `teacher` field says which). It records no dense or BM25 score and no
+rank after the rerank, so it cannot leak the label into a feature.
+
+Still without a benchmark row: an LLM-written contextual prefix or HyDE hypothesis,
 GraphRAG with LLM extraction or modularity clustering, Tier 2 conflict notes
 (`app/graph/conflicts.py`), hierarchy summaries, the semantic cache and
 citation verification.
@@ -1209,7 +1217,7 @@ Status: M0 to M5 are merged. Open items, in priority order:
 3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
 4. **ParadeDB BM25 in the production path**, gated by the same parity job.
 5. **Injection evaluation, next steps:** an injection-as-user-task capability control, a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
-6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits one on the cross-encoder's scores and scores it on held-out questions), listwise RankGPT with a real LLM, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 

@@ -588,5 +588,16 @@ def test_rerank_arms_block_reads_verdicts_off_the_file():
     if student["student"]["fallback"]:
         assert student["student"]["fallback"] in line  # the stand-in is named in the row
     assert set(blob["split"]["train_ids"]).isdisjoint(blob["split"]["test_ids"])
-    if not blob["listwise"]["evaluated"]:
+    lw = blob["listwise"]
+    if not lw["evaluated"]:
         assert "not evaluated in this run" in text
+        return
+    # The listwise row: its verdicts are read off the file, and the questions it left in the fused order are counted.
+    row = next(r for r in blob["all_questions"]["results"] if r["config"] == lw["config"])
+    line = next(l for l in text.splitlines() if l.startswith(f"| {lw['config']} |"))
+    for block in row["deltas"]:
+        assert f"| {verdict(block['ndcg@10'])} |" in line
+    assert len(lw["completions"]) == lw["n_calls"] == blob["n_gold"] and lw["model"] and lw["options"]["temperature"] == 0.0
+    assert lw["n_parse_failures"] + lw["n_failed_calls"] == len(lw["fused_order_kept_ids"])
+    if lw["fused_order_kept_ids"]:
+        assert f"fused order kept on {len(lw['fused_order_kept_ids'])} of {lw['n_calls']} questions" in line

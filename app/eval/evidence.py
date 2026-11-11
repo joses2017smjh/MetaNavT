@@ -246,9 +246,12 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
             if student.get("model") and not student.get("fallback"):
                 stand_in = f"student: {student['model']}"
             lw = blob.get("listwise") or {}
+            reranks = f"both rerank the fused top {blob['candidates']['retrieve_k']}"
             if lw.get("evaluated") and name == lw.get("config"):
                 stand_in = (f"{len(lw.get('fused_order_kept_ids') or [])} of {lw['n_calls']} questions keep the fused order "
                             f"({lw['n_failed_calls']} calls returned nothing, {lw['n_parse_failures']} replies were not a full permutation)")
+                reranks = (f"the cross-encoder reranks the fused top {blob['candidates']['retrieve_k']}, the listwise model its first "
+                           f"{lw['window']} (`{lw['model']}` through Ollama on the same GPU)")
             for block in row.get("deltas") or []:
                 d = block["ndcg@10"]
                 value, ci = _ci(d, "delta")
@@ -256,7 +259,7 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                 out.append({"claim": f"Reranker prototype `{name}` minus `{block['reference']}`, paired delta in nDCG@10 ({'held-out test questions' if scope == 'test_split' else 'all questions'})",
                             "value": value, "ci": ci, "n": row["n"], "command": cmd, "source": src,
                             "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
-                                         f"both rerank the fused top {blob['candidates']['retrieve_k']} of a {blob['n_files']}-file synthetic fixture"})
+                                         f"{reranks} of a {blob['n_files']}-file synthetic fixture"})
     return out
 
 
