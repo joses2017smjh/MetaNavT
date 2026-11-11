@@ -42,7 +42,9 @@ def test_rrf_sweep_row_reads_the_held_out_delta_and_says_what_happens_to_the_def
     assert len(rows) == 1
     row, d = rows[0], blob["decision"]
     assert row["source"] == f"bench/results/rrf_sweep.json @ {blob['git_sha']}"
-    assert not d["chosen_is_default"]  # the recorded run; the other branch is tested on a copy below
+    if d["chosen_is_default"]:  # not the recorded run; this branch is also tested on a copy below
+        assert row["ci"] == "—" and row["n"] == len(blob["split"]["tune_ids"])
+        return
     block = d["held_out_ndcg@10"]
     assert (row["value"], row["ci"]) == _ci(block, "delta", digits=4) and row["n"] == len(blob["split"]["held_out_ids"])
     assert f"k = {d['chosen']['k']}, dense weight {d['chosen']['weights']['dense']:g}" in row["claim"]
@@ -79,5 +81,6 @@ def test_hybrid_drops_row_reads_its_counts_and_ranks_from_the_file():
     assert row["source"] == f"bench/results/hybrid_drops_bge_base.json @ {blob['git_sha']}" and row["n"] == s["n_questions"]
     assert row["value"] == f"{s['n_dropped']} dropped on {s['n_questions_with_drops']} questions, {s['n_gained']} gained"
     fused = [d["fused"]["chunk_rank"] for q in blob["questions"] for d in q["dropped"]]
-    assert f"{min(fused)}-{max(fused)} in the fused list, which is cut at {blob['retrieve_k']}" in row["not_shown"]
+    if fused:  # a recording with no drops has no rank range to state
+        assert f"{min(fused)}-{max(fused)} in the fused list, which is cut at {blob['retrieve_k']}" in row["not_shown"]
     assert f"Recall@50 delta {s['recall@50']['delta']:+.4f}" in row["not_shown"] and "not a retrieval-quality claim" in row["not_shown"]
