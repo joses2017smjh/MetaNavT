@@ -713,9 +713,19 @@ chosen from that table in the API section below, not picked up front.
 one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsrank.sql))
 with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
 (`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 only with
-`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
+`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), on the
+router's `lexical_path` route a path list in place of the dense list, and
 reciprocal rank fusion computed in SQL, then
-staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
+staleness Tier 1 from the same `app/graph` code the bench uses. The path list is the
+benchmark's path lookup (`InMemoryHybridIndex.search_path`) in SQL: a row scores
+when its file name, its path or its file name without the extension occurs in the
+lowercased query, with the same weights, and the route fuses it with the lexical
+list as the in-memory index does. It reads every row of the table (a sequential
+scan) on that route only; on every other route its parameter is NULL and the scan
+never runs. `tests/database/test_dense_parity.py` requires the same score for every
+chunk as the in-memory lookup on each gold question the router sends down that
+route, and `tests/database/test_hybrid_sql.py` checks that a path query returns the
+named file first where the lexical list alone ranks a note that mentions it first. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. Its `bm25_backend` names the
 lexical backend that answered that request (`ts_rank_cd`, `paradedb`, or `none` when
@@ -805,10 +815,12 @@ chunks as a set.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
-`ts_rank_cd` over OR-joined terms), the order of equal scores (the SQL orders
-ties by `node_id`, the in-memory fusion by first-seen order), and the
-exact-path route (the in-memory index searches paths; the API runs its lexical
-list alone). CI's `parity` job runs the dense-leg test and the parity report on every push.
+`ts_rank_cd` over OR-joined terms) and the order of equal scores (the SQL orders
+ties by `node_id`, the in-memory fusion and path lookup by first-seen and corpus
+order). Until M17 the API's `lexical_path` route ran the lexical list alone;
+the parity report gives the paired gap per gold category on the API row, and on
+the fixture the `exact_path` questions are exactly the ones the router sends down
+that route. CI's `parity` job runs the dense-leg test and the parity report on every push.
 
 **Served reranker configuration, chosen from the SciFact table.** With a
 reranker configured, the API reranks the fused top 20 (`RERANK_DEPTH`) and

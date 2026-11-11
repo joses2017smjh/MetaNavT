@@ -10,8 +10,10 @@ Two rows come out of one run:
   api        the same 136 questions through the running API (Postgres +
              pgvector, SQL hybrid) -> app/engine/retriever.py in mode "sql"
 Both are scored with the same path-level metrics and the same paired bootstrap.
-The run reports the nDCG@10 gap (API minus in-memory) with its paired 95% interval;
-the gap is a measurement, not a pass/fail gate. The exact check is the dense leg
+The run reports the nDCG@10 gap (API minus in-memory) with its paired 95% interval,
+and the paired gap per gold category (on the API row, delta_vs_parent_by_category_all;
+on fixture v1 the exact_path questions are the router's lexical_path route); the gap
+is a measurement, not a pass/fail gate. The exact check is the dense leg
 (tests/database/test_dense_parity.py). The run fails (exit 1) when the API is
 broken: a request error, a question without an answer, or a question with zero hits.
 Before it contacts the API it refuses (RuntimeError) a bench/corpus/files that differs
@@ -28,9 +30,11 @@ Why the rows still differ (both are reported, neither is "the" number):
   websearch_to_tsquery (OR-joined terms); different tokenizer, no IDF
   saturation in ts_rank_cd
 - ties: the SQL orders equal scores by node_id, the in-memory fusion by
-  first-seen order
-- exact-path route: the in-memory index searches paths
-  (InMemoryHybridIndex.search_path); the API runs its lexical list alone
+  first-seen order (the path list on the lexical_path route included: the SQL
+  scores paths as InMemoryHybridIndex.search_path does, and orders equal
+  scores by node_id where the in-memory list keeps corpus order)
+Results files recorded before M17 have an API row whose lexical_path route ran
+the lexical list alone (no path list).
 """
 
 from __future__ import annotations
@@ -93,11 +97,14 @@ def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
     stage_sums: dict[str, float] = {}
     sample: dict | None = None
     zero_hit: list[str] = []
+    routes: dict[str, int] = {}
     t0 = time.perf_counter()
     for q in gold:
         t = time.perf_counter()
         body = post_retrieve(url, q.question, k=k)
         timer.record("e2e", (time.perf_counter() - t) * 1000.0)
+        route = body.get("route") or "none"  # the router's prediction for this question (none: router off)
+        routes[route] = routes.get(route, 0) + 1
         for name, ms in (body.get("latency_ms") or {}).items():
             stage_sums[name] = stage_sums.get(name, 0.0) + float(ms)
             timer.record(f"server:{name}", float(ms))
@@ -115,6 +122,7 @@ def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
         "retrieval": retrieval.as_dict(),
         "latency": timer.summary(),
         "wall_ms": round(wall_ms, 2),
+        "routes": routes,
         "n_queries": len(per_query),
         "zero_hit_queries": zero_hit,
         "_per_query_scores": retrieval.per_query,
@@ -148,7 +156,8 @@ def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
     api = replay_api(url, gold, manifest["n_files"], k=k)
     scores = {mem["config"]: mem.pop("_per_query_scores"), api["config"]: api.pop("_per_query_scores")}
     results = [mem, api]
-    boot = attach_confidence(results, scores, n_queries=len(gold))
+    # all_categories: the API row also gets the paired gap per gold category (delta_vs_parent_by_category_all).
+    boot = attach_confidence(results, scores, n_queries=len(gold), categories=[q.category for q in gold], all_categories=True)
 
     gap = round(api["retrieval"]["ndcg@10"] - mem["retrieval"]["ndcg@10"], 4)
     problems = api_problems(api, len(gold))

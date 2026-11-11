@@ -132,8 +132,8 @@ def test_happy_path_is_typed_with_paths_byte_ranges_and_stage_scores(ready_clien
     assert [h["path"] for h in body["hits"]] == ["configs/run_047.yaml", "/abs/logs/run_047.out"]
     first = body["hits"][0]
     assert (first["start_byte"], first["end_byte"], first["rank"]) == (0, 19, 1)
-    assert first["scores"] == {"bm25": 0.9, "dense": 0.8, "rrf": 0.0325, "rerank": None}
-    assert body["hits"][1]["scores"] == {"bm25": None, "dense": None, "rrf": None, "rerank": None}
+    assert first["scores"] == {"bm25": 0.9, "dense": 0.8, "path": None, "rrf": 0.0325, "rerank": None}
+    assert body["hits"][1]["scores"] == {"bm25": None, "dense": None, "path": None, "rrf": None, "rerank": None}
     assert ready_client.app.state.retrieval.retriever.calls == [("current learning rate for run 47", 2)]
 
 

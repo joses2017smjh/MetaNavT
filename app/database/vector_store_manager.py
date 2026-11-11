@@ -575,26 +575,34 @@ class VectorStoreManager(DatabaseManager):
             cur.execute(statement, params)
         return self.search_settings(k)
 
-    def hybrid_search(
-        self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None
-    ) -> SearchRows:
-        """One round trip: dense top-k + lexical top-k + RRF in SQL (see sql/hybrid_*.sql).
+    def hybrid_params(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, path_query: str | None = None) -> dict:
+        """The hybrid statement's parameters (sql/hybrid_*.sql)."""
+        return {
+            "qvec": self.vector_literal(query_embedding),
+            "query": query if self.hybrid_backend == "paradedb" else self.lexical_query(query),
+            "path_query": path_query or None,
+            "k": int(k),
+            "rrf_k": float(rrf_k),
+        }
 
-        query_embedding=None runs the lexical list only (router skip_embed). Each row:
-        node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf. The rows come
-        back as SearchRows labelled with the lexical backend, or "none" when no row came
-        from the lexical list.
+    def hybrid_search(
+        self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None,
+        path_query: str | None = None,
+    ) -> SearchRows:
+        """One round trip: dense top-k + lexical top-k (+ the path list) + RRF in SQL (see sql/hybrid_*.sql).
+
+        query_embedding=None runs the lexical list only (router skip_embed). path_query (the
+        query text, on the router's lexical_path route only) adds the path list: the rows whose
+        file name, path or stem occur in it, scored as InMemoryHybridIndex.search_path scores
+        chunks. Each row: node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf,
+        path (score, rank). The rows come back as SearchRows labelled with the lexical backend,
+        or "none" when no row came from the lexical list.
         The statement runs in its own transaction with search_settings(k), and with
         statement_timeout_ms as its statement_timeout when given: Postgres cancels it
         there, the transaction is rolled back and this raises TimeoutError.
         """
         backend = self.hybrid_backend
-        params = {
-            "qvec": self.vector_literal(query_embedding),
-            "query": query if backend == "paradedb" else self.lexical_query(query),
-            "k": int(k),
-            "rrf_k": float(rrf_k),
-        }
+        params = self.hybrid_params(query, query_embedding, k, rrf_k, path_query)
         settings, settings_params = self.settings_sql(k, statement_timeout_ms)
         with self.get_connection() as conn:
             with conn.cursor() as cur:
@@ -613,19 +621,16 @@ class VectorStoreManager(DatabaseManager):
                 "dense_score": None if r[5] is None else float(r[5]),
                 "dense_rank": None if r[6] is None else int(r[6]),
                 "rrf_score": float(r[7]),
+                "path_score": None if r[8] is None else float(r[8]),
+                "path_rank": None if r[9] is None else int(r[9]),
             }
             for r in rows
         ], backend if any(r[3] is not None for r in rows) else "none")
 
-    def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> str:
+    def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, path_query: str | None = None) -> str:
         """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query with the settings hybrid_search uses, for doc/sql/."""
         backend = self.hybrid_backend
-        params = {
-            "qvec": self.vector_literal(query_embedding),
-            "query": query if backend == "paradedb" else self.lexical_query(query),
-            "k": int(k),
-            "rrf_k": float(rrf_k),
-        }
+        params = self.hybrid_params(query, query_embedding, k, rrf_k, path_query)
         settings, settings_params = self.settings_sql(k)
         with self.get_connection() as conn:
             with conn.cursor() as cur:

@@ -282,3 +282,49 @@ def test_search_settings_stay_inside_the_statement_transaction(served):
             cur.execute("SELECT current_setting('hnsw.ef_search', true);")
             value = cur.fetchone()[0]
     assert value in (None, "", "40"), value  # unset placeholder or pgvector's default, never the statement's value
+
+
+# ---------------------------------------------------------------- the path list (M17, B14)
+
+
+def served_paths(manager, text, k) -> list[tuple[str, float]]:
+    """The served statement's path list for `text` (its CTEs before the fusion): [(chunk_id, path score)] by path rank."""
+    sql = manager.hybrid_sql("ts_rank_cd")
+    head, sep, _ = sql.partition(",\nfused AS (")
+    assert sep, "hybrid_tsrank.sql no longer has a fused CTE after the paths CTE"
+    table = f'"{manager.schema_name}"."{manager.data_table}"'
+    statement = head + f"\nSELECT t.metadata_->>'chunk_id', p.path_score FROM paths p JOIN {table} t ON t.node_id = p.node_id ORDER BY p.path_rank;"
+    with manager.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(statement, manager.hybrid_params(text, None, k, 60, path_query=text))
+            return [(cid, float(score)) for cid, score in cur.fetchall()]
+
+
+def score_groups(rows) -> list[tuple[float, set]]:
+    """[(score, the chunk ids with that score)], best score first."""
+    return [(score, {cid for cid, s in rows if s == score}) for score in sorted({s for _, s in rows}, reverse=True)]
+
+
+def test_path_list_matches_the_in_memory_path_search_on_every_lexical_path_question(served, memory):
+    """On every gold question the router sends down the lexical_path route, the served path list gives each
+    chunk the score InMemoryHybridIndex.search_path gives it. Equal scores are ordered by node_id in SQL
+    and by corpus order in memory, so each group of equal scores is compared as a set."""
+    from app.retrieval.router import QueryRouter, RouteType
+
+    vsm, _ = served
+    index, questions, k = memory
+    router = QueryRouter()
+    routed = [q for q in questions if router.route(q["question"]).route == RouteType.LEXICAL_PATH]
+    assert routed and {q["category"] for q in routed} == {"exact_path"}, "the fixture's lexical_path questions are its exact_path ones"
+    failures = []
+    for q in routed:
+        sql_rows = served_paths(vsm, q["question"], k)
+        mem_rows = [(c.chunk_id, float(s)) for c, s in index.search_path(q["question"], k=k)]
+        assert len(mem_rows) < k, "a group cut by k would need a subset comparison"
+        if [s for _, s in sql_rows] != [s for _, s in mem_rows] or score_groups(sql_rows) != score_groups(mem_rows):
+            failures.append(f"{q['id']}: sql {score_groups(sql_rows)} vs memory {score_groups(mem_rows)}")
+        # The full served statement carries the same path ranks on the rows it returns.
+        rank = {cid: i for i, (cid, _) in enumerate(sql_rows, start=1)}
+        for row in vsm.hybrid_search(q["question"], None, k=k, path_query=q["question"]):
+            assert row["path_rank"] == rank.get(row["metadata"]["chunk_id"]), (q["id"], row["metadata"]["chunk_id"])
+    assert not failures, f"{len(failures)}/{len(routed)} lexical_path questions differ:\n" + "\n".join(failures)

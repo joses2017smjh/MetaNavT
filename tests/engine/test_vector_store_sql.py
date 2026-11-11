@@ -106,6 +106,34 @@ def dense_cte(name: str) -> str:
     return text[text.index("dense AS (") : text.index(",\nlexical AS (")]
 
 
+def cte(name: str, start: str, end: str) -> str:
+    text = (SQL_DIR / name).read_text()
+    return text[text.index(start) : text.index(end)]
+
+
+def test_both_statements_share_the_path_list_and_the_fusion():
+    """The path list (M17, B14) and the three-list fusion are the same text in both statements."""
+    tail = (SQL_DIR / "hybrid_tsrank.sql").read_text()
+    tail = tail[tail.index("paths AS (") :]
+    assert tail == (SQL_DIR / "hybrid_paradedb.sql").read_text()[(SQL_DIR / "hybrid_paradedb.sql").read_text().index("paths AS (") :]
+    assert "%(path_query)s::text IS NOT NULL" in cte("hybrid_tsrank.sql", "paths AS (", "fused AS (")  # no table read off the route
+    assert "FULL OUTER JOIN paths pa" in tail and tail.rstrip().endswith("LIMIT %(k)s;")
+
+
+@pytest.mark.parametrize("name", ["hybrid_tsrank.sql", "hybrid_paradedb.sql"])
+def test_no_parameter_placeholder_in_a_comment(name):
+    """psycopg2 substitutes a named parameter inside a comment as well: a raw query text there (path_query)
+    with a newline in it would end the comment and run the rest of the line as SQL."""
+    commented = [line for line in (SQL_DIR / name).read_text().splitlines() if "--" in line and "%(" in line.split("--", 1)[1]]
+    assert commented == []
+
+
+def test_the_path_query_is_sent_only_when_given():
+    assert manager().hybrid_params("open configs/run_047.yaml")["path_query"] is None
+    params = manager().hybrid_params("open configs/run_047.yaml", path_query="open configs/run_047.yaml")
+    assert params["path_query"] == "open configs/run_047.yaml" and params["query"] == "open or configs or run_047 or yaml"
+
+
 def test_both_statements_share_the_dense_cte():
     """No CI job runs the ParadeDB variant; its dense list is at least the tested one, verbatim."""
     assert dense_cte("hybrid_paradedb.sql") == dense_cte("hybrid_tsrank.sql")

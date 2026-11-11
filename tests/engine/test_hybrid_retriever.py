@@ -142,9 +142,11 @@ class _FakeSQLVSM:
 
     def __init__(self):
         self.calls = []
+        self.path_queries = []  # the path_query each call sent (None: no path list)
 
-    def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60):
+    def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60, path_query=None):
         self.calls.append((query, query_embedding, k, rrf_k))
+        self.path_queries.append(path_query)
         rows = [
             ("cur", "learning_rate: 3e-4", {"path": "configs/run_047.yaml", "mtime": 2.0, "start_byte": 0, "end_byte": 19}, 0.9, 1, 0.8, 1, 1 / 61 + 1 / 61),
             ("old", "learning_rate: 1e-4", {"path": "configs/archive/run_047_v1.yaml", "mtime": 1.0, "start_byte": 0, "end_byte": 19}, 0.5, 2, None, None, 1 / 62),
@@ -177,10 +179,11 @@ def test_sql_mode_one_round_trip_with_scores_and_staleness():
 
     assert vsm.calls == [("current learning rate for run 47", [0.1, 0.2], 50, 60)]
     assert out.mode == "sql" and out.bm25_backend == "ts_rank_cd"
-    assert out.counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": 2}
+    assert out.counts == {"bm25": 2, "vector": 2, "path": 0, "fused": 3, "returned": 2}
     assert [n.node.node_id for n in out.nodes] == ["cur", "log"]  # superseded archive copy dropped
     assert out.staleness == {"enabled": True, "applied": True, "dropped": 1}
-    assert out.scores["cur"] == {"bm25": 0.9, "dense": 0.8, "rrf": 1 / 61 + 1 / 61, "rerank": None}
+    assert out.scores["cur"] == {"bm25": 0.9, "dense": 0.8, "path": None, "rrf": 1 / 61 + 1 / 61, "rerank": None}
+    assert vsm.path_queries == [None]  # router off: no path list
     assert out.scores["log"]["bm25"] is None and out.scores["log"]["dense"] == 0.4
     assert "_node_content" not in out.nodes[1].node.metadata
     assert set(out.stages_ms) >= {"route", "embed", "hybrid_sql", "staleness", "total"}
@@ -195,7 +198,8 @@ def test_sql_mode_comparative_query_keeps_both_versions_and_lexical_route_skips_
 
     assert out.staleness["dropped"] == 0 and len(out.nodes) == 3
     assert out.route is not None and out.skipped_embed is True and calls == []  # lexical_path: no embedding
-    assert vsm.calls[-1][1] is None  # SQL ran lexical-only
+    assert vsm.calls[-1][1] is None  # SQL ran without a query vector
+    assert vsm.path_queries[-1] == "compare run_047.yaml with configs/archive/run_047_v1.yaml"  # ... and with the path list
 
 
 def test_python_mode_still_reports_scores_and_top_n():
@@ -388,7 +392,7 @@ class _LabelCursor:
         text = statement if isinstance(statement, str) else repr(statement)
         if "WITH params AS" in text:  # the hybrid statement (the settings statement rides along in front of it)
             hit = "learning" in params["query"]
-            self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5 if hit else None, 1 if hit else None, 0.8, 1, 1 / 61 + (1 / 61 if hit else 0))]
+            self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5 if hit else None, 1 if hit else None, 0.8, 1, 1 / 61 + (1 / 61 if hit else 0), None, None)]
         elif "ts_rank_cd" in text:  # search_bm25's full-text query: (query, query, limit)
             self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5)] if params[0] == LABEL_HIT else []
         else:  # ILIKE, the last resort
@@ -519,3 +523,38 @@ def test_a_request_writes_nothing_on_the_shared_retriever(mode):
     for query in ("current learning rate for run 47", "open configs/run_047.yaml", LEXICAL_DOWN):
         retriever.retrieve_detailed(query)
     assert vars(retriever) == before
+
+
+# ---------------------------------------------------------------- M17 (B14): the path list on the lexical_path route
+
+
+@pytest.mark.parametrize(
+    "query, enable_router, path_query",
+    [
+        ("open configs/run_047.yaml", True, "open configs/run_047.yaml"),  # lexical_path: the statement gets the path list
+        ("current learning rate for run 47", True, None),  # semantic: no path list
+        ("which run has the lowest val_rmse", True, None),  # aggregation_query: no path list
+        ("open configs/run_047.yaml", False, None),  # router off: every query is semantic, as in memory
+    ],
+)
+def test_only_the_lexical_path_route_sends_the_path_list(query, enable_router, path_query):
+    vsm, embedded = _FakeSQLVSM(), []
+    retriever = HybridRetriever(None, vsm, reranker=None, enable_router=enable_router, mode="sql", embed_fn=lambda q: embedded.append(q) or [0.1])
+    out = retriever.retrieve_detailed(query)
+    assert vsm.path_queries == [path_query]
+    assert (embedded == []) == (path_query is not None)  # the path route sends no query vector, as before
+    assert "path" in out.counts
+
+
+def test_the_path_score_is_reported_per_hit():
+    class _PathVSM(_FakeSQLVSM):
+        def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60, path_query=None):
+            rows = super().hybrid_search(query, query_embedding, k, rrf_k, path_query)
+            for row in rows:
+                named = path_query and row["metadata"]["path"] == "configs/run_047.yaml"
+                row["path_score"], row["path_rank"] = (10.0, 1) if named else (None, None)
+            return rows
+
+    out = HybridRetriever(None, _PathVSM(), reranker=None, mode="sql", embed_fn=lambda q: [0.1]).retrieve_detailed("open configs/run_047.yaml")
+    assert out.counts["path"] == 1
+    assert out.scores["cur"]["path"] == 10.0 and out.scores["log"]["path"] is None

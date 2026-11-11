@@ -244,3 +244,95 @@ def test_paradedb_runs_only_when_configured_and_installed(vsm, monkeypatch):
                 configured.hybrid_backend
     finally:
         configured.close()
+
+
+# ---------------------------------------------------------------- the path list on the lexical_path route (M17, B14)
+
+PATH_DOCS = {  # path -> text. The note names every query term twice; the named file's text has one of them.
+    "configs/run_047.yaml": "learning_rate: 3e-4\nformat: yaml",
+    "configs/run_046.yaml": "learning_rate: 1e-4\nencoder: resnet50",
+    "logs/run_047.out": "run_047 epoch 12 val_rmse 0.055",
+    "notes/todo.md": "open configs run_047 yaml, then open configs run_047 yaml again",
+}
+PATH_QUERY = "open configs/run_047.yaml"
+
+
+@contextmanager
+def path_table(docs: dict):
+    """A manager over a scratch table holding `docs` (path -> text, one hash-embedded chunk each, with the
+    served indexer's node ids), with the start-up text index. The table is dropped on exit."""
+    from llama_index.core.schema import TextNode
+
+    from app.database.vector_store_manager import VectorStoreManager
+    from app.engine.ingest import node_id_for
+    from app.retrieval.embedders import HashEmbedder
+
+    saved = os.environ["PGVECTOR_TABLE"]
+    os.environ["PGVECTOR_TABLE"] = "pathtest_" + uuid.uuid4().hex[:8]
+    try:
+        manager = VectorStoreManager(conn_string=os.environ["PG_TEST_DSN"])
+    finally:
+        os.environ["PGVECTOR_TABLE"] = saved
+    emb = HashEmbedder(TIE_DIM)
+    try:
+        manager.get_vector_store().add(
+            [
+                TextNode(id_=node_id_for(path, 0, len(text)), text=text, embedding=emb.encode([text])[0].tolist(), metadata={"path": path})
+                for path, text in docs.items()
+            ]
+        )
+        manager.ensure_text_index()
+        yield manager
+    finally:
+        with manager.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'DROP TABLE IF EXISTS "{manager.schema_name}"."{manager.data_table}";')
+        manager.close()
+
+
+def test_a_lexical_path_query_returns_the_named_file_first(vsm):
+    """Through the served SQL: on the lexical_path route the path list puts the named file first, where the
+    lexical list alone ranks a note that mentions it first (the benchmark index's path lookup, served)."""
+    from app.engine.retriever import HybridRetriever
+    from app.retrieval.router import QueryRouter, RouteType
+
+    assert QueryRouter().route(PATH_QUERY).route == RouteType.LEXICAL_PATH
+    with path_table(PATH_DOCS) as manager:
+        lexical_only = manager.hybrid_search(PATH_QUERY, None, k=10)
+        with_paths = manager.hybrid_search(PATH_QUERY, None, k=10, path_query=PATH_QUERY)
+        served = HybridRetriever(None, manager, reranker=None, mode="sql", embed_fn=lambda q: pytest.fail("the path route embeds nothing"))
+        out = served.retrieve_detailed(PATH_QUERY)
+
+    def path(row):
+        return row["metadata"]["path"]
+
+    assert path(lexical_only[0]) == "notes/todo.md" and all(r["path_rank"] is None for r in lexical_only)
+    assert path(with_paths[0]) == "configs/run_047.yaml"
+    listed = {path(r): (r["path_score"], r["path_rank"]) for r in with_paths if r["path_rank"] is not None}
+    assert listed == {"configs/run_047.yaml": (10.0, 1), "logs/run_047.out": (2.0, 2)}  # name 5 + path 3 + stem 2; stem run_047 only
+    assert out.nodes[0].node.metadata["path"] == "configs/run_047.yaml"
+    assert out.counts["path"] == 2 and out.skipped_embed and out.scores[out.nodes[0].node.node_id]["path"] == 10.0
+
+
+def test_a_newline_in_the_path_query_stays_inside_its_literal(vsm):
+    """The path list gets the raw query text, which may hold a newline and SQL. psycopg2 would substitute a
+    placeholder inside a comment too, where a newline ends the comment; the statement has none there."""
+    manager, _ = vsm
+    sentinel = "path_sentinel_" + uuid.uuid4().hex[:8]
+    query = f"open cfg47.txt\n; DROP TABLE IF EXISTS {sentinel}; --"
+    with manager.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"CREATE TABLE {sentinel} (x int);")
+        conn.commit()
+    try:
+        rows = manager.hybrid_search(query, None, k=10, path_query=query)
+        assert rows[0]["metadata"]["path"] == "cfg47.txt" and rows[0]["path_rank"] == 1
+        with manager.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT to_regclass(%s) IS NOT NULL;", (sentinel,))
+                assert cur.fetchone()[0], "the query text ran as SQL"
+    finally:
+        with manager.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"DROP TABLE IF EXISTS {sentinel};")
+            conn.commit()

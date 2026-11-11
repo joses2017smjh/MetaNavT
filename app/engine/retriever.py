@@ -39,7 +39,7 @@ class RetrievalOutcome:
     route: Any
     stages_ms: dict[str, float]
     counts: dict[str, int]
-    scores: dict[str, dict[str, Optional[float]]]  # node_id -> bm25 / dense / rrf / rerank
+    scores: dict[str, dict[str, Optional[float]]]  # node_id -> bm25 / dense / path (sql mode) / rrf / rerank
     staleness: dict[str, Any]
     mode: str
     bm25_backend: Optional[str] = None
@@ -110,10 +110,14 @@ class HybridRetriever(BaseRetriever):
 
     mode="sql"    one Postgres round trip (VectorStoreManager.hybrid_search: pgvector
                   top-k + full-text top-k + RRF in SQL, app/database/sql/hybrid_*.sql);
-                  needs embed_fn for the query vector.
+                  needs embed_fn for the query vector. On the router's lexical_path
+                  route the statement gets no query vector and fuses the path list
+                  (file name / path / stem in the query) with the lexical list, as the
+                  benchmark's InMemoryHybridIndex does on that route.
     mode="python" the pre-M3 path: LlamaIndex vector retriever + search_bm25 + RRF in
                   Python (reciprocal_rank_fusion below). Kept as the reference
-                  implementation and for stores without the SQL path.
+                  implementation and for stores without the SQL path; it has no
+                  path list.
     Staleness Tier 1 (app/graph/staleness.prefer_current) runs after fusion when
     `clusters` is given; the reranker runs last.
     """
@@ -191,7 +195,8 @@ class HybridRetriever(BaseRetriever):
         n = top_n or self._rerank_top_n
 
         if self._mode == "sql":
-            fused, scores, counts, backend, lexical_degraded = self._fuse_sql(query_str, timer, skip_embed, deadline)
+            path_lookup = bool(route and route.route == RouteType.LEXICAL_PATH)
+            fused, scores, counts, backend, lexical_degraded = self._fuse_sql(query_str, timer, skip_embed, deadline, path_lookup)
         else:
             fused, scores, counts, backend, lexical_degraded = self._fuse_python(query_str, timer, skip_embed, deadline)
         counts["fused"] = len(fused)
@@ -247,7 +252,7 @@ class HybridRetriever(BaseRetriever):
     # ------------------------------------------------------------------ fusion backends
     # Each returns (fused, scores, counts, the lexical backend that answered, degraded components).
 
-    def _fuse_sql(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline):
+    def _fuse_sql(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline, path_lookup: bool = False):
         qvec = None
         if not skip_embed:
             deadline.stage = "embed"
@@ -258,6 +263,8 @@ class HybridRetriever(BaseRetriever):
         bounds = {}
         if deadline.bounded:  # Postgres cancels the statement at the end of the budget (0 would mean no limit)
             bounds["statement_timeout_ms"] = max(1, int(deadline.remaining_s() * 1000))
+        if path_lookup:  # the path list runs on the lexical_path route only
+            bounds["path_query"] = query_str
         with timer.stage("hybrid_sql"), span("hybrid_sql", k=self._similarity_top_k):
             try:
                 rows = self._vsm.hybrid_search(query_str, qvec, k=self._similarity_top_k, rrf_k=self._rrf_k, **bounds)
@@ -269,10 +276,12 @@ class HybridRetriever(BaseRetriever):
             meta = {k: v for k, v in (r.get("metadata") or {}).items() if k not in DROP_METADATA_KEYS}
             node = TextNode(id_=r["node_id"], text=r["text"], metadata=meta)
             fused.append(NodeWithScore(node=node, score=r["rrf_score"]))
-            scores[r["node_id"]] = {"bm25": r.get("bm25_score"), "dense": r.get("dense_score"), "rrf": r["rrf_score"], "rerank": None}
+            scores[r["node_id"]] = {"bm25": r.get("bm25_score"), "dense": r.get("dense_score"), "path": r.get("path_score"),
+                                    "rrf": r["rrf_score"], "rerank": None}
         counts = {
             "bm25": sum(1 for r in rows if r.get("bm25_rank") is not None),
             "vector": sum(1 for r in rows if r.get("dense_rank") is not None),
+            "path": sum(1 for r in rows if r.get("path_rank") is not None),
         }
         # The label comes back with this request's rows (SearchRows), never from the shared manager.
         return fused, scores, counts, getattr(rows, "lexical_backend", None), []
