@@ -71,15 +71,31 @@ def _bounded(text: str, slices: list[tuple[int, int]], max_size: int = MAX_CHUNK
     return out
 
 
+_MD_HEADING = re.compile(r"#{1,6}\s+\S")
+_MD_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+
+
 def markdown_heading_chunks(text: str, max_size: int = MAX_CHUNK_CHARS) -> list[Span]:
-    lines = text.splitlines(keepends=True)
+    """A chunk starts at every # heading outside fenced code; a section over max_size is re-cut with the window.
+
+    A fence opens with three or more backticks or tildes (up to three spaces
+    in) and closes with a line of the same character, at least as long, and
+    nothing after it; an unclosed fence runs to the end of the file. A line
+    that only starts with backticks and has more of them later is inline code,
+    not a fence.
+    """
     starts = [0]
-    offset = 0
-    for line in lines:
-        if re.match(r"^#{1,6}\s+\S", line):
-            if offset not in starts and offset > 0:
-                starts.append(offset)
-        offset += len(line)
+    fence = ""  # the open fence's marker, "" outside fenced code
+    for start, end in _line_slices(text):
+        line = text[start:end]
+        marker = _MD_FENCE.match(line)
+        if fence:
+            if marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence) and not line[marker.end():].strip():
+                fence = ""
+        elif marker and not (marker.group(1)[0] == "`" and "`" in line[marker.end():]):
+            fence = marker.group(1)
+        elif start > 0 and _MD_HEADING.match(line):
+            starts.append(start)
     starts.append(len(text))
     return _spans_from_slices(text, _bounded(text, list(zip(starts, starts[1:])), max_size), "markdown")
 

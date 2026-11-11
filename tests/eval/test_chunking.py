@@ -146,6 +146,21 @@ def test_markdown_splits_at_headings_and_recuts_a_long_section():
     assert _spans(markdown_heading_chunks(long)) == [(0, 2000, "markdown"), (1920, len(long), "markdown")]  # window 2000, overlap 80
 
 
+def test_a_heading_inside_fenced_code_does_not_start_a_section():
+    text = "# Setup\nRun:\n```bash\n# install the deps\npip install -e .\n```\n~~~\n## not a heading either\n~~~\n## Usage\ncall it\n"
+    usage = text.index("## Usage")
+    assert _spans(markdown_heading_chunks(text)) == [(0, usage, "markdown"), (usage, len(text), "markdown")]
+    nested = "# A\n````\n```\n# still code: a shorter fence does not close a longer one\n````\n# B\n"
+    b = nested.index("# B")
+    assert _spans(markdown_heading_chunks(nested)) == [(0, b, "markdown"), (b, len(nested), "markdown")]
+    unclosed = "# A\n```\n# code to the end of the file\n"
+    assert _spans(markdown_heading_chunks(unclosed)) == [(0, len(unclosed), "markdown")]
+    inline = "# A\n```inline``` code is not a fence\n# B\n"
+    assert len(markdown_heading_chunks(inline)) == 2
+    separator = "# A\nintro\u2028# not a heading: U+2028 does not end a Markdown line\n"
+    assert _spans(markdown_heading_chunks(separator)) == [(0, len(separator), "markdown")]
+
+
 def test_rst_takes_the_markdown_rule_without_underline_headings():
     """A known limit: an .rst title is underlined, not marked with #, so it does not start a chunk."""
     text = "Title\n=====\n\nIntro.\n\nSection\n-------\n\nBody.\n"
