@@ -377,6 +377,19 @@ def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     assert meta["episodes_file"] == ai.DEFAULT_EPISODES.as_posix() and meta["n_episodes"] == len(rows)
 
 
+def test_the_results_file_was_scored_by_the_committed_module_from_a_clean_tree():
+    # The header describes the run that scored the stored episodes (make bench-agent-injection-rescore); it must be
+    # today's harness, run with nothing uncommitted. The generating run keeps its own record, as written.
+    blob = json.loads(RESULTS.read_text())
+    assert blob["module_sha256"] == _sha256(ai.__file__), "run `make bench-agent-injection-rescore` at a clean commit"
+    assert blob["working_tree_dirty"] is False and "--summarize-only" in blob["command"]
+    generated = blob["episodes_generated_by"]
+    assert generated == json.loads(ai.sidecar(EPISODES).read_text())
+    assert generated["reconstructed"] is True
+    assert generated["segments"] and all(seg["working_tree_dirty"] is True for seg in generated["segments"])
+    assert blob["episodes_sha256"] == _sha256(EPISODES)
+
+
 def test_the_table_names_the_run_that_scored_the_episodes_apart_from_the_one_that_generated_them():
     from app.eval.report import agent_injection_table
     blob = json.loads(RESULTS.read_text())
@@ -387,6 +400,15 @@ def test_the_table_names_the_run_that_scored_the_episodes_apart_from_the_one_tha
     assert "scored at sha 1234567 from a clean tree by `make bench-agent-injection-rescore`" in text
     blob["working_tree_dirty"] = True
     assert "scored at sha 1234567 with uncommitted changes by `make bench-agent-injection-rescore`" in agent_injection_table(blob)
+
+
+def test_evidence_rows_name_the_generating_run_next_to_the_scoring_one():
+    from app.eval.evidence import _agent_injection_claims
+    head = json.loads(RESULTS.read_text())["git_head"][:7]
+    generated = json.loads(ai.sidecar(EPISODES).read_text())["segments"][0]["git_head"][:7]
+    rows = _agent_injection_claims()
+    assert rows and all(r["source"] == f"bench/results/agent_injection.json @ {head} (episodes generated at {generated}, "
+                                       "scored by `make bench-agent-injection-rescore`)" for r in rows)
 
 
 def test_the_scores_writer_refuses_a_score_that_holds_an_absolute_path(tmp_path):
