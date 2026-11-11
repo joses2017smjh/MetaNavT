@@ -1,6 +1,7 @@
 """API process startup: build the retrieval singletons, bring the index in line with DATA_DIR.
 
-main.py's lifespan calls build_retrieval_state() once, off the event loop. It first
+main.py's lifespan calls build_retrieval_state() off the event loop, and again with backoff
+while it fails (startup_retry_policy below; /health is 503 until it succeeds). It first
 requires every schema migration this configuration needs (the deploy step,
 `python -m app.database.migrate`, applies them; start-up runs no DDL) and raises
 MigrationsPending otherwise. With INDEX_ON_START=true (docker-compose sets it), every start runs
@@ -15,9 +16,10 @@ re-embed on every start. The run's report is kept on the state for /health.
 from __future__ import annotations
 
 import logging
+import math
 import os
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Iterator
 
 from llama_index.core.settings import Settings
 
@@ -29,6 +31,50 @@ from app.graph.staleness import cluster_versions
 from app.retrieval.types import Chunk
 
 logger = logging.getLogger("uvicorn")
+
+# A start-up attempt that fails (the database not up yet, a migration not applied yet) is retried
+# by main.py's lifespan in the background, without a restart: STARTUP_RETRY_SECONDS before the
+# first retry, doubling up to STARTUP_RETRY_MAX_SECONDS, at most STARTUP_RETRY_ATTEMPTS attempts
+# in all (0 or unset: no limit; 1: never retry, the behaviour before retries existed).
+STARTUP_RETRY_DEFAULT_SECONDS = 1.0
+STARTUP_RETRY_DEFAULT_MAX_SECONDS = 30.0
+
+
+@dataclass(frozen=True)
+class StartupRetryPolicy:
+    initial_s: float
+    max_s: float
+    attempts: int  # 0: no limit
+
+
+def _positive_seconds(name: str, default: float) -> float:
+    """A positive finite number of seconds from the environment; anything else keeps the default."""
+    try:
+        value = float(os.getenv(name, "").strip())
+    except ValueError:
+        return default
+    return value if math.isfinite(value) and value > 0 else default
+
+
+def startup_retry_policy() -> StartupRetryPolicy:
+    """STARTUP_RETRY_SECONDS, STARTUP_RETRY_MAX_SECONDS, STARTUP_RETRY_ATTEMPTS (see above)."""
+    try:
+        attempts = int(os.getenv("STARTUP_RETRY_ATTEMPTS", "").strip())
+    except ValueError:
+        attempts = 0
+    return StartupRetryPolicy(
+        initial_s=_positive_seconds("STARTUP_RETRY_SECONDS", STARTUP_RETRY_DEFAULT_SECONDS),
+        max_s=_positive_seconds("STARTUP_RETRY_MAX_SECONDS", STARTUP_RETRY_DEFAULT_MAX_SECONDS),
+        attempts=max(0, attempts),
+    )
+
+
+def retry_delays(initial_s: float, max_s: float) -> Iterator[float]:
+    """The wait before each retry: initial_s, then twice the previous wait, never more than max_s."""
+    delay = min(initial_s, max_s)
+    while True:
+        yield delay
+        delay = min(delay * 2, max_s)
 
 
 @dataclass

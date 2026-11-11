@@ -233,3 +233,61 @@ def test_two_replicas_creating_a_fresh_database_at_once_both_start(monkeypatch, 
         _drop_database(name)
     assert len(creates) == 2, creates  # both replicas found no database and sent CREATE DATABASE: a real race
     assert started == {0: name, 1: name}, started
+
+
+def test_health_turns_200_once_the_deploy_step_has_run_without_a_restart(monkeypatch, tmp_path):
+    """C38, live: the API starts before the deploy step (its table's migrations are pending), so the first
+    attempt fails with MigrationsPending and /health is 503. The deploy step runs; a later attempt, on the
+    same cached VectorStoreManager and pool, succeeds and /health turns 200 in the same process. Before,
+    the first error was kept for the life of the process."""
+    from urllib.parse import urlparse
+
+    from fastapi.testclient import TestClient
+
+    from app.database import vector_store
+    from app.database.migrate import VectorTable, drop_vector_table, migrate_all
+
+    dsn = os.environ["PG_TEST_DSN"]
+    table = "retrytest_" + uuid.uuid4().hex[:8]
+    for name, value in {"PG_CONNECTION_STRING": dsn, "PSYCOPG2_CONNECTION_STRING": dsn, "DB_NAME": urlparse(dsn).path.lstrip("/"),
+                        "PGVECTOR_TABLE": table, "EMBEDDING_DIM": "256", "EMBEDDING_PROVIDER": "hash",
+                        "MODEL_PROVIDER": "ollama", "RERANKER_MODEL": "none", "INDEX_ON_START": "false",
+                        "DATA_DIR": str(tmp_path), "STARTUP_RETRY_SECONDS": "0.1", "STARTUP_RETRY_MAX_SECONDS": "0.2"}.items():
+        monkeypatch.setenv(name, value)
+    for name in ("PGVECTOR_SCHEMA", "LEXICAL_BACKEND", "STARTUP_RETRY_ATTEMPTS", "FRONTEND_ENDPOINT", "RETRIEVAL_REQUIRE_DEVICE"):
+        monkeypatch.delenv(name, raising=False)
+    import main  # noqa: WPS433 - the FastAPI app module
+
+    vector_store.get_vector_store_manager.cache_clear()
+    try:
+        with TestClient(main.app) as client:
+            first = client.get("/health")
+            assert first.status_code == 503, first.text
+            assert first.json()["error"].startswith("MigrationsPending:") and f"data_{table}" in first.json()["error"]
+            conn = _plain()
+            conn.autocommit = False
+            try:
+                migrate_all(conn, VectorTable.from_env())  # the deploy step, after the API started
+            finally:
+                conn.close()
+            deadline = time.monotonic() + 60
+            while (health := client.get("/health")).status_code != 200 and time.monotonic() < deadline:
+                time.sleep(0.1)
+            assert health.status_code == 200, health.text
+            # 200 as soon as retrieval exists; the same attempt then builds the plan store
+            while client.app.state.startup["retrying"] and time.monotonic() < deadline:
+                time.sleep(0.1)
+            body = client.get("/health").json()
+            assert body["status"] == "ok" and body["n_nodes"] == 0 and body["startup"]["attempts"] >= 2
+            assert body["startup"]["retrying"] is False and client.app.state.plans is not None
+            assert client.app.state.startup_error is None
+    finally:
+        if vector_store.get_vector_store_manager.cache_info().currsize:
+            vector_store.get_vector_store_manager().close()
+        vector_store.get_vector_store_manager.cache_clear()
+        conn = _plain()
+        conn.autocommit = False
+        try:
+            drop_vector_table(conn, VectorTable(table=table, dim=256))
+        finally:
+            conn.close()
