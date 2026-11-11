@@ -757,10 +757,13 @@ RRF on identical input lists, against a live Postgres in CI.
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
-That block renders
-[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
+That block renders two runs:
+[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json),
+the hash embedder with no reranker as CI runs it
 (`parity_shared_chunker_restart.json` is the same command after a restart on
-the indexed database). Both runs were made after the API took the bench's
+the indexed database), and
+[bench/results/parity_neural.json](../bench/results/parity_neural.json), the
+model-backed run described below. Every run was made after the API took the bench's
 chunker: both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
 and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
 compares the chunk boundaries and texts of the two paths on the fixture, so the
@@ -771,9 +774,11 @@ same file mtimes, which the staleness filter compares: the in-memory row reads
 the fixture's MANIFEST, and the API reads the disk after `make fixture-mtimes`
 has set it to the MANIFEST's values (CI runs it before starting the API; a
 checkout's own mtimes are arbitrary, and the API keeps reading the disk as a
-served system should). The API row scores above the in-memory row and the
-paired interval excludes zero: sharing the chunker removed one difference and
-did not make the rows agree.
+served system should). In the hash run the API row scores above the in-memory
+row and the paired interval excludes zero: sharing the chunker removed one
+difference and did not make the rows agree. In the model-backed run the API row
+scores below the in-memory row and the interval covers zero; its per-category
+gaps (on the API row) are not all of one sign.
 
 What is checked exactly is the dense leg:
 [tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)

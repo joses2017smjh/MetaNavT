@@ -116,7 +116,7 @@ def test_the_readme_block_renders_both_runs_with_the_settings(tmp_path):
     neural = json.loads(json.dumps(hash_run))
     neural["in_memory_config"] = NEURAL
     neural["results"][0]["config"] = NEURAL
-    neural["api_health"].update(embedding_model="BAAI/bge-small-en-v1.5", embedding_query_instruction="")
+    neural["api_health"].update(embedding_provider="huggingface", embedding_model="BAAI/bge-small-en-v1.5", embedding_query_instruction="")
     neural["api_health"]["reranker"].update(loaded=True, model="BAAI/bge-reranker-v2-m3", precision="fp16")
     neural["settings"] = {"embedding_model": {"in_memory": "BAAI/bge-small-en-v1.5", "api": "BAAI/bge-small-en-v1.5"},
                           "query_instruction": {"in_memory": "", "api": ""}, "rerank_depth": {"in_memory": 20, "api": 20}}
@@ -126,4 +126,5 @@ def test_the_readme_block_renders_both_runs_with_the_settings(tmp_path):
     assert PARITY_FILE in block and PARITY_NEURAL_FILE in block and f"PARITY_CONFIG={NEURAL}" in block
     assert "query instruction none / none; rerank depth 20 / 20" in block and "Settings that differ: none." in block
     assert block.count("exact_path questions") == 2 and "is missing" not in block
+    assert block.count("EMBEDDING_QUERY_INSTRUCTION=none (the bare query") == 1  # the model-backed API's non-default setting, said
     assert "is missing" in parity_table(hash_run)  # the model-backed file not recorded yet: said, not hidden

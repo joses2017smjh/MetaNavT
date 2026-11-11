@@ -479,6 +479,10 @@ def _parity_run_text(blob: dict, rel: str) -> str:
         parts.append(f"On the {exact['n']} exact_path questions (the router's lexical_path route) nDCG@10 is {by_mem.get('ndcg@10', 0):.3f} "
                      f"in memory and {by_api.get('ndcg@10', 0):.3f} through the API, paired gap {_delta(exact.get('ndcg@10'))} "
                      f"({_zero_note(exact.get('ndcg@10'))}; n = {exact['n']}).")
+    health = blob.get("api_health") or {}
+    if health.get("embedding_provider") == "huggingface" and health.get("embedding_query_instruction") == "":
+        parts.append("The API ran with EMBEDDING_QUERY_INSTRUCTION=none (the bare query, as the benchmark embeds it), not the served "
+                     "default, which puts LlamaIndex's per-model instruction in front of every query.")
     settings = blob.get("settings") or {}
     if settings:
         shown = "; ".join(f"{key.replace('_', ' ')} {_parity_setting(settings[key]['in_memory'])} / {_parity_setting(settings[key]['api'])}"
