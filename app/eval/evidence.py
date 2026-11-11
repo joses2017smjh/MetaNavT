@@ -29,6 +29,7 @@ FILES = {
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "rrf_sweep": "bench/results/rrf_sweep.json",
 }
 
 
@@ -144,6 +145,7 @@ def claims(root: Path = ROOT) -> list[dict]:
                 d, ci = _ci(c.get("ndcg@10"), "delta")
                 out.append({"claim": "Fixture v1: bge-small + reranker vs hash + reranker (does the first stage matter once the reranker is on?), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-neural", "source": src,
                             "not_shown": f"a tie because the reranker rescores {by[c['row']]['settings']['retrieve_k']} of {by[c['row']]['n_chunks']} chunks; it says nothing about corpora where the first stage is a real filter"})
+    out += _rrf_sweep_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -292,6 +294,38 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                             "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
                                          f"{reranks} of a {blob['n_files']}-file synthetic fixture"})
     return out
+
+
+def _rrf_sweep_claims(root: Path = ROOT) -> list[dict]:
+    """The RRF setting chosen on the tune half, against k = 60 on the held-out half; the default it leaves in place."""
+    from app.eval.report import verdict
+
+    blob = _load(FILES["rrf_sweep"], root)
+    if not blob:
+        return []
+    d, grid = blob["decision"], blob["grid"]
+    src, cmd = f"{FILES['rrf_sweep']} @ {blob['git_sha']}", "make bench-rrf-sweep"
+    model = blob["models"]["embedder"]["model"].split("/")[-1]
+    head = f"Fixture v1, RRF k and dense-vs-BM25 list weight chosen on the tune half of the gold questions ({model}, no reranker)"
+    chosen = (f"chosen by the best tune-half nDCG@10 among {len(grid['k']) * len(grid['dense_weight'])} settings "
+              f"(k in {', '.join(map(str, grid['k']))}; dense weight in {', '.join(f'{w:g}' for w in grid['dense_weight'])}; BM25 weight 1), "
+              f"so the tune-half numbers are in-sample")
+    rep = blob.get("reproduces") or {}
+    tail = (f"the default setting's lists reproduce the committed {', '.join(rep['rows'])} rows; " if rep.get("all") else "")
+    tail += f"a {blob['n_files']}-file synthetic fixture"
+    if d["chosen_is_default"]:
+        return [{"claim": f"{head}: the tune half chose the default, k = 60 with equal weights", "value": "the default", "ci": "—",
+                 "n": len(blob["split"]["tune_ids"]), "command": cmd, "source": src,
+                 "not_shown": f"{chosen}; nothing to compare on the held-out half, and no evidence that k = 60 is best; {tail}"}]
+    block = d["held_out_ndcg@10"]
+    value, ci = _ci(block, "delta", digits=4)  # the file's precision: a small delta at 3 decimals reads larger than it is
+    stays = ("the interval excludes zero in favour of the chosen setting; the default is unchanged until the owner decides "
+             "(every hybrid row of main.json and neural.json would be re-recorded)" if d["owner_decision_needed"] else
+             "the default stays k = 60 with equal weights (it changes only if this interval excludes zero in favour of the chosen setting)")
+    w = d["chosen"]["weights"]["dense"]
+    return [{"claim": f"{head}: k = {d['chosen']['k']}, dense weight {w:g} minus k = 60 with equal weights, paired delta in nDCG@10 on the held-out half",
+             "value": value, "ci": ci, "n": len(blob["split"]["held_out_ids"]), "command": cmd, "source": src,
+             "not_shown": f"verdict from the interval: {verdict(block)}; {stays}; {chosen}; {tail}"}]
 
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:
