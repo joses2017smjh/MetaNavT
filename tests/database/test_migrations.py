@@ -536,6 +536,26 @@ def test_vector_0001_builds_the_table_pgvectorstore_builds(schema):
         plain.close()
 
 
+def test_the_deploy_step_creates_a_missing_vector_schema(schema):
+    """PGVectorStore's own setup created PGVECTOR_SCHEMA when it did not exist; the API now builds the store
+    with perform_setup=False, so vector/0001 creates it (and leaves an existing one alone)."""
+    from app.database import migrate
+
+    vector_schema = schema + "_v"
+    conn, plain = _connect(schema), _plain()
+    try:
+        assert _rows(plain, f"SELECT to_regnamespace('{vector_schema}') IS NULL;") == [(True,)]
+        table = migrate.VectorTable(schema=vector_schema, table="schematest", dim=256)
+        assert migrate.migrate_all(conn, table)["vector"] == [m.version for m in migrate.discover(migrate.VECTOR_DIR)]
+        assert _rows(plain, f"SELECT to_regclass('\"{vector_schema}\".\"data_schematest\"') IS NOT NULL;") == [(True,)]
+        assert migrate.pending_all(conn, table) == []
+    finally:
+        conn.close()
+        with plain.cursor() as cur:
+            cur.execute(f'DROP SCHEMA IF EXISTS "{vector_schema}" CASCADE;')
+        plain.close()
+
+
 def test_a_migration_that_changes_hnsw_m_rebuilds_the_index(schema, tmp_path):
     """IF NOT EXISTS on a fixed name never changed an existing index. A parameter change is a new file that
     builds the index under its new name (CONCURRENTLY) and drops the old one; the rows are untouched."""

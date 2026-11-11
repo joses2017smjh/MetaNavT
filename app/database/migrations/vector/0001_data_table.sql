@@ -1,11 +1,21 @@
 -- vector 0001: the data table LlamaIndex's PGVectorStore reads and writes, in the shape its
 -- own setup gives it (llama-index-vector-stores-postgres 0.5.5, no hybrid column, JSON
 -- metadata). The API builds PGVectorStore with perform_setup=False, so this file is where the
--- table, the vector extension and PGVectorStore's ref_doc_id index come from.
+-- schema (created when it is missing, as PGVectorStore's setup did), the table, the vector
+-- extension and PGVectorStore's ref_doc_id index come from.
 -- IF NOT EXISTS throughout: a table PGVectorStore created before migrations existed is
--- adopted with its rows. The block at the end refuses one whose embedding column has another
--- dimension than EMBEDDING_DIM ({dim} here), which used to win silently at start-up.
+-- adopted with its rows. The block at the end refuses to adopt one whose embedding column has
+-- another dimension than EMBEDDING_DIM ({dim} here). Once a table is adopted or built, nothing
+-- compares the two again: the API takes the table's dimension, as it did before migrations.
 -- tests/database/test_migrations.py compares this table with the one PGVectorStore creates.
+
+DO $$
+BEGIN
+    IF to_regnamespace('{schema}') IS NULL THEN
+        EXECUTE 'CREATE SCHEMA {schema}';
+    END IF;
+END
+$$;
 
 CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA {vector_schema};
 
