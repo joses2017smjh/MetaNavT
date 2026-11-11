@@ -296,7 +296,7 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:
     """One row per prototype arm and per stack: the paired delta against its parent, the verdict word, the stand-ins."""
-    from app.eval.report import verdict
+    from app.eval.report import hyde_wiring, llm_note, verdict
 
     out: list[dict] = []
     for key, command, stack in (
@@ -320,6 +320,16 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
             if 0.0 < block["lo"] < 0.0005 or -0.0005 < block["hi"] < 0.0:
                 limits.append(f"a bound sits at the edge of zero (interval as stored: [{block['lo']:+.4f}, {block['hi']:+.4f}])")
             limits.append("stand-ins: " + ("; ".join(row.get("fallbacks") or []) or "none, both models loaded"))
+            wiring = hyde_wiring(row.get("settings") or {})
+            if wiring:
+                limits.append(wiring)
+            if row.get("llm"):
+                limits.append(llm_note(row["llm"]).rstrip("."))
+            cache = row.get("cache")
+            if cache:
+                g = cache["gold"]
+                limits.append(f"cache threshold {cache['threshold']}: {g['hits']} hits on {g['n']} gold questions in gold order, "
+                              f"{g['wrong_hits']} of them wrong (the cached list differs from what retrieval returns for that question)")
             if vs:
                 limits.append(f"first ten files differ from the parent's on {vs['n_top10_differs']} of {vs['n_questions']} questions")
             g = row.get("graphrag")
