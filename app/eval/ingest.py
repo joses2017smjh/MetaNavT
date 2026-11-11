@@ -43,7 +43,10 @@ SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
 REPORT_SCHEMA = "ingest-report-v2"  # v2: the outside_root reason
 CHUNKER = "app/chunking (structure-aware)"
 CHUNKER_VERSION = "app.chunking/auto/v2"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
-# v2: Python module-level code between and after definitions is chunked, a definition starts at its first decorator.
+# v2: Python module-level code between and after definitions is chunked and a definition starts at its first
+# decorator; long JSON values and Python chunks are re-cut with the window; CSV records come from the csv module;
+# Markdown headings inside fenced code and the YAML header follow the rules in app/chunking/structure.py.
+
 # Gate order is the order of this tuple; a file is counted under the first gate it fails.
 # outside_root comes first: a file outside the root is rejected before its size or bytes are read.
 REJECT_REASONS = ("outside_root", "unsupported_type", "too_large", "undecodable", "empty", "duplicate_content")
