@@ -539,7 +539,10 @@ With `INDEX_ON_START`, every API start runs one indexing step
    does not enter symlinked directories.
 2. **Diff.** Each accepted file's SHA-256 is compared with a manifest table
    (`ingest_manifest_<table>`: path, content hash, chunk count, chunker version
-   and embedder). Files are new, changed, unchanged or removed.
+   and embedder). Files are new, changed, unchanged or removed. Before the
+   diff, the rows in the table are counted per path: a listed file whose row
+   count differs from its manifest chunk count (rows deleted or added behind
+   the manifest's back) counts as changed and is indexed again.
 3. **Limit.** If more files are rejected than `INGEST_MAX_REJECTED` allows, the
    run fails before it writes anything. CI and docker-compose set the limit to
    zero; unset, rejections are counted but not fatal.
@@ -547,19 +550,31 @@ With `INDEX_ON_START`, every API start runs one indexing step
    its chunks are embedded, its old rows are deleted by path, the new rows are
    inserted, and only then is it listed in the manifest. Unchanged files are
    not sent to the embedder and their rows are not rewritten.
-5. **Report.** The run returns the counts of files seen, indexed, unchanged,
-   removed and rejected by reason. The report is logged and served by
-   `GET /health` under `indexing`.
+5. **Verify.** The rows are counted per path again and must equal the
+   manifest's chunk counts; otherwise the run raises `IngestUnreconciled`
+   instead of reporting success.
+6. **Report.** The run returns the counts of files seen, indexed, unchanged,
+   removed and rejected by reason, and a `reconciliation` block (files whose
+   rows did not match at the start, with a sample, and the count after the
+   run). The report is logged and served by `GET /health` under `indexing`.
 
 The step is idempotent and can be interrupted: because the manifest row is
 written last and old rows are deleted before new ones are inserted, the next
 run repeats the unfinished files and leaves one set of rows. Two replicas that
 start together serialise on the lock; the second finds nothing to do.
 
+"Failed" is not a counted category. Every failure (the embedder or the
+database raising, the rejection limit, a verification mismatch) aborts the run
+with an exception, which fails the API start, instead of being counted in a
+report; files the run had not finished keep their previous rows and manifest
+entry, and the next start repeats them. A file is counted only as indexed,
+unchanged or rejected with a reason.
+
 What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
 runs against a live Postgres in CI's `parity` job (unchanged re-run embeds
 nothing, an edit re-embeds one file, a delete removes its rows, the rejection
-limit, an interrupted run, two concurrent runs);
+limit, a link out of `DATA_DIR`, rows deleted or added behind the manifest's
+back, a run that does not verify, an interrupted run, two concurrent runs);
 [tests/eval/test_ingest.py](../tests/eval/test_ingest.py) covers the scan, the
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in

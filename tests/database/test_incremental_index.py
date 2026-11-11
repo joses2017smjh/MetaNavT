@@ -231,6 +231,68 @@ def test_an_interrupted_run_never_leaves_the_manifest_ahead_of_the_rows(run):
     assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
 
 
+def _table_sql(run, statement: str, *params) -> None:
+    """Change the data table directly, the way a manual edit or another writer would (behind the manifest's back)."""
+    vsm = run.managers[0]
+    with vsm.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(statement.format(table=f'"{vsm.schema_name}"."{vsm.data_table}"'), params)
+
+
+def test_rows_changed_behind_the_manifests_back_are_reported_and_repaired_by_the_next_run(run):
+    from app.eval.ingest import file_chunks
+
+    run.index()
+    short, extra = "results/ablation.csv", EDITED  # one loses a row, the other gains a duplicate
+    _table_sql(run, "DELETE FROM {table} WHERE id = (SELECT max(id) FROM {table} WHERE metadata_->>'path' = %s);", short)
+    _table_sql(run, "INSERT INTO {table} (text, metadata_, node_id, embedding) "
+                    "SELECT text, metadata_, node_id || '-copy', embedding FROM {table} WHERE metadata_->>'path' = %s;", extra)
+    listed = {p: row["n_chunks"] for p, row in run.managers[0].ingest_manifest().items()}
+    run.embedded = []
+
+    report = run.index()
+
+    assert report["reconciliation"]["files_mismatched_at_start"] == 2
+    assert report["reconciliation"]["mismatched_sample"] == [
+        {"path": extra, "manifest_chunks": listed[extra], "rows": listed[extra] + 1},
+        {"path": short, "manifest_chunks": listed[short], "rows": listed[short] - 1},
+    ]
+    assert report["reconciliation"]["files_mismatched_after_run"] == 0
+    assert (report["files_indexed"], report["indexed_changed"], report["files_unchanged"]) == (2, 2, report["files_seen"] - 2)
+    assert run.embedded == [c.text for path in (extra, short) for c in file_chunks(path, (run.corpus / path).read_bytes().decode("utf-8"))]
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+    run.assert_manifest_matches_rows()
+    again = run.index()
+    assert again["reconciliation"]["files_mismatched_at_start"] == 0 and again["chunks_embedded"] == 0
+
+
+def test_a_run_whose_rows_do_not_match_its_manifest_fails_and_the_next_run_repairs_it(run):
+    from app.eval.ingest import IngestUnreconciled
+
+    run.index()
+    vsm = run.managers[0]
+    real_record = vsm.record_file
+
+    def record_one_chunk_too_many(path, content_hash, n_chunks, pipeline=""):
+        return real_record(path, content_hash, n_chunks + 1, pipeline)
+
+    with (run.corpus / EDITED).open("a") as handle:
+        handle.write("note: edited\n")
+    vsm.record_file = record_one_chunk_too_many  # the manifest claims a chunk the table does not hold
+    with pytest.raises(IngestUnreconciled) as unreconciled:
+        run.index()
+    vsm.record_file = real_record
+    (row,) = unreconciled.value.mismatches
+    assert row["path"] == EDITED and row["manifest_chunks"] == row["rows"] + 1
+    assert unreconciled.value.report["reconciliation"]["files_mismatched_after_run"] == 1
+
+    report = run.index()  # the next start finds the mismatch and indexes that file again
+
+    assert report["reconciliation"]["files_mismatched_at_start"] == 1 and report["files_indexed"] == 1
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+    run.assert_manifest_matches_rows()
+
+
 def test_two_replicas_starting_together_index_once(run):
     first, second = run.managers[0], run.manager()
     barrier = threading.Barrier(2)

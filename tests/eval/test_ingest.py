@@ -17,6 +17,7 @@ from app.eval.ingest import (
     file_chunks,
     plan_and_report,
     plan_ingest,
+    row_mismatches,
     scan_directory,
 )
 from app.eval.reindex import files_to_remove, sha256_file
@@ -106,6 +107,18 @@ def test_a_file_that_stops_being_accepted_is_removed_from_the_index(tmp_path):
     plan, report = plan_and_report(scan_directory(tmp_path, SERVED_POLICY), manifest)
 
     assert plan.removed == ["a.md"] and report["rejected_by_reason"]["undecodable"] == 1
+
+
+def test_row_mismatches_compares_rows_per_path_with_the_manifest_chunk_counts():
+    listed = {"a.yaml": 1, "b.csv": 9, "c.md": 2, "no_chunks.md": 0}
+    rows = {"a.yaml": 2, "b.csv": 8, "c.md": 2, "unlisted.out": 3}
+
+    assert row_mismatches(listed, rows) == [
+        {"path": "a.yaml", "manifest_chunks": 1, "rows": 2},
+        {"path": "b.csv", "manifest_chunks": 9, "rows": 8},
+        {"path": "unlisted.out", "manifest_chunks": 0, "rows": 3},
+    ]
+    assert row_mismatches(listed, {"a.yaml": 1, "b.csv": 9, "c.md": 2}) == []  # a path missing on one side counts as 0 there
 
 
 def test_bench_loader_counts_the_file_it_used_to_skip_silently(tmp_path):

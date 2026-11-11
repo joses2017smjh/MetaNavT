@@ -127,6 +127,21 @@ class IngestRejected(RuntimeError):
         )
 
 
+class IngestUnreconciled(RuntimeError):
+    """After a run's writes, the rows per path still differ from the manifest's chunk counts.
+
+    Raised instead of returning the report: a run whose own output does not
+    verify is not reported as a success. The next run re-indexes those files.
+    """
+
+    def __init__(self, mismatches: list[dict], report: dict):
+        self.mismatches = mismatches
+        self.report = report
+        super().__init__(
+            f"{len(mismatches)} files have a row count that differs from the manifest's chunk count: {mismatches[:REJECTED_SAMPLE]}"
+        )
+
+
 def iter_corpus_files(root: Path) -> list[Path]:
     files = []
     for path in sorted(root.rglob("*")):
@@ -246,6 +261,20 @@ def ingest_report(scan: Scan, plan: IngestPlan, *, max_rejected: int | None = No
         "rejected_sample": scan.rejected[:REJECTED_SAMPLE],
         "max_rejected": max_rejected,
     }
+
+
+def row_mismatches(listed: Mapping[str, int], rows: Mapping[str, int]) -> list[dict]:
+    """Paths whose row count differs from the chunk count the manifest lists, in path order.
+
+    `listed` maps each manifest path to its n_chunks, `rows` each path to the
+    chunk rows the table holds for it; a path missing on one side counts as 0
+    there. The served indexer checks this before and after every run.
+    """
+    return [
+        {"path": path, "manifest_chunks": listed.get(path, 0), "rows": rows.get(path, 0)}
+        for path in sorted(set(listed) | set(rows))
+        if listed.get(path, 0) != rows.get(path, 0)
+    ]
 
 
 def enforce_rejection_limit(report: dict) -> None:
