@@ -863,6 +863,18 @@ Cohen's kappa is computed between each judge's correctness verdicts and the
 exact-match labels of the simple-factual answers it labelled, paired per
 question, with a bootstrap interval; rule-labelled abstentions are left out of
 kappa and counted, since they would agree with the reference by construction.
+The simple-factual slice is saturated for every generator tried, so
+`make bench-jury-v2` (results in `jury_v2.json`) adds a calibration set and
+makes it the reference: a smaller model that is neither judge answers each
+simple-factual question twice, once from the retrieved chunks and once from the
+same chunks with every standalone occurrence of the gold value replaced in
+memory by another gold value of the same question template (the fixture is not
+touched). The planted answers give the reference its wrong class. Calibration
+answers get the correctness verdict only, cited or not, and stay out of every
+deterministic-check rate; the run's own answers are judged as before, and a
+judge that passes the gate on the calibration set has its correctness score of
+those answers published. A pass shows that the judge compares a single-value
+answer with the gold, not that it judges every kind of answer correctly.
 A judge's correctness score is published only if its kappa reaches the gate;
 otherwise the table says so and the scores stay in the results file. If the
 reference is a single class (every simple-factual answer matched, as on the

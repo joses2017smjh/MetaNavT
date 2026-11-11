@@ -457,3 +457,98 @@ def test_rescore_refuses_when_the_abstention_rule_would_label_other_rows(tmp_pat
     path.write_text(json.dumps(blob))
     with pytest.raises(SystemExit, match="abstention rule"):
         llm_eval.rescore(path)
+
+
+# ---- M29 (D12): the calibration set, the gate's reference when the run has a calibration generator
+
+def test_planted_values_come_from_the_same_field_and_differ_from_the_gold():
+    from app.eval.gold import load_gold
+    from app.eval.harness import project_root
+    from app.eval.judge import exact_match_label
+    from app.eval.llm_eval import planted_values, question_template
+
+    gold = load_gold(project_root() / "bench" / "gold" / "questions.jsonl")
+    planted = planted_values(gold)
+    sf = [q for q in gold if q.category == "simple_factual"]
+    assert set(planted) == {q.id for q in sf} and all(planted.values())
+    by_template = {}
+    for q in sf:
+        by_template.setdefault(question_template(q.question), set()).add(q.answer)
+    for q in sf:
+        assert planted[q.id] in by_template[question_template(q.question)]  # a value the same field takes
+        assert exact_match_label(planted[q.id], q.answer, bounded=True) != "correct"  # 2e-04 is not 1e-04, 3 is not 2
+    assert planted["q001"] == "2e-04" and planted["q003"] == "pine" and planted["q004"] == "clip"  # run 40: 1e-04, oak, resnet50
+
+
+def test_planting_replaces_every_standalone_occurrence_in_memory():
+    from app.eval.llm_eval import plant
+
+    hits = [_hit("configs/run_040.yaml", "run_id: 40\nlearning_rate: 0.0001\nnum_pairs: 2\nencoder: resnet50"),
+            _hit("slurm/run_040.sbatch", "python train.py --num_pairs=2 --encoder resnet50 --model dinov2", rank=2)]
+    planted, count = plant(hits, "2", "3")
+    assert count == 2 and "num_pairs: 3" in planted[0].chunk.text and "--num_pairs=3" in planted[1].chunk.text
+    assert "dinov2" in planted[1].chunk.text and "run_id: 40" in planted[0].chunk.text  # digits inside words and numbers stay
+    assert [source_tag(h) for h in planted] == [source_tag(h) for h in hits] and "num_pairs: 2" in hits[0].chunk.text  # tags kept, input untouched
+    assert plant(hits, "1e-04", "2e-04")[0][0].chunk.text.count("2e-04") == 1  # the numeric equivalent 0.0001 is replaced
+    assert plant(hits, "oak", "pine")[1] == 0
+
+
+def _echo_and_exact_judge(prompt: str) -> str:
+    """A fake model: generation copies every source's text after its first tag; the correctness judge applies the
+    bounded exact-match rule (so its kappa is 1); other prompts get fixed replies."""
+    from app.eval.judge import exact_match_label
+
+    if "Rules:" in prompt:
+        tag = re.search(r"Source 1 (\[[^\]]+\])", prompt).group(1)
+        bodies = re.findall(r"Source \d+ \[[^\]]+\]\n(.*?)(?=\n\nSource \d+ |\n\nQuestion: )", prompt, re.S)
+        return f"{' '.join(bodies)} {tag}"
+    if "Does the answer give the gold answer?" in prompt:
+        gold = re.search(r"Gold answer: (.*)\n", prompt).group(1)
+        answer = re.search(r"\nAnswer: (.*?)\nDoes the answer", prompt, re.S).group(1)
+        return json.dumps({"label": exact_match_label(answer, gold, bounded=True)})
+    if "Which is better" in prompt:
+        return "TIE"
+    return json.dumps({"score": 0.9, "label": "correct"})
+
+
+def test_the_calibration_set_is_the_reference_and_stays_out_of_the_checks(tmp_path):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a", "fake-b"], limit=5,
+                        complete_fn=_echo_and_exact_judge, calibration_generator="fake-small")
+    cal = blob["calibration"]
+    assert cal["generator"]["model"] == "fake-small" and len(cal["rows"]) == 10  # five simple-factual questions, two conditions
+    planted = [r for r in cal["rows"] if r["condition"] == "planted"]
+    assert all(r["probe"] and r["replacements"] > 0 and r["checks"]["exact_match_label"] != "correct" for r in planted)
+    assert all(r["correctness"]["fake-a"]["by"] == "judge" for r in cal["rows"])
+    s = blob["summary"]
+    ref = s["reference"]
+    assert ref["source"] == "calibration" and ref["n"] == 10 and ref["by_condition"]["planted"]["correct"] == 0
+    assert ref["gate_evaluable"] and s["kappa"]["fake-a"]["kappa_vs_exact_match_simple_factual"] == 1.0 and s["publishable_judges"] == ["fake-a", "fake-b"]
+    assert s["checks"]["exact_match_simple_factual"]["n"] == 5  # the calibration rows are in no deterministic-check rate
+    assert s["kappa"]["fake-a"]["n_all"] == 5 and s["kappa"]["fake-a"]["simple_factual_answers"]["n"] == 5
+    assert s["replies"]["fake-a"]["calibration_correctness"] == {"n": 10, "empty": 0, "unparsed": 0}
+    path = tmp_path / "jury_v2.json"
+    path.write_text(json.dumps(blob))
+    again = llm_eval.rescore(path)
+    assert again["summary"] == s and [r["checks"] for r in again["calibration"]["rows"]] == [r["checks"] for r in cal["rows"]]
+    planted[0]["replacements"] += 1
+    path.write_text(json.dumps(blob))
+    with pytest.raises(SystemExit, match="replacements"):
+        llm_eval.rescore(path)
+
+
+def test_calibration_answers_are_judged_cited_or_not():
+    """The verdict sees neither context nor citations, so an uncited calibration answer is still judged; an uncited
+    answer of the run itself still fails loud and is not judged."""
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    def uncited(prompt: str) -> str:
+        return re.sub(r"\s*\[[^\]]+\]$", "", _echo_and_exact_judge(prompt)) if "Rules:" in prompt else _echo_and_exact_judge(prompt)
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=2,
+                        complete_fn=uncited, calibration_generator="fake-small")
+    assert all(r.get("failed") == "uncited_answer" and not r["correctness"] for r in blob["rows"])
+    assert all(r["checks"]["uncited"] and r["correctness"]["fake-a"]["by"] == "judge" for r in blob["calibration"]["rows"])

@@ -314,15 +314,44 @@ def _numbers(text: str, *, bounded: bool = False) -> set[float]:
     return out
 
 
+def _bounded_pattern(value: str) -> str:
+    head = r"(?<![\w.])" if re.match(r"\w", value) else ""
+    tail = r"(?!\w|\.\d)" if re.match(r"\w", value[-1]) else ""
+    return head + re.escape(value) + tail
+
+
 def contains_bounded(text: str, value: str) -> bool:
     """`value` occurs in `text` and is not part of a longer number or word at an end where it starts or ends with
     a letter or digit: "2" is not in "run 42" or "2.5", "0.053" is not in "0.0533", "oak" is not in "oaks"."""
     value = value.strip()
+    return bool(value) and re.search(_bounded_pattern(value), text) is not None
+
+
+def single_number(value: str) -> float | None:
+    """The number `value` is, when the whole string is one number ("1e-04", "0.0555", "3"), else None."""
+    found = _NUM_RE.findall(value or "")
+    return float(found[0]) if len(found) == 1 and value.strip() == found[0] else None
+
+
+def replace_bounded(text: str, value: str, new: str) -> tuple[str, int]:
+    """`text` with every occurrence of `value` that contains_bounded finds (any case) replaced by `new`, and, when
+    `value` is one number, every standalone number equal to it (0.0001 for 1e-04); with the count of replacements."""
+    value = value.strip()
     if not value:
-        return False
-    head = r"(?<![\w.])" if re.match(r"\w", value) else ""
-    tail = r"(?!\w|\.\d)" if re.match(r"\w", value[-1]) else ""
-    return re.search(head + re.escape(value) + tail, text) is not None
+        return text, 0
+    target = single_number(value)
+    if target is not None:
+        count = 0
+
+        def swap(m: re.Match) -> str:
+            nonlocal count
+            if _standalone(text, m.start(), m.end()) and abs(float(m.group(0)) - target) <= 1e-9 * max(1.0, abs(target)):
+                count += 1
+                return new
+            return m.group(0)
+
+        return _NUM_RE.sub(swap, text), count
+    return re.subn(_bounded_pattern(value), lambda m: new, text, flags=re.I)
 
 
 def exact_match_label(answer: str, gold: str, *, bounded: bool = False) -> str:
