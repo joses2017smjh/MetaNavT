@@ -155,10 +155,8 @@ class HybridRetriever(BaseRetriever):
         self._rrf_k = rrf_k
         self._rerank_depth = rerank_depth  # rerank the fused top-N only; the rest keep RRF order
         self.reranker_info = dict(reranker_info or {"configured": reranker is not None, "loaded": reranker is not None})
-        # Compatibility mirrors of the last outcome (single-threaded callers only).
-        self.last_timer: Optional[StageTimer] = None
-        self.last_route = None
-        self.last_counts: dict[str, int] = {}
+        # Nothing a request produces is stored on the retriever: the API serves every request
+        # from this one object on worker threads, so each outcome is returned, never kept here.
         super().__init__()
 
     @property
@@ -193,9 +191,9 @@ class HybridRetriever(BaseRetriever):
         n = top_n or self._rerank_top_n
 
         if self._mode == "sql":
-            fused, scores, counts, backend = self._fuse_sql(query_str, timer, skip_embed, deadline)
+            fused, scores, counts, backend, lexical_degraded = self._fuse_sql(query_str, timer, skip_embed, deadline)
         else:
-            fused, scores, counts, backend = self._fuse_python(query_str, timer, skip_embed, deadline)
+            fused, scores, counts, backend, lexical_degraded = self._fuse_python(query_str, timer, skip_embed, deadline)
         counts["fused"] = len(fused)
 
         staleness = {"enabled": self.staleness_enabled, "applied": False, "dropped": 0}
@@ -238,21 +236,18 @@ class HybridRetriever(BaseRetriever):
             bm25_backend=backend,
             skipped_embed=skip_embed,
             skipped_rerank=skip_rerank or self._reranker is None,
-            degraded=degraded + self._bm25_degraded,
+            degraded=degraded + lexical_degraded,
             timer=timer,
         )
-        self.last_timer, self.last_route, self.last_counts = timer, route, counts
         return outcome
 
     def _retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
         return self.retrieve_detailed(query_bundle.query_str).nodes
 
     # ------------------------------------------------------------------ fusion backends
-
-    _bm25_degraded: List[dict] = []
+    # Each returns (fused, scores, counts, the lexical backend that answered, degraded components).
 
     def _fuse_sql(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline):
-        self._bm25_degraded = []
         qvec = None
         if not skip_embed:
             deadline.stage = "embed"
@@ -280,13 +275,12 @@ class HybridRetriever(BaseRetriever):
             "vector": sum(1 for r in rows if r.get("dense_rank") is not None),
         }
         # The label comes back with this request's rows (SearchRows), never from the shared manager.
-        return fused, scores, counts, getattr(rows, "lexical_backend", None)
+        return fused, scores, counts, getattr(rows, "lexical_backend", None), []
 
     def _fuse_python(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline):
-        self._bm25_degraded = []
         deadline.stage = "bm25"
         with timer.stage("bm25"), span("bm25"):
-            bm25_nodes, backend = self._bm25_retrieve(query_str)
+            bm25_nodes, backend, degraded = self._bm25_retrieve(query_str)
         deadline.check("bm25")
         vector_results: List[NodeWithScore] = []
         if not skip_embed:
@@ -308,7 +302,7 @@ class HybridRetriever(BaseRetriever):
             for n in fused
         }
         counts = {"bm25": len(bm25_nodes), "vector": len(vector_results)}
-        return fused, scores, counts, backend
+        return fused, scores, counts, backend, degraded
 
     def _prefer_current(self, query_str: str, fused: List[NodeWithScore]) -> List[NodeWithScore]:
         hits = [RetrievalHit(chunk=node_to_chunk(n), score=float(n.score or 0.0), rank=i) for i, n in enumerate(fused, start=1)]
@@ -317,8 +311,9 @@ class HybridRetriever(BaseRetriever):
         by_id = {n.node.node_id: n for n in fused}
         return [by_id[i] for i in keep_ids if i in by_id]
 
-    def _bm25_retrieve(self, query_str: str) -> tuple[List[NodeWithScore], Optional[str]]:
-        """Run BM25 search via the vector store manager: (nodes, the lexical backend that answered)."""
+    def _bm25_retrieve(self, query_str: str) -> tuple[List[NodeWithScore], Optional[str], List[dict]]:
+        """Run BM25 search via the vector store manager: (nodes, the lexical backend that answered,
+        the degraded entry when the search failed). All three belong to this request."""
         try:
             raw_results = self._vsm.search_bm25(query=query_str, limit=self._bm25_top_k)
             nodes = []
@@ -329,11 +324,10 @@ class HybridRetriever(BaseRetriever):
                     metadata=dict(r.get("metadata") or {}),  # file_path etc. from metadata_
                 )
                 nodes.append(NodeWithScore(node=node, score=float(r["score"])))
-            return nodes, getattr(raw_results, "lexical_backend", None)
+            return nodes, getattr(raw_results, "lexical_backend", None), []
         except Exception as e:  # noqa: BLE001 - recorded on the outcome, never silent
             logger.warning(f"BM25 retrieval failed; this request is degraded to vector-only: {e}")
-            self._bm25_degraded = [{"component": "bm25", "error": f"{type(e).__name__}: {e}"}]
-            return [], None
+            return [], None, [{"component": "bm25", "error": f"{type(e).__name__}: {e}"}]
 
     def _rerank(self, query_str: str, nodes: List[NodeWithScore], n: Optional[int] = None):
         """Rerank the fused top-`rerank_depth` with the cross-encoder; the rest keep RRF order.

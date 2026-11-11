@@ -96,10 +96,10 @@ def test_counts_and_bm25_limit():
     vsm = _FakeVSM()
     retriever = _retriever(vsm)
 
-    nodes = retriever.retrieve("anything")
+    out = retriever.retrieve_detailed("anything")
 
     assert vsm.calls == [("anything", 50)]
-    assert retriever.last_counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": len(nodes)}
+    assert out.counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": len(out.nodes)}
 
 
 class _ReversingCrossEncoder:
@@ -123,14 +123,15 @@ def test_production_rerank_uses_predict_and_truncates_to_rerank_top_n():
         enable_router=False,
     )
 
-    nodes = retriever.retrieve("anything")
+    out = retriever.retrieve_detailed("anything")
+    nodes = out.nodes
 
     assert len(model.calls) == 1 and len(model.calls[0]) == 3  # every fused node was scored
     assert [n.node.node_id for n in nodes] == [n.node.node_id for n in nodes][:2] and len(nodes) == 2
     fused_order = [p[1] for p in model.calls[0]]
     assert nodes[0].node.get_content() == fused_order[-1]  # highest score = last pair
     assert nodes[0].score == 2.0 and nodes[1].score == 1.0
-    assert retriever.last_counts["returned"] == 2 and retriever.last_counts["fused"] == 3
+    assert out.counts["returned"] == 2 and out.counts["fused"] == 3
 
 
 # ---------------------------------------------------------------- M3: SQL mode, staleness, per-request outcome
@@ -454,3 +455,67 @@ def test_a_concurrent_request_does_not_change_the_lexical_label_of_another(mode)
     a.join(10)
     assert outcomes["b"].bm25_backend == "none"
     assert outcomes["a"].bm25_backend == "ts_rank_cd", f"request A reports B's label ({mode} mode)"
+
+
+# ---------------------------------------------------------------- M17 (C29): nothing per request is kept on the retriever
+
+LEXICAL_DOWN, LEXICAL_UP = "lexical leg down", "lexical leg up"
+
+
+class _UpOrDownVSM:
+    """search_bm25 raises for LEXICAL_DOWN and answers every other query."""
+
+    def search_bm25(self, query, limit):
+        if query == LEXICAL_DOWN:
+            raise ConnectionError("db gone")
+        return SearchRows([{"node_id": "b", "text": "encoder: dinov2", "score": 3.0, "metadata": {"path": "configs/run_046.yaml"}}], "ts_rank_cd")
+
+
+class _PausingVectorRetriever(_FakeVectorRetriever):
+    """The dense leg, which Python mode runs after the lexical leg: the call for `pause_query`
+    returns only after `resume` is set, so another request can run start to finish meanwhile."""
+
+    def __init__(self, pause_query, paused, resume):
+        self.pause_query, self.paused, self.resume = pause_query, paused, resume
+
+    def retrieve(self, query: str):
+        if query == self.pause_query:
+            self.paused.set()
+            assert self.resume.wait(10), "the other request never finished"
+        return super().retrieve(query)
+
+
+@pytest.mark.parametrize("first, second", [(LEXICAL_DOWN, LEXICAL_UP), (LEXICAL_UP, LEXICAL_DOWN)], ids=["down-then-up", "up-then-down"])
+def test_a_concurrent_request_does_not_cross_the_degraded_list(first, second):
+    """Python fusion mode: request A's lexical leg has run (failed or not) and A waits in its dense leg
+    while request B runs start to finish on the same retriever. A response lists the bm25 component
+    as degraded exactly when its own lexical leg failed."""
+    import threading
+
+    paused, resume = threading.Event(), threading.Event()
+    retriever = HybridRetriever(_PausingVectorRetriever(first, paused, resume), _UpOrDownVSM(), reranker=None, enable_router=False, mode="python")
+    outcomes = {}
+    a = threading.Thread(target=lambda: outcomes.__setitem__("a", retriever.retrieve_detailed(first)))
+    a.start()
+    assert paused.wait(10), "request A never reached its dense leg"
+    outcomes["b"] = retriever.retrieve_detailed(second)  # B runs while A waits between its lexical leg and its outcome
+    resume.set()
+    a.join(10)
+    for name, query in (("a", first), ("b", second)):
+        components = [d["component"] for d in outcomes[name].degraded]
+        assert components == (["bm25"] if query == LEXICAL_DOWN else []), f"request {name.upper()} ({query!r}) reports {outcomes[name].degraded}"
+
+
+@pytest.mark.parametrize("mode", ["sql", "python"])
+def test_a_request_writes_nothing_on_the_shared_retriever(mode):
+    """The API serves every request from one retriever: its fields are the same after requests
+    (a lexical_path route, a failed lexical leg in Python mode, a reranked one) as before them."""
+    if mode == "sql":
+        retriever = HybridRetriever(None, _FakeSQLVSM(), reranker=_ReversingCrossEncoder(), mode="sql", embed_fn=lambda q: [0.1, 0.2],
+                                    clusters=_clusters_for_fake_rows(), rerank_depth=2)
+    else:
+        retriever = HybridRetriever(_FakeVectorRetriever(), _UpOrDownVSM(), reranker=_ReversingCrossEncoder(), mode="python", rerank_depth=2)
+    before = dict(vars(retriever))
+    for query in ("current learning rate for run 47", "open configs/run_047.yaml", LEXICAL_DOWN):
+        retriever.retrieve_detailed(query)
+    assert vars(retriever) == before
