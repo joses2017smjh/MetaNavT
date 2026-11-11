@@ -123,6 +123,11 @@ def test_both_statements_share_the_dense_cte():
         ("Café crème brûlée", "café or crème or brûlée"),  # an accent does not split a word
         ("Café au lait", "café or au or lait"),  # decomposed input is composed first (NFC)
         ("Zürich naïve résumé 東京", "zürich or naïve or résumé or 東京"),
+        # Combining marks stay inside the word, as Postgres's parser keeps them: Devanagari vowel
+        # signs and virama, Arabic short vowels, a diacritic with no precomposed form.
+        ("हिन्दी भाषा", "हिन्दी or भाषा"),
+        ("كَتَبَ الوَلَدُ", "كَتَبَ or الوَلَدُ"),
+        ("n̈ame", "n̈ame"),
         ("cats or dogs", "cats or dogs"),  # websearch's operator word is not a term
         ("fusion_off_resnet OR fusion_on_resnet", "fusion_off_resnet or fusion_on_resnet"),
         ("or", ""),

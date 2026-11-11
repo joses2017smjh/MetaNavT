@@ -65,6 +65,25 @@ def lexical_backend_setting() -> str:
     return value
 
 
+def word_runs(text: str):
+    """Runs of word characters (letters and digits of any script, "_": what the regex \\w matches)
+    and of the combining marks among them, in order.
+
+    \\w alone splits a word at every mark that is not a letter: Devanagari vowel signs and
+    virama, Arabic short vowels, a diacritic with no precomposed form. Postgres's text search
+    parser keeps such a word whole, so a term split there could never match it.
+    """
+    run: list[str] = []
+    for ch in text:
+        if ch.isalnum() or ch == "_" or unicodedata.category(ch).startswith("M"):
+            run.append(ch)
+        elif run:
+            yield "".join(run)
+            run = []
+    if run:
+        yield "".join(run)
+
+
 def describe_dsn(dsn: str | None) -> str:
     """Host, port and database name of a connection string, for log lines.
 
@@ -462,13 +481,14 @@ class VectorStoreManager(DatabaseManager):
         BM25-like OR semantics instead of websearch's default AND. Stopwords are
         dropped by the 'english' configuration on the Postgres side.
 
-        A term is a run of word characters of any script (letters, digits, "_") in the
-        NFC form of the query, so an accented word stays one term ("café", not "caf").
-        Quotes and a leading "-", websearch's other operators, are never part of a term;
-        its operator word "or" is dropped (an English stopword as well).
+        A term is a run of word characters of any script (letters, digits, "_") and the
+        combining marks among them, in the NFC form of the query (word_runs), so an accented
+        word stays one term ("café", not "caf"), and so does a word written with separate
+        vowel signs ("हिन्दी"). Quotes and a leading "-", websearch's other operators, are
+        never part of a term; its operator word "or" is dropped (an English stopword as well).
         """
         terms = []
-        for tok in re.findall(r"\w+", unicodedata.normalize("NFC", query or "")):
+        for tok in word_runs(unicodedata.normalize("NFC", query or "")):
             t = tok.lower()
             if t not in terms and t not in WEBSEARCH_OPERATOR_WORDS:
                 terms.append(t)

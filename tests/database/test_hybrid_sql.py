@@ -161,6 +161,8 @@ def test_a_tie_at_the_dense_cut_keeps_the_smaller_node_id(tie_table):
         # An accented word stays one term. Document text is lowercase: how Postgres lowercases
         # non-ASCII letters depends on the database's locale, which differs between installs.
         ("Café crème brûlée", "'café' | 'crème' | 'brûlée'", "un café crème, une brûlée"),
+        # So does a word whose vowel signs are combining marks (Devanagari).
+        ("हिन्दी भाषा", "'हिन्दी' | 'भाषा'", "हिन्दी भाषा का इतिहास"),
         # websearch_to_tsquery's operator word in the query is not passed on as a term.
         ("cats or dogs", "'cat' | 'dog'", "two dogs"),
         ("which ablation is worse, fusion_off_resnet or fusion_on_resnet",  # gold question q095
