@@ -382,11 +382,17 @@ class FilesystemTools:
         entries = []
         for child in sorted(target.iterdir(), key=lambda p: p.name):
             rel = str(child.relative_to(self.root))
+            st = child.lstat()  # never follows a link
+            if statmod.S_ISLNK(st.st_mode):
+                # The other tools refuse a path through a symlink. It is listed as a
+                # link, without its target's type or size.
+                entries.append({"path": rel, "is_dir": False, "size": None, "symlink": True})
+                continue
             entries.append(
                 {
                     "path": rel,
-                    "is_dir": child.is_dir(),
-                    "size": child.stat().st_size if child.is_file() else None,
+                    "is_dir": statmod.S_ISDIR(st.st_mode),
+                    "size": st.st_size if statmod.S_ISREG(st.st_mode) else None,
                 }
             )
         return entries

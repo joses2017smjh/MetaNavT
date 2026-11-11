@@ -159,6 +159,21 @@ def test_collect_run_artifact_leaves_out_files_reached_through_a_symlink(tmp_pat
         assert "zqxj" not in text and "paper_run_047" not in text and "linkdir" not in text
 
 
+def test_list_dir_lists_a_symlink_without_its_target_metadata(tmp_path):
+    root, outside = tmp_path / "corpus", tmp_path / "outside"
+    (root / "sub").mkdir(parents=True)
+    (outside / "dir").mkdir(parents=True)
+    (root / "plain.txt").write_bytes(b"x" * 7)
+    (outside / "secret.bin").write_bytes(b"s" * 1234)
+    (root / "link.txt").symlink_to(outside / "secret.bin")
+    (root / "linkdir").symlink_to(outside / "dir", target_is_directory=True)
+    listed = {entry["path"]: entry for entry in FilesystemTools(root=root).call("list_dir", {"path": "."})}
+    assert listed["plain.txt"] == {"path": "plain.txt", "is_dir": False, "size": 7}  # regular entries as before
+    assert listed["sub"] == {"path": "sub", "is_dir": True, "size": None}
+    assert listed["link.txt"] == {"path": "link.txt", "is_dir": False, "size": None, "symlink": True}
+    assert listed["linkdir"] == {"path": "linkdir", "is_dir": False, "size": None, "symlink": True}
+
+
 def test_generated_goal_and_citation_newlines_cannot_execute_library_key_reader(tmp_path):
     from app.artifacts.templates import render
     from app.artifacts.spec import SpecCard

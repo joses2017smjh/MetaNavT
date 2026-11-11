@@ -411,7 +411,7 @@ Any MCP client can drive the corpus over stdio, through either server. Each inde
 |---|---|
 | `search_semantic` / `search_lexical` | routed hybrid search over the start-time index (BM25 and dense fused, then the overlap reranker; the router skips the reranker for aggregation queries and gives a path-like query path lookup and BM25 only) / BM25 over the same index |
 | `read_file(path, byte_range)` | citations resolve to bytes |
-| `list_dir` / `stat` | navigate the tree, not just vectors |
+| `list_dir` / `stat` | navigate the tree, not just vectors; `list_dir` shows a symlink as a link (`"symlink": true`, no size) without reading its target, and `stat` refuses it |
 | `propose_move` | returns a plan. never executes |
 | `apply_plan` | requires an externally signed, single-use `approval_token` |
 | `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper); files reached through a symlink are left out |
