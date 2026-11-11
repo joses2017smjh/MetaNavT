@@ -368,6 +368,10 @@ def test_bench_log_rows_are_the_serving_features_of_the_list_the_reranker_receiv
     # When nothing reranked the list, the label is the fused score itself and the rows say so.
     plain = bench_log_triples(query, _tiny_index().retrieve(query, k=5))
     assert [r.ce_score for r in plain] == [s for _, s in fused] and {r.teacher for r in plain} == {"fused score (no rerank ran)"}
+    # A result assembled elsewhere (no fused list) cannot be logged as if it had been reranked.
+    result.fused = []
+    with pytest.raises(ValueError, match="no fused list"):
+        bench_log_triples(query, result)
 
 
 def test_bench_triple_log_has_no_rank_after_the_rerank():

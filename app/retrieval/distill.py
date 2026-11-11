@@ -67,7 +67,11 @@ def bench_log_triples(query: str, result) -> list[RerankTriple]:
     with the reranker's score (teacher "reranker"). When nothing reranked the list (the
     row has no reranker, or the router skipped it) the label is the fused score, which
     is also the rrf_score feature: such rows carry teacher NO_RERANK_TEACHER and teach
-    nothing a student could not read off its own features."""
+    nothing a student could not read off its own features. A result with hits but no
+    fused list (assembled outside InMemoryHybridIndex.retrieve) is an error, not an
+    empty log."""
+    if result.hits and not result.fused:
+        raise ValueError("this retrieval result carries no fused list (it was not built by InMemoryHybridIndex.retrieve); nothing to log")
     reranked = {h.chunk.chunk_id: h.rerank for h in result.hits if h.rerank is not None}
     labels = {chunk.chunk_id: reranked.get(chunk.chunk_id, score) for chunk, score in result.fused}
     return [
