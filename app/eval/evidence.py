@@ -105,7 +105,7 @@ def claims(root: Path = ROOT) -> list[dict]:
             if row:
                 d, ci = _ci((row.get("delta_vs_bm25_only") or {}).get("ndcg@10"), "delta")
                 out.append({"claim": label, "value": d, "ci": ci, "n": n, "command": "make bench-neural", "source": src,
-                            "not_shown": f"run on a {dev} (GPU); {row.get('n_chunks', '?')} chunks in the fixture, {extra}; not a production-corpus number"})
+                            "not_shown": f"run on one GPU ({dev}); {row.get('n_chunks', '?')} chunks in the fixture, {extra}; not a production-corpus number"})
         full = by.get("hybrid+bge-rerank+router+staleness@bge-small")
         if full:
             v, ci = _ci(full["ci"]["ndcg@10"])
