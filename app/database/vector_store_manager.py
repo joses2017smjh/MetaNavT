@@ -560,15 +560,19 @@ class VectorStoreManager(DatabaseManager):
         ]
 
     def count_nodes(self) -> int:
-        """Number of rows in the data table (0 when it does not exist yet)."""
+        """Number of rows in the data table; 0 only when the table does not exist (UndefinedTable).
+
+        Any other error (the database unreachable, a missing privilege) is raised. It used to read
+        as an empty table, so /health answered ok with n_nodes 0 while the database was down.
+        """
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(sql.SQL("SELECT count(*) FROM {table};").format(
                         table=sql.Identifier(self.schema_name, self.data_table)))
                     return int(cur.fetchone()[0])
-        except Exception as e:
-            logger.info(f"count_nodes: data table not readable yet ({e.__class__.__name__})")
+        except psycopg2.errors.UndefinedTable:
+            logger.info(f"count_nodes: {self.schema_name}.{self.data_table} does not exist")
             return 0
 
     # ------------------------------------------------------------------ ingest manifest (incremental indexing)

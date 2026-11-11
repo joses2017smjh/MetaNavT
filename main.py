@@ -84,6 +84,8 @@ app = FastAPI(lifespan=lifespan)
 async def health():
     """200 with index stats once retrieval is ready; 503 with the startup error otherwise.
 
+    Also 503 (status "unavailable", n_nodes null, a "database" entry in degraded) when the
+    data table cannot be read: a database error is never reported as an empty index.
     Never behind the API key (orchestrator probes must reach it). Both answers say
     whether authentication and the request budget are on (app/api/security.py).
     """
@@ -93,7 +95,11 @@ async def health():
             status_code=503,
             content={"status": "unavailable", "error": getattr(app.state, "startup_error", None), **security_status()},
         )
-    n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    database_error = None
+    try:
+        n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    except Exception as exc:  # noqa: BLE001 - the data table cannot be read: never report it as 0 rows
+        n_nodes, database_error = None, f"{type(exc).__name__}: {exc}"
     dense_search = await run_in_threadpool(_dense_search_status, state)
     reranker = getattr(state.retriever, "reranker_info", None) or {}
     from app.settings import embedding_device
@@ -112,8 +118,10 @@ async def health():
             if not str(actual or "").startswith(required):
                 device_errors.append({"component": component, "error": f"required device {required}, loaded weights on {actual!r}"})
     degraded.extend(device_errors)
+    if database_error:
+        degraded.append({"component": "database", "error": database_error})
     payload = {
-        "status": "ok" if not degraded else "degraded",
+        "status": "unavailable" if database_error else "ok" if not degraded else "degraded",
         "n_nodes": n_nodes,
         "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
@@ -129,7 +137,7 @@ async def health():
         "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
         **security_status(),
     }
-    return JSONResponse(status_code=503, content=payload) if device_errors else payload
+    return JSONResponse(status_code=503, content=payload) if device_errors or database_error else payload
 
 
 def _dense_search_status(state) -> dict:

@@ -325,3 +325,54 @@ def test_get_vector_store_issues_no_drop_index_and_no_ddl(monkeypatch, setting):
     assert not [s for s in connection.statements if ddl.match(s)], connection.statements
     # C36: the start-up probe only reads; nothing is written to the shared table, through the store or the pool.
     assert store.writes == [] and not [s for s in connection.statements if re.match(r"^\s*(INSERT|UPDATE|DELETE)\b", s, re.I)]
+
+
+# ---------------------------------------------------------------- the row count (C31: only a missing table reads as zero)
+
+
+def counting_manager(error=None, rows=7):
+    """A manager whose count statement raises `error`, or returns `rows`."""
+    vsm = manager()
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+
+    class Connection:
+        def cursor(self):
+            class Cursor:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc):
+                    return False
+
+                def execute(self, sql, params=None):
+                    if error is not None:
+                        raise error
+
+                def fetchone(self):
+                    return (rows,)
+
+            return Cursor()
+
+    @contextmanager
+    def get_connection():
+        yield Connection()
+
+    vsm.get_connection = get_connection
+    return vsm
+
+
+def test_count_nodes_raises_a_database_error_instead_of_reading_it_as_an_empty_table():
+    """Any error used to read as 0 rows, so /health said n_nodes 0 while the database was unreachable."""
+    import psycopg2
+
+    with pytest.raises(psycopg2.OperationalError, match="server closed the connection"):
+        counting_manager(psycopg2.OperationalError("server closed the connection unexpectedly")).count_nodes()
+    with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+        counting_manager(psycopg2.errors.InsufficientPrivilege("permission denied for table data_t")).count_nodes()
+
+
+def test_count_nodes_is_zero_only_when_the_table_does_not_exist():
+    import psycopg2.errors
+
+    assert counting_manager(psycopg2.errors.UndefinedTable('relation "public.data_t" does not exist')).count_nodes() == 0
+    assert counting_manager(rows=7).count_nodes() == 7
