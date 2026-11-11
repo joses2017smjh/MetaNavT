@@ -24,6 +24,7 @@ FILES = {
     "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
     "parity_neural": "bench/results/parity_neural.json",
+    "rerank_depth": "bench/results/rerank_depth.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection.json",
@@ -202,6 +203,15 @@ def claims(root: Path = ROOT) -> list[dict]:
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
+    depth = _load(FILES["rerank_depth"], root)
+    top20 = _rows(depth).get("hybrid+bge-rerank@bge-small/top20") if depth else None
+    if top20:
+        d, ci = _ci((top20.get("delta_vs_previous") or {}).get("ndcg@10"), "delta")
+        changed = top20.get("vs_parent") or {}
+        out.append({"claim": "Fixture v1, bge-reranker-v2-m3 on the fused top 20 (the served RERANK_DEPTH) vs every fused candidate (fp32, bge-small), paired delta in nDCG@10",
+                    "value": d, "ci": ci, "n": depth["n_gold"], "command": "make bench-rerank-depth", "source": f"{FILES['rerank_depth']} @ {depth['git_sha']}",
+                    "not_shown": f"the depth alone; {changed.get('n_top10_differs', '?')} of {changed.get('n_questions', '?')} questions change their top 10; "
+                                 "the file walks on to max_length 512, fp16, the router with Tier 1, and Tier 1 before the rerank, each against its parent"})
     neural_parity = _load(FILES["parity_neural"], root)
     if neural_parity:
         d = (neural_parity.get("gap") or {}).get("paired_delta_api_minus_in_memory") or {}

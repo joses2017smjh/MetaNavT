@@ -41,6 +41,9 @@ bench/results/*.json
 !bench/results/parity.json
 !bench/results/parity_shared_chunker.json
 !bench/results/parity_shared_chunker_restart.json
+# the model-backed parity run (make parity PARITY_CONFIG=..., a GPU job) and the served reranker settings on the fixture (make bench-rerank-depth)
+!bench/results/parity_neural.json
+!bench/results/rerank_depth.json
 !bench/results/ingest_runs.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json

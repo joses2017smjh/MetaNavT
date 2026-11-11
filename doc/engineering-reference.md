@@ -868,6 +868,14 @@ next to each other (`settings`, and `settings_differ` for any that differ), and 
 README parity block renders it next to the hash run. It is one GPU run, not a CI
 job. `DENSE_PARITY_EMBEDDER=served` runs the dense-leg check with the embed model the
 API builds from the environment against the benchmark's embedder of the same model.
+In the job that recorded the file (its log, not a committed results file) that check
+held on every gold question with the bare query, at the hash check's tolerance, and
+failed on every gold question with the default instruction; the same job ran the API
+with the default instruction against the same in-memory row, which is not committed.
+`bench/results/rerank_depth.json` comes from the same job (`make bench-rerank-depth`);
+its depth-20 row against every candidate is in the
+[evidence table](../docs/RESUME_EVIDENCE.md), and its last row is the parity run's
+in-memory configuration.
 
 **No silent fallbacks.** `RERANKER_MODEL` set but not loadable is a startup
 error (`/health` 503 with the reason) unless `RERANKER_REQUIRED=false`, in
