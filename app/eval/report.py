@@ -65,17 +65,17 @@ def _rows(blob: dict) -> dict[str, dict]:
     return {row["config"]: row for row in blob.get("results", [])}
 
 
-def _ci(row: dict | None, metric: str) -> str:
+def _ci(row: dict | None, metric: str, digits: int = 3) -> str:
     block = (row or {}).get("ci", {}).get(metric) if row else None
     if not block:
         return "—"
-    return f"{block['mean']:.3f} [{block['lo']:.3f}, {block['hi']:.3f}]"
+    return f"{block['mean']:.{digits}f} [{block['lo']:.{digits}f}, {block['hi']:.{digits}f}]"
 
 
-def _delta(block: dict | None) -> str:
+def _delta(block: dict | None, digits: int = 3) -> str:
     if not block:
         return "—"
-    return f"{block['delta']:+.3f} [{block['lo']:+.3f}, {block['hi']:+.3f}]"
+    return f"{block['delta']:+.{digits}f} [{block['lo']:+.{digits}f}, {block['hi']:+.{digits}f}]"
 
 
 def _zero_note(block: dict | None) -> str:
@@ -378,8 +378,9 @@ def beir_bm25_table(blob: dict | None) -> str:
         f"no model; results sha {blob.get('git_sha')}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
         "`bm25@default-tokenizer` (also in the table above) changes the analyzer, k1 and b at once; `bm25@default-analyzer` "
         "changes the analyzer alone and `bm25@k1-1.5-b-0.75` changes k1 and b alone. Every delta is paired against bm25 "
-        f"({boot.get('n_boot')} bootstrap resamples of the queries, seed {boot.get('seed')}); BM25 latency is per query, "
-        "after one warm-up query, index build excluded.",
+        f"({boot.get('n_boot')} bootstrap resamples of the queries, seed {boot.get('seed')}), printed to the four decimals "
+        "the file stores so that an interval bound close to zero keeps its sign; BM25 latency is per query, after one "
+        "warm-up query, index build excluded.",
         "",
         "| config | analyzer | k1 | b | nDCG@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs bm25 [95% CI] | Δ Recall@100 vs bm25 [95% CI] | BM25 p50 / p95 ms |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
@@ -390,7 +391,7 @@ def beir_bm25_table(blob: dict | None) -> str:
         lat = (row.get("latency") or {}).get("bm25") or {}
         lines.append(
             f"| {row['config']} | {ANALYZER_LABELS.get(st.get('analyzer'), st.get('analyzer'))} | {st.get('k1')} | {st.get('b')} | "
-            f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@100')} | {_delta(d.get('ndcg@10'))} | {_delta(d.get('recall@100'))} | "
+            f"{_ci(row, 'ndcg@10', 4)} | {_ci(row, 'recall@100', 4)} | {_delta(d.get('ndcg@10'), 4)} | {_delta(d.get('recall@100'), 4)} | "
             f"{lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |"
         )
     by = _rows(blob)
@@ -398,7 +399,7 @@ def beir_bm25_table(blob: dict | None) -> str:
     for name, label in BM25_SINGLE_CHANGES:
         d = ((by.get(name) or {}).get("delta_vs_bm25") or {})
         if d.get("ndcg@10"):
-            parts.append(f"{label}: nDCG@10 {_delta(d['ndcg@10'])} ({_zero_note(d['ndcg@10'])}), Recall@100 {_delta(d.get('recall@100'))} ({_zero_note(d.get('recall@100'))}).")
+            parts.append(f"{label}: nDCG@10 {_delta(d['ndcg@10'], 4)} ({_zero_note(d['ndcg@10'])}), Recall@100 {_delta(d.get('recall@100'), 4)} ({_zero_note(d.get('recall@100'))}).")
     if parts:
         lines += ["", " ".join(parts)]
     return "\n".join(lines)
