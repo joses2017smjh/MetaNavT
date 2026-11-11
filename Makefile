@@ -99,7 +99,7 @@ bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (nee
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --frontier --neural --out bench/results/frontier_neural.json
 
 LISTWISE_MODEL ?=
-bench-rerank-arms: ## distilled student vs the cross-encoder it imitates (needs .[ml]); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
+bench-rerank-arms: ## distilled students vs the cross-encoder they imitate (needs .[ml]; the LightGBM student needs .[distill], else it is recorded as not evaluated); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.rerank_arms $(if $(LISTWISE_MODEL),--listwise-model $(LISTWISE_MODEL)) --out bench/results/rerank_arms.json
 
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b

@@ -903,8 +903,8 @@ replaced by least squares under its name.
 The intercept changes no prediction on fixture v1: every fixture file is one
 of the five file types the student flags, so those flags already sum to one
 for every chunk (`tests/eval/test_frontier_eval.py` pins this), and re-run
-with the intercept the least-squares row is unchanged in every field. It
-matters on a corpus with other file types. Earlier rows had no intercept
+with the intercept every metric and interval of the least-squares row is
+unchanged. It matters on a corpus with other file types. Earlier rows had no intercept
 column, and the student's `recency` feature (a chunk's mtime over the newest
 mtime in its candidate list) is why the least-squares row moved when the
 benchmark switched to the MANIFEST mtimes: on a checkout where every file has

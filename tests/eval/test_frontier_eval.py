@@ -605,3 +605,9 @@ def test_rerank_arms_block_reads_verdicts_off_the_file():
     assert lw["n_parse_failures"] + lw["n_failed_calls"] == len(lw["fused_order_kept_ids"])
     if lw["fused_order_kept_ids"]:
         assert f"fused order kept on {len(lw['fused_order_kept_ids'])} of {lw['n_calls']} questions" in line
+    # The command shown is the one that reproduces the file, listwise model included.
+    command = f"make bench-rerank-arms LISTWISE_MODEL={lw['model']}"
+    assert f"`{command}`" in text.splitlines()[0] and f"--listwise-model {lw['model']}" in blob["command"]
+    from app.eval.evidence import _rerank_arm_claims
+
+    assert {c["command"] for c in _rerank_arm_claims(project_root())} == {command}

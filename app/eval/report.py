@@ -727,6 +727,14 @@ def _count(n: int, singular: str, plural: str) -> str:
     return f"{n} {singular if n == 1 else plural}"
 
 
+def rerank_arms_command(blob: dict) -> str:
+    """The make command that reproduces the file: the listwise model is part of it when that arm ran."""
+    lw = blob.get("listwise") or {}
+    if lw.get("evaluated") and lw.get("model") and lw["model"] != "injected":
+        return f"make bench-rerank-arms LISTWISE_MODEL={lw['model']}"
+    return "make bench-rerank-arms"
+
+
 def rerank_arms_table(blob: dict | None) -> str:
     """Reranker prototypes against the cross-encoder: the distilled student (test questions) and listwise LLM rerank."""
     if not blob:
@@ -734,7 +742,7 @@ def rerank_arms_table(blob: dict | None) -> str:
     cand = blob["candidates"]
     split = blob["split"]
     lines = [
-        f"Reranker prototypes on fixture v1 (`make bench-rerank-arms`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
         f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. A student is fitted on the cross-encoder's "
         f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
         f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",

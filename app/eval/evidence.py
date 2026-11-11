@@ -227,14 +227,14 @@ def claims(root: Path = ROOT) -> list[dict]:
 
 def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
     """The reranker prototypes against the cross-encoder: paired deltas and the latency they buy."""
-    from app.eval.report import verdict
+    from app.eval.report import rerank_arms_command, verdict
 
     blob = _load(FILES["rerank_arms"], root)
     if not blob:
         return []
     out: list[dict] = []
     src = f"{FILES['rerank_arms']} @ {blob['git_sha']}"
-    cmd = "make bench-rerank-arms"
+    cmd = rerank_arms_command(blob)
     for scope in ("test_split", "all_questions"):
         rows = {r["config"]: r for r in blob[scope]["results"]}
         teacher = rows.get("hybrid+bge-rerank@bge-small") or {}
