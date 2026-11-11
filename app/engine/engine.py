@@ -19,6 +19,8 @@ from llama_index.core.tools import BaseTool
 from app.engine.agents.file_access_agent import create_file_access_agent
 from app.engine.agents.python_exec_agent import create_python_exec_agent
 from app.engine.agents.multi_agent_workflow import AgentWorkflow
+from app.engine.tools import clear_tool_calls
+from app.engine.tools.python_exec import python_exec_enabled
 
 from llama_index.core.indices.vector_store import VectorStoreIndex
 from llama_index.core.query_engine import RetrieverQueryEngine
@@ -54,6 +56,10 @@ def get_chat_engine(
     # Initialize callback manager
     callback_manager = CallbackManager(handlers=event_handlers or [])
     
+    # A new tool-call registry for this engine, i.e. for this request: the tools
+    # built below record into it (app/engine/tools/__init__.py).
+    clear_tool_calls()
+
     agents = []
 
     agents.append(
@@ -61,11 +67,15 @@ def get_chat_engine(
             callback_manager=callback_manager
         )
     )
-    agents.append(
-        create_python_exec_agent(
-            callback_manager=callback_manager
+    # The code agent runs model-written code (in a child process, see
+    # app/engine/tools/python_exec.py). It is built only when ENABLE_PYTHON_EXEC
+    # is set and the API requires a key; otherwise the file agent works alone.
+    if python_exec_enabled():
+        agents.append(
+            create_python_exec_agent(
+                callback_manager=callback_manager
+            )
         )
-    )
 
     return AgentWorkflow(
         agents=agents,

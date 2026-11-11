@@ -72,7 +72,8 @@ def create_file_access_agent(
     
     for tool in all_tools:
         tool_name = tool.metadata.name
-        if tool_name != "python_exec" and tool_name not in seen_tool_names:
+        # The code tool registers as "execute_code" (config key "python_exec"); neither belongs to this agent.
+        if tool_name not in ("python_exec", "execute_code") and tool_name not in seen_tool_names:
             combined_tools.append(tool)
             seen_tool_names.add(tool_name)
     

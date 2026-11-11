@@ -1,5 +1,7 @@
 local:
   artifact: {}
-  python_exec: {}
   index_file_access: {}
+  # python_exec is not listed: the code-execution tool is off by default and
+  # app/engine/engine.py adds its own agent when ENABLE_PYTHON_EXEC is set (with
+  # METANAVIT_API_KEY). Listed here it would also reach the file-access agent.
 
