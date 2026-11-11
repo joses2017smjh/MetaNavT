@@ -1,6 +1,12 @@
 """Phase 11: research artifacts + production code (academia and industry)."""
 
+import ast
 import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 from app.agent.schemas import ArtifactSpec
 from app.artifacts.manifest import collect_run_artifact, score_badges
@@ -15,6 +21,8 @@ from app.retrieval.hybrid import InMemoryHybridIndex
 from app.retrieval.rerank import OverlapReranker
 from app.retrieval.router import QueryRouter, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _chunks():
@@ -55,6 +63,72 @@ def test_sandbox_bans_os_and_runs_safe_code():
     good = run_sandboxed("print(1 + 1)\nassert 1 + 1 == 2")
     assert good.ok
     assert "2" in good.stdout
+
+
+# Reads the environment of the process the code runs in, through str.format field
+# lookups that ast_safe (a block-list) lets through, and prints only two booleans.
+SANDBOX_ENVIRONMENT_PROBE = (
+    'text = "{0.__self__.__loader__.find_spec.__func__.__globals__[sys].modules[os].environ}".format(print)\n'
+    'print("METANAVIT_SANDBOX_SENTINEL" in text, "PATH" in text)\n'
+)
+
+
+def test_sandboxed_code_runs_in_a_child_without_the_callers_environment(monkeypatch):
+    monkeypatch.setenv("METANAVIT_SANDBOX_SENTINEL", "sentinel-value-never-printed")
+    result = run_sandboxed(SANDBOX_ENVIRONMENT_PROBE)
+    # It ran and read an environment (PATH is kept), but the caller's sentinel is not in it.
+    assert (result.ok, result.stdout.split()) == (True, ["False", "True"])
+
+
+def test_the_sandbox_time_limit_stops_the_child():
+    started = time.monotonic()
+    result = run_sandboxed("n = 0\nwhile n < 10**8:\n    n += 1\nprint(n)", timeout_s=1)
+    assert result.timed_out and not result.ok and result.stdout == "", result
+    assert time.monotonic() - started < 10
+
+
+def test_the_sandbox_child_has_limits_a_new_session_a_reduced_environment_and_an_empty_directory(monkeypatch):
+    from app.artifacts import sandbox
+    monkeypatch.setenv("PG_CONNECTION_STRING", "postgresql://postgres:hunter2@127.0.0.1:1/metanavit")
+    monkeypatch.setenv("METANAVIT_API_KEY", "test-key-never-printed")
+    code = (
+        "import os, resource\n"
+        "print([resource.getrlimit(getattr(resource, n)) for n in ('RLIMIT_AS', 'RLIMIT_CPU', 'RLIMIT_FSIZE', 'RLIMIT_CORE')])\n"
+        "print(sorted(os.environ))\n"  # names only
+        "print(os.getpid() != caller, os.getsid(0) == os.getpid(), os.listdir('.') == [])\n"
+        "os.write(1, b'partial line left on the real stdout')\n"
+    )
+    # run_sandboxed never gives the code __import__; this test does, to look at the child itself.
+    result = sandbox._run_child({"code": code, "builtins": ["__import__", "getattr", "print", "sorted"],
+                                 "globals": {"caller": os.getpid()}}, timeout_s=5)
+    assert result.ok, result
+    limits, names, flags = result.stdout.splitlines()
+    assert limits == str([(sandbox.MEMORY_BYTES,) * 2, (5, 5), (sandbox.FILE_BYTES,) * 2, (0, 0)])
+    # LC_CTYPE: Python sets it in its own environment when it coerces a C locale (PEP 538).
+    assert set(ast.literal_eval(names)) - {"LC_CTYPE"} <= set(sandbox.CHILD_ENV_KEEP) | set(sandbox.CHILD_ENV_SET)
+    assert flags == "True True True"
+    memory = sandbox._run_child({"code": "block = bytearray(2 * 1024 ** 3)", "builtins": ["bytearray"], "globals": {}}, timeout_s=5)
+    assert not memory.ok and memory.error.startswith("MemoryError"), memory
+    # A runner that fails before it can report: the error says so, without the child's
+    # traceback, which names server paths (the result can reach an MCP client).
+    broken = sandbox._run_child({"code": "", "builtins": ["no_such_builtin"], "globals": {}}, timeout_s=5)
+    assert (broken.ok, broken.error) == (False, "the sandbox process exited with status 1 without a result")
+
+
+def test_safe_builtins_are_the_builtins_of_the_same_name():
+    # The child process is sent names and looks them up in its own builtins module.
+    import builtins
+    from app.artifacts.sandbox import SAFE_BUILTINS
+    assert all(value is getattr(builtins, name) for name, value in SAFE_BUILTINS.items())
+
+
+def test_the_sandbox_imports_nothing_from_the_engine_or_llama_index():
+    # app.artifacts runs under the eval-only profile, which has no llama_index.
+    code = ("import sys, app.artifacts.sandbox\n"
+            "print(sorted(m for m in sys.modules if m.split('.')[0] == 'llama_index' or m.startswith('app.engine')))")
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=120,
+                         env={**os.environ, "PYTHONPATH": str(ROOT)})
+    assert out.returncode == 0 and out.stdout.strip() == "[]", out.stderr
 
 
 def test_acm_bundle_for_run(tmp_path):

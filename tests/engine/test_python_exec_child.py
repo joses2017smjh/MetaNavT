@@ -100,7 +100,7 @@ def test_enabled_code_runs_in_another_process(exec_tool, tmp_path):
 def _gone(pid: int) -> bool:
     try:
         state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):  # the process vanished between the listing and the read
         return True
     return state in {"Z", "X"}  # exited; only waiting to be reaped by its new parent
 

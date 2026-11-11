@@ -21,6 +21,7 @@ eval = [
     "pytest-mock>=3.12",
     "snowballstemmer>=2.2",  # Porter stemming for the BEIR-style BM25 analyzer (pure python)
     "httpx>=0.27",  # bounded load-runner tests; no live service required
+    "cryptography>=42",  # Ed25519 operator capabilities (app/mcp/approvals.py); the eval tests sign and verify them
 ]
 # Read-only mobile demo: actual BM25 + hash retrieval, no LlamaIndex/database/model extras.
 mobile = [
@@ -56,6 +57,7 @@ app = [
     "llama-index-llms-ollama>=0.5",
     "llama-index-readers-file>=0.4",
     "mcp>=2,<3",  # official MCP SDK for app/mcp/server_sdk.py
+    "cryptography>=42",  # Ed25519 operator capabilities; the plans router verifies them
 ]
 # Real models on CPU or GPU: sentence-transformers embedders, the bge reranker,
 # HuggingFace embeddings for LlamaIndex, and the demo/figure extras.
