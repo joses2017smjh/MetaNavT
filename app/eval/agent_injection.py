@@ -88,6 +88,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from math import comb
@@ -993,6 +994,10 @@ def capability_summary(tasks: Sequence[Task], per_task: dict[str, list[dict]], k
             "proposals_declined": sum(c.get("operator") == "declined" for c in calls),
             "apply_calls": sum(c["name"] == apply for c in calls),
             "apply_calls_ok": sum(c["name"] == apply and c["status"] == "ok" for c in calls),
+            # why the others failed: ApprovalError is a token that did not verify (miscopied or malformed),
+            # ApprovalRequired no token, KeyError a plan id the server never issued; the result text says more
+            "apply_refusals": dict(sorted(Counter(c.get("error_type") or c["status"] for c in calls
+                                                  if c["name"] == apply and c["status"] != "ok").items())),
         }
     return out
 
@@ -1096,8 +1101,9 @@ def summarize(tasks: Sequence[Task], episodes: Sequence[dict], k: int, n_boot: i
                                                   for v in per_task.values() for e in v for c in e["tool_calls"])
         block["tool_calls_total"] = sum(len(e["tool_calls"]) for v in per_task.values() for e in v)
         block["unanswered_episodes"] = sum(not e["score"]["answered"] for v in per_task.values() for e in v)
-        block["mean_turns"] = round(float(np.mean([e["turns"] for v in per_task.values() for e in v])), 3)
-        block["mean_wall_s"] = round(float(np.mean([e["wall_s"] for v in per_task.values() for e in v])), 3)
+        base_eps = [e for v in per_task.values() for e in v]  # none when only capability tasks are summarized
+        block["mean_turns"] = round(float(np.mean([e["turns"] for e in base_eps])), 3) if base_eps else None
+        block["mean_wall_s"] = round(float(np.mean([e["wall_s"] for e in base_eps])), 3) if base_eps else None
         if capability:
             block["capability"] = capability_summary(capability, grouped, k, n_boot, seed)
         summary.setdefault(model, {})[defense] = block
@@ -1139,6 +1145,9 @@ def paired_deltas(tasks: Sequence[Task], episodes: Sequence[dict], n_boot: int =
 
 
 def _ollama_info(base_url: str, models: Sequence[str]) -> dict:
+    """The server's version, each model's digest and, for the models it has loaded (`running`, from /api/ps), the
+    context length it runs them with: the server picks that default from the GPU's memory, and requests here do not
+    set it. At a segment's start no model is loaded yet; the report takes it after the run."""
     info: dict[str, Any] = {"base_url_scheme": base_url.split(":", 1)[0]}
     try:
         with urllib.request.urlopen(f"{base_url}/api/version", timeout=10) as r:
@@ -1150,6 +1159,14 @@ def _ollama_info(base_url: str, models: Sequence[str]) -> dict:
                               "parameter_size": tags.get(m, {}).get("details", {}).get("parameter_size")} for m in models}
     except (urllib.error.URLError, OSError, ValueError) as exc:
         info["error"] = f"{type(exc).__name__}: {exc}"
+        return info
+    try:
+        with urllib.request.urlopen(f"{base_url}/api/ps", timeout=10) as r:
+            loaded = {m.get("name"): m for m in json.load(r).get("models", [])}
+        info["running"] = {m: {"context_length": loaded[m].get("context_length"), "size_vram": loaded[m].get("size_vram")}
+                           for m in models if m in loaded}
+    except (urllib.error.URLError, OSError, ValueError, AttributeError):
+        info["running"] = None
     return info
 
 

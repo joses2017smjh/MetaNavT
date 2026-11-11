@@ -909,7 +909,12 @@ user and host names are replaced; other text, such as the corpus's own
 had uncommitted changes, the module's sha256, the command, the source of the
 corpus file times, the device and the Ollama version and model digests) is
 written before the first episode, and the results header records the commit and
-tree the process started from, before the run's own files appear.
+tree the process started from, before the run's own files appear. The header's
+`ollama` block also keeps what the server reported after the run for each
+loaded model, including the context length it chose from the GPU's memory
+(requests here do not set one). In a capability task, refused apply calls are
+counted by exception: a token that did not verify, no token, or a plan id the
+server never issued.
 
 Two runs are on record in `agent_injection.json`. The top-level `git_head`,
 `working_tree_dirty`, `module_sha256` and `command` describe the run that
