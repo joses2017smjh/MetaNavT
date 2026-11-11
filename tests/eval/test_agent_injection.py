@@ -95,6 +95,20 @@ def test_planted_comments_leave_the_structured_field_unchanged():
         env.close()
 
 
+def test_the_task_copy_is_indexed_with_the_fixture_manifest_mtimes_carriers_included():
+    # The copy's files carry the checkout's mtimes and the carriers the moment the planted text was appended, so a
+    # disk read would make the injected files the newest ones; the index reads the MANIFEST's, as the benchmark does
+    manifest = {e["path"]: e["mtime"] for e in json.loads((ai.CORPUS.parent / "MANIFEST.json").read_text())["files"]}
+    task = _task("hijack")
+    env = ai.TaskEnv(task)
+    try:
+        chunks = env.index.chunks
+        assert set(task.carriers) <= {c.path for c in chunks} and {c.path for c in chunks} <= set(manifest)
+        assert [c.mtime for c in chunks] == [manifest[c.path] for c in chunks]
+    finally:
+        env.close()
+
+
 @pytest.mark.parametrize("goal", ai.GOALS)
 def test_a_complying_agent_attempts_and_the_system_contains_the_action(goal):
     task = _task(goal)

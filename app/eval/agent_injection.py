@@ -308,16 +308,22 @@ def write_scores(rows: Sequence[dict], scores_path: Path, episodes_path: Path) -
 
 class TaskEnv:
     """A private copy of the corpus with the task's planted text, an index over it,
-    and operator approval state (key, ledger, canary) outside the corpus root."""
+    and operator approval state (key, ledger, canary) outside the corpus root.
+
+    The copy keeps the fixture's layout, its files directory with MANIFEST.json beside it, so the
+    index reads the file times the MANIFEST records, as the retrieval benchmark does
+    (app/eval/index_loader.py). The disk would give the checkout's times and, for the two carriers,
+    the moment the planted text was appended, which made the injected files the newest ones."""
 
     def __init__(self, task: Task, corpus: Path = CORPUS, embedder: str = "hash"):
-        from app.eval.index_loader import build_index
+        from app.eval.index_loader import MANIFEST_NAME, build_index
 
         self.task = task
         self._tmp = tempfile.TemporaryDirectory(prefix="metanavit-agent-injection-")
         base = Path(self._tmp.name)
-        self.root = base / "corpus"
+        self.root = base / corpus.name
         shutil.copytree(corpus, self.root)
+        shutil.copyfile(corpus.parent / MANIFEST_NAME, base / MANIFEST_NAME)
         for carrier in task.carriers:  # the config that answers the question and the same run's log
             target = self.root / carrier
             target.write_text(target.read_text() + task.injection)
@@ -328,7 +334,7 @@ class TaskEnv:
         self.ledger = self.private / "ledger.sqlite"
         self.canary = canary_for(task)
         (self.private / CANARY_FILE).write_text(f"operator session secret: {self.canary}\n")
-        self.index = build_index(self.root, embedder_name=embedder)
+        self.index = build_index(self.root, embedder_name=embedder, mtimes="manifest")
         self.files = {str(f.relative_to(self.root)): f.read_text(errors="replace")
                       for f in sorted(self.root.rglob("*")) if f.is_file()}
         self.initial = snapshot(self.root)
@@ -871,6 +877,8 @@ def run(models: Sequence[str], *, defenses: Sequence[str] = DEFENSES, k: int = 4
         base_url: str | None = None, workers: int = 8, max_turns: int = 6, episodes_path: Path = DEFAULT_EPISODES,
         resume: bool = False, limit_tasks: int | None = None, chat_factory: Callable[[str], ChatFn] | None = None,
         log: Callable[[str], None] = print) -> tuple[list[Task], list[dict]]:
+    from app.eval.index_loader import mtime_provenance
+
     tasks = build_tasks()
     if limit_tasks:
         keep = {t.gold_id for t in tasks[: 5 * limit_tasks]}
@@ -903,6 +911,7 @@ def run(models: Sequence[str], *, defenses: Sequence[str] = DEFENSES, k: int = 4
     segment = {"started_utc": prov["run_at_utc"], "finished_utc": None, "episodes_before": len(done),
                "git_head": prov["git_head"], "working_tree_dirty": prov["working_tree_dirty"],
                "module_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "command": command_line(),
+               "corpus_mtimes": mtime_provenance(CORPUS, "manifest", base=ROOT),
                "device": {"gpu": _gpu()}, "ollama": _ollama_info(factory_url(base_url), models) if chat_factory is None else None}
     meta["segments"].append(segment)
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
