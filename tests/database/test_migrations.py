@@ -452,7 +452,8 @@ def _rows(conn, sql):
 def test_a_version_2_database_holding_manifest_rows_upgrades_to_version_3_and_keeps_them(schema, monkeypatch, capsys):
     """The A04 upgrade: a database as fe666cb left it (schema version 2, a vector table PGVectorStore made,
     rows indexed, a manifest ensure_ingest_manifest wrote, the start-up indexes) goes through the deploy step's
-    entry point to version 3 and the vector sequence, and keeps every row; adopted indexes are not rebuilt."""
+    entry point to version 3 and the vector sequence, and keeps every row; adopted indexes are kept (vector/0006
+    rewrites the table, which rebuilds their storage in place)."""
     from app.database import migrate
 
     table = "legacy_" + uuid.uuid4().hex[:8]
@@ -495,7 +496,7 @@ def test_a_version_2_database_holding_manifest_rows_upgrades_to_version_3_and_ke
 
         indexes_after = _index_rows(plain, schema, data)
         for adopted in (f"{data}_path_idx", f"{table}_idx_1", f"{data}_pkey"):
-            assert indexes_after[adopted][0] == indexes_before[adopted][0], adopted  # the same index, not rebuilt
+            assert indexes_after[adopted][0] == indexes_before[adopted][0], adopted  # the same index (OID), not dropped and re-created
         assert f"{table}_embedding_hnsw" in indexes_before and f"{table}_embedding_hnsw" not in indexes_after
         assert indexes_after[f"{table}_embedding_hnsw_m16_efc64"][1] is True  # built CONCURRENTLY, valid
         assert "m='16', ef_construction='64'" in indexes_after[f"{table}_embedding_hnsw_m16_efc64"][2]
