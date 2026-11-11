@@ -418,7 +418,7 @@ Any MCP client can drive the corpus over stdio, through either server. Each inde
 | `propose_artifact` | spec → generate → sandbox. never writes |
 | `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
-| `exec_sandboxed` | AST-gated Python subset: import statements and attribute expressions (`x.y`) are refused and the builtins are an allowlist without `__import__` or `getattr`, though a `match` class pattern can still read an attribute; a correctness runner, not an OS sandbox |
+| `exec_sandboxed` | AST-gated Python subset: import statements and attribute expressions (`x.y`) are refused and the builtins are an allowlist without `__import__` or `getattr`. A `match` class pattern still reads attributes, and through `str.format` field lookups that reaches module globals and the server's environment variables, so it is a correctness runner, not an isolation boundary |
 | `inspect_spreadsheet` | schema, types, missingness, five-row preview |
 | `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
 | `apply_visualization` | user approves or overrides chart, then writes/runs MATLAB |
