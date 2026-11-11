@@ -1,7 +1,9 @@
 """Distill a cross-encoder teacher into a cheap student ranker.
 
-Teacher: cross-encoder scores logged during bench.
-Student: logistic/GBT over {dense, BM25, RRF, overlap, path, recency, filetype}.
+Teacher: the cross-encoder's scores over the fused candidates (make bench-rerank-arms
+computes them for the train questions; app/eval/rerank_arms.py).
+Student: least squares or gradient-boosted trees over the features it has when it
+serves (serving_features): the fused score and rank, text overlap, path facts.
 Mirrors the Depth capstone teacher/student pattern.
 """
 
@@ -17,30 +19,7 @@ import numpy as np
 from app.retrieval.hybrid import Chunk
 from app.retrieval.rerank import FEATURE_NAMES, RerankTriple, extract_features, feature_vector
 
-
-def triples_from_hits(query: str, hits, max_mtime: float = 1.0) -> list[RerankTriple]:
-    triples = []
-    for hit in hits:
-        feats = extract_features(
-            query,
-            hit.chunk,
-            dense=hit.dense,
-            bm25=hit.bm25,
-            rrf=hit.rrf,
-            rrf_rank=hit.rank,
-            max_mtime=max_mtime,
-        )
-        teacher = hit.rerank if hit.rerank is not None else hit.score
-        triples.append(
-            RerankTriple(
-                query=query,
-                chunk_id=hit.chunk.chunk_id,
-                path=hit.chunk.path,
-                ce_score=float(teacher),
-                features=feats,
-            )
-        )
-    return triples
+NO_RERANK_TEACHER = "fused score (no rerank ran)"
 
 
 def serving_features(query: str, pairs: Sequence[tuple[Chunk, float]]) -> list[dict[str, float]]:
@@ -54,15 +33,32 @@ def serving_features(query: str, pairs: Sequence[tuple[Chunk, float]]) -> list[d
 
 
 def triples_from_pairs(query: str, pairs: Sequence[tuple[Chunk, float]], teacher_scores: dict[str, float]) -> list[RerankTriple]:
-    """Training rows whose features are exactly what DistilledReranker.__call__ computes.
-
-    triples_from_hits (the bench log) is not that: it records the dense and BM25
-    scores, which the student does not get when it serves, and the hit's rank after
-    the teacher reranked it, which leaks the label into a feature."""
+    """Training rows whose features are exactly what DistilledReranker.__call__ computes:
+    the serving features of the fused list, in fused order, labelled with the teacher's
+    score. Never the dense or BM25 score (absent when serving) and never the rank after
+    the teacher reranked the list (that would leak the label into a feature)."""
     return [
         RerankTriple(query=query, chunk_id=chunk.chunk_id, path=chunk.path, ce_score=float(teacher_scores[chunk.chunk_id]), features=feats)
         for (chunk, _), feats in zip(pairs, serving_features(query, pairs))
         if chunk.chunk_id in teacher_scores
+    ]
+
+
+def bench_log_triples(query: str, result) -> list[RerankTriple]:
+    """The rows `make bench` logs for one retrieval (app/eval/harness.py, <sha>.triples.jsonl).
+
+    One row per candidate of the fused list the reranker received (result.fused, the
+    hybrid index's RetrievalResult), with triples_from_pairs' serving features, labelled
+    with the reranker's score (teacher "reranker"). When nothing reranked the list (the
+    row has no reranker, or the router skipped it) the label is the fused score, which
+    is also the rrf_score feature: such rows carry teacher NO_RERANK_TEACHER and teach
+    nothing a student could not read off its own features."""
+    reranked = {h.chunk.chunk_id: h.rerank for h in result.hits if h.rerank is not None}
+    labels = {chunk.chunk_id: reranked.get(chunk.chunk_id, score) for chunk, score in result.fused}
+    return [
+        RerankTriple(query=t.query, chunk_id=t.chunk_id, path=t.path, ce_score=t.ce_score, features=t.features,
+                     teacher="reranker" if t.chunk_id in reranked else NO_RERANK_TEACHER)
+        for t in triples_from_pairs(query, result.fused, labels)
     ]
 
 
@@ -78,40 +74,12 @@ def write_triples(path: str | Path, triples: Iterable[RerankTriple]) -> None:
                         "chunk_id": t.chunk_id,
                         "path": t.path,
                         "ce_score": t.ce_score,
+                        "teacher": t.teacher,
                         "features": t.features,
                     }
                 )
                 + "\n"
             )
-
-
-def distill_winner(triples: Sequence[RerankTriple]) -> DistilledReranker:
-    """Fit the CI student on the winning teacher's logged scores."""
-    return DistilledReranker().fit(triples)
-
-
-def distill_from_path(path: str | Path) -> DistilledReranker:
-    return distill_winner(load_triples(path))
-
-
-def load_triples(path: str | Path) -> list[RerankTriple]:
-    triples = []
-    with Path(path).open() as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            raw = json.loads(line)
-            triples.append(
-                RerankTriple(
-                    query=raw["query"],
-                    chunk_id=raw["chunk_id"],
-                    path=raw["path"],
-                    ce_score=float(raw["ce_score"]),
-                    features=raw["features"],
-                )
-            )
-    return triples
 
 
 @dataclass

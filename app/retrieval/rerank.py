@@ -93,6 +93,7 @@ class RerankTriple:
     path: str
     ce_score: float
     features: dict[str, float]
+    teacher: str | None = None  # what ce_score is, when the caller records it (the bench log does)
 
 
 class OverlapReranker:

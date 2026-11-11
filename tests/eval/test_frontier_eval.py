@@ -331,8 +331,7 @@ def test_evidence_table_has_a_row_for_every_frontier_arm():
 # ---- reranker prototypes against the cross-encoder ---------------------------------------------
 
 def test_student_training_rows_use_serving_features_not_the_teacher_rank():
-    from app.retrieval.distill import DistilledReranker, serving_features, triples_from_hits, triples_from_pairs
-    from app.retrieval.types import RetrievalHit
+    from app.retrieval.distill import DistilledReranker, serving_features, triples_from_pairs
 
     index = _tiny_index()
     query = "what learning rate did run 47 use"
@@ -343,11 +342,54 @@ def test_student_training_rows_use_serving_features_not_the_teacher_rank():
     assert [r.features["rrf_rank"] for r in rows] == [1.0, 2.0, 3.0]  # the fused rank, whatever the teacher said
     assert all(r.features["dense_cosine"] == 0.0 and r.features["bm25_score"] == 0.0 for r in rows)  # absent when serving
     assert [r.ce_score for r in rows] == [teacher[c.chunk_id] for c, _ in pairs]
-    # The bench log is a different thing: after a rerank its rank feature is the teacher's own order.
-    reranked = [RetrievalHit(c, teacher[c.chunk_id], rank, rerank=teacher[c.chunk_id]) for rank, (c, _) in enumerate(reversed(pairs), start=1)]
-    assert [t.features["rrf_rank"] for t in triples_from_hits(query, reranked)] == [1.0, 2.0, 3.0]
     student = DistilledReranker().fit(rows * 3)
     assert {c.chunk_id for c, _ in student(query, pairs)} == {c.chunk_id for c, _ in pairs}
+
+
+def test_bench_log_rows_are_the_serving_features_of_the_list_the_reranker_received():
+    from app.retrieval.distill import bench_log_triples, serving_features
+
+    def reverse(query, pairs):  # a reranker that scores the i-th fused candidate i, so it reverses the list
+        return sorted(((c, float(i)) for i, (c, _) in enumerate(pairs, start=1)), key=lambda p: p[1], reverse=True)
+
+    query = "what learning rate did run 47 use"
+    fused = [(h.chunk, h.score) for h in _tiny_index().retrieve(query, k=5).hits]  # never reranked
+    index = _tiny_index()
+    index.rerank_fn, index.enable_rerank = reverse, True
+    result = index.retrieve(query, k=5)
+    assert [h.chunk.chunk_id for h in result.hits] == [c.chunk_id for c, _ in reversed(fused)]
+    assert [(c.chunk_id, s) for c, s in result.fused] == [(c.chunk_id, s) for c, s in fused]
+    rows = bench_log_triples(query, result)
+    assert [r.chunk_id for r in rows] == [c.chunk_id for c, _ in fused]
+    assert [r.features for r in rows] == serving_features(query, fused)
+    assert [r.features["rrf_rank"] for r in rows] == [1.0, 2.0, 3.0]  # the fused rank, not the rank after the rerank
+    assert all(r.features["dense_cosine"] == 0.0 and r.features["bm25_score"] == 0.0 for r in rows)
+    assert [r.ce_score for r in rows] == [1.0, 2.0, 3.0] and {r.teacher for r in rows} == {"reranker"}
+    # When nothing reranked the list, the label is the fused score itself and the rows say so.
+    plain = bench_log_triples(query, _tiny_index().retrieve(query, k=5))
+    assert [r.ce_score for r in plain] == [s for _, s in fused] and {r.teacher for r in plain} == {"fused score (no rerank ran)"}
+
+
+def test_bench_triple_log_has_no_rank_after_the_rerank():
+    from app.eval.gold import load_gold
+    from app.eval.harness import DEFAULT_CONFIGS, project_root, run_config
+    from app.eval.index_loader import build_index
+    from app.retrieval.distill import serving_features
+    from app.retrieval.rerank import OverlapReranker
+
+    files_root = project_root() / "bench" / "corpus" / "files"
+    gold = load_gold(project_root() / "bench" / "gold" / "questions.jsonl")[:8]
+    cfg = replace(next(c for c in DEFAULT_CONFIGS if c.name == "hybrid+rerank"), e2e=False)
+    payload = run_config(cfg, gold, files_root, mtimes="manifest")
+    plain = build_index(files_root, embedder_name=cfg.embedder, retrieve_k=cfg.retrieve_k, enable_router=False, enable_rerank=False,
+                        mtimes="manifest")
+    expected = []
+    for q in gold:
+        fused = [(h.chunk, h.score) for h in plain.retrieve(q.question, k=cfg.retrieve_k).hits]
+        teacher = {c.chunk_id: s for c, s in OverlapReranker()(q.question, fused)}
+        expected += [(q.question, c.chunk_id, f, teacher[c.chunk_id]) for (c, _), f in zip(fused, serving_features(q.question, fused))]
+    assert [(t.query, t.chunk_id, t.features, t.ce_score) for t in payload["_triples"]] == expected
+    assert payload["n_triples"] == len(expected) == 8 * cfg.retrieve_k
 
 
 def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():

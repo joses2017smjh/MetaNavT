@@ -887,7 +887,13 @@ features it has when it serves, and scored on the other half: it is below zero
 against the cross-encoder it imitates and below zero against the un-reranked
 hybrid list, at a small fraction of the rerank latency. That student is the
 linear least-squares fallback, because LightGBM is not installed where the
-benchmark ran; a gradient-boosted student is not evaluated. Listwise reranking
+benchmark ran; a gradient-boosted student is not evaluated. Separately, `make
+bench` logs one row per fused candidate of the hash-embedder hybrid rows to
+`bench/results/<sha>.triples.jsonl` (git-ignored; nothing in the repository
+reads it): the same serving features, labelled with the overlap reranker's
+score, or with the fused score itself where no rerank ran (the row's `teacher`
+field says which). It records no dense or BM25 score and no rank after the
+rerank, so it cannot leak the label into a feature. Listwise reranking
 by an LLM (`app/retrieval/rankgpt.py`) has a harness
 (`make bench-rerank-arms LISTWISE_MODEL=<ollama model>`) but no row: on the
 benchmark node the local model was too slow per question to finish the gold
@@ -1177,7 +1183,7 @@ Status: M0 to M5 are merged. Open items, in priority order:
 3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
 4. **ParadeDB BM25 in the production path**, gated by the same parity job.
 5. **Injection evaluation, next steps:** an injection-as-user-task capability control, a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
-6. Optional: distill the winning retriever (`distill_winner`), listwise RankGPT with a real LLM, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits one on the cross-encoder's scores and scores it on held-out questions), listwise RankGPT with a real LLM, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 
