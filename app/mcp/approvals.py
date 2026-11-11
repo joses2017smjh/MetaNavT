@@ -1,14 +1,23 @@
 """Operator-issued capabilities. Issuance is never registered as an agent tool.
 
-The host protects the key and SQLite ledger outside every agent-readable root.
-Anyone able to read that key or execute arbitrary code as the operator is outside
-this boundary. A token authorizes exactly one immutable review in one session.
+The operator signs with an Ed25519 private key (app/mcp/approve.py sign) and the
+servers verify with the public key alone, so a process that verifies
+capabilities cannot mint one from what it loads. The host keeps the private
+key, the public key and the SQLite ledger outside every agent-readable root.
+Anyone able to read the private key, replace the public key or the ledger, or
+execute arbitrary code as the operator is outside this boundary. A token
+authorizes exactly one immutable review in one session.
+
+Token: base64url(body) "." base64url(signature), unpadded. The body is the
+canonical JSON of {review_sha256, grant_id, issued_at, expires_at, actor}; the
+signature is the 64-byte Ed25519 signature over those body bytes. Key files are
+PEM: PKCS#8 for the private key (mode 0600), SubjectPublicKeyInfo for the
+public key (not writable by group or others).
 """
 from __future__ import annotations
 
 import base64
 import hashlib
-import hmac
 import json
 import math
 import os
@@ -17,6 +26,10 @@ import secrets
 import sqlite3
 import stat
 import time
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 
 # Every refusal at the tool boundary names the check that refused it, so a
@@ -55,36 +68,85 @@ def review_hash(review: dict) -> str:
     return hashlib.sha256(canonical(review)).hexdigest()
 
 
-def create_key(path: Path) -> None:
-    """Explicit operator setup; refuses to overwrite an existing key."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+def create_key(private_path: Path, public_path: Path) -> None:
+    """Explicit operator setup: a new Ed25519 key pair. Refuses to overwrite either file.
+
+    The private key (mode 0600) is read only by sign_review; servers are given
+    the public key. Neither file is left behind if the other cannot be created.
+    """
+    private_path, public_path = Path(private_path), Path(public_path)
+    if private_path.absolute() == public_path.absolute():
+        raise ApprovalError("the private and the public key need two different paths")
+    key = Ed25519PrivateKey.generate()
+    files = ((private_path, key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                              serialization.NoEncryption()), 0o600),
+             (public_path, key.public_key().public_bytes(serialization.Encoding.PEM,
+                                                         serialization.PublicFormat.SubjectPublicKeyInfo), 0o644))
+    created = []
     try:
-        os.write(fd, secrets.token_bytes(32))
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+        for path, data, mode in files:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
+            created.append(path)
+            try:
+                os.write(fd, data)
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+    except BaseException:
+        for path in created:
+            path.unlink()
+        raise
 
 
-def _key(path: Path) -> bytes:
+def _key_bytes(path: Path, *, private: bool) -> bytes:
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
     try:
         st = os.fstat(fd)
-        if not stat.S_ISREG(st.st_mode) or st.st_mode & 0o077:
-            raise ApprovalError("operator key must be a private regular file (mode 0600)")
-        key = os.read(fd, 4096)
+        if not stat.S_ISREG(st.st_mode):
+            raise ApprovalError("an approval key must be a regular file")
+        if private and st.st_mode & 0o077:
+            raise ApprovalError("the operator private key must be private (mode 0600)")
+        if not private and st.st_mode & 0o022:
+            raise ApprovalError("the approval public key must not be writable by group or others")
+        return os.read(fd, 4096)
     finally:
         os.close(fd)
-    if len(key) != 32:
-        raise ApprovalError("operator key must contain exactly 32 random bytes")
+
+
+def _private_key(path: Path) -> Ed25519PrivateKey:
+    try:
+        key = serialization.load_pem_private_key(_key_bytes(path, private=True), password=None)
+    except (ValueError, TypeError) as exc:
+        raise ApprovalError("the operator key must be a PEM Ed25519 private key (python -m app.mcp.approve init)") from exc
+    if not isinstance(key, Ed25519PrivateKey):
+        raise ApprovalError("the operator key must be an Ed25519 private key")
     return key
+
+
+def _public_key(path: Path) -> Ed25519PublicKey:
+    data = _key_bytes(path, private=False)
+    if b"PRIVATE KEY" in data:
+        raise ApprovalError("a verifier is given the operator's public key, never the private key")
+    try:
+        key = serialization.load_pem_public_key(data)
+    except (ValueError, TypeError) as exc:  # including a pre-Ed25519 32-byte HMAC key
+        raise ApprovalError("the approval public key must be a PEM Ed25519 public key (python -m app.mcp.approve init)") from exc
+    if not isinstance(key, Ed25519PublicKey):
+        raise ApprovalError("the approval public key must be an Ed25519 key")
+    return key
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
 
 
 def sign_review(review: dict, key_file: Path, *, actor: str, ttl_seconds: float = 120,
                 now: float | None = None) -> str:
     """Trusted operator path, separate from FilesystemTools and both MCP servers.
 
-    The operator must inspect the complete review before invoking this function.
-    It signs reviewed data; it does not execute actions or resolve file paths.
+    `key_file` is the operator's Ed25519 private key. The operator must inspect
+    the complete review before invoking this function. It signs reviewed data;
+    it does not execute actions or resolve file paths.
     """
     if not actor or not math.isfinite(ttl_seconds) or not 0 < ttl_seconds <= 3600:
         raise ApprovalError("actor and an expiry between 0 and 3600 seconds are required")
@@ -93,25 +155,25 @@ def sign_review(review: dict, key_file: Path, *, actor: str, ttl_seconds: float 
     issued = time.time() if now is None else now
     body = canonical({"review_sha256": review_hash(review), "grant_id": secrets.token_hex(24),
                       "issued_at": issued, "expires_at": issued + ttl_seconds, "actor": actor})
-    sig = hmac.new(_key(Path(key_file)), body, hashlib.sha256).digest()
-    return base64.urlsafe_b64encode(body).decode().rstrip("=") + "." + base64.urlsafe_b64encode(sig).decode().rstrip("=")
+    return _b64(body) + "." + _b64(_private_key(Path(key_file)).sign(body))
 
 
 class ApprovalVerifier:
-    """Verifies capabilities and durably consumes grant IDs before mutation.
+    """Verifies capabilities with the operator's public key and durably consumes grant IDs before mutation.
 
+    It never loads the private key, so it cannot issue a capability.
     SQLite UNIQUE + BEGIN IMMEDIATE makes replay consumption transactional across
     worker threads/processes using this ledger. Failed mutations burn the grant.
     """
-    def __init__(self, root: Path, key_file: Path, ledger_file: Path):
+    def __init__(self, root: Path, public_key_file: Path, ledger_file: Path):
         root = Path(root).resolve()
-        for path in (Path(key_file), Path(ledger_file)):
+        for path in (Path(public_key_file), Path(ledger_file)):
             resolved = path.resolve()
             if resolved == root or root in resolved.parents:
-                raise ApprovalError("approval key and ledger must be outside the corpus root")
+                raise ApprovalError("approval public key and ledger must be outside the corpus root")
             if path.is_symlink():
                 raise ApprovalError("approval state must not be a symlink")
-        self._key = _key(Path(key_file))
+        self.public_key = _public_key(Path(public_key_file))
         self.ledger = Path(ledger_file)
         if not self.ledger.exists():
             fd = os.open(self.ledger, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -132,8 +194,10 @@ class ApprovalVerifier:
             encoded, signature = token.split(".")
             body = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
             sig = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
-            if not hmac.compare_digest(sig, hmac.new(self._key, body, hashlib.sha256).digest()):
-                raise ApprovalError("invalid approval signature", check="signature")
+            try:
+                self.public_key.verify(sig, body)
+            except InvalidSignature:
+                raise ApprovalError("invalid approval signature", check="signature") from None
             grant = json.loads(body)
             instant = time.time() if now is None else now
             if not isinstance(grant, dict) or grant["review_sha256"] != review_hash(review):
@@ -161,8 +225,12 @@ class ApprovalVerifier:
 
 
 def verifier_from_env(root: Path) -> ApprovalVerifier | None:
-    key = os.getenv("METANAVIT_APPROVAL_KEY_FILE")
+    if os.getenv("METANAVIT_APPROVAL_KEY_FILE"):
+        raise ApprovalError("METANAVIT_APPROVAL_KEY_FILE named a shared HMAC key and is no longer read: create an "
+                            "Ed25519 key pair with `python -m app.mcp.approve init` and give servers only the public "
+                            "key through METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
+    public = os.getenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
     ledger = os.getenv("METANAVIT_APPROVAL_LEDGER_FILE")
-    if bool(key) != bool(ledger):
-        raise ApprovalError("configure both approval key and ledger paths")
-    return ApprovalVerifier(root, Path(key), Path(ledger)) if key else None
+    if bool(public) != bool(ledger):
+        raise ApprovalError("configure both the approval public key and ledger paths")
+    return ApprovalVerifier(root, Path(public), Path(ledger)) if public else None

@@ -40,8 +40,8 @@ def _blocks(result) -> list:
 
 async def _drive(corpus: Path, private: Path) -> dict:
     key = private / "key"
-    create_key(key)
-    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp.server_sdk", "--root", str(corpus)], cwd=str(ROOT), env={"PYTHONPATH": str(ROOT), "METANAVIT_APPROVAL_KEY_FILE": str(key), "METANAVIT_APPROVAL_LEDGER_FILE": str(private / "ledger.sqlite")})
+    create_key(key, private / "key.pub")  # the server is given the public key only
+    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp.server_sdk", "--root", str(corpus)], cwd=str(ROOT), env={"PYTHONPATH": str(ROOT), "METANAVIT_APPROVAL_PUBLIC_KEY_FILE": str(private / "key.pub"), "METANAVIT_APPROVAL_LEDGER_FILE": str(private / "ledger.sqlite"), **THREADS})
     out: dict = {}
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -122,10 +122,10 @@ def test_sdk_server_searches_and_proposes_on_the_fixture(tmp_path):
 async def _refusals(corpus: Path, private: Path) -> dict:
     """Forged, expired and replayed capabilities against one SDK server process."""
     key = private / "key"
-    create_key(key)
+    create_key(key, private / "key.pub")
     ledger = private / "ledger.sqlite"
     params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp.server_sdk", "--root", str(corpus)], cwd=str(ROOT),
-                                   env={"PYTHONPATH": str(ROOT), "METANAVIT_APPROVAL_KEY_FILE": str(key), "METANAVIT_APPROVAL_LEDGER_FILE": str(ledger), **THREADS})
+                                   env={"PYTHONPATH": str(ROOT), "METANAVIT_APPROVAL_PUBLIC_KEY_FILE": str(private / "key.pub"), "METANAVIT_APPROVAL_LEDGER_FILE": str(ledger), **THREADS})
     out: dict = {"trees": {}, "texts": {}, "alive": {}}
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:

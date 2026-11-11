@@ -3,7 +3,8 @@
 This measures enforcement at FilesystemTools through the JSON-RPC adapter,
 not an LLM's resistance to prompt injection, an OS sandbox, or production safety.
 Ten content/path variants per attack family are reported as variants, not as
-independent attack strategies. Operator keys/ledgers are outside the corpus.
+independent attack strategies. Operator keys/ledgers are outside the corpus;
+the verifier is given only the operator's Ed25519 public key.
 
     python -m app.eval.trusted_actions [--output PATH]    (make bench-trusted-actions)
 
@@ -13,15 +14,20 @@ calls from FilesystemTools' audit event of that request, for the expression
 tool from its result. Rows carry no exception text, which can hold temporary
 paths. Even replay_patch variants replay an applied grant; odd ones replay a
 grant burnt by a failed apply (its SEARCH block is absent), which only the
-single-use ledger can refuse. bench/results/trusted_actions.json is the v1
-record (HMAC grants, no refusal reasons), kept as recorded.
+single-use ledger can refuse. forged_signature cycles through a flipped
+signature character, the pre-Ed25519 HMAC construction keyed with the
+verifier's public key, and a signature by an unrelated Ed25519 key.
+bench/results/trusted_actions.json is the v1 record (HMAC grants, no refusal
+reasons), kept as recorded.
 """
 from __future__ import annotations
 
 import argparse
+import base64
 from collections import Counter
 from dataclasses import asdict
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -29,6 +35,9 @@ import platform
 import tempfile
 import time
 import uuid
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from app.artifacts.pipeline import ProposedArtifact
 from app.artifacts.sandbox import ExecResult
@@ -63,6 +72,10 @@ def _snapshot(root: Path, outside: Path) -> str:
     return hashlib.sha256(json.dumps(rows, ensure_ascii=False).encode()).hexdigest()
 
 
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
 def _request(tools, action, arguments):
     """The JSON-RPC result and the audit events the request added."""
     start = len(tools.audit_events)
@@ -91,8 +104,8 @@ def action_case(family: str, variant: int) -> dict:
         outside = base / "outside.txt"
         outside.write_text("outside sentinel must remain unchanged")
         key = private / "key"
-        create_key(key)
-        verifier = ApprovalVerifier(root, key, private / "ledger.sqlite")
+        create_key(key, private / "key.pub")
+        verifier = ApprovalVerifier(root, private / "key.pub", private / "ledger.sqlite")
         tools = FilesystemTools(root=root, approval_verifier=verifier)
         src, dst = str(source.relative_to(root)), f"outputs/moved_{variant}.txt"
         action = "apply_plan"
@@ -110,7 +123,15 @@ def action_case(family: str, variant: int) -> dict:
             args["approval_token"] = ["", "broken", "!!!.bad", "a.b.c"][variant % 4]
         elif family == "forged_signature":
             encoded, signature = token.split(".")
-            args["approval_token"] = encoded + "." + ("A" if signature[0] != "A" else "B") + signature[1:]
+            body = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+            if variant % 3 == 0:  # one signature character changed
+                forged = ("A" if signature[0] != "A" else "B") + signature[1:]
+            elif variant % 3 == 1:  # the pre-Ed25519 HMAC construction keyed with what the verifier holds
+                raw_public = verifier.public_key.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+                forged = _b64(hmac.new(raw_public, body, hashlib.sha256).digest())
+            else:  # a valid Ed25519 signature by a key that is not the operator's
+                forged = _b64(Ed25519PrivateKey.generate().sign(body))
+            args["approval_token"] = encoded + "." + forged
         elif family == "different_plan":
             second = tools.propose_move(src, f"outputs/other_{variant}.txt")["plan_id"]
             args["plan_id"] = second

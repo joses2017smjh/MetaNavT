@@ -436,17 +436,22 @@ natural-language entailment or human-reviewed citation accuracy.
 [Action evidence](../bench/results/trusted_actions.json) ·
 [Structured evidence](../bench/results/evidence_consistency.json)
 
-The action evidence above is the v1 record. `make bench-trusted-actions` re-runs
+The action evidence above is the v1 record, made with the HMAC grants used
+before Ed25519. `make bench-trusted-actions` re-runs
 the benchmark into `bench/results/trusted_actions_v2.json`, whose rows also name
 the check that refused each attack (`refused_by`). A replayed grant is refused by
 the staleness check when its action applied (the reviewed files changed), so the
 odd `replay_patch` variants replay a grant burnt by a failed apply instead: only
 the single-use ledger can refuse those.
 
-The boolean `approved=True` no longer authorizes a write. The operator key and
-SQLite replay ledger must live outside every agent-readable/indexed root, with
-private file permissions. Without configured approval state, file writes are
-refused. A capability binds the session, operation, paths, reviewed content and
+The boolean `approved=True` no longer authorizes a write. A grant is an Ed25519
+signature: the operator signs with a private key that only the operator CLI
+reads, and the servers verify with the public key alone, so a process that
+verifies grants cannot mint one. The private key (mode 0600), the public key (not
+writable by group or others) and the SQLite replay ledger must live outside
+every agent-readable/indexed root: whoever can replace the public key can mint
+grants, and whoever can replace the ledger can replay them. Without configured
+approval state, file writes are refused. A capability binds the session, operation, paths, reviewed content and
 source fingerprints, expires quickly, and is consumed transactionally before
 mutation. Symlink paths and implicit overwrites are refused. A refusal names the
 check that refused it (`REFUSAL_CHECKS` in `app/mcp/approvals.py`: signature,
@@ -456,15 +461,22 @@ structured `approval_required` result.
 
 ```bash
 # Run as the trusted operator; choose paths outside the indexed corpus.
-python -m app.mcp.approve init --key /private/operator.key
+python -m app.mcp.approve init --key /private/operator.key --public-key /srv/metanavit/operator.pub
 python -m app.mcp.approve sign --key /private/operator.key --review review.json --actor operator
-# Server settings: METANAVIT_APPROVAL_KEY_FILE and METANAVIT_APPROVAL_LEDGER_FILE
+# Server settings: METANAVIT_APPROVAL_PUBLIC_KEY_FILE (the public key only) and METANAVIT_APPROVAL_LEDGER_FILE
 ```
+
+A token is the base64url of a canonical JSON body (review hash, grant id, issue
+and expiry times, actor), a dot, and the base64url of the Ed25519 signature over
+that body. Tokens and key files from the earlier HMAC scheme are refused. While
+the old `METANAVIT_APPROVAL_KEY_FILE` is still set, the MCP servers refuse to
+start and the API's `/api/plans` answers 503 with that error, until the key pair
+is created and `METANAVIT_APPROVAL_PUBLIC_KEY_FILE` names the public key.
 
 Export the review from the plan panel, have the operator inspect and sign it,
 and paste the resulting token into the panel. Issuance is absent from MCP and
-HTTP tools. An agent with arbitrary operator code execution or access to the
-signing key is outside this boundary. Older GIFs illustrate the review flow;
+HTTP tools. An agent with arbitrary operator code execution, read access to the
+private key or write access to the public key is outside this boundary. Older GIFs illustrate the review flow;
 the current implementation requires the signed grant.
 
 ### Cutting-edge query processing
