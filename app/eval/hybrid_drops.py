@@ -7,8 +7,10 @@ k = 60, equal weights) and keeps the top retrieve_k by RRF score, so a gold file
 chunks dense ranks low, and BM25 not at all, can fall below that cut while chunks that
 BM25 ranks take its place.
 
-For every question whose Recall@50 differs between the two rows, each gold file in one
-list and not the other (`dropped`: dense only; `gained`: hybrid only), with
+For every question whose two lists differ in their gold files (every question whose
+Recall@50 differs is one of them; a drop and a gain on one question can also cancel),
+each gold file in one list and not the other (`dropped`: dense only; `gained`: hybrid
+only), with
   dense   its rank in dense_only's file list and the rank of its best chunk among
           dense's chunks (null: none of its chunks is in dense's top retrieve_k)
   bm25    the same in BM25's lists
