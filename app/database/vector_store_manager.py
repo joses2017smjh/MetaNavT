@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 from psycopg2 import sql
 from dotenv import load_dotenv
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
+import unicodedata
 import uuid
 import time
 import psycopg2
@@ -47,6 +48,8 @@ logger = logging.getLogger("uvicorn")
 # pgvector's own default, kept as the floor, and the largest value pgvector accepts.
 HNSW_EF_SEARCH_DEFAULT = 40
 HNSW_EF_SEARCH_MAX = 1000
+# Words websearch_to_tsquery reads as an operator rather than a term (lowercase; it ignores case).
+WEBSEARCH_OPERATOR_WORDS = frozenset({"or"})
 
 
 def describe_dsn(dsn: str | None) -> str:
@@ -435,11 +438,17 @@ class VectorStoreManager(DatabaseManager):
     def lexical_query(query: str) -> str:
         """OR-join the query terms for websearch_to_tsquery, so the lexical list has
         BM25-like OR semantics instead of websearch's default AND. Stopwords are
-        dropped by the 'english' configuration on the Postgres side."""
+        dropped by the 'english' configuration on the Postgres side.
+
+        A term is a run of word characters of any script (letters, digits, "_") in the
+        NFC form of the query, so an accented word stays one term ("café", not "caf").
+        Quotes and a leading "-", websearch's other operators, are never part of a term;
+        its operator word "or" is dropped (an English stopword as well).
+        """
         terms = []
-        for tok in re.findall(r"[A-Za-z0-9_]+", query or ""):
+        for tok in re.findall(r"\w+", unicodedata.normalize("NFC", query or "")):
             t = tok.lower()
-            if t not in terms:
+            if t not in terms and t not in WEBSEARCH_OPERATOR_WORDS:
                 terms.append(t)
         return " or ".join(terms)
 

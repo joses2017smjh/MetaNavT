@@ -1,7 +1,7 @@
 """The Python side of the served hybrid statement, without a database.
 
 What VectorStoreManager sends along with app/database/sql/hybrid_*.sql: the
-per-statement settings. The live behaviour (a forced HNSW scan returning the full
+per-statement settings and the lexical list's query text. The live behaviour (a forced HNSW scan returning the full
 depth) is checked against Postgres in tests/database/test_dense_parity.py. The
 committed plans in doc/sql/ must have been made with the current settings.
 """
@@ -96,3 +96,26 @@ def test_both_statements_share_the_dense_cte():
     """No CI job runs the ParadeDB variant; its dense list is at least the tested one, verbatim."""
     assert dense_cte("hybrid_paradedb.sql") == dense_cte("hybrid_tsrank.sql")
     assert "LIMIT 2 * %(k)s" in dense_cte("hybrid_tsrank.sql")  # the rows search_settings sizes ef_search for
+
+
+# ---------------------------------------------------------------- lexical_query (the websearch text of the lexical list)
+
+
+@pytest.mark.parametrize(
+    "query, expected",
+    [
+        ("Current learning-rate for run_047!", "current or learning or rate or for or run_047"),
+        ("run RUN run_047 run", "run or run_047"),  # lowercased, each term once
+        ("Café crème brûlée", "café or crème or brûlée"),  # an accent does not split a word
+        ("Café au lait", "café or au or lait"),  # decomposed input is composed first (NFC)
+        ("Zürich naïve résumé 東京", "zürich or naïve or résumé or 東京"),
+        ("cats or dogs", "cats or dogs"),  # websearch's operator word is not a term
+        ("fusion_off_resnet OR fusion_on_resnet", "fusion_off_resnet or fusion_on_resnet"),
+        ("or", ""),
+        ("Or OR oR", ""),
+        ('"quoted" -minus', "quoted or minus"),  # quotes and a leading "-" are operators too; never kept
+        ("", ""),
+    ],
+)
+def test_lexical_query_terms(query, expected):
+    assert VectorStoreManager.lexical_query(query) == expected

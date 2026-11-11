@@ -150,3 +150,32 @@ def test_a_tie_at_the_dense_cut_keeps_the_smaller_node_id(tie_table):
         assert [r["dense_rank"] for r in rows] == [1, 2, 3] and all(r["bm25_rank"] is None for r in rows), label
     plan = forced.explain_hybrid("qqqq", QUERY_VECTOR, k=3)
     assert f"Index Scan using {forced.table_name}_embedding_hnsw" in plan, plan  # the tie-break keeps the index usable
+
+
+# ---------------------------------------------------------------- the lexical list's query text in Postgres
+
+
+@pytest.mark.parametrize(
+    "query, tsquery, document",
+    [
+        # An accented word stays one term. Document text is lowercase: how Postgres lowercases
+        # non-ASCII letters depends on the database's locale, which differs between installs.
+        ("Café crème brûlée", "'café' | 'crème' | 'brûlée'", "un café crème, une brûlée"),
+        # websearch_to_tsquery's operator word in the query is not passed on as a term.
+        ("cats or dogs", "'cat' | 'dog'", "two dogs"),
+        ("which ablation is worse, fusion_off_resnet or fusion_on_resnet",  # gold question q095
+         "'ablat' | 'wors' | 'fusion' <2> 'resnet' | 'fusion' <2> 'resnet'", "the ablation fusion_off_resnet"),
+    ],
+)
+def test_lexical_query_as_postgres_reads_it(vsm, query, tsquery, document):
+    manager, _ = vsm
+    text = manager.lexical_query(query)
+    with manager.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT websearch_to_tsquery('english', %s)::text, to_tsvector('english', %s) @@ websearch_to_tsquery('english', %s);",
+                (text, document, text),
+            )
+            got, matches = cur.fetchone()
+    assert got == tsquery, (query, text)
+    assert matches, (query, document)
