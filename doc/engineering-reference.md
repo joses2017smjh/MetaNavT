@@ -380,6 +380,8 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
 
 The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
+`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60 on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every hybrid row of `main.json` and `neural.json` would be re-recorded; the command never changes it.
+
 ### A router that skips work
 
 <p align="center">
