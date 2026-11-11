@@ -44,6 +44,7 @@ def record_runs(dsn: str) -> list[dict]:
     from app.database.vector_store_manager import VectorStoreManager
     from app.engine.ingest import index_directory
     from app.eval.ingest import SERVED_POLICY
+    from app.eval.provenance import scrub
     from app.retrieval.embedders import HashEmbedder
 
     embedder = HashEmbedder(HASH_DIM)
@@ -64,7 +65,8 @@ def record_runs(dsn: str) -> list[dict]:
             report = index_directory(vsm, str(corpus), embed_fn=embed, policy=SERVED_POLICY, max_rejected=0, embedder=f"hash-{HASH_DIM}")
             report["data_dir"] = "temporary copy of bench/corpus/files"
             report["lock"] = {"waited": report["lock"]["waited"]}  # the wait time differs on every run
-            runs.append({"run": name, "report": report, "texts_sent_to_embedder": len(sent), "rows_in_table": vsm.count_nodes()})
+            # Published with the repository: no absolute path, user or host name in any field (app/eval/provenance.py).
+            runs.append({"run": name, "report": scrub(report), "texts_sent_to_embedder": len(sent), "rows_in_table": vsm.count_nodes()})
 
         try:
             step("first_start")
@@ -93,13 +95,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from app.eval.corpus import load_manifest
-    from app.eval.provenance import git_sha
+    from app.eval.provenance import command_line, git_sha
 
     runs = record_runs(dsn)
     blob = {
         "git_sha": git_sha(ROOT),
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "command": "python -m app.engine.ingest_runs",
+        "command": command_line(),
         "corpus_sha256": load_manifest(ROOT / "bench" / "corpus" / "MANIFEST.json")["aggregate_sha256"],
         "embedder": f"hash-{HASH_DIM} (fallback: deterministic hashing, no model)",
         "edited": EDITED,
