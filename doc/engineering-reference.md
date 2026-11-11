@@ -588,7 +588,10 @@ and one for each non-blank stretch of module-level code between or after
 definitions (constants, registration calls, a main guard), so every non-blank
 line is in exactly one chunk; lines are counted the way `ast` counts them (a
 form feed is not a line break). A module without definitions, or one that does
-not parse, takes the fixed character window. `CHUNKER_VERSION` in
+not parse, takes the fixed character window. A JSON file is one chunk. A
+Markdown section, a JSON value or a Python chunk longer than `MAX_CHUNK_CHARS`
+characters is re-cut into windows of that size that overlap by
+`RECUT_OVERLAP` characters. `CHUNKER_VERSION` in
 [app/eval/ingest.py](../app/eval/ingest.py) names the boundaries: when it
 changes, every served file counts as changed at the next start and is
 re-indexed. [tests/eval/test_chunking.py](../tests/eval/test_chunking.py) holds

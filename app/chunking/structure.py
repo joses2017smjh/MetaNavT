@@ -10,6 +10,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+# A structural chunk longer than this many characters is re-cut with the window (size MAX_CHUNK_CHARS, overlap
+# RECUT_OVERLAP): a Markdown section, a JSON value, a Python definition or stretch of module-level code.
+MAX_CHUNK_CHARS = 2000
+RECUT_OVERLAP = 80
+
+
 @dataclass
 class Span:
     start: int
@@ -51,7 +57,18 @@ def fixed_size_chunks(text: str, size: int = 512, overlap: int = 50) -> list[Spa
     return spans
 
 
-def markdown_heading_chunks(text: str, max_size: int = 2000) -> list[Span]:
+def _bounded(text: str, slices: list[tuple[int, int]], max_size: int = MAX_CHUNK_CHARS) -> list[tuple[int, int]]:
+    """The slices, with each one longer than max_size re-cut into overlapping windows of max_size."""
+    out = []
+    for a, b in slices:
+        if b - a > max_size:
+            out.extend((a + span.start, a + span.end) for span in fixed_size_chunks(text[a:b], size=max_size, overlap=RECUT_OVERLAP))
+        else:
+            out.append((a, b))
+    return out
+
+
+def markdown_heading_chunks(text: str, max_size: int = MAX_CHUNK_CHARS) -> list[Span]:
     lines = text.splitlines(keepends=True)
     starts = [0]
     offset = 0
@@ -61,14 +78,7 @@ def markdown_heading_chunks(text: str, max_size: int = 2000) -> list[Span]:
                 starts.append(offset)
         offset += len(line)
     starts.append(len(text))
-    slices = []
-    for a, b in zip(starts, starts[1:]):
-        if b - a > max_size:
-            for span in fixed_size_chunks(text[a:b], size=max_size, overlap=80):
-                slices.append((a + span.start, a + span.end))
-        else:
-            slices.append((a, b))
-    return _spans_from_slices(text, slices, "markdown")
+    return _spans_from_slices(text, _bounded(text, list(zip(starts, starts[1:])), max_size), "markdown")
 
 
 def csv_record_chunks(text: str) -> list[Span]:
@@ -111,8 +121,10 @@ def python_ast_chunks(text: str) -> list[Span]:
     line. The code before the first definition (docstring, imports) is one
     chunk, and so is each non-blank stretch between or after definitions
     (constants, registration calls, a main guard), so every non-blank line of
-    the module is in exactly one chunk. A module without definitions, or one
-    that does not parse, takes the fixed window.
+    the module is in exactly one chunk; a chunk longer than MAX_CHUNK_CHARS is
+    re-cut into overlapping windows, whose overlaps repeat a few lines. A
+    module without definitions, or one that does not parse, takes the fixed
+    window.
     """
     try:
         tree = ast.parse(text)
@@ -137,7 +149,7 @@ def python_ast_chunks(text: str) -> list[Span]:
         cursor = end
     if cursor < len(text):
         slices.append((_first_line_with_code(text, line_starts, cursor, len(text)), len(text)))
-    return _spans_from_slices(text, slices, "ast")
+    return _spans_from_slices(text, _bounded(text, slices), "ast")
 
 
 def _first_line_with_code(text: str, line_starts: list[int], start: int, end: int) -> int:
@@ -191,9 +203,9 @@ def chunk_text(text: str, path: str = "", strategy: str = "auto") -> list[Span]:
         if ext == ".json":
             try:
                 json.loads(text)
-                return [Span(0, len(text), text, "json")] if text.strip() else []
-            except json.JSONDecodeError:
+            except json.JSONDecodeError:  # not one JSON value: one chunk per record line
                 return jsonl_record_chunks(text)
+            return _spans_from_slices(text, _bounded(text, [(0, len(text))]), "json")
         return fixed_size_chunks(text)
     if strategy == "markdown":
         return markdown_heading_chunks(text)

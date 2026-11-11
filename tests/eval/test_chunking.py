@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from app.chunking.contextual import prepend_context, situate_chunk
@@ -169,6 +170,28 @@ def test_csv_rows_keep_crlf_and_skip_blank_lines():
     spans = csv_record_chunks(text)
     assert _spans(spans) == [(0, 7, "csv_header"), (7, 12, "csv_row"), (14, 19, "csv_row")]
     assert [s.text for s in spans] == ["h1,h2\r\n", "h1,h2\r\na,1\r\n", "h1,h2\r\nb,2\r\n"]
+
+
+def test_a_json_value_longer_than_the_limit_is_recut_with_the_window():
+    text = json.dumps({"rows": [{"i": i, "note": "x" * 20} for i in range(100)]}, indent=1)
+    assert len(text) > 4000
+
+    spans = chunk_text(text, path="results/sweep.json")
+
+    assert _spans(spans) == [(s.start, s.end, "json") for s in fixed_size_chunks(text, size=2000, overlap=80)]
+    assert len(spans) > 1 and all(s.end - s.start <= 2000 and s.text == text[s.start:s.end] for s in spans)
+
+
+def test_a_python_definition_longer_than_the_limit_is_recut_with_the_window():
+    body = "".join(f"    field_{i:03d}: int = {i}\n" for i in range(120))
+    src = "import os\n\n\nclass Big:\n" + body + "\n\ndef small():\n    return 1\n"
+    start, end, small = src.index("class Big"), src.index("\n\ndef small"), src.index("def small")
+    windows = [(start + s.start, start + s.end, "ast") for s in fixed_size_chunks(src[start:end], size=2000, overlap=80)]
+
+    spans = python_ast_chunks(src)
+
+    assert len(windows) == 2 and _spans(spans) == [(0, start, "ast"), *windows, (small, len(src), "ast")]
+    assert all(s.end - s.start <= 2000 for s in spans)
 
 
 def test_late_chunk_mean_pool():
