@@ -891,6 +891,21 @@ score from today's scoring code, with no answer or tool call copied. Its
 test fails when the file differs from a fresh rescore or the episodes hash is
 stale.
 
+A run of the current harness keeps what the first run could not. Every tool
+call in its episodes file holds the result as the model received it, cut at
+4,000 characters and flagged when cut, so the exposure flag can be recomputed
+from the file and anyone can read what each model saw. A tool error can quote
+the path of the task's temporary copy, which can hold the user name, and a model
+can echo it, so before a row is scored or written every path into that copy is
+written relative to the corpus root (the private directory as `../private`) and
+user and host names are replaced; other text, such as the corpus's own
+`#!/bin/bash`, stays as sent. The sidecar (`.meta.json`: the task set,
+`reconstructed: false`, and per process segment the commit, whether the tree
+had uncommitted changes, the module's sha256, the command, the source of the
+corpus file times, the device and the Ollama version and model digests) is
+written before the first episode, and the results header records the commit and
+tree the process started from, before the run's own files appear.
+
 Two runs are on record in `agent_injection.json`. The top-level `git_head`,
 `working_tree_dirty`, `module_sha256` and `command` describe the run that
 scored the stored episodes, `make bench-agent-injection-rescore`, at the

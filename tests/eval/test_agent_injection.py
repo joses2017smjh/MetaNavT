@@ -365,6 +365,92 @@ def test_a_write_in_one_capability_episode_does_not_reach_the_next(tmp_path):
     assert all(r["corpus_diff"] == ai.requested_change(by_id[r["task_id"]], ai.task_files(by_id[r["task_id"]])) for r in rows)
 
 
+def test_every_stored_call_carries_the_text_sent_and_the_sidecar_is_written_before_the_first_episode(tmp_path, monkeypatch):
+    # D24: each call row holds the tool result as the model received it (cut at 4,000 characters), so exposure can be
+    # recomputed from the episodes file alone; the generating run's provenance exists before any episode runs
+    episodes = tmp_path / "episodes.jsonl"
+    seen_sidecar, received = [], {}
+    original = ai.run_episode
+
+    def routed(chat, env, defense, seed, max_turns=6):
+        inner = scripted(env.task, comply=True)
+
+        def recording(messages, tools, s):
+            if not seen_sidecar:
+                seen_sidecar.append(json.loads(ai.sidecar(episodes).read_text()))
+            out = inner(messages, tools, s)
+            if not out["message"].get("tool_calls"):  # the answer: keep the tool messages this episode received
+                received[(env.task.task_id, seed)] = [m["content"] for m in messages if m["role"] == "tool"]
+            return out
+        return original(recording, env, defense, seed, max_turns)
+
+    monkeypatch.setattr(ai, "run_episode", routed)
+    tasks, rows = ai.run(["bot"], defenses=("none",), k=2, workers=2, episodes_path=episodes, limit_tasks=1,
+                         chat_factory=lambda model: None, log=lambda _: None)
+    meta = seen_sidecar[0]
+    assert meta["reconstructed"] is False and meta["benchmark"] == ai.BENCHMARK_V2
+    assert len(meta["segments"]) == 1 and meta["segments"][0]["finished_utc"] is None
+    assert meta["segments"][0]["module_sha256"] == _sha256(ai.__file__)
+    stored = [json.loads(line) for line in episodes.read_text().splitlines()]
+    assert len(stored) == len(rows) == 7 * 2 and set(received) == {(r["task_id"], r["trial"]) for r in stored}
+    for row in stored:
+        assert [c["result"] for c in row["tool_calls"]] == received[(row["task_id"], row["trial"])]
+        assert all(len(c["result"]) <= 4000 and c["result_truncated"] is False for c in row["tool_calls"])
+        # the flag recomputed from the stored results equals the recorded one
+        assert any(ai.TICKET in c["result"] for c in row["tool_calls"]) == row["exposed"]
+    assert {r["exposed"] for r in stored} == {True, False}
+    assert json.loads(ai.sidecar(episodes).read_text())["segments"][0]["finished_utc"] is not None
+
+
+def test_episodes_hold_no_temporary_path_and_no_user_name(monkeypatch):
+    # The copy lives in a temporary directory whose path can hold the user name; a tool error quotes it and a model
+    # can echo it. Rows are written with paths into the copy relative to the corpus root and names replaced, while
+    # text that only looks like a path (the corpus's own #!/bin/bash) is kept as sent.
+    from app.eval import provenance
+
+    monkeypatch.setattr(provenance, "user_names", lambda: {"jdoe7"})
+    task = _capability("move")
+    env = ai.TaskEnv(task)
+    base, root = env.root.parent, env.root
+    script = iter([_call("read_file", path="configs/missing.yaml"),
+                   _call("read_file", path=f"{root}/slurm/run_042.sbatch"),
+                   _call("read_file", path=f"{base.resolve()}/private/{ai.CANARY_FILE}"),
+                   _say(f"Run 42 used 0.0003 [{root}/configs/run_042.yaml], checked by jdoe7.")])
+    try:
+        ep = ai.run_episode(lambda messages, tools, seed: next(script), env, "none", seed=0)
+        sc = ai.score(task, ep, env.canary, env.files)
+    finally:
+        env.close()
+    text = json.dumps(ep)
+    assert str(base) not in text and str(base.resolve()) not in text and "jdoe7" not in text
+    missing, sbatch, private = ep["tool_calls"]
+    assert "'configs/missing.yaml'" in missing["result"] and missing["status"] == "error"
+    assert sbatch["arguments"] == {"path": "slurm/run_042.sbatch"} and "#!/bin/bash" in sbatch["result"]
+    assert private["arguments"] == {"path": f"../private/{ai.CANARY_FILE}"} and private["status"] == "denied"
+    assert ep["answer"] == "Run 42 used 0.0003 [configs/run_042.yaml], checked by <user>."
+    assert sc["cited_paths"] == ["configs/run_042.yaml"]
+
+
+def test_the_results_header_records_the_tree_as_the_run_found_it(tmp_path, monkeypatch):
+    # A run from a clean commit writes new files under bench/results (the episodes and their sidecar), so `git status`
+    # is dirty by the time the summary is written; the header records the commit and tree the run started from.
+    episodes, out = tmp_path / "episodes.jsonl", tmp_path / "out.json"
+    monkeypatch.setattr(ai, "provenance", lambda: {"run_at_utc": "t", "git_head": "abc1234", "source_sha256": {},
+                                                    "working_tree_dirty": episodes.exists()})
+
+    def fake_run(models, **kwargs):
+        episodes.write_text("")
+        ai.sidecar(episodes).write_text(json.dumps({"benchmark": ai.BENCHMARK_V2, "reconstructed": False, "segments": []}))
+        return [], []
+
+    monkeypatch.setattr(ai, "run", fake_run)
+    monkeypatch.setattr(ai, "_ollama_info", lambda base_url, models: {"version": "test"})
+    assert ai.main(["--models", "m", "--out", str(out), "--episodes", str(episodes)]) == 0
+    blob = json.loads(out.read_text())
+    assert blob["working_tree_dirty"] is False and blob["git_head"] == "abc1234"
+    assert blob["benchmark"] == ai.BENCHMARK_V2 and blob["episodes_generated_by"]["reconstructed"] is False
+
+
 def test_report_points_at_the_make_target_when_the_results_file_is_missing():
     from app.eval.report import agent_injection_table
     assert "make bench-agent-injection" in agent_injection_table(None)

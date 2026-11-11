@@ -57,6 +57,14 @@ episode, so a write that got through would show up as corpus_changed on that
 task's later episodes too. A capability task writes, so each of its episodes
 gets a fresh copy.
 
+Each call row in the episodes file holds the tool result as the model received it
+(cut at 4,000 characters, flagged when cut), so exposure and what the model read can
+be checked from the file alone. Paths into a task's temporary copy are written
+relative to the corpus root and user and host names are replaced before a row is
+scored or written (TaskEnv.publishable). run() writes the provenance sidecar
+(reconstructed false, one segment per process) before the first episode, and the
+results header records the commit and tree the process started from.
+
 The structured field check (field_check, FIELD_CHECK_RULE) is told which config
 field the question is about. It is scored on every stored answer and never
 blocks anything in the episode loop; summarize() measures it offline as a
@@ -89,7 +97,7 @@ import numpy as np
 from app.eval import stats
 from app.eval.judge import exact_match_label
 from app.eval.m4_provenance import provenance
-from app.eval.provenance import command_line, sanitize_path, scrub
+from app.eval.provenance import command_line, sanitize_path, scrub, scrub_names
 from app.mcp.approvals import ApprovalError, ApprovalVerifier, create_key, sign_review
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 
@@ -369,6 +377,16 @@ def proposed_change(review: dict, files: dict[str, str]) -> dict | None:
     return None
 
 
+def _relativize(text: str, prefix: str, rel: str) -> str:
+    """`prefix` and the paths under it written relative to the corpus root: rel "" for the root itself, ".." for
+    the task directory around it."""
+    def sub(m: re.Match) -> str:
+        if m.group(1) == "/":
+            return f"{rel}/" if rel else ""
+        return rel or "."
+    return re.sub(re.escape(prefix) + r"(/|(?![\w.-]))", sub, text)
+
+
 def canary_for(task: Task) -> str:
     return f"MNV-CANARY-{hashlib.sha256(task.task_id.encode()).hexdigest()[:16]}"
 
@@ -478,6 +496,10 @@ class TaskEnv:
                       for f in sorted(self.root.rglob("*")) if f.is_file()}
         self.initial = snapshot(self.root)
         self.hashes = file_hashes(self.root)
+        # this copy's temporary paths (as given and resolved), longest first, and how an episodes file writes them
+        self._prefixes = sorted({(str(path), rel) for path, rel in ((self.root, ""), (self.root.resolve(), ""),
+                                                                    (base, ".."), (base.resolve(), ".."))},
+                                key=lambda pair: -len(pair[0]))
         self._verifier = ApprovalVerifier(self.root, self.private / "operator.pub", self.ledger)
         self.lock = threading.Lock()
 
@@ -490,6 +512,22 @@ class TaskEnv:
     def diff(self) -> dict:
         """What changed in the copy since it was made (corpus_diff)."""
         return corpus_diff(self.hashes, file_hashes(self.root))
+
+    def publishable(self, value: Any) -> Any:
+        """`value` as an episodes file may hold it, in strings at any depth: a path into this copy's temporary
+        directory, which a tool error quotes and a model can echo, is written relative to the corpus root (the
+        private directory as ../private), then user and host names are replaced (provenance.scrub_names). Other
+        text stays as the model saw or wrote it, such as the corpus's own `#!/bin/bash` or a path a model made up,
+        so the scores read the same text."""
+        if isinstance(value, str):
+            for prefix, rel in self._prefixes:
+                value = _relativize(value, prefix, rel)
+            return scrub_names(value)
+        if isinstance(value, dict):
+            return {k: self.publishable(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self.publishable(v) for v in value]
+        return value
 
     def operator_review(self, tools: FilesystemTools, proposal: dict) -> tuple[dict, str]:
         """The operator's answer to a proposal in a capability task (OPERATOR_RULE): the proposal with an
@@ -644,15 +682,18 @@ def run_episode(chat: ChatFn, env: TaskEnv, defense: str, seed: int, max_turns: 
                     result = {"error": f"{type(exc).__name__}: {exc}"}
             if defense == "spotlight" and record["status"] == "ok":
                 result = _mark_result(result)
-            content = json.dumps(result, ensure_ascii=False, default=str)[:4000]
+            full = json.dumps(result, ensure_ascii=False, default=str)
+            content = full[:4000]
             exposed_to_injection = exposed_to_injection or (TICKET in content)
+            # the result as the model received it, so exposure and what the model read can be checked from the file
+            record.update(result=content, result_truncated=len(full) > len(content))
             calls.append(record)
             messages.append({"role": "tool", "content": content, "tool_name": name})
     with env.lock:
         changed, diff = env.changed(), env.diff()
-    return {"answer": answer, "turns": turns, "tool_calls": calls, "exposed": exposed_to_injection,
-            "corpus_changed": changed, "corpus_diff": diff, "prompt_tokens": prompt_tokens,
-            "output_tokens": output_tokens, "wall_s": round(time.time() - started, 3)}
+    return env.publishable({"answer": answer, "turns": turns, "tool_calls": calls, "exposed": exposed_to_injection,
+                            "corpus_changed": changed, "corpus_diff": diff, "prompt_tokens": prompt_tokens,
+                            "output_tokens": output_tokens, "wall_s": round(time.time() - started, 3)})
 
 
 _SUPERSCRIPT = str.maketrans("\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079\u207b", "0123456789-")
@@ -1144,7 +1185,9 @@ def run(models: Sequence[str], *, defenses: Sequence[str] = DEFENSES, k: int = 4
             if (m, d, t.task_id, trial) not in done]
     log(f"{len(tasks)} tasks x {len(defenses)} configs x {len(models)} models x k={k}: {len(jobs)} episodes to run, {len(done)} resumed")
     meta_path = sidecar(episodes_path)
-    meta = json.loads(meta_path.read_text()) if resume and meta_path.exists() else {"benchmark": benchmark, "segments": []}
+    # written before the first episode and rewritten when the segment ends; a resumed run appends a segment
+    meta = (json.loads(meta_path.read_text()) if resume and meta_path.exists()
+            else {"benchmark": benchmark, "reconstructed": False, "segments": []})
     prov = provenance()
     segment = {"started_utc": prov["run_at_utc"], "finished_utc": None, "episodes_before": len(done),
                "git_head": prov["git_head"], "working_tree_dirty": prov["working_tree_dirty"],
@@ -1163,9 +1206,9 @@ def run(models: Sequence[str], *, defenses: Sequence[str] = DEFENSES, k: int = 4
                 ep = run_episode(chats[model], env, defense, seed=trial, max_turns=max_turns)
                 ep["error"] = None
             except Exception as exc:  # recorded and counted, never silently dropped
-                ep = {"answer": None, "turns": 0, "tool_calls": [], "exposed": False, "corpus_changed": env.changed(),
-                      "corpus_diff": env.diff(), "prompt_tokens": 0, "output_tokens": 0, "wall_s": 0.0,
-                      "error": f"{type(exc).__name__}: {exc}"}
+                ep = env.publishable({"answer": None, "turns": 0, "tool_calls": [], "exposed": False,
+                                      "corpus_changed": env.changed(), "corpus_diff": env.diff(), "prompt_tokens": 0,
+                                      "output_tokens": 0, "wall_s": 0.0, "error": f"{type(exc).__name__}: {exc}"})
             sc = score(task, ep, env.canary, env.files)
         finally:
             if task.capability:
@@ -1235,7 +1278,10 @@ def run_config(tasks: Sequence[Task], *, benchmark: str, models: Sequence[str], 
 
 
 def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str], k: int, temperature: float,
-           base_url: str, wall_s: float, episodes_path: Path, max_turns: int, benchmark: str = BENCHMARK) -> dict:
+           base_url: str, wall_s: float, episodes_path: Path, max_turns: int, benchmark: str = BENCHMARK,
+           prov: dict | None = None) -> dict:
+    """The results file. `prov` is the commit and tree the process started from (main() takes it first): a run's own
+    new files under bench/results would make the tree look dirty by the time the summary is written."""
     errors = [r for r in rows if r.get("error")]
     v1 = benchmark == BENCHMARK_V1
     return {
@@ -1247,7 +1293,7 @@ def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str]
                                    "for, with a real operator approval, so an attempt rate can be read against what the "
                                    "model does when asked. ")
                   + "One phrasing per goal and task, not an adaptive attacker; synthetic tasks, not production traffic."),
-        **provenance(),
+        **(prov if prov is not None else provenance()),
         "module_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "command": command_line(),
         "device": {"gpu": _gpu()},
@@ -1295,7 +1341,7 @@ def main(argv: list[str] | None = None) -> int:
                         "and a .meta.json beside it, then exit; no model call, --out is not written")
     args = p.parse_args(argv)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
-    started = time.time()
+    started, prov = time.time(), provenance()
     if args.summarize_only or args.write_scores:
         benchmark = episodes_benchmark(args.episodes)
         if args.benchmark not in (None, benchmark):
@@ -1320,7 +1366,7 @@ def main(argv: list[str] | None = None) -> int:
         models = [m for m in models if m in seen] + sorted(seen - set(models))
     blob = report(tasks, rows, models=models, k=args.k, temperature=args.temperature, base_url=args.base_url,
                   wall_s=time.time() - started, episodes_path=args.episodes, max_turns=args.max_turns,
-                  benchmark=benchmark)
+                  benchmark=benchmark, prov=prov)
     if args.summarize_only:
         # device, server and wall time describe the processes that generated the episodes (the
         # sidecar run() writes), never the environment that rescored them
