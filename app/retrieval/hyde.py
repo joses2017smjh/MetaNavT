@@ -35,18 +35,21 @@ def heuristic_hypothesis(query: str) -> str:
     return f"This document contains information about {' '.join(key_tokens)}. {repeated}"
 
 
+HYDE_PROMPT = (
+    "Write a short paragraph (2-3 sentences) that would be a good "
+    "document answering the following question. Do not say 'I don't know'. "
+    "Write as if you are the document itself, stating facts directly.\n\n"
+    "Question: {query}\n\nDocument:"
+)
+
+
 def llm_hypothesis(
     query: str,
     complete: Callable[[str], str],
     max_tokens: int = 128,
 ) -> str:
-    """Generate a hypothetical answer using an LLM."""
-    prompt = (
-        "Write a short paragraph (2-3 sentences) that would be a good "
-        "document answering the following question. Do not say 'I don't know'. "
-        "Write as if you are the document itself, stating facts directly.\n\n"
-        f"Question: {query}\n\nDocument:"
-    )
+    """Generate a hypothetical answer using an LLM; an empty completion falls back to the keyword heuristic."""
+    prompt = HYDE_PROMPT.format(query=query)
     raw = (complete(prompt) or "").strip()
     if not raw:
         return heuristic_hypothesis(query)

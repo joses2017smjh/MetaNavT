@@ -679,6 +679,18 @@ def cache_note(cache: dict) -> str:
     return text
 
 
+def llm_note(llm: dict) -> str:
+    """Which stored LLM generations a row read, and how many of its calls failed."""
+    parts = []
+    for kind, what, fallback in (("hyde", "HyDE hypotheses", "the keyword hypothesis was used for those questions"),
+                                 ("context", "chunk prefixes", "those chunks were indexed without a prefix")):
+        block = llm.get(kind)
+        if block:
+            failed = f"{block['n_failed']} of {block['n']} calls failed" + (f" ({fallback})" if block["n_failed"] else "")
+            parts.append(f"{what} written by `{llm['model']}` and read from `{llm['file']}`; {failed}")
+    return "; ".join(parts) + "."
+
+
 def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "make bench-frontier") -> str:
     """One row per prototype arm: parent, paired delta, interval, verdict word, what fired, stand-ins."""
     if not blob:
@@ -741,10 +753,27 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         if emb.get("library"):
             libs = ", ".join(f"{k} {v}" for k, v in emb["library"].items())
             notes.append(f"- `{name}`: model-free embedder `{emb.get('model')}` fitted on the indexed chunks ({emb.get('dim')} dimensions; {libs}).")
+        llm = row.get("llm")
+        if llm:
+            notes.append(f"- `{name}`: {llm_note(llm)}")
     for item in meta.get("not_evaluated") or []:
         notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
+    gen = blob.get("generations")
+    if gen:
+        ollama = gen.get("ollama") or {}
+        opts = ", ".join(f"{k} {v}" for k, v in (gen.get("options") or {}).items())
+        notes.append(f"- LLM-written arms: `{gen['model']}` through Ollama {ollama.get('version') or '(version not recorded)'}"
+                     f"{', digest ' + str(ollama['digest'])[:12] if ollama.get('digest') else ''}; {opts}. The prompts are in the results "
+                     f"header (`generations.prompts`) and every generation is stored in `{gen['file']}`, so the rows are rescored without the model.")
     if notes:
         lines += ["", *notes]
+    comparisons = [c for c in (blob.get("bootstrap") or {}).get("comparisons") or [] if c.get("ndcg@10") and c["row"] in by and c["other"] in by]
+    if comparisons:
+        lines += ["", "Arms compared directly (row minus other, same paired bootstrap): the two HyDE wirings, and each LLM-written arm against "
+                      "the heuristic arm it replaces.", "",
+                  "| row | other | Δ nDCG@10 [95% CI] | verdict | Δ Recall@10 [95% CI] |", "|---|---|---:|:---:|---:|",
+                  *(f"| {c['row']} | {c['other']} | {_delta4(c['ndcg@10'])} | {verdict(c['ndcg@10'])} | {_delta(c.get('recall@10'))} |"
+                    for c in comparisons)]
     cat_lines = []
     for name in arms:
         if not any(key in name for key in FRONTIER_CATEGORY_ARMS):
