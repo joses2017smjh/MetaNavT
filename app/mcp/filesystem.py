@@ -47,6 +47,74 @@ def refusal_check(exc: BaseException) -> str | None:
 
 DEFAULT_EMBEDDER = "hash"
 
+# The MCP expression tool (exec_sandboxed) runs a small language, checked on the syntax
+# tree before anything runs. Every node must be of one of these types, so whatever is
+# not listed is refused: import statements, attribute expressions (x.y), match
+# statements and every pattern (a class pattern looks attributes up by name), class
+# definitions, with, global and nonlocal, yield, await and async code, and syntax newer
+# than this list.
+EXPRESSION_NODES = frozenset({
+    ast.Module, ast.Expr, ast.Assign, ast.AugAssign, ast.Delete, ast.Pass, ast.Break, ast.Continue,
+    ast.If, ast.For, ast.While, ast.Try, ast.ExceptHandler, ast.Raise, ast.Assert, ast.FunctionDef, ast.Return,
+    ast.Name, ast.Constant, ast.List, ast.Tuple, ast.Set, ast.Dict, ast.Subscript, ast.Slice, ast.Starred,
+    ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare, ast.IfExp, ast.Call, ast.keyword, ast.Lambda,
+    ast.arguments, ast.arg, ast.NamedExpr, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp,
+    ast.comprehension, ast.JoinedStr, ast.FormattedValue,
+    ast.Load, ast.Store, ast.Del,
+    ast.And, ast.Or, ast.Add, ast.Sub, ast.Mult, ast.MatMult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift,
+    ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv, ast.Invert, ast.Not, ast.UAdd, ast.USub,
+    ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn,
+})
+# The builtins the expression tool's code can name, and the only ones it is given (a
+# subset of the artifact sandbox's SAFE_BUILTINS). getattr, setattr, vars, dir, type,
+# object, super, format, globals, locals, open, eval, exec, compile and __import__ are
+# not among them.
+EXPRESSION_BUILTINS = frozenset({
+    "abs", "all", "any", "bool", "dict", "enumerate", "filter", "float", "int", "isinstance", "len", "list",
+    "map", "max", "min", "print", "range", "reversed", "round", "set", "sorted", "str", "sum", "tuple", "zip",
+    "AssertionError", "Exception", "ValueError",
+})
+
+
+def expression_refusal(code: str) -> str | None:
+    """Why `code` is outside the expression tool's language, or None when it is inside.
+
+    Besides the node types (EXPRESSION_NODES): no identifier may start with two
+    underscores, so `__builtins__` and the like can be neither read nor bound; and every
+    name the code reads must be one of EXPRESSION_BUILTINS or a name the code binds itself
+    (an assignment, loop, comprehension or `:=` target, a parameter, a function name, an
+    `except ... as` name). The code therefore has no way to look an attribute up by name,
+    which is also the first step of a str.format or format_map field lookup. Raises
+    SyntaxError or ValueError for code that does not parse.
+    """
+    try:
+        tree = ast.parse(code)
+    except (RecursionError, MemoryError):
+        return "the code is nested too deeply to check"
+    bound, read = set(), set()
+    for node in ast.walk(tree):
+        if type(node) not in EXPRESSION_NODES:
+            return f"{type(node).__name__} is not part of the expression tool's language"
+        if isinstance(node, ast.Name):
+            name = node.id
+            (bound if isinstance(node.ctx, ast.Store) else read).add(name)
+        elif isinstance(node, ast.arg):
+            name = node.arg
+            bound.add(name)
+        elif isinstance(node, (ast.FunctionDef, ast.ExceptHandler)):
+            name = node.name or ""
+            bound.add(name)
+        elif isinstance(node, ast.keyword):
+            name = node.arg or ""
+        else:
+            continue
+        if name.startswith("__"):
+            return f"the name {name[:40]!r} starts with two underscores"
+    unknown = sorted(read - bound - EXPRESSION_BUILTINS)
+    if unknown:
+        return f"the name {unknown[0][:40]!r} is neither an allowed builtin nor bound by the code"
+    return None
+
 
 def _symlink_free(root: Path, rel: str) -> bool:
     """True when no component of `rel` under `root` is a symlink (the path rule of FilesystemTools._safe)."""
@@ -429,20 +497,22 @@ class FilesystemTools:
     def exec_sandboxed(self, code: str) -> dict:
         from app.artifacts.sandbox import run_sandboxed
 
-        # The legacy artifact AST runner permits library file readers. Exposing
-        # those as an agent tool would let it read the operator's private key.
-        # This MCP tool therefore accepts only a no-import/no-attribute subset.
+        # The legacy artifact AST runner is a block-list that permits library file
+        # readers. Exposing it as an agent tool would let it read the operator's private
+        # key, so this MCP tool accepts only the allow-listed language of
+        # expression_refusal and gives the code only EXPRESSION_BUILTINS.
         # It remains a correctness runner, not a CPU/memory/OS security sandbox.
         try:
             if not isinstance(code, str) or len(code) > 65536:
                 raise ValueError("code exceeds the expression-tool limit")
-            tree = ast.parse(code)
-            if any(isinstance(node, (ast.Import, ast.ImportFrom, ast.Attribute)) for node in ast.walk(tree)):
-                return {"ok": False, "stdout": "", "stderr": "", "error": REFUSAL_CHECKS["expression_gate"],
-                        "timed_out": False, "refused_by": "expression_gate"}
+            refused = expression_refusal(code)
         except (ValueError, SyntaxError) as exc:
             return {"ok": False, "stdout": "", "stderr": "", "error": str(exc), "timed_out": False}
-        return run_sandboxed(code).as_dict()
+        if refused:
+            # "error" stays the check's fixed description; "detail" names what was refused.
+            return {"ok": False, "stdout": "", "stderr": "", "error": REFUSAL_CHECKS["expression_gate"],
+                    "timed_out": False, "refused_by": "expression_gate", "detail": refused}
+        return run_sandboxed(code, builtins=EXPRESSION_BUILTINS).as_dict()
 
     def inspect_spreadsheet(self, path: str) -> dict:
         from app.artifacts.visualization import inspect_spreadsheet
@@ -684,7 +754,7 @@ class FilesystemTools:
             },
             {
                 "name": "exec_sandboxed",
-                "description": "Run a no-import, no-attribute Python expression subset; no OS isolation or resource guarantees.",
+                "description": "Run an allow-listed Python subset (no imports, attribute access, match or class statements; only listed builtins); no OS isolation or resource guarantees.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {"code": {"type": "string"}},

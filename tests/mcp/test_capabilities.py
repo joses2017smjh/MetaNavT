@@ -196,6 +196,117 @@ def test_expression_tool_runs_plain_expressions(tmp_path):
     assert result["ok"] and result["stdout"].strip() == "6"
 
 
+# The reviewer's probe (2026-11-11). On the earlier gate a class pattern bound a template
+# string's format method, whose field lookups then read the server's environment. It
+# prints only booleans, and the assertion below compares booleans only.
+ENVIRONMENT_PROBE = (
+    'match "{0.__self__.__loader__.find_spec.__func__.__globals__[sys].modules[os].environ}":\n'
+    "    case str(format=f):\n"
+    "        text = f(print)\n"
+    '        print("PATH" in text, "HOME" in text)\n'
+)
+
+
+def test_expression_tool_refuses_the_environment_probe(tmp_path):
+    result = FilesystemTools(root=tmp_path).exec_sandboxed(ENVIRONMENT_PROBE)
+    refused, silent, ran = result.get("refused_by") == "expression_gate", result["stdout"] == "", result["ok"] is True
+    assert (refused, silent, ran) == (True, True, False)
+
+
+# One case per construct the allow-list refuses. Each must be refused by the gate itself,
+# before anything runs: refused_by is set and nothing is printed.
+REFUSED_CONSTRUCTS = {
+    "match class keyword pattern": 'match "{0}":\n    case str(format=f):\n        print(f(1))',
+    "match class positional pattern": "match 5:\n    case int(x):\n        print(x)",
+    "match mapping pattern": 'match {"a": 1}:\n    case {"a": x}:\n        print(x)',
+    "match sequence pattern": "match [1, 2]:\n    case [a, *rest]:\n        print(a)",
+    "str.format": 'print("{0}".format(1))',
+    "str.format_map": 'print("{x}".format_map({"x": 1}))',
+    "getattr": 'print(getattr("a", "upper")())',
+    "vars": "print(vars())",
+    "dir": "print(dir())",
+    "type": "print(type(1))",
+    "globals": "print(globals())",
+    "locals": "print(locals())",
+    "format builtin": 'print(format(1, "d"))',
+    "open": 'print(open("x"))',
+    "__builtins__ read": 'print("len" in __builtins__)',
+    "__builtins__ subscript": 'print(__builtins__["len"]([1]))',
+    "dunder walrus target": "print((__builtins__ := 1))",
+    "dunder assignment": "__x = 1\nprint(__x)",
+    "dunder parameter": "def f(__x):\n    return 1\nprint(f(1))",
+    "dunder function name": "def __init__():\n    return 1\nprint(__init__())",
+    "dunder except name": "try:\n    int('x')\nexcept ValueError as __e:\n    print(1)",
+    "dunder comprehension target": "print([1 for __x in range(2)])",
+    "dunder keyword argument": "print(dict(__class__=1))",
+    "decorator naming a builtin outside the list": "@vars\ndef f():\n    return 1",
+    "lambda default naming a builtin outside the list": "f = lambda g=getattr: g\nprint(f)",
+    "comprehension naming a builtin outside the list": "print([dir for _ in range(1)])",
+    "walrus binding a builtin outside the list": "print((g := type))",
+    "f-string format spec naming a builtin outside the list": 'print(f"{1:{vars}}")',
+    "class definition": "class A:\n    pass\nprint(1)",
+    "with": "x = 1\nwith x:\n    pass",
+    "global": "def f():\n    global y\n    y = 1\nf()\nprint(y)",
+    "nonlocal": "def f():\n    y = 1\n    def g():\n        nonlocal y\n        y = 2\n    g()\n    return y\nprint(f())",
+    "yield": "def g():\n    yield 1\nprint(sum(g()))",
+    "async def": "async def f():\n    return 1\nprint(1)",
+    "annotated assignment": "x: int = 1\nprint(x)",
+    "except*": "try:\n    pass\nexcept* ValueError:\n    pass",
+    "nested too deeply to parse": "-" * 60000 + "1",
+}
+
+
+@pytest.mark.parametrize("code", list(REFUSED_CONSTRUCTS.values()), ids=list(REFUSED_CONSTRUCTS))
+def test_expression_tool_refuses_constructs_outside_its_allow_list(tmp_path, code):
+    result = FilesystemTools(root=tmp_path).exec_sandboxed(code)
+    assert result["ok"] is False and result["stdout"] == "" and result.get("refused_by") == "expression_gate"
+    assert result["error"] == REFUSAL_CHECKS["expression_gate"] and result["detail"]
+
+
+# What the tool is for: plain Python over the allow-listed builtins.
+ALLOWED_PROGRAMS = {
+    "sum": ("print(sum(range(4)))", "6"),
+    "arithmetic": ("x = 2\ny = x ** 10\nprint(y)", "1024"),
+    "sorted with a lambda key": ("print(sorted([3, 1, 2], key=lambda v: -v))", "[3, 2, 1]"),
+    "recursive function": ("def fact(n):\n    return 1 if n < 2 else n * fact(n - 1)\nprint(fact(5))", "120"),
+    "try and except": ('try:\n    int("x")\nexcept ValueError:\n    print("bad")', "bad"),
+    "raise and catch": ('try:\n    raise ValueError("no")\nexcept Exception as e:\n    print(str(e))', "no"),
+    "f-string with a nested format spec": ('w = 3\nprint(f"{3.14159:.{w}f}")', "3.142"),
+    "walrus in a while loop": ("n = 0\nwhile (n := n + 1) < 3:\n    pass\nprint(n)", "3"),
+    "dict, zip and enumerate": ('d = dict(zip("ab", range(2)))\nprint(d, list(enumerate("xy")))', "{'a': 0, 'b': 1} [(0, 'x'), (1, 'y')]"),
+    "comprehensions": ("print([i * i for i in range(4)], {i % 2 for i in range(4)}, {i: i for i in range(2)})", "[0, 1, 4, 9] {0, 1} {0: 0, 1: 1}"),
+    "generator expression": ("print(sum(i * i for i in range(4)))", "14"),
+    "slices and subscripts": ("xs = list(range(5))\nxs[0] = 9\nprint(xs[1:3], xs[-1], xs[0])", "[1, 2] 4 9"),
+    "percent formatting": ('print("%d-%s" % (1, "a"))', "1-a"),
+    "assert, isinstance and del": ("x = 1\nassert isinstance(x, int)\ndel x\nprint(all([1, 2]), any([]))", "True False"),
+}
+
+
+@pytest.mark.parametrize("code,expected", list(ALLOWED_PROGRAMS.values()), ids=list(ALLOWED_PROGRAMS))
+def test_expression_tool_runs_its_language(tmp_path, code, expected):
+    result = FilesystemTools(root=tmp_path).exec_sandboxed(code)
+    assert result["ok"] and "refused_by" not in result, result
+    assert result["stdout"].strip() == expected
+
+
+def test_expression_builtins_are_a_subset_and_each_run_gets_its_own_copy():
+    from app.artifacts.sandbox import SAFE_BUILTINS, run_sandboxed
+    from app.mcp.filesystem import EXPRESSION_BUILTINS
+    assert EXPRESSION_BUILTINS <= set(SAFE_BUILTINS)
+    narrowed = run_sandboxed("print(len([1]))", builtins={"print"})
+    assert not narrowed.ok and "NameError" in narrowed.error
+    with pytest.raises(ValueError):
+        run_sandboxed("print(1)", builtins={"print", "getattr"})
+    saved = dict(SAFE_BUILTINS)
+    try:  # the artifact sandbox lets code name __builtins__; changing it must not reach the next run
+        assert run_sandboxed('__builtins__["len"] = None').ok
+        later = run_sandboxed("print(len([1]))")
+        assert later.ok and later.stdout.strip() == "1", later
+    finally:
+        SAFE_BUILTINS.clear()
+        SAFE_BUILTINS.update(saved)
+
+
 
 # The check that refuses each attack family, read from what the request raised.
 # A tuple is indexed by variant modulo its length.

@@ -418,7 +418,7 @@ Any MCP client can drive the corpus over stdio, through either server. Each inde
 | `propose_artifact` | spec → generate → sandbox. never writes |
 | `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
-| `exec_sandboxed` | AST-gated Python subset: import statements and attribute expressions (`x.y`) are refused and the builtins are an allowlist without `__import__` or `getattr`. A `match` class pattern still reads attributes, and through `str.format` field lookups that reaches module globals and the server's environment variables, so it is a correctness runner, not an isolation boundary |
+| `exec_sandboxed` | A Python subset, checked on the syntax tree against an allow-list before anything runs: assignments, `if` / `for` / `while`, `try`, `raise`, `assert`, `def` and `return`, and expressions with calls, `lambda`, comprehensions, f-strings and `:=`. Everything else is refused, including imports, attribute expressions (`x.y`), `match` statements, `class`, `with`, `global` / `nonlocal`, `yield` and async code, as is any name that starts with `__`. The code can read only the names it binds and a list of builtins that has no `getattr`, `vars`, `dir`, `type`, `format`, `open`, `eval` or `__import__`. It runs in the server process with no CPU or memory limit: a correctness runner, not an isolation boundary |
 | `inspect_spreadsheet` | schema, types, missingness, five-row preview |
 | `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
 | `apply_visualization` | user approves or overrides chart, then writes/runs MATLAB |

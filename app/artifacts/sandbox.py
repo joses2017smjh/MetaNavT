@@ -17,7 +17,7 @@ import ast
 import io
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterable
 
 BANNED_MODULES = {
     "os",
@@ -129,12 +129,19 @@ def run_sandboxed(
     *,
     timeout_s: int = 2,
     extra_globals: dict[str, Any] | None = None,
+    builtins: Iterable[str] | None = None,
 ) -> ExecResult:
+    """Run `source` if ast_safe passes it. `builtins` narrows SAFE_BUILTINS to these names
+    (the MCP expression tool passes its own list); a name outside SAFE_BUILTINS is a ValueError."""
     del timeout_s  # reserved for an out-of-process runner (E2B / subprocess)
+    names = set(SAFE_BUILTINS if builtins is None else builtins)
+    if names - set(SAFE_BUILTINS):
+        raise ValueError(f"builtins outside SAFE_BUILTINS: {sorted(names - set(SAFE_BUILTINS))}")
     reason = ast_safe(source)
     if reason:
         return ExecResult(ok=False, stdout="", stderr="", error=reason)
-    g: dict[str, Any] = {"__builtins__": SAFE_BUILTINS}
+    # A new dict for every run: code that changes its builtins cannot change the next run's.
+    g: dict[str, Any] = {"__builtins__": {name: SAFE_BUILTINS[name] for name in sorted(names)}}
     if extra_globals:
         g.update(extra_globals)
     stdout = io.StringIO()
