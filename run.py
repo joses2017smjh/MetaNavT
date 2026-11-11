@@ -172,7 +172,7 @@ async def _run_backend(envs: dict[str, str | None] = {}) -> Process:
             f"Port {APP_PORT} is not available! Please change the port in .env file."
         )
     
-    # The deploy step first: the API applies no schema migration and refuses to start while one is pending.
+    # The deploy step first: the API applies no schema migration; while one is pending it answers 503 and retries.
     migrate = await asyncio.create_subprocess_exec(sys.executable, "-m", "app.database.migrate", env=envs)
     if await migrate.wait() != 0:
         rich.print("[bold yellow]Schema migrations failed (python -m app.database.migrate); /health will say why.[/bold yellow]")

@@ -123,8 +123,9 @@ def test_a_plan_store_failure_is_retried_and_retrieval_is_built_once(app_module,
     monkeypatch.setattr(plans, "build_plan_store", build_plan_store)
     with TestClient(app_module.app) as client:
         assert client.get("/health").status_code == 200
-        assert _wait_for(lambda: client.app.state.plans == "plan store")
-        assert client.app.state.startup_error is None
+        # retrying turns False last, after the plan store is assigned and the error cleared (event-loop thread)
+        assert _wait_for(lambda: not client.app.state.startup["retrying"])
+        assert client.app.state.plans == "plan store" and client.app.state.startup_error is None
     assert builds == [1] and stores == [1, 1]
 
 

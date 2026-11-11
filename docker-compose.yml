@@ -48,7 +48,7 @@ services:
       RETRIEVAL_MODE: sql          # one SQL round trip (app/database/sql/); python = the reference path
       DATA_DIR: bench/corpus/files
       INDEX_ON_START: "true"       # every start: diff DATA_DIR against the manifest, embed only what changed
-      INGEST_MAX_REJECTED: "0"     # refuse to start if a file is rejected (undecodable, empty, too large, ...)
+      INGEST_MAX_REJECTED: "0"     # a rejected file fails the start (undecodable, empty, too large, ...): /health 503, retried
       CHUNK_SIZE: "512"
       CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
@@ -58,7 +58,7 @@ services:
       # OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces with --profile otel
       LOG_FORMAT: text
     # The deploy step first (schema migrations: tables, indexes, the vector extension; the
-    # API runs no DDL and refuses to start while one is pending), then the server.
+    # API runs no DDL; while one is pending it answers 503 and retries), then the server.
     command: ["sh", "-c", "python -m app.database.migrate && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
     ports:
       - "8000:8000"

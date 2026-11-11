@@ -160,7 +160,12 @@ class VectorStoreManager(DatabaseManager):
 
     def probe_data_table(self) -> None:
         """Check, writing nothing, that the data table exists with self.embed_dim dimensions and that
-        this role may SELECT, INSERT and DELETE on it; RuntimeError with the reason otherwise."""
+        this role may SELECT, INSERT and DELETE on it; RuntimeError with the reason otherwise.
+
+        When the table already existed as this manager was built, self.embed_dim is the table's own
+        dimension (_detect_vector_dimensions, which EMBEDDING_DIM does not override), so the dimension
+        check only bites for a table created afterwards, e.g. by the deploy step during start-up retries.
+        """
         qualified = f'"{self.schema_name}"."{self.data_table}"'
         with self.get_connection() as conn:
             with conn.cursor() as cur:
@@ -229,8 +234,8 @@ class VectorStoreManager(DatabaseManager):
             )
             logger.info(f"PGVectorStore Python object initialized for table '{self.schema_name}.{self.data_table}'")
 
-            # Read-only probe: the table the migrations built is there, with this process's embedding
-            # dimension, and this role may read, insert and delete its rows. It used to add a
+            # Read-only probe: the table the migrations built is there, with the embedding dimension
+            # this manager uses (see probe_data_table), and this role may read, insert and delete its rows. It used to add a
             # zero-vector test_node_* row to the shared table and delete it again on every start,
             # which every concurrent reader could see in between. A failed probe keeps no store,
             # so the next call (a start-up retry) probes again.

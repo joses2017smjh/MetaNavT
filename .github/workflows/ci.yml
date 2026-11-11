@@ -153,7 +153,7 @@ jobs:
         run: python -m pytest tests/database -q -rs
       - name: Fixture mtimes from the MANIFEST (the served staleness filter reads disk mtimes; a checkout's are arbitrary)
         run: make fixture-mtimes
-      - name: Schema migrations (the deploy step; the API refuses to start while one is pending)
+      - name: Schema migrations (the deploy step; while one is pending the API answers 503 and retries)
         run: make migrate
       - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
         run: |
