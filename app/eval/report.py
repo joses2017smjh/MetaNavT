@@ -344,7 +344,7 @@ def beir_table(blob: dict | None) -> str:
     bm25 = by.get("bm25")
     if bm25 and bm25.get("vs_published"):
         vp = bm25["vs_published"]
-        parts.append(f"Our BM25 with the same analyzer and document text scores nDCG@10 {bm25['retrieval']['ndcg@10']:.3f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f}).")
+        parts.append(f"Our BM25 with the same analyzer and document text scores nDCG@10 {bm25['retrieval']['ndcg@10']:.4f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f}).")
     for name, label in (
         ("dense@bge-small", "Dense bge-small vs BM25"),
         ("dense@bge-small+instruction", "The bge-v1.5 query instruction vs no instruction"),

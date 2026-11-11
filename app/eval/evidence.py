@@ -36,12 +36,12 @@ def _load(rel: str, root: Path = ROOT) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def _ci(block: dict | None, key: str = "mean") -> tuple[str, str]:
+def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, str]:
     if not block:
         return "—", "—"
     if key == "delta":
-        return f"{block['delta']:+.3f}", f"[{block['lo']:+.3f}, {block['hi']:+.3f}]"
-    return f"{block[key]:.3f}", f"[{block['lo']:.3f}, {block['hi']:.3f}]"
+        return f"{block['delta']:+.{digits}f}", f"[{block['lo']:+.{digits}f}, {block['hi']:+.{digits}f}]"
+    return f"{block[key]:.{digits}f}", f"[{block['lo']:.{digits}f}, {block['hi']:.{digits}f}]"
 
 
 def _rows(blob: dict) -> dict[str, dict]:
@@ -129,7 +129,7 @@ def claims(root: Path = ROOT) -> list[dict]:
         src = f"{FILES['beir']} @ {beir['git_sha']}"
         bm = by.get("bm25")
         if bm and bm.get("vs_published"):
-            v, ci = _ci(bm["ci"]["ndcg@10"])
+            v, ci = _ci(bm["ci"]["ndcg@10"], digits=4)  # the precision of the published score and the difference
             out.append({"claim": "BEIR SciFact, our BM25 with the Anserini analyzer and document text: nDCG@10", "value": v, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": f"Anserini's published flat BM25 is {bm['vs_published']['published_bm25_ndcg@10']:.4f} ({bm['vs_published']['delta']:+.4f}); this validates the lexical baseline, not the product"})
         for name, label in (("dense@bge-small", "BEIR SciFact, dense bge-small vs BM25, paired delta in nDCG@10"),
