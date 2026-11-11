@@ -25,7 +25,7 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 | 1.4 | Embedding sweep | harness flag `embedder=hash\|tfidf\|st:<model>` |
 | 1.5 | pgvector halfvec / binary + rescore / HNSW `m`/`ef_search` | partly: in-memory NSW analogue measured (`make sweeps`, hash vectors); the served statement can read the HNSW index start-up creates and sets `ef_search` per statement; halfvec and binary are not in the served path (`ensure_halfvec` / `ensure_binary` have no caller); index recall at scale not measured |
 | 1.6 | Rule-based query router | done |
-| 1.7 | Distilled student reranker | done (`distill_winner` fits the logged teacher) |
+| 1.7 | Distilled student reranker | done (`make bench-rerank-arms` fits it on the cross-encoder's scores over train questions and scores it on the others) |
 | 2.1 | Retrieval loop: route→plan→search→grade→rewrite→verify | done |
 | 2.2 | Filesystem MCP tools + stdio server | done |
 | 2.3 | HITL: `propose_move` never executes; `apply_plan` needs approval | done |

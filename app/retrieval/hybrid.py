@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Sequence
 
@@ -54,6 +54,9 @@ class RetrievalResult:
     stages_ms: dict[str, float]
     skipped_rerank: bool = False
     skipped_embed: bool = False
+    # The fused list in fused order with its RRF scores: what rerank_fn received, or would have
+    # received when the rerank was skipped. Empty when the result was assembled elsewhere.
+    fused: list[tuple[Chunk, float]] = field(default_factory=list)
 
     @property
     def paths(self) -> list[str]:
@@ -199,6 +202,7 @@ class InMemoryHybridIndex:
         pairs: list[tuple[Chunk, float]] = [
             (self.by_id[cid], score) for cid, score in fused_sorted if cid in self.by_id
         ]
+        fused_pairs = list(pairs)
 
         rerank_scores: dict[str, float] = {}
         if not skip_rerank and self.rerank_fn and pairs:
@@ -229,6 +233,7 @@ class InMemoryHybridIndex:
             stages_ms=stage_ms,
             skipped_rerank=skip_rerank or self.rerank_fn is None,
             skipped_embed=skip_embed,
+            fused=fused_pairs,
         )
 
 
