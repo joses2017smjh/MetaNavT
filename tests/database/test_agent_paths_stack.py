@@ -96,8 +96,10 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.server.requests.append({"path": self.path, "body": body})
+        if self.path == "/api/generate":  # an empty prompt loads the model
+            return self._send({"model": MODEL, "response": "", "done": True, "done_reason": "load"})
         if self.path == "/api/show":
-            return self._send({"modelinfo": {"general.architecture": "fake", "fake.context_length": 8192},
+            return self._send({"model_info": {"general.architecture": "fake", "fake.context_length": 8192},
                                "details": {"family": "fake"}, "capabilities": ["completion", "tools"]})
         if self.path != "/api/chat":
             return self.send_error(404)
@@ -152,4 +154,29 @@ def test_companion_live_run_end_to_end(tmp_path):
     assert report["ollama"]["models"][MODEL]["digest"] == "0" * 64
     assert cs.rescore(report) == report
     assert json.loads(validation.read_text())["real_LLM_inference_tested"] is True
+    assert os.environ.get("USER", "-") not in out.read_text()
+
+
+def test_chat_route_smoke_run_end_to_end(tmp_path):
+    from app.eval import chat_smoke as smoke
+
+    dsn = os.environ["PG_TEST_DSN"]
+    before = _databases(dsn)
+    with FakeOllama() as ollama:
+        out = tmp_path / "chat_route_smoke.json"
+        assert smoke.main(["--model", MODEL, "--ollama-url", ollama.url, "--pg-dsn", dsn, "--limit", "2",
+                           "--out", str(out), "--log-dir", str(tmp_path / "logs")]) == 0
+        chat_requests = [r["body"] for r in ollama.requests if r["path"] == "/api/chat"]
+    report = json.loads(out.read_text())
+    assert _databases(dsn) == before
+    rows = report["rows"]
+    assert [(r["id"], r["route"]) for r in rows] == [(q, route) for q in ("q001", "q081") for route in smoke.ROUTES]
+    assert all(r["http_status"] == 200 and r["answered"] and r["total_s"] >= r["ttfb_s"] for r in rows)
+    assert all([t["name"] for t in r["tools"]] == ["query_index"] for r in rows if r["route"] == "/api/chat/request")
+    assert all(r["source_nodes"] >= 1 for r in rows)
+    # code execution off: the model is offered the file-access agent's tools only (no code tool, no handoff)
+    offered = {t["function"]["name"] for body in chat_requests for t in body.get("tools") or []}
+    assert offered == {"artifact", "get_file_content", "list_available_files", "query_index"}
+    assert report["code_execution"]["ENABLE_PYTHON_EXEC"] == "false" and not report["code_execution"]["METANAVIT_API_KEY_set"]
+    assert report["chat_llm"]["model"] == MODEL and report["summary"]["/api/chat/request"]["code_tool_calls"] == 0
     assert os.environ.get("USER", "-") not in out.read_text()

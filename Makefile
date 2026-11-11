@@ -128,6 +128,12 @@ bench-companion-live: ## research companion, live mode: the Ollama model at OLLA
 bench-companion-live-rescore: ## recompute the scores and summary of bench/results/companion_live.json from its stored responses (no model call)
 	$(PYTHON) -m app.eval.companion_live --rescore bench/results/companion_live.json --validation doc/research-agent-validation.json
 
+.PHONY: chat-route-smoke
+CHAT_SMOKE_MODEL ?= qwen2.5:7b
+CHAT_SMOKE_LOG_DIR ?=
+chat-route-smoke: ## POST /api/chat and /api/chat/request with the Ollama model at OLLAMA_BASE_URL on the default stack (hash embedder, code execution off, database created on PG_TEST_DSN), the first gold question of each category -> bench/results/chat_route_smoke.json
+	$(PYTHON) -m app.eval.chat_smoke --model $(CHAT_SMOKE_MODEL) --out bench/results/chat_route_smoke.json $(if $(CHAT_SMOKE_LOG_DIR),--log-dir $(CHAT_SMOKE_LOG_DIR))
+
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
 bench-trusted-actions: ## approval-gate regression on temporary fixtures (no LLM); each row names the refusing check -> $(TRUSTED_ACTIONS_OUT)
