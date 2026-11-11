@@ -262,7 +262,7 @@ def chunk_text(text: str, path: str = "", strategy: str = "auto") -> list[Span]:
                 json.loads(text)
             except json.JSONDecodeError:  # not one JSON value: one chunk per record line
                 return jsonl_record_chunks(text)
-            except RecursionError:  # nested deeper than the decoder recurses: cut like any long value
+            except (RecursionError, ValueError):  # nested too deep, or an integer over the digit limit: cut like any long value
                 pass
             return _spans_from_slices(text, _bounded(text, [(0, len(text))]), "json")
         return fixed_size_chunks(text)

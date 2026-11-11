@@ -237,6 +237,14 @@ def test_a_parser_that_gives_up_does_not_abort_the_chunker():
     ]
 
 
+def test_a_json_integer_over_the_digit_limit_does_not_abort_the_chunker():
+    """json.loads raises a plain ValueError, not JSONDecodeError, for an integer longer than Python's digit limit (3.11+)."""
+    text = '{"seed": ' + "7" * 5000 + "}\n"  # one JSON value: cut like any long value, with or without the limit
+    assert _spans(chunk_text(text, path="results/seed.json")) == [
+        (s.start, s.end, "json") for s in fixed_size_chunks(text, size=2000, overlap=80)
+    ]
+
+
 def test_csv_records_keep_a_quoted_line_break_in_one_row():
     header, row, last = "run,note\r\n", '47,"fusion on\r\nsecond line"\r\n', "48,plain\r\n"
     text = header + row + last
