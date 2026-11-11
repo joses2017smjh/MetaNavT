@@ -165,8 +165,9 @@ FiQA with the reranker (`make bench-beir-fiqa`; [results](../bench/results/beir_
 next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512, first
 in fp32 and then in fp16, each row paired with its parent, with a TREC run file
 for every row in `bench/results/beir_fiqa_trec`. Its document embeddings are the
-cached bge-small matrix of the October run (computed on an H100); the queries and
-the reranker ran on the GPU the file names.
+cached bge-small matrix of the October run (the GPU that computed it is the one
+[beir_fiqa_gpu.json](../bench/results/revamp_20261007/beir_fiqa_gpu.json) names);
+the queries and the reranker ran on the GPU the new file names.
 
 On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
 **512-token cap and top-20 depth fixed** reduces warm offline total p95 from
@@ -669,7 +670,13 @@ The dense leg ranks the way the fixture benchmark's does (float64 cosine
 rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
 postings lists of the query's terms and keeps the top k with a heap; it
 returns the same scores in the same order as scoring every document
-(`tests/eval/test_bm25_postings.py`).
+(`tests/eval/test_bm25_postings.py`). The ladder file behind the first
+table (`bench/results/beir_scifact.json`) was recorded before both changes, so
+its latency columns come from the earlier search over every document; current
+BM25 latency is in the one-at-a-time and FiQA files. The rows measured again
+since then (`bm25` and `bm25@default-tokenizer` in the one-at-a-time file;
+hybrid, fp32 uncapped and fp16 at 512 tokens in
+`bench/results/beir_scifact_rerank_cap.json`) equal it in every metric.
 
 [Current generated bench-beir evidence](../README.md#bench-beir) ·
 [BM25 settings one at a time](../README.md#bench-beir-bm25).
