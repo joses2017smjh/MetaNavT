@@ -11,8 +11,8 @@ local instance). Skipped otherwise. The fixture is indexed through the served
 indexer (app/engine/ingest.py::index_directory) into a temporary table, with the
 same text and HNSW indexes the API's startup creates, and the dense CTE of
 app/database/sql/hybrid_tsrank.sql is run with the retriever's depth (RETRIEVE_K)
-and the per-statement settings the served path applies
-(VectorStoreManager.apply_search_settings).
+and the per-statement settings the served path sends with it, in the same execute
+(VectorStoreManager.settings_sql).
 
 Two plans are checked. On the 71-row fixture the planner answers the dense CTE
 with a sequential scan, so the list is exact. With the HNSW index forced
@@ -60,12 +60,12 @@ def dense_sql(vsm) -> str:
 
 
 def served_dense(manager, sql, text, qvec, k) -> list[tuple[str, float]]:
-    """The dense CTE in one transaction with the settings hybrid_search applies: [(chunk_id, score)] by rank."""
+    """The dense CTE sent as hybrid_search sends its statement (settings first, one execute): [(chunk_id, score)] by rank."""
+    settings, settings_params = manager.settings_sql(k)
     params = {"qvec": manager.vector_literal(qvec), "query": manager.lexical_query(text), "k": k, "rrf_k": 60.0}
     with manager.get_connection() as conn:
         with conn.cursor() as cur:
-            manager.apply_search_settings(cur, k)
-            cur.execute(sql, params)
+            cur.execute(settings + sql, {**params, **settings_params})
             return [(cid, float(score)) for cid, score, _ in cur.fetchall()]
 
 
@@ -245,6 +245,9 @@ def test_forced_hnsw_scan_keeps_the_full_depth_and_the_exact_rows(served, memory
     plan = forced.explain_hybrid(first, query_embed(first), k=k)
     index_scan = f"Index Scan using {forced.table_name}_embedding_hnsw"
     assert index_scan in plan, plan
+    # Without a query vector (the router's lexical-only routes) the same plan runs the lexical list alone.
+    lexical_only = forced.hybrid_search(first, None, k=k)
+    assert lexical_only and all(r["dense_rank"] is None and r["bm25_rank"] is not None for r in lexical_only)
 
     failures, short = [], []
     for q in questions:

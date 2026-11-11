@@ -45,14 +45,23 @@ def test_settings_follow_the_installed_pgvector():
     assert manager(()).search_settings(50) == {}  # extension not installed
 
 
-def test_settings_are_set_for_the_transaction_only():
+def test_settings_are_one_statement_for_the_transaction_only():
+    statement, params = manager().settings_sql(50, statement_timeout_ms=1234)
+    assert statement == (
+        "SELECT set_config(%(setting_0)s, %(setting_value_0)s, true), set_config(%(setting_1)s, %(setting_value_1)s, true), "
+        "set_config(%(setting_2)s, %(setting_value_2)s, true);\n"
+    )
+    assert params == {
+        "setting_0": "hnsw.ef_search", "setting_value_0": "100",
+        "setting_1": "hnsw.iterative_scan", "setting_value_1": "strict_order",
+        "setting_2": "statement_timeout", "setting_value_2": "1234",
+    }
+    assert manager().settings_sql(50, statement_timeout_ms=0)[1]["setting_value_2"] == "1"  # 0 would mean no limit
+    assert manager(()).settings_sql(50) == ("", {})
+
     cur = _Cursor()
-    applied = manager().apply_search_settings(cur, 50)
-    assert applied == {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}
-    assert cur.executed == [
-        ("SELECT set_config(%s, %s, true);", ("hnsw.ef_search", "100")),
-        ("SELECT set_config(%s, %s, true);", ("hnsw.iterative_scan", "strict_order")),
-    ]
+    assert manager().apply_search_settings(cur, 50) == {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}
+    assert cur.executed == [manager().settings_sql(50)]  # one statement
 
 
 # ---------------------------------------------------------------- committed plans (doc/sql, `make explain-sql*`)

@@ -508,7 +508,7 @@ class VectorStoreManager(DatabaseManager):
         0.8 and later) lets a scan that runs out of candidates keep searching instead of
         returning fewer rows, and keeps its rows in distance order, which the statement's
         LIMIT relies on. Both apply only to the statement's own transaction
-        (apply_search_settings).
+        (settings_sql).
         """
         version = self.pgvector_version
         settings: dict = {}
@@ -518,18 +518,33 @@ class VectorStoreManager(DatabaseManager):
             settings["hnsw.iterative_scan"] = "strict_order"
         return settings
 
-    def apply_search_settings(self, cur, k: int) -> dict:
-        """set_config(..., is_local => true) for every search setting: SET LOCAL semantics.
+    def settings_sql(self, k: int, statement_timeout_ms: int | None = None) -> tuple[str, dict]:
+        """One statement that sets search_settings(k), and statement_timeout_ms if given: (sql, its parameters).
 
-        The values end with the transaction the cursor is in (the pool's connections are not
-        in autocommit, and get_connection commits after its block), so the next statement on
-        the same pooled connection runs with the server defaults again. A session-level SET
-        would stay on whichever pooled connection ran it.
+        set_config(..., is_local => true) has SET LOCAL semantics: the values end with the
+        transaction (the pool's connections are not in autocommit, and get_connection commits
+        after its block), so the next statement on the same pooled connection runs with the
+        server defaults again; a session-level SET would stay on whichever pooled connection
+        ran it. hybrid_search sends this statement and the hybrid statement in one execute: one
+        round trip, one transaction. ("", {}) when there is nothing to set.
         """
-        settings = self.search_settings(k)
-        for name, value in settings.items():
-            cur.execute("SELECT set_config(%s, %s, true);", (name, str(value)))
-        return settings
+        settings = dict(self.search_settings(k))
+        if statement_timeout_ms is not None:  # 0 would mean no limit in Postgres
+            settings["statement_timeout"] = max(1, int(statement_timeout_ms))
+        if not settings:
+            return "", {}
+        calls, params = [], {}
+        for i, (name, value) in enumerate(settings.items()):
+            calls.append(f"set_config(%(setting_{i})s, %(setting_value_{i})s, true)")
+            params[f"setting_{i}"], params[f"setting_value_{i}"] = name, str(value)
+        return "SELECT " + ", ".join(calls) + ";\n", params
+
+    def apply_search_settings(self, cur, k: int) -> dict:
+        """Set search_settings(k) on the cursor's transaction, for a caller that runs its own statement after."""
+        statement, params = self.settings_sql(k)
+        if statement:
+            cur.execute(statement, params)
+        return self.search_settings(k)
 
     def hybrid_search(
         self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None
@@ -549,13 +564,11 @@ class VectorStoreManager(DatabaseManager):
             "k": int(k),
             "rrf_k": float(rrf_k),
         }
+        settings, settings_params = self.settings_sql(k, statement_timeout_ms)
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                self.apply_search_settings(cur, k)
-                if statement_timeout_ms is not None:  # 0 would mean no limit in Postgres
-                    cur.execute("SELECT set_config('statement_timeout', %s, true);", (str(max(1, int(statement_timeout_ms))),))
-                try:
-                    cur.execute(self.hybrid_sql(backend), params)
+                try:  # the settings and the statement in one execute: one round trip, one transaction
+                    cur.execute(settings + self.hybrid_sql(backend), {**params, **settings_params})
                 except psycopg2.errors.QueryCanceled as exc:
                     raise TimeoutError(f"hybrid statement cancelled by its statement_timeout ({statement_timeout_ms} ms)") from exc
                 rows = cur.fetchall()
@@ -583,10 +596,10 @@ class VectorStoreManager(DatabaseManager):
             "k": int(k),
             "rrf_k": float(rrf_k),
         }
+        settings, settings_params = self.settings_sql(k)
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                self.apply_search_settings(cur, k)
-                cur.execute("EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), params)
+                cur.execute(settings + "EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), {**params, **settings_params})
                 return "\n".join(r[0] for r in cur.fetchall())
 
     def ensure_text_index(self) -> bool:
