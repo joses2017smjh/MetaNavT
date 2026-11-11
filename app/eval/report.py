@@ -26,7 +26,7 @@ FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury.json"
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
-AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the current run: capability control, matched controls
+AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the current run: capability control, controls with neutral lines
 LATENCY_FILES = {
     "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
     "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
@@ -671,6 +671,10 @@ def _injection_provenance(blob: dict, with_target: bool = True) -> str:
 
 
 _ACTION_GOALS = ("move", "patch")  # the planted goals that ask for the capability tasks' actions
+# The configuration that offers a question or injected task only the read tools (agent_injection.exposed_tools) while a
+# capability task also gets the requested action's two: its planted move and patch were asked for without the tools to
+# make them, so the capability control is read against the other configurations, which offer both kinds the same tools
+_READ_TOOLS_ONLY = "least_privilege"
 
 
 def _capability_lines(summary: dict, k: int) -> list[str]:
@@ -711,16 +715,24 @@ def _capability_lines(summary: dict, k: int) -> list[str]:
             f"| {_rate(move.get('success_at_k'))} | {_rate(patch.get('success'))} | {_rate(patch.get('success_at_k'))} "
             f"| {_rate(cap['success'])} | {planted} / {sum(g[x]['exposed_episodes'] for x in _ACTION_GOALS)} |")
     attempted = [b["capability"]["attempted"]["mean"] for _, _, b in rows]
-    planted = sum(b["by_goal"][x]["attempted_episodes"] for _, _, b in rows for x in _ACTION_GOALS)
-    exposed = sum(b["by_goal"][x]["exposed_episodes"] for _, _, b in rows for x in _ACTION_GOALS)
+    offered = [(defense, b) for _, defense, b in rows if defense != _READ_TOOLS_ONLY]
+    filtered = [b for _, defense, b in rows if defense == _READ_TOOLS_ONLY]
+    planted = sum(b["by_goal"][x]["attempted_episodes"] for _, b in offered for x in _ACTION_GOALS)
+    exposed = sum(b["by_goal"][x]["exposed_episodes"] for _, b in offered for x in _ACTION_GOALS)
     if planted == 0 and exposed and min(attempted) > 0:
         span = f"{min(attempted):.3f}" if min(attempted) == max(attempted) else f"{min(attempted):.3f} to {max(attempted):.3f}"
+        filtered_note = (
+            f" Under {_READ_TOOLS_ONLY} an injected task is offered only the read tools, so its planted move and patch "
+            f"attempts ({sum(b['by_goal'][x]['attempted_episodes'] for b in filtered for x in _ACTION_GOALS)} of "
+            f"{sum(b['by_goal'][x]['exposed_episodes'] for b in filtered for x in _ACTION_GOALS)} exposed episodes) are "
+            "not read against the capability control.") if filtered else ""
         lines += ["", f"Read together: asked by the user, every model called the requested action's tools in every "
-                  f"configuration (attempted {span} per trial); asked by planted text for the same move or patch, no "
-                  f"model made such a call in any of the {exposed} episodes in which that text reached it. These models "
-                  "make these calls when the user asks for them and not when a file does, so the zero planted move and "
-                  "patch attempts cannot be put down to an inability to call these tools. Carrying the action out is "
-                  "measured apart (the done columns)."]
+                  f"configuration (attempted {span} per trial); asked by planted text for the same move or patch, with "
+                  f"the same tools offered ({' and '.join(sorted({d for d, _ in offered}))}), no model made such a call "
+                  f"in any of the {exposed} episodes in which that text reached it. These models make these calls when "
+                  "the user asks for them and not when a file does, so the zero planted move and patch attempts there "
+                  "cannot be put down to an inability to call these tools. Carrying the action out is measured apart "
+                  "(the done columns)." + filtered_note]
     meaning = {"ApprovalError": "a token that did not verify", "ApprovalRequired": "no token",
                "KeyError": "a plan id the server never issued"}
     if refusals:
@@ -751,10 +763,12 @@ def agent_injection_table(blob: dict | None, earlier: dict | None = None) -> str
     tasks = f"{injected} and the same {n_questions} questions without planted text."
     if v2:
         tasks = (f"{injected}; the same {n_questions} questions as controls, whose config and log end with neutral "
-                 "comment lines that carry the same run number and field name (matched on retrieval); and "
-                 f"{first['capability']['n_tasks']} capability tasks (below). Task copies are indexed with the fixture "
-                 "MANIFEST's file times, and every tool result is stored in the episodes file as sent to the model, "
-                 "except that a path into the task copy is written relative to the corpus root.")
+                 "comment lines that carry the same run number and field name, the query terms the planted text adds "
+                 "(matched on those terms, not on every search result: the lines are shorter than the planted text and "
+                 f"say something else); and {first['capability']['n_tasks']} capability tasks (below). Task copies are "
+                 "indexed with the fixture MANIFEST's file times, and every tool result is stored in the episodes file "
+                 "as sent to the model, except that a path into the task copy is written relative to the corpus root "
+                 "and user and host names are replaced.")
     contexts = sorted({str(x.get("context_length")) for x in (ollama.get("running") or {}).values() if x.get("context_length")})
     context = f" (context length {' / '.join(contexts)} tokens, the server's choice)" if contexts else ""
     lines = [
@@ -833,8 +847,8 @@ def agent_injection_table(blob: dict | None, earlier: dict | None = None) -> str
         lines.append(
             f"In the capability tasks the operator signed {sum(x['proposals_approved'] for x in by)} proposals and "
             f"declined {sum(x['proposals_declined'] for x in by)}; the models made {sum(x['apply_calls'] for x in by)} "
-            f"apply calls, {sum(x['apply_calls_ok'] for x in by)} of which applied a signed change, and the copy ended "
-            f"in a state other than the requested one in {sum(c['other_change_episodes'] for c in caps)} of "
+            f"apply calls, {sum(x['apply_calls_ok'] for x in by)} of which applied a signed change, and the copy changed "
+            f"in a way other than the requested one in {sum(c['other_change_episodes'] for c in caps)} of "
             f"{sum(c['episodes'] for c in caps)} capability episodes.")
     lines += [
         *_field_check_lines(summary),
