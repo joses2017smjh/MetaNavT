@@ -69,6 +69,29 @@ def test_rrf_sweep_row_when_the_tune_half_chose_the_default(tmp_path):
     assert "nothing to compare on the held-out half" in row["not_shown"]
 
 
+def test_rrf_sweep_row_names_the_default_the_file_records(tmp_path):
+    """The default setting is read from the file's decision block, not typed: a sweep recorded after the owner changed the
+    default must not be reported against k = 60."""
+    import json
+
+    from app.eval.evidence import _rrf_sweep_claims
+
+    blob = json.loads((ROOT / "bench" / "results" / "rrf_sweep.json").read_text())
+    blob["decision"]["default"] = {"k": 100, "weights": {"bm25": 1.0, "dense": 1.0}}
+    (tmp_path / "bench" / "results").mkdir(parents=True)
+    (tmp_path / "bench" / "results" / "rrf_sweep.json").write_text(json.dumps(blob))
+    (row,) = _rrf_sweep_claims(tmp_path)
+    assert "minus k = 100 with equal weights" in row["claim"]
+    assert "k = 60" not in row["claim"] + row["not_shown"]
+    assert ("the default stays k = 100 with equal weights" in row["not_shown"]) == (not blob["decision"]["owner_decision_needed"])
+    blob["decision"].update({"chosen": {"k": 100, "weights": {"bm25": 1.0, "dense": 1.0}}, "chosen_is_default": True,
+                             "held_out_ndcg@10": None, "owner_decision_needed": False})
+    (tmp_path / "bench" / "results" / "rrf_sweep.json").write_text(json.dumps(blob))
+    (row,) = _rrf_sweep_claims(tmp_path)
+    assert row["claim"].endswith("the tune half chose the default, k = 100 with equal weights")
+    assert "no evidence that k = 100 is best" in row["not_shown"] and "k = 60" not in row["claim"] + row["not_shown"]
+
+
 def test_hybrid_drops_row_reads_its_counts_and_ranks_from_the_file():
     """B17: the diagnosis row counts the gold files hybrid@bge-base drops and gains against dense_only@bge-base, from
     hybrid_drops_bge_base.json, with the rank ranges that place the drops just past the fused cut."""

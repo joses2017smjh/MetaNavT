@@ -299,13 +299,16 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
 
 
 def _rrf_sweep_claims(root: Path = ROOT) -> list[dict]:
-    """The RRF setting chosen on the tune half, against k = 60 on the held-out half; the default it leaves in place."""
+    """The RRF setting chosen on the tune half, against the default setting on the held-out half; the default it leaves in
+    place (read from the file, as every other number of the row)."""
     from app.eval.report import verdict
 
     blob = _load(FILES["rrf_sweep"], root)
     if not blob:
         return []
     d, grid = blob["decision"], blob["grid"]
+    k0, w0 = d["default"]["k"], d["default"]["weights"]
+    base = f"k = {k0} with " + ("equal weights" if w0["dense"] == w0["bm25"] else f"dense weight {w0['dense'] / w0['bm25']:g}")
     src, cmd = f"{FILES['rrf_sweep']} @ {blob['git_sha']}", "make bench-rrf-sweep"
     model = blob["models"]["embedder"]["model"].split("/")[-1]
     head = f"Fixture v1, RRF k and dense-vs-BM25 list weight chosen on the tune half of the gold questions ({model}, no reranker)"
@@ -316,16 +319,16 @@ def _rrf_sweep_claims(root: Path = ROOT) -> list[dict]:
     tail = (f"the default setting's lists reproduce the committed {', '.join(rep['rows'])} rows; " if rep.get("all") else "")
     tail += f"a {blob['n_files']}-file synthetic fixture"
     if d["chosen_is_default"]:
-        return [{"claim": f"{head}: the tune half chose the default, k = 60 with equal weights", "value": "the default", "ci": "—",
+        return [{"claim": f"{head}: the tune half chose the default, {base}", "value": "the default", "ci": "—",
                  "n": len(blob["split"]["tune_ids"]), "command": cmd, "source": src,
-                 "not_shown": f"{chosen}; nothing to compare on the held-out half, and no evidence that k = 60 is best; {tail}"}]
+                 "not_shown": f"{chosen}; nothing to compare on the held-out half, and no evidence that k = {k0} is best; {tail}"}]
     block = d["held_out_ndcg@10"]
     value, ci = _ci(block, "delta", digits=4)  # the file's precision: a small delta at 3 decimals reads larger than it is
     stays = ("the interval excludes zero in favour of the chosen setting; the default is unchanged until the owner decides "
              "(every hybrid row of main.json and neural.json would be re-recorded)" if d["owner_decision_needed"] else
-             "the default stays k = 60 with equal weights (it changes only if this interval excludes zero in favour of the chosen setting)")
+             f"the default stays {base} (it changes only if this interval excludes zero in favour of the chosen setting)")
     w = d["chosen"]["weights"]["dense"]
-    return [{"claim": f"{head}: k = {d['chosen']['k']}, dense weight {w:g} minus k = 60 with equal weights, paired delta in nDCG@10 on the held-out half",
+    return [{"claim": f"{head}: k = {d['chosen']['k']}, dense weight {w:g} minus {base}, paired delta in nDCG@10 on the held-out half",
              "value": value, "ci": ci, "n": len(blob["split"]["held_out_ids"]), "command": cmd, "source": src,
              "not_shown": f"verdict from the interval: {verdict(block)}; {stays}; {chosen}; {tail}"}]
 
