@@ -84,3 +84,69 @@ def test_explain_mentions_both_lists(vsm):
     manager, emb = vsm
     plan = manager.explain_hybrid("learning rate", emb.encode(["learning rate"])[0].tolist(), k=10)
     assert "Planning Time" in plan and "Execution Time" in plan
+
+
+# ---------------------------------------------------------------- a tie at the dense list's cut
+
+TIE_DIM = 256  # the module table's width (EMBEDDING_DIM above)
+
+
+def unit_vector(*weights: tuple[int, float]) -> list[float]:
+    v = [0.0] * TIE_DIM
+    for i, w in weights:
+        v[i] = w
+    norm = sum(x * x for x in v) ** 0.5
+    return [x / norm for x in v]
+
+
+QUERY_VECTOR = unit_vector((0, 1.0))
+TIE_ROWS = {  # cosine with QUERY_VECTOR: 1.0, 0.894, 0.707 (twice, the same vector), 0.0
+    "near-1": unit_vector((0, 1.0)),
+    "near-2": unit_vector((0, 1.0), (1, 0.5)),
+    "tie-a": unit_vector((0, 1.0), (2, 1.0)),
+    "tie-b": unit_vector((0, 1.0), (2, 1.0)),
+    "far": unit_vector((3, 1.0)),
+}
+
+
+@pytest.fixture(params=["tie-b", "tie-a"], ids=["larger-id-stored-first", "smaller-id-stored-first"])
+def tie_table(request, vsm):
+    """A table where the 3rd and 4th nearest rows are the same vector; `param` is stored first of the two."""
+    from llama_index.core.schema import TextNode
+    from psycopg2.extensions import make_dsn
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    dsn = os.environ["PG_TEST_DSN"]
+    saved = os.environ["PGVECTOR_TABLE"]
+    os.environ["PGVECTOR_TABLE"] = "tietest_" + uuid.uuid4().hex[:8]
+    try:
+        manager = VectorStoreManager(conn_string=dsn)
+        forced = VectorStoreManager(conn_string=make_dsn(dsn, options="-c enable_seqscan=off -c jit=off"))
+    finally:
+        os.environ["PGVECTOR_TABLE"] = saved
+    first = request.param
+    order = ["near-1", "near-2", first, "tie-a" if first == "tie-b" else "tie-b", "far"]
+    manager.get_vector_store().add(
+        [TextNode(id_=nid, text=f"document {nid}", embedding=TIE_ROWS[nid], metadata={"path": f"{nid}.txt"}) for nid in order]
+    )
+    manager.ensure_text_index()
+    manager.ensure_hnsw()
+    yield manager, forced
+    with manager.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f'DROP TABLE IF EXISTS "{manager.schema_name}"."{manager.data_table}";')
+    forced.close()
+    manager.close()
+
+
+def test_a_tie_at_the_dense_cut_keeps_the_smaller_node_id(tie_table):
+    """k=3 cuts between two rows at the same distance: node_id decides, whatever the storage order or the plan."""
+    manager, forced = tie_table
+    for label, m in (("planner's choice", manager), ("HNSW forced", forced)):
+        rows = m.hybrid_search("qqqq", QUERY_VECTOR, k=3)  # no lexical match: the fused list is the dense list
+        dense = [r["node_id"] for r in sorted(rows, key=lambda r: r["dense_rank"])]
+        assert dense == ["near-1", "near-2", "tie-a"], (label, dense)
+        assert [r["dense_rank"] for r in rows] == [1, 2, 3] and all(r["bm25_rank"] is None for r in rows), label
+    plan = forced.explain_hybrid("qqqq", QUERY_VECTOR, k=3)
+    assert f"Index Scan using {forced.table_name}_embedding_hnsw" in plan, plan  # the tie-break keeps the index usable

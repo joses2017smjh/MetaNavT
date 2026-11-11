@@ -72,6 +72,7 @@ def test_committed_plans_ran_with_the_current_statement_and_settings(name):
     version, k, line = plan_settings(text)
     assert line == str(manager(version).search_settings(k)), f"regenerate doc/sql/{name} (make explain-sql / explain-sql-synthetic)"
     assert "CTE params" not in text  # params is inlined (NOT MATERIALIZED), not a materialized CTE scan
+    assert "nearest.node_id" in text  # the dense cut's tie-break over the rows the scan read
 
 
 def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index():
@@ -79,3 +80,19 @@ def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index():
     rows = int(re.search(r"\((\d+) SYNTHETIC rows", text).group(1))
     assert rows >= 10_000
     assert re.search(r"Index Scan using \S+_embedding_hnsw on ", text)
+
+
+# ---------------------------------------------------------------- the two statements
+
+SQL_DIR = Path(__file__).resolve().parents[2] / "app" / "database" / "sql"
+
+
+def dense_cte(name: str) -> str:
+    text = (SQL_DIR / name).read_text()
+    return text[text.index("dense AS (") : text.index(",\nlexical AS (")]
+
+
+def test_both_statements_share_the_dense_cte():
+    """No CI job runs the ParadeDB variant; its dense list is at least the tested one, verbatim."""
+    assert dense_cte("hybrid_paradedb.sql") == dense_cte("hybrid_tsrank.sql")
+    assert "LIMIT 2 * %(k)s" in dense_cte("hybrid_tsrank.sql")  # the rows search_settings sizes ef_search for

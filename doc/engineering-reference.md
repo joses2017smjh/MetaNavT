@@ -710,7 +710,15 @@ scan returns at most `hnsw.ef_search` rows, and pgvector's default is below
 `hybrid_search` sets `hnsw.ef_search` to twice the depth (plus
 `hnsw.iterative_scan = strict_order` on pgvector 0.8 or later) for its own
 transaction only, so no pooled connection keeps the value. `/health` reports the
-depth and these settings under `dense_search`.
+depth and these settings under `dense_search`. Equal scores at the dense list's
+cut are decided by `node_id`, like every other tie in the statement: the
+index-ordered scan reads twice the depth, and the statement keeps the first
+`RETRIEVE_K` of those rows by score, then `node_id` (a second sort key inside the
+index scan would leave the index unused). `tests/database/test_hybrid_sql.py`
+puts two rows at the same distance across the cut, stored in either order, and
+requires the smaller `node_id` with and without the index. `node_id` order is not
+the in-memory index's corpus order, which is why the dense test compares tied
+chunks as a set.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
