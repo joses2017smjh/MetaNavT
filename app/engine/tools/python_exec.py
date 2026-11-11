@@ -78,13 +78,13 @@ def python_exec_enabled() -> bool:
 
 
 def exec_limits() -> Dict[str, float]:
-    """Per-call limits from the environment; an unset, unparsable or non-positive value keeps the default."""
+    """Per-call limits from the environment; an unset, unparsable, non-finite or non-positive value keeps the default."""
     def positive(name: str, default: float) -> float:
         try:
             value = float(os.getenv(name, "") or default)
         except ValueError:
             return default
-        return value if value > 0 else default
+        return value if math.isfinite(value) and value > 0 else default
 
     return {
         "timeout_seconds": positive(TIMEOUT_ENV, DEFAULT_TIMEOUT_SECONDS),

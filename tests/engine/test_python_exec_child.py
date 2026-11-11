@@ -195,3 +195,12 @@ def test_a_partial_line_written_straight_to_stdout_does_not_lose_the_result(exec
     code = "import os, subprocess\nos.write(1, b'partial')\nsubprocess.run(['printf', 'x'])\nresult = 'ok'"
     out = exec_tool.call(code=code, workspace_dir=str(tmp_path)).raw_output
     assert out["error"] == "" and out["result"] == "ok", out
+
+
+@pytest.mark.parametrize("raw", ["inf", "-inf", "nan", "0", "-5", "ten"])
+def test_a_limit_that_is_not_a_finite_positive_number_keeps_the_default(monkeypatch, raw):
+    from app.engine.tools.python_exec import DEFAULT_TIMEOUT_SECONDS, TIMEOUT_ENV, exec_limits
+
+    monkeypatch.setenv(TIMEOUT_ENV, raw)
+    assert exec_limits()["timeout_seconds"] == DEFAULT_TIMEOUT_SECONDS
+
