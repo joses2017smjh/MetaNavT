@@ -299,7 +299,7 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
             if cache:
                 g = cache["gold"]
                 limits.append(f"cache threshold {cache['threshold']}: {g['hits']} hits on {g['n']} gold questions in gold order, "
-                              f"{g['wrong_hits']} of them wrong")
+                              f"{g['wrong_hits']} of them wrong (the cached list differs from what retrieval returns for that question)")
             if vs:
                 limits.append(f"first ten files differ from the parent's on {vs['n_top10_differs']} of {vs['n_questions']} questions")
             g = row.get("graphrag")

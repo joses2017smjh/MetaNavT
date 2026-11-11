@@ -553,10 +553,13 @@ def test_evidence_table_has_a_row_for_every_frontier_arm():
         if not path.exists():
             continue
         blob = json.loads(path.read_text())
+        results = {r["config"]: r for r in blob["results"]}
         for name in blob["frontier"]["arms"]:
             mine = [r for r in rows if f"`{name}`" in r["claim"] and FILES[key] in r["source"]]
             assert len(mine) == 1, name
             assert "verdict from the interval" in mine[0]["not_shown"] and "stand-ins" in mine[0]["not_shown"]
+            if results[name].get("cache"):  # "wrong" is defined where the count is given, as in the README note
+                assert "of them wrong (the cached list differs from what retrieval returns for that question)" in mine[0]["not_shown"]
 
 
 # ---- reranker prototypes against the cross-encoder ---------------------------------------------
