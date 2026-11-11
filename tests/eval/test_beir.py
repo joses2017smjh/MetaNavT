@@ -112,6 +112,15 @@ def test_graded_relevance_and_trec_output_are_preserved(tmp_path):
     assert text.startswith("BEIR NFCorpus test split (`make x`)") and "No published reference is claimed" in text
     assert "Every row wrote a TREC run file" in text and "Published BM25" not in text
     assert "| bm25 | — | none (BM25 only) |" in text and beir_table(None, "bench/results/x.json", "make x") == "_bench/results/x.json is missing; run `make x`._"
+    # With pytrec_eval importable the cross-check passes; the sentence names the metrics it re-computed (the file
+    # also stores mrr@10, which trec_eval does not check), and claims nothing once a row's check did not pass.
+    for row in blob["results"]:
+        row["metric_cross_check"] = {"status": "passed", "metrics": ["ndcg@10", "recall@10", "recall@100"]}
+    checked = beir_table(blob, "bench/results/x.json", "make x", "NFCorpus", digits=4)
+    assert "and pytrec_eval (trec_eval) re-computed nDCG@10, Recall@10 and Recall@100 for every query of every row." in checked
+    assert "every per-query metric" not in checked and "MRR@10" not in checked
+    blob["results"][0]["metric_cross_check"]["status"] = "not_run"
+    assert "re-computed" not in beir_table(blob, "bench/results/x.json", "make x", "NFCorpus", digits=4)
 
 
 def test_cache_identity_changes_with_corpus_content_and_order(tmp_path):

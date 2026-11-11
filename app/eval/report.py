@@ -332,6 +332,7 @@ BEIR_STEPS = (
     ("hybrid+bge-rerank@bge-small/fp16-512/top50", RERANK_FP16, "Rerank depth 50 vs 20"),
     ("hybrid+bge-rerank@bge-small/fp16-512/top100", "hybrid+bge-rerank@bge-small/fp16-512/top50", "Depth 100 vs 50"),
 )
+TREC_CHECK_NAMES = {"ndcg@10": "nDCG@10", "recall@10": "Recall@10", "recall@100": "Recall@100", "mrr@10": "MRR@10"}
 
 
 def beir_table(blob: dict | None, file: str = BEIR_FILE, command: str = "make bench-beir", dataset: str = "SciFact", digits: int = 3) -> str:
@@ -350,8 +351,14 @@ def beir_table(blob: dict | None, file: str = BEIR_FILE, command: str = "make be
         reference = f"No published reference is claimed. Relevance: {blob.get('relevance', 'not recorded')}."
         if rows and all(r.get("trec") for r in rows):
             reference += f" Every row wrote a TREC run file ({', '.join(trec_dirs)}; paths and sha256 in the results file)"
-            passed = {(r.get("metric_cross_check") or {}).get("status") for r in rows} == {"passed"}
-            reference += ", and pytrec_eval (trec_eval) re-computed every per-query metric." if passed else "."
+            # Name the metrics the cross-check re-computed (its "metrics" list), not every stored one: mrr@10 is not checked.
+            checks = [r.get("metric_cross_check") or {} for r in rows]
+            names = [TREC_CHECK_NAMES.get(m, m) for m in checks[0].get("metrics") or [] if all(m in (c.get("metrics") or []) for c in checks)]
+            if names and {c.get("status") for c in checks} == {"passed"}:
+                listed = f"{', '.join(names[:-1])} and {names[-1]}" if len(names) > 1 else names[0]
+                reference += f", and pytrec_eval (trec_eval) re-computed {listed} for every query of every row."
+            else:
+                reference += "."
     lines = [
         f"BEIR {dataset} test split (`{command}`): {blob.get('n_docs')} documents ({blob.get('document_text', 'title + text')}), "
         f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {blob.get('git_sha')}. {reference} Each row names its parent; per-query p50/p95 exclude "
