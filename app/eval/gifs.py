@@ -291,7 +291,8 @@ def _rank_panel(
 
 
 def gif_hard_graph(out: Path, payload: dict) -> None:
-    """Generated q107/q108/q114 control-vs-PPR traces."""
+    """Generated q107/q108/q114 control-vs-method traces. The method panel is titled with the trace's
+    label: PPR runs only where the router's gate selects it, and a case where it did not says so."""
     w, h = 860, 450
     frames, durs = [], []
     for case_id in ("q107", "q108", "q114"):
@@ -301,7 +302,7 @@ def gif_hard_graph(out: Path, payload: dict) -> None:
         d.text((40, 70), case["title"], fill=TEXT, font=_font(SANS_B, 18))
         d.text((40, 98), case["question"][:92], fill=MUTED, font=_font(SANS, 12))
         _rank_panel(d, (40, 130, 410, 360), "CONTROL  single-query hybrid", case["control"], LAVENDER)
-        _rank_panel(d, (450, 130, 820, 360), "METHOD  typed PPR rank fusion", case["method_result"], SKY)
+        _rank_panel(d, (450, 130, 820, 360), f"METHOD  {case['method_result']['label']}", case["method_result"], SKY)
         passed = sum(1 for row in case["checks"] if row["pass"])
         footer = (
             f"gold: {case['gold_answer']}    checks: {passed}/{len(case['checks'])} pass"

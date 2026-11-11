@@ -1026,16 +1026,16 @@ run:47  —has_learning_rate→  3e-4
 
 ### Multi-hop graph cases
 
-_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion and the gold category as the gate; not a category-level result. The benchmark arm gates on the router instead (table above)._
+_Hand-picked demo cases from the gold set, replayed with typed PPR rank fusion behind the same gate as the benchmark arm (table above): the router's own prediction, never the gold category. Each trace records whether PPR ran (`ppr_applied`) and labels the method list accordingly; the best gold ranks are in [`doc/demo/traces.json`](../doc/demo/traces.json). Not a category-level result._
 
 
 <p align="center">
-  <img src="../doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114 comparing single-query hybrid with typed PPR rank fusion" width="820"/>
+  <img src="../doc/gifs/hard-graph.gif" alt="Hard graph cases q107 q108 q114: single-query hybrid against the method list of each trace, typed PPR rank fusion where the router selects it" width="820"/>
 </p>
 
-- `q107`: config/log evidence moves from best gold rank 22 to rank 4 for the baseline→minimum-RMSE→bark→config chain.
-- `q108`: the requested Slurm evidence moves from rank 24 to rank 5 without adding any path outside the fused top-50.
-- `q114`: lexical `src/trellis_wires.py` stays rank 1 while graph evidence brings runs 46/47/48 into the same context.
+- `q107`: the router routes it to aggregation, so PPR runs; config/log evidence for the baseline→minimum-RMSE→bark→config chain ranks higher than in the control.
+- `q108`: PPR runs and the requested Slurm evidence ranks higher than in the control, without adding any path outside the fused top-50.
+- `q114`: the router sends it down the semantic route, so PPR does not run and the method list is the current-version filter's (the trace says `ppr_applied: false`). Until the demo stopped reading the gold category (`multi_hop`), this case showed a PPR list.
 - `q100`: all five configs below the `0.0550` baseline remain covered. GraphRAG summarizes the global community; deterministic aggregation still computes the count.
 
 PPR now fuses **ranks**, not raw PPR mass with RRF scores. Raw PPR was on a different scale and could swamp a strong lexical hit. A typed path prior (`source`, `slurm`, `checkpoint`, `paper`, `config`) only reranks candidates already retrieved.
