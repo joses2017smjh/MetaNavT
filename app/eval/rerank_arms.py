@@ -35,7 +35,7 @@ import numpy as np
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
 from app.eval.harness import BGE_RERANKER, BGE_SMALL, CI_METRICS, git_sha, project_root
-from app.eval.index_loader import build_index
+from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.metrics import aggregate_retrieval
 from app.eval.provenance import command_line, device_info, model_device, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
@@ -117,7 +117,8 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
     mismatches = verify_manifest(files_root, manifest)
     if mismatches:
         raise RuntimeError("corpus drift:\n" + "\n".join(mismatches))
-    index = build_index(files_root, embedder_name=BGE_SMALL, retrieve_k=retrieve_k, enable_router=False, enable_rerank=False)
+    # The student's recency feature reads chunk mtimes: the MANIFEST's, not the checkout's.
+    index = build_index(files_root, embedder_name=BGE_SMALL, retrieve_k=retrieve_k, enable_router=False, enable_rerank=False, mtimes="manifest")
     teacher = CrossEncoderReranker(model_name=BGE_RERANKER)
     if teacher.model is None:
         raise SystemExit(f"{BGE_RERANKER} did not load; this benchmark has no overlap fallback for the teacher")
@@ -202,6 +203,7 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
+        "mtimes": mtime_provenance(files_root, "manifest", base=root),
         "n_chunks": len(index.chunks),
         "candidates": {"config": HYBRID, "retrieve_k": retrieve_k, "note": "every arm reranks this fused list; nothing is added to it"},
         "models": {

@@ -26,6 +26,7 @@ from collections.abc import Callable
 import httpx
 
 from app.eval.latency import percentile
+from app.eval.provenance import scrub
 
 
 def distribution(values: list[float]) -> dict[str, Any]:
@@ -130,7 +131,7 @@ async def run_load(base_url: str, queries: list[tuple[str, str]], *, concurrency
     maximum = max(concurrency_levels)
     limits = httpx.Limits(max_connections=maximum, max_keepalive_connections=maximum)
     records: list[dict] = []
-    report: dict[str, Any] = {"schema_version": 1, "measurement": "HTTP client end-to-end retrieval latency; server stage times reported separately", "timestamp": started_at, "url": base_url, "k": 8, "query_count": len(queries), "query_sha256": hashlib.sha256(json.dumps(queries, ensure_ascii=False).encode()).hexdigest(), "timeout_seconds": timeout, "cold_definition": "first request by this client after health check; model load/startup excluded", "fresh_service_confirmed_by_operator": fresh_service, "warmup_excluded_from_measured": True, "health": None, "readiness_errors": [], "runs": [], "requests": records}
+    report: dict[str, Any] = {"schema_version": 1, "measurement": "HTTP client end-to-end retrieval latency; server stage times reported separately", "timestamp": started_at, "url": scrub(base_url), "k": 8, "query_count": len(queries), "query_sha256": hashlib.sha256(json.dumps(queries, ensure_ascii=False).encode()).hexdigest(), "timeout_seconds": timeout, "cold_definition": "first request by this client after health check; model load/startup excluded", "fresh_service_confirmed_by_operator": fresh_service, "warmup_excluded_from_measured": True, "health": None, "readiness_errors": [], "runs": [], "requests": records}
     report["planned_requests"] = 1 + warmup_requests + requests_per_level * len(concurrency_levels)
     report["workload"] = {"concurrency_levels": list(concurrency_levels), "requests_per_level": requests_per_level, "warmup_requests": warmup_requests}
 
@@ -163,6 +164,7 @@ async def run_load(base_url: str, queries: list[tuple[str, str]], *, concurrency
                 report["health"] = health.json()
                 if not isinstance(report["health"], dict):
                     raise ValueError("health must be an object")
+                report["health"] = scrub(report["health"])  # a results file carries no absolute path, user or host name
                 report["readiness_errors"] = readiness_problems(report["health"], require_reranker=require_reranker, require_device=require_device)
         except (httpx.HTTPError, ValueError) as exc:
             report["readiness_errors"] = [f"{type(exc).__name__}: {exc}"]

@@ -207,12 +207,20 @@ pip install -e ".[eval]"   # numpy, pydantic, pytest
 make test-eval             # evaluation tests
 make bench                 # writes bench/results/<git-sha>.json and latest.json
 make bench-gate            # latest.json vs the committed baseline bench/results/main.json
+make bench-check           # re-runs the bench; every field of every row must equal main.json
 ```
 
-CI runs exactly this on every push and pull request (Python 3.11 and 3.12),
-and fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than 0.002 below
-`main.json`. The bench is deterministic, so that threshold is rounding noise,
-not tolerance. To accept a change on purpose: `make bench-baseline`, review
+CI runs exactly this on every push and pull request (Python 3.11 and 3.12).
+The gate fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than
+0.002 below `main.json`; `make bench-check` fails on any difference at all
+outside timings, in either direction. The bench gives the same numbers on any
+machine and checkout: the staleness filter and the file graph compare mtimes,
+and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
+(a checkout sets them to the moment it wrote each file); dense scores are
+computed in float64, rounded to 10 decimals and ranked with ties in corpus
+order, so neither the last bit of the CPU's BLAS kernel nor numpy's sort
+implementation decides an order. The results header records where the mtimes
+came from. To accept a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use
@@ -589,6 +597,7 @@ of the score.
 make bench            # bench/results/<git-sha>.json and latest.json
 make bench-compare    # latest.json vs bench/results/main.json (report)
 make bench-gate       # same, exit 1 on regression (what CI runs)
+make bench-check      # re-run, exit 1 unless every field of every row equals main.json (CI runs it too)
 make bench-table      # renders the generated blocks from main.json (bench-table-write updates them in place)
 make figures          # regenerates the SVGs above
 make sweeps           # HNSW, halfvec, hops, GraphRAG
@@ -658,19 +667,23 @@ RRF on identical input lists, against a live Postgres in CI.
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
-The run behind that block was recorded when the API still chunked with
-LlamaIndex `SentenceSplitter`. The API now indexes with the bench's chunker:
-both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
-and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
-compares the chunk boundaries and texts of the two paths on the fixture. The
-dense leg therefore embeds identical texts in both rows. The run recorded after
-that change is
+That block renders
 [bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
-(and `parity_shared_chunker_restart.json`, the same command after a restart on
-the indexed database). In those files the API row scores above the in-memory
-row and the paired interval excludes zero (`/gate` in those files, which
-predate the change below). Sharing the chunker removed one difference and did
-not make the rows agree.
+(`parity_shared_chunker_restart.json` is the same command after a restart on
+the indexed database). Both runs were made after the API took the bench's
+chunker: both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
+and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
+compares the chunk boundaries and texts of the two paths on the fixture, so the
+dense leg embeds identical texts in both rows. (The earlier
+[bench/results/parity.json](../bench/results/parity.json) was recorded when the
+API still chunked with LlamaIndex `SentenceSplitter`.) Both rows also see the
+same file mtimes, which the staleness filter compares: the in-memory row reads
+the fixture's MANIFEST, and the API reads the disk after `make fixture-mtimes`
+has set it to the MANIFEST's values (CI runs it before starting the API; a
+checkout's own mtimes are arbitrary, and the API keeps reading the disk as a
+served system should). The API row scores above the in-memory row and the
+paired interval excludes zero: sharing the chunker removed one difference and
+did not make the rows agree.
 
 What is checked exactly is the dense leg:
 [tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)

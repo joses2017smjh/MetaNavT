@@ -110,3 +110,19 @@ def test_checkpoints_preserve_started_and_completed_attempts_on_cancellation():
     assert snapshots[-1]["all_attempts"]["completed"] == 1
     assert snapshots[-1]["requests"][0]["error"] == "cancelled"
     assert snapshots[-1]["outcome"] == "in_progress"  # a partial report cannot become success
+
+
+def test_recorded_health_and_url_carry_no_absolute_path(monkeypatch):
+    import app.eval.provenance as prov
+
+    monkeypatch.setattr(prov.platform, "node", lambda: "node-17.cluster.example.edu")
+    monkeypatch.setattr(prov.socket, "gethostname", lambda: "node-17.cluster.example.edu")
+    health = {**HEALTH, "indexing": {"data_dir": "/scratch/someone/corpus/files", "n_nodes": 8}}
+
+    def handler(request):
+        return httpx.Response(200, json=health if request.url.path == "/health" else BODY)
+
+    report = asyncio.run(run_load("http://node-17:8000", [("q", "ok")], concurrency_levels=(1,), requests_per_level=1, warmup_requests=0,
+                                  transport=httpx.MockTransport(handler)))
+    assert report["outcome"] == "ok"
+    assert report["health"]["indexing"]["data_dir"] == "<path>/files" and report["url"] == "http://<host>:8000"

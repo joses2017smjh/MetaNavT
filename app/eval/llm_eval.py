@@ -60,7 +60,7 @@ from app.eval.index_loader import build_index
 from app.eval.judge import HeuristicJudge, LlmJudge, exact_match_label, label_to_score, ollama_complete, pairwise_ab_ba
 from app.eval.jury import KAPPA_GATE, DEFAULT_JUDGE_MODELS, cohens_kappa
 from app.eval.latency import StageTimer
-from app.eval.provenance import command_line, device_info, git_sha, model_provenance
+from app.eval.provenance import command_line, device_info, git_sha, model_provenance, scrub
 from app.graph.staleness import cluster_versions
 from app.retrieval.types import RetrievalHit
 
@@ -365,7 +365,7 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     prior = blob.get("rescore") or {}
     blob["rescore"] = {
         "rows_git_sha": prior.get("rows_git_sha") or blob["git_sha"],
-        "rows_command": prior.get("rows_command") or blob["command"],
+        "rows_command": scrub(prior.get("rows_command") or blob["command"]),  # carried over, published again
         "rows_timestamp": prior.get("rows_timestamp") or blob["timestamp"],
         "checks_git_sha": git_sha(root),
         "command": command_line(),
@@ -374,6 +374,8 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     }
     blob["git_sha"] = blob["rescore"]["checks_git_sha"]
     blob["command"] = blob["rescore"]["command"]
+    if isinstance(blob.get("device"), dict):  # the generating run's machine, written out again: no host name, no paths
+        blob["device"] = scrub({k: v for k, v in blob["device"].items() if k != "hostname"})
     return blob
 
 

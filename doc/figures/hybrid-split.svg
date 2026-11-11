@@ -14,5 +14,5 @@
   <text x="468" y="140" fill="#F4F4F8" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">1  configs where fusion is off</text>
   <text x="468" y="164" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">paraphrase of “fusion was off”</text>
   <text x="468" y="196" fill="#E8D6A0" font-size="13" font-family="ui-sans-serif, system-ui, sans-serif">RRF keeps fusion.py at rank 1</text>
-  <text x="468" y="220" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Recall@50  0.843 → 0.938</text>
+  <text x="468" y="220" fill="#A8B0C0" font-size="12" font-family="ui-sans-serif, system-ui, sans-serif">Recall@50  0.843 → 0.940</text>
 </svg>

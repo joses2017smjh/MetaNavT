@@ -145,7 +145,8 @@ def _ask_frame(w, h, typed: str, n_stages: int, show_hits: bool) -> Image.Image:
     return img.convert("RGB")
 
 
-def gif_hybrid(out: Path) -> None:
+def gif_hybrid(out: Path, recall_text: str = "") -> None:
+    """`recall_text`: bm25_only -> hybrid Recall@50 from main.json (figures.recall50_bm25_to_hybrid)."""
     w, h = 860, 400
     frames, durs = [], []
     for step in range(1, 5):
@@ -170,7 +171,7 @@ def gif_hybrid(out: Path) -> None:
             d.text((466, 208), "paraphrase of  fusion was off", fill=MUTED, font=_font(SANS, 13))
             d.text((466, 248), "2  src/fusion.py", fill=MUTED, font=_font(SANS, 15))
         if fuse_on:
-            msg = "RRF  ->  src/fusion.py at rank 1     Recall@50  0.843 -> 0.938"
+            msg = f"RRF  ->  src/fusion.py at rank 1     {recall_text}".rstrip()
             _round_rect(d, (40, 352, 820, 382), 8, fill=BG, outline=GOLD, width=1)
             d.text((56, 358), msg, fill=GOLD, font=_font(MONO, 13))
         frames.append(img.convert("RGB"))
@@ -438,9 +439,13 @@ def write_all(root: Path | None = None) -> list[Path]:
 
         write_demo(root)
     payload = json.loads(traces.read_text())
+    from app.eval.figures import recall50_bm25_to_hybrid
+
+    baseline = root / "bench" / "results" / "main.json"
+    recall_text = recall50_bm25_to_hybrid(json.loads(baseline.read_text()) if baseline.exists() else None, arrow="->")
     jobs = [
         ("ask.gif", gif_ask),
-        ("hybrid.gif", gif_hybrid),
+        ("hybrid.gif", lambda path: gif_hybrid(path, recall_text)),
         ("router.gif", gif_router),
         ("mcp.gif", gif_mcp),
         ("graph.gif", gif_graph),

@@ -11,12 +11,39 @@ import numpy as np
 
 from app.eval.latency import StageTimer
 from app.retrieval.bm25 import BM25Index
-from app.retrieval.embedders import Embedder, HashEmbedder, cosine_scores
+from app.retrieval.embedders import Embedder, HashEmbedder
 from app.retrieval.fuse import rrf_score_map
 from app.retrieval.router import QueryRouter, RouteDecision, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
 
 RerankFn = Callable[[str, list[tuple[Chunk, float]]], list[tuple[Chunk, float]]]
+
+# Dense scores are rounded to this many decimals before they are ranked. The cosine is computed
+# in float64 from the stored float32 vectors, so its error (the summation order of the BLAS
+# kernel the CPU picks) is near 1e-16, far below this precision, and rounding removes it: chunks
+# that tie in exact arithmetic tie exactly and keep corpus order. Before this, np.argsort over
+# float32 scores let the last bit and the sort implementation (introsort, AVX-512 dispatch)
+# order them. On fixture v1 the rounded order equals the unrounded float64 order with the same
+# tie rule; 9 decimals would also merge one pair of multi-query scores 1e-10..1e-9 apart.
+DENSE_SCORE_DECIMALS = 10
+
+
+def dense_scores(query_vec: np.ndarray, doc_mat: np.ndarray) -> np.ndarray:
+    """Cosine of the query with every row, in float64, rounded to DENSE_SCORE_DECIMALS."""
+    q = np.asarray(query_vec, dtype=np.float64).ravel()
+    docs = np.asarray(doc_mat, dtype=np.float64)
+    q = q / max(float(np.linalg.norm(q)), 1e-12)
+    docs = docs / np.maximum(np.linalg.norm(docs, axis=1, keepdims=True), 1e-12)
+    return np.round(docs @ q, DENSE_SCORE_DECIMALS)
+
+
+def rank_by_score(scores: np.ndarray, k: int) -> np.ndarray:
+    """Row indices of the k highest scores: descending score, ties in row (corpus) order.
+
+    np.lexsort is a stable sort and the row index is an explicit second key, so the
+    order does not depend on numpy's sort implementation or the CPU it dispatches to."""
+    scores = np.asarray(scores, dtype=np.float64)
+    return np.lexsort((np.arange(len(scores)), -scores))[:k]
 
 
 @dataclass
@@ -87,9 +114,8 @@ class InMemoryHybridIndex:
     def search_dense(self, query: str, k: int | None = None, query_vec: np.ndarray | None = None) -> list[tuple[Chunk, float]]:
         k = k or self.retrieve_k
         qv = query_vec if query_vec is not None else self.embedder.encode([query])[0]
-        scores = cosine_scores(qv, self.doc_mat)
-        order = np.argsort(-scores)[:k]
-        return [(self.chunks[i], float(scores[i])) for i in order]
+        scores = dense_scores(qv, self.doc_mat)
+        return [(self.chunks[i], float(scores[i])) for i in rank_by_score(scores, k)]
 
     def search_path(self, query: str, k: int | None = None) -> list[tuple[Chunk, float]]:
         """Exact / substring path lookup for lexical_path routes."""

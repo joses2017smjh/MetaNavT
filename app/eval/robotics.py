@@ -14,7 +14,6 @@ from pathlib import Path
 import platform
 import random
 import re
-import socket
 import subprocess
 import time
 
@@ -311,7 +310,7 @@ def evaluate(snapshot: Path, output: Path) -> dict:
     result = {"schema": SCHEMA, "snapshot_sha256": manifest["aggregate_sha256"], "source_commit": manifest["source_commit"],
               "questions_sha256": manifest["questions_sha256"], "manifest_sha256": manifest_fingerprint, "code_sha256": code_sha256,
               "n_files": manifest["n_files"], "n_questions": len(questions), "n_families": manifest["n_families"],
-              "labels": manifest["labels"], "runtime": {"python": platform.python_version(), "numpy": np.__version__, "platform": platform.platform(), "host": socket.gethostname(), "device": "CPU", "backend": "BM25, no neural model"},
+              "labels": manifest["labels"], "runtime": {"python": platform.python_version(), "numpy": np.__version__, "platform": platform.platform(), "device": "CPU", "backend": "BM25, no neural model"},
               "build_ms": builds, "summary": summary, "per_query": rows,
               "interpretation": "Generated source-file lookup, not human-reviewed answer correctness; warm offline search excludes HTTP and model inference.",
               "configuration_policy": "two fixed configurations declared before test evaluation; no parameter search"}
