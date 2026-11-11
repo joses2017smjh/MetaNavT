@@ -128,6 +128,17 @@ def test_code_past_its_time_limit_is_killed_with_what_it_started(exec_tool, engi
     assert _gone(child) and _gone(grandchild)
 
 
+def test_the_time_limit_holds_where_os_has_no_waitid(exec_tool, engine_env, tmp_path):
+    # CPython has no os.waitid on macOS; the tool then waits with Popen.wait.
+    engine_env.delattr(os, "waitid")
+    engine_env.setenv(TIMEOUT, "1")
+    started = time.monotonic()
+    out = exec_tool.call(code="import time\ntime.sleep(60)", workspace_dir=str(tmp_path)).raw_output
+    assert "time limit" in out["error"] and time.monotonic() - started < 15, out
+    out = exec_tool.call(code="import os\nprint(os.getpid())", workspace_dir=str(tmp_path)).raw_output
+    assert out["error"] == "" and int(out["output"]) != os.getpid(), out
+
+
 @pytest.mark.skipif(not Path("/proc/self/stat").exists(), reason="reads process state from /proc")
 def test_a_background_process_does_not_outlive_the_call(exec_tool, tmp_path):
     pid_file = tmp_path / "background.pid"

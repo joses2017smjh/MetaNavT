@@ -100,6 +100,12 @@ def _wait_unreaped(proc: subprocess.Popen, timeout_seconds: float) -> bool:
     An exited but unreaped child keeps its pid, and so its process group id, reserved,
     which makes the group kill that follows safe in both cases.
     """
+    if not hasattr(os, "waitid"):  # macOS: wait() reaps, so the group id is only held by what is left in it
+        try:
+            proc.wait(timeout=timeout_seconds)
+            return True
+        except subprocess.TimeoutExpired:
+            return False
     deadline = time.monotonic() + timeout_seconds
     while os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None:
         if time.monotonic() >= deadline:
