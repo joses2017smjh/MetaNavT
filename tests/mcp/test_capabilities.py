@@ -361,8 +361,10 @@ def test_the_verifier_refuses_a_private_key_or_an_old_hmac_key(tmp_path, monkeyp
         verifier_from_env(root)
     monkeypatch.setenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE", str(private / "key.pub"))
     assert isinstance(verifier_from_env(root).public_key, Ed25519PublicKey)
-    monkeypatch.setenv("METANAVIT_APPROVAL_KEY_FILE", str(old))  # the pre-Ed25519 setting fails loudly
-    with pytest.raises(ApprovalError, match="METANAVIT_APPROVAL_PUBLIC_KEY_FILE"):
+    # The pre-Ed25519 setting fails loudly, even beside a valid new one, so the
+    # message must say to unset it as well as where the public key goes.
+    monkeypatch.setenv("METANAVIT_APPROVAL_KEY_FILE", str(old))
+    with pytest.raises(ApprovalError, match="unset METANAVIT_APPROVAL_KEY_FILE.*METANAVIT_APPROVAL_PUBLIC_KEY_FILE"):
         verifier_from_env(root)
 
 

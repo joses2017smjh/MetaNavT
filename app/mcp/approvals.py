@@ -226,9 +226,10 @@ class ApprovalVerifier:
 
 def verifier_from_env(root: Path) -> ApprovalVerifier | None:
     if os.getenv("METANAVIT_APPROVAL_KEY_FILE"):
-        raise ApprovalError("METANAVIT_APPROVAL_KEY_FILE named a shared HMAC key and is no longer read: create an "
-                            "Ed25519 key pair with `python -m app.mcp.approve init` and give servers only the public "
-                            "key through METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
+        # Refused even beside the new setting, so a stale shared key is noticed and removed.
+        raise ApprovalError("METANAVIT_APPROVAL_KEY_FILE named a shared HMAC key, which is no longer supported: unset "
+                            "METANAVIT_APPROVAL_KEY_FILE, create an Ed25519 key pair with `python -m app.mcp.approve "
+                            "init` and give servers only the public key through METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
     public = os.getenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
     ledger = os.getenv("METANAVIT_APPROVAL_LEDGER_FILE")
     if bool(public) != bool(ledger):

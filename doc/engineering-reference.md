@@ -469,9 +469,10 @@ python -m app.mcp.approve sign --key /private/operator.key --review review.json 
 A token is the base64url of a canonical JSON body (review hash, grant id, issue
 and expiry times, actor), a dot, and the base64url of the Ed25519 signature over
 that body. Tokens and key files from the earlier HMAC scheme are refused. While
-the old `METANAVIT_APPROVAL_KEY_FILE` is still set, the MCP servers refuse to
-start and the API's `/api/plans` answers 503 with that error, until the key pair
-is created and `METANAVIT_APPROVAL_PUBLIC_KEY_FILE` names the public key.
+the old `METANAVIT_APPROVAL_KEY_FILE` is set, even next to the new setting, the
+MCP servers refuse to start and the API's `/api/plans` answers 503 with that
+error; unset it, create the key pair, and name the public key in
+`METANAVIT_APPROVAL_PUBLIC_KEY_FILE`.
 
 Export the review from the plan panel, have the operator inspect and sign it,
 and paste the resulting token into the panel. Issuance is absent from MCP and
