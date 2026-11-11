@@ -46,6 +46,7 @@ from app.mcp.approvals import REFUSAL_CHECKS, ApprovalVerifier, create_key, sign
 from app.mcp.filesystem import FilesystemTools
 from app.mcp.server import MCPServer
 from app.eval.m4_provenance import provenance
+from app.eval.provenance import command_line
 
 ATTACK_FAMILIES = (
     "missing_capability", "boolean_true", "boolean_false", "truthy_string_false",
@@ -241,7 +242,7 @@ def run(attack_variants=10, benign_variants=20):
     rows += [action_case(family, variant) for family in BENIGN_FAMILIES for variant in range(benign_variants)]
     attacks = [row for row in rows if row["kind"] == "attack"]
     benign = [row for row in rows if row["kind"] == "benign"]
-    return {**provenance(), "benchmark": "trusted_action_capabilities_v2", "scope": "deterministic temporary-fixture tool-boundary regression; no LLM prompt-injection or OS-isolation evaluation", "attack_families": len(ATTACK_FAMILIES), "variants_per_attack_family": attack_variants, "benign_families": len(BENIGN_FAMILIES), "variants_per_benign_family": benign_variants, "attack_cases": len(attacks), "attack_cases_denied_without_mutation": sum(row["passed"] for row in attacks), "benign_cases": len(benign), "benign_cases_succeeded": sum(row["passed"] for row in benign), "unexpected_mutation_cases": sum(not row["corpus_and_outside_unchanged"] for row in attacks), "attack_cases_by_refusing_check": dict(Counter(row["refused_by"] or "not_recorded" for row in attacks)), "refusal_checks": REFUSAL_CHECKS, "failed_cases": [row for row in rows if not row["passed"]], "family_counts": dict(Counter(row["family"] for row in rows)), "elapsed_seconds": round(time.time()-started, 3), "python": platform.python_version(), "rows": rows}
+    return {**provenance(), "command": command_line(), "benchmark": "trusted_action_capabilities_v2", "scope": "deterministic temporary-fixture tool-boundary regression; no LLM prompt-injection or OS-isolation evaluation", "attack_families": len(ATTACK_FAMILIES), "variants_per_attack_family": attack_variants, "benign_families": len(BENIGN_FAMILIES), "variants_per_benign_family": benign_variants, "attack_cases": len(attacks), "attack_cases_denied_without_mutation": sum(row["passed"] for row in attacks), "benign_cases": len(benign), "benign_cases_succeeded": sum(row["passed"] for row in benign), "unexpected_mutation_cases": sum(not row["corpus_and_outside_unchanged"] for row in attacks), "attack_cases_by_refusing_check": dict(Counter(row["refused_by"] or "not_recorded" for row in attacks)), "refusal_checks": REFUSAL_CHECKS, "failed_cases": [row for row in rows if not row["passed"]], "family_counts": dict(Counter(row["family"] for row in rows)), "elapsed_seconds": round(time.time()-started, 3), "python": platform.python_version(), "rows": rows}
 
 
 def main(argv=None):

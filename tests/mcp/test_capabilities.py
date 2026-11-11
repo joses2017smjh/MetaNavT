@@ -303,6 +303,7 @@ def test_benchmark_writer_records_the_refusing_check_and_no_host_user_or_path(tm
         assert write_benchmark(["--output", str(output), "--attack-variants", "2", "--benign-variants", "1"]) is False
     first, second = (json.loads(output.read_text()) for output in outputs)
     assert first["benchmark"] == "trusted_action_capabilities_v2" and first["refusal_checks"] == REFUSAL_CHECKS
+    assert "python -m " in first["command"]  # the sanitized command (app/eval/provenance.py), checked for leaks below
     assert first["rows"] == second["rows"]  # deterministic rows
     attacks = [row for row in first["rows"] if row["kind"] == "attack"]
     assert len(attacks) == 2 * len(ATTACK_FAMILIES) and all(row["passed"] for row in first["rows"])
