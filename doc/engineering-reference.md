@@ -178,7 +178,7 @@ On SciFact the cap and the precision are now also measured one at a time:
 fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
 before it, in the ladder behind the [generated SciFact table](../README.md#bench-beir)
 (`make bench-beir`); the evidence table quotes both steps with their rerank-stage
-latency. `make bench-beir-rerank-cap` runs only those rows after the hybrid
+latency. `make bench-beir-rerank-cap` runs only the hybrid and those three rows
 ([results](../bench/results/beir_scifact_rerank_cap.json)); their metrics equal
 the ladder's.
 
@@ -676,8 +676,9 @@ returns the same scores in the same order as scoring every document
 table (`bench/results/beir_scifact.json`) was recorded again after both
 changes, with the capped fp32 row added. The nine rows it shares with the
 earlier recording keep every metric, interval and the published-score
-difference; what changed is the latency columns, the GPU, and the fp16 row's
-paired delta, which is now against fp32 at the same cap.
+difference; what changed is the timing columns (per-query latency and build
+time), the GPU, and the fp16 row's paired delta, which is now against fp32 at
+the same cap.
 
 [Current generated bench-beir evidence](../README.md#bench-beir) ·
 [BM25 settings one at a time](../README.md#bench-beir-bm25).
