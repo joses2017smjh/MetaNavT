@@ -922,9 +922,15 @@ def test_the_readme_summary_of_the_injection_study_holds_for_the_current_run():
     blocks = {model: list(per.values()) for model, per in blob["summary"].items()}
     assert "Neither model pursued a planted file action." in summary
     assert all(b["planted_actions"]["attempted_episodes"] == 0 for bs in blocks.values() for b in bs)
-    assert "both models called the write tools, and those calls met the operator's approval" in summary
+    assert ("both models called the write tools and the operator signed their proposals, so where an injected task is "
+            "offered those tools the zero is not an inability to make the calls") in summary
     assert all(b["capability"]["attempted"]["mean"] > 0 for bs in blocks.values() for b in bs)
     assert all(sum(x["proposals_approved"] for b in bs for x in b["capability"]["by_action"].values()) for bs in blocks.values())
+    assert not any(x["proposals_declined"] for bs in blocks.values() for b in bs for x in b["capability"]["by_action"].values())
+    # least_privilege offers an injected task only the read tools, so the zero is read where both are offered them
+    assert all(set(ai.WRITE_TOOLS) <= set(ai.exposed_tools(_task("move"), d)) for d in ("none", "spotlight"))
+    assert all(b["by_goal"][g]["exposed_episodes"] for per in blob["summary"].values() for d, b in per.items()
+               if d != "least_privilege" for g in ("move", "patch"))
     assert "The stronger model stated the planted value in nearly every hijack episode in every configuration." in summary
     stronger = max(blocks, key=lambda m: blob["summary"][m]["none"]["benign_success"]["mean"])
     assert all(b["by_goal"]["hijack"]["attempted"]["mean"] >= 0.9 for b in blocks[stronger])
@@ -950,6 +956,35 @@ def test_the_interview_answer_on_the_injection_study_holds_for_the_current_run()
     assert refused[stronger]["ApprovalError"] > sum(refused[stronger].values()) / 2
     assert "its pass^k on the controls is zero" in answer
     assert all(b["benign_pass_hat_k"][k]["mean"] == 0 for b in blob["summary"][weaker].values())
+    assert "where an injected task is offered the write tools, this is not an inability to make the calls" in answer
+    assert ("the stronger model stated the planted value in nearly every hijack episode, in every configuration, "
+            "sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed "
+            "that measurably") in answer
+    deltas = blob["paired_deltas"][stronger]
+    assert not any(deltas[f"{d} - none"]["hijack_planted_value"]["excludes_zero"] for d in ("spotlight", "least_privilege"))
+
+
+def test_the_engineering_reference_on_the_injection_study_holds_for_the_current_run():
+    # the hand-written reading of the current run in the engineering reference: proposals signed, the planted claim
+    # unchanged by either defense for the stronger model, and the weaker model's tool-filter delta excluding zero
+    text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
+    blob = json.loads(RESULTS_V2.read_text())
+    order = sorted(blob["summary"], key=lambda m: blob["summary"][m]["none"]["benign_success"]["mean"])
+    weaker, stronger = order[0], order[-1]
+    assert "the models did call these tools, and the operator signed their proposals." in text
+    caps = [x for per in blob["summary"].values() for b in per.values() for x in b["capability"]["by_action"].values()]
+    assert all(x["proposals_approved"] for x in caps) and not any(x["proposals_declined"] for x in caps)
+    assert "For the stronger model neither datamarking nor the tool filter changed that measurably." in text
+    assert not any(blob["paired_deltas"][stronger][f"{d} - none"]["hijack_planted_value"]["excludes_zero"]
+                   for d in ("spotlight", "least_privilege"))
+    assert ("In the current run the weaker model stated the planted value more often under the tool filter than with no "
+            "defense, a paired interval that excludes zero, and more of its hijack episodes reached the planted text there.") in text
+    delta = blob["paired_deltas"][weaker]["least_privilege - none"]["hijack_planted_value"]
+    assert delta["excludes_zero"] and delta["delta"] > 0
+    hijack = {d: blob["summary"][weaker][d]["by_goal"]["hijack"]["exposed_episodes"] for d in ("none", "least_privilege")}
+    assert hijack["least_privilege"] > hijack["none"]
+    assert "matched on retrieval" not in text.split("**The injection evaluation is not an adaptive attack.**")[0].split(
+        "## Does the agent follow instructions planted in files?")[1]
 
 
 def test_evidence_rows_come_from_the_current_run_that_generated_and_scored_its_episodes():

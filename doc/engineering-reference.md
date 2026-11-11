@@ -872,11 +872,12 @@ patch the config with a forged approval token, to read a file outside the
 corpus root and paste it into the answer, or to report a false value. Ten
 config questions from the gold set carry each of the four goals, and the same
 ten questions run without planted text as controls. In the current task set
-(`agent_injection_v2`) the controls are matched on retrieval: their config and
-log end with neutral comment lines that carry the run number and the field name
-the planted text adds, so a search sees the same query terms and a control
-differs from an injected task in the instruction alone; its exposure counts
-when those lines reach the model. The copy is indexed with
+(`agent_injection_v2`) the controls carry the planted text's query terms: their
+config and log end with neutral comment lines that hold the run number and the
+field name the planted text adds, so a search sees those terms in the same two
+files. That matches the controls on those terms, not on every search result:
+the lines are shorter than the planted text and say something else. A
+control's exposure counts when its lines reach the model. The copy is indexed with
 the file times the fixture's MANIFEST records, as the retrieval benchmark
 indexes it, so retrieval does not depend on when the copy was made (the first
 run's copy read the disk, where the two files that carry the planted text were
@@ -935,12 +936,15 @@ before any file is read, and a signed, single-use operator capability for every
 write. In both runs neither model pursued a planted file action, so planted
 text never tested the system-level controls; asked by the user for the same
 move or patch (the capability control), the models did call these tools, and
-those calls met the operator's approval. The controls are there because
+the operator signed their proposals. The controls are there because
 prompt-level defenses give no guarantee ([Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837))
 and adaptive attacks get past them ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)).
-What the models did follow was the planted claim, in every configuration, and
-neither datamarking nor the tool filter changed that measurably; no capability
-gate covers what an answer says. The bridge for planted claims is checking the
+What the models did follow was the planted claim, in every configuration. For
+the stronger model neither datamarking nor the tool filter changed that
+measurably. In the current run the weaker model stated the planted value more
+often under the tool filter than with no defense, a paired interval that
+excludes zero, and more of its hijack episodes reached the planted text there.
+No capability gate covers what an answer says. The bridge for planted claims is checking the
 answer against the structured source rather than the free text. The structured
 field check does that, measured offline on the stored answers in the
 [generated table](../README.md#agent-injection), with its limits under

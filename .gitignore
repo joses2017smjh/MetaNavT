@@ -62,7 +62,7 @@ bench/external/
 !bench/results/agent_injection.json
 !bench/results/agent_injection_episodes.meta.json
 !bench/results/agent_injection_episodes_rescored.meta.json
-# the current injection run (make bench-agent-injection-v2): capability control and matched controls
+# the current injection run (make bench-agent-injection-v2): capability control and controls with neutral lines
 !bench/results/agent_injection_v2.json
 !bench/results/agent_injection_v2_episodes.meta.json
 # prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
