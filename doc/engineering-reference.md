@@ -655,8 +655,9 @@ chosen from that table in the API section below, not picked up front.
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
 one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsrank.sql))
 with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
-(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 when
-`pg_search` is installed), and reciprocal rank fusion computed in SQL, then
+(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 only with
+`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
+reciprocal rank fusion computed in SQL, then
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. `k` is validated (1-50),
@@ -1149,9 +1150,9 @@ curl -s -X POST localhost:8000/api/retrieve/ \
 python3 scripts/smoke_retrieve.py     # the check CI runs: hits, every hit has a path
 ```
 
-The compose stack is labelled honestly: `pgvector/pgvector:pg16` has no
-ParadeDB `pg_search`, so lexical search falls back to Postgres `ts_rank_cd`
-(`bm25_backend` in the response), embeddings are the hash adapter
+The compose stack is labelled honestly: lexical search is Postgres `ts_rank_cd`,
+the default `LEXICAL_BACKEND` (`bm25_backend` in the response; the
+`pgvector/pgvector:pg16` image has no ParadeDB `pg_search`), embeddings are the hash adapter
 (`embedding_provider`), and no reranker is loaded (`reranker_loaded`). For
 real models use the override, which installs the `ml` extra and loads
 bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:

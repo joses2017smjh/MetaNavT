@@ -179,3 +179,27 @@ def test_lexical_query_as_postgres_reads_it(vsm, query, tsquery, document):
             got, matches = cur.fetchone()
     assert got == tsquery, (query, text)
     assert matches, (query, document)
+
+
+# ---------------------------------------------------------------- the lexical backend is configured, never detected
+
+
+def test_paradedb_runs_only_when_configured_and_installed(vsm, monkeypatch):
+    from app.database.vector_store_manager import VectorStoreManager
+
+    manager, _ = vsm
+    assert manager.hybrid_backend == "ts_rank_cd"  # LEXICAL_BACKEND unset
+    with manager.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_extension WHERE extname = 'pg_search';")
+            installed = cur.fetchone() is not None
+    monkeypatch.setenv("LEXICAL_BACKEND", "paradedb")
+    configured = VectorStoreManager(conn_string=os.environ["PG_TEST_DSN"])
+    try:
+        if installed:
+            assert configured.hybrid_backend == "paradedb"
+        else:  # the pgvector image CI and the local runs use: a start-up error, not a quiet ts_rank_cd
+            with pytest.raises(RuntimeError, match="pg_search"):
+                configured.hybrid_backend
+    finally:
+        configured.close()

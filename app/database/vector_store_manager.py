@@ -51,6 +51,18 @@ HNSW_EF_SEARCH_DEFAULT = 40
 HNSW_EF_SEARCH_MAX = 1000
 # Words websearch_to_tsquery reads as an operator rather than a term (lowercase; it ignores case).
 WEBSEARCH_OPERATOR_WORDS = frozenset({"or"})
+# The lexical list's backend, chosen by LEXICAL_BACKEND and never detected. ts_rank_cd (Postgres
+# full text, the default) is what CI and every results file ran; paradedb (ParadeDB pg_search
+# BM25, sql/hybrid_paradedb.sql) has not been run by any test or results file.
+LEXICAL_BACKENDS = ("ts_rank_cd", "paradedb")
+
+
+def lexical_backend_setting() -> str:
+    """LEXICAL_BACKEND, lowercased; unset or empty is ts_rank_cd, an unknown value is a ValueError."""
+    value = os.getenv("LEXICAL_BACKEND", "").strip().lower() or "ts_rank_cd"
+    if value not in LEXICAL_BACKENDS:
+        raise ValueError(f"LEXICAL_BACKEND must be one of {', '.join(LEXICAL_BACKENDS)}, got {value!r}")
+    return value
 
 
 def describe_dsn(dsn: str | None) -> str:
@@ -92,6 +104,8 @@ class VectorStoreManager(DatabaseManager):
         # table. Before M0 they targeted the bare table_name, which PGVectorStore
         # never writes to, so production BM25 searched an empty table.
         self.data_table = f"data_{self.table_name}"
+        # The configured lexical backend (LEXICAL_BACKEND); a bad value fails here, at start-up.
+        self.lexical_backend = lexical_backend_setting()
         # Which lexical backend answered the last search_bm25 call:
         # paradedb | ts_rank_cd | ilike | none. Surfaced by /health and /api/retrieve.
         self.last_bm25_backend: str | None = None
@@ -109,9 +123,10 @@ class VectorStoreManager(DatabaseManager):
         
         self.vector_store = None
         
-        # Ensure required extensions exist
+        # Ensure required extensions exist (pg_search only for the ParadeDB backend)
         self._ensure_vector_extension()
-        self._ensure_pg_search_extension()
+        if self.lexical_backend == "paradedb":
+            self._ensure_pg_search_extension()
         
         # PGVectorStore creates data_<table_name> itself on first use (see get_vector_store).
         
@@ -270,95 +285,98 @@ class VectorStoreManager(DatabaseManager):
                     f"PGVectorStore failed .add/delete on data table '{self.schema_name}.{self.data_table}'."
                 ) from e
 
-            # BM25 Index Creation - attempt it but don't fail if it doesn't work
-            logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
-            try:
-                with self.get_connection() as conn:
-                    bm25_created = self._create_bm25_index(conn)
-                if bm25_created:
-                    logger.info("BM25 index creation/verification successful")
-                else:
-                     logger.warning("BM25 index creation failed, but continuing anyway")  
-            except Exception as e:
-                logger.warning(f"BM25 index creation failed: {e}", exc_info=True)
-                logger.warning("Continuing without BM25 search capability")
-                # We'll continue without BM25 functionality
+            # ParadeDB BM25 index: only for LEXICAL_BACKEND=paradedb. Attempted, not required.
+            if self.lexical_backend == "paradedb":
+                logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
+                try:
+                    with self.get_connection() as conn:
+                        bm25_created = self._create_bm25_index(conn)
+                    if bm25_created:
+                        logger.info("BM25 index creation/verification successful")
+                    else:
+                        logger.warning("BM25 index creation failed, but continuing anyway")
+                except Exception as e:
+                    logger.warning(f"BM25 index creation failed: {e}", exc_info=True)
+                    logger.warning("Continuing without BM25 search capability")
 
         return self.vector_store
 
     def search_bm25(self, query: str, limit: int = 5) -> list[dict]:
         """
-        Perform BM25 search using the 'text' column.
-        
-        If BM25 search fails, falls back to a basic text search.
+        Perform BM25 search using the 'text' column (the python retrieval mode).
+
+        With LEXICAL_BACKEND=paradedb, ParadeDB's BM25 first; otherwise, or if that fails
+        or finds nothing, Postgres full text (ts_rank_cd), then ILIKE. last_bm25_backend
+        names the one that answered.
         """
         if not query:
             raise ValueError("Search query cannot be empty")
 
         results = []
         
-        # Try multiple BM25 query formats
-        try:
-            table_identifier = sql.Identifier(self.schema_name, self.data_table)
+        # ParadeDB BM25, two query formats: only for LEXICAL_BACKEND=paradedb (never detected).
+        if self.hybrid_backend == "paradedb":
+            try:
+                table_identifier = sql.Identifier(self.schema_name, self.data_table)
             
-            # Format 1: Standard BM25 search with @@@ operator
-            search_sql = sql.SQL("""
-                SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
-                FROM {table}
-                WHERE text @@@ {query}
-                ORDER BY score DESC
-                LIMIT %s;
-            """).format(
-                table=table_identifier,
-                query=sql.Literal(query)
-            )
+                # Format 1: Standard BM25 search with @@@ operator
+                search_sql = sql.SQL("""
+                    SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
+                    FROM {table}
+                    WHERE text @@@ {query}
+                    ORDER BY score DESC
+                    LIMIT %s;
+                """).format(
+                    table=table_identifier,
+                    query=sql.Literal(query)
+                )
             
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Set search_path
-                    cur.execute("SET search_path TO paradedb, public;")
+                with self.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        # Set search_path
+                        cur.execute("SET search_path TO paradedb, public;")
                     
-                    # Execute search and log the actual SQL
-                    logger.debug(f"BM25 search query: {search_sql.as_string(conn)}")
-                    cur.execute(search_sql, (limit,))
-                    results = cur.fetchall()
+                        # Execute search and log the actual SQL
+                        logger.debug(f"BM25 search query: {search_sql.as_string(conn)}")
+                        cur.execute(search_sql, (limit,))
+                        results = cur.fetchall()
             
-            if results:
-                logger.info(f"BM25 search successful, found {len(results)} results")
-                self.last_bm25_backend = "paradedb"
-                return self._bm25_rows(results)
+                if results:
+                    logger.info(f"BM25 search successful, found {len(results)} results")
+                    self.last_bm25_backend = "paradedb"
+                    return self._bm25_rows(results)
             
-            # Format 2: Try more flexible tokenized search
-            tokenized_query = " OR ".join(query.split())
-            search_sql2 = sql.SQL("""
-                SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
-                FROM {table}
-                WHERE text @@@ {query}
-                ORDER BY score DESC
-                LIMIT %s;
-            """).format(
-                table=table_identifier,
-                query=sql.Literal(tokenized_query)
-            )
+                # Format 2: Try more flexible tokenized search
+                tokenized_query = " OR ".join(query.split())
+                search_sql2 = sql.SQL("""
+                    SELECT node_id, text, metadata_, paradedb.score(node_id) AS score
+                    FROM {table}
+                    WHERE text @@@ {query}
+                    ORDER BY score DESC
+                    LIMIT %s;
+                """).format(
+                    table=table_identifier,
+                    query=sql.Literal(tokenized_query)
+                )
             
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Set search_path
-                    cur.execute("SET search_path TO paradedb, public;")
+                with self.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        # Set search_path
+                        cur.execute("SET search_path TO paradedb, public;")
                     
-                    # Execute tokenized search
-                    logger.debug(f"BM25 tokenized search query: {search_sql2.as_string(conn)}")
-                    cur.execute(search_sql2, (limit,))
-                    results = cur.fetchall()
+                        # Execute tokenized search
+                        logger.debug(f"BM25 tokenized search query: {search_sql2.as_string(conn)}")
+                        cur.execute(search_sql2, (limit,))
+                        results = cur.fetchall()
             
-            if results:
-                logger.info(f"BM25 tokenized search successful, found {len(results)} results")
-                self.last_bm25_backend = "paradedb"
-                return self._bm25_rows(results)
+                if results:
+                    logger.info(f"BM25 tokenized search successful, found {len(results)} results")
+                    self.last_bm25_backend = "paradedb"
+                    return self._bm25_rows(results)
             
-        except Exception as e:
-            logger.warning(f"BM25 search failed: {e}")
-            # Fall back to basic search
+            except Exception as e:
+                logger.warning(f"BM25 search failed: {e}")
+                # Fall back to basic search
         
         # If BM25 search failed or returned no results, try full-text search fallback
         try:
@@ -412,19 +430,22 @@ class VectorStoreManager(DatabaseManager):
 
     @property
     def hybrid_backend(self) -> str:
-        """'paradedb' when pg_search is installed, else 'ts_rank_cd'. Checked once."""
+        """The lexical backend: LEXICAL_BACKEND (default ts_rank_cd), never detected. Checked once.
+
+        An installed pg_search is not used unless paradedb is configured, and paradedb
+        configured without pg_search raises instead of falling back to ts_rank_cd.
+        """
         cached = getattr(self, "_hybrid_backend", None)
         if cached:
             return cached
-        backend = "ts_rank_cd"
-        try:
+        backend = getattr(self, "lexical_backend", None) or lexical_backend_setting()
+        if backend == "paradedb":
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1 FROM pg_extension WHERE extname = 'pg_search';")
-                    if cur.fetchone() is not None:
-                        backend = "paradedb"
-        except Exception as e:
-            logger.info(f"hybrid_backend: could not check pg_search ({e.__class__.__name__}); using ts_rank_cd")
+                    installed = cur.fetchone() is not None
+            if not installed:
+                raise RuntimeError("LEXICAL_BACKEND=paradedb, but the pg_search extension is not installed in this database")
         self._hybrid_backend = backend
         return backend
 

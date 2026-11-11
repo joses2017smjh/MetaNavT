@@ -59,6 +59,8 @@ def build_clusters(vsm) -> dict:
 def build_retrieval_state() -> RetrievalState:
     """Connect once, optionally index, and build the retriever the API serves."""
     vsm = get_vector_store_manager()
+    # LEXICAL_BACKEND is checked before anything else: paradedb without pg_search fails the start.
+    logger.info(f"Lexical backend: {vsm.hybrid_backend} (LEXICAL_BACKEND)")
     indexing: dict = {"indexed": False, "reason": "INDEX_ON_START not set"}
     if os.getenv("INDEX_ON_START", "false").strip().lower() in {"1", "true", "yes"}:
         indexing = index_directory(

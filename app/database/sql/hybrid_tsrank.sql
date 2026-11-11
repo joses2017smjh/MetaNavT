@@ -1,4 +1,5 @@
--- Hybrid retrieval in one round trip (Postgres + pgvector, no ParadeDB).
+-- Hybrid retrieval in one round trip (Postgres + pgvector, no ParadeDB): the statement
+-- for LEXICAL_BACKEND=ts_rank_cd, the default.
 --
 --   dense   : pgvector cosine distance (<=>), top-k. The planner may read it from the
 --             HNSW index on the embedding column or with a sequential scan (on fixture

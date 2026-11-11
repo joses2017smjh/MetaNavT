@@ -1,7 +1,9 @@
 -- Same shape as hybrid_tsrank.sql, with ParadeDB pg_search BM25 for the lexical
--- list (text @@@ query, paradedb.score). Selected automatically when the
--- pg_search extension is installed. Not exercised by CI, which runs
--- pgvector/pgvector:pg16 without ParadeDB; the result label says which ran.
+-- list (text @@@ query, paradedb.score). Runs only with LEXICAL_BACKEND=paradedb,
+-- never because pg_search happens to be installed (the default is ts_rank_cd).
+-- Not exercised by CI, which runs pgvector/pgvector:pg16 without ParadeDB, nor by
+-- any results file; the result label says which ran. Its dense CTE is
+-- hybrid_tsrank.sql's, verbatim (tests/engine/test_vector_store_sql.py).
 WITH params AS (
     SELECT %(qvec)s::vector AS qvec
 ),

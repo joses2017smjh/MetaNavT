@@ -1,12 +1,14 @@
 """The Python side of the served hybrid statement, without a database.
 
 What VectorStoreManager sends along with app/database/sql/hybrid_*.sql: the
-per-statement settings and the lexical list's query text. The live behaviour (a forced HNSW scan returning the full
+per-statement settings, the lexical list's query text and which lexical backend
+runs (LEXICAL_BACKEND, never detected). The live behaviour (a forced HNSW scan returning the full
 depth) is checked against Postgres in tests/database/test_dense_parity.py. The
 committed plans in doc/sql/ must have been made with the current settings.
 """
 
 import re
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -119,3 +121,134 @@ def test_both_statements_share_the_dense_cte():
 )
 def test_lexical_query_terms(query, expected):
     assert VectorStoreManager.lexical_query(query) == expected
+
+
+# ---------------------------------------------------------------- the lexical backend (LEXICAL_BACKEND)
+
+
+class _Connection:
+    """Records every statement; pg_extension lookups answer `pg_search`; ParadeDB's operator fails without it."""
+
+    def __init__(self, pg_search: bool):
+        self.pg_search = pg_search
+        self.statements: list[str] = []
+
+    def cursor(self):
+        return _RecordingCursor(self)
+
+
+class _RecordingCursor:
+    def __init__(self, conn):
+        self.conn, self.row = conn, None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, statement, params=None):
+        text = statement if isinstance(statement, str) else repr(statement)
+        self.conn.statements.append(text)
+        if "@@@" in text and not self.conn.pg_search:
+            raise RuntimeError("operator does not exist: character varying @@@ unknown")
+        self.row = (1,) if "pg_search" in text and self.conn.pg_search else None
+
+    def fetchone(self):
+        return self.row
+
+    def fetchall(self):
+        return []
+
+
+def lexical_manager(monkeypatch, setting, pg_search):
+    """(manager, connection) with LEXICAL_BACKEND = setting (None: unset) on a database with or without pg_search."""
+    if setting is None:
+        monkeypatch.delenv("LEXICAL_BACKEND", raising=False)
+    else:
+        monkeypatch.setenv("LEXICAL_BACKEND", setting)
+    vsm = manager()
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+    conn = _Connection(pg_search)
+
+    @contextmanager
+    def get_connection():
+        yield conn
+
+    vsm.get_connection = get_connection
+    return vsm, conn
+
+
+def test_ts_rank_cd_is_the_default_even_where_pg_search_is_installed(monkeypatch):
+    vsm, conn = lexical_manager(monkeypatch, None, pg_search=True)
+    assert vsm.hybrid_backend == "ts_rank_cd"
+    assert "ts_rank_cd(" in vsm.hybrid_sql() and "paradedb.score(" not in vsm.hybrid_sql()
+    assert not any("pg_search" in s for s in conn.statements)  # nothing was detected: the setting decides
+
+
+def test_paradedb_runs_only_when_configured_and_installed(monkeypatch):
+    vsm, _ = lexical_manager(monkeypatch, "paradedb", pg_search=True)
+    assert vsm.hybrid_backend == "paradedb" and "paradedb.score(" in vsm.hybrid_sql()
+
+    vsm, _ = lexical_manager(monkeypatch, "ParadeDB ", pg_search=False)
+    with pytest.raises(RuntimeError, match="pg_search"):
+        vsm.hybrid_backend  # no fallback to ts_rank_cd: a configured backend that cannot run is an error
+
+
+def test_an_unknown_lexical_backend_is_an_error(monkeypatch):
+    from app.database.vector_store_manager import lexical_backend_setting
+
+    monkeypatch.setenv("LEXICAL_BACKEND", "bm25")
+    with pytest.raises(ValueError, match="LEXICAL_BACKEND"):
+        lexical_backend_setting()
+    monkeypatch.setenv("LEXICAL_BACKEND", "")
+    assert lexical_backend_setting() == "ts_rank_cd"
+
+
+def test_search_bm25_tries_paradedb_only_when_configured(monkeypatch):
+    vsm, conn = lexical_manager(monkeypatch, None, pg_search=True)
+    vsm.search_bm25("learning rate", limit=5)
+    assert conn.statements and not any("paradedb" in s or "@@@" in s for s in conn.statements), conn.statements
+    assert any("ts_rank_cd" in s for s in conn.statements)
+
+    vsm, conn = lexical_manager(monkeypatch, "paradedb", pg_search=True)
+    vsm.search_bm25("learning rate", limit=5)
+    assert "SET search_path TO paradedb, public;" in conn.statements
+
+
+@pytest.mark.parametrize("setting, creates", [(None, False), ("ts_rank_cd", False), ("paradedb", True)])
+def test_start_up_creates_pg_search_objects_only_for_paradedb(monkeypatch, setting, creates):
+    from app.database import db_base_manager, vector_store_manager as vsm_module
+
+    calls = []
+    monkeypatch.setenv("PG_CONNECTION_STRING", "postgresql://u@127.0.0.1:1/db")
+    monkeypatch.setenv("EMBEDDING_DIM", "8")
+    if setting is None:
+        monkeypatch.delenv("LEXICAL_BACKEND", raising=False)
+    else:
+        monkeypatch.setenv("LEXICAL_BACKEND", setting)
+    monkeypatch.setattr(db_base_manager.DatabaseManager, "_ensure_database_exists", lambda self: None)
+    monkeypatch.setattr(db_base_manager.DatabaseManager, "_initialize_connection_pool", lambda self, *a, **k: None)
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "_detect_vector_dimensions", lambda self: None)
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_vector_extension", lambda self: None)
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_pg_search_extension", lambda self: calls.append("extension"))
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "_create_bm25_index", lambda self, conn: calls.append("bm25 index") or True)
+
+    @contextmanager
+    def no_connection(self):
+        yield None
+
+    class _Store:
+        def __init__(self, **kwargs):
+            pass
+
+        def add(self, nodes):
+            return []
+
+        def delete(self, ref_doc_id):
+            return None
+
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", no_connection)
+    monkeypatch.setattr(vsm_module, "PGVectorStore", _Store)
+    vsm_module.VectorStoreManager(conn_string="postgresql://u@127.0.0.1:1/db").get_vector_store()
+    assert calls == (["extension", "bm25 index"] if creates else [])
