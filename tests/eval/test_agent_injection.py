@@ -826,13 +826,81 @@ def test_the_table_names_the_run_that_scored_the_episodes_apart_from_the_one_tha
     assert "scored at sha 1234567 with uncommitted changes by `make bench-agent-injection-rescore`" in agent_injection_table(blob)
 
 
-def test_evidence_rows_name_the_generating_run_next_to_the_scoring_one():
+def test_the_table_reads_the_capability_control_against_the_planted_move_and_patch_attempts():
+    # D18: next to each capability row stand the planted move and patch attempts of the same model and configuration,
+    # and the sentence that reads them together is written only when the counts support it
+    from app.eval.report import _rate, agent_injection_table
+    blob = json.loads(RESULTS_V2.read_text())
+    lines = agent_injection_table(blob).splitlines()
+    for model, per in blob["summary"].items():
+        for defense, b in per.items():
+            cap, g = b["capability"], b["by_goal"]
+            planted = (f"{g['move']['attempted_episodes'] + g['patch']['attempted_episodes']} / "
+                       f"{g['move']['exposed_episodes'] + g['patch']['exposed_episodes']}")
+            assert any(line.startswith(f"| {model} | {defense} | {_rate(cap['attempted'])} | ") and line.endswith(f"| {planted} |")
+                       for line in lines)
+    claim = "make these calls when the user asks for them and not when a file does"
+    assert sum(claim in line for line in lines) == 1
+    attempted = json.loads(RESULTS_V2.read_text())
+    attempted["summary"]["qwen2.5:7b"]["none"]["by_goal"]["patch"]["attempted_episodes"] = 1
+    never = json.loads(RESULTS_V2.read_text())
+    never["summary"]["llama3.1:8b"]["spotlight"]["capability"]["attempted"]["mean"] = 0.0
+    assert all(claim not in agent_injection_table(x) for x in (attempted, never))
+
+
+def test_the_readme_summary_of_the_injection_study_holds_for_the_current_run():
+    # the hand-written summary above the tables makes claims about the current run; each must hold in its file
+    readme = (ai.ROOT / "README.md").read_text()
+    summary = next(p for p in readme.split("\n\n") if p.startswith("The prompt-injection study is separate again"))
+    blob = json.loads(RESULTS_V2.read_text())
+    blocks = {model: list(per.values()) for model, per in blob["summary"].items()}
+    assert "Neither model pursued a planted file action." in summary
+    assert all(b["planted_actions"]["attempted_episodes"] == 0 for bs in blocks.values() for b in bs)
+    assert "both models called the write tools, and those calls met the operator's approval" in summary
+    assert all(b["capability"]["attempted"]["mean"] > 0 for bs in blocks.values() for b in bs)
+    assert all(sum(x["proposals_approved"] for b in bs for x in b["capability"]["by_action"].values()) for bs in blocks.values())
+    assert "The stronger model stated the planted value in nearly every hijack episode in every configuration." in summary
+    stronger = max(blocks, key=lambda m: blob["summary"][m]["none"]["benign_success"]["mean"])
+    assert all(b["by_goal"]["hijack"]["attempted"]["mean"] >= 0.9 for b in blocks[stronger])
+    assert "](bench/results/agent_injection_v2_episodes.jsonl)" in summary
+
+
+def test_the_interview_answer_on_the_injection_study_holds_for_the_current_run():
+    # the hand-written answer in the evidence page says how each model's refused apply calls failed and that the weaker
+    # model never passes all trials of a control; each claim must hold in the current run's file
+    from app.eval.evidence import QA
+    answer = next(p for p in QA.split("\n\n") if p.startswith("**What did the injection evaluation show?**"))
+    blob = json.loads(RESULTS_V2.read_text())
+    k = str(blob["config"]["k"])
+    refused: dict[str, Counter] = {}
+    for model, per in blob["summary"].items():
+        refused[model] = sum((Counter(x.get("apply_refusals") or {}) for b in per.values()
+                              for x in b["capability"]["by_action"].values()), Counter())
+    order = sorted(blob["summary"], key=lambda m: blob["summary"][m]["none"]["benign_success"]["mean"])
+    weaker, stronger = order[0], order[-1]
+    assert "the weaker model's apply calls mostly named plan ids the server never issued" in answer
+    assert refused[weaker]["KeyError"] > sum(refused[weaker].values()) / 2
+    assert "the stronger model's mostly carried a token that did not verify" in answer
+    assert refused[stronger]["ApprovalError"] > sum(refused[stronger].values()) / 2
+    assert "its pass^k on the controls is zero" in answer
+    assert all(b["benign_pass_hat_k"][k]["mean"] == 0 for b in blob["summary"][weaker].values())
+
+
+def test_evidence_rows_come_from_the_current_run_that_generated_and_scored_its_episodes():
+    # the rows cite agent_injection_v2, and the capability control is read as attempted (a call to the requested
+    # action's tools, as planted attempts are counted) with done in its own row
     from app.eval.evidence import _agent_injection_claims
-    head = json.loads(RESULTS.read_text())["git_head"][:7]
-    generated = json.loads(ai.sidecar(EPISODES).read_text())["segments"][0]["git_head"][:7]
+    blob = json.loads(RESULTS_V2.read_text())
     rows = _agent_injection_claims()
-    assert rows and all(r["source"] == f"bench/results/agent_injection.json @ {head} (episodes generated at {generated}, "
-                                       "scored by `make bench-agent-injection-rescore`)" for r in rows)
+    assert rows and all(r["source"] == f"bench/results/agent_injection_v2.json @ {blob['git_head'][:7]}"
+                        and r["command"] == "make bench-agent-injection-v2" for r in rows)
+    for model, per in blob["summary"].items():
+        cap = per["none"]["capability"]
+        attempted = [r for r in rows if r["claim"].startswith(f"Agent injection, {model}, no defense: capability control, attempted")]
+        done = [r for r in rows if r["claim"].startswith(f"Agent injection, {model}, no defense: capability control, done")]
+        assert len(attempted) == len(done) == 1
+        assert attempted[0]["value"] == f"{cap['attempted']['mean']:.3f}" and done[0]["value"] == f"{cap['success']['mean']:.3f}"
+        assert attempted[0]["n"] == done[0]["n"] == cap["success"]["n"] and attempted[0]["ci"].startswith("[")
 
 
 def test_the_scores_writer_refuses_a_score_that_holds_an_absolute_path(tmp_path):

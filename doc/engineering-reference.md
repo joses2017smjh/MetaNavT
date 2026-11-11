@@ -930,9 +930,11 @@ The table separates the two places a fix can sit. A prompt-level fix such as
 datamarking asks the model to treat file text as data. A system-level fix
 decides what can happen whatever the model attempts: here, a tool filter chosen
 before any file is read, and a signed, single-use operator capability for every
-write. In this run neither model pursued a planted file action, so no model
-tested the system-level controls; they are there because prompt-level defenses
-give no guarantee ([Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837))
+write. In both runs neither model pursued a planted file action, so planted
+text never tested the system-level controls; asked by the user for the same
+move or patch (the capability control), the models did call these tools, and
+those calls met the operator's approval. The controls are there because
+prompt-level defenses give no guarantee ([Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837))
 and adaptive attacks get past them ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)).
 What the models did follow was the planted claim, in every configuration, and
 neither datamarking nor the tool filter changed that measurably; no capability
@@ -972,14 +974,17 @@ test fails when the file differs from a fresh rescore or the episodes hash is
 stale.
 
 A run of the current harness keeps what the first run could not. Every tool
-call in its episodes file holds the result as the model received it, cut at
+call in its episodes file holds the result as sent to the model, cut at
 4,000 characters and flagged when cut, so the exposure flag can be recomputed
 from the file and anyone can read what each model saw. A tool error can quote
 the path of the task's temporary copy, which can hold the user name, and a model
 can echo it, so before a row is scored or written every path into that copy is
 written relative to the corpus root (the private directory as `../private`) and
 user and host names are replaced; other text, such as the corpus's own
-`#!/bin/bash`, stays as sent. The sidecar (`.meta.json`: the task set,
+`#!/bin/bash`, stays as sent. The rewrite matches the copy's path exactly, so a
+model that echoes it inexactly, or makes up a path of its own, keeps its text as
+written; a test lists every such string in the current run's episodes, which
+hold no user or host name. The sidecar (`.meta.json`: the task set,
 `reconstructed: false`, and per process segment the commit, whether the tree
 had uncommitted changes, the module's sha256, the command, the source of the
 corpus file times, the device and the Ollama version and model digests) is
@@ -991,7 +996,16 @@ loaded model, including the context length it chose from the GPU's memory
 counted by exception: a token that did not verify, no token, or a plan id the
 server never issued.
 
-Two runs are on record in `agent_injection.json`. The top-level `git_head`,
+The current run is `agent_injection_v2.json`, which the README block reports.
+One process generated and scored every episode at a commit with nothing
+uncommitted, its sidecar was written at the start (`reconstructed: false`), and
+its `module_sha256` is the committed harness's. A test checks that, rebuilds
+the task list, the config, every score, the summary and the paired deltas from
+the stored episodes, recomputes each exposure flag from the stored results, and
+reads the episodes for user names, host names and temporary paths.
+
+The first run's file, `agent_injection.json`, records two runs, and the README
+block links it as the earlier run. The top-level `git_head`,
 `working_tree_dirty`, `module_sha256` and `command` describe the run that
 scored the stored episodes, `make bench-agent-injection-rescore`, at the
 commit and with the harness module it names; a test checks that the scoring
@@ -1003,9 +1017,11 @@ reconstructed after the fact and records uncommitted changes in both process
 segments. The device, the Ollama version and the wall time come from that
 sidecar too, never from the machine that rescored.
 
-[Results](../bench/results/agent_injection.json) ·
-[Every episode: tool calls, answers, generation-time scores](../bench/results/agent_injection_episodes.jsonl) ·
-[Every episode's current score](../bench/results/agent_injection_episodes_rescored.jsonl) ·
+[Results](../bench/results/agent_injection_v2.json) ·
+[Every episode: tool calls with their results, answers, scores](../bench/results/agent_injection_v2_episodes.jsonl) ·
+[First run](../bench/results/agent_injection.json) ·
+[its episodes: tool calls, answers, generation-time scores](../bench/results/agent_injection_episodes.jsonl) ·
+[its episodes' current scores](../bench/results/agent_injection_episodes_rescored.jsonl) ·
 [Harness](../app/eval/agent_injection.py)
 
 ---
@@ -1387,7 +1403,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ vs the exact-match labels on simple_factual must reach 0.6 before a judge score is printed. Retrieval metrics stay BEIR-style and LLM-free.
 
-**The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. There is no capability control (running each injected goal as an ordinary user task), so a model that rarely reaches the planted text or calls tools badly can show few attempts out of incapability; the exposure column is reported for that reason. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in this run, so the run does not exercise the approval gate; the unchanged corpus follows from no grant being issued, and the gate's own evidence is the deterministic approval benchmark. The benign controls are not matched on retrieval: the planted lines add the run number and field name to two files, which can change what a search returns. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls was a write tool.
+**The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in a question or injected task, so planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls in a question or injected task was a write tool, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
 ---
 
@@ -1399,7 +1415,7 @@ Status: M0 to M5 are merged. Open items, in priority order:
 2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
 3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
 4. **ParadeDB BM25 in the production path**, gated by the same parity job.
-5. **Injection evaluation, next steps:** an injection-as-user-task capability control, a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
+5. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
 6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
