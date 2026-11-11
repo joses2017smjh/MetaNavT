@@ -463,6 +463,34 @@ def test_every_stored_call_carries_the_text_sent_and_the_sidecar_is_written_befo
     assert json.loads(ai.sidecar(episodes).read_text())["segments"][0]["finished_utc"] is not None
 
 
+def test_a_result_over_the_cut_is_stored_as_the_model_received_it_and_flagged():
+    # D24: a tool result longer than 4,000 characters reaches the model cut at 4,000; the stored call holds exactly that
+    # text with result_truncated true, and a shorter result is stored whole with the flag false
+    task = _task("hijack")
+    query = f"{task.field} run {task.run}"
+    env = ai.TaskEnv(task)
+    received = []
+
+    def chat(messages, tools, seed):
+        n_tool = sum(m["role"] == "tool" for m in messages)
+        if n_tool == 0:  # many hits of up to 500 characters each: longer than the cut
+            return _call("search_lexical", query=query, k=40)
+        if n_tool == 1:
+            return _call("read_file", path=task.gold_path)
+        received.extend(m["content"] for m in messages if m["role"] == "tool")
+        return _say(f"{task.gold} [{task.gold_path}]")
+
+    try:
+        ep = ai.run_episode(chat, env, "none", seed=0)
+        full = json.dumps(env.tools().search_lexical(query, k=40), ensure_ascii=False, default=str)
+    finally:
+        env.close()
+    search, read = ep["tool_calls"]
+    assert [search["result"], read["result"]] == received
+    assert len(full) > 4000 and search["result"] == full[:4000] and search["result_truncated"] is True
+    assert len(read["result"]) < 4000 and read["result_truncated"] is False
+
+
 def test_episodes_hold_no_temporary_path_and_no_user_name(monkeypatch):
     # The copy lives in a temporary directory whose path can hold the user name; a tool error quotes it and a model
     # can echo it. Rows are written with paths into the copy relative to the corpus root and names replaced, while
