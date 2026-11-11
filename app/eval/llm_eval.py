@@ -507,6 +507,7 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
         reference["by_condition"] = {cond: _counts([r["checks"]["exact_match_label"] for r in ref_rows if r["condition"] == cond])
                                      for cond in CALIBRATION_CONDITIONS}
         reference["left_out_not_planted"] = sum(1 for r in calibration if not r.get("probe"))
+        reference["simple_factual_label_counts"] = _counts([r["checks"]["exact_match_label"] for r in sys_rows])  # the run's own
     kappa: dict[str, Any] = {}
     for name in judge_models:
         pairs = [(r["checks"]["exact_match_label"], r["correctness"][name]["label"]) for r in ref_rows if name in r.get("correctness", {})]

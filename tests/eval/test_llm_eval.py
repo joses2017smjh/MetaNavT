@@ -552,3 +552,21 @@ def test_calibration_answers_are_judged_cited_or_not():
                         complete_fn=uncited, calibration_generator="fake-small")
     assert all(r.get("failed") == "uncited_answer" and not r["correctness"] for r in blob["rows"])
     assert all(r["checks"]["uncited"] and r["correctness"]["fake-a"]["by"] == "judge" for r in blob["calibration"]["rows"])
+
+
+def test_the_readme_block_renders_the_calibration_gate_and_links_the_earlier_record():
+    from app.eval import llm_eval, report
+    from app.eval.harness import BenchConfig
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="gen:7b", judge_models=["gen:7b", "other:8b"], limit=5,
+                        complete_fn=_echo_and_exact_judge, calibration_generator="gen:1b")
+    for block in [blob["models"]["generator"], blob["models"]["judges"][0], blob["calibration"]["generator"]]:
+        block["family"] = "gen"
+    text = report.jury_table(blob)  # a file with a protocol block renders as the M29 table
+    assert "`make bench-jury-v2`" in text and "calibration set" in text and "planted value of the same field" in text
+    assert "gen:7b is also a judge" in text and "shares a model family (gen) with the judge gen:7b" in text
+    assert "| gen:7b | 1.0 | [1.0, 1.0] | 10 | yes | 5 / 0 / 5 |" in text and "Judge scores of the run's answers" in text
+    assert "[bench/results/jury.json](bench/results/jury.json)" in text and "`make bench-jury-rescore` refuses" in text
+    blob["summary"]["publishable_judges"] = []
+    blob["summary"]["kappa"]["gen:7b"]["readme_ok"] = False
+    assert "Judge scores of the run's answers" not in report.jury_table(blob)
