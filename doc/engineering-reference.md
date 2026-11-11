@@ -441,16 +441,17 @@ the files they read. A separate **240-case** balanced JSON-fact suite checks
 subject, value, physical units, polarity and source-supplied currency labels.
 Its results describe that narrow structured contract, without establishing
 natural-language entailment or human-reviewed citation accuracy.
-[Action evidence](../bench/results/trusted_actions.json) ·
+[Action evidence](../bench/results/trusted_actions_v2.json) ·
+[Action evidence v1, HMAC grants](../bench/results/trusted_actions.json) ·
 [Structured evidence](../bench/results/evidence_consistency.json)
 
-The action evidence above is the v1 record, made with the HMAC grants used
-before Ed25519. `make bench-trusted-actions` re-runs
-the benchmark into `bench/results/trusted_actions_v2.json`, whose rows also name
-the check that refused each attack (`refused_by`). A replayed grant is refused by
-the staleness check when its action applied (the reviewed files changed), so the
-odd `replay_patch` variants replay a grant burnt by a failed apply instead: only
-the single-use ledger can refuse those.
+The action evidence is the v2 record, written by `make bench-trusted-actions`
+with Ed25519 grants; each of its rows also names the check that refused the
+attack (`refused_by`). The v1 record, made with the HMAC grants used before
+Ed25519 and without refusal reasons, stays linked as it was recorded. A
+replayed grant is refused by the staleness check when its action applied (the
+reviewed files changed), so the odd `replay_patch` variants replay a grant
+burnt by a failed apply instead: only the single-use ledger can refuse those.
 
 The boolean `approved=True` no longer authorizes a write. A grant is an Ed25519
 signature: the operator signs with a private key that only the operator CLI
