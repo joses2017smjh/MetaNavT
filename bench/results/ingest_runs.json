@@ -1,6 +1,6 @@
 {
-  "git_sha": "bc7e6c6",
-  "timestamp": "2026-11-10T02:53:17.644952+00:00",
+  "git_sha": "67bad50",
+  "timestamp": "2026-11-11T22:56:54.395025+00:00",
   "command": "python -m app.engine.ingest_runs",
   "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
   "embedder": "hash-256 (fallback: deterministic hashing, no model)",
@@ -10,7 +10,7 @@
     {
       "run": "first_start",
       "report": {
-        "schema": "ingest-report-v1",
+        "schema": "ingest-report-v2",
         "chunker": "app/chunking (structure-aware)",
         "files_seen": 61,
         "files_indexed": 61,
@@ -20,6 +20,7 @@
         "indexed_new": 61,
         "indexed_changed": 0,
         "rejected_by_reason": {
+          "outside_root": 0,
           "unsupported_type": 0,
           "too_large": 0,
           "undecodable": 0,
@@ -30,11 +31,16 @@
         "max_rejected": 0,
         "indexed": true,
         "data_dir": "temporary copy of bench/corpus/files",
-        "pipeline": "app.chunking/auto/v1|hash-256",
+        "pipeline": "app.chunking/auto/v2|hash-256",
         "chunks_embedded": 71,
         "chunks_deleted": 0,
         "unlisted_chunks_deleted": 0,
         "n_nodes": 71,
+        "reconciliation": {
+          "files_mismatched_at_start": 0,
+          "mismatched_sample": [],
+          "files_mismatched_after_run": 0
+        },
         "lock": {
           "waited": false
         }
@@ -45,7 +51,7 @@
     {
       "run": "unchanged_restart",
       "report": {
-        "schema": "ingest-report-v1",
+        "schema": "ingest-report-v2",
         "chunker": "app/chunking (structure-aware)",
         "files_seen": 61,
         "files_indexed": 0,
@@ -55,6 +61,7 @@
         "indexed_new": 0,
         "indexed_changed": 0,
         "rejected_by_reason": {
+          "outside_root": 0,
           "unsupported_type": 0,
           "too_large": 0,
           "undecodable": 0,
@@ -65,11 +72,16 @@
         "max_rejected": 0,
         "indexed": false,
         "data_dir": "temporary copy of bench/corpus/files",
-        "pipeline": "app.chunking/auto/v1|hash-256",
+        "pipeline": "app.chunking/auto/v2|hash-256",
         "chunks_embedded": 0,
         "chunks_deleted": 0,
         "unlisted_chunks_deleted": 0,
         "n_nodes": 71,
+        "reconciliation": {
+          "files_mismatched_at_start": 0,
+          "mismatched_sample": [],
+          "files_mismatched_after_run": 0
+        },
         "lock": {
           "waited": false
         }
@@ -80,7 +92,7 @@
     {
       "run": "edit_one_file",
       "report": {
-        "schema": "ingest-report-v1",
+        "schema": "ingest-report-v2",
         "chunker": "app/chunking (structure-aware)",
         "files_seen": 61,
         "files_indexed": 1,
@@ -90,6 +102,7 @@
         "indexed_new": 0,
         "indexed_changed": 1,
         "rejected_by_reason": {
+          "outside_root": 0,
           "unsupported_type": 0,
           "too_large": 0,
           "undecodable": 0,
@@ -100,11 +113,16 @@
         "max_rejected": 0,
         "indexed": true,
         "data_dir": "temporary copy of bench/corpus/files",
-        "pipeline": "app.chunking/auto/v1|hash-256",
+        "pipeline": "app.chunking/auto/v2|hash-256",
         "chunks_embedded": 1,
         "chunks_deleted": 1,
         "unlisted_chunks_deleted": 0,
         "n_nodes": 71,
+        "reconciliation": {
+          "files_mismatched_at_start": 0,
+          "mismatched_sample": [],
+          "files_mismatched_after_run": 0
+        },
         "lock": {
           "waited": false
         }
@@ -115,7 +133,7 @@
     {
       "run": "delete_one_file",
       "report": {
-        "schema": "ingest-report-v1",
+        "schema": "ingest-report-v2",
         "chunker": "app/chunking (structure-aware)",
         "files_seen": 60,
         "files_indexed": 0,
@@ -125,6 +143,7 @@
         "indexed_new": 0,
         "indexed_changed": 0,
         "rejected_by_reason": {
+          "outside_root": 0,
           "unsupported_type": 0,
           "too_large": 0,
           "undecodable": 0,
@@ -135,11 +154,16 @@
         "max_rejected": 0,
         "indexed": false,
         "data_dir": "temporary copy of bench/corpus/files",
-        "pipeline": "app.chunking/auto/v1|hash-256",
+        "pipeline": "app.chunking/auto/v2|hash-256",
         "chunks_embedded": 0,
         "chunks_deleted": 1,
         "unlisted_chunks_deleted": 0,
         "n_nodes": 70,
+        "reconciliation": {
+          "files_mismatched_at_start": 0,
+          "mismatched_sample": [],
+          "files_mismatched_after_run": 0
+        },
         "lock": {
           "waited": false
         }
