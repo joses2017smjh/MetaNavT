@@ -47,7 +47,7 @@ import numpy as np
 
 from app.eval.latency import StageTimer
 from app.eval.metrics import mrr_at_k, ndcg_at_k, recall_at_k
-from app.eval.provenance import command_line, device_info, git_sha, model_device, model_provenance
+from app.eval.provenance import command_line, device_info, git_sha, model_device, model_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
 from app.retrieval.embedders import HashEmbedder, cosine_scores
@@ -247,7 +247,8 @@ def write_trec_outputs(directory: Path, cfg: BeirConfig, rankings: dict[str, lis
     # TREC run files cannot represent a query with zero retrieved documents.
     # Preserve its identity and the original bootstrap order separately.
     query_order_path.write_text(json.dumps(list(rankings)) + "\n")
-    return {"run": str(run_path), "run_sha256": sha256_of(run_path), "qrels": str(qrels_path), "qrels_sha256": sha256_of(qrels_path), "query_order": str(query_order_path), "query_order_sha256": sha256_of(query_order_path)}
+    return {"run": sanitize_path(str(run_path)), "run_sha256": sha256_of(run_path), "qrels": sanitize_path(str(qrels_path)), "qrels_sha256": sha256_of(qrels_path),
+            "query_order": sanitize_path(str(query_order_path)), "query_order_sha256": sha256_of(query_order_path)}
 
 
 def chunks_from_corpus(corpus: dict[str, str]) -> list[Chunk]:

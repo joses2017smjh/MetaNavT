@@ -147,3 +147,14 @@ def test_evaluation_rejects_snapshot_changed_after_indexing(snapshot, tmp_path, 
     with pytest.raises(ValueError, match="corpus changed"):
         evaluate(snapshot, report)
     assert not report.exists()
+
+
+def test_result_runtime_records_no_host_name(snapshot, tmp_path):
+    import platform
+    import socket
+
+    report = tmp_path / "result.json"
+    result = evaluate(snapshot, report)
+    assert "host" not in result["runtime"] and result["runtime"]["device"] == "CPU"
+    text = report.read_text()
+    assert all(name not in text for name in {platform.node(), socket.gethostname()} if len(name) >= 3)

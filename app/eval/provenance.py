@@ -1,17 +1,47 @@
-"""What produced a neural result: model ids and revisions, device, library versions.
+"""What produced a result: the command, model ids and revisions, device, library versions.
 
 Filesystem-only: the HuggingFace revision is read from the hub cache's
 refs/main file (never from the network), so a results file can name the exact
 weights that scored it and a reader can pin them.
+
+Results files are published with the repository, and this module is where
+their writers take the command and the machine description from, so neither
+carries a host name, a user name or an absolute path:
+
+- command_line() keeps `python -m <module>` and every argument. An absolute
+  path (an argument, `--flag=/path`, or the value of an environment flag such
+  as HF_HOME) becomes repository-relative when it is inside the repository and
+  `<path>/<file name>` when it is not; the user name and the host name become
+  `<user>` and `<host>` wherever they appear.
+- device_info() does not record the host name at all: it is dropped, not
+  hashed (a hash of a guessable cluster node name would not hide it). The
+  platform, Python version, CPU count and device name describe the machine.
+- scrub() applies the same rules to any other value a writer records, such as
+  a service's /health block or a path field.
 """
 
 from __future__ import annotations
 
+import getpass
 import os
 import platform
+import re
+import socket
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+PATH_PLACEHOLDER, USER_PLACEHOLDER, HOST_PLACEHOLDER = "<path>", "<user>", "<host>"
+# The environment flags that change a result, recorded in front of the command.
+COMMAND_ENV_FLAGS = ("BGE_ALLOW_DOWNLOAD", "HF_HOME", "CUDA_VISIBLE_DEVICES")
+# Account names that identify no one (CI runners, containers); replacing them would only mangle arguments.
+GENERIC_ACCOUNTS = frozenset({"root", "runner", "user", "admin", "ubuntu", "nobody", "jovyan"})
+_SEGMENT = r"[^\s/'\",;:=()\[\]{}<>]"
+# An absolute (or home-relative) path inside a longer string. Not the "//host" or "/route" of a URL:
+# the character before the slash may not be a word character, ".", ":", "/", "~" or "-".
+_ABS_PATH_RE = re.compile(rf"(?<![\w.:/~<>-])(?:~/|/){_SEGMENT}+(?:/{_SEGMENT}*)*")
 
 
 def hf_cache_roots() -> list[Path]:
@@ -60,7 +90,6 @@ def device_info(requested: str = "auto") -> dict:
         "python": platform.python_version(),
         "platform": platform.platform(),
         "cpu_count": os.cpu_count(),
-        "hostname": platform.node(),
     }
     try:
         import torch  # type: ignore
@@ -100,10 +129,76 @@ def model_device(model) -> str | None:
 
 
 def command_line() -> str:
-    """The command that produced a results file, with the env flags that change it."""
-    flags = {k: os.environ[k] for k in ("BGE_ALLOW_DOWNLOAD", "HF_HOME", "CUDA_VISIBLE_DEVICES") if k in os.environ}
-    prefix = " ".join(f"{k}={v}" for k, v in flags.items())
-    return (prefix + " " if prefix else "") + "python -m " + " ".join([_module_name(sys.argv[0]), *sys.argv[1:]])
+    """The command that produced a results file, with the env flags that change it, sanitized (see the module docstring)."""
+    return sanitize_command(sys.argv, os.environ)
+
+
+def sanitize_command(argv: Sequence[str], env: Mapping[str, str], *, root: Path | None = None) -> str:
+    """`FLAG=value ... python -m <module> <args>` with every path, user name and host name made publishable."""
+    flags = [f"{k}={scrub(str(env[k]), root=root)}" for k in COMMAND_ENV_FLAGS if k in env]
+    module = _module_name(argv[0]) if argv else "-"
+    return " ".join([*flags, "python", "-m", module, *(scrub(str(a), root=root) for a in argv[1:])])
+
+
+def sanitize_path(value: str, *, root: Path | None = None) -> str:
+    """An absolute or ~/ path as it may be published: relative to the repository when it is inside it
+    (a symlinked prefix counts), else `<path>/<file name>`. Any other value only loses user and host names."""
+    text = str(value)
+    if not text.startswith(("/", "~/")):
+        return _scrub_names(text)
+    root = Path(root) if root is not None else REPO_ROOT
+    path = Path(os.path.expanduser(text))
+    for candidate in (path, path.resolve()):
+        for base in (root, root.resolve()):
+            try:
+                return candidate.relative_to(base).as_posix()
+            except ValueError:
+                continue
+    name = _scrub_names(path.name)
+    return f"{PATH_PLACEHOLDER}/{name}" if name else PATH_PLACEHOLDER
+
+
+def scrub(value: Any, *, root: Path | None = None) -> Any:
+    """`value` with every absolute path (sanitize_path), user name and host name replaced, in strings at any depth."""
+    if isinstance(value, str):
+        return _scrub_names(_ABS_PATH_RE.sub(lambda m: sanitize_path(m.group(0), root=root), value))
+    if isinstance(value, dict):
+        return {k: scrub(v, root=root) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [scrub(v, root=root) for v in value]
+    return value
+
+
+def user_names() -> set[str]:
+    """The names of the account running this process (environment, passwd, home directory), generic ones left out."""
+    names = {os.environ.get(k, "") for k in ("USER", "LOGNAME", "USERNAME")}
+    for get in (getpass.getuser, lambda: Path.home().name):
+        try:
+            names.add(get())
+        except Exception:
+            pass
+    return {n for n in names if len(n) >= 3 and n.lower() not in GENERIC_ACCOUNTS}
+
+
+def host_names() -> set[str]:
+    """This machine's names: the node name as the OS reports it and its first label."""
+    names: set[str] = set()
+    for get in (platform.node, socket.gethostname):
+        try:
+            name = get()
+        except Exception:
+            continue
+        if name:
+            names.update({name, name.split(".")[0]})
+    return {n for n in names if len(n) >= 3 and n.lower() != "localhost"}
+
+
+def _scrub_names(text: str) -> str:
+    for name in sorted(host_names(), key=len, reverse=True):  # the full name before its first label
+        text = re.sub(rf"(?<![\w-]){re.escape(name)}(?![\w-])", HOST_PLACEHOLDER, text)
+    for name in sorted(user_names(), key=len, reverse=True):
+        text = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", USER_PLACEHOLDER, text)
+    return text
 
 
 def _module_name(argv0: str) -> str:

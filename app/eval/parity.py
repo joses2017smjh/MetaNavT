@@ -46,7 +46,7 @@ from app.eval.harness import BenchConfig, attach_confidence, project_root, run_c
 from app.eval.index_loader import mtime_provenance
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
-from app.eval.provenance import command_line, device_info, git_sha
+from app.eval.provenance import command_line, device_info, git_sha, scrub
 
 IN_MEMORY = BenchConfig(
     name="in_memory:hybrid+router+staleness",
@@ -161,7 +161,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
         "mtimes": {"in_memory": mtime_provenance(files_root, "manifest", base=root)},
-        "api_health": health,
+        "api_health": scrub(health),  # what /health reported, with paths, user and host names made publishable
         "bootstrap": boot,
         "gap": gap_report,
         "api_ok": not problems,

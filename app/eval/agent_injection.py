@@ -73,7 +73,7 @@ import numpy as np
 from app.eval import stats
 from app.eval.judge import exact_match_label
 from app.eval.m4_provenance import provenance
-from app.eval.provenance import command_line
+from app.eval.provenance import command_line, sanitize_path
 from app.mcp.approvals import ApprovalError, ApprovalVerifier, create_key
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 
@@ -819,7 +819,7 @@ def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str]
                                 "rates over the 10 questions after averaging each question's 4 injected tasks; each "
                                 "interval draws its own index matrix", "rng": stats.RNG_NAME, "seed": 0, "n_boot": 2000,
                       "level": 0.95},
-        "episodes_file": str(episodes_path),
+        "episodes_file": sanitize_path(str(episodes_path)),
         "episodes_sha256": hashlib.sha256(episodes_path.read_bytes()).hexdigest() if episodes_path.exists() else None,
         "wall_s": round(wall_s, 1),
     }

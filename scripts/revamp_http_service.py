@@ -102,7 +102,8 @@ def main() -> int:
                 if line.strip():
                     row = json.loads(line)
                     queries.append((str(row.get("id", len(queries))), row.get("question") or row.get("query") or row["text"]))
-            deployment = {"backend": "original FastAPI main:app + task-local PostgreSQL16/pgvector SQL retrieval", "data_dir": str(args.data.resolve()), "corpus_kind": "existing deterministic fixture" if args.data.resolve() == (root / "bench/corpus/files").resolve() else "caller supplied corpus", "data_files": sum(p.is_file() for p in args.data.rglob("*")), "corpus_sha256": corpus_identity, "source_sha256": source_sha256, "startup_seconds": startup_seconds, "slurm_job_id": os.environ.get("SLURM_JOB_ID"), "hostname": socket.gethostname(), "precision": args.precision, "max_length": args.max_length, "rerank_depth": args.rerank_depth, "observed_health": health, "container": str(args.container.resolve())}
+            from app.eval.provenance import sanitize_path, scrub
+            deployment = {"backend": "original FastAPI main:app + task-local PostgreSQL16/pgvector SQL retrieval", "data_dir": sanitize_path(str(args.data.resolve())), "corpus_kind": "existing deterministic fixture" if args.data.resolve() == (root / "bench/corpus/files").resolve() else "caller supplied corpus", "data_files": sum(p.is_file() for p in args.data.rglob("*")), "corpus_sha256": corpus_identity, "source_sha256": source_sha256, "startup_seconds": startup_seconds, "slurm_job_id": os.environ.get("SLURM_JOB_ID"), "precision": args.precision, "max_length": args.max_length, "rerank_depth": args.rerank_depth, "observed_health": scrub(health), "container": sanitize_path(str(args.container.resolve()))}
             def checkpoint(report):
                 report["deployment"] = deployment
                 target = args.out_dir / "http_load.json"
