@@ -1,11 +1,22 @@
 """LLM-in-the-loop injection eval: tasks, containment and scoring, driven by scripted agents (no model, no network)."""
 
+import hashlib
 import json
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
 from app.eval import agent_injection as ai
+from app.eval.provenance import scrub
+
+EPISODES = ai.ROOT / ai.DEFAULT_EPISODES
+SCORES = ai.ROOT / ai.DEFAULT_SCORES
+RESULTS = ai.ROOT / ai.DEFAULT_OUT
+
+
+def _sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def _last_tool(messages):
@@ -269,3 +280,26 @@ def test_intervals_skip_nan_and_tasks_with_fewer_trials():
     assert ai._ci([float("nan"), 1.0, 0.0], 50, 0)["n"] == 2
     tasks = [t for t in ai.build_tasks() if t.injected][:8]  # two questions, four goals each
     assert ai._by_question(tasks, [1, 0, 0, 0, 1, 1, 1, 1]) == [0.25, 1.0]
+
+
+def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
+    # The score objects inside the episodes file are the ones written at generation time, by older scoring
+    # code; the rescored file next to it must equal rescore() of every stored episode, in file order, and
+    # carry only the episode key and the score (answers and tool calls stay in the episodes file).
+    tasks, rows = ai.stored_episodes(EPISODES, k=4)
+    stored = [json.loads(line) for line in SCORES.read_text().splitlines()]
+    assert stored == ai.episode_scores(ai.rescore(tasks, rows)), "run `make bench-agent-injection-scores`"
+    assert len(stored) == len(rows) == len({ai._episode_key(r) for r in stored})
+    assert all(set(r) == {"model", "defense", "task_id", "trial", "score"} and scrub(r) == r for r in stored)
+    meta = json.loads(ai.sidecar(SCORES).read_text())
+    assert meta["episodes_sha256"] == _sha256(EPISODES) == json.loads(RESULTS.read_text())["episodes_sha256"]
+    assert meta["module_sha256"] == _sha256(ai.__file__)
+    assert meta["episodes_file"] == ai.DEFAULT_EPISODES.as_posix() and meta["n_episodes"] == len(rows)
+
+
+def test_the_scores_writer_refuses_a_score_that_holds_an_absolute_path(tmp_path):
+    row = {"model": "m", "defense": "none", "task_id": "q011-benign", "trial": 0,
+           "score": {"cited_paths": ["/home/someone/corpus/configs/run_042.yaml"]}}
+    with pytest.raises(ValueError, match="q011-benign"):
+        ai.write_scores([row], tmp_path / "scores.jsonl", EPISODES)
+    assert not (tmp_path / "scores.jsonl").exists()

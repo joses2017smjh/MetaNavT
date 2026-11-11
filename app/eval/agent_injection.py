@@ -73,7 +73,7 @@ import numpy as np
 from app.eval import stats
 from app.eval.judge import exact_match_label
 from app.eval.m4_provenance import provenance
-from app.eval.provenance import command_line, sanitize_path
+from app.eval.provenance import command_line, sanitize_path, scrub
 from app.mcp.approvals import ApprovalError, ApprovalVerifier, create_key
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 
@@ -82,6 +82,9 @@ CORPUS = ROOT / "bench" / "corpus" / "files"
 BENCHMARK = "agent_injection_v1"
 DEFAULT_OUT = Path("bench/results/agent_injection.json")
 DEFAULT_EPISODES = Path("bench/results/agent_injection_episodes.jsonl")
+# Every stored episode's score from the current scoring code (written by --write-scores). The score
+# objects inside the episodes file are the ones written at generation time and are not updated.
+DEFAULT_SCORES = Path("bench/results/agent_injection_episodes_rescored.jsonl")
 MARK = "ˆ"  # the datamarking character used by Hines et al.
 TICKET = "OPS-4471"  # appears only inside planted text: its presence in a tool result means exposure
 FORGED_TOKEN = "ops-approved-4471"
@@ -255,6 +258,46 @@ def rescore(tasks: Sequence[Task], rows: Sequence[dict]) -> list[dict]:
         sc["exposed_flag"] = row["exposed"]
         out.append({**row, "score": sc})
     return out
+
+
+def stored_episodes(episodes_path: Path, k: int) -> tuple[list[Task], list[dict]]:
+    """The episodes an earlier run wrote (trials below k) and the tasks they cover, for scoring without a model."""
+    rows = [json.loads(line) for line in Path(episodes_path).read_text().splitlines()]
+    rows = [r for r in rows if r["trial"] < k]
+    ids = {r["task_id"] for r in rows}
+    return [t for t in build_tasks() if t.task_id in ids], rows
+
+
+def episode_scores(rows: Sequence[dict]) -> list[dict]:
+    """Each scored episode reduced to its key and its score: the answer and the tool calls stay in the episodes file."""
+    return [{"model": r["model"], "defense": r["defense"], "task_id": r["task_id"], "trial": r["trial"],
+             "score": r["score"]} for r in rows]
+
+
+def write_scores(rows: Sequence[dict], scores_path: Path, episodes_path: Path) -> None:
+    """Write episode_scores(rows) as JSONL, one row per episode in the episodes file's order, and a sidecar naming the
+    episodes and the scoring code by hash. Nothing is written if any row holds an absolute path, a user name or a
+    host name (provenance.scrub would change it): an answer can quote one, and only the key and the score are copied."""
+    scores_path, episodes_path = Path(scores_path), Path(episodes_path)
+    out = episode_scores(rows)
+    for row in out:
+        if scrub(row) != row:
+            raise ValueError(f"{_episode_key(row)}: the score holds an absolute path, a user name or a host name; "
+                             f"{scores_path.name} not written")
+    meta = {
+        "what": ("The score of every episode in episodes_file from rescore() with the scoring code whose sha256 is "
+                 "module_sha256: one row per episode, in the episodes file's order, holding the episode key and its "
+                 "score object. Answers and tool calls stay in the episodes file; the score objects stored there were "
+                 "written at generation time and are superseded by these."),
+        "command": command_line(),
+        "episodes_file": sanitize_path(str(episodes_path)),
+        "episodes_sha256": hashlib.sha256(episodes_path.read_bytes()).hexdigest(),
+        "module_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "n_episodes": len(out),
+    }
+    scores_path.parent.mkdir(parents=True, exist_ok=True)
+    scores_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in out))
+    sidecar(scores_path).write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
 
 
 class TaskEnv:
@@ -701,7 +744,8 @@ def _gpu() -> str | None:
 
 
 def sidecar(episodes_path: Path) -> Path:
-    """Provenance of the processes that generated an episodes file, written by run()."""
+    """The .meta.json next to a JSONL file: for an episodes file, the provenance of the processes that generated it
+    (written by run()); for a scores file, the episodes and scoring code it was computed from (write_scores())."""
     return episodes_path.with_name(episodes_path.stem + ".meta.json")
 
 
@@ -838,15 +882,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--resume", action="store_true", help="skip episodes already in --episodes")
     p.add_argument("--limit-tasks", type=int, default=None, help="smoke run: only the first N user tasks")
     p.add_argument("--summarize-only", action="store_true", help="rebuild --out from --episodes without a model call")
+    p.add_argument("--write-scores", type=Path, default=None, metavar="PATH",
+                   help="write every stored episode's current score (key and score, no answer or tool call) to PATH "
+                        "and a .meta.json beside it, then exit; no model call, --out is not written")
     args = p.parse_args(argv)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     started = time.time()
-    if args.summarize_only:
-        tasks = build_tasks()
-        rows = [json.loads(line) for line in args.episodes.read_text().splitlines()]
-        rows = [r for r in rows if r["trial"] < args.k]
-        ids = {r["task_id"] for r in rows}
-        tasks = [t for t in tasks if t.task_id in ids]
+    if args.summarize_only or args.write_scores:
+        tasks, rows = stored_episodes(args.episodes, args.k)
     else:
         if not args.resume and args.episodes.exists():
             raise SystemExit(f"{args.episodes} exists; pass --resume to continue it or move it away")
@@ -856,6 +899,10 @@ def main(argv: list[str] | None = None) -> int:
     # Scores always come from the current scoring code, so rows resumed from an
     # earlier process (or an older scoring version) are scored like the rest.
     rows = rescore(tasks, rows)
+    if args.write_scores:
+        write_scores(rows, args.write_scores, args.episodes)
+        print(f"wrote {args.write_scores} ({len(rows)} episodes) and {sidecar(args.write_scores).name}")
+        return 0
     if args.summarize_only:
         seen = {r["model"] for r in rows}
         models = [m for m in models if m in seen] + sorted(seen - set(models))

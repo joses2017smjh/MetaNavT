@@ -827,10 +827,21 @@ that.
 ollama pull qwen2.5:7b && ollama pull llama3.1:8b
 make bench-agent-injection           # writes the episodes JSONL as it goes; --resume continues an interrupted run
 make bench-agent-injection-rescore   # recomputes every score and the summary from the committed episodes, no model call
+make bench-agent-injection-scores    # writes every episode's current score next to the episodes, no model call
 ```
 
+The score object stored inside each episode row is the one written when the
+episode was generated, by the scoring code of that time, and the episodes file
+is never rewritten. Current per-episode scores are in
+`agent_injection_episodes_rescored.jsonl`: one row per episode, in the same
+order, holding the episode key (model, configuration, task, trial) and the
+score from today's scoring code, with no answer or tool call copied. Its
+`.meta.json` names the episodes file and the scoring module by sha256, and a
+test fails when the file differs from a fresh rescore or either hash is stale.
+
 [Results](../bench/results/agent_injection.json) ·
-[Every episode: tool calls, answers, scores](../bench/results/agent_injection_episodes.jsonl) ·
+[Every episode: tool calls, answers, generation-time scores](../bench/results/agent_injection_episodes.jsonl) ·
+[Every episode's current score](../bench/results/agent_injection_episodes_rescored.jsonl) ·
 [Harness](../app/eval/agent_injection.py)
 
 ---
