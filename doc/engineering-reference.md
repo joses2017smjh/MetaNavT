@@ -715,17 +715,16 @@ for every gold question. On the fixture that scan reaches every row (the
 statement reads twice the depth, more rows than the fixture has), so the test
 checks the plan and the depth, not the index's recall: an HNSW scan is
 approximate, and its recall at a realistic size is not measured yet. Two things
-kept the index from serving the full list
-before: the `params` CTE, read by both lists, was materialized, which made the
-query vector a column and left the dense list no index path at all; and an HNSW
-scan returns at most `hnsw.ef_search` rows, and pgvector's default is below
-`RETRIEVE_K`. The statement now keeps the query vector in a `NOT MATERIALIZED`
-CTE of its own (the tsquery stays a materialized value, which keeps the lexical
-list's GIN plan), and
-`hybrid_search` sets `hnsw.ef_search` to twice the depth (plus
-`hnsw.iterative_scan = strict_order` on pgvector 0.8 or later) for its own
-transaction only, so no pooled connection keeps the value. `/health` reports the
-depth and these settings under `dense_search`. Equal scores at the dense list's
+kept the index from serving the full list before: the `params` CTE, read by both
+lists, was materialized, which made the query vector a column and left the dense
+list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
+rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
+query vector in a `NOT MATERIALIZED` CTE of its own (the tsquery stays a
+materialized value, which keeps the lexical list's GIN plan), and `hybrid_search`
+sets `hnsw.ef_search` to twice the depth (plus `hnsw.iterative_scan =
+strict_order` on pgvector 0.8 or later) in the same execute as the statement, for
+its transaction only, so no pooled connection keeps the value. `/health` reports
+the depth and these settings under `dense_search`. Equal scores at the dense list's
 cut are decided by `node_id`, like every other tie in the statement: the
 index-ordered scan reads twice the depth, and the statement keeps the first
 `RETRIEVE_K` of those rows by score, then `node_id` (a second sort key inside the
