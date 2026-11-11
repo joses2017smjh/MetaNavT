@@ -35,9 +35,7 @@ from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
 from psycopg2 import sql
 from dotenv import load_dotenv
-from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 import unicodedata
-import uuid
 import time
 import psycopg2
 import psycopg2.errors
@@ -160,6 +158,38 @@ class VectorStoreManager(DatabaseManager):
         with self.get_connection() as conn:
             require_current(conn, self.vector_table)
 
+    def probe_data_table(self) -> None:
+        """Check, writing nothing, that the data table exists with self.embed_dim dimensions and that
+        this role may SELECT, INSERT and DELETE on it; RuntimeError with the reason otherwise."""
+        qualified = f'"{self.schema_name}"."{self.data_table}"'
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT to_regclass(%s) IS NOT NULL;", (qualified,))
+                if not cur.fetchone()[0]:
+                    raise RuntimeError(
+                        f"data table {self.schema_name}.{self.data_table} does not exist: "
+                        "apply the schema migrations (python -m app.database.migrate)"
+                    )
+                cur.execute(
+                    "SELECT a.atttypmod, has_table_privilege(a.attrelid, 'SELECT'), "
+                    "has_table_privilege(a.attrelid, 'INSERT'), has_table_privilege(a.attrelid, 'DELETE') "
+                    "FROM pg_attribute a WHERE a.attrelid = %s::regclass AND a.attname = 'embedding' AND NOT a.attisdropped;",
+                    (qualified,),
+                )
+                row = cur.fetchone()
+        if row is None:
+            raise RuntimeError(f"data table {self.schema_name}.{self.data_table} has no embedding column")
+        dim, may_select, may_insert, may_delete = row
+        if int(dim) != int(self.embed_dim):
+            raise RuntimeError(
+                f"data table {self.schema_name}.{self.data_table} stores {dim}-dimensional embeddings, "
+                f"this process uses {self.embed_dim} (EMBEDDING_DIM)"
+            )
+        missing = [name for name, granted in (("SELECT", may_select), ("INSERT", may_insert), ("DELETE", may_delete)) if not granted]
+        if missing:
+            raise RuntimeError(f"this database role lacks {', '.join(missing)} on {self.schema_name}.{self.data_table}")
+        logger.info(f"Probe: {self.schema_name}.{self.data_table} readable and writable, {dim} dimensions (read-only check)")
+
     def get_vector_store(self) -> PGVectorStore:
         """Get or create PGVectorStore instance."""
         if self.vector_store is None:
@@ -189,7 +219,7 @@ class VectorStoreManager(DatabaseManager):
 
 
             logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.data_table}' (created by the schema migrations)...")
-            self.vector_store = PGVectorStore(
+            store = PGVectorStore(
                 connection_string=psycopg2_conn_str,
                 async_connection_string=asyncpg_conn_str,
                 schema_name=self.schema_name,
@@ -199,49 +229,13 @@ class VectorStoreManager(DatabaseManager):
             )
             logger.info(f"PGVectorStore Python object initialized for table '{self.schema_name}.{self.data_table}'")
 
-            # Probe (Optional but good for sanity check - can be simplified now)
-            dummy_node_id_for_probe = f"test_node_{uuid.uuid4()}"
-            try:
-                logger.info(f"Probe: Attempting to ADD dummy node '{dummy_node_id_for_probe}' to pre-created table...")
-                logger.info(f"Using embedding dimension: {self.embed_dim}")
-                
-                # Create a zero vector with the CORRECT dimension
-                zero_embedding = [0.0] * self.embed_dim
-                
-                # PGVectorStore.delete() removes rows by ref_doc_id (stored as doc_id in
-                # metadata_), so the probe node must declare itself as its own source or
-                # the delete below is a no-op and the dummy row stays retrievable.
-                dummy_node = TextNode(
-                    id_=dummy_node_id_for_probe,
-                    text="dummy_text_content_for_probe_in_precreated_table",
-                    embedding=zero_embedding,  # This will now have the correct dimensions
-                    metadata={"text": "dummy_metadata_text_for_probe_in_precreated_table"},
-                    relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=dummy_node_id_for_probe)},
-                )
-                self.vector_store.add([dummy_node])
-                logger.info(f"Probe: Successfully EXECUTED add for dummy node '{dummy_node_id_for_probe}'.")
-                # Now, try to delete it immediately using PGVectorStore to ensure it can write and delete
-                self.vector_store.delete(ref_doc_id=dummy_node_id_for_probe)
-                logger.info(f"Probe: Successfully deleted dummy node '{dummy_node_id_for_probe}' using PGVectorStore.")
-            except Exception as e:
-                logger.error(f"Probe FAILED during PGVectorStore.add/delete on pre-created table: {e}", exc_info=True)
-                # Provide more helpful error for dimension mismatch
-                if "expected" in str(e) and "dimensions" in str(e):
-                    actual_dim = None
-                    try:
-                        # Try to extract the expected dimension from the error message
-                        import re
-                        match = re.search(r'expected (\d+) dimensions', str(e))
-                        if match:
-                            actual_dim = int(match.group(1))
-                            logger.error(f"DIMENSION MISMATCH ERROR: Database expects {actual_dim} dimensions, but code is using {self.embed_dim}")
-                            logger.error(f"To fix: Set EMBEDDING_DIM={actual_dim} in your environment variables")
-                    except:
-                        pass
-                
-                raise RuntimeError(
-                    f"PGVectorStore failed .add/delete on data table '{self.schema_name}.{self.data_table}'."
-                ) from e
+            # Read-only probe: the table the migrations built is there, with this process's embedding
+            # dimension, and this role may read, insert and delete its rows. It used to add a
+            # zero-vector test_node_* row to the shared table and delete it again on every start,
+            # which every concurrent reader could see in between. A failed probe keeps no store,
+            # so the next call (a start-up retry) probes again.
+            self.probe_data_table()
+            self.vector_store = store
             # The ParadeDB BM25 index (LEXICAL_BACKEND=paradedb only) is migrations/paradedb/0002,
             # built once; it used to be dropped and built again here at every start.
 

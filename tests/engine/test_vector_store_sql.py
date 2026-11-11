@@ -246,7 +246,8 @@ def test_search_bm25_tries_paradedb_only_when_configured(monkeypatch):
 
 
 class _RecordingConnection:
-    """Every statement any cursor of this connection executes, in order; pg_search reads as installed."""
+    """Every statement any cursor of this connection executes, in order; pg_search reads as installed and
+    the read-only probe finds the table with 8 dimensions and every privilege."""
 
     def __init__(self):
         self.statements: list[str] = []
@@ -265,7 +266,7 @@ class _RecordingConnection:
                 connection.statements.append(" ".join(str(sql).split()))
 
             def fetchone(self):
-                return (1,)
+                return (8, True, True, True) if "pg_attribute" in connection.statements[-1] else (1,)
 
             def fetchall(self):
                 return []
@@ -302,14 +303,17 @@ def test_get_vector_store_issues_no_drop_index_and_no_ddl(monkeypatch, setting):
         yield connection
 
     class _Store:
+        writes: list = []
+
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
         def add(self, nodes):
+            self.writes.append(("add", [n.node_id for n in nodes]))
             return [n.node_id for n in nodes]
 
         def delete(self, ref_doc_id):
-            return None
+            self.writes.append(("delete", ref_doc_id))
 
     monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", recording)
     monkeypatch.setattr(vsm_module, "PGVectorStore", _Store)
@@ -319,3 +323,5 @@ def test_get_vector_store_issues_no_drop_index_and_no_ddl(monkeypatch, setting):
     assert not [s for s in connection.statements if "DROP INDEX" in s.upper()], connection.statements
     ddl = re.compile(r"^\s*(CREATE|DROP|ALTER)\b", re.I)
     assert not [s for s in connection.statements if ddl.match(s)], connection.statements
+    # C36: the start-up probe only reads; nothing is written to the shared table, through the store or the pool.
+    assert store.writes == [] and not [s for s in connection.statements if re.match(r"^\s*(INSERT|UPDATE|DELETE)\b", s, re.I)]
