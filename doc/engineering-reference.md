@@ -160,11 +160,27 @@ the measured results rather than a newly validated automatic selector.
 [Full NFCorpus results](../bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) ·
 [Full FiQA results](../bench/results/revamp_20261007/beir_fiqa_gpu.json)
 
+FiQA with the reranker (`make bench-beir-fiqa`; [results](../bench/results/beir_fiqa.json),
+[generated table](../README.md#bench-beir-fiqa)) runs BM25, dense and hybrid again
+next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512, first
+in fp32 and then in fp16, each row paired with its parent, with a TREC run file
+for every row in `bench/results/beir_fiqa_trec`. Its document embeddings are the
+cached bge-small matrix of the October run (the GPU that computed it is the one
+[beir_fiqa_gpu.json](../bench/results/revamp_20261007/beir_fiqa_gpu.json) names);
+the queries and the reranker ran on the GPU the new file names.
+
 On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
 **512-token cap and top-20 depth fixed** reduces warm offline total p95 from
 **216.52 to 77.15 ms** (64.4%). nDCG changes from **0.3555 to 0.3554**. This
 isolates precision more directly than the historical SciFact joint precision/
 truncation comparison. It excludes model load, index build and HTTP concurrency.
+On SciFact the cap and the precision are now also measured one at a time:
+fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
+before it, in the ladder behind the [generated SciFact table](../README.md#bench-beir)
+(`make bench-beir`); the evidence table quotes both steps with their rerank-stage
+latency. `make bench-beir-rerank-cap` runs only the hybrid and those three rows
+([results](../bench/results/beir_scifact_rerank_cap.json)); their metrics equal
+the ladder's.
 
 ### Real robotics experiment lookup
 
@@ -647,10 +663,25 @@ results file header on the recorded device; CI does not download models, and
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
 against. The `bm25` row uses the BEIR analyzer (Porter stemming, Lucene
-stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row is the fixture's
-tokenizer, kept so the gap is visible.
+stopwords, k1=0.9, b=0.4); the `bm25@default-tokenizer` row switches to the
+fixture's analyzer (no stemming, no stopwords) and the fixture's k1=1.5,
+b=0.75 at once, so its gap is the three changes together, not a tokenizer
+effect. `make bench-beir-bm25-ablation` splits it on the CPU: one row changes
+the analyzer alone, one changes k1 and b alone, each paired against `bm25`.
+The dense leg ranks the way the fixture benchmark's does (float64 cosine
+rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
+postings lists of the query's terms and keeps the top k with a heap; it
+returns the same scores in the same order as scoring every document
+(`tests/eval/test_bm25_postings.py`). The ladder file behind the first
+table (`bench/results/beir_scifact.json`) was recorded again after both
+changes, with the capped fp32 row added. The nine rows it shares with the
+earlier recording keep every metric, interval and the published-score
+difference; what changed is the timing columns (per-query latency and build
+time), the GPU, and the fp16 row's paired delta, which is now against fp32 at
+the same cap.
 
-[Current generated bench-beir evidence](../README.md#bench-beir).
+[Current generated bench-beir evidence](../README.md#bench-beir) ·
+[BM25 settings one at a time](../README.md#bench-beir-bm25).
 
 **How to read these.** With real models the picture flips: hybrid RRF and the
 complete reranked pipeline beat BM25 with intervals that exclude zero, on the fixture
@@ -670,7 +701,7 @@ fixture-specific mechanisms; their gains are reported per category with the
 small n they rest on, and they are not part of the SciFact rows.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
-uncapped and fp16 with `max_length` 512 side by side, and sweeps the rerank
+uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
 depth (20, 50, 100), each with its own p50/p95; the served configuration is
 chosen from that table in the API section below, not picked up front.
 

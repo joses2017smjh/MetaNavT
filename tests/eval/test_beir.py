@@ -106,6 +106,21 @@ def test_graded_relevance_and_trec_output_are_preserved(tmp_path):
     assert "vs_published" not in blob["results"][0]
     assert blob["results"][0]["trec"]["run_sha256"]
     assert (tmp_path / "trec" / "qrels.txt").read_text().startswith("q1 0 d1 2")
+    from app.eval.report import beir_table
+
+    text = beir_table(blob, "bench/results/x.json", "make x", "NFCorpus", digits=4)
+    assert text.startswith("BEIR NFCorpus test split (`make x`)") and "No published reference is claimed" in text
+    assert "Every row wrote a TREC run file" in text and "Published BM25" not in text
+    assert "| bm25 | — | none (BM25 only) |" in text and beir_table(None, "bench/results/x.json", "make x") == "_bench/results/x.json is missing; run `make x`._"
+    # With pytrec_eval importable the cross-check passes; the sentence names the metrics it re-computed (the file
+    # also stores mrr@10, which trec_eval does not check), and claims nothing once a row's check did not pass.
+    for row in blob["results"]:
+        row["metric_cross_check"] = {"status": "passed", "metrics": ["ndcg@10", "recall@10", "recall@100"]}
+    checked = beir_table(blob, "bench/results/x.json", "make x", "NFCorpus", digits=4)
+    assert "and pytrec_eval (trec_eval) re-computed nDCG@10, Recall@10 and Recall@100 for every query of every row." in checked
+    assert "every per-query metric" not in checked and "MRR@10" not in checked
+    blob["results"][0]["metric_cross_check"]["status"] = "not_run"
+    assert "re-computed" not in beir_table(blob, "bench/results/x.json", "make x", "NFCorpus", digits=4)
 
 
 def test_cache_identity_changes_with_corpus_content_and_order(tmp_path):
@@ -146,3 +161,152 @@ def test_empty_config_selection_and_subset_published_claim_refused(tmp_path):
     blob = beir.run(tmp_path, [beir.BeirConfig(name="bm25", mode="bm25")], download=False, max_queries=1, n_boot=10)
     assert blob["n_queries"] == 1 and blob["full_split_queries"] == 2
     assert blob["published"] is None and "subset" in blob["query_selection"]
+
+
+def test_dense_ties_keep_corpus_order():
+    """Forty documents in two groups of identical text tie exactly within a group; corpus order decides, as in
+    app/retrieval/hybrid.py (M10). numpy's default argsort over float32 scores need not keep it."""
+    from app.eval.latency import StageTimer
+
+    texts = ("learning_rate: 3e-4 encoder dinov2", "bark_type: birch fusion true")
+    corpus = {f"d{i:02d}": texts[i % 3 == 0] for i in range(40)}
+    first, second = [d for d, t in corpus.items() if t == texts[0]], [d for d, t in corpus.items() if t == texts[1]]
+    cfg = beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", k=40)
+    query = "learning_rate for the dinov2 encoder"
+
+    forward = beir.Engine(beir.chunks_from_corpus(corpus))
+    backward = beir.Engine(beir.chunks_from_corpus(dict(reversed(list(corpus.items())))))
+
+    assert beir.retrieve(forward, cfg, query, StageTimer()) == first + second
+    assert beir.retrieve(backward, cfg, query, StageTimer()) == first[::-1] + second[::-1]
+    assert beir.retrieve(forward, beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", k=5), query, StageTimer()) == first[:5]
+
+
+def test_dense_ranking_is_the_fixture_benchmarks_ranking():
+    """The BEIR dense leg ranks with app/retrieval/hybrid.py's dense_scores and rank_by_score: same scores, same order."""
+    import numpy as np
+
+    from app.eval.latency import StageTimer
+    from app.retrieval.hybrid import dense_scores, rank_by_score
+
+    rng = np.random.RandomState(7)
+    corpus = {f"d{i:03d}": " ".join(rng.choice(["cell", "star", "fibre", "sleep", "vaccine", "heart", "diet"], size=6)) for i in range(120)}
+    engine = beir.Engine(beir.chunks_from_corpus(corpus))
+    cfg = beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", k=50)
+    mat = engine.doc_matrix("hash")
+    for query in ("cell star", "sleep and diet", "vaccine heart fibre"):
+        qv = engine.embedder("hash").encode([query])[0]
+        assert np.array_equal(dense_scores(qv, engine.unit_matrix("hash"), unit=True), dense_scores(qv, mat))
+        expected = [engine.chunks[i].chunk_id for i in rank_by_score(dense_scores(qv, mat), 50)]
+        assert beir.retrieve(engine, cfg, query, StageTimer()) == expected
+
+
+def test_bm25_ablation_changes_one_setting_group_per_row():
+    """B03: the SciFact BM25 rows split bm25@default-tokenizer's three changes into the analyzer and (k1, b)."""
+    from dataclasses import asdict
+
+    rows = {c.name: c for c in beir.BM25_ABLATION_CONFIGS}
+    assert list(rows) == ["bm25", "bm25@default-analyzer", "bm25@k1-1.5-b-0.75", "bm25@default-tokenizer"]
+    base = asdict(rows["bm25"])
+    changed = {name: {k for k, v in asdict(c).items() if k not in {"name", "parent"} and v != base[k]} for name, c in rows.items()}
+    assert changed == {"bm25": set(), "bm25@default-analyzer": {"analyzer"}, "bm25@k1-1.5-b-0.75": {"k1", "b"},
+                       "bm25@default-tokenizer": {"analyzer", "k1", "b"}}
+    assert (base["analyzer"], base["k1"], base["b"]) == ("beir", 0.9, 0.4)
+    assert (rows["bm25@default-analyzer"].analyzer, rows["bm25@k1-1.5-b-0.75"].k1, rows["bm25@k1-1.5-b-0.75"].b) == ("default", 1.5, 0.75)
+    assert {c.parent for name, c in rows.items() if name != "bm25"} == {"bm25"} and {c.mode for c in rows.values()} == {"bm25"}
+    assert rows["bm25@default-tokenizer"] == {c.name: c for c in beir.DEFAULT_CONFIGS}["bm25@default-tokenizer"]
+    assert len(beir.DEFAULT_CONFIGS) == 10 and not {"bm25@default-analyzer", "bm25@k1-1.5-b-0.75"} & {c.name for c in beir.DEFAULT_CONFIGS}
+
+
+def test_cli_ladder_runs_the_bm25_ablation(tmp_path):
+    """`--ladder bm25-ablation` (make bench-beir-bm25-ablation) writes the four rows with paired deltas against bm25."""
+    import zipfile
+
+    _write_dataset(tmp_path)
+    with zipfile.ZipFile(tmp_path / "scifact.zip", "w") as zf:  # a local archive: no download, its own sha256 pinned on the command line
+        for p in sorted((tmp_path / "scifact").rglob("*")):
+            zf.write(p, p.relative_to(tmp_path).as_posix())
+    out = tmp_path / "ablation.json"
+    args = ["--data-dir", str(tmp_path), "--dataset-sha256", beir.sha256_of(tmp_path / "scifact.zip"), "--ladder", "bm25-ablation", "--n-boot", "20", "--out", str(out)]
+    assert beir.main(args) == 0
+    blob = json.loads(out.read_text())
+    assert [r["config"] for r in blob["results"]] == [c.name for c in beir.BM25_ABLATION_CONFIGS]
+    for row in blob["results"][1:]:
+        for key in ("delta_vs_parent", "delta_vs_bm25"):
+            assert row[key]["reference"] == "bm25" and set(row[key]) == {"reference", "ndcg@10", "recall@10", "recall@100"}
+    assert blob["results"][0]["vs_published"]["published_bm25_ndcg@10"] == 0.6789
+    from app.eval.report import beir_bm25_table
+
+    table = beir_bm25_table(blob)
+    assert all(f"| {c.name} |" in table for c in beir.BM25_ABLATION_CONFIGS) and "make bench-beir-bm25-ablation" in table
+    assert "The analyzer alone: nDCG@10" in table and "k1 and b alone: nDCG@10" in table and "All three together: nDCG@10" in table
+    assert beir.main([*args[:-2], "--only", "bm25@default-analyzer", "--out", str(out)]) == 0
+    assert [r["config"] for r in json.loads(out.read_text())["results"]] == ["bm25@default-analyzer"]
+
+
+def _reranker_ladder_blob(tmp_path):
+    """A results file with the real ladder's row names and parents, run offline on hash / overlap stand-ins."""
+    _write_dataset(tmp_path)
+    configs = [
+        beir.BeirConfig(name="bm25", mode="bm25"),
+        beir.BeirConfig(name="hybrid@bge-small", mode="hybrid", embedder="hash", parent="dense@bge-small"),
+        beir.BeirConfig(name=beir.RERANK_FP32, mode="hybrid", embedder="hash", reranker="overlap", rerank_top=3, parent="hybrid@bge-small"),
+        beir.BeirConfig(name=beir.RERANK_FP32_512, mode="hybrid", embedder="hash", reranker="overlap", rerank_top=3, parent=beir.RERANK_FP32, max_length=512),
+        beir.BeirConfig(name=beir.RERANK_FP16, mode="hybrid", embedder="hash", reranker="overlap", rerank_top=3, parent=beir.RERANK_FP32_512, precision="fp16", max_length=512),
+    ]
+    return beir.run(tmp_path, configs, device="cpu", n_boot=20, download=False)
+
+
+def test_reranker_step_labels_follow_the_recorded_parent(tmp_path):
+    """With fp32-512/top20 in the ladder, the fp16 row's parent is fp32 at the same cap: the sentence and the
+    evidence rows name the change each paired delta measures (the cap, then the precision), and BM25 rows carry no
+    model label."""
+    from app.eval.evidence import FILES, claims
+    from app.eval.report import beir_table
+
+    blob = _reranker_ladder_blob(tmp_path)
+    text = beir_table(blob)
+    assert "max_length 512 vs uncapped (both fp32): nDCG@10" in text and "fp16 vs fp32 (both max_length 512): nDCG@10" in text
+    assert "fp16 with max_length 512 vs fp32 uncapped" not in text
+    assert "| bm25 | — | none (BM25 only) |" in text
+
+    root = tmp_path / "repo"
+    (root / "bench" / "results").mkdir(parents=True)
+    (root / FILES["beir"]).write_text(json.dumps(blob))
+    labels = [c["claim"] for c in claims(root)]
+    assert any(c.startswith("BEIR SciFact, reranker max_length 512 vs uncapped (both fp32") for c in labels)
+    assert any(c.startswith("BEIR SciFact, reranker fp16 vs fp32 (both max_length 512") for c in labels)
+    assert not any("fp16 + max_length 512 vs fp32 uncapped" in c for c in labels)
+
+    old = json.loads(json.dumps(blob))  # the October-era chain without the capped fp32 row
+    old["results"] = [r for r in old["results"] if r["config"] != beir.RERANK_FP32_512]
+    fp16 = old["results"][-1]
+    fp16["parent"] = beir.RERANK_FP32
+    fp16["delta_vs_parent"]["reference"] = beir.RERANK_FP32
+    assert "fp16 with max_length 512 vs fp32 uncapped: nDCG@10" in beir_table(old)
+    (root / FILES["beir"]).write_text(json.dumps(old))
+    assert any("fp16 + max_length 512 vs fp32 uncapped" in c["claim"] for c in claims(root))
+    assert not any("max_length 512 vs uncapped (both fp32" in c["claim"] for c in claims(root))
+    (root / FILES["beir_rerank_cap"]).write_text(json.dumps(blob))  # the split measured in its own file
+    split = [c for c in claims(root) if "(both fp32" in c["claim"] or "fp16 vs fp32 (both" in c["claim"]]
+    assert len(split) == 2 and {c["command"] for c in split} == {"make bench-beir-rerank-cap"}
+    assert all(c["source"].startswith(FILES["beir_rerank_cap"]) for c in split)
+
+
+def test_make_selections_pair_every_row_with_a_measured_parent():
+    """The --only lists of make bench-beir-fiqa and bench-beir-rerank-cap: after run()'s re-parenting every row but
+    the base has its parent in the same run (so its paired delta is not empty). On FiQA the capped fp32 reranker is
+    paired with hybrid@bge-small and fp16 with the capped fp32 row."""
+    import re
+
+    makefile = (Path(__file__).resolve().parents[2] / "Makefile").read_text()
+    by_name = {c.name: c for c in beir.DEFAULT_CONFIGS}
+    parents = {}
+    for var, base in (("BEIR_FIQA_ROWS", "bm25"), ("BEIR_RERANK_CAP_ROWS", "hybrid@bge-small")):
+        names = re.search(rf"^{var} = (.+)$", makefile, re.M).group(1).split(",")
+        configs = beir.measured_parents([by_name[n] for n in names])
+        parents[var] = {c.name: c.parent for c in configs}
+        assert names[0] == base and all(parents[var][n] in names for n in names[1:]), parents[var]
+    assert parents["BEIR_FIQA_ROWS"][beir.RERANK_FP32_512] == "hybrid@bge-small"
+    assert parents["BEIR_FIQA_ROWS"][beir.RERANK_FP16] == beir.RERANK_FP32_512
+    assert parents["BEIR_RERANK_CAP_ROWS"][beir.RERANK_FP32_512] == beir.RERANK_FP32

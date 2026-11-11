@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql explain-sql-synthetic freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -137,8 +137,21 @@ sweeps:
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
 
+# The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
+BEIR_DATA_DIR ?= bench/external
 bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
-	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --out bench/results/beir_scifact.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact.json
+
+bench-beir-bm25-ablation: ## BEIR SciFact BM25 (CPU, no model): the analyzer alone, k1/b alone and both, each vs bm25 -> bench/results/beir_scifact_bm25_ablation.json
+	$(PYTHON) -m app.eval.beir --ladder bm25-ablation --device cpu --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact_bm25_ablation.json
+
+BEIR_RERANK_CAP_ROWS = hybrid@bge-small,hybrid+bge-rerank@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20,hybrid+bge-rerank@bge-small/fp16-512/top20
+bench-beir-rerank-cap: ## BEIR SciFact reranker at depth 20: fp32 uncapped -> fp32 max_length 512 -> fp16 512, each vs its parent -> bench/results/beir_scifact_rerank_cap.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --data-dir $(BEIR_DATA_DIR) --only $(BEIR_RERANK_CAP_ROWS) --out bench/results/beir_scifact_rerank_cap.json
+
+BEIR_FIQA_ROWS = bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20,hybrid+bge-rerank@bge-small/fp16-512/top20
+bench-beir-fiqa: ## BEIR FiQA: BM25 / dense / hybrid / + bge-reranker at depth 20 (fp32, then fp16; max_length 512), TREC runs -> bench/results/beir_fiqa.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa --data-dir $(BEIR_DATA_DIR) --only $(BEIR_FIQA_ROWS) --trec-dir bench/results/beir_fiqa_trec --out bench/results/beir_fiqa.json
 
 .PHONY: robotics-verify bench-robotics
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split
