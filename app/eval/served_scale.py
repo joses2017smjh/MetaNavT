@@ -2,7 +2,8 @@
 
     make bench-served-scale PYTHON=<python with torch> PGVECTOR_SIF=<PostgreSQL 16 + pgvector image> \
         SERVED_SCALE_SCRATCH=<node-local directory> [SERVED_SCALE_STATE=<shared directory>] [BEIR_DATA_DIR=bench/external]
-    -> bench/results/served_scale_fiqa.json and bench/results/served_scale_fiqa_trec/
+    -> bench/results/served_scale_fiqa.json and bench/results/served_scale_fiqa_trec/ (A05)
+       bench/results/pgvector_hnsw.json (C03: app/eval/pgvector_hnsw.py, on the same table)
 
 For a GPU node: bge-small (the served embedder, LlamaIndex HuggingFaceEmbedding) and bge-reranker-v2-m3 on
 CUDA from the HuggingFace cache, Apptainer with a PostgreSQL 16 + pgvector image (app/eval/service.py), and
@@ -29,6 +30,8 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
   explain        EXPLAIN (ANALYZE, BUFFERS) of the served statement for three queries: which scan each leg uses
   inmemory       app/eval/beir.py's hybrid@bge-small and hybrid+bge-rerank@bge-small/fp16-512/top20 rows,
                  document embeddings from the BEIR cache, on the same queries, scored by the same function
+  hnsw           pgvector's HNSW index against the exact scan on the same table and queries, at several
+                 hnsw.ef_search values, and the served dense CTE (app/eval/pgvector_hnsw.py)
 
 The results file pairs each served row with its in-memory row (served minus in-memory, paired bootstrap
 over queries), per route as well, and lists every difference between the two sides. Every number comes
@@ -53,6 +56,7 @@ from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS_FILE = "bench/results/served_scale_fiqa.json"
+HNSW_FILE = "bench/results/pgvector_hnsw.json"
 TREC_DIR = "bench/results/served_scale_fiqa_trec"
 DATASET = "fiqa"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
@@ -64,12 +68,14 @@ PASSES = {
     "api:hybrid+rerank": ({}, "hybrid+bge-rerank@bge-small/fp16-512/top20"),
     "api:hybrid": ({"RERANKER_MODEL": "none"}, "hybrid@bge-small"),
 }
-STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory")
+STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory", "hnsw")
+SERVED_STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory")  # served_scale_fiqa.json
+HNSW_STAGES = ("files", "index", "hnsw")  # pgvector_hnsw.json
 SERVER_SETTINGS = ("shared_buffers", "maintenance_work_mem", "work_mem", "effective_cache_size", "max_parallel_maintenance_workers",
                    "max_parallel_workers_per_gather", "jit", "synchronous_commit", "random_page_cost")
 SOURCES = ("app/eval/served_scale.py", "app/eval/beir_api.py", "app/eval/service.py", "app/eval/beir.py", "app/eval/http_load.py", "app/engine/ingest.py",
            "app/eval/ingest.py", "app/engine/bootstrap.py", "app/engine/retriever.py", "app/database/vector_store_manager.py",
-           "app/database/sql/hybrid_tsrank.sql", "app/api/routers/retrieve.py", "main.py")
+           "app/database/sql/hybrid_tsrank.sql", "app/api/routers/retrieve.py", "main.py", "app/eval/pgvector_hnsw.py")
 _VECTOR_LITERAL = re.compile(r"'\[[-0-9.,eE+ ]*\]'::(vector|halfvec)")
 _SCAN = re.compile(r"(Parallel Seq Scan|Seq Scan|Index Scan|Index Only Scan|Bitmap Heap Scan|Bitmap Index Scan)(?: Backward)?(?: using (\S+))? on (\S+)(?: (\w+))?")
 
@@ -345,6 +351,15 @@ def hardware(device: str) -> dict:
     except Exception:
         pass
     info["allocation"] = {"cpus": os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get("SLURM_CPUS_ON_NODE"), "memory_mb": os.environ.get("SLURM_MEM_PER_NODE")}
+    from importlib.metadata import PackageNotFoundError, version
+
+    packages = {}
+    for name in ("llama-index-core", "llama-index-embeddings-huggingface", "llama-index-vector-stores-postgres", "sentence-transformers", "transformers", "torch", "psycopg2-binary", "psycopg2", "numpy", "fastapi", "uvicorn"):
+        try:
+            packages[name] = version(name)
+        except PackageNotFoundError:
+            continue
+    info["packages"] = packages
     info["storage"] = "corpus files and the Postgres data directory on node-local disk (the run's scratch directory)"
     return info
 
@@ -614,6 +629,18 @@ class Run:
             log(f"in-memory {paired_with}: nDCG@10 {sum(r['ndcg@10'] for r in per_query) / len(per_query):.4f}")
         return {"corpus_sha256": engine.corpus_sha256, "document_embeddings_from_cache": cached, "rows": rows}
 
+    def stage_hnsw(self) -> dict:
+        from app.eval import pgvector_hnsw
+        from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, resample_indices
+
+        self.stop_api()
+        vectors = self.query_vectors()
+        index = self.done("index")["index_names"]["hnsw"]
+        out = pgvector_hnsw.hnsw_sweep(self.vsm(), vectors, resample_indices(len(vectors), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED), hnsw_index=index)
+        for row in out["rows"]:
+            log(f"{row['config']}: recall@50 {row['recall@50']['mean']}, p50 {row['latency'].get('p50_ms')} ms, plan {row.get('plan_node')}")
+        return {**out, "dim": int(vectors.shape[1])}
+
     def run(self) -> dict:
         try:
             for stage in self.args.stages:
@@ -631,11 +658,14 @@ class Run:
                 log(f"{stage}: done in {blob['stage_seconds']:.0f} s")
         finally:
             self.close()
-        missing = [s for s in STAGES if not self.done(s)]
-        if missing:
-            log(f"not recorded yet: {', '.join(missing)}; no results file written")
-            return None
-        return assemble(self)
+        written = {}
+        for name, stages, build in (("served", SERVED_STAGES, assemble), ("hnsw", HNSW_STAGES, assemble_hnsw)):
+            missing = [s for s in stages if not self.done(s)]
+            if missing:
+                log(f"{name}: not recorded yet: {', '.join(missing)}; no results file")
+            else:
+                written[name] = build(self)
+        return written
 
 
 # ---------------------------------------------------------------- the results file
@@ -737,6 +767,38 @@ def assemble(run: Run) -> dict:
     return scrub(blob)
 
 
+def assemble_hnsw(run: Run) -> dict:
+    """bench/results/pgvector_hnsw.json: the HNSW index against the exact scan on the run's table (C03)."""
+    from app.eval.provenance import git_sha, scrub
+    from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, settings as bootstrap_settings
+
+    index, sweep = run.done("index"), run.done("hnsw")
+    name = index["index_names"]["hnsw"]
+    ddl = index["indexes_ddl"][name]
+    param = {key: re.search(rf"{key}='?(\d+)", ddl) for key in ("m", "ef_construction")}
+    blob = {
+        "schema": "pgvector-hnsw-v1",
+        "measurement": "pgvector's HNSW index against the exact scan, on the table the served indexer built from FiQA with bge-small, queried with the served query embedding of every test query",
+        "dataset": run.identity["dataset"], "split": run.identity["split"], "files_sha256": run.identity["files_sha256"], "query_selection": run.selection,
+        "table": {"rows": index["rows"], "dim": sweep["dim"], "embedder": index["embedder"], "vectors": "the chunk vectors app/engine/ingest.index_directory wrote (the same run as " + RESULTS_FILE + ")",
+                  "bytes": index["sizes"]["table_bytes_with_toast"], "avg_embedding_bytes": index["sizes"]["avg_column_bytes"].get("embedding")},
+        "queries": {"n": len(run.queries), "embedding": "the served query embedding (LlamaIndex HuggingFaceEmbedding with its query prompt for bge-small)"},
+        "index": {"name": name, "ddl": ddl, "m": int(param["m"].group(1)) if param["m"] else None, "ef_construction": int(param["ef_construction"].group(1)) if param["ef_construction"] else None,
+                  "build_seconds": index["hnsw_seconds"], "bytes": index["sizes"]["indexes"][name]["bytes"], "built_by": "VectorStoreManager.ensure_hnsw (what the API's start-up runs), after every row was inserted"},
+        "server": index["server"],
+        "k": sweep["k"], "tie_eps": sweep["tie_eps"],
+        "recall_definition": "a returned row counts when its float32 distance is at most the exact k-th distance plus tie_eps; Recall@10 reads the first 10 rows of the same k-row list",
+        "latency_definition": "client wall time of each statement (execute and fetch) on one connection, after an untimed pass of the exact scan and of the widest index scan",
+        "rows": sweep["rows"],
+        "bootstrap": bootstrap_settings(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED),
+        "hardware": hardware(run.args.device),
+        "stage_git_sha": {s: run.done(s).get("git_sha") for s in HNSW_STAGES},
+        "git_sha": git_sha(ROOT), "git_dirty": git_dirty(ROOT), "timestamp": datetime.now(timezone.utc).isoformat(), "command": run.command,
+        "source_sha256": {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in ("app/eval/pgvector_hnsw.py", "app/eval/served_scale.py", "app/database/vector_store_manager.py", "app/database/sql/hybrid_tsrank.sql")},
+    }
+    return scrub(blob)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data-dir", type=Path, default=ROOT / "bench" / "external")
@@ -744,6 +806,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scratch", type=Path, required=True, help="node-local directory for the corpus files and the database")
     p.add_argument("--state", type=Path, default=None, help="stage results and the database snapshot (default <scratch>/state); put it on shared storage to resume on another node")
     p.add_argument("--out", type=Path, default=ROOT / RESULTS_FILE)
+    p.add_argument("--hnsw-out", type=Path, default=ROOT / HNSW_FILE)
     p.add_argument("--trec-dir", type=Path, default=Path(TREC_DIR))
     p.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     p.add_argument("--embedder", choices=["served", "hash"], default="served", help="hash: a dry run of the machinery with no model (not a measurement)")
@@ -765,17 +828,20 @@ def main(argv: list[str] | None = None) -> int:
     if unknown:
         p.error(f"unknown stages {unknown}; known: {', '.join(STAGES)}")
     run = Run(args)
-    blob = run.run()
-    if blob is None:
-        return 3
-    out = args.out if args.out.is_absolute() else ROOT / args.out
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(blob, indent=1) + "\n")
-    log(f"wrote {out}")
-    for row, s in blob["served"].items():
-        d = s["delta_vs_in_memory"]["ndcg@10"]
-        log(f"{row}: nDCG@10 {s['retrieval']['ndcg@10']:.4f} vs {s['paired_with']} {blob['in_memory'][s['paired_with']]['retrieval']['ndcg@10']:.4f}: {d['delta']:+.4f} [{d['lo']:+.4f}, {d['hi']:+.4f}]; failed {s['requests']['failed']}")
-    return 0
+    written = run.run()
+    for name, target in (("served", args.out), ("hnsw", args.hnsw_out)):
+        if name in written:
+            out = target if target.is_absolute() else ROOT / target
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps(written[name], indent=1) + "\n")
+            log(f"wrote {out}")
+    if "served" in written:
+        blob = written["served"]
+        for row, s in blob["served"].items():
+            d = s["delta_vs_in_memory"]["ndcg@10"]
+            log(f"{row}: nDCG@10 {s['retrieval']['ndcg@10']:.4f} vs {s['paired_with']} {blob['in_memory'][s['paired_with']]['retrieval']['ndcg@10']:.4f}: "
+                f"{d['delta']:+.4f} [{d['lo']:+.4f}, {d['hi']:+.4f}]; failed {s['requests']['failed']}")
+    return 0 if len(written) == 2 else 3
 
 
 if __name__ == "__main__":
