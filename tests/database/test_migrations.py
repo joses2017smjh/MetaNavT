@@ -621,3 +621,26 @@ def test_start_up_runs_no_ddl(startup_env):
             cur.execute(f"DROP FUNCTION IF EXISTS {function}();")
             cur.execute(f"DROP TABLE IF EXISTS {log};")
         admin.close()
+
+
+def test_the_paradedb_sequence_is_applied_only_with_the_paradedb_backend(schema):
+    """LEXICAL_BACKEND=ts_rank_cd needs no paradedb file; with paradedb configured its files are pending, and
+    on an image without pg_search (CI's, this one's) the deploy step fails there and records none of them.
+    The files themselves have never run: no image used here has pg_search (OD07)."""
+    from app.database import migrate
+
+    plain, conn = _plain(), _connect(schema)
+    try:
+        table = migrate.VectorTable(schema=schema, table="pdbtest", dim=256)
+        assert set(migrate.migrate_all(conn, table)) == {"database", "vector"}
+        assert migrate.pending_all(conn, table) == []
+        paradedb = migrate.VectorTable(schema=schema, table="pdbtest", dim=256, lexical_backend="paradedb")
+        names = [f"paradedb/{m.name} ({paradedb.key})" for m in migrate.discover(migrate.PARADEDB_DIR)]
+        assert migrate.pending_all(conn, paradedb) == names
+        if not _rows(plain, "SELECT 1 FROM pg_available_extensions WHERE name = 'pg_search';"):
+            with pytest.raises(Exception, match="pg_search"):
+                migrate.migrate_all(conn, paradedb)
+            assert migrate.pending_all(conn, paradedb) == names  # the failed file was rolled back, nothing recorded
+    finally:
+        conn.close()
+        plain.close()

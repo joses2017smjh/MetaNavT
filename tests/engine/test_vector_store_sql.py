@@ -242,11 +242,50 @@ def test_search_bm25_tries_paradedb_only_when_configured(monkeypatch):
     assert "SET search_path TO paradedb, public;" in conn.statements
 
 
-@pytest.mark.parametrize("setting, creates", [(None, False), ("ts_rank_cd", False), ("paradedb", True)])
-def test_start_up_creates_pg_search_objects_only_for_paradedb(monkeypatch, setting, creates):
+# ---------------------------------------------------------------- start-up issues no DDL (C35: the BM25 index is never dropped)
+
+
+class _RecordingConnection:
+    """Every statement any cursor of this connection executes, in order; pg_search reads as installed."""
+
+    def __init__(self):
+        self.statements: list[str] = []
+
+    def cursor(self):
+        connection = self
+
+        class Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, params=None):
+                connection.statements.append(" ".join(str(sql).split()))
+
+            def fetchone(self):
+                return (1,)
+
+            def fetchall(self):
+                return []
+
+        return Cursor()
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
+@pytest.mark.parametrize("setting", [None, "ts_rank_cd", "paradedb"])
+def test_get_vector_store_issues_no_drop_index_and_no_ddl(monkeypatch, setting):
+    """A recording cursor sees every statement the manager's constructor and get_vector_store send. With
+    LEXICAL_BACKEND=paradedb they used to drop the BM25 index and build it again at every start; now the
+    pg_search objects are schema migrations (migrations/paradedb/) and start-up sends no DDL at all."""
     from app.database import db_base_manager, vector_store_manager as vsm_module
 
-    calls = []
     monkeypatch.setenv("PG_CONNECTION_STRING", "postgresql://u@127.0.0.1:1/db")
     monkeypatch.setenv("EMBEDDING_DIM", "8")
     if setting is None:
@@ -256,24 +295,27 @@ def test_start_up_creates_pg_search_objects_only_for_paradedb(monkeypatch, setti
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_ensure_database_exists", lambda self: None)
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_initialize_connection_pool", lambda self, *a, **k: None)
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_detect_vector_dimensions", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_pg_search_extension", lambda self: calls.append("extension"))
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_create_bm25_index", lambda self, conn: calls.append("bm25 index") or True)
+    connection = _RecordingConnection()
 
     @contextmanager
-    def no_connection(self):
-        yield None
+    def recording(self):
+        yield connection
 
     class _Store:
         def __init__(self, **kwargs):
-            pass
+            self.kwargs = kwargs
 
         def add(self, nodes):
-            return []
+            return [n.node_id for n in nodes]
 
         def delete(self, ref_doc_id):
             return None
 
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", no_connection)
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", recording)
     monkeypatch.setattr(vsm_module, "PGVectorStore", _Store)
-    vsm_module.VectorStoreManager(conn_string="postgresql://u@127.0.0.1:1/db").get_vector_store()
-    assert calls == (["extension", "bm25 index"] if creates else [])
+    store = vsm_module.VectorStoreManager(conn_string="postgresql://u@127.0.0.1:1/db").get_vector_store()
+
+    assert store.kwargs["perform_setup"] is False  # nor does LlamaIndex create anything
+    assert not [s for s in connection.statements if "DROP INDEX" in s.upper()], connection.statements
+    ddl = re.compile(r"^\s*(CREATE|DROP|ALTER)\b", re.I)
+    assert not [s for s in connection.statements if ddl.match(s)], connection.statements

@@ -8,10 +8,10 @@ Features:
     - Vector store initialization and management
     - Connection pooling via parent DatabaseManager
     - Both sync (psycopg2) and async (asyncpg) support
-    - Dimension detection; no DDL for the vector table: the data table, the ingest manifest,
-      their indexes and the vector extension come from the schema migrations
-      (app/database/migrate.py, `make migrate`), which check_migrations() requires before the
-      API starts
+    - Dimension detection; no DDL: the data table, the ingest manifest, their indexes, the
+      vector extension and (LEXICAL_BACKEND=paradedb) pg_search and the BM25 index come from
+      the schema migrations (app/database/migrate.py, `make migrate`), which
+      check_migrations() requires before the API starts
 
 Configuration (via environment variables):
     PGVECTOR_SCHEMA: Schema name for vector tables (default: "public")
@@ -145,11 +145,10 @@ class VectorStoreManager(DatabaseManager):
             logger.info(f"Using vector dimension from environment: {self.embed_dim}")
         
         self.vector_store = None
-        # The vector extension, data_<table_name> (in the shape PGVectorStore gives it), the
-        # ingest manifest and the GIN / HNSW / path indexes come from the schema migrations
-        # (app/database/migrations/vector/), applied by the deploy step, not from this class.
-        if self.lexical_backend == "paradedb":
-            self._ensure_pg_search_extension()
+        # No DDL here or anywhere in this class: the vector extension, data_<table_name> (in the
+        # shape PGVectorStore gives it), the ingest manifest, the GIN / HNSW / path indexes and,
+        # with LEXICAL_BACKEND=paradedb, pg_search and its BM25 index all come from the schema
+        # migrations (app/database/migrations/vector/ and paradedb/), applied by the deploy step.
 
     @property
     def vector_table(self) -> VectorTable:
@@ -160,65 +159,6 @@ class VectorStoreManager(DatabaseManager):
         """Raise MigrationsPending unless every migration this table and backend need is applied. Reads only."""
         with self.get_connection() as conn:
             require_current(conn, self.vector_table)
-
-    def _ensure_pg_search_extension(self):
-        """Ensure the pg_search extension exists."""
-        logger.info("Ensuring 'pg_search' extension (in 'paradedb' schema) exists...")
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Check for and create schema if it doesn't exist
-                    cur.execute("CREATE SCHEMA IF NOT EXISTS paradedb;")
-                    
-                    # Check if pg_search is already installed
-                    cur.execute("""
-                        SELECT 1 FROM pg_extension WHERE extname = 'pg_search';
-                    """)
-                    if cur.fetchone() is None:
-                        # Try to create it
-                        try:
-                            cur.execute("CREATE EXTENSION IF NOT EXISTS pg_search;")
-                        except Exception as e:
-                            logger.warning(f"Could not create pg_search extension: {e}")
-                    
-                    # The BM25 index is created in get_vector_store(), once the data table exists.
-            logger.info("'pg_search' extension check complete (expected in 'paradedb' schema).")
-        except Exception as e:
-            logger.warning(f"Unable to verify pg_search extension: {e}")
-        
-    def _create_bm25_index(self, conn):
-        """Create or recreate BM25 index for text column."""
-        logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
-        try:
-            with conn.cursor() as cur:
-                # Drop existing index if it exists to force refresh
-                index_name = f"{self.table_name}_bm25_idx_on_text"
-                cur.execute(f"DROP INDEX IF EXISTS {index_name};")
-                
-                # Create BM25 index with proper ParadeDB syntax based on docs
-                sql_stmt = f"""
-                CREATE INDEX IF NOT EXISTS {index_name} ON {self.schema_name}.{self.data_table}
-                USING bm25 (node_id, text)
-                WITH (
-                    key_field='node_id',
-                    text_fields='{{
-                        "text": {{"tokenizer": {{"type": "default", "stemmer": "English"}}}}
-                    }}'
-                );
-                """
-                logger.info(f"Creating BM25 index '{index_name}' using ParadeDB documentation syntax")
-                logger.debug(f"Executing SQL:\n{sql_stmt}\n")
-                cur.execute(sql_stmt)
-                
-                # Analyze the table to refresh statistics
-                cur.execute(f"ANALYZE {self.schema_name}.{self.data_table};")
-                
-                logger.info("BM25 index created successfully")
-            logger.info("BM25 index creation/verification successful")
-            return True
-        except Exception as e:
-            logger.warning(f"Error creating BM25 index: {e}")
-            return False
 
     def get_vector_store(self) -> PGVectorStore:
         """Get or create PGVectorStore instance."""
@@ -302,20 +242,8 @@ class VectorStoreManager(DatabaseManager):
                 raise RuntimeError(
                     f"PGVectorStore failed .add/delete on data table '{self.schema_name}.{self.data_table}'."
                 ) from e
-
-            # ParadeDB BM25 index: only for LEXICAL_BACKEND=paradedb. Attempted, not required.
-            if self.lexical_backend == "paradedb":
-                logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
-                try:
-                    with self.get_connection() as conn:
-                        bm25_created = self._create_bm25_index(conn)
-                    if bm25_created:
-                        logger.info("BM25 index creation/verification successful")
-                    else:
-                        logger.warning("BM25 index creation failed, but continuing anyway")
-                except Exception as e:
-                    logger.warning(f"BM25 index creation failed: {e}", exc_info=True)
-                    logger.warning("Continuing without BM25 search capability")
+            # The ParadeDB BM25 index (LEXICAL_BACKEND=paradedb only) is migrations/paradedb/0002,
+            # built once; it used to be dropped and built again here at every start.
 
         return self.vector_store
 

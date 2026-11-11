@@ -289,3 +289,20 @@ def test_vector_index_builds_after_the_tables_are_concurrent():
             continue  # an index made with its (new, empty) table needs no concurrent build
         creates = [s for s in migrate.split_statements(m.sql) if "CREATE INDEX" in s.upper()]
         assert all("CONCURRENTLY" in s for s in creates), m.name
+
+
+def test_the_committed_paradedb_templates_render_and_never_drop_an_index():
+    found = migrate.discover(migrate.PARADEDB_DIR)
+    assert [m.version for m in found] == list(range(1, len(found) + 1)) and found
+    for m in found:
+        rendered = migrate.render(m.sql, TABLE)
+        assert "DROP INDEX" not in rendered.upper(), m.name  # the BM25 index is built once, never dropped and rebuilt
+        if "CREATE INDEX" in rendered:
+            assert "CREATE INDEX IF NOT EXISTS" in rendered, m.name
+
+
+def test_the_paradedb_sequence_is_needed_only_with_the_paradedb_backend():
+    assert [s for s, _ in migrate.sequences_for(TABLE)] == ["vector"]
+    paradedb = migrate.VectorTable(table="x", dim=8, lexical_backend="paradedb")
+    assert [s for s, _ in migrate.sequences_for(paradedb)] == ["vector", "paradedb"]
+    assert migrate.sequences_for(None) == []

@@ -8,17 +8,20 @@ IndexManager call require_current(), which only reads the ledgers and raises
 MigrationsPending, so a process never runs against a schema older than its code. Compose
 and the CI parity job run the command above before uvicorn.
 
-Two sequences, each a directory of files named NNNN_description.sql (0001_baseline.sql,
+Three sequences, each a directory of files named NNNN_description.sql (0001_baseline.sql,
 0002_...), versions contiguous from 1, applied in order:
 
   migrations/           the application's own tables (the plan decision log, the file index)
-                        and, from 0003, the ledger of the next one. Ledger: schema_migrations.
+                        and, from 0003, the ledger of the next two. Ledger: schema_migrations.
   migrations/vector/    one vector table: the data table LlamaIndex's PGVectorStore reads and
                         writes, the ingest manifest, and their indexes. The table's schema, name
                         and embedding dimension are configuration (PGVECTOR_SCHEMA,
                         PGVECTOR_TABLE, EMBEDDING_DIM), so these files are templates (render())
                         applied and recorded per table in vector_table_migrations, with the
                         values they were rendered with.
+  migrations/paradedb/  the pg_search extension and the BM25 index, applied and required only
+                        when LEXICAL_BACKEND=paradedb, per table like vector/. No image used
+                        here has pg_search, so these files have never run (owner decision OD07).
 
 apply_migrations(), apply_vector_migrations() and migrate_all():
   * take a session-level Postgres advisory lock first, so two deploy steps that run together
@@ -52,6 +55,7 @@ logger = logging.getLogger("uvicorn")
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 VECTOR_DIR = MIGRATIONS_DIR / "vector"
+PARADEDB_DIR = MIGRATIONS_DIR / "paradedb"
 FILENAME = re.compile(r"^(\d{4})_([a-z0-9_]+)\.sql$")
 NO_TRANSACTION = "-- migrate: no-transaction"
 COMMAND = "python -m app.database.migrate (make migrate)"
@@ -405,10 +409,10 @@ def apply_vector_migrations(
 
 
 def sequences_for(table: VectorTable | None) -> list[tuple[str, Path]]:
-    """The per-table sequences a configuration needs."""
+    """The per-table sequences a configuration needs: vector always, paradedb only when it is the lexical backend."""
     if table is None:
         return []
-    return [("vector", VECTOR_DIR)]
+    return [("vector", VECTOR_DIR)] + ([("paradedb", PARADEDB_DIR)] if table.lexical_backend == "paradedb" else [])
 
 
 def migrate_all(conn, table: VectorTable | None = None) -> dict[str, list[int]]:

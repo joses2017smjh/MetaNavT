@@ -46,8 +46,6 @@ def captured(monkeypatch):
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_ensure_database_exists", lambda self: None)
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_initialize_connection_pool", lambda self, *a, **k: None)
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_detect_vector_dimensions", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_pg_search_extension", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_create_bm25_index", lambda self, conn: False)
 
     @contextmanager
     def no_connection(self):
