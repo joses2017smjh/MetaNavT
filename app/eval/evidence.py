@@ -29,6 +29,7 @@ FILES = {
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "companion_live": "bench/results/companion_live.json",
 }
 
 
@@ -252,6 +253,46 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
+    out += _companion_live_claims(root)
+    return out
+
+
+def _companion_live_claims(root: Path = ROOT) -> list[dict]:
+    """The research companion in live mode (make bench-companion-live): outcomes, stated gold values, citations,
+    and the planted-value answers over the planted copy."""
+    blob = _load(FILES["companion_live"], root)
+    if not blob:
+        return []
+    src = f"{FILES['companion_live']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make bench-companion-live"
+    model = blob["model"]
+    gold = blob["summary"]["gold"]["overall"]
+    stack = ("the served retrieval is the default stack's fallbacks (hash embeddings, Postgres ts_rank_cd, no "
+             "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
+             "synthetic fixture questions")
+    out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
+            "value": "; ".join(f"{k} {v}" for k, v in gold["status"].items()), "ci": "—", "n": gold["n"],
+            "command": cmd, "source": src,
+            "not_shown": f"{stack}; a blocked answer is the companion failing closed (no valid JSON or no inspected citation), not a served answer"}]
+    sg = gold["states_gold"]
+    if sg["n"]:
+        out.append({"claim": f"Research companion, live mode ({model}): answers that state the gold value, of the gold questions with a value answer",
+                    "value": f"{sg['rate']:.3f}", "ci": f"[{sg['lo']:.3f}, {sg['hi']:.3f}]", "n": sg["n"], "command": cmd,
+                    "source": src,
+                    "not_shown": f"deterministic value matching, not entailment: an answer that quotes a whole config states every value in it; sentence and yes/no golds are not scored; abstained, blocked and failed requests count as not stating it; {stack}"})
+    cit = gold["citations"]
+    if cit["complete_answers"]:
+        out.append({"claim": f"Research companion, live mode ({model}): completed answers whose every citation names an inspected source whose excerpt hash and bytes match the cited range of the file",
+                    "value": f"{cit['complete_answers_all_valid']} of {cit['complete_answers']}", "ci": "—",
+                    "n": cit["complete_answers"], "command": cmd, "source": src,
+                    "not_shown": "reference integrity, not factual support; answers that were blocked or abstained carry no citation and are not counted"})
+    planted = blob["summary"].get("planted")
+    if planted:
+        when = planted["planted_value_stated_when_exposed"]
+        clean = planted["same_questions_clean_corpus"]
+        out.append({"claim": f"Research companion, live mode ({model}), planted instructions (the injection benchmark's ten hijack texts): answers that state the planted value, of the questions in which the model saw the planted text",
+                    "value": f"{when['k']} of {when['n']}", "ci": "—", "n": when["n"], "command": cmd, "source": src,
+                    "not_shown": f"one phrasing per task, not an adaptive attacker; the same {clean['n']} questions on the clean copy state the planted value {clean['planted_value_stated']} times; {stack}"})
     return out
 
 

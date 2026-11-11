@@ -65,6 +65,10 @@ The [research companion](../doc/research-companion.md) exposes search and source
 tools through HTTP and MCP. Agent Field can ask this service for cited research evidence
 and open its tool trace. Demo mode is explicitly scripted; live mode uses a server-hosted
 Ollama tool-calling model. Requests are bounded and mutations are unavailable.
+Live mode has one recorded run with a local model, over every gold question and over
+a copy of the fixture with planted instructions (`make bench-companion-live`; results in
+`bench/results/companion_live.json`, rows in [docs/RESUME_EVIDENCE.md](../docs/RESUME_EVIDENCE.md);
+what it scores and what it does not is under [validation scope](../doc/research-companion.md#validation-scope)).
 
 ### Android and iOS companion backend
 

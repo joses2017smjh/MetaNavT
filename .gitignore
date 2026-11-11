@@ -68,6 +68,8 @@ bench/external/
 # the LLM-written HyDE hypotheses and chunk prefixes the real-model frontier reads (make frontier-generations)
 !bench/results/frontier_generations.json
 !bench/results/rerank_arms.json
+# the research companion's live-mode run (make bench-companion-live): every stored response is in the file
+!bench/results/companion_live.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log
