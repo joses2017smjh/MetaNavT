@@ -97,8 +97,10 @@ def test_runner_offline_with_a_fake_model(tmp_path):
     assert blob["n_gold"] == 6 and len(blob["rows"]) == 6
     s = blob["summary"]
     assert s["checks"]["uncited_answers"]["count"] == 0
-    assert set(s["kappa"]) == {"heuristic", "fake-a", "fake-b", "jury_majority"}
-    assert s["kappa"]["heuristic"]["heuristic"] is True and s["kappa"]["fake-a"]["heuristic"] is False
+    assert set(s["kappa"]) == {"fake-a", "fake-b", "jury_majority"}  # gated: the correctness verdicts
+    assert set(s["composite"]) == {"heuristic", "fake-a", "fake-b"} and s["composite"]["heuristic"]["heuristic"] is True
+    assert s["kappa"]["fake-a"]["heuristic"] is False and s["replies"]["fake-a"]["correctness"] == {"n": 6, "empty": 0, "unparsed": 0}
+    assert blob["protocol"]["correctness_prompt"].startswith("Question: {question}\nGold answer: {gold}")
     assert s["pairwise_llm_vs_extractive"]["fake-a"]["p_llm_better_mean"] == 0.5  # 'A' both ways = pure position bias
     assert s["pairwise_llm_vs_extractive"]["fake-a"]["position_gap_mean"] == 1.0
     assert "kappa_gate" in blob and blob["kappa_gate"] == 0.6
@@ -106,6 +108,8 @@ def test_runner_offline_with_a_fake_model(tmp_path):
     row = blob["rows"][0]
     assert row["checks"]["cited_in_retrieved"] and row["checks"]["n_citations"] == 1
     assert "heuristic" in row["judges"] and row["generation"]["model"] == "fake-gen"
+    assert row["correctness"]["fake-a"]["by"] == "judge" and row["correctness"]["fake-a"]["label"] == "correct"
+    assert row["pairwise_llm_vs_extractive"]["fake-a"]["raw"] == ["A", "A"] and row["judges"]["fake-a"]["raw"]["faithfulness"]
     # The stored config has the keys jury.json was recorded with: switches added later stay out while unset.
     from app.eval.harness import LATER_SETTINGS
 
@@ -203,9 +207,13 @@ def test_value_match_is_case_insensitive():
     assert res.hallucinated_values == ["CLIP"]
 
 
-def _row(qid, category, checks, labels, failed=None):
+def _row(qid, category, checks, labels, failed=None, correctness=None):
+    """`labels`: each judge's composite label; `correctness`: each LLM judge's gated verdict (asked unless the
+    abstention rule applies to `checks`)."""
     row = {"id": qid, "category": category, "question": "q", "gold": "g", "retrieved_paths": [], "answer": "a", "generation": {},
-           "checks": checks, "judges": {name: {"label": lab, "score": 1.0} for name, lab in labels.items()}, "pairwise_llm_vs_extractive": {}}
+           "checks": checks, "judges": {name: {"label": lab, "score": 1.0} for name, lab in labels.items()}, "pairwise_llm_vs_extractive": {},
+           "correctness": {name: ({"label": "wrong", "by": "rule"} if checks.get("abstention_only") else {"label": lab, "by": "judge", "parsed": True, "raw": "{}"})
+                           for name, lab in (correctness or {}).items()}}
     if failed:
         row["failed"] = failed
     return row
@@ -238,7 +246,8 @@ def test_single_class_reference_closes_the_gate():
         checks = {"uncited": False, "abstained": False, "cited_in_retrieved": True, "n_citations": 1, "unknown_citations": [], "n_values": 1,
                   "values_in_cited_bytes": True, "values_not_in_cited_bytes": [], "values_in_any_evidence": True, "verification_ratio_cited": 1.0,
                   "exact_match_label": "correct", "exact_match": True}
-        return _row(qid, "simple_factual", checks, {"heuristic": "wrong", "yes-man": judge_a, "varies": judge_b})
+        return _row(qid, "simple_factual", checks, {"heuristic": "wrong", "yes-man": judge_a, "varies": judge_b},
+                    correctness={"yes-man": judge_a, "varies": judge_b})
 
     rows = [sf(f"q{i}", "correct", "correct" if i % 2 else "partial") for i in range(8)]
     s = summarize(rows, ["yes-man", "varies"])
@@ -290,4 +299,161 @@ def test_rescore_recomputes_checks_from_stored_answers(tmp_path):
     tampered["rows"][0]["retrieved_paths"] = ["nope.txt"]
     path.write_text(json.dumps(tampered))
     with pytest.raises(SystemExit, match="retrieval differs"):
+        llm_eval.rescore(path)
+
+
+# ---- M29 (D12): a reference with both classes, a gated correctness verdict, the abstention rubric
+
+def _stored(qid):
+    """A row of the committed M4 run (bench/results/jury.json, generator and first judge qwen2.5:7b)."""
+    from pathlib import Path
+
+    blob = json.loads((Path(__file__).resolve().parents[2] / "bench" / "results" / "jury.json").read_text())
+    return next(r for r in blob["rows"] if r["id"] == qid)
+
+
+def test_the_reference_does_not_find_the_gold_inside_a_longer_number():
+    from app.eval.gold import GoldQuestion
+    from app.eval.judge import exact_match_label
+    from app.eval.llm_eval import deterministic_checks
+
+    row = _stored("q098")  # gold 8; the stored answer counts 5 runs and lists run 48
+    answer = strip_citations(row["answer"])
+    assert exact_match_label(answer, row["gold"]) == "correct"  # plain containment finds "8" inside "48"
+    assert exact_match_label(answer, row["gold"], bounded=True) == "wrong"
+    assert exact_match_label("run 42 used 3 stereo pairs", "2", bounded=True) == "wrong"
+    assert exact_match_label("val_rmse: 0.0533", "0.053", bounded=True) == "wrong"
+    assert exact_match_label("run 40 used 2 stereo pairs.", "2", bounded=True) == "correct"
+    assert exact_match_label("learning_rate: 0.0001", "1e-04", bounded=True) == "correct"
+    assert exact_match_label("bark_type: oak", "oak", bounded=True) == "correct"
+    assert exact_match_label("the dinov2 run used 3 pairs", "2", bounded=True) == "wrong"  # no number inside a word
+    assert exact_match_label("the dinov2 run used 3 pairs", "2") == "correct"  # the unbounded rule reads the 2 of dinov2
+    assert exact_match_label("encoder: resnet50", "50", bounded=True) == "wrong"
+    assert exact_match_label("The val RMSE was 0.0550.", "0.055", bounded=True) == "correct"
+    q = GoldQuestion(id="q", question="how many stereo pairs did run 42 use", category="simple_factual", answer="2")
+    assert deterministic_checks(q, f"Run 42 used 3 pairs {source_tag(HITS[0])}.", HITS)["exact_match_label"] == "wrong"
+
+
+def test_the_abstention_rubric_on_the_stored_answers():
+    """In the M4 run both judges labelled q109's and q123's NOT IN SOURCES "correct", though both questions have a
+    gold answer. The rubric labels such an answer wrong without asking a judge. q088 states a value and also says
+    NOT IN SOURCES, so a judge is asked, and its prompt says NOT IN SOURCES gives no answer."""
+    from app.eval.gold import GoldQuestion
+    from app.eval.judge import correctness_prompt
+    from app.eval.llm_eval import abstention_only, deterministic_checks, rule_label
+
+    for qid in ("q109", "q123"):
+        row = _stored(qid)
+        assert row["answer"] == NOT_IN_SOURCES and row["gold"]
+        assert {name: v["label"] for name, v in row["judges"].items() if name != "heuristic"} == {"qwen2.5:7b": "correct", "llama3.1:8b": "correct"}
+        q = GoldQuestion(id=qid, question=row["question"], category=row["category"], answer=row["gold"])
+        checks = deterministic_checks(q, row["answer"], HITS)
+        assert checks["abstention_only"] and rule_label(checks, row["gold"]) == "wrong"
+    mixed = _stored("q088")
+    answer = strip_citations(mixed["answer"])
+    assert NOT_IN_SOURCES in answer and not abstention_only(answer)
+    assert rule_label({"abstention_only": abstention_only(answer)}, mixed["gold"]) is None
+    assert f"{NOT_IN_SOURCES} gives no answer" in correctness_prompt(mixed["question"], answer, mixed["gold"])
+    assert abstention_only(f"{NOT_IN_SOURCES}.") and rule_label({"abstention_only": True}, "") is None  # no gold: a judge decides
+
+
+def test_the_verdict_parser_counts_what_it_cannot_read():
+    from app.eval.judge import parse_verdict
+
+    assert parse_verdict('```json\n{"label": "wrong"}\n```') == ("wrong", True)
+    assert parse_verdict("{'label': 'partial'}") == ("partial", True)
+    assert parse_verdict("**Correct**") == ("correct", True) and parse_verdict('{"label": "incorrect"}') == ("wrong", True)
+    assert parse_verdict("The answer is not correct.") == ("partial", False)  # prose is not read as a label
+    assert parse_verdict("") == ("partial", False)
+
+
+def _sf(qid, reference, composite, verdict, *, abstention=False):
+    checks = {"uncited": False, "abstained": abstention, "abstention_only": abstention, "cited_in_retrieved": None if abstention else True,
+              "n_citations": 0 if abstention else 1, "unknown_citations": [], "n_values": 0 if abstention else 1, "values_in_cited_bytes": True,
+              "values_not_in_cited_bytes": [], "values_in_any_evidence": True, "verification_ratio_cited": 1.0,
+              "exact_match_label": reference, "exact_match": reference == "correct"}
+    return _row(qid, "simple_factual", checks, {"heuristic": "partial", "j": composite}, correctness={"j": verdict})
+
+
+def test_the_gate_reads_the_correctness_verdict_and_pairs_labels_per_row():
+    """A wrong value copied faithfully from a retrieved chunk scores about 1, 1, 0 on the M4 dimensions, so the
+    composite label is partial where the reference says wrong; the correctness verdict can agree with it."""
+    from app.eval.llm_eval import summarize
+
+    rows = [_sf(f"q{i}", "correct", "correct", "correct") for i in range(4)]
+    rows += [_sf(f"q{i}", "wrong", "partial", "wrong") for i in range(4, 8)]
+    rows.append(_sf("q8", "wrong", "correct", None, abstention=True))  # labelled wrong by rule, composite said correct
+    for r in rows[2:8]:  # judge k labelled only six of the reference rows
+        r["correctness"]["k"] = {"label": r["checks"]["exact_match_label"], "by": "judge", "parsed": True, "raw": "{}"}
+    s = summarize(rows, ["j", "k"])
+    ref = s["reference"]
+    assert ref["n"] == 8 and ref["label_counts"] == {"correct": 4, "partial": 0, "wrong": 4} and ref["gate_evaluable"]
+    assert ref["left_out_abstention_only"] == 1 and ref["label_counts_with_abstentions"]["wrong"] == 5
+    j = s["kappa"]["j"]
+    assert j["kappa_vs_exact_match_simple_factual"] == 1.0 and j["n"] == 8 and j["readme_ok"]
+    assert j["confusion_reference_by_judge"]["wrong"] == {"correct": 0, "partial": 0, "wrong": 4}
+    assert j["mean_correctness_all"] == round(4 / 9, 4) and j["n_all"] == 9  # the rule-labelled abstention counts as wrong
+    assert s["kappa"]["k"]["kappa_vs_exact_match_simple_factual"] == 1.0 and s["kappa"]["k"]["n"] == 6  # paired by row
+    assert s["composite"]["j"]["kappa_vs_exact_match_simple_factual"] == 0.3333 and s["composite"]["j"]["abstentions_labelled_correct"] == ["q8"]
+    assert s["publishable_judges"] == ["j", "k"] and s["abstention_rule"]["ids"] == ["q8"]
+    assert s["kappa"]["j"]["interval"] == {"lo": 1.0, "hi": 1.0}
+
+
+def test_a_pure_abstention_is_labelled_by_rule_without_a_judge_call():
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    asked = []
+
+    def fake(prompt: str) -> str:
+        if "Rules:" in prompt:
+            return NOT_IN_SOURCES
+        if "Does the answer give the gold answer?" in prompt:
+            asked.append(prompt)
+            return '{"label": "correct"}'
+        if "Which is better" in prompt:
+            return "TIE"
+        return json.dumps({"score": 1.0, "label": "correct"})  # the M4 prompts, which called abstentions correct
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=3, complete_fn=fake)
+    s = blob["summary"]
+    assert asked == [] and all(r["correctness"]["fake-a"] == {"label": "wrong", "by": "rule"} for r in blob["rows"])
+    assert s["abstention_rule"]["n"] == 3 and s["reference"]["n"] == 0 and s["reference"]["left_out_abstention_only"] == 3
+    assert not s["reference"]["gate_evaluable"] and s["publishable_judges"] == [] and "empty" in s["verdict"]
+    assert s["composite"]["fake-a"]["abstentions_labelled_correct"] == ["q001", "q002", "q003"]
+    assert s["kappa"]["fake-a"]["mean_correctness_all"] == 0.0 and s["replies"]["fake-a"]["correctness"]["n"] == 0
+
+
+def test_empty_and_unreadable_judge_replies_are_counted():
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    def fake(prompt: str) -> str:
+        if "Rules:" in prompt:
+            tag = re.search(r"Source 1 (\[[^\]]+\])\n(.*?)(?:\n\n|$)", prompt, re.S)
+            return f"The value is 7 {tag.group(1)}."
+        if "Does the answer give the gold answer?" in prompt:
+            return "I think it is fine."
+        return ""  # a failed call: ollama_complete returns None, which the judge reads as ""
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=3, complete_fn=fake)
+    assert blob["summary"]["replies"]["fake-a"] == {"pointwise": {"n": 9, "empty": 9}, "correctness": {"n": 3, "empty": 0, "unparsed": 3},
+                                                     "pairwise": {"n": 6, "empty": 6}}
+    assert all(r["correctness"]["fake-a"]["label"] == "partial" and not r["correctness"]["fake-a"]["parsed"] for r in blob["rows"])
+
+
+def test_rescore_refuses_when_the_abstention_rule_would_label_other_rows(tmp_path):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    def fake(prompt: str) -> str:
+        return NOT_IN_SOURCES if "Rules:" in prompt else ("TIE" if "Which is better" in prompt else '{"label": "wrong"}')
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=2, complete_fn=fake)
+    path = tmp_path / "jury_v2.json"
+    path.write_text(json.dumps(blob))
+    assert llm_eval.rescore(path)["summary"] == blob["summary"]
+    blob["rows"][0]["answer"] = f"{NOT_IN_SOURCES} for run 49."  # still an abstention, no longer a pure one
+    path.write_text(json.dumps(blob))
+    with pytest.raises(SystemExit, match="abstention rule"):
         llm_eval.rescore(path)

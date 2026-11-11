@@ -126,8 +126,8 @@ def ollama_model_provenance(model_name: str, role: str, tags: Mapping[str, Mappi
     entry = ollama_tag_entry(model_name, tags)
     details = entry.get("details") or {}
     return {"role": role, "model": model_name, "revision": entry.get("digest"), "neural": True, "backend": "ollama",
-            "quantization": details.get("quantization_level"), "parameter_size": details.get("parameter_size"),
-            "size_bytes": entry.get("size")}
+            "family": details.get("family"), "quantization": details.get("quantization_level"),
+            "parameter_size": details.get("parameter_size"), "size_bytes": entry.get("size")}
 
 
 def device_info(requested: str = "auto") -> dict:

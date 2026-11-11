@@ -834,21 +834,43 @@ is missing.
 
 `make bench-jury` generates a cited answer for every gold question with a local
 model through Ollama, from the top 8 chunks of the best measured retrieval
-configuration, then runs three deterministic checks before any judge is asked:
-the cited path is in the retrieved set, every number or config value in the
-answer appears inside the cited bytes (not merely somewhere in the evidence),
-and exact match against the gold answer on the simple-factual slice. An answer
-that carries no valid `[path:start-end]` citation fails loudly and is excluded
-from judging. Two different judge models label each answer pointwise, and a
-position-swapped (AB/BA) pairwise comparison against the extractive answer
-measures their order bias. Judge scores are published only if a judge's
-Cohen's kappa against the exact-match labels reaches the gate; otherwise the
-table says so and the scores stay in the results file. If the reference is a
-single class (every simple-factual answer matched, as on the first run) kappa
-is 0 by construction and the gate is reported as not evaluable, which also
-keeps it closed. `make bench-jury-rescore` recomputes the deterministic checks
-and the summary of the committed file from its stored answers without a model
-call, re-running retrieval and refusing if the retrieved paths differ; the file
+configuration (a run refuses to start when the configured reranker falls
+back), then runs the deterministic checks before any judge is asked: the cited
+path is in the retrieved set, every number or config value in the answer
+appears inside the cited bytes (not merely somewhere in the evidence), and
+exact match against the gold answer on the simple-factual slice. Exact match
+counts the gold string only where it is not part of a longer number or word,
+or the same number written in another format; plain containment had found the
+gold `8` inside `48`. An answer that carries no valid `[path:start-end]`
+citation fails loudly and is excluded from judging.
+
+Each judge model then gives three things per answer. The gated label is a
+correctness verdict: the judge sees the question, the gold answer and the
+answer, and no retrieved context, and replies correct, partial or wrong. An
+answer that is `NOT IN SOURCES` and nothing else, to a question that has a gold
+answer, is labelled wrong by rule without asking a judge (the abstention
+rubric; both judges of the first run had called such answers correct). The
+first run's composite label (the mean of faithfulness, relevancy and
+groundedness scores) is kept as a labelled column and never gated: a wrong
+value copied faithfully from a retrieved chunk scores high on two of the three
+and reads as partial, so it disagrees with an exact-match "wrong" by
+construction. A position-swapped (AB/BA) pairwise comparison against the
+extractive answer measures order bias. Every reply is stored, and empty or
+unreadable replies are counted per judge, because a failed call would
+otherwise read as partial or as a tie.
+
+Cohen's kappa is computed between each judge's correctness verdicts and the
+exact-match labels of the simple-factual answers it labelled, paired per
+question, with a bootstrap interval; rule-labelled abstentions are left out of
+kappa and counted, since they would agree with the reference by construction.
+A judge's correctness score is published only if its kappa reaches the gate;
+otherwise the table says so and the scores stay in the results file. If the
+reference is a single class (every simple-factual answer matched, as on the
+first run) kappa is 0 by construction and the gate is reported as not
+evaluable, which also keeps it closed. `make bench-jury-rescore` recomputes the
+deterministic checks and the summary of the committed file from its stored
+answers without a model call, re-running retrieval and refusing if the
+retrieved paths differ or the abstention rule would label other rows; the file
 and the block name both the sha that generated the answers and the sha that
 rescored them. The results header pins the generator and each judge by the
 manifest digest Ollama reports for its tag (`revision`), next to the server

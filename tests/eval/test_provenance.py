@@ -27,11 +27,11 @@ def test_model_provenance_labels_non_neural_backends():
 def test_an_ollama_model_is_pinned_by_the_digest_its_tag_resolved_to():
     """A43: an Ollama tag names weights that can change under it; the manifest digest /api/tags reports pins them."""
     tags = {"qwen2.5:7b": {"name": "qwen2.5:7b", "digest": "845dbda0ea48", "size": 4683087332,
-                           "details": {"quantization_level": "Q4_K_M", "parameter_size": "7.6B"}},
+                           "details": {"family": "qwen2", "quantization_level": "Q4_K_M", "parameter_size": "7.6B"}},
             "llama3:latest": {"name": "llama3:latest", "digest": "365c0bd3c000"}}
     block = ollama_model_provenance("qwen2.5:7b", "judge", tags)
     assert block == {"role": "judge", "model": "qwen2.5:7b", "revision": "845dbda0ea48", "neural": True, "backend": "ollama",
-                     "quantization": "Q4_K_M", "parameter_size": "7.6B", "size_bytes": 4683087332}
+                     "family": "qwen2", "quantization": "Q4_K_M", "parameter_size": "7.6B", "size_bytes": 4683087332}
     assert ollama_model_provenance("llama3", "judge", tags)["revision"] == "365c0bd3c000"  # Ollama reads a bare name as :latest
     assert ollama_model_provenance("qwen2.5:0.5b", "generator", tags)["revision"] is None  # not on the server: no pin
 
