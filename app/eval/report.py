@@ -697,6 +697,51 @@ FRONTIER_CATEGORY_ARMS = ("hipporag", "graphrag")  # the graph arms are aimed at
 FRONTIER_CATEGORIES = ("aggregation", "multi_hop", "comparative")
 
 
+def hyde_wiring(settings: dict) -> str | None:
+    """Where a HyDE arm's dense list enters the ranking (app.eval.harness.HYDE_STAGES), in words."""
+    if not settings.get("hyde"):
+        return None
+    if settings.get("hyde_stage") in (None, "after_rerank"):  # a file recorded before M18 has no stage: this was its wiring
+        return ("HyDE after the reranker: the reranked list is RRF-fused with the HyDE dense list and re-sorted, so the reranker's "
+                "order does not survive and no HyDE hit outside the reranked list is added (the wiring of every HyDE row recorded "
+                "before the first-stage arms existed)")
+    if settings.get("mode") == "dense":
+        return "HyDE in the first stage: the HyDE vector is the dense query"
+    return ("HyDE in the first stage: the HyDE vector is the dense leg's query, fused with BM25 before "
+            + ("the reranker, which has the last word" if settings.get("enable_rerank") else "anything else (no reranker)"))
+
+
+def cache_note(cache: dict) -> str:
+    """What the cache arm's row cannot show in its delta: hits, wrong hits, and the paraphrase probes."""
+    g = cache["gold"]
+    text = (f"semantic cache (`app/retrieval/cache.py`, threshold {cache['threshold']} on the {cache['similarity']}), the {g['n']} gold "
+            f"questions replayed in gold order into an empty cache: {g['hits']} hits, {g['wrong_hits']} of them wrong (the cached list "
+            f"differs from what retrieval returns for that question); the closest similarity was {g['min_margin_to_threshold']} "
+            f"from the threshold.")
+    pb = cache.get("probes")
+    if pb:
+        d = pb["ndcg@10"]
+        text += (f" Then {pb['n']} paraphrases of gold questions (`{pb['file']}`: rule-based rewrites whose relevant paths are inherited, "
+                 f"not gold labels) were looked up without being added: {pb['hits_from_source']} hits from the rewritten question's own "
+                 f"entry, {pb['hits_from_other']} from another question's, {pb['misses']} misses; nDCG@10 of what was served minus fresh "
+                 f"retrieval for the paraphrase: {_delta4(d)} ({verdict(d)}).")
+    else:
+        text += " No paraphrase probes were looked up, so true hits are not measured."
+    return text
+
+
+def llm_note(llm: dict) -> str:
+    """Which stored LLM generations a row read, and how many of its calls failed."""
+    parts = []
+    for kind, what, fallback in (("hyde", "HyDE hypotheses", "the keyword hypothesis was used for those questions"),
+                                 ("context", "chunk prefixes", "those chunks were indexed without a prefix")):
+        block = llm.get(kind)
+        if block:
+            failed = f"{block['n_failed']} of {block['n']} calls failed" + (f" ({fallback})" if block["n_failed"] else "")
+            parts.append(f"{what} written by `{llm['model']}` and read from `{llm['file']}`; {failed}")
+    return "; ".join(parts) + "."
+
+
 def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "make bench-frontier") -> str:
     """One row per prototype arm: parent, paired delta, interval, verdict word, what fired, stand-ins."""
     if not blob:
@@ -707,7 +752,7 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
     n = blob.get("n_gold")
     lines = [
         f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Each arm is one switch away from its parent and both parents are computed in the same run. The verdict is read off "
+        f"Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off "
         f"the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "
         f"\"Fired\" counts the questions (of {n}) on which the arm's mechanism triggered; \"top 10 differs\" counts the questions "
         f"whose first ten files differ from the parent's. The last column names every stand-in the row's number depends on.",
@@ -749,10 +794,40 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         if lc:
             notes.append(f"- `{name}`: {lc['n_chunks_late_pooled']} of {lc['n_chunks']} chunks ({lc['n_files_with_several_chunks']} files with several chunks) "
                          f"were re-pooled; {lc['pooling']}.")
+        wiring = hyde_wiring(row.get("settings") or {})
+        if wiring:
+            notes.append(f"- `{name}`: {wiring}.")
+        cache = row.get("cache")
+        if cache:
+            notes.append(f"- `{name}`: {cache_note(cache)}")
+        emb = (row.get("models") or {}).get("embedder") or {}
+        if emb.get("library"):
+            libs = ", ".join(f"{k} {v}" for k, v in emb["library"].items())
+            notes.append(f"- `{name}`: model-free embedder `{emb.get('model')}` fitted on the indexed chunks ({emb.get('dim')} dimensions; {libs}).")
+        llm = row.get("llm")
+        if llm:
+            notes.append(f"- `{name}`: {llm_note(llm)}")
     for item in meta.get("not_evaluated") or []:
         notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
+    gen = blob.get("generations")
+    if gen:
+        ollama = gen.get("ollama") or {}
+        opts = ", ".join(f"{k} {v}" for k, v in (gen.get("options") or {}).items())
+        notes.append(f"- LLM-written arms: `{gen['model']}` through Ollama {ollama.get('version') or '(version not recorded)'}"
+                     f"{', digest ' + str(ollama['digest'])[:12] if ollama.get('digest') else ''}; {opts}. The prompts are in the results "
+                     f"header (`generations.prompts`) and every generation is stored in `{gen['file']}`, so the rows are rescored without the model.")
     if notes:
         lines += ["", *notes]
+    comparisons = [c for c in (blob.get("bootstrap") or {}).get("comparisons") or [] if c.get("ndcg@10") and c["row"] in by and c["other"] in by]
+    if comparisons:
+        # Name only the kinds of comparison this file holds: the CPU run has no LLM-written arm.
+        llm_rows = [bool((by[c["row"]].get("settings") or {}).get("generations")) for c in comparisons]
+        kinds = (["the two HyDE wirings"] if not all(llm_rows) else []) + (
+            ["each LLM-written arm against the heuristic arm it replaces"] if any(llm_rows) else [])
+        lines += ["", f"Arms compared directly (row minus other, same paired bootstrap): {', and '.join(kinds)}.", "",
+                  "| row | other | Δ nDCG@10 [95% CI] | verdict | Δ Recall@10 [95% CI] |", "|---|---|---:|:---:|---:|",
+                  *(f"| {c['row']} | {c['other']} | {_delta4(c['ndcg@10'])} | {verdict(c['ndcg@10'])} | {_delta(c.get('recall@10'))} |"
+                    for c in comparisons)]
     cat_lines = []
     for name in arms:
         if not any(key in name for key in FRONTIER_CATEGORY_ARMS):

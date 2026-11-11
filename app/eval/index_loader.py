@@ -78,8 +78,17 @@ def mtime_provenance(root: Path, mtimes: str = "auto", *, base: Path | None = No
     return {"source": "manifest", "file": name or f"{manifest.parent.name}/{MANIFEST_NAME}", "field": "files[].mtime"}
 
 
+def _stored_prefix(prefixes: dict[str, dict], chunk_id: str, raw: str) -> str:
+    """The LLM-written prefix stored for this chunk ('' when its call failed: indexed without a prefix)."""
+    entry = prefixes.get(chunk_id)
+    if entry is None or entry.get("span_sha256") != content_hash(raw):
+        raise ValueError(f"no stored prefix for chunk {chunk_id} with these bytes; re-run `make frontier-generations`")
+    return entry["text"]
+
+
 def load_chunks_with_report(
-    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto"
+    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto",
+    prefixes: dict[str, dict] | None = None,
 ) -> tuple[list[Chunk], dict]:
     """Chunks for every accepted file plus the ingestion report (files seen, indexed, rejected by reason).
 
@@ -88,9 +97,11 @@ def load_chunks_with_report(
     non-empty file; an undecodable file is counted, not skipped silently.
 
     `contextual` prepends a situating prefix to each chunk's indexed text
-    (app/chunking/contextual.py). No LLM is wired in here: the prefix is the
-    path-words heuristic of app/retrieval/context.py, and it is labelled as such
-    wherever its numbers appear. Citations still use `evidence_raw`.
+    (app/chunking/contextual.py). By default the prefix is the path-words
+    heuristic of app/retrieval/context.py, labelled as such wherever its numbers
+    appear. With `prefixes` (chunk id -> stored LLM-written prefix and the hash of
+    the chunk's bytes, app.eval.frontier_llm.context_prefixes) the stored prefix is
+    used instead; no model is called here. Citations still use `evidence_raw`.
 
     `mtimes` (MTIME_MODES): by default a frozen fixture's chunks carry the
     mtimes its MANIFEST records, so a fresh checkout scores like the one that
@@ -112,7 +123,8 @@ def load_chunks_with_report(
         for piece in file_chunks(source.path, source.text, strategy):
             indexed_text = piece.text
             if contextual:
-                indexed_text = prepend_context(piece.text, path_context(source.path))
+                prefix = _stored_prefix(prefixes, piece.chunk_id, piece.raw) if prefixes is not None else path_context(source.path)
+                indexed_text = prepend_context(piece.text, prefix)
             chunks.append(
                 Chunk(
                     chunk_id=piece.chunk_id,
@@ -135,15 +147,17 @@ def load_chunks_with_report(
 
 
 def load_chunks(
-    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto"
+    root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto",
+    prefixes: dict[str, dict] | None = None,
 ) -> list[Chunk]:
-    return load_chunks_with_report(root, strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes)[0]
+    return load_chunks_with_report(root, strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes,
+                                   prefixes=prefixes)[0]
 
 
 def build_index(
     root: Path,
     *,
-    embedder_name: str = "tfidf",
+    embedder_name: str = "hash",
     retrieve_k: int = 50,
     rerank_n: int = 8,
     enable_router: bool = True,
@@ -153,9 +167,11 @@ def build_index(
     include_path_context: bool = False,
     contextual: bool = False,
     mtimes: str = "auto",
+    prefixes: dict[str, dict] | None = None,
 ) -> InMemoryHybridIndex:
     chunks, ingest = load_chunks_with_report(
-        root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes
+        root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes,
+        prefixes=prefixes,
     )
     if embedder_name == "hash":
         embedder = HashEmbedder()

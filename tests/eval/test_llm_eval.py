@@ -106,6 +106,10 @@ def test_runner_offline_with_a_fake_model(tmp_path):
     row = blob["rows"][0]
     assert row["checks"]["cited_in_retrieved"] and row["checks"]["n_citations"] == 1
     assert "heuristic" in row["judges"] and row["generation"]["model"] == "fake-gen"
+    # The stored config has the keys jury.json was recorded with: switches added later stay out while unset.
+    from app.eval.harness import LATER_SETTINGS
+
+    assert not set(LATER_SETTINGS) & set(blob["config"]) and blob["config"]["name"] == cfg.name
 
 
 def test_exact_match_label_treats_equal_numbers_as_equal():

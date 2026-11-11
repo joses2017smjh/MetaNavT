@@ -1,0 +1,1577 @@
+{
+  "git_sha": "24c5a60",
+  "timestamp": "2026-11-11T09:09:43.857778+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.frontier_llm --model qwen2.5:7b --out bench/results/frontier_generations.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA A40",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "model": "qwen2.5:7b",
+  "ollama": {
+    "version": "0.34.3",
+    "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen2",
+      "families": [
+        "qwen2"
+      ],
+      "parameter_size": "7.6B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_length": 3584
+    }
+  },
+  "options": {
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "wall_s": 572.7,
+  "hyde": {
+    "prompt": "Write a short paragraph (2-3 sentences) that would be a good document answering the following question. Do not say 'I don't know'. Write as if you are the document itself, stating facts directly.\n\nQuestion: {query}\n\nDocument:",
+    "source": "app.retrieval.hyde.HYDE_PROMPT (llm_hypothesis)",
+    "n": 136,
+    "n_failed": 0,
+    "items": [
+      {
+        "id": "q001",
+        "question": "what learning rate did run 40 use",
+        "text": "Run 40 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary experiments to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 2024.6
+      },
+      {
+        "id": "q002",
+        "question": "how many stereo pairs did run 40 use",
+        "text": "Run 40 utilized 8 stereo pairs for its audio processing and output.",
+        "ok": true,
+        "ms": 850.1
+      },
+      {
+        "id": "q003",
+        "question": "what bark type did run 40 use",
+        "text": "Run 40 used a German Shepherd-type bark in its training and operations. This type of bark is known for its clarity and ability to travel long distances, making it suitable for various communication needs in the field.",
+        "ok": true,
+        "ms": 1567.4
+      },
+      {
+        "id": "q004",
+        "question": "what encoder did run 40 use",
+        "text": "Run 40 utilized the Snapdragon 888 processor, which includes an advanced Kryo 680 CPU and an Adreno 660 GPU, serving as its primary encoder for processing and performance.",
+        "ok": true,
+        "ms": 1843.4
+      },
+      {
+        "id": "q005",
+        "question": "what was val RMSE for run 40",
+        "text": "The value of the root mean square error (RMSE) for run 40 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors), providing a measure of the average magnitude of the error in the predictions.",
+        "ok": true,
+        "ms": 2538.6
+      },
+      {
+        "id": "q006",
+        "question": "what learning rate did run 41 use",
+        "text": "Run 41 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary experiments to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 1850.1
+      },
+      {
+        "id": "q007",
+        "question": "how many stereo pairs did run 41 use",
+        "text": "Run 41 utilized 12 stereo pairs for its operations, providing comprehensive coverage and detailed data collection in its mission.",
+        "ok": true,
+        "ms": 1212.3
+      },
+      {
+        "id": "q008",
+        "question": "what bark type did run 41 use",
+        "text": "Run 41 utilized a Type III bark, which is characterized by its robust structure and durability, making it suitable for various applications including construction and heavy-duty tasks.",
+        "ok": true,
+        "ms": 1821.3
+      },
+      {
+        "id": "q009",
+        "question": "what encoder did run 41 use",
+        "text": "Run 41 utilized the Snapdragon 888 processor, which includes an advanced encoder for efficient video and audio compression.",
+        "ok": true,
+        "ms": 1020.0
+      },
+      {
+        "id": "q010",
+        "question": "what was val RMSE for run 41",
+        "text": "The value of the root mean square error (RMSE) for run 41 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors) and was calculated based on the differences between the predicted and actual values in the dataset used for that particular run.",
+        "ok": true,
+        "ms": 2381.0
+      },
+      {
+        "id": "q011",
+        "question": "what learning rate did run 42 use",
+        "text": "Run 42 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1733.4
+      },
+      {
+        "id": "q012",
+        "question": "how many stereo pairs did run 42 use",
+        "text": "Run 42 utilized two stereo pairs for its audio recordings, capturing a wide range of sounds and environmental audio with clarity and depth.",
+        "ok": true,
+        "ms": 1558.2
+      },
+      {
+        "id": "q013",
+        "question": "what bark type did run 42 use",
+        "text": "Run 42 utilized a German Shepherd-type bark for its canine character, which is known for its deep and authoritative sound, often used in scenarios requiring a sense of authority or alertness.",
+        "ok": true,
+        "ms": 1748.0
+      },
+      {
+        "id": "q014",
+        "question": "what encoder did run 42 use",
+        "text": "Run 42 utilized the OpenAI Codex encoder for its natural language processing capabilities, enabling it to understand and generate human-like text based on the input provided.",
+        "ok": true,
+        "ms": 1914.0
+      },
+      {
+        "id": "q015",
+        "question": "what was val RMSE for run 42",
+        "text": "The value of the root mean square error (RMSE) for run 42 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors), providing a measure of the average magnitude of the error in the predictions.",
+        "ok": true,
+        "ms": 2187.2
+      },
+      {
+        "id": "q016",
+        "question": "what learning rate did run 43 use",
+        "text": "Run 43 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 1501.0
+      },
+      {
+        "id": "q017",
+        "question": "how many stereo pairs did run 43 use",
+        "text": "Run 43 utilized a total of four stereo pairs for its audio recording and transmission capabilities.",
+        "ok": true,
+        "ms": 1069.8
+      },
+      {
+        "id": "q018",
+        "question": "what bark type did run 43 use",
+        "text": "Run 43 utilized a bark type known as the \"Thunder Bark,\" which was characterized by its deep, resonant howl that could be heard for miles, often used to signal the pack's location or warn of potential dangers.",
+        "ok": true,
+        "ms": 2214.4
+      },
+      {
+        "id": "q019",
+        "question": "what encoder did run 43 use",
+        "text": "Run 43 utilized the Snapdragon 888 processor, which includes an Advanced 7nm\u5de5\u827a\u7684Kryo 385 CPU\u5185\u6838\u4f5c\u4e3a\u5176\u4e3b\u8981\u7684\u7f16\u7801\u5668\u3002",
+        "ok": true,
+        "ms": 1395.1
+      },
+      {
+        "id": "q020",
+        "question": "what was val RMSE for run 43",
+        "text": "The value of the root mean square error (RMSE) for run 43 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors) and was calculated based on the differences between the predicted and actual values in the dataset used for that particular run.",
+        "ok": true,
+        "ms": 1760.5
+      },
+      {
+        "id": "q021",
+        "question": "what learning rate did run 44 use",
+        "text": "Run 44 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1311.1
+      },
+      {
+        "id": "q022",
+        "question": "how many stereo pairs did run 44 use",
+        "text": "Run 44 utilized four stereo pairs for its audio processing and output.",
+        "ok": true,
+        "ms": 807.8
+      },
+      {
+        "id": "q023",
+        "question": "what bark type did run 44 use",
+        "text": "Run 44 utilized a German Shepherd-type bark in its training and operations, known for its deep and authoritative tone that is effective for commanding attention and conveying authority.",
+        "ok": true,
+        "ms": 1146.1
+      },
+      {
+        "id": "q024",
+        "question": "what encoder did run 44 use",
+        "text": "Run 44 utilized the Snapdragon 865+ processor, which includes an Octa-core Kryo 585 CPU with a main processor clock speed of up to 3.1 GHz, for its encoding capabilities.",
+        "ok": true,
+        "ms": 2064.2
+      },
+      {
+        "id": "q025",
+        "question": "what was val RMSE for run 44",
+        "text": "The value of the root mean square error (RMSE) for run 44 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors), providing a measure of the average magnitude of the error in the predictions.",
+        "ok": true,
+        "ms": 2830.7
+      },
+      {
+        "id": "q026",
+        "question": "what learning rate did run 45 use",
+        "text": "Run 45 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1594.3
+      },
+      {
+        "id": "q027",
+        "question": "how many stereo pairs did run 45 use",
+        "text": "Run 45, the popular music compilation album series, utilized 20 stereo pairs across its various releases, each pair typically consisting of two tracks.",
+        "ok": true,
+        "ms": 1387.7
+      },
+      {
+        "id": "q028",
+        "question": "what bark type did run 45 use",
+        "text": "Run 45 used a German Shepherd-type bark in their audio tracks. This specific bark was digitally altered and sampled to fit the character's profile in the show.",
+        "ok": true,
+        "ms": 1910.3
+      },
+      {
+        "id": "q029",
+        "question": "what encoder did run 45 use",
+        "text": "Run 45 utilized the Snapdragon 888 processor, which includes an advanced encoder for efficient video compression.",
+        "ok": true,
+        "ms": 893.8
+      },
+      {
+        "id": "q030",
+        "question": "what was val RMSE for run 45",
+        "text": "The value of the root mean square error (RMSE) for run 45 was 0.735. This metric indicates the standard deviation of the residuals (prediction errors) and is a measure of the differences between the values predicted by a model and the values actually observed.",
+        "ok": true,
+        "ms": 3222.2
+      },
+      {
+        "id": "q031",
+        "question": "what learning rate did run 46 use",
+        "text": "Run 46 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 2249.4
+      },
+      {
+        "id": "q032",
+        "question": "how many stereo pairs did run 46 use",
+        "text": "Run 46 utilized 16 stereo pairs for its audio production, enhancing the spatial audio experience with a wide soundstage and detailed soundscapes.",
+        "ok": true,
+        "ms": 1866.2
+      },
+      {
+        "id": "q033",
+        "question": "what bark type did run 46 use",
+        "text": "Run 46 used a German Shepherd-type bark in the show, characterized by its deep and resonant tone, which is typical of the breed known for its loyalty and protective nature.",
+        "ok": true,
+        "ms": 1655.6
+      },
+      {
+        "id": "q034",
+        "question": "what encoder did run 46 use",
+        "text": "Run 46 utilized the X265 encoder for its video compression needs, known for its high efficiency and performance in handling a wide range of video content.",
+        "ok": true,
+        "ms": 1891.6
+      },
+      {
+        "id": "q035",
+        "question": "what was val RMSE for run 46",
+        "text": "The value of the root mean square error (RMSE) for run 46 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors) and was calculated based on the differences between the predicted and actual values in the dataset used for that particular run.",
+        "ok": true,
+        "ms": 3417.8
+      },
+      {
+        "id": "q036",
+        "question": "what learning rate did run 47 use",
+        "text": "Run 47 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1954.4
+      },
+      {
+        "id": "q037",
+        "question": "how many stereo pairs did run 47 use",
+        "text": "Run 47 utilized 16 stereo pairs for its audio production, enhancing the spatial audio experience with a wide soundstage and detailed soundscapes.",
+        "ok": true,
+        "ms": 1306.9
+      },
+      {
+        "id": "q038",
+        "question": "what bark type did run 47 use",
+        "text": "Run 47 used a German Shepherd-type bark in the show, characterized by its deep and resonant tone, which is typical of the breed known for its loyalty and protective nature.",
+        "ok": true,
+        "ms": 1776.5
+      },
+      {
+        "id": "q039",
+        "question": "what encoder did run 47 use",
+        "text": "Run 47 utilized the Snapdragon 865+ processor, which includes an advanced Kryo 585 CPU and Adreno 650 GPU, serving as its primary encoder for processing and rendering high-quality video content efficiently.",
+        "ok": true,
+        "ms": 2144.6
+      },
+      {
+        "id": "q040",
+        "question": "what was val RMSE for run 47",
+        "text": "The value of the root mean square error (RMSE) for run 47 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors), providing a measure of the average magnitude of the error in the predictions.",
+        "ok": true,
+        "ms": 2728.5
+      },
+      {
+        "id": "q041",
+        "question": "what learning rate did run 48 use",
+        "text": "Run 48 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1762.1
+      },
+      {
+        "id": "q042",
+        "question": "how many stereo pairs did run 48 use",
+        "text": "Run 48, a popular audio software, utilized 48 stereo pairs for its audio processing capabilities, allowing for extensive and detailed sound mixing and production.",
+        "ok": true,
+        "ms": 1563.8
+      },
+      {
+        "id": "q043",
+        "question": "what bark type did run 48 use",
+        "text": "Run 48 used a German Shepherd-type bark in its training and deployment. This specific breed was chosen for its intelligence, loyalty, and ability to adapt to various roles within the program.",
+        "ok": true,
+        "ms": 1538.5
+      },
+      {
+        "id": "q044",
+        "question": "what encoder did run 48 use",
+        "text": "Run 48 utilized the AAC (Advanced Audio Coding) encoder for its audio compression, providing a balance between audio quality and file size efficiency.",
+        "ok": true,
+        "ms": 996.8
+      },
+      {
+        "id": "q045",
+        "question": "what was val RMSE for run 48",
+        "text": "The value of the root mean square error (RMSE) for run 48 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors) and is a measure of the differences between the values predicted by a model and the values actually observed.",
+        "ok": true,
+        "ms": 2865.6
+      },
+      {
+        "id": "q046",
+        "question": "what learning rate did run 49 use",
+        "text": "Run 49 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary experiments to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 1889.6
+      },
+      {
+        "id": "q047",
+        "question": "how many stereo pairs did run 49 use",
+        "text": "Run 49 utilized 16 stereo pairs for its audio production, enhancing the spatial audio experience with a wide soundstage and detailed soundscapes.",
+        "ok": true,
+        "ms": 999.6
+      },
+      {
+        "id": "q048",
+        "question": "what bark type did run 49 use",
+        "text": "Run 49 used a black Labrador Retriever for its bark type, known for its deep and resonant sound, which is effective for alerting and commanding attention.",
+        "ok": true,
+        "ms": 1650.3
+      },
+      {
+        "id": "q049",
+        "question": "what encoder did run 49 use",
+        "text": "Run 49 utilized the Snapdragon 888 processor, which includes an advanced Kryo 680 CPU and an Adreno 660 GPU, serving as its primary encoder for processing and performance.",
+        "ok": true,
+        "ms": 2493.8
+      },
+      {
+        "id": "q050",
+        "question": "what was val RMSE for run 49",
+        "text": "The value of the root mean square error (RMSE) for run 49 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors), providing a measure of the average magnitude of the error in the predictions.",
+        "ok": true,
+        "ms": 2500.1
+      },
+      {
+        "id": "q051",
+        "question": "what learning rate did run 50 use",
+        "text": "Run 50 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1794.0
+      },
+      {
+        "id": "q052",
+        "question": "how many stereo pairs did run 50 use",
+        "text": "Run 50 utilized 10 stereo pairs for its audio processing and output capabilities.",
+        "ok": true,
+        "ms": 865.8
+      },
+      {
+        "id": "q053",
+        "question": "what bark type did run 50 use",
+        "text": "Run 50 utilized a bark type called \"Boreal Maple\" for its exterior, known for its durability and natural appearance, which was suitable for the vehicle's design and environmental impact considerations.",
+        "ok": true,
+        "ms": 1989.4
+      },
+      {
+        "id": "q054",
+        "question": "what encoder did run 50 use",
+        "text": "Run 50 utilized the BERT encoder, a pre-trained language model developed by Google that is known for its effectiveness in understanding and processing natural language. This encoder was integral to Run 50's ability to perform a wide range of natural language processing tasks.",
+        "ok": true,
+        "ms": 2431.3
+      },
+      {
+        "id": "q055",
+        "question": "what was val RMSE for run 50",
+        "text": "The value of the root mean square error (RMSE) for run 50 was 0.75. This metric indicates the standard deviation of the residuals or prediction errors, reflecting the average magnitude of the error in the predictions made by the model.",
+        "ok": true,
+        "ms": 2435.0
+      },
+      {
+        "id": "q056",
+        "question": "what learning rate did run 51 use",
+        "text": "Run 51 utilized a learning rate of 0.001 for its training process, which was determined to be an effective value based on preliminary tests and performance metrics.",
+        "ok": true,
+        "ms": 2181.8
+      },
+      {
+        "id": "q057",
+        "question": "how many stereo pairs did run 51 use",
+        "text": "Run 51 utilized 12 stereo pairs for its audio recording and production process.",
+        "ok": true,
+        "ms": 1064.2
+      },
+      {
+        "id": "q058",
+        "question": "what bark type did run 51 use",
+        "text": "Run 51 utilized a black Labrador Retriever for its bark type, known for its deep and authoritative sound, which is commonly used in alert systems due to its clarity and volume.",
+        "ok": true,
+        "ms": 1866.6
+      },
+      {
+        "id": "q059",
+        "question": "what encoder did run 51 use",
+        "text": "Run 51 utilized the Snapdragon 888 SoC, which includes an Advanced 7nm process Qualcomm Kryo 680 CPU as its primary encoder.",
+        "ok": true,
+        "ms": 1124.6
+      },
+      {
+        "id": "q060",
+        "question": "what was val RMSE for run 51",
+        "text": "The value of the root mean square error (RMSE) for run 51 was 0.75. This metric indicates the standard deviation of the residuals or prediction errors, reflecting the average magnitude of the error in the predictions made by the model.",
+        "ok": true,
+        "ms": 2236.3
+      },
+      {
+        "id": "q061",
+        "question": "what learning rate did run 52 use",
+        "text": "Run 52 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 1807.7
+      },
+      {
+        "id": "q062",
+        "question": "how many stereo pairs did run 52 use",
+        "text": "Run 52 utilized 16 stereo pairs for its audio production, enhancing the spatial audio experience with a wide soundstage and detailed soundscapes.",
+        "ok": true,
+        "ms": 2016.9
+      },
+      {
+        "id": "q063",
+        "question": "what bark type did run 52 use",
+        "text": "Run 52 used a Siberian Husky for its distinctive appearance and endurance capabilities, which were well-suited for the show's Arctic-themed episodes.",
+        "ok": true,
+        "ms": 1587.4
+      },
+      {
+        "id": "q064",
+        "question": "what encoder did run 52 use",
+        "text": "Run 52 utilized the Snapdragon 888 processor, which includes an advanced encoder for efficient video compression.",
+        "ok": true,
+        "ms": 1515.3
+      },
+      {
+        "id": "q065",
+        "question": "what was val RMSE for run 52",
+        "text": "The value of the root mean square error (RMSE) for run 52 was 0.75. This metric indicates the standard deviation of the residuals or prediction errors, suggesting the average magnitude of the error in the predictions made by the model.",
+        "ok": true,
+        "ms": 2545.9
+      },
+      {
+        "id": "q066",
+        "question": "what learning rate did run 53 use",
+        "text": "Run 53 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to ensure a balance between convergence speed and stability.",
+        "ok": true,
+        "ms": 1903.7
+      },
+      {
+        "id": "q067",
+        "question": "how many stereo pairs did run 53 use",
+        "text": "Run 53 utilized 12 stereo pairs for its audio recording and transmission processes.",
+        "ok": true,
+        "ms": 806.4
+      },
+      {
+        "id": "q068",
+        "question": "what bark type did run 53 use",
+        "text": "Run 53 utilized a Type III bark for its exterior, which is known for its durability and resistance to rot, making it suitable for long-term outdoor use.",
+        "ok": true,
+        "ms": 1445.0
+      },
+      {
+        "id": "q069",
+        "question": "what encoder did run 53 use",
+        "text": "Run 53 utilized the NVIDIA NVENC encoder for its video processing tasks, which is known for its efficiency and speed in encoding high-definition video content.",
+        "ok": true,
+        "ms": 2156.2
+      },
+      {
+        "id": "q070",
+        "question": "what was val RMSE for run 53",
+        "text": "The value of the root mean square error (RMSE) for run 53 was 0.75. This metric indicates the standard deviation of the residuals (prediction errors), providing a measure of the average magnitude of the error in the predictions.",
+        "ok": true,
+        "ms": 2346.5
+      },
+      {
+        "id": "q071",
+        "question": "what learning rate did run 54 use",
+        "text": "Run 54 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 1703.5
+      },
+      {
+        "id": "q072",
+        "question": "how many stereo pairs did run 54 use",
+        "text": "Run 54 utilized two stereo pairs for its audio recording and transmission, providing a balanced and immersive sound experience for its audience.",
+        "ok": true,
+        "ms": 1475.1
+      },
+      {
+        "id": "q073",
+        "question": "what bark type did run 54 use",
+        "text": "Run 54 utilized a bark type known as the \"Bark of the Wild\" which was characterized by its unique, high-pitched sound and was integral to the show's plot, particularly in Run 54, where it played a crucial role in the narrative.",
+        "ok": true,
+        "ms": 2966.9
+      },
+      {
+        "id": "q074",
+        "question": "what encoder did run 54 use",
+        "text": "Run 54 utilized the Snapdragon 888 SoC, which includes an Advanced 7nm process Qualcomm Kryo 680 CPU as its primary encoder.",
+        "ok": true,
+        "ms": 1602.1
+      },
+      {
+        "id": "q075",
+        "question": "what was val RMSE for run 54",
+        "text": "The value of the root mean square error (RMSE) for run 54 was 0.75. This metric indicates the standard deviation of the residuals or prediction errors, reflecting the average magnitude of the error in the predictions made by the model.",
+        "ok": true,
+        "ms": 2779.6
+      },
+      {
+        "id": "q076",
+        "question": "what learning rate did run 55 use",
+        "text": "Run 55 utilized a learning rate of 0.001 during its training process. This value was chosen based on preliminary tests to optimize the model's convergence and performance.",
+        "ok": true,
+        "ms": 1499.5
+      },
+      {
+        "id": "q077",
+        "question": "how many stereo pairs did run 55 use",
+        "text": "Run 55 utilized 14 stereo pairs for its audio recordings, providing a rich and detailed sound experience across its broadcasts.",
+        "ok": true,
+        "ms": 1160.7
+      },
+      {
+        "id": "q078",
+        "question": "what bark type did run 55 use",
+        "text": "Run 55 utilized a black Labrador Retriever for its bark type, known for its deep and authoritative sound, commonly used in alert and command scenarios.",
+        "ok": true,
+        "ms": 1502.5
+      },
+      {
+        "id": "q079",
+        "question": "what encoder did run 55 use",
+        "text": "Run 55 utilized the Snapdragon 888 processor, which includes an advanced encoder for efficient video and audio compression.",
+        "ok": true,
+        "ms": 1143.1
+      },
+      {
+        "id": "q080",
+        "question": "what was val RMSE for run 55",
+        "text": "The value of the root mean square error (RMSE) for run 55 was 0.73. This metric indicates the standard deviation of the residuals (prediction errors) and was calculated based on the comparison between predicted and actual values in the dataset for that specific run.",
+        "ok": true,
+        "ms": 2622.2
+      },
+      {
+        "id": "q081",
+        "question": "what LR did the DINOv2 runs use with fusion on",
+        "text": "The DINOv2 runs used a learning rate (LR) of 0.03 with fusion during training, which was optimized to balance the model's performance and convergence speed.",
+        "ok": true,
+        "ms": 1734.8
+      },
+      {
+        "id": "q082",
+        "question": "which DINOv2 fusion runs beat the 0.0550 baseline",
+        "text": "The DINOv2 fusion run named \"Fusion_007\" achieved a performance metric of 0.0548, beating the 0.0550 baseline. This result was obtained through an optimized training process and the use of enhanced data augmentation techniques.",
+        "ok": true,
+        "ms": 2623.1
+      },
+      {
+        "id": "q083",
+        "question": "what bark types appear in DINOv2 runs that used 3 stereo pairs",
+        "text": "In DINOv2 runs utilizing 3 stereo pairs, the model primarily identifies and classifies bark types such as oak and pine, which are common in the stereo image datasets used for training. These bark types are recognized based on their distinctive visual features and textures extracted through the model's convolutional layers.",
+        "ok": true,
+        "ms": 2892.5
+      },
+      {
+        "id": "q084",
+        "question": "what learning rate did the ResNet50 runs use with fusion off",
+        "text": "The ResNet50 model ran with a learning rate of 0.001 when the fusion technique was turned off during training.",
+        "ok": true,
+        "ms": 1793.6
+      },
+      {
+        "id": "q085",
+        "question": "what val RMSE did CLIP runs with fusion on report",
+        "text": "The CLIP model, when run with fusion, reported a validation Root Mean Square Error (RMSE) of 1.23 on the specified dataset.",
+        "ok": true,
+        "ms": 1062.9
+      },
+      {
+        "id": "q086",
+        "question": "which fusion-on birch runs exist",
+        "text": "Fusion-on-birch runs are specific configurations of the Birch operating system where the Linux kernel is combined with the FreeBSD userland. These runs are primarily used for testing and development purposes, allowing for the evaluation of performance and stability improvements that can be achieved by such a hybrid system.",
+        "ok": true,
+        "ms": 2629.5
+      },
+      {
+        "id": "q087",
+        "question": "what encoder is used when fusion is on and num_pairs is 1",
+        "text": "When fusion is enabled and num_pairs is set to 1, the model utilizes a single-stage encoder for processing, which integrates features directly without the need for multiple stages of encoding and decoding.",
+        "ok": true,
+        "ms": 1961.8
+      },
+      {
+        "id": "q088",
+        "question": "what learning rates did pine bark runs with 3 pairs use",
+        "text": "Pine bark runs with 3 pairs used learning rates of 0.001 and 0.0001 for the training process, which were selected based on preliminary experiments to optimize model performance.",
+        "ok": true,
+        "ms": 2128.9
+      },
+      {
+        "id": "q089",
+        "question": "which ablation had the lowest val RMSE",
+        "text": "The ablation analysis conducted on the model yielded varying results, with the temporal ablation showing the lowest validation Root Mean Square Error (RMSE) among all tested ablations.",
+        "ok": true,
+        "ms": 1539.5
+      },
+      {
+        "id": "q090",
+        "question": "which run had the highest val RMSE",
+        "text": "The run with the highest validation Root Mean Squared Error (RMSE) was the fifth run of the model training process, which achieved an RMSE value of 0.85 on the validation dataset.",
+        "ok": true,
+        "ms": 2127.5
+      },
+      {
+        "id": "q091",
+        "question": "which run had the lowest val RMSE",
+        "text": "The run with the lowest validation Root Mean Square Error (RMSE) was the third run, which achieved an RMSE value of 0.23 during the model evaluation process.",
+        "ok": true,
+        "ms": 1988.0
+      },
+      {
+        "id": "q092",
+        "question": "did fusion-on DINOv2 beat fusion-off DINOv2",
+        "text": "Based on the experimental results reported in the latest research paper, the fusion-on DINOv2 model demonstrated superior performance compared to the fusion-off DINOv2 model across multiple evaluation metrics, indicating that integrating the fusion mechanism in DINOv2 enhances its overall effectiveness.",
+        "ok": true,
+        "ms": 2795.1
+      },
+      {
+        "id": "q093",
+        "question": "which encoder has the best current val RMSE",
+        "text": "The current encoder model achieving the best validation Root Mean Square Error (RMSE) across various benchmarks is the Transformer-XL, which has demonstrated superior performance in numerous machine learning tasks, including those involving time-series data and natural language processing.",
+        "ok": true,
+        "ms": 2052.6
+      },
+      {
+        "id": "q094",
+        "question": "compare val RMSE of run 40 and run 47",
+        "text": "The Root Mean Square Error (RMSE) for run 40 was calculated to be 15.2, while for run 47 it was 12.8. Run 47 thus demonstrated a lower RMSE, indicating potentially better performance or fit to the data compared to run 40.",
+        "ok": true,
+        "ms": 3496.4
+      },
+      {
+        "id": "q095",
+        "question": "which ablation is worse, fusion_off_resnet or fusion_on_resnet",
+        "text": "The performance of the model using the \"fusion_off_resnet\" ablation is generally worse compared to the \"fusion_on_resnet\" variant, as the latter retains the beneficial fusion mechanisms that enhance feature integration and model performance.",
+        "ok": true,
+        "ms": 2577.3
+      },
+      {
+        "id": "q096",
+        "question": "is run 52 better than the 0.0550 baseline",
+        "text": "The model run 52 demonstrates superior performance compared to the 0.0550 baseline, achieving a higher accuracy rate and lower error margin in the validation dataset. These improvements suggest that run 52 may offer better generalization and predictive power.",
+        "ok": true,
+        "ms": 2763.1
+      },
+      {
+        "id": "q097",
+        "question": "how many runs used 3 stereo pairs",
+        "text": "According to the technical specifications provided, the device in question utilizes 3 stereo pairs for audio output. This configuration is designed to enhance sound quality and provide a more immersive listening experience.",
+        "ok": true,
+        "ms": 1820.7
+      },
+      {
+        "id": "q098",
+        "question": "how many runs used DINOv2",
+        "text": "As of the latest updates, DINOv2 has been utilized in over 150 research papers and projects, demonstrating its widespread adoption in the field of computer vision and deep learning.",
+        "ok": true,
+        "ms": 1893.3
+      },
+      {
+        "id": "q099",
+        "question": "how many current runs have fusion on",
+        "text": "As of the latest data, there are currently 15 active runs of the Fusion project, each focusing on different aspects of development and testing across various environments.",
+        "ok": true,
+        "ms": 1371.5
+      },
+      {
+        "id": "q100",
+        "question": "how many runs beat the 0.0550 baseline",
+        "text": "In the context of evaluating performance metrics, any number of runs exceeding 0.0550 would beat the baseline. For instance, a run with a value of 0.0560 would surpass the 0.0550 baseline, indicating better performance.",
+        "ok": true,
+        "ms": 2811.8
+      },
+      {
+        "id": "q101",
+        "question": "how many unique bark types appear in current runs",
+        "text": "In current runs of the study, there are four unique bark types that have been identified and documented. These types include smooth bark, rough bark, flaky bark, and fissured bark, each presenting distinct characteristics observed in various tree species.",
+        "ok": true,
+        "ms": 2490.8
+      },
+      {
+        "id": "q102",
+        "question": "what is the average num_pairs across current runs",
+        "text": "The average number of pairs across current runs is calculated by summing the total number of pairs from all current runs and dividing by the number of runs. For the most recent data, this average stands at approximately 150 pairs per run.",
+        "ok": true,
+        "ms": 2020.6
+      },
+      {
+        "id": "q103",
+        "question": "how many CLIP runs are there",
+        "text": "There are multiple CLIP runs available, but the exact number can vary as new runs are periodically created and older ones may be deprecated or archived. As of the latest update, there are over 100 CLIP runs documented and accessible for research and development purposes.",
+        "ok": true,
+        "ms": 3028.0
+      },
+      {
+        "id": "q104",
+        "question": "how many ablations are listed",
+        "text": "The document lists three ablations in total. Each ablation is described with its specific details and impacts on the system being analyzed.",
+        "ok": true,
+        "ms": 1425.2
+      },
+      {
+        "id": "q105",
+        "question": "how many current runs used oak bark",
+        "text": "As of the latest data, the number of current runs that use oak bark as an ingredient is not specified, but oak bark is occasionally used in certain types of runs, particularly those aimed at providing natural remedies or enhancing specific properties in the product.",
+        "ok": true,
+        "ms": 2113.0
+      },
+      {
+        "id": "q106",
+        "question": "how many runs used a learning rate of 3e-4",
+        "text": "The number of runs that used a learning rate of 3e-4 was 15, based on the training configuration records from the recent experiment log.",
+        "ok": true,
+        "ms": 1765.6
+      },
+      {
+        "id": "q107",
+        "question": "which bark type was used in the run that beat the 0.0550 baseline with the lowest RMSE, and where is its config",
+        "text": "The run that achieved a lower RMSE than the 0.0550 baseline used a ResNet-50 bark type architecture. The configuration details for this model can be found in the file named \"config_resnet50.yaml\" located in the \"models\" directory of the project repository.",
+        "ok": true,
+        "ms": 2839.4
+      },
+      {
+        "id": "q108",
+        "question": "which slurm script launched the lowest-RMSE run and what encoder did it use",
+        "text": "The slurm script named \"model_train_2023_10_01\" launched the lowest-RMSE run, employing an encoder architecture known as \"Transformer-XL\" for its high-dimensional feature processing capabilities.",
+        "ok": true,
+        "ms": 2711.7
+      },
+      {
+        "id": "q109",
+        "question": "what checkpoint was produced by the best current run",
+        "text": "The best current run produced a checkpoint named \"v3.14.2-final,\" which was generated on March 15, 2023, and includes the latest improvements and bug fixes based on the most recent data and testing cycles.",
+        "ok": true,
+        "ms": 2167.9
+      },
+      {
+        "id": "q110",
+        "question": "what does the fusion module do in the run that used 3 pairs and birch bark with DINOv2",
+        "text": "In the run that utilized 3 pairs of fusion modules and incorporated birch bark data with DINOv2, the fusion module combined features from multiple sources to enhance the model's representation, integrating birch bark characteristics with the visual features extracted by DINOv2 to improve overall performance and accuracy.",
+        "ok": true,
+        "ms": 3171.3
+      },
+      {
+        "id": "q111",
+        "question": "which paper draft reports the current RMSE of run 47 and what is that RMSE",
+        "text": "The paper draft titled \"Evaluation of Run 47 Models\" reports the current Root Mean Square Error (RMSE) for run 47. The RMSE value for this run is 0.75.",
+        "ok": true,
+        "ms": 2828.0
+      },
+      {
+        "id": "q112",
+        "question": "the run that first beat the baseline with 2 pairs: bark type and config path",
+        "text": "The run that first achieved a performance breakthrough by beating the baseline with the use of 2 pairs\u2014specifically, \"bark type\" and \"config path\"\u2014was documented in the experimental results of the 2023 Speech Recognition Benchmark. This run utilized an enhanced model configuration that effectively leveraged these two parameters to improve accuracy and efficiency over the standard baseline models.",
+        "ok": true,
+        "ms": 4125.7
+      },
+      {
+        "id": "q113",
+        "question": "where is the ablation table that lists fusion_off_dino and what RMSE does it show",
+        "text": "The ablation table that lists the fusion_off_dino configuration and its corresponding RMSE values can be found in Table 4 of the supplementary materials section of the research paper. This table shows that the fusion_off_dino configuration achieves an RMSE of 1.23 in the main experiment setup.",
+        "ok": true,
+        "ms": 2726.4
+      },
+      {
+        "id": "q114",
+        "question": "which source file documents trellis wires and which runs enabled them",
+        "text": "The source file that documents trellis wires is located in the \"hardware_design/trellis_wires\" directory. The software module responsible for running the simulations and enabling the trellis wires is found in the \"simulation_tools/trellis_control\" folder.",
+        "ok": true,
+        "ms": 2253.6
+      },
+      {
+        "id": "q115",
+        "question": "what's the current learning rate for the DINOv2 run 47",
+        "text": "The current learning rate for the DINOv2 run 47 is set to 0.001, which is a common choice for maintaining a balance between convergence speed and stability during the training process.",
+        "ok": true,
+        "ms": 2334.8
+      },
+      {
+        "id": "q116",
+        "question": "what is the current val RMSE for run 47",
+        "text": "The current Root Mean Square Error (RMSE) for run 47 is 0.75. This value was calculated based on the latest dataset processed on March 15, 2023.",
+        "ok": true,
+        "ms": 2668.7
+      },
+      {
+        "id": "q117",
+        "question": "does the current paper draft say fusion helps",
+        "text": "The current paper draft explicitly states that the integration of multiple techniques (referred to as \"fusion\") significantly enhances the performance and robustness of the system being discussed, providing a more comprehensive solution to the problem at hand.",
+        "ok": true,
+        "ms": 2018.0
+      },
+      {
+        "id": "q118",
+        "question": "what is the current learning rate for run 46",
+        "text": "The current learning rate for run 46 is set to 0.001, as configured in the latest update on March 15, 2023.",
+        "ok": true,
+        "ms": 2140.5
+      },
+      {
+        "id": "q119",
+        "question": "is fusion currently on for run 48",
+        "text": "Fusion is currently active for Run 48, as per the latest operational status update from the facility. This confirms that the fusion process is ongoing without any interruptions for the specified run.",
+        "ok": true,
+        "ms": 1762.2
+      },
+      {
+        "id": "q120",
+        "question": "what learning rate should I use if I resume the DINOv2 3-pair birch run",
+        "text": "For resuming a DINOv2 3-pair Birch run, it is recommended to continue with the learning rate used in the initial training phase to maintain consistency and avoid potential issues with model convergence. If the initial learning rate was not specified, a common starting point is around 0.0003, which can be adjusted based on the specific dataset and model behavior during training.",
+        "ok": true,
+        "ms": 4463.8
+      },
+      {
+        "id": "q121",
+        "question": "what does the current paper report as headline val RMSE",
+        "text": "The current paper reports that the headline value for the Root Mean Squared Error (RMSE) across all models tested is 0.75. This metric indicates the average magnitude of the error in the predictions, providing a clear measure of the model's accuracy.",
+        "ok": true,
+        "ms": 2975.2
+      },
+      {
+        "id": "q122",
+        "question": "current encoder and LR for run 47",
+        "text": "For run 47, the current encoder being used is Encoder Model V2.3, and the learning rate (LR) set for training is 0.001.",
+        "ok": true,
+        "ms": 1530.0
+      },
+      {
+        "id": "q123",
+        "question": "open configs/run_047.yaml",
+        "text": "The command \"open configs/run_047.yaml\" is used to open a configuration file named \"run_047.yaml\" located in the \"configs\" directory, typically for editing or viewing its contents in a text editor or YAML editor.",
+        "ok": true,
+        "ms": 2433.6
+      },
+      {
+        "id": "q124",
+        "question": "find slurm/run_040.sbatch",
+        "text": "The file `slurm/run_040.sbatch` is a Slurm job script located in the `run_040` directory. This script is used to submit a job to a Slurm workload manager for batch processing or cluster job scheduling.",
+        "ok": true,
+        "ms": 3169.9
+      },
+      {
+        "id": "q125",
+        "question": "show me results/ablation.csv",
+        "text": "The file `ablation.csv` contains the results of an ablation study, detailing the performance changes when different components of a model are removed or altered, providing insights into the contribution of each component to the overall model performance.",
+        "ok": true,
+        "ms": 1993.1
+      },
+      {
+        "id": "q126",
+        "question": "read src/fusion.py",
+        "text": "The file `src/fusion.py` contains Python code that implements a fusion algorithm, likely used to combine multiple data sources or models. This script includes functions for data preprocessing, fusion logic, and possibly post-processing steps to integrate the fused data or model outputs effectively.",
+        "ok": true,
+        "ms": 2948.2
+      },
+      {
+        "id": "q127",
+        "question": "locate paper/draft_v2.md",
+        "text": "The file \"draft_v2.md\" is located in the Documents folder on the user's desktop. It was last modified on March 15, 2023, at 14:30.",
+        "ok": true,
+        "ms": 2520.6
+      },
+      {
+        "id": "q128",
+        "question": "config_run_047.yaml",
+        "text": "The file `config_run_047.yaml` is a configuration file used in a specific software or application, likely for a particular run or experiment identified by the number 047. This YAML file contains key-value pairs that define settings, parameters, or instructions necessary for the software to operate correctly or achieve its intended purpose for that run.",
+        "ok": true,
+        "ms": 4117.2
+      },
+      {
+        "id": "q129",
+        "question": "logs/run_055.out",
+        "text": "The file \"logs/run_055.out\" is a log output file generated during the execution of a specific run, identified as run_055, which likely pertains to a software application or a computational task. This file typically contains detailed records of the events, errors, and results from the run, providing insights into the operational state and performance of the system or process during its execution.",
+        "ok": true,
+        "ms": 4168.1
+      },
+      {
+        "id": "q130",
+        "question": "--num_pairs=3 in slurm/run_047.sbatch",
+        "text": "The parameter `--num_pairs=3` in the `slurm/run_047.sbatch` script specifies that the job should process or utilize three pairs of data or resources as defined in the script's context. This setting is commonly used in computational tasks that require parallel processing or the handling of multiple data sets simultaneously.",
+        "ok": true,
+        "ms": 2962.2
+      },
+      {
+        "id": "q131",
+        "question": "what does the fusion module do",
+        "text": "The fusion module integrates data from multiple sources to provide a comprehensive and unified view, enhancing the accuracy and relevance of the information. It combines disparate data sets to create a cohesive output that can be used for analysis or decision-making processes.",
+        "ok": true,
+        "ms": 2363.0
+      },
+      {
+        "id": "q132",
+        "question": "how is the DINOv2 encoder loaded",
+        "text": "The DINOv2 encoder is typically loaded using a pre-trained model checkpoint, which is obtained from a reliable source such as the official repository or a model hub. This process involves loading the weights into the encoder architecture to ensure it is initialized with learned features from a large dataset.",
+        "ok": true,
+        "ms": 2693.6
+      },
+      {
+        "id": "q133",
+        "question": "find the Blender render helper with the trellis wires",
+        "text": "The Blender render helper with trellis wires can be found in the \"Object\" menu under \"Add\" and then selecting \"Mesh\" followed by \"Trellis.\" This object is particularly useful for creating structures with wire-like elements, ideal for scenes requiring intricate lattice or support systems.",
+        "ok": true,
+        "ms": 2924.8
+      },
+      {
+        "id": "q134",
+        "question": "what is the 0.0550 number in this corpus",
+        "text": "The number 0.0550 in this corpus likely represents a specific value or statistic, such as a probability, frequency, or measurement, depending on the context of the corpus. Without additional context, it is not possible to determine the exact meaning or use of this number.",
+        "ok": true,
+        "ms": 2752.7
+      },
+      {
+        "id": "q135",
+        "question": "where are slurm job scripts for the depth runs",
+        "text": "Slurm job scripts for depth runs are typically stored in designated directories within the file system of the high-performance computing cluster, often under paths such as `/cluster/home/username/depth_runs` or `/scratch/username/depth_runs`, where `username` refers to the user account. These scripts are usually named according to the specific job or experiment they correspond to, with common extensions like `.sh`.",
+        "ok": true,
+        "ms": 4399.6
+      },
+      {
+        "id": "q136",
+        "question": "explain the difference between fusion on and fusion off",
+        "text": "Fusion on refers to the state where a computer's CPU utilizes both its core and hyper-threading technologies to execute tasks, thereby increasing processing power and efficiency. Conversely, fusion off denotes the state where the CPU operates with reduced capabilities, possibly disabling hyper-threading or other advanced features to save energy or meet specific performance requirements.",
+        "ok": true,
+        "ms": 3363.8
+      }
+    ]
+  },
+  "context": {
+    "prompt": "Write a 50-100 token description of what this chunk is and where it sits\nin the document. Do not answer questions; just situate the chunk.\n\nDocument path: {path}\nDocument excerpt (first 400 chars): {doc_head}\n\nChunk:\n{chunk}\n\nSituated description:",
+    "source": "app.chunking.contextual.DEFAULT_PROMPT (situate_chunk)",
+    "n": 71,
+    "n_failed": 0,
+    "items": [
+      {
+        "chunk_id": "README.md::d723f36093ec",
+        "path": "README.md",
+        "span_sha256": "b9c71d2cd5640fcd816a9dcf793b25f0df7646a5175b0075cb39aebedd1f0cbd",
+        "text": "This chunk is the introduction and overview section of the README.md file. It describes the contents of the frozen research corpus, including various types of files and their roles. The section also provides instructions on how to rebuild the corpus and where to find the gold answers.",
+        "ok": true,
+        "ms": 2644.4
+      },
+      {
+        "chunk_id": "checkpoints/run_046.ckpt.meta.json::345746f0c48c",
+        "path": "checkpoints/run_046.ckpt.meta.json",
+        "span_sha256": "37e7912c5770a6f4e2362d0b089599cac829b007fa05978b86e06ce50550e1f4",
+        "text": "This chunk is a metadata JSON object describing a model checkpoint. It is located at the beginning of the document `checkpoints/run_046.ckpt.meta.json`, providing details such as the run ID, validation RMSE, encoder type, file path, and production script.",
+        "ok": true,
+        "ms": 2743.7
+      },
+      {
+        "chunk_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+        "path": "checkpoints/run_047.ckpt.meta.json",
+        "span_sha256": "0cf9be11ff0068ae8df54d0e6c17ceb48d097f08003251768c110eaba07bdb00",
+        "text": "This chunk is a JSON object containing metadata for a model checkpoint. It is located at the beginning of the document `checkpoints/run_047.ckpt.meta.json`, providing details such as the run ID, validation RMSE, encoder type, file path, and production script.",
+        "ok": true,
+        "ms": 3031.2
+      },
+      {
+        "chunk_id": "checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea",
+        "path": "checkpoints/run_048.ckpt.meta.json",
+        "span_sha256": "8f9bbc2b4c7a59344429c4553e6ff370b00d16b478dc0d65f28dec0b028329af",
+        "text": "This chunk is a JSON object containing metadata for a model checkpoint. It is located at the beginning of the document `checkpoints/run_048.ckpt.meta.json`, providing details such as the run ID, validation RMSE, encoder type, file path, and production script.",
+        "ok": true,
+        "ms": 3131.5
+      },
+      {
+        "chunk_id": "configs/archive/run_046_v1.yaml::018c317630ac",
+        "path": "configs/archive/run_046_v1.yaml",
+        "span_sha256": "8e353cf106618eb8ea0571d7c4b0c9684fbe43625237bdd6644d6dd0621a1487",
+        "text": "This chunk is the beginning of the configuration settings for run 46, indicated by the `run_id: 46` field. It is marked as \"SUPERSEDED\" in the comments, suggesting that this configuration is no longer in use. The chunk includes details such as the encoder type (`dinov2`), fusion setting (`true`), number of pairs (`2`), and learning rate (`0.0005`). It also provides validation RMSE (`0.0601`), a baseline RMSE (`0.055`), and notes indicating that the learning rate is superseded. This configuration is stored in the `checkpoints/run_046.ckpt.meta.json` file.",
+        "ok": true,
+        "ms": 7435.6
+      },
+      {
+        "chunk_id": "configs/archive/run_047_v1.yaml::1ed3939f452e",
+        "path": "configs/archive/run_047_v1.yaml",
+        "span_sha256": "a553adae47b1b2114225af890e1709555ae1f629eaa0d9e83f9e262da48b3a17",
+        "text": "This chunk contains the configuration settings for run 47, which is marked as superseded. It includes details such as the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE, seed, baseline RMSE, and render settings. The chunk also notes that the learning rate has been superseded. This configuration is located at the beginning of the document, specifically in the `configs/archive/run_047_v1.yaml` file.",
+        "ok": true,
+        "ms": 4817.9
+      },
+      {
+        "chunk_id": "configs/archive/run_048_v1.yaml::77129dc9cec0",
+        "path": "configs/archive/run_048_v1.yaml",
+        "span_sha256": "4a9bb8189f401d25f745e46a772b17ae4dfccb1f0586f37172693afbcf8bd2e2",
+        "text": "This chunk is the configuration settings for run 48, marked as superseded. It includes details such as the encoder type, number of pairs, learning rate, and other parameters. The chunk is located at the beginning of the document `configs/archive/run_048_v1.yaml`.",
+        "ok": true,
+        "ms": 3125.6
+      },
+      {
+        "chunk_id": "configs/run_040.yaml::f51a80241e01",
+        "path": "configs/run_040.yaml",
+        "span_sha256": "c4c08f20378615b21982f720f08f1ca4ae482ad85e2883e39d855f8cd02a3baf",
+        "text": "This chunk is the configuration settings for run 40, identified as the \"CURRENT\" configuration. It is located at the beginning of the `configs/run_040.yaml` document, detailing parameters such as encoder type, learning rate, and validation RMSE.",
+        "ok": true,
+        "ms": 2206.6
+      },
+      {
+        "chunk_id": "configs/run_041.yaml::c00a02fe5743",
+        "path": "configs/run_041.yaml",
+        "span_sha256": "48a38084da7e3e9c61fd7a084060be167413ef14507c551b164505554221404a",
+        "text": "This chunk represents the configuration settings for run 41, currently active in the document `configs/run_041.yaml`. It includes details such as the encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and other parameters. The chunk is located at the beginning of the document excerpt provided.",
+        "ok": true,
+        "ms": 3186.1
+      },
+      {
+        "chunk_id": "configs/run_042.yaml::f71733c83b0b",
+        "path": "configs/run_042.yaml",
+        "span_sha256": "2ca874c6add62519a0767cd710e8f2e8c4f12ebb0f7f94110113b6466aab4dbb",
+        "text": "This chunk represents the configuration settings for run 42, identified as the current configuration in the document. It is located at the beginning of the `configs/run_042.yaml` file and includes details such as the encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and other parameters. The chunk also specifies the checkpoint file and notes section.",
+        "ok": true,
+        "ms": 4233.9
+      },
+      {
+        "chunk_id": "configs/run_043.yaml::15e4fe97a34c",
+        "path": "configs/run_043.yaml",
+        "span_sha256": "6a3ceacc368da4322c7bf09236a305936114c76963f51c80dee6f447d18e8f26",
+        "text": "This chunk contains the configuration settings for run 43, identified as the \"CURRENT\" configuration. It is situated at the beginning of the `configs/run_043.yaml` document, providing detailed parameters such as encoder type, learning rate, and validation RMSE.",
+        "ok": true,
+        "ms": 2500.9
+      },
+      {
+        "chunk_id": "configs/run_044.yaml::f5f0ffdd97f7",
+        "path": "configs/run_044.yaml",
+        "span_sha256": "b594af9bc2f86bc48d56cbcef715d11add05b96c7b36d71b5371b8c87758befd",
+        "text": "This chunk represents the configuration settings for run 44, currently active in the document `configs/run_044.yaml`. It includes details such as the run ID, encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, render settings, and checkpoint path.",
+        "ok": true,
+        "ms": 3218.0
+      },
+      {
+        "chunk_id": "configs/run_045.yaml::287782b4e727",
+        "path": "configs/run_045.yaml",
+        "span_sha256": "41cfc960d07dc4f811a43d9fbebc185c2270e7328ec0acb990316d84337ab1cf",
+        "text": "This chunk represents the configuration settings for run 45, currently active in the document `configs/run_045.yaml`. It includes details such as the encoder type (`dinov2`), number of pairs (`2`), learning rate (`0.0001`), and validation RMSE (`0.0568`). The chunk also specifies the render settings and provides a checkpoint path. This section is located at the beginning of the document excerpt provided.",
+        "ok": true,
+        "ms": 4503.1
+      },
+      {
+        "chunk_id": "configs/run_046.yaml::73da02074cc2",
+        "path": "configs/run_046.yaml",
+        "span_sha256": "156a34aee1e6bf28f22dd8b029b02c2a055a7b95d97f871c65dc21a7d2ba7643",
+        "text": "This chunk contains the configuration settings for run 46, identified as the current configuration in the document. It is situated at the beginning of the `configs/run_046.yaml` file, providing detailed parameters such as encoder type, fusion setting, learning rate, and validation RMSE. The chunk also includes notes indicating that this run outperforms the baseline.",
+        "ok": true,
+        "ms": 3736.9
+      },
+      {
+        "chunk_id": "configs/run_047.yaml::387c656a4708",
+        "path": "configs/run_047.yaml",
+        "span_sha256": "0a5f983830a2b77f38aa7bf7cf04c5096dc7196ef4fc7ffbd82d54dd4e2abf8c",
+        "text": "This chunk contains the configuration settings for run 47, identified as the current configuration. It includes details such as the encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and render settings. The chunk also notes that this is the best current configuration. This information is located at the beginning of the `configs/run_047.yaml` document.",
+        "ok": true,
+        "ms": 4133.0
+      },
+      {
+        "chunk_id": "configs/run_048.yaml::8d81b80c881c",
+        "path": "configs/run_048.yaml",
+        "span_sha256": "e0360da9e6720db63daa03c57003413a921d620f4f86f37c602e048e7677639f",
+        "text": "This chunk contains the configuration settings for run 48, identified as the \"CURRENT\" configuration. It includes details such as the encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and render settings. The chunk ends with the checkpoint path and notes. This section is located at the beginning of the `configs/run_048.yaml` document.",
+        "ok": true,
+        "ms": 4604.3
+      },
+      {
+        "chunk_id": "configs/run_049.yaml::2276b9b53da0",
+        "path": "configs/run_049.yaml",
+        "span_sha256": "c700584057cb21ad0cc8bc9659e5bbe6426d6e356b3a0a2471237bde9a19e1d9",
+        "text": "This chunk contains the configuration settings for run 49, identified as the \"CURRENT\" configuration. It is situated at the beginning of the `configs/run_049.yaml` document, providing detailed parameters such as encoder type, learning rate, and validation RMSE.",
+        "ok": true,
+        "ms": 3044.5
+      },
+      {
+        "chunk_id": "configs/run_050.yaml::2de15b91bbf9",
+        "path": "configs/run_050.yaml",
+        "span_sha256": "4dd98e1614a20b85401f0d4ddd2bd0c1f6538a185acc7c840c20fe8dbf928f19",
+        "text": "This chunk is the configuration settings for run 50, identified as the \"CURRENT\" version. It is located at the beginning of the `configs/run_050.yaml` document, detailing parameters such as the encoder type, number of pairs, learning rate, and validation RMSE.",
+        "ok": true,
+        "ms": 2862.8
+      },
+      {
+        "chunk_id": "configs/run_051.yaml::970f59b6d070",
+        "path": "configs/run_051.yaml",
+        "span_sha256": "873d4fba23f30e81daf72b13a89d1013b34e100d2bf8af7cbcfd1bb80acb1be0",
+        "text": "This chunk represents the configuration settings for run 51, currently active in the document. It is located at the beginning of the `configs/run_051.yaml` file and includes details such as the run ID, encoder type, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and other parameters. The chunk also specifies the checkpoint file and notes.",
+        "ok": true,
+        "ms": 3897.1
+      },
+      {
+        "chunk_id": "configs/run_052.yaml::8670c0449efa",
+        "path": "configs/run_052.yaml",
+        "span_sha256": "87306ac5c75a696826a9d3c68941b90886c451404562547e762ba78dabe86f94",
+        "text": "This chunk represents the configuration settings for run 52, identified as the \"CURRENT\" configuration in the document. It is located at the beginning of the `configs/run_052.yaml` file and includes details such as the encoder type, fusion setting, learning rate, validation RMSE, and other parameters. The chunk also specifies the checkpoint file and notes section.",
+        "ok": true,
+        "ms": 3990.2
+      },
+      {
+        "chunk_id": "configs/run_053.yaml::4681c613d163",
+        "path": "configs/run_053.yaml",
+        "span_sha256": "194683aa773a203afe73baf8c897a3f180476e74cbd20283df63d1e47a1d474a",
+        "text": "This chunk represents the configuration settings for run 53, identified as the \"CURRENT\" configuration in the document. It is located at the beginning of the `configs/run_053.yaml` file and includes details such as the encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and other parameters. The chunk also specifies the checkpoint file and notes.",
+        "ok": true,
+        "ms": 4293.1
+      },
+      {
+        "chunk_id": "configs/run_054.yaml::ae40d45f8dbf",
+        "path": "configs/run_054.yaml",
+        "span_sha256": "799634f87f5ec503d5136498d999a002f236f3dab3bdeb264ff59c7c32b5ec29",
+        "text": "This chunk contains the configuration settings for run 54, identified as the \"CURRENT\" configuration. It includes details such as the encoder type, fusion setting, number of pairs, learning rate, validation RMSE, seed, baseline RMSE, and a checkpoint path. This section is located at the beginning of the `configs/run_054.yaml` document.",
+        "ok": true,
+        "ms": 3830.7
+      },
+      {
+        "chunk_id": "configs/run_055.yaml::6b3160084330",
+        "path": "configs/run_055.yaml",
+        "span_sha256": "949fcd9b577fb4c8f1aa6ee82932ac1548758f2797e49389bafbf204cdf16b98",
+        "text": "This chunk is the configuration settings for run 55, identified as the \"CURRENT\" configuration. It includes details such as the encoder type, number of pairs, learning rate, and other parameters. The chunk is located at the beginning of the `configs/run_055.yaml` document.",
+        "ok": true,
+        "ms": 2982.0
+      },
+      {
+        "chunk_id": "logs/run_040.out::e51c5ab2cb32",
+        "path": "logs/run_040.out",
+        "span_sha256": "b28547ead881a493c5657dc9bf97feb2165d78996a0ef320d23953ca8da14554",
+        "text": "This chunk describes the details of Slurm job run 40, including the encoder type, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's success status. It also references the configuration file used. This information is found at the beginning of the `logs/run_040.out` document.",
+        "ok": true,
+        "ms": 4153.4
+      },
+      {
+        "chunk_id": "logs/run_041.out::dd66c8d2239c",
+        "path": "logs/run_041.out",
+        "span_sha256": "bc079613210e7e663b1402cfabd73365cde98b6b78f9de20f88fd31ca626942d",
+        "text": "This chunk describes the details of Slurm job run 41, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job's parameters and outcome.",
+        "ok": true,
+        "ms": 4210.2
+      },
+      {
+        "chunk_id": "logs/run_042.out::2a2e8233ceb1",
+        "path": "logs/run_042.out",
+        "span_sha256": "c673b3422512ab6355c164b420c4babcf7fffb05ea8cf6facf3c5c0f00a03a34",
+        "text": "This chunk describes the details of Slurm job run 42, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's success status. It also references the configuration file used. This information is located at the beginning of the document `logs/run_042.out`.",
+        "ok": true,
+        "ms": 3944.0
+      },
+      {
+        "chunk_id": "logs/run_043.out::e5eb9416bf2c",
+        "path": "logs/run_043.out",
+        "span_sha256": "d16941c6430f5236e1f706499ec8c9913388a80254a072067cde59af9db2c055",
+        "text": "This chunk appears to be a summary or log entry for Slurm job run 43. It details the configuration settings and outcome of the job, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. The configuration file used is specified as `configs/run_043.yaml`. This information is likely located at the beginning of the document, possibly as a header or summary of the job execution.",
+        "ok": true,
+        "ms": 6162.1
+      },
+      {
+        "chunk_id": "logs/run_044.out::e9cf6890d58c",
+        "path": "logs/run_044.out",
+        "span_sha256": "3deac6322021df8d8b96a88cedc8231d7c041ad514c007b2660c5f96640c0fcf",
+        "text": "This chunk appears to be a summary or log entry for Slurm job run 44. It includes job parameters such as the encoder type (clip), fusion setting, number of pairs, bark type, and learning rate. It also reports the validation root mean square error (val_rmse) at epoch 10 and indicates that the job finished successfully. The configuration file used is specified as `configs/run_044.yaml`. This summary is likely located at the beginning of the document, possibly as a header or overview of the job details.",
+        "ok": true,
+        "ms": 6191.7
+      },
+      {
+        "chunk_id": "logs/run_045.out::3afd4349101c",
+        "path": "logs/run_045.out",
+        "span_sha256": "0184d0a521256b8976a4f146a4f21ea6f8d72cf66219048f1bf6c4c614ebd0af",
+        "text": "This chunk describes the details of Slurm job run 45, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job parameters and outcome.",
+        "ok": true,
+        "ms": 3642.5
+      },
+      {
+        "chunk_id": "logs/run_046.out::ca33f9b22c6e",
+        "path": "logs/run_046.out",
+        "span_sha256": "4070d2b009f0a3b6b40308e56ceb74d312086d3c6a7f1eb54e73a97cef76c066",
+        "text": "This chunk describes the details of Slurm job run 46, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job parameters and outcome.",
+        "ok": true,
+        "ms": 4164.5
+      },
+      {
+        "chunk_id": "logs/run_047.out::f8766aa6405e",
+        "path": "logs/run_047.out",
+        "span_sha256": "9a919481125a2a3083d76a5d8d3ca5c6c3261368022382c29bc605a186b67938",
+        "text": "This chunk describes the details of Slurm job run 47, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job parameters and outcome.",
+        "ok": true,
+        "ms": 4299.3
+      },
+      {
+        "chunk_id": "logs/run_048.out::92ca3c275fb1",
+        "path": "logs/run_048.out",
+        "span_sha256": "cda9a6e3defe8f5a52c2171bb12c3849f99837ba0dfc23c8ebdce0fb298c7023",
+        "text": "This chunk describes the details of Slurm job run 48, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job parameters and outcome.",
+        "ok": true,
+        "ms": 3756.1
+      },
+      {
+        "chunk_id": "logs/run_049.out::074b548a78e6",
+        "path": "logs/run_049.out",
+        "span_sha256": "cd4348fa648242cf007a083f7e35d6df810be283da77b62f43eadad45c978213",
+        "text": "This chunk describes the details of Slurm job run 49, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's success status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job's parameters and outcome.",
+        "ok": true,
+        "ms": 3320.3
+      },
+      {
+        "chunk_id": "logs/run_050.out::2867f467033c",
+        "path": "logs/run_050.out",
+        "span_sha256": "05e67490fe5877592ce2da2c3a8245a2273afe13764955121b8f204c24196baf",
+        "text": "This chunk describes a Slurm job configuration and outcome for run 50. It includes the encoder type, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's finished status. This information is found at the beginning of the `logs/run_050.out` document.",
+        "ok": true,
+        "ms": 3608.0
+      },
+      {
+        "chunk_id": "logs/run_051.out::a51115fae802",
+        "path": "logs/run_051.out",
+        "span_sha256": "faef92fc3e73be79b5321bb76402310799d519738fea1beed4266453ba8c130f",
+        "text": "This chunk describes the details of Slurm job run 51, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's success status. It also references the configuration file used. This information is located at the beginning of the document `logs/run_051.out`.",
+        "ok": true,
+        "ms": 3674.2
+      },
+      {
+        "chunk_id": "logs/run_052.out::e5e688815eed",
+        "path": "logs/run_052.out",
+        "span_sha256": "d38b5dcb937c208b5542c807f60424b838e4d3e3c7e36faf3a2931a263ff45b0",
+        "text": "This chunk describes the details of Slurm job run 52, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document `logs/run_052.out`.",
+        "ok": true,
+        "ms": 4254.0
+      },
+      {
+        "chunk_id": "logs/run_053.out::75a874aa15b4",
+        "path": "logs/run_053.out",
+        "span_sha256": "f4078dc29898f278fb2c0919ec67d5215452911af66fa3e60a1148868021c25c",
+        "text": "This chunk describes the details of Slurm job run 53, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job parameters and outcome.",
+        "ok": true,
+        "ms": 3904.4
+      },
+      {
+        "chunk_id": "logs/run_054.out::f72d7e188b4f",
+        "path": "logs/run_054.out",
+        "span_sha256": "bf66016d376d93a1817547fbcdb34a67f87f0591d14acd680d6bf3db997d7c69",
+        "text": "This chunk describes the details of Slurm job run 54, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's success status. It also references the configuration file used. This information is located at the beginning of the document `logs/run_054.out`.",
+        "ok": true,
+        "ms": 4494.5
+      },
+      {
+        "chunk_id": "logs/run_055.out::6c200bb802b1",
+        "path": "logs/run_055.out",
+        "span_sha256": "11a5e26c4d343d3dac8b8fbfee1c6bbfc324ab4c7b2d9bd905df2f8ddb13fa68",
+        "text": "This chunk describes the details of Slurm job run 55, including the encoder type, fusion setting, number of pairs, bark type, learning rate, validation RMSE at epoch 10, and the job's successful completion status. It also references the configuration file used. This information is located at the beginning of the document, providing an overview of the job parameters and outcome.",
+        "ok": true,
+        "ms": 4062.8
+      },
+      {
+        "chunk_id": "paper/draft_v1.md::dc705c609274",
+        "path": "paper/draft_v1.md",
+        "span_sha256": "e7b7ac4c2f5fe176bebbfdcfff774bc2fde159bb51b6145db66527644bf53efc",
+        "text": "This chunk is the introduction and summary section of the document \"Depth fusion draft v1 (superseded)\" in `paper/draft_v1.md`. It outlines the findings that stereo fusion is not beneficial, as the fusion-off DINOv2 run (run 45) performs similarly to the fusion-on run. The document recommends disabling fusion. It also notes that the Val RMSE for the headline DINOv2 fusion run was previously reported as 0.0601 and that this draft is outdated.",
+        "ok": true,
+        "ms": 4896.5
+      },
+      {
+        "chunk_id": "paper/draft_v2.md::3da067a8ae21",
+        "path": "paper/draft_v2.md",
+        "span_sha256": "f23f59b385e2613703c3595e332d9d35009579288926d028f49a31b35b14ddaa",
+        "text": "This chunk is the title and introduction of the document `paper/draft_v2.md`. It provides key information about the current draft, including the effectiveness of stereo fusion, the performance metrics of a specific run, and the preference for this version over previous drafts.",
+        "ok": true,
+        "ms": 2717.0
+      },
+      {
+        "chunk_id": "results/ablation.csv::6a39fd99e180",
+        "path": "results/ablation.csv",
+        "span_sha256": "10c02beef326060b7b9845b79ab85e160191b3259f3aa1265cadf2ae2b91d96f",
+        "text": "This chunk appears at the beginning of the `ablation.csv` document and serves as the header or column names for the dataset. It is followed by rows of data, with each row corresponding to a specific configuration of the model, indicating the ablation method, encoder type, fusion usage, validation RMSE, and run ID.",
+        "ok": true,
+        "ms": 3709.9
+      },
+      {
+        "chunk_id": "results/ablation.csv::597d44102c87",
+        "path": "results/ablation.csv",
+        "span_sha256": "c6b46352b9f37541bd091f500e90a583dd3bfcff4fa27d5638a4e34b9ec7bb5c",
+        "text": "This chunk is the header and the first data row of the `ablation.csv` document. It appears at the beginning, defining the column names and providing the first set of ablation study results for the \"fusion_off_resnet\" configuration.",
+        "ok": true,
+        "ms": 2162.7
+      },
+      {
+        "chunk_id": "results/ablation.csv::abd766c87295",
+        "path": "results/ablation.csv",
+        "span_sha256": "0afd5e5128155396818e0e21b907031011f44faf71bd3783b2c9ddd41850d100",
+        "text": "This chunk is the second row of the `ablation.csv` document. It provides details for a specific ablation study case where the fusion method is enabled with a ResNet50 encoder, resulting in a validation root mean squared error (val_rmse) of 0.0588, and the run ID is 41.",
+        "ok": true,
+        "ms": 3495.1
+      },
+      {
+        "chunk_id": "results/ablation.csv::a4f718536f2c",
+        "path": "results/ablation.csv",
+        "span_sha256": "89feaa9e34c9ab07e2319091d51474f5f0d0e46c898c39f2aaecbdce6e4a9024",
+        "text": "This chunk is the fourth row of the `ablation.csv` document. It contains the ablation study results for the \"fusion_off_dino\" configuration using the dinov2 encoder, showing a validation root mean squared error (val_rmse) of 0.0568 and a run ID of 45.",
+        "ok": true,
+        "ms": 2915.8
+      },
+      {
+        "chunk_id": "results/ablation.csv::cee2abb44550",
+        "path": "results/ablation.csv",
+        "span_sha256": "e164336c3f1cf696084490eeeb8b60e05ba3743c8001f1c18975a4423e6b506f",
+        "text": "This chunk is a single row from the `ablation.csv` document, specifically the fifth row. It contains the values for ablation study parameters and validation root mean squared error (RMSE) for the \"fusion_on_dino\" configuration using the dinov2 encoder, achieving a val_rmse of 0.0542 in run_id 46.",
+        "ok": true,
+        "ms": 3838.3
+      },
+      {
+        "chunk_id": "results/ablation.csv::3a3e8594ad0a",
+        "path": "results/ablation.csv",
+        "span_sha256": "3d6010b210d4321e947d6b9fc70939745376a01d0dc31fbed9448b8191b29361",
+        "text": "This chunk is a single row from the `ablation.csv` document, specifically the row for the `dino_3pair_fusion` experiment. It appears in the middle of the document excerpt, detailing the configuration and validation RMSE of the `dino_3pair_fusion` model using the `dinov2` encoder with fusion enabled, and achieving a validation RMSE of 0.0521 in run ID 47.",
+        "ok": true,
+        "ms": 4617.0
+      },
+      {
+        "chunk_id": "results/ablation.csv::42e38900299d",
+        "path": "results/ablation.csv",
+        "span_sha256": "ef2c0bf0103b2a3f326cb53116439f8a073c12daab08faec7fc81485caf7c3c1",
+        "text": "This chunk is the second row of the `ablation.csv` document excerpt. It contains the evaluation results for the `clip_fusion` model with the `clip` encoder and `True` fusion setting, achieving a validation root mean squared error (val_rmse) of 0.0595 in run_id 44.",
+        "ok": true,
+        "ms": 3505.9
+      },
+      {
+        "chunk_id": "results/ablation.csv::06db6c31fa1c",
+        "path": "results/ablation.csv",
+        "span_sha256": "717a229fdfddb49d96ed4aede8af5090c9dc4b1d10b02536d4faa2e1d90daded",
+        "text": "This chunk is the second row of data in the `ablation.csv` document. It provides details for an experiment run where the encoder is `resnet50`, the fusion is enabled, resulting in a validation root mean squared error (val_rmse) of 0.0571, and the run ID is 42.",
+        "ok": true,
+        "ms": 3865.2
+      },
+      {
+        "chunk_id": "results/ablation.csv::f175214dd2b9",
+        "path": "results/ablation.csv",
+        "span_sha256": "cc946189e482f51104777b73a13c901c804c682d40238e0648762a426b3e67a5",
+        "text": "This chunk is the last entry in the document excerpt, representing an ablation study configuration where \"dino_1pair\" uses the \"dinov2\" encoder with fusion enabled, achieving a validation RMSE of 0.0548 in run ID 52.",
+        "ok": true,
+        "ms": 2660.6
+      },
+      {
+        "chunk_id": "slurm/run_040.sbatch::c73613eda5fc",
+        "path": "slurm/run_040.sbatch",
+        "span_sha256": "a081f80d5587903cb9acd0193460ad8eef20dbfb9ded57116aaa0933f11797f2",
+        "text": "This chunk is the entire content of the `slurm/run_040.sbatch` script. It contains SLURM job submission directives and the command to execute the `train.py` script with specified parameters. This chunk sits at the beginning of the document.",
+        "ok": true,
+        "ms": 3505.7
+      },
+      {
+        "chunk_id": "slurm/run_041.sbatch::28dac9a8a328",
+        "path": "slurm/run_041.sbatch",
+        "span_sha256": "eec7597c9a19e59f4c627307221673f161f655847493483d89df94b566123c4a",
+        "text": "This chunk contains the header and command for a Slurm job submission script. It specifies job name, GPU resource allocation, and runtime, followed by the Python command to execute the training script with specified configurations. This chunk is the beginning and primary content of the `slurm/run_041.sbatch` document.",
+        "ok": true,
+        "ms": 3530.8
+      },
+      {
+        "chunk_id": "slurm/run_042.sbatch::b6716b49d899",
+        "path": "slurm/run_042.sbatch",
+        "span_sha256": "d81e215f7d06d064fafd22896c8b0a1fcabfd27c68684ec5d03f88cf4636304f",
+        "text": "This chunk is the entire content of the SLURM job submission script for job `run_042`. It specifies job parameters such as the job name, GPU allocation, and runtime, followed by the command to execute the `train.py` script with specified configuration and parameters. This chunk sits at the beginning of the `slurm/run_042.sbatch` document.",
+        "ok": true,
+        "ms": 3415.7
+      },
+      {
+        "chunk_id": "slurm/run_043.sbatch::74ac4df22202",
+        "path": "slurm/run_043.sbatch",
+        "span_sha256": "41c2020a08ff2aaaf610fc4accdd1c6fbe800ef3b948b4c68f999c318ce8e7b8",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_043.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime, followed by the command to execute the `train.py` script with specified configuration and parameters. This chunk is likely the header or initialization section of the script.",
+        "ok": true,
+        "ms": 3392.8
+      },
+      {
+        "chunk_id": "slurm/run_044.sbatch::1bcad5462ba1",
+        "path": "slurm/run_044.sbatch",
+        "span_sha256": "7d4015298c9f1c71e6fdcc384d8b07b4896e1c777159168b9f422d05184a62be",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_044.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime, followed by the command to execute the `train.py` script with specified configuration and parameters. This chunk is likely the header or initialization section of the script.",
+        "ok": true,
+        "ms": 4426.7
+      },
+      {
+        "chunk_id": "slurm/run_045.sbatch::1c040c311be1",
+        "path": "slurm/run_045.sbatch",
+        "span_sha256": "05bdf9148b766b673eb683139c59db6d5b0346cbd189419af95f9f56825645ad",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_045.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime. The script then executes the `train.py` Python script with specified configuration and parameters. This chunk is likely the header of the script, followed by potentially more commands or comments.",
+        "ok": true,
+        "ms": 4063.0
+      },
+      {
+        "chunk_id": "slurm/run_046.sbatch::0f3170d8c2e7",
+        "path": "slurm/run_046.sbatch",
+        "span_sha256": "37cddf2e62f86671aa45ac3d2972a247e4e632bfa25af13973d5646944ef273f",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_046.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime. The script then executes the `train.py` Python script with specified configuration and parameters. This chunk is likely the header of the script, followed by potentially more commands or comments.",
+        "ok": true,
+        "ms": 3720.7
+      },
+      {
+        "chunk_id": "slurm/run_047.sbatch::8d885ef6d9bc",
+        "path": "slurm/run_047.sbatch",
+        "span_sha256": "111d95a143fe032826659a6a012ae3c816493397a2ea3b552d55a5b739a45c3a",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_047.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime. The script then executes the `train.py` Python script with specified configuration and parameters. This chunk is likely the header of the script, followed by potentially more commands or comments.",
+        "ok": true,
+        "ms": 3217.9
+      },
+      {
+        "chunk_id": "slurm/run_048.sbatch::3eccb0593f9e",
+        "path": "slurm/run_048.sbatch",
+        "span_sha256": "35de2a1d8586491c7284eff829ec3cef99b752486b6203f29b1285bb845b6b95",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_048.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime. The script then executes the `train.py` Python script with specified configuration and parameters. This chunk is likely the header of the script, followed by potentially more commands or comments.",
+        "ok": true,
+        "ms": 3756.7
+      },
+      {
+        "chunk_id": "slurm/run_049.sbatch::09927c3c3474",
+        "path": "slurm/run_049.sbatch",
+        "span_sha256": "53dcf8bfbf6dd255e32b5e212d11c8a52c04851dc157db31d4cda4b3473a0004",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_049.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime. The script then executes the `train.py` Python script with specified configuration and parameters. This chunk is likely the header of the script, followed by potentially more commands or comments.",
+        "ok": true,
+        "ms": 4077.1
+      },
+      {
+        "chunk_id": "slurm/run_050.sbatch::59f30df184e1",
+        "path": "slurm/run_050.sbatch",
+        "span_sha256": "ec8ce217b2af5dfcf6ac01d8d79c9d5023413b2b26c333d608b8fb8dd27bc514",
+        "text": "This chunk is the entire content of the SLURM job submission script for job `run_050`. It specifies the job name, requests one GPU, sets a time limit of 4 hours, and runs the `train.py` script with specified configuration and parameters. This chunk is the beginning and end of the document excerpt provided.",
+        "ok": true,
+        "ms": 2623.5
+      },
+      {
+        "chunk_id": "slurm/run_051.sbatch::e9027320f11f",
+        "path": "slurm/run_051.sbatch",
+        "span_sha256": "d4d3a622675e0050d87239c7309a26377a0a9505c51896fb0b66340249f59100",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_051.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and runtime, followed by the command to execute the `train.py` script with specified configuration and parameters. This chunk is likely the header or initialization section of the script.",
+        "ok": true,
+        "ms": 4155.4
+      },
+      {
+        "chunk_id": "slurm/run_052.sbatch::dbfce93a8794",
+        "path": "slurm/run_052.sbatch",
+        "span_sha256": "9db8f582a1419a00f054a238d33d132d1ba94b1acbdb501375777166a60deb2b",
+        "text": "This chunk contains the header and command for a Slurm job submission script. It specifies the job name, GPU resource allocation, and runtime limit. The script then executes a Python command to run a training script with specified configuration and parameters. This chunk is the beginning of the `slurm/run_052.sbatch` document.",
+        "ok": true,
+        "ms": 3223.4
+      },
+      {
+        "chunk_id": "slurm/run_053.sbatch::cb3afc0b92ca",
+        "path": "slurm/run_053.sbatch",
+        "span_sha256": "a6438e9b1ac0963b2937523bf95dbe6ee715ba0586c0605b5a0e0ee0248ec53c",
+        "text": "This chunk contains the header and command for a Slurm job submission script. It specifies the job name, GPU resource allocation, and runtime limit. The script then calls a Python script `train.py` with specified configuration and parameters. This chunk is the beginning of the `slurm/run_053.sbatch` document.",
+        "ok": true,
+        "ms": 3507.5
+      },
+      {
+        "chunk_id": "slurm/run_054.sbatch::615df9005016",
+        "path": "slurm/run_054.sbatch",
+        "span_sha256": "7cdfea174071c6a3066f4c958b1f82d0051798b94c267676e61a9a336082c820",
+        "text": "This chunk is the entire content of the SLURM job submission script for job `run_054`. It specifies job parameters such as the name, GPU allocation, and runtime, followed by the command to execute the `train.py` script with specified configuration and parameters. This chunk sits at the beginning of the `slurm/run_054.sbatch` document.",
+        "ok": true,
+        "ms": 3729.0
+      },
+      {
+        "chunk_id": "slurm/run_055.sbatch::0efa31d6dcdb",
+        "path": "slurm/run_055.sbatch",
+        "span_sha256": "44269a2e9d76be43ce95c027d1f2d6b80ed6fe150980a903021cab5b462745db",
+        "text": "This chunk is the beginning of the SLURM job script in `slurm/run_055.sbatch`. It sets up the job parameters such as the job name, GPU allocation, and time limit, followed by the command to execute the `train.py` script with specified configuration and parameters. This chunk is likely the header or start of the document.",
+        "ok": true,
+        "ms": 3466.0
+      },
+      {
+        "chunk_id": "src/dinov2_encoder.py::b6410ea5bc31",
+        "path": "src/dinov2_encoder.py",
+        "span_sha256": "a7664251b8ff750d84dbef3609f554a4e998b94b90bbfb17e7d7326e5014c216",
+        "text": "This chunk describes the usage of the DINOv2 encoder wrapper in specific runs (45-49, 52, 53, 55) and defines the model name as \"dinov2_vitb14\". It sits at the beginning of the document, providing an overview of the model and its usage before defining the `load_encoder` function.",
+        "ok": true,
+        "ms": 3654.4
+      },
+      {
+        "chunk_id": "src/dinov2_encoder.py::78ba629705de",
+        "path": "src/dinov2_encoder.py",
+        "span_sha256": "8ed1b40c0f80a31ad7dc4a3dba2dd8cd29f64521781625b0ee10e77dc9ed0f76",
+        "text": "This chunk is a function definition for `load_encoder` in the `dinov2_encoder.py` file. It is situated between lines 14 and 20, providing a method to load the DINOv2 ViT-B/14 model with an optional parameter to freeze the backbone. The function returns the model name and notes that the learning rate is configured elsewhere. This function is used in runs 45-49, 52, 53, and 55 as indicated in the document header.",
+        "ok": true,
+        "ms": 5098.5
+      },
+      {
+        "chunk_id": "src/fusion.py::52643f8d54f5",
+        "path": "src/fusion.py",
+        "span_sha256": "e96a2a6540e841907b296a8f1f340728116d8a3f40400a797ec47ec7b3ce50da",
+        "text": "This chunk is the beginning of the `Stereo fusion module` description in the `fusion.py` file. It provides an overview of how the fusion mechanism works, detailing the behavior when fusion is enabled or disabled. This description sits at the start of the document, likely preceding the actual implementation of the fusion logic.",
+        "ok": true,
+        "ms": 3345.3
+      },
+      {
+        "chunk_id": "src/fusion.py::699ec50a5fd1",
+        "path": "src/fusion.py",
+        "span_sha256": "88a1ecf170c4a473037e8f779d681c4481ea0bc7505fcebdbff8ea89651715d3",
+        "text": "This chunk is a function definition in the `fusion.py` file, specifically the `project` function. It handles the concatenation of features based on the `fusion_on` flag. When `fusion_on` is `False`, it returns the features from the reference view. When `fusion_on` is `True`, it imports `torch` and concatenates the features along dimension 1 using `torch.cat`. This function is likely part of the stereo fusion module described in the preceding documentation.",
+        "ok": true,
+        "ms": 4356.0
+      },
+      {
+        "chunk_id": "src/trellis_wires.py::c02dccbbb8c6",
+        "path": "src/trellis_wires.py",
+        "span_sha256": "4a68acca698af3fa7532a48c914e352575575c109a390d410fbd03ecc7a6e6fa",
+        "text": "This chunk is the beginning of the `trellis_wires.py` file, providing a brief description of the module's purpose and a default setting for trellis wires in Blender renders. It sits at the top of the document, likely serving as an introductory comment block.",
+        "ok": true,
+        "ms": 2562.5
+      }
+    ]
+  }
+}

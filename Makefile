@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql explain-sql-synthetic freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir parity explain-sql explain-sql-synthetic freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -6,7 +6,7 @@ export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
 SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
 # ---- setup -----------------------------------------------------------------
-install:        ## bench + eval tests only: numpy, pydantic, pytest (no LlamaIndex, no torch)
+install:        ## bench + eval tests only: numpy, pydantic, pytest, scikit-learn (no LlamaIndex, no torch)
 	$(PYTHON) -m pip install -e ".[eval]"
 
 install-app:    ## + FastAPI, LlamaIndex, Postgres client (what the Docker image installs)
@@ -92,10 +92,17 @@ bench-jury-rescore: ## recompute the deterministic checks + summary of bench/res
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
 
+probes:         ## derived probe files outside the frozen fixture (paraphrases of gold questions; not gold labels) -> bench/probes/
+	$(PYTHON) -m app.eval.probes
+
 bench-frontier: ## prototype arms vs their parent rows, hash embedder + overlap reranker fallbacks -> bench/results/frontier.json
 	$(PYTHON) -m app.eval.harness --frontier --out bench/results/frontier.json
 
-bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]) -> bench/results/frontier_neural.json
+FRONTIER_LLM ?= qwen2.5:7b
+frontier-generations: ## LLM-written HyDE hypotheses (gold questions) and chunk prefixes through Ollama, stored -> bench/results/frontier_generations.json
+	$(PYTHON) -m app.eval.frontier_llm --model $(FRONTIER_LLM) --out bench/results/frontier_generations.json
+
+bench-frontier-neural: ## the same arms over bge-small + bge-reranker-v2-m3 (needs .[ml]; reads frontier_generations.json, no model call) -> bench/results/frontier_neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --frontier --neural --out bench/results/frontier_neural.json
 
 LISTWISE_MODEL ?=

@@ -55,7 +55,7 @@ from app.agent.generate import OllamaGenerator, cited_answer, ollama_available
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
-from app.eval.harness import BGE_RERANKER, BGE_SMALL, BenchConfig, _retrieve, project_root
+from app.eval.harness import BGE_RERANKER, BGE_SMALL, BenchConfig, _retrieve, bench_settings, project_root
 from app.eval.index_loader import build_index
 from app.eval.judge import HeuristicJudge, LlmJudge, exact_match_label, label_to_score, ollama_complete, pairwise_ab_ba
 from app.eval.jury import KAPPA_GATE, DEFAULT_JUDGE_MODELS, cohens_kappa
@@ -206,7 +206,7 @@ def run(
         "device": device_info("auto"),
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
-        "config": config.__dict__,
+        "config": bench_settings(config),
         "models": {
             "generator": model_provenance(generator_model, "generator") | {"backend": "ollama", "temperature": 0.0, "seed": 0},
             "judges": [model_provenance(m, "judge") | {"backend": "ollama"} for m in judge_models],

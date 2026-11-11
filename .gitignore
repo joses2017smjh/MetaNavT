@@ -62,6 +62,8 @@ bench/external/
 # prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
 !bench/results/frontier.json
 !bench/results/frontier_neural.json
+# the LLM-written HyDE hypotheses and chunk prefixes the real-model frontier reads (make frontier-generations)
+!bench/results/frontier_generations.json
 !bench/results/rerank_arms.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.

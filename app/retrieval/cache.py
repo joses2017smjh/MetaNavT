@@ -75,6 +75,7 @@ class SemanticCache:
         self._embeddings: list[np.ndarray] = []
         self._keys: list[str] = []
         self.stats = CacheStats()
+        self.last_similarity: float | None = None  # best cosine of the last get(); None when the cache was empty
 
         if self.persist_path and self.persist_path.exists():
             self._load()
@@ -83,6 +84,7 @@ class SemanticCache:
         """Look up a cached result for a semantically similar query."""
         q_embed = self.embedder.encode([query])[0]
         now = time.time()
+        self.last_similarity = None
 
         if not self._embeddings:
             self.stats.misses += 1
@@ -92,6 +94,7 @@ class SemanticCache:
         sims = cosine_scores(q_embed, mat)  # 1-D, one score per cached entry
         best_idx = int(np.argmax(sims))
         best_sim = float(sims[best_idx])
+        self.last_similarity = best_sim
 
         if best_sim < self.similarity_threshold:
             self.stats.misses += 1
