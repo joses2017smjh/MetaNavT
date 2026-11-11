@@ -3,8 +3,13 @@ from pathlib import Path
 from app.chunking.contextual import prepend_context, situate_chunk
 from app.chunking.late import late_chunk_vectors, mean_pool_spans
 from app.chunking.structure import chunk_text, csv_record_chunks, python_ast_chunks
-from app.chunking.structure import Span
+from app.chunking.structure import Span, fixed_size_chunks, jsonl_record_chunks, markdown_heading_chunks, yaml_chunks
 import numpy as np
+import pytest
+
+
+def _spans(spans: list[Span]) -> list[tuple[int, int, str]]:
+    return [(s.start, s.end, s.kind) for s in spans]
 
 
 def test_csv_one_record_per_chunk():
@@ -97,6 +102,73 @@ def test_auto_strategy_by_extension():
     assert any(s.kind == "markdown" for s in md)
     yml = chunk_text("run_id: 47\nlearning_rate: 3e-4\n", path="configs/run.yaml")
     assert yml and yml[0].kind == "yaml"
+
+
+def test_fixed_window_spans_overlap_and_skip_blank_windows():
+    text = "abcdefghijklmnopqrstuvwxyz"
+    assert _spans(fixed_size_chunks(text, size=10, overlap=3)) == [(0, 10, "fixed"), (7, 17, "fixed"), (14, 24, "fixed"), (21, 26, "fixed")]
+    assert _spans(fixed_size_chunks(text, size=10, overlap=10)) == [(0, 10, "fixed"), (8, 18, "fixed"), (16, 26, "fixed")]  # overlap >= size: size // 5
+    assert _spans(fixed_size_chunks("ab" + " " * 10 + "cd", size=4, overlap=0)) == [(0, 4, "fixed"), (12, 14, "fixed")]  # blank windows dropped
+    assert fixed_size_chunks("") == []
+    with pytest.raises(ValueError):
+        fixed_size_chunks(text, size=0)
+
+
+def test_unknown_suffixes_take_the_default_fixed_window():
+    text = "".join(f"line {i:04d}\n" for i in range(110))  # 1100 characters
+    assert _spans(chunk_text(text, path="logs/run_047.out")) == [(0, 512, "fixed"), (462, 974, "fixed"), (924, 1100, "fixed")]
+    assert _spans(chunk_text(text, path="configs/run.yaml", strategy="fixed")) == _spans(chunk_text(text, path="x.out"))
+    with pytest.raises(ValueError):
+        chunk_text(text, path="x.out", strategy="semantic")
+
+
+def test_json_is_one_chunk_and_invalid_json_falls_back_to_records():
+    text = '{"run_id": 47, "val_rmse": 0.0521}\n'
+    assert chunk_text(text, path="checkpoints/run_047.ckpt.meta.json") == [Span(0, len(text), text, "json")]
+    records = '{"a": 1}\n\n{"b": 2}\n'  # not one JSON value: one chunk per non-blank line
+    assert _spans(chunk_text(records, path="x.json")) == [(0, 9, "jsonl"), (10, 19, "jsonl")]
+    assert chunk_text("  \n", path="x.json") == []
+
+
+def test_jsonl_is_one_chunk_per_record():
+    text = '{"q": 1}\n\n{"q": 2}\r\n{"q": 3}'
+    spans = jsonl_record_chunks(text)
+    assert _spans(spans) == [(0, 9, "jsonl"), (10, 20, "jsonl"), (20, 28, "jsonl")]
+    assert [s.text for s in spans] == [text[s.start:s.end] for s in spans]
+    assert chunk_text(text, path="bench/gold/questions.jsonl") == spans
+
+
+def test_markdown_splits_at_headings_and_recuts_a_long_section():
+    text = "# A\nhello\n## B\nworld\n"
+    assert _spans(markdown_heading_chunks(text)) == [(0, 10, "markdown"), (10, 21, "markdown")]
+    long = "# A\n" + "x" * 2500 + "\n"
+    assert _spans(markdown_heading_chunks(long)) == [(0, 2000, "markdown"), (1920, len(long), "markdown")]  # window 2000, overlap 80
+
+
+def test_rst_takes_the_markdown_rule_without_underline_headings():
+    """A known limit: an .rst title is underlined, not marked with #, so it does not start a chunk."""
+    text = "Title\n=====\n\nIntro.\n\nSection\n-------\n\nBody.\n"
+    assert _spans(chunk_text(text, path="docs/index.rst")) == [(0, len(text), "markdown")]
+
+
+def test_small_yaml_is_one_chunk_and_a_long_one_splits_at_top_level_keys():
+    small = "run_id: 47\nlearning_rate: 3e-4\n"
+    assert yaml_chunks(small) == [Span(0, len(small), small, "yaml")]
+    head = "run_id: 47\n"
+    blocks = [head, "model:\n" + "".join(f"  layer_{i}: 1\n" for i in range(90)), "train:\n" + "".join(f"  step_{i}: 2\n" for i in range(90))]
+    text = "".join(blocks)
+    assert len(text) >= 2000
+    spans = yaml_chunks(text)
+    starts = [0, len(blocks[0]), len(blocks[0]) + len(blocks[1])]
+    assert _spans(spans) == [(starts[0], starts[1], "yaml"), (starts[1], starts[2], "yaml"), (starts[2], len(text), "yaml")]
+    assert [s.text for s in spans] == [head, head + blocks[1], head + blocks[2]]  # run_id travels with every block
+
+
+def test_csv_rows_keep_crlf_and_skip_blank_lines():
+    text = "h1,h2\r\na,1\r\n\r\nb,2\r\n"
+    spans = csv_record_chunks(text)
+    assert _spans(spans) == [(0, 7, "csv_header"), (7, 12, "csv_row"), (14, 19, "csv_row")]
+    assert [s.text for s in spans] == ["h1,h2\r\n", "h1,h2\r\na,1\r\n", "h1,h2\r\nb,2\r\n"]
 
 
 def test_late_chunk_mean_pool():
