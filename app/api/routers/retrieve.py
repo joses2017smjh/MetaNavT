@@ -137,15 +137,17 @@ async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
     try:
         # abandon_on_cancel: when the wait ends, the response goes out and the thread is left to
         # finish on its own (run_in_threadpool would hold the response until the thread returned).
-        with anyio.fail_after(budget + TIMEOUT_GRACE_SECONDS):
+        with anyio.move_on_after(budget + TIMEOUT_GRACE_SECONDS) as wait:
             outcome = await anyio.to_thread.run_sync(work, abandon_on_cancel=True)
     except StageTimeout as exc:
         raise HTTPException(status_code=504, detail=f"retrieval timed out: {exc}") from exc
-    except TimeoutError as exc:
-        stage = deadline.stage or "waiting for a worker thread"
-        raise HTTPException(status_code=504, detail=f"retrieval timed out: stage {stage} still running past the {budget:g} s retrieval budget") from exc
     except Exception as exc:  # noqa: BLE001 - any backend failure is a 503 to the client
+        # including a TimeoutError a stage raises itself inside the budget (a client library's
+        # socket timeout): only StageTimeout and the route's own wait below blame the budget
         raise HTTPException(status_code=503, detail=f"retrieval backend unavailable: {exc}") from exc
+    if wait.cancelled_caught:
+        stage = deadline.stage or "waiting for a worker thread"
+        raise HTTPException(status_code=504, detail=f"retrieval timed out: stage {stage} still running past the {budget:g} s retrieval budget")
 
     hits = []
     for rank, node in enumerate(outcome.nodes[: req.k], start=1):

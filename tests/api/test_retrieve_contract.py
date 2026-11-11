@@ -221,6 +221,23 @@ def test_a_stage_timeout_from_the_retriever_is_504(ready_client, monkeypatch):
     assert resp.status_code == 504 and "hybrid_sql" in resp.json()["detail"], resp.text
 
 
+class _ClientTimeoutRetriever(_FakeRetriever):
+    """A client library's own timeout, well inside the budget (socket.timeout is TimeoutError)."""
+
+    def retrieve_detailed(self, query, top_n=None, deadline=None):
+        deadline.stage = "embed"
+        raise TimeoutError("timed out")
+
+
+def test_a_timeout_error_inside_the_budget_is_a_backend_failure_not_the_budget(ready_client, monkeypatch):
+    """Only the route's own wait, or a stage's StageTimeout, is a 504 that blames the budget."""
+    monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", "5")
+    ready_client.app.state.retrieval.retriever = _ClientTimeoutRetriever()
+    resp = ready_client.post("/api/retrieve/", json={"query": "q"})
+    assert resp.status_code == 503 and "timed out" in resp.json()["detail"], resp.text
+    assert "budget" not in resp.json()["detail"], resp.text
+
+
 def test_within_the_budget_the_answer_is_unchanged(ready_client, monkeypatch):
     monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", "5")
     assert ready_client.post("/api/retrieve/", json={"query": "q"}).status_code == 200

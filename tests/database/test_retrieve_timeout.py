@@ -95,8 +95,10 @@ def test_a_statement_past_its_budget_is_504_and_the_next_request_is_served(serve
         locker.rollback()  # releases the lock
         locker.close()
     assert resp.status_code == 504, resp.text
-    assert "hybrid_sql" in resp.json()["detail"], resp.text
-    assert elapsed < 0.5 + TIMEOUT_GRACE_SECONDS, elapsed  # Postgres cancelled it; the route did not have to give up on it
+    # Postgres cancelled it: the stage's own StageTimeout ("ran past"), not the route giving up on
+    # a thread that is still in the stage ("still running past"), which would also name hybrid_sql.
+    assert "stage hybrid_sql ran past" in resp.json()["detail"], resp.text
+    assert elapsed < 0.5 + TIMEOUT_GRACE_SECONDS, elapsed
 
     resp = client.post("/api/retrieve/", json=body)  # the cancelled statement's connection went back to the pool clean
     assert resp.status_code == 200, resp.text
