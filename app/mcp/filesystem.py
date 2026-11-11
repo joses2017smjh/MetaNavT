@@ -506,8 +506,9 @@ class FilesystemTools:
         # The legacy artifact AST runner is a block-list that permits library file
         # readers. Exposing it as an agent tool would let it read the operator's private
         # key, so this MCP tool accepts only the allow-listed language of
-        # expression_refusal and gives the code only EXPRESSION_BUILTINS.
-        # It remains a correctness runner, not a CPU/memory/OS security sandbox.
+        # expression_refusal and gives the code only EXPRESSION_BUILTINS. The code runs
+        # in the sandbox's child process (reduced environment; CPU, memory and file-size
+        # limits) as the server's OS user: a correctness runner, not OS isolation.
         try:
             if not isinstance(code, str) or len(code) > 65536:
                 raise ValueError("code exceeds the expression-tool limit")
@@ -760,7 +761,7 @@ class FilesystemTools:
             },
             {
                 "name": "exec_sandboxed",
-                "description": "Run an allow-listed Python subset (no imports, attribute access, match or class statements; only listed builtins); no OS isolation or resource guarantees.",
+                "description": "Run an allow-listed Python subset (no imports, attribute access, match or class statements; only listed builtins) in a child process with CPU and memory limits; not OS isolation.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {"code": {"type": "string"}},

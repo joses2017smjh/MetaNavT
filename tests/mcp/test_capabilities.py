@@ -321,6 +321,14 @@ def test_expression_tool_runs_its_language(tmp_path, code, expected):
     assert result["stdout"].strip() == expected
 
 
+def test_expression_tool_code_runs_under_the_sandbox_time_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.artifacts.sandbox.DEFAULT_TIMEOUT_S", 1)
+    started = time.monotonic()
+    result = FilesystemTools(root=tmp_path).exec_sandboxed("n = 0\nwhile n < 10**8:\n    n += 1\nprint(n)")
+    assert result["timed_out"] is True and result["ok"] is False and result["stdout"] == "", result
+    assert time.monotonic() - started < 10
+
+
 def test_expression_builtins_are_a_subset_and_each_run_gets_its_own_copy():
     from app.artifacts.sandbox import SAFE_BUILTINS, run_sandboxed
     from app.mcp.filesystem import EXPRESSION_BUILTINS
