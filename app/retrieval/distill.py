@@ -1,7 +1,9 @@
 """Distill a cross-encoder teacher into a cheap student ranker.
 
-Teacher: cross-encoder scores logged during bench.
-Student: logistic/GBT over {dense, BM25, RRF, overlap, path, recency, filetype}.
+Teacher: the cross-encoder's scores over the fused candidates (make bench-rerank-arms
+computes them for the train questions; app/eval/rerank_arms.py).
+Student: least squares or gradient-boosted trees over the features it has when it
+serves (serving_features): the fused score and rank, text overlap, path facts.
 Mirrors the Depth capstone teacher/student pattern.
 """
 
@@ -17,30 +19,22 @@ import numpy as np
 from app.retrieval.hybrid import Chunk
 from app.retrieval.rerank import FEATURE_NAMES, RerankTriple, extract_features, feature_vector
 
-
-def triples_from_hits(query: str, hits, max_mtime: float = 1.0) -> list[RerankTriple]:
-    triples = []
-    for hit in hits:
-        feats = extract_features(
-            query,
-            hit.chunk,
-            dense=hit.dense,
-            bm25=hit.bm25,
-            rrf=hit.rrf,
-            rrf_rank=hit.rank,
-            max_mtime=max_mtime,
-        )
-        teacher = hit.rerank if hit.rerank is not None else hit.score
-        triples.append(
-            RerankTriple(
-                query=query,
-                chunk_id=hit.chunk.chunk_id,
-                path=hit.chunk.path,
-                ce_score=float(teacher),
-                features=feats,
-            )
-        )
-    return triples
+NO_RERANK_TEACHER = "fused score (no rerank ran)"
+STUDENT_BACKENDS = ("numpy_lstsq", "lightgbm")
+# LightGBM's own training API (lightgbm.train: no scikit-learn needed), 80 boosting rounds of
+# depth-4 regression trees. One thread, a fixed seed and the deterministic mode, so the same rows
+# give the same trees; every other parameter is LightGBM's default.
+LIGHTGBM_ROUNDS = 80
+LIGHTGBM_PARAMS = {
+    "objective": "regression",
+    "max_depth": 4,
+    "learning_rate": 0.1,
+    "num_threads": 1,
+    "seed": 0,
+    "deterministic": True,
+    "force_row_wise": True,
+    "verbosity": -1,
+}
 
 
 def serving_features(query: str, pairs: Sequence[tuple[Chunk, float]]) -> list[dict[str, float]]:
@@ -54,15 +48,36 @@ def serving_features(query: str, pairs: Sequence[tuple[Chunk, float]]) -> list[d
 
 
 def triples_from_pairs(query: str, pairs: Sequence[tuple[Chunk, float]], teacher_scores: dict[str, float]) -> list[RerankTriple]:
-    """Training rows whose features are exactly what DistilledReranker.__call__ computes.
-
-    triples_from_hits (the bench log) is not that: it records the dense and BM25
-    scores, which the student does not get when it serves, and the hit's rank after
-    the teacher reranked it, which leaks the label into a feature."""
+    """Training rows whose features are exactly what DistilledReranker.__call__ computes:
+    the serving features of the fused list, in fused order, labelled with the teacher's
+    score. Never the dense or BM25 score (absent when serving) and never the rank after
+    the teacher reranked the list (that would leak the label into a feature)."""
     return [
         RerankTriple(query=query, chunk_id=chunk.chunk_id, path=chunk.path, ce_score=float(teacher_scores[chunk.chunk_id]), features=feats)
         for (chunk, _), feats in zip(pairs, serving_features(query, pairs))
         if chunk.chunk_id in teacher_scores
+    ]
+
+
+def bench_log_triples(query: str, result) -> list[RerankTriple]:
+    """The rows `make bench` logs for one retrieval (app/eval/harness.py, <sha>.triples.jsonl).
+
+    One row per candidate of the fused list the reranker received (result.fused, the
+    hybrid index's RetrievalResult), with triples_from_pairs' serving features, labelled
+    with the reranker's score (teacher "reranker"). When nothing reranked the list (the
+    row has no reranker, or the router skipped it) the label is the fused score, which
+    is also the rrf_score feature: such rows carry teacher NO_RERANK_TEACHER and teach
+    nothing a student could not read off its own features. A result with hits but no
+    fused list (assembled outside InMemoryHybridIndex.retrieve) is an error, not an
+    empty log."""
+    if result.hits and not result.fused:
+        raise ValueError("this retrieval result carries no fused list (it was not built by InMemoryHybridIndex.retrieve); nothing to log")
+    reranked = {h.chunk.chunk_id: h.rerank for h in result.hits if h.rerank is not None}
+    labels = {chunk.chunk_id: reranked.get(chunk.chunk_id, score) for chunk, score in result.fused}
+    return [
+        RerankTriple(query=t.query, chunk_id=t.chunk_id, path=t.path, ce_score=t.ce_score, features=t.features,
+                     teacher="reranker" if t.chunk_id in reranked else NO_RERANK_TEACHER)
+        for t in triples_from_pairs(query, result.fused, labels)
     ]
 
 
@@ -78,6 +93,7 @@ def write_triples(path: str | Path, triples: Iterable[RerankTriple]) -> None:
                         "chunk_id": t.chunk_id,
                         "path": t.path,
                         "ce_score": t.ce_score,
+                        "teacher": t.teacher,
                         "features": t.features,
                     }
                 )
@@ -85,33 +101,12 @@ def write_triples(path: str | Path, triples: Iterable[RerankTriple]) -> None:
             )
 
 
-def distill_winner(triples: Sequence[RerankTriple]) -> DistilledReranker:
-    """Fit the CI student on the winning teacher's logged scores."""
-    return DistilledReranker().fit(triples)
+def _matrix(feature_dicts: Sequence[dict[str, float]]) -> np.ndarray:
+    return np.array([feature_vector(f) for f in feature_dicts], dtype=np.float64).reshape(len(feature_dicts), len(FEATURE_NAMES))
 
 
-def distill_from_path(path: str | Path) -> DistilledReranker:
-    return distill_winner(load_triples(path))
-
-
-def load_triples(path: str | Path) -> list[RerankTriple]:
-    triples = []
-    with Path(path).open() as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            raw = json.loads(line)
-            triples.append(
-                RerankTriple(
-                    query=raw["query"],
-                    chunk_id=raw["chunk_id"],
-                    path=raw["path"],
-                    ce_score=float(raw["ce_score"]),
-                    features=raw["features"],
-                )
-            )
-    return triples
+def _with_intercept(X: np.ndarray) -> np.ndarray:
+    return np.hstack([X, np.ones((X.shape[0], 1))])
 
 
 @dataclass
@@ -120,38 +115,40 @@ class DistilledReranker:
     model: object | None = None
     backend: str = "none"
 
-    def fit(self, triples: Sequence[RerankTriple]) -> "DistilledReranker":
+    def fit(self, triples: Sequence[RerankTriple], backend: str = "numpy_lstsq") -> "DistilledReranker":
+        """Fit the student on the teacher's scores with the backend asked for, and only that one.
+
+        numpy_lstsq: linear least squares with an explicit intercept column. On fixture v1
+        the five file-type flags already sum to one for every chunk, so there the column
+        changes no prediction; with other file types (a .pdf, a .toml) the fit would
+        otherwise be forced through the origin.
+        lightgbm: lightgbm.train(LIGHTGBM_PARAMS, ..., LIGHTGBM_ROUNDS). Without the library
+        this raises ImportError (the `distill` extra); a fitting error propagates. Neither
+        falls back to least squares, so `backend` always names the model that was fitted.
+        """
+        if backend not in STUDENT_BACKENDS:
+            raise ValueError(f"unknown student backend {backend!r}; expected one of {STUDENT_BACKENDS}")
         if len(triples) < 8:
             raise ValueError("Need at least 8 triples to train a student")
-        X = np.array([feature_vector(t.features) for t in triples], dtype=np.float64)
+        X = _matrix([t.features for t in triples])
         y = np.array([t.ce_score for t in triples], dtype=np.float64)
-        try:
-            import lightgbm as lgb  # type: ignore
+        if backend == "lightgbm":
+            import lightgbm as lgb  # type: ignore[import-not-found]
 
-            model = lgb.LGBMRegressor(
-                n_estimators=80,
-                max_depth=4,
-                learning_rate=0.1,
-                objective="regression",
-                verbosity=-1,
-            )
-            model.fit(X, y)
-            self.model = model
-            self.backend = "lightgbm"
-            return self
-        except Exception:
-            model = np.linalg.lstsq(X, y, rcond=None)[0]
-            self.model = model
-            self.backend = "numpy_lstsq"
-            return self
+            self.model = lgb.train(dict(LIGHTGBM_PARAMS), lgb.Dataset(X, label=y), num_boost_round=LIGHTGBM_ROUNDS)
+        else:
+            self.model = np.linalg.lstsq(_with_intercept(X), y, rcond=None)[0]
+        self.backend = backend
+        return self
 
     def predict_scores(self, feature_dicts: Sequence[dict[str, float]]) -> list[float]:
         if self.model is None:
             raise RuntimeError("DistilledReranker.fit() first")
-        X = np.array([feature_vector(f) for f in feature_dicts], dtype=np.float64)
+        if not feature_dicts:
+            return []
+        X = _matrix(feature_dicts)
         if self.backend == "numpy_lstsq":
-            raw = X @ np.asarray(self.model, dtype=np.float64)
-            return [float(s) for s in raw]
+            return [float(s) for s in _with_intercept(X) @ np.asarray(self.model, dtype=np.float64)]
         return [float(s) for s in self.model.predict(X)]
 
     def __call__(

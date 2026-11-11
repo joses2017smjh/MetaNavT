@@ -331,8 +331,7 @@ def test_evidence_table_has_a_row_for_every_frontier_arm():
 # ---- reranker prototypes against the cross-encoder ---------------------------------------------
 
 def test_student_training_rows_use_serving_features_not_the_teacher_rank():
-    from app.retrieval.distill import DistilledReranker, serving_features, triples_from_hits, triples_from_pairs
-    from app.retrieval.types import RetrievalHit
+    from app.retrieval.distill import DistilledReranker, serving_features, triples_from_pairs
 
     index = _tiny_index()
     query = "what learning rate did run 47 use"
@@ -343,11 +342,224 @@ def test_student_training_rows_use_serving_features_not_the_teacher_rank():
     assert [r.features["rrf_rank"] for r in rows] == [1.0, 2.0, 3.0]  # the fused rank, whatever the teacher said
     assert all(r.features["dense_cosine"] == 0.0 and r.features["bm25_score"] == 0.0 for r in rows)  # absent when serving
     assert [r.ce_score for r in rows] == [teacher[c.chunk_id] for c, _ in pairs]
-    # The bench log is a different thing: after a rerank its rank feature is the teacher's own order.
-    reranked = [RetrievalHit(c, teacher[c.chunk_id], rank, rerank=teacher[c.chunk_id]) for rank, (c, _) in enumerate(reversed(pairs), start=1)]
-    assert [t.features["rrf_rank"] for t in triples_from_hits(query, reranked)] == [1.0, 2.0, 3.0]
     student = DistilledReranker().fit(rows * 3)
     assert {c.chunk_id for c, _ in student(query, pairs)} == {c.chunk_id for c, _ in pairs}
+
+
+def test_bench_log_rows_are_the_serving_features_of_the_list_the_reranker_received():
+    from app.retrieval.distill import bench_log_triples, serving_features
+
+    def reverse(query, pairs):  # a reranker that scores the i-th fused candidate i, so it reverses the list
+        return sorted(((c, float(i)) for i, (c, _) in enumerate(pairs, start=1)), key=lambda p: p[1], reverse=True)
+
+    query = "what learning rate did run 47 use"
+    fused = [(h.chunk, h.score) for h in _tiny_index().retrieve(query, k=5).hits]  # never reranked
+    index = _tiny_index()
+    index.rerank_fn, index.enable_rerank = reverse, True
+    result = index.retrieve(query, k=5)
+    assert [h.chunk.chunk_id for h in result.hits] == [c.chunk_id for c, _ in reversed(fused)]
+    assert [(c.chunk_id, s) for c, s in result.fused] == [(c.chunk_id, s) for c, s in fused]
+    rows = bench_log_triples(query, result)
+    assert [r.chunk_id for r in rows] == [c.chunk_id for c, _ in fused]
+    assert [r.features for r in rows] == serving_features(query, fused)
+    assert [r.features["rrf_rank"] for r in rows] == [1.0, 2.0, 3.0]  # the fused rank, not the rank after the rerank
+    assert all(r.features["dense_cosine"] == 0.0 and r.features["bm25_score"] == 0.0 for r in rows)
+    assert [r.ce_score for r in rows] == [1.0, 2.0, 3.0] and {r.teacher for r in rows} == {"reranker"}
+    # When nothing reranked the list, the label is the fused score itself and the rows say so.
+    plain = bench_log_triples(query, _tiny_index().retrieve(query, k=5))
+    assert [r.ce_score for r in plain] == [s for _, s in fused] and {r.teacher for r in plain} == {"fused score (no rerank ran)"}
+    # A result assembled elsewhere (no fused list) cannot be logged as if it had been reranked.
+    result.fused = []
+    with pytest.raises(ValueError, match="no fused list"):
+        bench_log_triples(query, result)
+
+
+def test_bench_triple_log_has_no_rank_after_the_rerank():
+    from app.eval.gold import load_gold
+    from app.eval.harness import DEFAULT_CONFIGS, project_root, run_config
+    from app.eval.index_loader import build_index
+    from app.retrieval.distill import serving_features
+    from app.retrieval.rerank import OverlapReranker
+
+    files_root = project_root() / "bench" / "corpus" / "files"
+    gold = load_gold(project_root() / "bench" / "gold" / "questions.jsonl")[:8]
+    cfg = replace(next(c for c in DEFAULT_CONFIGS if c.name == "hybrid+rerank"), e2e=False)
+    payload = run_config(cfg, gold, files_root, mtimes="manifest")
+    plain = build_index(files_root, embedder_name=cfg.embedder, retrieve_k=cfg.retrieve_k, enable_router=False, enable_rerank=False,
+                        mtimes="manifest")
+    expected = []
+    for q in gold:
+        fused = [(h.chunk, h.score) for h in plain.retrieve(q.question, k=cfg.retrieve_k).hits]
+        teacher = {c.chunk_id: s for c, s in OverlapReranker()(q.question, fused)}
+        expected += [(q.question, c.chunk_id, f, teacher[c.chunk_id]) for (c, _), f in zip(fused, serving_features(q.question, fused))]
+    assert [(t.query, t.chunk_id, t.features, t.ce_score) for t in payload["_triples"]] == expected
+    assert payload["n_triples"] == len(expected) == 8 * cfg.retrieve_k
+
+
+def _student_rows(n: int = 12, path: str = "papers/p{i}.pdf"):
+    from app.retrieval.rerank import FEATURE_NAMES, RerankTriple
+
+    rows = []
+    for i in range(n):
+        feats = {name: 0.0 for name in FEATURE_NAMES}  # none of the five file-type flags is set (a .pdf)
+        feats.update(rrf_rank=float(i % 4 + 1), path_depth=float(1 + i % 3), jaccard=0.1 * (i % 5))
+        rows.append(RerankTriple("q", f"c{i}", path.format(i=i), ce_score=3.0 - 0.5 * feats["rrf_rank"], features=feats))
+    return rows
+
+
+def test_least_squares_student_has_an_intercept_when_no_file_type_flag_is_set():
+    from app.retrieval.distill import DistilledReranker
+
+    rows = _student_rows()
+    student = DistilledReranker().fit(rows, backend="numpy_lstsq")
+    assert student.backend == "numpy_lstsq"
+    preds = student.predict_scores([r.features for r in rows])
+    # The teacher is 3 - 0.5 * rank: exact for a fit with an intercept, impossible through the origin.
+    assert max(abs(p - r.ce_score) for p, r in zip(preds, rows)) < 1e-9
+
+
+def test_file_type_flags_partition_fixture_v1():
+    """Every fixture v1 chunk sets exactly one of the five file-type flags, so there they already span
+    the least-squares intercept and the explicit column changes no prediction."""
+    from app.eval.harness import project_root
+    from app.eval.index_loader import load_chunks
+    from app.retrieval.rerank import FEATURE_NAMES, extract_features
+
+    chunks = load_chunks(project_root() / "bench" / "corpus" / "files", mtimes="manifest")
+    flags = [name for name in FEATURE_NAMES if name.startswith("is_")]
+    assert len(flags) == 5 and chunks
+    assert all(sum(extract_features("q", chunk)[name] for name in flags) == 1.0 for chunk in chunks)
+
+
+class _FakeBooster:
+    """Stands in for a trained lightgbm.Booster on machines without the library."""
+
+    def __init__(self, params, dataset, rounds):
+        self.params, self.rounds = params, rounds
+        self.mean = float(sum(dataset.label) / len(dataset.label))
+
+    def predict(self, X):
+        return [self.mean] * len(X)
+
+
+def _fake_lightgbm(train):
+    import types
+
+    fake = types.ModuleType("lightgbm")
+    fake.__version__ = "0.0-test"
+    fake.Dataset = lambda X, label: types.SimpleNamespace(data=X, label=label)
+    fake.train = train
+    return fake
+
+
+def test_student_backend_is_the_one_asked_for_and_never_a_silent_substitute(monkeypatch):
+    import sys
+
+    from app.retrieval.distill import LIGHTGBM_PARAMS, LIGHTGBM_ROUNDS, DistilledReranker
+
+    rows = _student_rows()
+    monkeypatch.setitem(sys.modules, "lightgbm", _fake_lightgbm(lambda params, dataset, num_boost_round: _FakeBooster(params, dataset, num_boost_round)))
+    student = DistilledReranker().fit(rows, backend="lightgbm")
+    assert student.backend == "lightgbm" and isinstance(student.model, _FakeBooster)
+    assert student.model.params == LIGHTGBM_PARAMS and student.model.rounds == LIGHTGBM_ROUNDS
+    assert LIGHTGBM_PARAMS["num_threads"] == 1 and LIGHTGBM_PARAMS["deterministic"] is True and "seed" in LIGHTGBM_PARAMS
+    assert student.predict_scores([rows[0].features]) == [student.model.mean]
+    assert DistilledReranker().fit(rows).backend == "numpy_lstsq"  # the default needs only numpy
+    with pytest.raises(ValueError):
+        DistilledReranker().fit(rows, backend="auto")
+
+    def broken(params, dataset, num_boost_round):
+        raise ValueError("bad input")
+
+    monkeypatch.setitem(sys.modules, "lightgbm", _fake_lightgbm(broken))
+    with pytest.raises(ValueError, match="bad input"):  # a fitting error is not swallowed into least squares
+        DistilledReranker().fit(rows, backend="lightgbm")
+    monkeypatch.setitem(sys.modules, "lightgbm", None)  # the library is not installed
+    with pytest.raises(ImportError):
+        DistilledReranker().fit(rows, backend="lightgbm")
+
+
+def _stand_in_rerank_arms(monkeypatch, tmp_path, lightgbm_module):
+    """make bench-rerank-arms end to end on the login node: hash index, an overlap stand-in teacher,
+    scripted listwise replies; the blob is written where report.py and evidence.py read it."""
+    import json
+    import sys
+
+    import app.eval.rerank_arms as arms
+    from app.retrieval.rerank import OverlapReranker
+
+    class StandInTeacher:
+        def __init__(self, model_name, **kwargs):
+            self.model = object()
+
+        def __call__(self, query, pairs):
+            return OverlapReranker()(query, pairs)
+
+    real_build = arms.build_index
+    monkeypatch.setattr(arms, "build_index", lambda root, **kw: real_build(root, **{**kw, "embedder_name": "hash"}))
+    monkeypatch.setattr(arms, "CrossEncoderReranker", StandInTeacher)
+    monkeypatch.setitem(sys.modules, "lightgbm", lightgbm_module)
+    calls = iter(range(10_000))
+
+    def complete(prompt):
+        i = next(calls)
+        n = int(prompt.split("Answer with the ranking of all ")[1].split()[0])
+        if i == 3:
+            return None
+        if i in (5, 6):
+            return "The most relevant passage is configs/run_047.yaml, then [2]."
+        return " > ".join(f"[{k}]" for k in range(n, 0, -1))
+
+    blob = arms.run(complete=complete)
+    (tmp_path / "bench" / "results").mkdir(parents=True)
+    (tmp_path / "bench" / "results" / "rerank_arms.json").write_text(json.dumps(blob))
+    return blob
+
+
+def test_rerank_arms_end_to_end_with_stand_ins_records_both_students_and_the_listwise_counts(monkeypatch, tmp_path):
+    from app.eval.evidence import _rerank_arm_claims
+    from app.eval.rerank_arms import HYBRID, STUDENT, STUDENT_LGBM, TEACHER
+    from app.eval.report import rerank_arms_table
+
+    blob = _stand_in_rerank_arms(monkeypatch, tmp_path, _fake_lightgbm(lambda params, dataset, num_boost_round: _FakeBooster(params, dataset, num_boost_round)))
+    test_rows = {r["config"]: r for r in blob["test_split"]["results"]}
+    assert list(test_rows) == [HYBRID, TEACHER, STUDENT, STUDENT_LGBM] and blob["not_evaluated"] == []
+    assert test_rows[STUDENT]["student"]["backend"] == "numpy_lstsq" and test_rows[STUDENT_LGBM]["student"]["backend"] == "lightgbm"
+    assert test_rows[STUDENT_LGBM]["student"]["version"] == "0.0-test" and test_rows[STUDENT_LGBM]["student"]["fallback"] is None
+    for name in (STUDENT, STUDENT_LGBM):
+        assert [d["reference"] for d in test_rows[name]["deltas"]] == [TEACHER, HYBRID]
+    lw = blob["listwise"]
+    assert lw["evaluated"] and lw["n_calls"] == blob["n_gold"] and lw["n_failed_calls"] == 1 and lw["n_parse_failures"] == 2
+    assert len(lw["fused_order_kept_ids"]) == 3 and lw["example_prompt"]["prompt"].rstrip().endswith("no words, no explanation.")
+    listwise_row = next(r for r in blob["all_questions"]["results"] if r["config"] == lw["config"])
+    assert [d["reference"] for d in listwise_row["deltas"]] == [HYBRID, TEACHER]
+    text = rerank_arms_table(blob)
+    assert f"| {STUDENT_LGBM} |" in text and "LightGBM regression trees" in text and "linear least squares with an intercept column" in text
+    assert "fused order kept on 3 of 136 questions" in text and "include 3 questions in the fused order" in text
+    claims = _rerank_arm_claims(tmp_path)
+    assert {c["claim"].split("`")[1] for c in claims} == {STUDENT, STUDENT_LGBM, lw["config"]}
+
+
+def test_rerank_arms_without_lightgbm_records_that_arm_as_not_evaluated(monkeypatch, tmp_path):
+    from app.eval.rerank_arms import STUDENT, STUDENT_LGBM
+    from app.eval.report import rerank_arms_table
+
+    blob = _stand_in_rerank_arms(monkeypatch, tmp_path, None)  # None in sys.modules: `import lightgbm` raises ImportError
+    names = [r["config"] for r in blob["test_split"]["results"]]
+    assert STUDENT in names and STUDENT_LGBM not in names
+    (item,) = blob["not_evaluated"]
+    assert item["arm"] == STUDENT_LGBM and "distill" in item["reason"]
+    assert f"`{STUDENT_LGBM}`: not evaluated in this run." in rerank_arms_table(blob)
+
+
+def test_rerank_arms_stops_when_a_student_fails_to_fit(monkeypatch, tmp_path):
+    """Only a missing library records the LightGBM arm as not evaluated; an error while fitting stops the run."""
+
+    def broken(params, dataset, num_boost_round):
+        raise ValueError("bad input")
+
+    with pytest.raises(ValueError, match="bad input"):
+        _stand_in_rerank_arms(monkeypatch, tmp_path, _fake_lightgbm(broken))
 
 
 def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():
@@ -390,5 +602,22 @@ def test_rerank_arms_block_reads_verdicts_off_the_file():
     if student["student"]["fallback"]:
         assert student["student"]["fallback"] in line  # the stand-in is named in the row
     assert set(blob["split"]["train_ids"]).isdisjoint(blob["split"]["test_ids"])
-    if not blob["listwise"]["evaluated"]:
+    lw = blob["listwise"]
+    if not lw["evaluated"]:
         assert "not evaluated in this run" in text
+        return
+    # The listwise row: its verdicts are read off the file, and the questions it left in the fused order are counted.
+    row = next(r for r in blob["all_questions"]["results"] if r["config"] == lw["config"])
+    line = next(l for l in text.splitlines() if l.startswith(f"| {lw['config']} |"))
+    for block in row["deltas"]:
+        assert f"| {verdict(block['ndcg@10'])} |" in line
+    assert len(lw["completions"]) == lw["n_calls"] == blob["n_gold"] and lw["model"] and lw["options"]["temperature"] == 0.0
+    assert lw["n_parse_failures"] + lw["n_failed_calls"] == len(lw["fused_order_kept_ids"])
+    if lw["fused_order_kept_ids"]:
+        assert f"fused order kept on {len(lw['fused_order_kept_ids'])} of {lw['n_calls']} questions" in line
+    # The command shown is the one that reproduces the file, listwise model included.
+    command = f"make bench-rerank-arms LISTWISE_MODEL={lw['model']}"
+    assert f"`{command}`" in text.splitlines()[0] and f"--listwise-model {lw['model']}" in blob["command"]
+    from app.eval.evidence import _rerank_arm_claims
+
+    assert {c["command"] for c in _rerank_arm_claims(project_root())} == {command}

@@ -188,9 +188,9 @@ def build_index(
         elif reranker == "none":
             rerank_fn = None
         else:
-            rerank_fn = CrossEncoderReranker(model_name=reranker)
+            rerank_fn = CrossEncoderReranker(model_name=reranker, allow_fallback=True)  # the row is labelled below
             reranker_loaded = rerank_fn.model is not None
-            reranker_fallback = None if reranker_loaded else "overlap"
+            reranker_fallback = rerank_fn.fallback  # "overlap" when the model did not load
 
     index = InMemoryHybridIndex(
         chunks,
