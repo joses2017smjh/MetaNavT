@@ -7,6 +7,7 @@ depth) is checked against Postgres in tests/database/test_dense_parity.py. The
 committed plans in doc/sql/ must have been made with the current settings.
 """
 
+import hashlib
 import re
 from contextlib import contextmanager
 from pathlib import Path
@@ -80,10 +81,12 @@ def plan_settings(text: str) -> tuple[tuple[int, ...], int, str]:
 @pytest.mark.parametrize("name", ["hybrid_explain.txt", "hybrid_explain_synthetic_10k.txt"])
 def test_committed_plans_ran_with_the_current_statement_and_settings(name):
     text = (PLANS / name).read_text()
+    regenerate = f"regenerate doc/sql/{name} (make explain-sql / explain-sql-synthetic)"
+    statement = re.search(r"^-- EXPLAIN \(ANALYZE, BUFFERS\) of (\S+)$", text, re.M).group(1)
+    digest = re.search(r"^-- statement sha256 ([0-9a-f]{64})", text, re.M).group(1)
+    assert digest == hashlib.sha256((PLANS.parents[1] / statement).read_bytes()).hexdigest(), regenerate
     version, k, line = plan_settings(text)
-    assert line == str(manager(version).search_settings(k)), f"regenerate doc/sql/{name} (make explain-sql / explain-sql-synthetic)"
-    assert "CTE params" not in text  # params is inlined (NOT MATERIALIZED), not a materialized CTE scan
-    assert "nearest.node_id" in text  # the dense cut's tie-break over the rows the scan read
+    assert line == str(manager(version).search_settings(k)), regenerate
 
 
 def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index():

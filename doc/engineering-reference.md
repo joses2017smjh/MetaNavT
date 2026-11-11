@@ -671,12 +671,12 @@ route answers shortly after the budget and the call keeps its worker thread
 until it returns (`tests/api/test_retrieve_contract.py`,
 `tests/database/test_retrieve_timeout.py`). The committed
 [EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1
-(`make explain-sql`): both lists are sequential scans at that size.
+(`make explain-sql`): at that size the dense list is a sequential scan and the lexical list a GIN bitmap scan.
 [hybrid_explain_synthetic_10k.txt](../doc/sql/hybrid_explain_synthetic_10k.txt)
 (`make explain-sql-synthetic`) is the same statement over generated rows with
 hash vectors in a scratch table, synthetic text rather than data: there the planner
 reads the dense list from the HNSW index on its own. Both plans run with the
-statement's per-transaction settings, which their headers list.
+statement's per-transaction settings, which their headers list with the SHA-256 of the statement file they planned.
 `tests/database/test_hybrid_sql.py` checks that the SQL fusion equals the Python
 RRF on identical input lists, against a live Postgres in CI.
 
@@ -719,7 +719,9 @@ kept the index from serving the full list
 before: the `params` CTE, read by both lists, was materialized, which made the
 query vector a column and left the dense list no index path at all; and an HNSW
 scan returns at most `hnsw.ef_search` rows, and pgvector's default is below
-`RETRIEVE_K`. The statement now marks `params` `NOT MATERIALIZED`, and
+`RETRIEVE_K`. The statement now keeps the query vector in a `NOT MATERIALIZED`
+CTE of its own (the tsquery stays a materialized value, which keeps the lexical
+list's GIN plan), and
 `hybrid_search` sets `hnsw.ef_search` to twice the depth (plus
 `hnsw.iterative_scan = strict_order` on pgvector 0.8 or later) for its own
 transaction only, so no pooled connection keeps the value. `/health` reports the

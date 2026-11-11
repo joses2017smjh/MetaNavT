@@ -19,14 +19,19 @@
 --             %(rrf_k)s RRF constant (60)
 -- {table} is replaced by the qualified data table (schema.data_<table>).
 --
--- params is NOT MATERIALIZED: both lists read it, and Postgres materializes a CTE
--- read twice, which turns the query vector into a column of that CTE. An index
--- ordering operator needs a constant on its right, so the dense list could then
+-- The query vector and the tsquery are separate CTEs. params (the vector) is NOT
+-- MATERIALIZED: inlined, it is a constant, which an index ordering operator needs on
+-- its right; read from a materialized CTE it is a column, and the dense list could
 -- never be read from the HNSW index (tests/database/test_dense_parity.py forces the
--- index and checks the plan).
+-- index and checks the plan). lexical_params stays MATERIALIZED, as the tsquery was
+-- when both shared one CTE read twice: inlined as a constant, it leads the planner to
+-- a sequential scan of fixture v1 that computes to_tsvector for every row, slower
+-- than the GIN bitmap scan the lexical list keeps this way.
 WITH params AS NOT MATERIALIZED (
-    SELECT %(qvec)s::vector AS qvec,
-           websearch_to_tsquery('english', %(query)s) AS tsq
+    SELECT %(qvec)s::vector AS qvec
+),
+lexical_params AS MATERIALIZED (
+    SELECT websearch_to_tsquery('english', %(query)s) AS tsq
 ),
 dense AS (
     SELECT node_id, dense_score,
@@ -54,7 +59,7 @@ lexical AS (
            row_number() OVER (ORDER BY bm25_score DESC, node_id) AS bm25_rank
     FROM (
         SELECT t.node_id, ts_rank_cd(to_tsvector('english', t.text), p.tsq) AS bm25_score
-        FROM {table} t, params p
+        FROM {table} t, lexical_params p
         WHERE to_tsvector('english', t.text) @@ p.tsq
         ORDER BY bm25_score DESC, t.node_id
         LIMIT %(k)s

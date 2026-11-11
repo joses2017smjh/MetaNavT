@@ -17,6 +17,7 @@ hybrid_search applies (VectorStoreManager.search_settings), which the header lis
 """
 
 import argparse
+import hashlib
 import json
 import os
 import random
@@ -128,9 +129,11 @@ def main() -> int:
         if args.synthetic_rows
         else f"{n} rows, fixture v1"
     )
+    statement = f"app/database/sql/hybrid_{'paradedb' if vsm.hybrid_backend == 'paradedb' else 'tsrank'}.sql"
     header = [
-        f"-- EXPLAIN (ANALYZE, BUFFERS) of app/database/sql/hybrid_{'paradedb' if vsm.hybrid_backend == 'paradedb' else 'tsrank'}.sql",
+        f"-- EXPLAIN (ANALYZE, BUFFERS) of {statement}",
         f"-- generated {datetime.now(timezone.utc).isoformat()} at git {git_sha(ROOT)} by scripts/explain_hybrid.py {scrub(' '.join(sys.argv[1:]))}".rstrip(),
+        f"-- statement sha256 {hashlib.sha256((ROOT / statement).read_bytes()).hexdigest()} (the file as planned, committed or not)",
         f"-- {scrub(version)}",
         f"-- pgvector {pgvector}; lexical backend {vsm.hybrid_backend}; table {vsm.schema_name}.{vsm.data_table} ({rows_note}); ANALYZE before EXPLAIN",
         f"-- query: {args.query!r}, k={args.k}, rrf_k=60, hash embedder dim {dim}",
@@ -141,7 +144,7 @@ def main() -> int:
     ]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text("\n".join(header) + plan + "\n")
-    print("\n".join(header[:7]))
+    print("\n".join(header[:8]))
     print(plan[:1200])
     print(f"wrote {args.out}")
     return 0
