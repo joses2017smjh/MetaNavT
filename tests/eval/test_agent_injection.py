@@ -3,6 +3,7 @@
 import hashlib
 import json
 from collections import Counter
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -365,7 +366,9 @@ def test_intervals_skip_nan_and_tasks_with_fewer_trials():
 def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     # The score objects inside the episodes file are the ones written at generation time, by older scoring
     # code; the rescored file next to it must equal rescore() of every stored episode, in file order, and
-    # carry only the episode key and the score (answers and tool calls stay in the episodes file).
+    # carry only the episode key and the score (answers and tool calls stay in the episodes file). The first run
+    # is kept as recorded: its sidecar names the scoring module of the day it was written, and what must hold
+    # today is that today's scoring code reproduces every row.
     tasks, rows = ai.stored_episodes(EPISODES, k=4)
     stored = [json.loads(line) for line in SCORES.read_text().splitlines()]
     assert stored == ai.episode_scores(ai.rescore(tasks, rows)), "run `make bench-agent-injection-scores`"
@@ -373,21 +376,29 @@ def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     assert all(set(r) == {"model", "defense", "task_id", "trial", "score"} and scrub(r) == r for r in stored)
     meta = json.loads(ai.sidecar(SCORES).read_text())
     assert meta["episodes_sha256"] == _sha256(EPISODES) == json.loads(RESULTS.read_text())["episodes_sha256"]
-    assert meta["module_sha256"] == _sha256(ai.__file__)
     assert meta["episodes_file"] == ai.DEFAULT_EPISODES.as_posix() and meta["n_episodes"] == len(rows)
 
 
-def test_the_results_file_was_scored_by_the_committed_module_from_a_clean_tree():
-    # The header describes the run that scored the stored episodes (make bench-agent-injection-rescore); it must be
-    # today's harness, run with nothing uncommitted. The generating run keeps its own record, as written.
+def test_the_first_run_is_reproduced_by_todays_scoring_code_from_its_stored_episodes():
+    # agent_injection.json is the first run, kept as recorded: its header describes the run that scored the stored
+    # episodes (make bench-agent-injection-rescore, at a clean commit), and the generating run keeps its own record,
+    # as written. Today's harness must rebuild its task list, summary and paired deltas exactly from those episodes,
+    # so `make bench-agent-injection-rescore` still reproduces every number in it.
     blob = json.loads(RESULTS.read_text())
-    assert blob["module_sha256"] == _sha256(ai.__file__), "run `make bench-agent-injection-rescore` at a clean commit"
     assert blob["working_tree_dirty"] is False and "--summarize-only" in blob["command"]
     generated = blob["episodes_generated_by"]
     assert generated == json.loads(ai.sidecar(EPISODES).read_text())
     assert generated["reconstructed"] is True
     assert generated["segments"] and all(seg["working_tree_dirty"] is True for seg in generated["segments"])
     assert blob["episodes_sha256"] == _sha256(EPISODES)
+    tasks, rows = ai.stored_episodes(EPISODES, k=4)
+    recorded = blob["tasks"]
+    rebuilt = json.loads(json.dumps([{**asdict(t), "injection_sha256": hashlib.sha256(t.injection.encode()).hexdigest()
+                                      if t.injected else None} for t in tasks]))
+    assert [{key: row[key] for key in recorded[0]} for row in rebuilt] == recorded
+    rows = ai.rescore(tasks, rows)
+    assert ai.summarize(tasks, rows, k=4) == blob["summary"]
+    assert ai.paired_deltas(tasks, rows) == blob["paired_deltas"]
 
 
 def test_the_table_names_the_run_that_scored_the_episodes_apart_from_the_one_that_generated_them():

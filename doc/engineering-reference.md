@@ -867,13 +867,16 @@ writes to the episodes file. Current per-episode scores are in
 order, holding the episode key (model, configuration, task, trial) and the
 score from today's scoring code, with no answer or tool call copied. Its
 `.meta.json` names the episodes file and the scoring module by sha256, and a
-test fails when the file differs from a fresh rescore or either hash is stale.
+test fails when the file differs from a fresh rescore or the episodes hash is
+stale.
 
 Two runs are on record in `agent_injection.json`. The top-level `git_head`,
 `working_tree_dirty`, `module_sha256` and `command` describe the run that
-scored the stored episodes, `make bench-agent-injection-rescore`; a test
-checks that `module_sha256` is the committed harness module's and that the
-scoring run had nothing uncommitted. `episodes_generated_by` is the sidecar of
+scored the stored episodes, `make bench-agent-injection-rescore`, at the
+commit and with the harness module it names; a test checks that the scoring
+run had nothing uncommitted and that today's harness rebuilds the task list,
+the summary and the paired deltas exactly from the stored episodes, so the
+file is kept as recorded and still reproduces. `episodes_generated_by` is the sidecar of
 the run that generated the episodes, kept as written: for this run it was
 reconstructed after the fact and records uncommitted changes in both process
 segments. The device, the Ollama version and the wall time come from that
