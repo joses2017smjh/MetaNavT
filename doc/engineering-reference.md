@@ -829,7 +829,21 @@ keeps the rest of the fused list in RRF order, with `max_length` 512
 (`RERANKER_PRECISION`). The sweep above is the reason: fp16 with a 512-token
 cap is a quality tie with fp32 uncapped at a fraction of the latency, and
 reranking deeper than 20 loses nDCG@10 while costing more. The CI stack serves
-no reranker; the `ml` override serves this one on CPU.
+no reranker; the `ml` override serves this one on CPU. Staleness Tier 1 runs on the
+fused list before the reranker, so the reranked top 20 holds no chunk Tier 1 drops.
+
+The benchmark can run a row with the same three settings (`rerank_depth`,
+`rerank_precision`, `rerank_max_length` in `BenchConfig`; an fp16 row stops without
+CUDA rather than measure fp32 under its name) and with Tier 1 in front of the
+reranker (`staleness_before_rerank`). A row that sets none of them runs as every row
+recorded before M17: the reranker gets every fused candidate, in fp32 at the model's
+own token cap, and Tier 1 runs after it. With every candidate reranked the two
+staleness orders give the same lists (`tests/eval/test_rerank_depth.py`); with a
+depth cut they can differ. `make bench-rerank-depth` (GPU) walks fixture v1 from the
+every-candidate row to the served settings one change at a time, then adds the
+router and Tier 1 and moves Tier 1 in front of the reranker, into
+`bench/results/rerank_depth.json`, with each row's paired delta against its parent
+and on how many questions its list differs from the parent's.
 
 **No silent fallbacks.** `RERANKER_MODEL` set but not loadable is a startup
 error (`/health` 503 with the reason) unless `RERANKER_REQUIRED=false`, in

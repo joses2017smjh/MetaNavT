@@ -137,6 +137,10 @@ sweeps:
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
 
+.PHONY: bench-rerank-depth
+bench-rerank-depth: ## fixture v1, bge-small + bge-reranker-v2-m3: every fused candidate -> depth 20 -> max_length 512 -> fp16 (the served settings) -> + router and staleness -> staleness before the rerank, each vs its parent (needs .[ml] and CUDA) -> bench/results/rerank_depth.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --rerank-depth --out bench/results/rerank_depth.json
+
 # The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
 BEIR_DATA_DIR ?= bench/external
 bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
