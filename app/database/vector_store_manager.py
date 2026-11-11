@@ -820,8 +820,13 @@ class VectorStoreManager(DatabaseManager):
             logger.warning(f"HNSW index not created: {e}")
             return False
 
-    def ensure_halfvec(self) -> bool:
-        """2x storage cut. Requires pgvector with halfvec."""
+    def ensure_halfvec(self, m: int = 16, ef_construction: int = 64) -> bool:
+        """A half-precision copy of the embedding column (embedding_half) and an HNSW index on it.
+
+        The float32 column stays, so the table grows: what halves is what the index stores per
+        vector. Filling the column rewrites every row. Nothing in the served statement reads it;
+        bench/results/pgvector_hnsw.json measures it against float32 (app/eval/pgvector_hnsw.py).
+        """
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
@@ -838,6 +843,14 @@ class VectorStoreManager(DatabaseManager):
                         WHERE embedding_half IS NULL AND embedding IS NOT NULL;
                         """
                     )
+                    cur.execute(
+                        f"""
+                        CREATE INDEX IF NOT EXISTS {self.table_name}_embedding_half_hnsw
+                        ON {self.schema_name}.{self.data_table}
+                        USING hnsw (embedding_half halfvec_cosine_ops)
+                        WITH (m = {int(m)}, ef_construction = {int(ef_construction)});
+                        """
+                    )
                 conn.commit()
             return True
         except Exception as e:
@@ -845,7 +858,11 @@ class VectorStoreManager(DatabaseManager):
             return False
 
     def ensure_binary(self) -> bool:
-        """1-bit/dim storage + Hamming index. Rescore with float cosine at query time."""
+        """1-bit/dim copy of the embedding column (embedding_bit) + Hamming HNSW index; rescore with float cosine at query time.
+
+        As with ensure_halfvec, the float32 column stays and filling the column rewrites every row;
+        nothing in the served statement reads it (measured in bench/results/pgvector_hnsw.json).
+        """
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:

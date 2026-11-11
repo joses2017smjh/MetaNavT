@@ -3,7 +3,7 @@
     make bench-served-scale PYTHON=<python with torch> PGVECTOR_SIF=<PostgreSQL 16 + pgvector image> \
         SERVED_SCALE_SCRATCH=<node-local directory> [SERVED_SCALE_STATE=<shared directory>] [BEIR_DATA_DIR=bench/external]
     -> bench/results/served_scale_fiqa.json and bench/results/served_scale_fiqa_trec/ (A05)
-       bench/results/pgvector_hnsw.json (C03: app/eval/pgvector_hnsw.py, on the same table)
+       bench/results/pgvector_hnsw.json (C03 and C04: app/eval/pgvector_hnsw.py, on the same table)
 
 For a GPU node: bge-small (the served embedder, LlamaIndex HuggingFaceEmbedding) and bge-reranker-v2-m3 on
 CUDA from the HuggingFace cache, Apptainer with a PostgreSQL 16 + pgvector image (app/eval/service.py), and
@@ -32,6 +32,7 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
                  document embeddings from the BEIR cache, on the same queries, scored by the same function
   hnsw           pgvector's HNSW index against the exact scan on the same table and queries, at several
                  hnsw.ef_search values, and the served dense CTE (app/eval/pgvector_hnsw.py)
+  variants       last, because it rewrites the table: halfvec and binary + rescore against float32 on it
 
 The results file pairs each served row with its in-memory row (served minus in-memory, paired bootstrap
 over queries), per route as well, and lists every difference between the two sides. Every number comes
@@ -68,9 +69,9 @@ PASSES = {
     "api:hybrid+rerank": ({}, "hybrid+bge-rerank@bge-small/fp16-512/top20"),
     "api:hybrid": ({"RERANKER_MODEL": "none"}, "hybrid@bge-small"),
 }
-STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory", "hnsw")
+STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory", "hnsw", "variants")
 SERVED_STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory")  # served_scale_fiqa.json
-HNSW_STAGES = ("files", "index", "hnsw")  # pgvector_hnsw.json
+HNSW_STAGES = ("files", "index", "hnsw", "variants")  # pgvector_hnsw.json
 SERVER_SETTINGS = ("shared_buffers", "maintenance_work_mem", "work_mem", "effective_cache_size", "max_parallel_maintenance_workers",
                    "max_parallel_workers_per_gather", "jit", "synchronous_commit", "random_page_cost")
 SOURCES = ("app/eval/served_scale.py", "app/eval/beir_api.py", "app/eval/service.py", "app/eval/beir.py", "app/eval/http_load.py", "app/engine/ingest.py",
@@ -641,6 +642,19 @@ class Run:
             log(f"{row['config']}: recall@50 {row['recall@50']['mean']}, p50 {row['latency'].get('p50_ms')} ms, plan {row.get('plan_node')}")
         return {**out, "dim": int(vectors.shape[1])}
 
+    def stage_variants(self) -> dict:
+        from app.eval import pgvector_hnsw
+        from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, resample_indices
+
+        self.stop_api()
+        vectors = self.query_vectors()
+        exact = self.done("hnsw")["exact"]
+        out = pgvector_hnsw.variants(self.vsm(), vectors, exact, resample_indices(len(vectors), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED))
+        log(f"variants: build {out['build_seconds']}, exact unchanged {out['exact_unchanged']}")
+        for row in out["rows"]:
+            log(f"{row['config']}: recall@50 {row['recall@50']['mean']}, p50 {row['latency'].get('p50_ms')} ms, plan {row.get('plan_node')}")
+        return out
+
     def run(self) -> dict:
         try:
             for stage in self.args.stages:
@@ -772,13 +786,13 @@ def assemble_hnsw(run: Run) -> dict:
     from app.eval.provenance import git_sha, scrub
     from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, settings as bootstrap_settings
 
-    index, sweep = run.done("index"), run.done("hnsw")
+    index, sweep, variants = run.done("index"), run.done("hnsw"), run.done("variants")
     name = index["index_names"]["hnsw"]
     ddl = index["indexes_ddl"][name]
     param = {key: re.search(rf"{key}='?(\d+)", ddl) for key in ("m", "ef_construction")}
     blob = {
         "schema": "pgvector-hnsw-v1",
-        "measurement": "pgvector's HNSW index against the exact scan, on the table the served indexer built from FiQA with bge-small, queried with the served query embedding of every test query",
+        "measurement": "pgvector's HNSW index against the exact scan, then halfvec and binary + rescore against float32, on the table the served indexer built from FiQA with bge-small, queried with the served query embedding of every test query",
         "dataset": run.identity["dataset"], "split": run.identity["split"], "files_sha256": run.identity["files_sha256"], "query_selection": run.selection,
         "table": {"rows": index["rows"], "dim": sweep["dim"], "embedder": index["embedder"], "vectors": "the chunk vectors app/engine/ingest.index_directory wrote (the same run as " + RESULTS_FILE + ")",
                   "bytes": index["sizes"]["table_bytes_with_toast"], "avg_embedding_bytes": index["sizes"]["avg_column_bytes"].get("embedding")},
@@ -790,6 +804,12 @@ def assemble_hnsw(run: Run) -> dict:
         "recall_definition": "a returned row counts when its float32 distance is at most the exact k-th distance plus tie_eps; Recall@10 reads the first 10 rows of the same k-row list",
         "latency_definition": "client wall time of each statement (execute and fetch) on one connection, after an untimed pass of the exact scan and of the widest index scan",
         "rows": sweep["rows"],
+        "variants": {
+            "what": "VectorStoreManager.ensure_halfvec and ensure_binary on the same table after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); "
+                    "then float32 and halfvec at the same ef_search, and binary candidates rescored by float32 cosine (hnsw.ef_search set to the candidate depth, at most 1000)",
+            **{k: v for k, v in variants.items() if k not in {"stage", "finished", "git_sha", "stage_seconds"}},
+            "served": "the served statement reads only the float32 column (app/database/sql/hybrid_tsrank.sql)",
+        },
         "bootstrap": bootstrap_settings(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED),
         "hardware": hardware(run.args.device),
         "stage_git_sha": {s: run.done(s).get("git_sha") for s in HNSW_STAGES},
