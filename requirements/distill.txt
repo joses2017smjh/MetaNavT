@@ -11,7 +11,9 @@ annotated-types==0.8.0
 lightgbm==4.7.0
     # via metanavit (pyproject.toml)
 narwhals==2.28.0
-    # via lightgbm
+    # via
+    #   -c requirements.txt
+    #   lightgbm
 numpy==2.4.6
     # via
     #   -c requirements.txt
@@ -27,7 +29,9 @@ pydantic-core==2.46.5
     #   -c requirements.txt
     #   pydantic
 scipy==1.17.1
-    # via lightgbm
+    # via
+    #   -c requirements.txt
+    #   lightgbm
 typing-extensions==4.16.0
     # via
     #   -c requirements.txt

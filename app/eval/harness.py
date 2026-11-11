@@ -6,7 +6,7 @@ import json
 import os
 import subprocess
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,11 +16,14 @@ from app.agent.decompose import heuristic_decompose, should_decompose
 from app.agent.deep_research import expand_queries, multi_query_retrieve
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
+from app.eval.frontier_llm import GENERATIONS_FILE, context_prefixes, header as generations_header, hyde_completion, load_generations
 from app.eval.gold import GoldQuestion, load_gold
+from app.eval.hashing import content_hash
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
+from app.eval.probes import load_probes
 from app.eval.provenance import command_line, device_info, model_device, model_provenance
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
@@ -35,6 +38,7 @@ from app.graph.graphrag import boost_by_communities, build_graphrag, community_s
 from app.graph.hipporag import apply_hipporag, should_apply, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
 from app.retrieval.adaptive import RetrievalDecision, should_retrieve
+from app.retrieval.cache import SemanticCache
 from app.retrieval.distill import bench_log_triples, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
@@ -75,13 +79,34 @@ class BenchConfig:
     hipporag: bool = False
     multi_query: bool = False
     hyde: bool = False
+    hyde_stage: str | None = None  # where the HyDE vector enters (HYDE_STAGES); required when hyde is on
     decompose: bool = False
     corrective: bool = False
     adaptive: bool = False  # skip retrieval when app.retrieval.adaptive says SKIP
     graphrag: bool = False  # rank-fuse the files of the community summaries the query matches
     contextual: bool = False  # prepend a situating prefix to every chunk before indexing
+    cache: bool = False  # serve near-duplicate questions from app.retrieval.cache.SemanticCache (gold order, empty at the start)
+    generations: str | None = None  # stored LLM-written HyDE hypotheses / contextual prefixes (app/eval/frontier_llm.py) instead of the heuristics
     late_chunking: bool = False  # pool document-level token embeddings per chunk (needs a token-level model)
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
+
+
+# first_stage:  the HyDE vector is the dense leg's query, before fusion; the reranker (if any) has the last word.
+# after_rerank: the wiring of the rows recorded before M18 as hybrid+rerank+hyde: retrieve and rerank with the raw
+#               query, then RRF-fuse the reranked list with the HyDE dense list and re-sort. The re-sort overrides
+#               the reranker's order and no HyDE hit outside the reranked list is added.
+HYDE_STAGES = ("first_stage", "after_rerank")
+# Switches added after bench/results/main.json was recorded. A row's settings carry them only when it sets them,
+# so rows that do not use them keep the settings they were recorded with (`make bench-check` compares settings).
+LATER_SETTINGS = ("hyde_stage", "cache", "generations")
+# The cache arm also looks up these paraphrases of gold questions after the gold replay (app/eval/probes.py).
+CACHE_PROBES = "bench/probes/paraphrases.jsonl"
+
+
+def bench_settings(cfg: BenchConfig) -> dict[str, Any]:
+    """The config as a results row records it (`settings`)."""
+    defaults = {f.name: f.default for f in fields(BenchConfig)}
+    return {k: v for k, v in cfg.__dict__.items() if not (k in LATER_SETTINGS and v == defaults[k])}
 
 
 def _paths_from_hits(hits: list[RetrievalHit]) -> list[str]:
@@ -108,13 +133,18 @@ def _retrieve(
     hippo_triples=None,
     communities=None,
     fired: dict[str, int] | None = None,
+    hyde_complete=None,
 ) -> tuple[list[str], object]:
     """One query through one config. Takes the question text only: no gold field
     (category, answer, relevant paths) may reach retrieval, so every gate below
     uses what a served system would have (the router's own prediction).
 
     `fired` counts the questions on which each optional mechanism triggered, so
-    an arm that ties its parent can say whether it ever ran."""
+    an arm that ties its parent can say whether it ever ran. `hyde_complete`
+    answers the HyDE prompt with a stored LLM-written hypothesis (None: the
+    keyword heuristic)."""
+    if cfg.hyde and (cfg.hyde_stage not in HYDE_STAGES or (cfg.mode == "dense" and cfg.hyde_stage != "first_stage")):
+        raise ValueError(f"{cfg.name}: hyde needs hyde_stage in {HYDE_STAGES} (dense mode: first_stage), got {cfg.hyde_stage!r}")
     if cfg.adaptive:
         decision = should_retrieve(query).decision
         _count(fired, f"adaptive_{decision.value}")
@@ -149,7 +179,8 @@ def _retrieve(
     elif cfg.mode == "dense":
         with timer.stage("embed"):
             if cfg.hyde:
-                hyde_vec = hyde_embed(query, index.embedder)
+                _count(fired, "hyde")
+                hyde_vec = hyde_embed(query, index.embedder, complete=hyde_complete)
                 pairs = index.search_dense(query, k=cfg.retrieve_k, query_vec=hyde_vec)
             else:
                 pairs = index.search_dense(query, k=cfg.retrieve_k)
@@ -165,10 +196,16 @@ def _retrieve(
             result = multi_query_retrieve(index, query, n=3, k=cfg.retrieve_k)
         hits = result.hits
     else:
-        if cfg.hyde:
+        if cfg.hyde and cfg.hyde_stage == "first_stage":
             _count(fired, "hyde")
             with timer.stage("hyde"):
-                hyde_vec = hyde_embed(query, index.embedder)
+                hyde_vec = hyde_embed(query, index.embedder, complete=hyde_complete)
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n, query_vec=hyde_vec)
+            hits = result.hits
+        elif cfg.hyde:  # after_rerank (HYDE_STAGES)
+            _count(fired, "hyde")
+            with timer.stage("hyde"):
+                hyde_vec = hyde_embed(query, index.embedder, complete=hyde_complete)
             result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
             hyde_dense = index.search_dense(query, k=cfg.retrieve_k, query_vec=hyde_vec)
             hyde_ids = [c.chunk_id for c, _ in hyde_dense]
@@ -236,6 +273,75 @@ def _retrieve(
     return paths, result if result is not None else hits
 
 
+def _serve_from_cache(cache: SemanticCache, query: str, qid: str, fresh: list[str]) -> tuple[list[str], dict[str, Any]]:
+    """One lookup of the cache arm. A hit serves the cached file list; a miss serves `fresh` (what retrieval
+    returned for this question) and stores it. The event says which entry a hit came from and whether its
+    list is the one retrieval returns anyway (`same_list`); a hit with a different list is a wrong hit."""
+    cached = cache.get(query)
+    sim = None if cache.last_similarity is None else round(cache.last_similarity, 6)
+    if cached is None:
+        cache.put(query, {"id": qid, "paths": list(fresh)})
+        return fresh, {"id": qid, "hit": False, "similarity": sim}
+    served = list(cached["paths"])
+    return served, {"id": qid, "hit": True, "served_from": cached["id"], "similarity": sim, "same_list": served == list(fresh)}
+
+
+def _min_margin(events: list[dict[str, Any]], threshold: float) -> float | None:
+    sims = [e["similarity"] for e in events if e.get("similarity") is not None]
+    return round(min(abs(x - threshold) for x in sims), 6) if sims else None
+
+
+def _replay_probes(cache: SemanticCache, probes: list, fresh_paths, n_files: int | None) -> dict[str, Any]:
+    """Look up each paraphrase probe in the cache the gold replay filled, without adding it. A hit served
+    from the rewritten question's own entry is a true hit; from another question's entry, a false one.
+    nDCG@10 of what is served against fresh retrieval for the probe, on the relevant paths it inherits."""
+    events, served_rows, fresh_rows = [], [], []
+    for probe in probes:
+        fresh = fresh_paths(probe.question)
+        cached = cache.get(probe.question)
+        sim = None if cache.last_similarity is None else round(cache.last_similarity, 6)
+        served = list(cached["paths"]) if cached is not None else fresh
+        event: dict[str, Any] = {"id": probe.id, "source_id": probe.source_id, "rule": probe.rule, "hit": cached is not None,
+                                 "similarity": sim}
+        if cached is not None:
+            event.update(served_from=cached["id"], same_list=served == fresh)
+        events.append(event)
+        served_rows.append({"id": probe.id, "retrieved": served, "relevant": list(probe.relevant_paths)})
+        fresh_rows.append({"id": probe.id, "retrieved": fresh, "relevant": list(probe.relevant_paths)})
+    served_scores = [r["ndcg@10"] for r in aggregate_retrieval(served_rows, n_files=n_files).per_query]
+    fresh_scores = [r["ndcg@10"] for r in aggregate_retrieval(fresh_rows, n_files=n_files).per_query]
+    idx = resample_indices(len(probes))
+    d, lo, hi = paired_delta_ci(served_scores, fresh_scores, idx)
+    hits = [e for e in events if e["hit"]]
+    return {
+        "file": CACHE_PROBES,
+        "n": len(probes),
+        "added_to_cache": False,
+        "hits_from_source": sum(1 for e in hits if e["served_from"] == e["source_id"]),
+        "hits_from_other": sum(1 for e in hits if e["served_from"] != e["source_id"]),
+        "misses": len(events) - len(hits),
+        "hits_with_a_list_fresh_retrieval_would_not_return": sum(1 for e in hits if not e["same_list"]),
+        "min_margin_to_threshold": _min_margin(events, cache.similarity_threshold),
+        "ndcg@10": {"served": round(sum(served_scores) / len(probes), 4), "fresh": round(sum(fresh_scores) / len(probes), 4),
+                    "delta": round(d, 4), "lo": round(lo, 4), "hi": round(hi, 4),
+                    "note": "served minus fresh retrieval, paired bootstrap over the probes; relevant paths inherited, not judged"},
+        "lookups": events,
+    }
+
+
+def _generations_path(rel: str) -> Path:
+    path = Path(rel)
+    return path if path.is_absolute() else project_root() / path
+
+
+def _sklearn_versions() -> dict[str, str]:
+    """The TF-IDF embedder's fit (TfidfVectorizer + randomized TruncatedSVD) depends on these versions."""
+    import scipy
+    import sklearn
+
+    return {"scikit-learn": sklearn.__version__, "scipy": scipy.__version__}
+
+
 def _jury_complete():
     """Optional Ollama backend. Probe once; stay heuristic if the daemon is down."""
     flag = os.environ.get("JUDGE", "").strip().lower()
@@ -285,8 +391,13 @@ def run_config(
     *,
     keep_retrieved: bool = False,
     mtimes: str = "auto",
+    probes: list | None = None,
 ) -> dict[str, Any]:
-    """Score one config. `mtimes` is where chunk mtimes come from (index_loader.MTIME_MODES)."""
+    """Score one config. `mtimes` is where chunk mtimes come from (index_loader.MTIME_MODES).
+    `probes` (app.eval.probes.Probe) are looked up after the gold replay by the cache arm only."""
+    gen = load_generations(_generations_path(cfg.generations)) if cfg.generations else None
+    prefixes = context_prefixes(gen) if gen is not None and cfg.contextual else None
+    hyde_complete = hyde_completion(gen) if gen is not None and cfg.hyde else None
     index = build_index(
         files_root,
         embedder_name=cfg.embedder,
@@ -298,6 +409,7 @@ def run_config(
         chunk_strategy=cfg.chunk_strategy,
         contextual=cfg.contextual,
         mtimes=mtimes,
+        prefixes=prefixes,
     )
     late = None
     if cfg.late_chunking:
@@ -330,7 +442,12 @@ def run_config(
     jury_sf_labels: list[str] = []
 
     if gold:  # warm-up: caches, CUDA kernels; retrieval is deterministic so results are unaffected
-        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, hippo_triples=hippo_triples, communities=communities)
+        _retrieve(index, gold[0].question, cfg, StageTimer(), clusters, graph, hippo_triples=hippo_triples, communities=communities,
+                  hyde_complete=hyde_complete)
+    # Built after the warm-up, so the first gold question meets an empty cache. Fresh retrieval still runs on
+    # every question (a hit's list is compared with it), so this row's latency is not the cache's.
+    cache = SemanticCache(index.embedder) if cfg.cache else None
+    cache_events: list[dict[str, Any]] = []
     t0 = time.perf_counter()
     for q in gold:
         paths, payload = _retrieve(
@@ -343,7 +460,14 @@ def run_config(
             hippo_triples=hippo_triples,
             communities=communities,
             fired=fired,
+            hyde_complete=hyde_complete,
         )
+        if cache is not None:
+            with timer.stage("cache_lookup"):
+                paths, event = _serve_from_cache(cache, q.question, q.id, paths)
+            cache_events.append(event)
+            if event["hit"]:
+                _count(fired, "cache_hit")
         per_query.append(
             {
                 "id": q.id,
@@ -381,7 +505,7 @@ def run_config(
     retrieval = aggregate_retrieval(per_query, n_files=n_files)
     payload: dict[str, Any] = {
         "config": cfg.name,
-        "settings": cfg.__dict__,
+        "settings": bench_settings(cfg),
         "retrieval": retrieval.as_dict(),
         "latency": timer.summary(),
         "wall_ms": round(wall_ms, 2),
@@ -399,6 +523,38 @@ def run_config(
         payload["graphrag"] = community_stats(communities, len({c.path for c in index.chunks}))
     if late is not None:
         payload["late_chunking"] = late
+    if gen is not None:
+        llm: dict[str, Any] = {"file": cfg.generations, "model": gen["model"], "options": gen["options"]}
+        if cfg.hyde:
+            ok = {i["question"]: i["ok"] for i in gen["hyde"]["items"]}
+            failed = [q.id for q in gold if not ok[q.question]]
+            llm["hyde"] = {"n": len(gold), "n_failed": len(failed), "failed_ids": failed}
+        if cfg.contextual:
+            llm["context"] = {"n": len(index.chunks), "n_failed": sum(1 for c in index.chunks if not prefixes[c.chunk_id]["ok"])}
+        payload["llm"] = llm
+    if cache is not None:
+        hits = [e for e in cache_events if e["hit"]]
+        payload["cache"] = {
+            "class": "app.retrieval.cache.SemanticCache",
+            "threshold": cache.similarity_threshold,
+            "max_entries": cache.max_entries,
+            "ttl_seconds": cache.ttl_seconds,
+            "similarity": f"cosine of the index embedder's vectors ({cfg.embedder})",
+            "cached_value": "the question's final file list",
+            "gold": {
+                "n": len(cache_events),
+                "order": "gold order, cache empty at the start",
+                "hits": len(hits),
+                "misses": len(cache_events) - len(hits),
+                "wrong_hits": sum(1 for e in hits if not e["same_list"]),
+                "min_margin_to_threshold": _min_margin(cache_events, cache.similarity_threshold),
+                "lookups": cache_events,
+            },
+        }
+        if probes:
+            fresh = lambda text: _retrieve(index, text, cfg, StageTimer(), clusters, graph,  # noqa: E731
+                                           hippo_triples=hippo_triples, communities=communities, hyde_complete=hyde_complete)[0]
+            payload["cache"]["probes"] = _replay_probes(cache, probes, fresh, n_files)
     payload["reranker_name"] = getattr(index, "reranker_name", cfg.reranker)
     payload["reranker_loaded"] = bool(getattr(index, "reranker_loaded", False))
     rerank_model = getattr(getattr(index, "rerank_fn", None), "model", None)
@@ -408,6 +564,7 @@ def run_config(
             "dim": int(getattr(index.embedder, "dim", 0)),
             "device": model_device(getattr(index.embedder, "_model", None)),
             "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used, same text both sides
+            **({"library": _sklearn_versions()} if cfg.embedder == "tfidf" else {}),
         },
         "reranker": {
             **model_provenance(cfg.reranker, "reranker"),
@@ -463,7 +620,8 @@ DEFAULT_CONFIGS = [
 # paired delta isolates the mechanism. Parents are not listed here: frontier_configs()
 # prepends them, and `hybrid+bge-rerank` is itself the reranked parent of the real-model run.
 _F = dict(mode="hybrid", enable_router=False, staleness_tier1=False, e2e=False, log_triples=False)
-FRONTIER_PARENT, FRONTIER_RERANK_PARENT = "hybrid", "hybrid+rerank"
+_D = {**_F, "mode": "dense"}
+FRONTIER_PARENT, FRONTIER_RERANK_PARENT, FRONTIER_DENSE_PARENT = "hybrid", "hybrid+rerank", "dense_only"
 FRONTIER_CONFIGS = [
     BenchConfig(name="hybrid+bge-rerank", enable_rerank=True, reranker=BGE_RERANKER, parent=FRONTIER_PARENT, **_F),
     BenchConfig(name="hybrid+rankgpt", enable_rerank=True, reranker="rankgpt", parent=FRONTIER_PARENT, **_F),
@@ -474,41 +632,84 @@ FRONTIER_CONFIGS = [
     BenchConfig(name="hybrid+fixed-chunks", enable_rerank=False, chunk_strategy="fixed", parent=FRONTIER_PARENT, **_F),
     BenchConfig(name="hybrid+contextual", enable_rerank=False, contextual=True, parent=FRONTIER_PARENT, **_F),
     BenchConfig(name="hybrid+late-chunking", enable_rerank=False, late_chunking=True, parent=FRONTIER_PARENT, **_F),
-    BenchConfig(name="hybrid+rerank+hyde", enable_rerank=True, hyde=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    # HyDE in the first stage: the HyDE vector is the dense leg's query (HYDE_STAGES).
+    BenchConfig(name="hybrid+hyde", enable_rerank=False, hyde=True, hyde_stage="first_stage", parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="dense_only+hyde", enable_rerank=False, hyde=True, hyde_stage="first_stage", parent=FRONTIER_DENSE_PARENT, **_D),
+    BenchConfig(name="hybrid+hyde+rerank", enable_rerank=True, hyde=True, hyde_stage="first_stage", parent=FRONTIER_RERANK_PARENT, **_F),
+    # HyDE fused after the reranker: the rows recorded under these names before M18, kept as that wiring's result.
+    BenchConfig(name="hybrid+rerank+hyde", enable_rerank=True, hyde=True, hyde_stage="after_rerank", parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+decompose", enable_rerank=True, decompose=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+corrective", enable_rerank=True, corrective=True, parent=FRONTIER_RERANK_PARENT, **_F),
-    BenchConfig(name="hybrid+rerank+hyde+corrective", enable_rerank=True, hyde=True, corrective=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+hyde+corrective", enable_rerank=True, hyde=True, hyde_stage="after_rerank", corrective=True,
+                parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+adaptive", enable_rerank=True, adaptive=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+graphrag", enable_rerank=True, graphrag=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+cache", enable_rerank=True, cache=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    # A second model-free embedder (TF-IDF + truncated SVD, fitted on the indexed chunks) against the hash embedder.
+    BenchConfig(name="dense_only@tfidf", embedder="tfidf", enable_rerank=False, parent=FRONTIER_DENSE_PARENT, **_D),
+    BenchConfig(name="hybrid@tfidf", embedder="tfidf", enable_rerank=False, parent=FRONTIER_PARENT, **_F),
+    # LLM-written generations (make frontier-generations), stored and read back: no model call while scoring.
+    BenchConfig(name="hybrid+hyde-llm", enable_rerank=False, hyde=True, hyde_stage="first_stage", generations=GENERATIONS_FILE,
+                parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="hybrid+hyde-llm+rerank", enable_rerank=True, hyde=True, hyde_stage="first_stage", generations=GENERATIONS_FILE,
+                parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+contextual-llm", enable_rerank=False, contextual=True, generations=GENERATIONS_FILE, parent=FRONTIER_PARENT, **_F),
 ]
+# Pairs of arms compared directly (row minus other), with the same paired bootstrap: the two HyDE wirings, and
+# each LLM-written arm against the heuristic arm it replaces. Real-model names are derived with _neural_name.
+FRONTIER_COMPARISONS = [
+    ("hybrid+hyde+rerank", "hybrid+rerank+hyde"),
+    ("hybrid+hyde-llm", "hybrid+hyde"),
+    ("hybrid+hyde-llm+rerank", "hybrid+hyde+rerank"),
+    ("hybrid+contextual-llm", "hybrid+contextual"),
+]
+_LLM_REASON = ("LLM-written generations (make frontier-generations) are scored with the real models only "
+               "(make bench-frontier-neural); the hash embedder rows keep the keyword and path-words heuristics")
 # Arms a run cannot score, with the reason; written into the results file instead of a row.
 FRONTIER_NOT_EVALUATED = {
     "hybrid+late-chunking": "late chunking pools a model's token embeddings; the hash embedder (character n-grams) has none, "
                             "so this arm exists only in the real-model run (make bench-frontier-neural)",
+    "hybrid+hyde-llm": _LLM_REASON,
+    "hybrid+hyde-llm+rerank": _LLM_REASON,
+    "hybrid+contextual-llm": _LLM_REASON,
+}
+# Arms of the CPU run only: the real-model run swaps every embedder for bge-small, which would turn them into their parents.
+FRONTIER_CPU_ONLY = {
+    "dense_only@tfidf": "TF-IDF is a model-free embedder compared with the hash embedder; its rows are in the CPU run (make bench-frontier)",
+    "hybrid@tfidf": "TF-IDF is a model-free embedder compared with the hash embedder; its rows are in the CPU run (make bench-frontier)",
 }
 
 
 def _neural_name(name: str) -> str:
-    return name.replace("hybrid+rerank", "hybrid+bge-rerank") + "@bge-small"
+    return name.replace("+rerank", "+bge-rerank") + "@bge-small"
+
+
+def _frontier_parents() -> list[BenchConfig]:
+    """The rows the arms are compared with. dense_only's own delta is against hybrid (the BM25 leg removed)."""
+    return [
+        BenchConfig(name=FRONTIER_PARENT, enable_rerank=False, **_F),
+        BenchConfig(name=FRONTIER_RERANK_PARENT, enable_rerank=True, parent=FRONTIER_PARENT, **_F),
+        BenchConfig(name=FRONTIER_DENSE_PARENT, enable_rerank=False, parent=FRONTIER_PARENT, **_D),
+    ]
+
+
+FRONTIER_PARENTS = tuple(c.name for c in _frontier_parents())
 
 
 def frontier_configs(neural: bool = False) -> list[BenchConfig]:
     """Parent rows first, then every prototype arm with its parent named.
 
     CPU fallbacks: hash embedder and overlap reranker (the parents are the
-    `hybrid` and `hybrid+rerank` rows of the default bench). neural=True: the
+    `hybrid`, `hybrid+rerank` and `dense_only` rows of the default bench). neural=True: the
     same arms over bge-small and the real bge-reranker-v2-m3, with their own
     parent rows, so each results file is self-contained.
     """
-    parents = [
-        BenchConfig(name=FRONTIER_PARENT, enable_rerank=False, **_F),
-        BenchConfig(name=FRONTIER_RERANK_PARENT, enable_rerank=True, parent=FRONTIER_PARENT, **_F),
-    ]
+    parents = _frontier_parents()
     arms = [c for c in FRONTIER_CONFIGS if c.name != "hybrid+bge-rerank"]
     if not neural:
         return parents + [c for c in arms if c.name not in FRONTIER_NOT_EVALUATED]
     out = []
-    for c in parents + arms:
+    for c in parents + [c for c in arms if c.name not in FRONTIER_CPU_ONLY]:
         out.append(replace(
             c,
             name=_neural_name(c.name),
@@ -532,6 +733,7 @@ def fallback_labels(row: dict[str, Any]) -> list[str]:
             labels.append("listwise rerank by token overlap (no LLM)")
         elif not row.get("reranker_loaded"):
             labels.append("overlap reranker (cross-encoder not loaded)")
+    llm_written = {"hyde", "contextual"} if st.get("generations") else set()  # stored LLM output, not the heuristic
     for flag, label in (
         ("multi_query", "query expansion by keyword heuristic (no LLM)"),
         ("hipporag", "PPR over regex triples with a hand-written path prior (no LLM extraction)"),
@@ -542,8 +744,14 @@ def fallback_labels(row: dict[str, Any]) -> list[str]:
         ("graphrag", "regex triples, connected components, extractive summaries (no LLM, no Leiden)"),
         ("contextual", "chunk prefix from path words (no LLM)"),
     ):
-        if st.get(flag):
+        if st.get(flag) and flag not in llm_written:
             labels.append(label)
+    llm = row.get("llm") or {}
+    hyde, context = llm.get("hyde") or {}, llm.get("context") or {}
+    if hyde.get("n_failed"):
+        labels.append(f"HyDE hypothesis by keyword heuristic on {hyde['n_failed']} of {hyde['n']} questions (failed LLM calls)")
+    if context.get("n_failed"):
+        labels.append(f"no prefix on {context['n_failed']} of {context['n']} chunks (failed LLM calls)")
     return labels
 
 
@@ -562,12 +770,12 @@ def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[lis
             "n_top10_differs": sum(1 for a, b in zip(mine, theirs) if a[:10] != b[:10]),
             "n_list_differs": sum(1 for a, b in zip(mine, theirs) if a != b),
         }
-    parents = [n for n in (FRONTIER_PARENT, FRONTIER_RERANK_PARENT, _neural_name(FRONTIER_PARENT), _neural_name(FRONTIER_RERANK_PARENT)) if n in names]
+    parents = [n for n in (*FRONTIER_PARENTS, *(_neural_name(p) for p in FRONTIER_PARENTS)) if n in names]
     neural = any(n.endswith("@bge-small") for n in names)
     return {
         "parents": parents,
         "arms": [row["config"] for row in results if row["config"] not in parents],
-        "not_evaluated": [] if neural else [{"arm": k, "reason": v} for k, v in FRONTIER_NOT_EVALUATED.items()],
+        "not_evaluated": [{"arm": k, "reason": v} for k, v in (FRONTIER_CPU_ONLY if neural else FRONTIER_NOT_EVALUATED).items()],
         "verdict_rule": "paired bootstrap interval of nDCG@10 (arm minus parent): above zero, covers zero, or below zero",
     }
 
@@ -609,12 +817,15 @@ def run_bench(
     # (an error if it has none), and the header says so.
     mtimes = mtime_provenance(files_root, "manifest", base=root)
 
+    probe_path = root / CACHE_PROBES
+    probes = load_probes(probe_path) if any(c.cache for c in configs) and probe_path.exists() else None
+
     results = []
     all_triples = []
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier, mtimes="manifest")
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier, mtimes="manifest", probes=probes)
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
@@ -626,7 +837,8 @@ def run_bench(
         scores_by_config,
         n_queries=len(gold),
         categories=[q.category for q in gold],
-        comparisons=[pair for pair in NEURAL_COMPARISONS if set(pair) <= names],
+        comparisons=[pair for pair in NEURAL_COMPARISONS + FRONTIER_COMPARISONS + [(_neural_name(a), _neural_name(b)) for a, b in FRONTIER_COMPARISONS]
+                     if set(pair) <= names],
         all_categories=frontier,
     )
 
@@ -643,6 +855,15 @@ def run_bench(
         "bootstrap": boot,
         "results": results,
     }
+    gens = sorted({c.generations for c in configs if c.generations})
+    if len(gens) > 1:
+        raise ValueError(f"one generations file per run, got {gens}")
+    if gens:
+        text = _generations_path(gens[0]).read_text()
+        blob["generations"] = generations_header(json.loads(text), gens[0], text)
+    if probes:
+        blob["probes"] = {"file": CACHE_PROBES, "sha256": content_hash(probe_path.read_text()), "n": len(probes),
+                          "made_by": "python -m app.eval.probes", "labels": "inherited from the rewritten gold question, not judged"}
     if frontier:
         blob["frontier"] = attach_frontier(results, retrieved_by_config)
     out_dir = root / "bench" / "results"
