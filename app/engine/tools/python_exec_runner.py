@@ -87,7 +87,9 @@ def main(argv: list) -> int:
     limit_resources(cpu_seconds, memory_bytes, file_bytes)
     code = sys.stdin.buffer.read().decode("utf-8")
     report = run(code, figure_path)
-    sys.stdout.write(REPORT_MARKER + json.dumps(report) + "\n")
+    # Start a new line: the code, or a process it ran, may have written to file descriptor 1
+    # directly and left a line without a newline, which would hide the marker.
+    sys.stdout.write("\n" + REPORT_MARKER + json.dumps(report) + "\n")
     sys.stdout.flush()
     return 0
 

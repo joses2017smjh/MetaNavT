@@ -187,3 +187,11 @@ def test_memory_past_the_limit_is_reported_not_fatal(exec_tool, engine_env, tmp_
     engine_env.setenv(MEMORY, "256")
     out = exec_tool.call(code="block = bytearray(1024 * 1024 * 1024)\nprint('allocated')", workspace_dir=str(tmp_path)).raw_output
     assert "MemoryError" in out["error"] and out["output"] == "", out
+
+
+def test_a_partial_line_written_straight_to_stdout_does_not_lose_the_result(exec_tool, tmp_path):
+    # print() is captured, but the code itself (os.write) or a process it runs writes to the
+    # child's real stdout, where the report follows; a last line with no newline used to hide it.
+    code = "import os, subprocess\nos.write(1, b'partial')\nsubprocess.run(['printf', 'x'])\nresult = 'ok'"
+    out = exec_tool.call(code=code, workspace_dir=str(tmp_path)).raw_output
+    assert out["error"] == "" and out["result"] == "ok", out
