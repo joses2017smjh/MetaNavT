@@ -204,3 +204,33 @@ def test_fixture_mtimes_puts_back_the_manifest_mtimes_and_refuses_on_drift(tmp_p
     with pytest.raises(RuntimeError, match="corpus drift"):
         apply_manifest_mtimes(files, manifest)
     assert (files / "src" / "fusion.py").stat().st_mtime == 0  # nothing was set while the fixture disagreed
+
+
+def test_rewritten_line_endings_are_drift_not_other_numbers(tmp_path):
+    """core.autocrlf=true (the Git for Windows default) checks LF files out as CRLF. The MANIFEST's sha256 is of
+    read_text(), which turns CRLF back into LF, but the loader reads bytes, so the rows would change silently."""
+    from app.eval.corpus import load_manifest, verify_manifest
+
+    files = _fixture_copy(tmp_path, lambda rel, entry: entry["mtime"]) / "bench" / "corpus" / "files"
+    manifest = load_manifest(files.parent / "MANIFEST.json")
+    assert verify_manifest(files, manifest) == []
+    target = files / "src" / "fusion.py"
+    lf = target.read_bytes()
+    crlf = lf.replace(b"\n", b"\r\n")
+    assert b"\r" not in lf and len(crlf) > len(lf)
+    target.write_bytes(crlf)
+
+    assert target.read_text() == lf.decode()  # what the sha256 sees: unchanged
+    assert verify_manifest(files, manifest) == [
+        f"size mismatch: src/fusion.py ({len(crlf)} bytes on disk, {len(lf)} in the manifest; line endings rewritten?)"]
+    with pytest.raises(RuntimeError, match="size mismatch: src/fusion.py"):
+        run_bench(root=tmp_path, configs=[replace(DEFAULT_CONFIGS[0])], out=tmp_path / "x.json")
+
+
+def test_git_checks_the_fixture_out_byte_for_byte():
+    """.gitattributes: no end-of-line conversion under bench/corpus, whatever core.autocrlf says."""
+    if shutil.which("git") is None or not (ROOT / ".git").exists():
+        pytest.skip("not a git checkout")
+    paths = ["bench/corpus/files/src/fusion.py", "bench/corpus/MANIFEST.json"]
+    out = subprocess.run(["git", "check-attr", "text", "--", *paths], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    assert out.splitlines() == [f"{p}: text: unset" for p in paths]

@@ -26,7 +26,13 @@ def load_manifest(path: str | Path) -> dict:
 
 
 def verify_manifest(files_root: Path, manifest: dict) -> list[str]:
-    """Return a list of mismatch descriptions (empty = ok)."""
+    """Return a list of mismatch descriptions (empty = ok).
+
+    A file's `sha256` is of the text read_text() returns, which turns CRLF into LF, so a
+    copy whose line endings were rewritten (a checkout with core.autocrlf=true) still
+    matches it, while the loader (app/eval/ingest.py) reads the bytes and indexes other
+    text. The size on disk must therefore also equal the manifest's `bytes`.
+    """
     errors = []
     listed = {entry["path"]: entry for entry in manifest["files"]}
     on_disk = {
@@ -43,6 +49,9 @@ def verify_manifest(files_root: Path, manifest: dict) -> list[str]:
     for rel, entry in listed.items():
         if rel not in on_disk:
             continue
+        size = on_disk[rel].stat().st_size
+        if entry.get("bytes") is not None and size != entry["bytes"]:
+            errors.append(f"size mismatch: {rel} ({size} bytes on disk, {entry['bytes']} in the manifest; line endings rewritten?)")
         digest = content_hash(on_disk[rel].read_text(encoding="utf-8", errors="replace"))
         if digest != entry["sha256"]:
             errors.append(f"hash mismatch: {rel}")
