@@ -113,6 +113,10 @@ bench-rerank-arms: ## distilled students vs the cross-encoder they imitate (need
 bench-rrf-sweep: ## RRF k x dense-vs-BM25 weight chosen on the tune half of the gold questions (bge-small), then scored against k=60 on the held-out half (needs .[ml]; never changes the default) -> bench/results/rrf_sweep.json
 	$(PYTHON) -m app.eval.rrf_sweep --out bench/results/rrf_sweep.json
 
+.PHONY: bench-hybrid-drops
+bench-hybrid-drops: ## per question, the gold files hybrid@bge-base drops (and gains) at Recall@50 against dense_only@bge-base, with their dense, BM25 and fused ranks (needs .[ml]) -> bench/results/hybrid_drops_bge_base.json
+	$(PYTHON) -m app.eval.hybrid_drops --out bench/results/hybrid_drops_bge_base.json
+
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
 bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)
 	$(PYTHON) -m app.eval.agent_injection --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
