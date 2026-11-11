@@ -362,7 +362,7 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
   <img src="../doc/gifs/hybrid.gif" alt="BM25 vs dense then RRF on the fusion-module question" width="820"/>
 </p>
 
-ParadeDB BM25 in production (`ts_rank_cd` fallback). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
+The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
 ### A router that skips work
 
@@ -551,7 +551,7 @@ does not consult the manifest.
   <img src="../doc/figures/storage.svg" alt="float32 vs halfvec vs binary+rescore" width="820"/>
 </p>
 
-`halfvec` is 2x smaller (same Recall@10 as float32 on this corpus). Binary quantization is 32x smaller and recovers 0.594 Recall@10 after a float rescoring pass. `m` / `ef_construction` at build; `ef_search` at query; iterative scans so a path/mtime filter does not silently under-return. The in-memory NSW analogue on **hash** vectors saturates around Recall@10 0.52 — that space is not a manifold. The same SQL lives on `VectorStoreManager.ensure_hnsw` / `ensure_halfvec` / `ensure_binary` for `bge-large`.
+`halfvec` stores half the bytes of float32 and binary quantization one bit per dimension; [bench/results/sweeps.json](../bench/results/sweeps.json) (`make sweeps`) records each one's Recall@10 against float32 (binary after a float rescoring pass) and the HNSW `ef_search` sweep, which the figures above plot. All of it is the **in-memory NSW analogue** (`app/retrieval/pgvector_tune.py`) over **hash** vectors, where recall saturates early: that space is not a manifold. In Postgres, start-up creates an HNSW index on the embedding column (`ensure_hnsw`: `m` and `ef_construction` at build), and each hybrid statement sets `hnsw.ef_search` (twice the dense depth) and `hnsw.iterative_scan` for its own transaction. The planner decides whether to use the index: it scans the table on fixture v1 and reads the index over generated rows (the two plans under `doc/sql/`). Nothing measures the index's recall against the exact scan at a realistic size with a real embedder yet. `ensure_halfvec` and `ensure_binary` exist on `VectorStoreManager` with no caller, and the served statement reads only the float32 column.
 
 ---
 
@@ -711,7 +711,11 @@ fails only when the API is broken (a question without an answer or with zero
 hits). On the fixture the planner answers the dense CTE with a sequential scan.
 A second test forces the HNSW index (`enable_seqscan` off), requires the whole
 served statement to be planned on it, and requires the same `RETRIEVE_K` rows
-for every gold question. Two things kept the index from serving the full list
+for every gold question. On the fixture that scan reaches every row (the
+statement reads twice the depth, more rows than the fixture has), so the test
+checks the plan and the depth, not the index's recall: an HNSW scan is
+approximate, and its recall at a realistic size is not measured yet. Two things
+kept the index from serving the full list
 before: the `params` CTE, read by both lists, was materialized, which made the
 query vector a column and left the dense list no index path at all; and an HNSW
 scan returns at most `hnsw.ef_search` rows, and pgvector's default is below
@@ -1092,7 +1096,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
-**Database.** PostgreSQL with pgvector (dense) and ParadeDB / `ts_rank_cd` (BM25). Connection pooling in `DatabaseManager`. Vector schema and HNSW / halfvec / binary knobs on `VectorStoreManager`.
+**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The vector schema, the HNSW index and the per-statement search settings on `VectorStoreManager`; its `ensure_halfvec` / `ensure_binary` helpers have no caller.
 
 **Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
 
