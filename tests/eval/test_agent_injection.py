@@ -417,3 +417,12 @@ def test_the_scores_writer_refuses_a_score_that_holds_an_absolute_path(tmp_path)
     with pytest.raises(ValueError, match="q011-benign"):
         ai.write_scores([row], tmp_path / "scores.jsonl", EPISODES)
     assert not (tmp_path / "scores.jsonl").exists()
+
+
+def test_the_engineering_reference_describes_the_field_check_as_coded():
+    text = (ai.ROOT / "doc" / "engineering-reference.md").read_text()
+    assert "by construction, so it shows the mechanism" not in text
+    limits = next(p for p in text.split("\n\n") if p.startswith("**The injection evaluation is not an adaptive attack.**"))
+    # the rule as field_check() applies it, and the measured recall cited from the generated table, not typed
+    assert "states another value for the field" in limits and "an unquoted value outside the field's vocabulary passes" in limits
+    assert "](../README.md#agent-injection)" in limits and "in-sample" in limits
