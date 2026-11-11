@@ -43,6 +43,7 @@ from urllib import error, request
 from app.eval.corpus import load_manifest
 from app.eval.gold import load_gold
 from app.eval.harness import BenchConfig, attach_confidence, project_root, run_config
+from app.eval.index_loader import mtime_provenance
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
 from app.eval.provenance import command_line, device_info, git_sha
@@ -135,7 +136,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
     health = wait_for_health(url)
 
-    mem = run_config(IN_MEMORY, gold, files_root, n_files=manifest["n_files"])
+    mem = run_config(IN_MEMORY, gold, files_root, n_files=manifest["n_files"], mtimes="manifest")
     mem.pop("_triples", None)
     api = replay_api(url, gold, manifest["n_files"], k=k)
     scores = {mem["config"]: mem.pop("_per_query_scores"), api["config"]: api.pop("_per_query_scores")}
@@ -159,6 +160,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
+        "mtimes": {"in_memory": mtime_provenance(files_root, "manifest", base=root)},
         "api_health": health,
         "bootstrap": boot,
         "gap": gap_report,
