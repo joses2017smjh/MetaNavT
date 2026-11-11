@@ -5,6 +5,7 @@ The stages that need Postgres are in tests/database/test_served_scale.py; the GP
 """
 
 import json
+import os
 import sys
 import types
 from pathlib import Path
@@ -64,16 +65,105 @@ def test_not_indexed_names_judged_documents_and_their_queries():
     assert out == {"n": 2, "ids": ["2", "4"], "judged": ["2"], "queries": ["q2"]}
 
 
+def differences_for(query_form: dict) -> str:
+    return "\n".join(served_scale.differences(
+        rows=117, chunker="app/chunking (structure-aware)", rejected={"empty": 2, "duplicate_content": 1, "too_large": 0},
+        not_indexed={"judged": ["9"]}, routes={"semantic": 5, "lexical_path": 1}, served_depth=50,
+        search_settings={"hnsw.ef_search": 100}, in_memory_settings={"k": 100, "rrf_k": 60, "k1": 0.9, "b": 0.4, "reranker": "R", "precision": "fp16", "max_length": 512, "rerank_top": 20},
+        reranker={"model": "R", "precision": "fp16", "max_length": 512, "depth": 20}, query_form=query_form))
+
+
 def test_differences_are_filled_from_the_run_records():
-    lines = served_scale.differences(rows=117, chunker="app/chunking (structure-aware)", rejected={"empty": 2, "duplicate_content": 1, "too_large": 0},
-                                     not_indexed={"judged": ["9"]}, routes={"semantic": 5, "lexical_path": 1}, served_depth=50,
-                                     search_settings={"hnsw.ef_search": 100}, in_memory_settings={"k": 100, "rrf_k": 60, "k1": 0.9, "b": 0.4, "reranker": "R", "precision": "fp16", "max_length": 512, "rerank_top": 20},
-                                     reranker={"model": "R", "precision": "fp16", "max_length": 512, "depth": 20})
-    text = "\n".join(lines)
+    text = differences_for({"served": {"query": "Prompt words: ", "text": "", "source": "Model._model.prompts"}})
     assert "117 chunks" in text and "512 characters with 50 overlap" in text  # the window comes from fixed_size_chunks' defaults
     assert "rejected 3 documents" in text and "'too_large'" not in text and "['9']" in text
     assert "{'semantic': 5, 'lexical_path': 1}" in text and "100 + 100" in text and "50 + 50" in text
-    assert "Represent this question for searching relevant passages: " in text
+    # the query prompt is the one the run read from the served model, not a string typed into the runner
+    assert "'Prompt words: '" in text and "Represent this" not in text and served_scale.SAME_FORM_SUFFIX in text
+    assert "neither side puts anything before a query" in differences_for({"served": {"query": "", "text": "", "source": "HashEmbedding"}})
+
+
+class FakeSentenceTransformer:
+    def __init__(self, prompts):
+        self.prompts = prompts
+
+
+class FakeServedEmbedding:
+    def __init__(self, prompts):
+        self._model = FakeSentenceTransformer(prompts)
+
+
+def test_served_prompts_are_read_from_the_model_object():
+    got = served_scale.served_prompts(FakeServedEmbedding({"query": "Q: ", "text": ""}))
+    assert (got["query"], got["text"]) == ("Q: ", "") and "FakeServedEmbedding._model.prompts" in got["source"]
+    none = served_scale.served_prompts(object())  # the hash embedding: no sentence-transformers model, so no prompt
+    assert (none["query"], none["text"]) == ("", "") and "no sentence-transformers prompts" in none["source"]
+
+
+def test_query_vector_check_compares_directions():
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    served, bare = rng.normal(size=(4, 8)).astype(np.float32), rng.normal(size=(4, 8)).astype(np.float32)
+    out = served_scale.query_vector_check(served, served * 3.0, bare)  # the same directions at another length
+    assert out["n_queries"] == 4
+    assert out["with_served_prompt"]["max_abs_difference"] < 1e-6 and out["with_served_prompt"]["min_cosine"] > 0.999999
+    assert out["bare_query"]["min_cosine"] < 0.99 and out["bare_query"]["max_abs_difference"] > 0.01
+
+
+def test_served_rows_pair_with_the_in_memory_row_of_the_same_query_form():
+    bare = "hybrid@bge-small"
+    twin = served_scale.same_form_name(bare)
+    assert twin == bare + served_scale.SAME_FORM_SUFFIX
+    assert served_scale.paired_rows(bare, {bare: [], twin: []}) == (twin, bare)
+    assert served_scale.paired_rows(bare, {bare: []}) == (bare, None)  # no prompt on either side (the hash dry run)
+
+
+def test_committed_reproduction_counts_identical_rankings(tmp_path):
+    run = tmp_path / "bench" / "runs" / "h.run"
+    run.parent.mkdir(parents=True)
+    run.write_text("q1 Q0 d1 1 2 h\nq1 Q0 d2 2 1 h\nq2 Q0 d3 1 1 h\n")
+    committed = {"corpus_sha256": "abc", "n_queries": 2, "git_sha": "2583576", "device": {"device_name": "GPU X"},
+                 "results": [{"config": "hybrid@bge-small", "retrieval": {"ndcg@10": 0.25}, "trec": {"run": "bench/runs/h.run", "run_sha256": served_scale.file_sha256(run)}}]}
+    mine = {"hybrid@bge-small": [{"id": "q1", "ranking": ["d1", "d2"], "ndcg@10": 0.5}, {"id": "q2", "ranking": ["d4"], "ndcg@10": 0.0}],
+            served_scale.same_form_name("hybrid@bge-small"): [{"id": "q1", "ranking": [], "ndcg@10": 0.0}, {"id": "q2", "ranking": [], "ndcg@10": 0.0}]}
+    out = served_scale.committed_reproduction(mine, committed, tmp_path, corpus_sha256="abc", query_ids=["q1", "q2"])
+    assert out["status"] == "compared" and out["git_sha"] == "2583576" and out["device"] == "GPU X"
+    assert out["rows"] == {"hybrid@bge-small": {"committed_ndcg@10": 0.25, "this_job_ndcg@10": 0.25, "ndcg@10_equal": True, "identical_rankings": 1,
+                                                "identical_top10": 1, "n": 2, "run_file": "bench/runs/h.run", "run_sha256_ok": True}}  # the twin has no committed row
+    run.write_text("q1 Q0 d1 1 2 h\n")  # a run file that no longer matches its recorded digest is reported as such
+    assert out["rows"]["hybrid@bge-small"]["run_sha256_ok"] is True
+    assert served_scale.committed_reproduction(mine, committed, tmp_path, corpus_sha256="abc", query_ids=["q1", "q2"])["rows"]["hybrid@bge-small"]["run_sha256_ok"] is False
+    assert served_scale.committed_reproduction(mine, committed, tmp_path, corpus_sha256="other", query_ids=["q1", "q2"])["status"] == "not_comparable"
+    assert served_scale.committed_reproduction(mine, None, tmp_path, corpus_sha256="abc", query_ids=["q1", "q2"])["status"] == "not_run"
+
+
+@pytest.fixture
+def restore_environ():
+    saved = dict(os.environ)
+    yield
+    os.environ.clear()
+    os.environ.update(saved)
+
+
+def test_inmemory_stage_adds_a_same_query_form_row_when_the_served_embedder_has_a_prompt(tmp_path, monkeypatch, restore_environ):
+    from llama_index.core.settings import Settings
+
+    monkeypatch.setattr(Settings, "_embed_model", None)  # restored after the test; the stage sets the served (hash) embedder
+    bare = sorted(paired for _, paired in served_scale.PASSES.values())
+    assert served_scale.main(args_for(tmp_path, "--stages", "files,inmemory", "--embedder", "hash", "--device", "cpu")) == 3
+    blob = json.loads((tmp_path / "scratch" / "state" / "inmemory.json").read_text())
+    assert sorted(blob["rows"]) == bare and blob["query_form"]["served"]["query"] == ""  # the hash embedding has no prompt
+    assert blob["query_vectors_check"]["status"] == "not_run"
+    monkeypatch.setattr(served_scale, "served_prompts", lambda model: {"query": "Q: ", "text": "", "source": "a test"})
+    assert served_scale.main(args_for(tmp_path, "--stages", "inmemory", "--embedder", "hash", "--device", "cpu")) == 3
+    blob = json.loads((tmp_path / "scratch" / "state" / "inmemory.json").read_text())
+    assert sorted(blob["rows"]) == sorted(bare + [served_scale.same_form_name(b) for b in bare])
+    for name in bare:
+        assert blob["rows"][name]["settings"]["query_instruction"] is None
+        assert blob["rows"][served_scale.same_form_name(name)]["settings"]["query_instruction"] == "Q: "
+        assert blob["query_form"]["rows"][served_scale.same_form_name(name)] == {"dense_leg": "Q: <query>", "lexical_leg": "<query>", "reranker": "<query>"}
+        assert [r["id"] for r in blob["rows"][name]["rows"]] == ["q1", "q2"]  # every judged query, sorted by id
 
 
 def test_trec_outputs_cross_check_catches_a_metric_mismatch(tmp_path, monkeypatch):

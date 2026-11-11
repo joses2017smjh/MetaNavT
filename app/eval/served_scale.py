@@ -29,13 +29,17 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
   replay_hybrid  the same replay with RERANKER_MODEL=none: the like-for-like pair of the in-memory hybrid row
   explain        EXPLAIN (ANALYZE, BUFFERS) of the served statement for three queries: which scan each leg uses
   inmemory       app/eval/beir.py's hybrid@bge-small and hybrid+bge-rerank@bge-small/fp16-512/top20 rows,
-                 document embeddings from the BEIR cache, on the same queries, scored by the same function
+                 document embeddings from the BEIR cache, on the same queries, scored by the same function; each
+                 again with the served embedder's query prompt (read from the served model) before the query on
+                 its dense leg, the query form the served path uses; the two sides' query vectors compared
   hnsw           pgvector's HNSW index against the exact scan on the same table and queries, at several
                  hnsw.ef_search values, and the served dense CTE (app/eval/pgvector_hnsw.py)
   variants       last, because it rewrites the table: halfvec and binary + rescore against float32 on it
 
-The results file pairs each served row with its in-memory row (served minus in-memory, paired bootstrap
-over queries), per route as well, and lists every difference between the two sides. Every number comes
+The results file pairs each served row with the in-memory row of the same query form (served minus
+in-memory, paired bootstrap over queries), per route as well, compares it with the bare-query row too,
+checks the bare-query rows against the committed in-memory FiQA rows (bench/results/beir_fiqa.json: same
+code, corpus and document embeddings), and lists every difference between the two sides. Every number comes
 from this run; what the run could not do (a failed request, a rejected document) is counted, not dropped.
 """
 
@@ -64,11 +68,15 @@ EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
 SERVED_K = 50  # MAX_K of POST /api/retrieve/
 LOAD_LEVELS = (1, 4, 16)
-# served row -> (the API's extra environment, the in-memory row it is paired with)
+# served row -> (the API's extra environment, the in-memory row of app/eval/beir.py it is compared with). The run adds
+# that row again with the served query prompt (SAME_FORM_SUFFIX) and pairs the served row with it (paired_rows).
 PASSES = {
     "api:hybrid+rerank": ({}, "hybrid+bge-rerank@bge-small/fp16-512/top20"),
     "api:hybrid": ({"RERANKER_MODEL": "none"}, "hybrid@bge-small"),
 }
+SAME_FORM_SUFFIX = "+served-query-prompt"
+QUERY_CHECK_N = 16  # queries whose served and in-memory query vectors are compared in the job
+BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"  # make bench-beir-fiqa: the committed in-memory FiQA rows
 STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory", "hnsw", "variants")
 SERVED_STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory")  # served_scale_fiqa.json
 HNSW_STAGES = ("files", "index", "hnsw", "variants")  # pgvector_hnsw.json
@@ -146,8 +154,103 @@ def elide_vectors(plan: str) -> str:
     return _VECTOR_LITERAL.sub(lambda m: f"'[{m.group(0).count(',') + 1} values]'::{m.group(1)}", plan)
 
 
+def same_form_name(bare: str) -> str:
+    """The in-memory row `bare` with the served query prompt before the query on its dense leg."""
+    return bare + SAME_FORM_SUFFIX
+
+
+def paired_rows(bare: str, available) -> tuple[str, str | None]:
+    """(the in-memory row a served row is paired with, the bare-query row it is also compared with, or None).
+
+    The pair is the row with the served query form: `bare` with the served prompt when the run has that
+    row, else `bare` itself (a served embedder without a prompt embeds the bare query, as `bare` does).
+    """
+    twin = same_form_name(bare)
+    return (twin, bare) if twin in available else (bare, None)
+
+
+def served_prompts(model) -> dict:
+    """What the served embedder puts before a query and before a document, read from the object the API builds too.
+
+    LlamaIndex's HuggingFaceEmbedding hands sentence-transformers one prompt per kind and encodes a query
+    with prompt_name="query" (the served retriever embeds with get_query_embedding, app/engine/retriever.py).
+    A model without sentence-transformers prompts (the hash embedding) puts nothing before either.
+    """
+    prompts = getattr(getattr(model, "_model", None), "prompts", None)
+    if not isinstance(prompts, dict):
+        return {"query": "", "text": "", "source": f"{type(model).__name__}: no sentence-transformers prompts"}
+    return {"query": prompts.get("query") or "", "text": prompts.get("text") or "",
+            "source": f"{type(model).__name__}._model.prompts (sentence-transformers), the 'query' one used by get_query_embedding"}
+
+
+def query_vector_check(served, prompted, bare) -> dict:
+    """How far the in-memory embedder's query vectors are from the served ones, as directions (rows unit-normalised).
+
+    `served`: get_query_embedding of the served model; `prompted`: the in-memory embedder on prompt + query;
+    `bare`: the in-memory embedder on the query alone. The first pair should be the same vectors.
+    """
+    import numpy as np
+
+    def unit(m):
+        m = np.asarray(m, dtype=np.float64)
+        return m / np.linalg.norm(m, axis=1, keepdims=True)
+
+    s, p, b = unit(served), unit(prompted), unit(bare)
+
+    def compare(other):
+        cos = (s * other).sum(axis=1)
+        return {"max_abs_difference": float(f"{np.abs(s - other).max():.3g}"), "min_cosine": round(float(cos.min()), 8), "mean_cosine": round(float(cos.mean()), 8)}
+
+    return {"n_queries": int(len(s)), "with_served_prompt": compare(p), "bare_query": compare(b)}
+
+
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def read_trec_run(path: Path) -> dict[str, list[str]]:
+    """query id -> document ids in rank order, from a TREC run file."""
+    ranked: dict[str, list[tuple[int, str]]] = {}
+    for line in Path(path).read_text().splitlines():
+        if line.strip():
+            qid, _, did, rank, *_ = line.split()
+            ranked.setdefault(qid, []).append((int(rank), did))
+    return {qid: [did for _, did in sorted(pairs)] for qid, pairs in ranked.items()}
+
+
+def committed_reproduction(mem_rows: dict[str, list[dict]], committed: dict | None, root: Path, *, corpus_sha256: str, query_ids: list[str]) -> dict:
+    """This job's in-memory rows against the committed rows of the same name (BEIR_FIQA_FILE, make bench-beir-fiqa).
+
+    Same code, corpus and document embeddings: per row, the nDCG@10 each file states, and from the
+    committed TREC run how many queries got exactly the same ranking (and the same first 10). A row the
+    committed file does not have (the served-prompt rows) is not compared.
+    """
+    if not committed:
+        return {"status": "not_run", "reason": f"{BEIR_FIQA_FILE} is not in this checkout"}
+    if committed.get("corpus_sha256") != corpus_sha256 or committed.get("n_queries") != len(query_ids):
+        return {"status": "not_comparable", "reason": "a different corpus or query set (a slice)", "file": BEIR_FIQA_FILE}
+    by = {r["config"]: r for r in committed.get("results", [])}
+    out: dict[str, Any] = {"status": "compared", "file": BEIR_FIQA_FILE, "git_sha": committed.get("git_sha"), "device": (committed.get("device") or {}).get("device_name"), "rows": {}}
+    for name, rows in mem_rows.items():
+        trec = (by.get(name) or {}).get("trec") or {}
+        if not trec.get("run"):
+            continue
+        run_path = Path(root) / trec["run"]
+        ranked = read_trec_run(run_path)
+        mine = {r["id"]: r["ranking"] for r in rows}
+        mean = round(sum(r["ndcg@10"] for r in rows) / len(rows), 4)
+        stated = by[name]["retrieval"]["ndcg@10"]
+        out["rows"][name] = {
+            "committed_ndcg@10": stated, "this_job_ndcg@10": mean, "ndcg@10_equal": mean == stated,
+            "identical_rankings": sum(1 for q in query_ids if ranked.get(q, []) == mine.get(q)),
+            "identical_top10": sum(1 for q in query_ids if ranked.get(q, [])[:10] == (mine.get(q) or [])[:10]),
+            "n": len(query_ids), "run_file": trec["run"], "run_sha256_ok": file_sha256(run_path) == trec.get("run_sha256"),
+        }
+    return out
+
+
 def differences(*, rows: int | None, chunker: str | None, rejected: dict, not_indexed: dict, routes: dict, served_depth: int | None, search_settings: dict,
-                in_memory_settings: dict, reranker: dict) -> list[str]:
+                in_memory_settings: dict, reranker: dict, query_form: dict) -> list[str]:
     """What separates a served row from its in-memory row, in words, from the run's own records and the code's defaults."""
     import inspect
 
@@ -155,6 +258,13 @@ def differences(*, rows: int | None, chunker: str | None, rejected: dict, not_in
 
     window = {name: p.default for name, p in inspect.signature(fixed_size_chunks).parameters.items() if name in {"size", "overlap"}}
     mem_k = in_memory_settings.get("k")
+    served = query_form.get("served") or {}
+    if served.get("query"):
+        query_line = (f"query form: the served embedder puts {served['query']!r} before each query on the dense leg ({served.get('source')}); each served row is "
+                      f"paired with the in-memory row named '<row>{SAME_FORM_SUFFIX}', which puts the same text before the query on its dense leg, and also compared "
+                      "with the bare-query row of that name, which embeds the query alone; the lexical legs and the rerankers read the bare query on both sides")
+    else:
+        query_line = f"query form: neither side puts anything before a query ({served.get('source')})"
     return [
         f"documents vs chunks: the in-memory rows rank whole documents; the served index holds {rows} chunks ({chunker}; a .txt file takes the "
         f"fixed window, {window.get('size')} characters with {window.get('overlap')} overlap), and a served document ranks at its best chunk",
@@ -164,8 +274,7 @@ def differences(*, rows: int | None, chunker: str | None, rejected: dict, not_in
         f"{in_memory_settings.get('k1')}, b {in_memory_settings.get('b')}) vs Postgres ts_rank_cd over to_tsvector('english') with the query terms OR-joined",
         f"dense leg: in-memory exact cosine over whole-document vectors (the BEIR cache) vs pgvector over chunk vectors with {search_settings} per statement, "
         "through the HNSW index when the planner picks it (the plan block)",
-        "query embedding: the served embedder (LlamaIndex HuggingFaceEmbedding) prefixes each query with 'Represent this question for searching relevant passages: ' "
-        "(its default prompt for this model); the in-memory rows embed the bare query",
+        query_line,
         f"router: the served path routes every query ({routes}); lexical_path skips the query embedding and the reranker, aggregation_query skips the reranker; "
         "the in-memory rows have no router",
         f"rejected files: the served scanner rejected {sum(rejected.values())} documents ({ {k: v for k, v in rejected.items() if v} }); "
@@ -597,38 +706,54 @@ class Run:
         return {"queries": out, "settings": vsm.search_settings(SERVED_K), "names": names}
 
     def stage_inmemory(self) -> dict:
+        """app/eval/beir.py's rows that PASSES pairs with, each twice when the served embedder has a query prompt:
+        as main runs them (the bare query) and with that prompt before the query on the dense leg (SAME_FORM_SUFFIX),
+        the query form the served path uses. Then the two sides' query vectors are compared on the first queries."""
         from app.eval import beir
         from app.eval.beir_api import score_ranking
         from app.eval.latency import StageTimer
 
         self.stop_api()
+        prompts = served_prompts(self.embed_model())
+        served_vectors = self.query_vectors()
         engine = beir.Engine(beir.chunks_from_corpus(self.corpus), cache_dir=self.data_root.parent / "cache", device=self.args.device)
         configs = {c.name: c for c in beir.DEFAULT_CONFIGS}
         rows = {}
         cached = {}
         for _, paired_with in PASSES.values():
-            cfg = configs[paired_with]
+            base = configs[paired_with]
             if self.hash:
-                cfg = replace(cfg, embedder="hash", reranker="overlap" if cfg.reranker else None, precision="fp32", max_length=None)
-            if cfg.embedder not in cached:  # read the BEIR cache's document embeddings when it holds them; never add a file to it
-                engine.embedder(cfg.embedder)
-                rev = engine.provenance[cfg.embedder].get("revision") or "norev"
-                expected = engine.cache_dir / f"{engine.corpus_sha256}.{beir._slug(cfg.embedder)}.{rev}.{len(engine.chunks)}.npy"
-                cached[cfg.embedder] = expected.exists()
-                if not expected.exists():
-                    engine.cache_dir = None
-            build = engine.build(cfg)
-            beir.retrieve(engine, cfg, next(iter(self.queries.values())), StageTimer())  # warm-up, excluded
-            timer = StageTimer()
-            per_query = []
-            for qid, text in self.queries.items():
-                ranking = beir.retrieve(engine, cfg, text, timer)
-                per_query.append({"id": qid, "ranking": [d for d in ranking if d != qid], **score_ranking(ranking, self.qrels[qid], qid)})
-            rows[paired_with] = {"config": cfg.name, "settings": {k: v for k, v in vars(cfg).items()}, "build_ms": build, "latency": timer.summary(),
-                                 "models": {"embedder": engine.provenance.get(cfg.embedder), **({"reranker": engine.provenance.get(engine.reranker_key(cfg.reranker, cfg.precision, cfg.max_length))} if cfg.reranker else {})},
-                                 "rows": per_query}
-            log(f"in-memory {paired_with}: nDCG@10 {sum(r['ndcg@10'] for r in per_query) / len(per_query):.4f}")
-        return {"corpus_sha256": engine.corpus_sha256, "document_embeddings_from_cache": cached, "rows": rows}
+                base = replace(base, embedder="hash", reranker="overlap" if base.reranker else None, precision="fp32", max_length=None)
+            for cfg in [base] + ([replace(base, name=same_form_name(base.name), query_instruction=prompts["query"])] if prompts["query"] else []):
+                if cfg.embedder not in cached:  # read the BEIR cache's document embeddings when it holds them; never add a file to it
+                    engine.embedder(cfg.embedder)
+                    rev = engine.provenance[cfg.embedder].get("revision") or "norev"
+                    expected = engine.cache_dir / f"{engine.corpus_sha256}.{beir._slug(cfg.embedder)}.{rev}.{len(engine.chunks)}.npy"
+                    cached[cfg.embedder] = expected.exists()
+                    if not expected.exists():
+                        engine.cache_dir = None
+                build = engine.build(cfg)
+                beir.retrieve(engine, cfg, next(iter(self.queries.values())), StageTimer())  # warm-up, excluded
+                timer = StageTimer()
+                per_query = []
+                for qid, text in self.queries.items():
+                    ranking = beir.retrieve(engine, cfg, text, timer)
+                    per_query.append({"id": qid, "ranking": [d for d in ranking if d != qid], **score_ranking(ranking, self.qrels[qid], qid)})
+                rows[cfg.name] = {"config": cfg.name, "settings": {k: v for k, v in vars(cfg).items()}, "build_ms": build, "latency": timer.summary(),
+                                  "models": {"embedder": engine.provenance.get(cfg.embedder), **({"reranker": engine.provenance.get(engine.reranker_key(cfg.reranker, cfg.precision, cfg.max_length))} if cfg.reranker else {})},
+                                  "rows": per_query}
+                log(f"in-memory {cfg.name}: nDCG@10 {sum(r['ndcg@10'] for r in per_query) / len(per_query):.4f}")
+        if self.hash:
+            check = {"status": "not_run", "reason": "hash dry run: no model on either side"}
+        else:
+            embedder = engine.embedder(configs[PASSES["api:hybrid"][1]].embedder)
+            texts = list(self.queries.values())[:QUERY_CHECK_N]
+            check = {"status": "compared", **query_vector_check(served_vectors[: len(texts)], embedder.encode([prompts["query"] + t for t in texts]), embedder.encode(texts))}
+            log(f"query vectors, served vs in-memory: {check}")
+        form = {name: {"dense_leg": f"{r['settings'].get('query_instruction') or ''}<query>", "lexical_leg": "<query>", "reranker": "<query>"} for name, r in rows.items()}
+        return {"corpus_sha256": engine.corpus_sha256, "document_embeddings_from_cache": cached,
+                "query_form": {"served": {**prompts, "dense_leg": f"{prompts['query']}<query>", "lexical_leg": "<query>", "reranker": "<query>"}, "rows": form},
+                "query_vectors_check": check, "rows": rows}
 
     def stage_hnsw(self) -> dict:
         from app.eval import pgvector_hnsw
@@ -741,22 +866,36 @@ def assemble(run: Run) -> dict:
         "startup": stages["startup"],
     }
     blob["not_indexed"] = build["not_indexed"]
+    memory = stages["inmemory"]
+    mem_rows = {name: block["rows"] for name, block in memory["rows"].items()}
     served, in_memory, rankings, per_query = {}, {}, {}, {}
-    for row, (_, paired_with) in PASSES.items():
+    for name, block in memory["rows"].items():
+        in_memory[name] = {k: v for k, v in block.items() if k != "rows"} | beir_api.summarize(block["rows"], idx)
+        rankings[f"memory:{name}"] = {r["id"]: r["ranking"] for r in block["rows"]}
+        per_query[f"memory:{name}"] = block["rows"]
+    prompt_effect = {}
+    for row, (_, bare) in PASSES.items():
         stage = "replay_rerank" if row == "api:hybrid+rerank" else "replay_hybrid"
         rows = stages[stage]["rows"]
+        paired_with, bare_row = paired_rows(bare, mem_rows)
         served[row] = {"api_env": stages[stage]["api_env"], **beir_api.summarize(rows, idx), "health": stages[stage]["health"]}
-        mem_rows = stages["inmemory"]["rows"][paired_with]
-        in_memory[paired_with] = {k: v for k, v in mem_rows.items() if k != "rows"} | beir_api.summarize(mem_rows["rows"], idx)
         served[row]["paired_with"] = paired_with
-        served[row]["delta_vs_in_memory"] = beir_api.paired(rows, mem_rows["rows"], idx)
-        served[row]["delta_vs_in_memory_by_route"] = beir_api.by_route(rows, mem_rows["rows"])
+        served[row]["delta_vs_in_memory"] = beir_api.paired(rows, mem_rows[paired_with], idx)
+        served[row]["delta_vs_in_memory_by_route"] = beir_api.by_route(rows, mem_rows[paired_with])
+        if bare_row:
+            served[row]["bare_query_row"] = bare_row
+            served[row]["delta_vs_bare_query_row"] = beir_api.paired(rows, mem_rows[bare_row], idx)
+            prompt_effect[bare_row] = {"row": paired_with, "delta": beir_api.paired(mem_rows[paired_with], mem_rows[bare_row], idx)}
         served[row]["per_query"] = beir_api.public_rows(rows)
         rankings[row] = {r["id"]: [d for d in r["ranking"] if d != r["id"]] for r in rows}
-        rankings[f"memory:{paired_with}"] = {r["id"]: r["ranking"] for r in mem_rows["rows"]}
-        per_query[row], per_query[f"memory:{paired_with}"] = rows, mem_rows["rows"]
+        per_query[row] = rows
     blob["served"] = served
     blob["in_memory"] = in_memory
+    blob["query_form"] = {**memory["query_form"], "vectors_check": memory["query_vectors_check"],
+                          "in_memory_prompt_effect": prompt_effect,  # the in-memory row with the served prompt minus the bare-query row, paired
+                          "note": "the served embedder's prompt is read from the model object the run builds with the API's settings; '<query>' is the query text"}
+    committed = json.loads((ROOT / BEIR_FIQA_FILE).read_text()) if (ROOT / BEIR_FIQA_FILE).exists() else None
+    blob["in_memory_reproduction"] = committed_reproduction(mem_rows, committed, ROOT, corpus_sha256=memory["corpus_sha256"], query_ids=list(run.queries))
     blob["load"] = stages["load"]["report"]
     blob["probe"] = stages["probe"]
     blob["plan"] = stages["explain"]
@@ -765,7 +904,7 @@ def assemble(run: Run) -> dict:
     blob["differences"] = differences(
         rows=build.get("rows"), chunker=build["report"].get("chunker"), rejected=build["report"].get("rejected_by_reason") or {}, not_indexed=build["not_indexed"],
         routes=served["api:hybrid"].get("routes") or {}, served_depth=(hybrid_health.get("dense_search") or {}).get("depth"), search_settings=stages["explain"]["settings"],
-        in_memory_settings=stages["inmemory"]["rows"][PASSES["api:hybrid+rerank"][1]]["settings"], reranker=rerank_health.get("reranker") or {})
+        in_memory_settings=memory["rows"][PASSES["api:hybrid+rerank"][1]]["settings"], reranker=rerank_health.get("reranker") or {}, query_form=memory["query_form"])
     trec_dir = run.args.trec_dir if run.args.trec_dir.is_absolute() else ROOT / run.args.trec_dir
     blob["trec"] = trec_outputs(trec_dir, rankings, {q: dict(d) for q, d in run.qrels.items()}, per_query)
     blob["bootstrap"] = bootstrap_settings(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED)
