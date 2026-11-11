@@ -441,7 +441,11 @@ SQLite replay ledger must live outside every agent-readable/indexed root, with
 private file permissions. Without configured approval state, file writes are
 refused. A capability binds the session, operation, paths, reviewed content and
 source fingerprints, expires quickly, and is consumed transactionally before
-mutation. Symlink paths and implicit overwrites are refused.
+mutation. Symlink paths and implicit overwrites are refused. A refusal names the
+check that refused it (`REFUSAL_CHECKS` in `app/mcp/approvals.py`: signature,
+expiry, ledger, staleness and the rest); the SDK server returns that name and a
+fixed description as a tool error, and a call without a capability gets the
+structured `approval_required` result.
 
 ```bash
 # Run as the trusted operator; choose paths outside the indexed corpus.

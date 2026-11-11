@@ -19,8 +19,31 @@ import stat
 import time
 
 
+# Every refusal of an apply_* call names the gate check that refused it, so a
+# client, the audit trail and the approval benchmark can say why without
+# reading exception text (which can carry server paths). Closed set.
+REFUSAL_CHECKS = {
+    "capability_required": "no operator capability was presented, or none can be verified here",
+    "approval_argument": "a caller's approval flag never authorizes a change",
+    "malformed": "the capability is not a well-formed token",
+    "signature": "the capability's signature does not verify",
+    "binding": "the capability was issued for a different reviewed action",
+    "lifetime": "the capability's lifetime is invalid",
+    "expiry": "the capability has expired or was issued in the future",
+    "grant_identity": "the capability's grant identity is invalid",
+    "ledger": "the capability was already consumed; a grant is single use",
+    "action_mismatch": "the reviewed plan is for a different action",
+    "staleness": "the plan or the reviewed files changed since the review; propose again",
+    "symlink": "the path is or passes through a symlink",
+}
+
+
 class ApprovalError(PermissionError):
-    pass
+    """A refused or misconfigured capability; `check` (a REFUSAL_CHECKS key) names the refusing check."""
+
+    def __init__(self, message: str, *, check: str | None = None):
+        super().__init__(message)
+        self.check = check
 
 
 def canonical(value: dict) -> bytes:
@@ -109,26 +132,26 @@ class ApprovalVerifier:
             body = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
             sig = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
             if not hmac.compare_digest(sig, hmac.new(self._key, body, hashlib.sha256).digest()):
-                raise ApprovalError("invalid approval signature")
+                raise ApprovalError("invalid approval signature", check="signature")
             grant = json.loads(body)
             instant = time.time() if now is None else now
             if not isinstance(grant, dict) or grant["review_sha256"] != review_hash(review):
-                raise ApprovalError("approval is bound to a different reviewed action")
+                raise ApprovalError("approval is bound to a different reviewed action", check="binding")
             expires, issued = float(grant["expires_at"]), float(grant["issued_at"])
             if not all(map(math.isfinite, (instant, expires, issued))) or not 0 < expires-issued <= 3600:
-                raise ApprovalError("invalid approval lifetime")
+                raise ApprovalError("invalid approval lifetime", check="lifetime")
             if instant >= expires or issued > instant + 5:
-                raise ApprovalError("approval expired or issued in the future")
+                raise ApprovalError("approval expired or issued in the future", check="expiry")
             if not isinstance(grant["grant_id"], str) or len(grant["grant_id"]) != 48 or not isinstance(grant["actor"], str):
-                raise ApprovalError("invalid grant identity")
+                raise ApprovalError("invalid grant identity", check="grant_identity")
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
-            raise ApprovalError("malformed approval capability") from exc
+            raise ApprovalError("malformed approval capability", check="malformed") from exc
         try:
             with self._connect() as db:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute("INSERT INTO grants VALUES (?, ?, ?, ?)", (grant["grant_id"], grant["review_sha256"], grant["actor"], instant))
         except sqlite3.IntegrityError as exc:
-            raise ApprovalError("approval already consumed") from exc
+            raise ApprovalError("approval already consumed", check="ledger") from exc
         return grant
 
     def audit(self, plan_id: str, action: str, result: str, detail: str = "") -> None:

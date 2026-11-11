@@ -7,6 +7,9 @@ artifacts, patches, visualizations) is registered from tool_specs(), so the
 tool list is the same as the hand-rolled server in app/mcp/server.py, which is
 kept for clients pinned to its 2024-11-05 framing. The approval gate is
 content-bound: apply_* refuses without an operator-issued capability.
+A call without one returns the structured approval_required result; a refused
+capability (forged, expired, replayed, stale) returns is_error naming the
+check that refused it (app/mcp/approvals.py REFUSAL_CHECKS).
 Search and propose_artifact use an index built over the root at start, as in
 app/mcp/server.py (hash embedder and overlap reranker unless --embedder names
 another; --no-index, or a root with no indexable file, starts without one).
@@ -25,7 +28,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 from mcp.server.mcpserver import MCPServer
-from app.mcp.filesystem import DEFAULT_EMBEDDER, ApprovalRequired, FilesystemTools, build_root_index, index_summary
+from mcp.server.mcpserver.exceptions import ToolError
+from app.mcp.approvals import REFUSAL_CHECKS
+from app.mcp.filesystem import DEFAULT_EMBEDDER, ApprovalRequired, FilesystemTools, build_root_index, index_summary, refusal_check
 
 
 def build_server(root: str | Path, name: str = "metanavit-filesystem", *, embedder: str | None = DEFAULT_EMBEDDER) -> MCPServer:
@@ -43,6 +48,15 @@ def build_server(root: str | Path, name: str = "metanavit-filesystem", *, embedd
                 return tools.call(_name, arguments or {})
             except ApprovalRequired as exc:
                 return {"error": "approval_required", "plan_id": exc.plan_id, "detail": str(exc)}
+            except Exception as exc:
+                check = refusal_check(exc)
+                if check is None:
+                    raise
+                # A refused capability is an anticipated failure: the client gets
+                # is_error with the check and its fixed description (never the
+                # exception text, which can carry server paths), not the SDK's
+                # bare "Error executing tool", and no crash traceback is logged.
+                raise ToolError(f"refused by the {check} check: {REFUSAL_CHECKS[check]}") from exc
 
         _register(server, tool_name, spec, handler)
     server._metanavit_tools = tools  # type: ignore[attr-defined] - handy for tests

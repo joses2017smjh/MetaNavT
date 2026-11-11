@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import ast
+import errno
 import hashlib
 import threading
 import tempfile
@@ -27,14 +28,21 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from app.retrieval.hybrid import InMemoryHybridIndex
-from app.mcp.approvals import ApprovalError, ApprovalVerifier, canonical, verifier_from_env
-from app.mcp.secure_io import fingerprint, relative, create_file, replace_file, move_file
+from app.mcp.approvals import REFUSAL_CHECKS, ApprovalError, ApprovalVerifier, canonical, verifier_from_env
+from app.mcp.secure_io import SymlinkRefused, fingerprint, relative, create_file, replace_file, move_file
 
 
 class ApprovalRequired(Exception):
-    def __init__(self, plan_id: str):
+    def __init__(self, plan_id: str, *, check: str = "capability_required"):
         super().__init__(f"Plan {plan_id} requires a trusted operator approval capability")
         self.plan_id = plan_id
+        self.check = check
+
+
+def refusal_check(exc: BaseException) -> str | None:
+    """The gate check that refused a call (a key of REFUSAL_CHECKS), or None when `exc` is not a refusal."""
+    check = getattr(exc, "check", None)
+    return check if check in REFUSAL_CHECKS else None
 
 
 DEFAULT_EMBEDDER = "hash"
@@ -126,7 +134,7 @@ class FilesystemTools:
         for component in Path(rel).parts:
             current = current / component
             if current.is_symlink():
-                raise PermissionError("symlink paths are refused")
+                raise SymlinkRefused("symlink paths are refused")
         return candidate
 
     def _audit(self, plan_id: str, action: str, result: str, detail: str = "") -> None:
@@ -208,10 +216,18 @@ class FilesystemTools:
             raise ApprovalRequired(plan_id)
         review = self.review_plan(plan_id, **options)
         if review["action"] != action:
-            raise ApprovalError("capability action mismatch")
+            raise ApprovalError("capability action mismatch", check="action_mismatch")
         # Content and operation must still match the immutable proposal.
-        if canonical(self._describe(plan_id)).decode() != self._reviews[plan_id]:
-            raise ApprovalError("reviewed plan or file state is stale; propose again")
+        try:
+            current = canonical(self._describe(plan_id)).decode()
+        except OSError as exc:
+            # A reviewed source vanished, a destination appeared or a path became a
+            # symlink. The exception keeps its type (callers map them); it gains a check.
+            if refusal_check(exc) is None:
+                exc.check = "symlink" if exc.errno == errno.ELOOP else "staleness"
+            raise
+        if current != self._reviews[plan_id]:
+            raise ApprovalError("reviewed plan or file state is stale; propose again", check="staleness")
         self.approval_verifier.consume(approval_token, review)
         self._audit(plan_id, action, "authorized")  # durable intent before touching files
         return review
@@ -700,7 +716,7 @@ class FilesystemTools:
     def call(self, name: str, arguments: dict[str, Any]) -> Any:
         if name.startswith("apply_") and "approved" in arguments:
             self._audit(str(arguments.get("plan_id", "")), name, "rejected", "untrusted_approval_argument")
-            raise ApprovalRequired(str(arguments.get("plan_id", "")))
+            raise ApprovalRequired(str(arguments.get("plan_id", "")), check="approval_argument")
         if name == "search_semantic":
             return self.search_semantic(
                 arguments["query"],

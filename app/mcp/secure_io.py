@@ -11,6 +11,11 @@ import secrets
 import stat
 
 
+class SymlinkRefused(PermissionError):
+    """A path that is, or passes through, a symlink; `check` names the refusing gate check."""
+    check = "symlink"
+
+
 def relative(root: Path, path: str) -> str:
     value = Path(path)
     if value.is_absolute():
@@ -50,7 +55,7 @@ def fingerprint(root: Path, path: str) -> dict:
     for part in Path(path).parts[:-1]:
         current = current / part
         if current.is_symlink():
-            raise PermissionError("symlink component refused")
+            raise SymlinkRefused("symlink component refused")
         try:
             st = current.stat()
         except FileNotFoundError:
