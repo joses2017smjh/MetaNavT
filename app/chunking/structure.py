@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import ast
 import bisect
+import csv
 import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
+
+_LINE_END = re.compile(r"\r\n|\r|\n")  # the line ends ast, csv and JSON Lines readers count
 
 # A structural chunk longer than this many characters is re-cut with the window (size MAX_CHUNK_CHARS, overlap
 # RECUT_OVERLAP): a Markdown section, a JSON value, a Python definition or stretch of module-level code.
@@ -81,36 +84,65 @@ def markdown_heading_chunks(text: str, max_size: int = MAX_CHUNK_CHARS) -> list[
     return _spans_from_slices(text, _bounded(text, list(zip(starts, starts[1:])), max_size), "markdown")
 
 
+def _line_slices(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every line with its line end. Only \r\n, \r and \n end a line, as for the
+    Python tokenizer and the csv and JSON Lines readers; str.splitlines also splits at U+2028 and others."""
+    starts = [0] + [m.end() for m in _LINE_END.finditer(text)]
+    if starts[-1] == len(text):
+        starts.pop()  # the text ends with a line end: there is no empty last line
+    return list(zip(starts, starts[1:] + [len(text)]))
+
+
+def _csv_records(text: str, lines: list[tuple[int, int]]) -> list[tuple[int, int]] | None:
+    """(start, end) of every CSV record, or None when the text does not parse as strict CSV.
+
+    A record may span lines (a quoted field holding a line break). Such a record is trusted only
+    when it has as many fields as the first record: a stray quote that the parser closes at a
+    later field boundary would otherwise merge the rows in between.
+    """
+    reader = csv.reader((text[a:b] for a, b in lines), strict=True)
+    records, consumed = [], 0
+    try:
+        for row in reader:
+            records.append((lines[consumed][0], lines[reader.line_num - 1][1], len(row), reader.line_num - consumed))
+            consumed = reader.line_num
+    except csv.Error:  # an unclosed quote, a quote inside an unquoted field, a field over the size limit
+        return None
+    width = next((n_fields for _, _, n_fields, _ in records if n_fields), 0)
+    if any(n_lines > 1 and n_fields != width for _, _, n_fields, n_lines in records):
+        return None
+    return [(a, b) for a, b, _, _ in records]
+
+
 def csv_record_chunks(text: str) -> list[Span]:
-    """One record per chunk, header prepended so each row is self-contained."""
-    lines = text.splitlines(keepends=True)
-    if not lines:
-        return []
-    header = lines[0]
-    header_len = len(header)
-    spans = [Span(start=0, end=header_len, text=header, kind="csv_header")]
-    offset = header_len
-    for line in lines[1:]:
-        end = offset + len(line)
-        blob = header + line if line.strip() else line
-        if line.strip():
-            spans.append(Span(start=offset, end=end, text=blob, kind="csv_row"))
-        offset = end
+    """One record per chunk, header prepended so each row is self-contained.
+
+    Records come from the csv module, so a quoted line break stays in its row.
+    When the file does not parse (see _csv_records), every line is a record,
+    so one bad quote cannot pull the rest of the file into one chunk. The
+    header is the first non-blank record; blank records have no chunk.
+    """
+    lines = _line_slices(text)
+    records = _csv_records(text, lines)
+    spans: list[Span] = []
+    header = None
+    for start, end in records if records is not None else lines:
+        raw = text[start:end]
+        if not raw.strip():
+            continue
+        if header is None:
+            header = raw
+            spans.append(Span(start=start, end=end, text=raw, kind="csv_header"))
+        else:
+            spans.append(Span(start=start, end=end, text=header + raw, kind="csv_row"))
     return spans
 
 
 def jsonl_record_chunks(text: str) -> list[Span]:
-    offset = 0
-    spans = []
-    for line in text.splitlines(keepends=True):
-        end = offset + len(line)
-        if line.strip():
-            spans.append(Span(start=offset, end=end, text=line, kind="jsonl"))
-        offset = end
-    return spans
+    """One chunk per non-blank line; a U+2028 or U+0085 inside a JSON string does not end one."""
+    return _spans_from_slices(text, _line_slices(text), "jsonl")
 
 
-_PY_LINE_END = re.compile(r"\r\n|\r|\n")  # the line ends ast counts; str.splitlines also splits at \f, U+2028, ...
 _NON_SPACE = re.compile(r"\S")
 
 
@@ -133,7 +165,7 @@ def python_ast_chunks(text: str) -> list[Span]:
     definitions = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
     if not definitions:
         return fixed_size_chunks(text)
-    line_starts = [0] + [m.end() for m in _PY_LINE_END.finditer(text)]
+    line_starts = [0] + [m.end() for m in _LINE_END.finditer(text)]
 
     def line_start(lineno: int) -> int:  # 1-based, as ast counts; past the last line is the end of the text
         return line_starts[lineno - 1] if lineno <= len(line_starts) else len(text)

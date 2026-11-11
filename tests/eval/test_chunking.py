@@ -206,6 +206,33 @@ def test_a_parser_that_gives_up_does_not_abort_the_chunker():
     ]
 
 
+def test_csv_records_keep_a_quoted_line_break_in_one_row():
+    header, row, last = "run,note\r\n", '47,"fusion on\r\nsecond line"\r\n', "48,plain\r\n"
+    text = header + row + last
+
+    spans = csv_record_chunks(text)
+
+    assert _spans(spans) == [(0, len(header), "csv_header"), (len(header), len(header + row), "csv_row"),
+                             (len(header + row), len(text), "csv_row")]
+    assert [s.text for s in spans[1:]] == [header + row, header + last]
+
+
+def test_a_stray_quote_does_not_merge_the_rest_of_a_csv_into_one_row():
+    unclosed = 'run,note\n47,"unclosed\n48,b\n49,c\n'  # never closed: strict parsing fails
+    assert [s.text for s in csv_record_chunks(unclosed)] == ["run,note\n", 'run,note\n47,"unclosed\n', "run,note\n48,b\n", "run,note\n49,c\n"]
+    closed_late = 'run,note\n47,"a\n48,b",x,y\n49,c\n'  # parses, but the two-line record has four fields, not two
+    assert [s.end - s.start for s in csv_record_chunks(closed_late)] == [len(line) for line in closed_late.splitlines(keepends=True)]
+
+
+def test_csv_header_is_the_first_non_blank_record():
+    assert [s.text for s in csv_record_chunks("\nh1,h2\na,1\n")] == ["h1,h2\n", "h1,h2\na,1\n"]
+
+
+def test_jsonl_records_split_only_at_line_ends():
+    first, second = '{"note": "a\u2028b"}\n', '{"note": "c\x85d"}\n'  # both are legal inside a JSON string
+    assert _spans(jsonl_record_chunks(first + second)) == [(0, len(first), "jsonl"), (len(first), len(first + second), "jsonl")]
+
+
 def test_late_chunk_mean_pool():
     tokens = np.vstack([np.ones((4, 3)), np.zeros((4, 3))]).astype(np.float32)
     pooled = mean_pool_spans(tokens, [(0, 4), (4, 8)])

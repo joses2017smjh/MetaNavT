@@ -588,7 +588,11 @@ and one for each non-blank stretch of module-level code between or after
 definitions (constants, registration calls, a main guard), so every non-blank
 line is in exactly one chunk; lines are counted the way `ast` counts them (a
 form feed is not a line break). A module without definitions, or one that does
-not parse, takes the fixed character window. A JSON file is one chunk. A
+not parse, takes the fixed character window. A CSV file gives one chunk per
+record, read with the `csv` module so a quoted line break stays in its row, and
+each row's searched text starts with the header record; a CSV that does not
+parse strictly (an unclosed quote, say) falls back to one record per line. A
+JSON Lines file gives one chunk per line, and a JSON file is one chunk. A
 Markdown section, a JSON value or a Python chunk longer than `MAX_CHUNK_CHARS`
 characters is re-cut into windows of that size that overlap by
 `RECUT_OVERLAP` characters. `CHUNKER_VERSION` in
