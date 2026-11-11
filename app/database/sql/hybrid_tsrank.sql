@@ -1,8 +1,12 @@
 -- Hybrid retrieval in one round trip (Postgres + pgvector, no ParadeDB).
 --
---   dense   : pgvector cosine distance (<=>), top-k, served by the HNSW index
+--   dense   : pgvector cosine distance (<=>), top-k. The planner may read it from the
+--             HNSW index on the embedding column or with a sequential scan (on fixture
+--             v1 it scans: doc/sql/hybrid_explain.txt). An HNSW scan returns at most
+--             hnsw.ef_search rows, so the caller sets it for this statement's
+--             transaction (VectorStoreManager.apply_search_settings).
 --   lexical : websearch_to_tsquery('english', ...) over to_tsvector('english', text),
---             ranked by ts_rank_cd, served by the GIN index on the same expression
+--             ranked by ts_rank_cd, with the GIN index on the same expression
 --   fused   : reciprocal rank fusion, score = sum 1 / (rrf_k + rank) with 1-based
 --             ranks, the same formula as app/retrieval/fuse.py (tests/database/
 --             test_hybrid_sql.py checks the two agree on identical input lists)
@@ -13,7 +17,13 @@
 --             %(k)s     depth of each list and of the fused result
 --             %(rrf_k)s RRF constant (60)
 -- {table} is replaced by the qualified data table (schema.data_<table>).
-WITH params AS (
+--
+-- params is NOT MATERIALIZED: both lists read it, and Postgres materializes a CTE
+-- read twice, which turns the query vector into a column of that CTE. An index
+-- ordering operator needs a constant on its right, so the dense list could then
+-- never be read from the HNSW index (tests/database/test_dense_parity.py forces the
+-- index and checks the plan).
+WITH params AS NOT MATERIALIZED (
     SELECT %(qvec)s::vector AS qvec,
            websearch_to_tsquery('english', %(query)s) AS tsq
 ),

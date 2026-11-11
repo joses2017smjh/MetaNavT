@@ -81,6 +81,7 @@ class _FakeOutcome:
 class _FakeRetriever:
     _reranker = None
     mode = "sql"
+    depth = 50
     reranker_info = {"configured": True, "loaded": False, "model": "BAAI/bge-reranker-v2-m3", "revision": None, "device": None,
                      "precision": "fp16", "max_length": 512, "depth": 20, "error": "weights not cached"}
 
@@ -103,9 +104,13 @@ class _FakeState:
 class _FakeVSM:
     hybrid_backend = "ts_rank_cd"
     last_bm25_backend = None
+    pgvector_version = (0, 8, 6)
 
     def count_nodes(self):
         return 61
+
+    def search_settings(self, k):
+        return {"hnsw.ef_search": 2 * k, "hnsw.iterative_scan": "strict_order"}
 
 
 @pytest.fixture
@@ -150,6 +155,8 @@ def test_response_and_health_list_degraded_components_and_the_reranker(ready_cli
     h = health.json()
     assert h["status"] == "degraded" and h["degraded"][0]["component"] == "rerank"
     assert h["reranker"]["model"] == "BAAI/bge-reranker-v2-m3" and h["retrieval_mode"] == "sql" and h["n_nodes"] == 61
+    # the settings each hybrid statement runs with at the retriever's depth (VectorStoreManager.search_settings)
+    assert h["dense_search"] == {"depth": 50, "settings": {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}, "pgvector": "0.8.6"}
 
 
 def test_health_refuses_unverified_required_cuda_device(ready_client, monkeypatch):

@@ -43,6 +43,11 @@ from .db_base_manager import DatabaseManager
 load_dotenv()
 logger = logging.getLogger("uvicorn")
 
+# hnsw.ef_search bounds for the served statement (VectorStoreManager.search_settings):
+# pgvector's own default, kept as the floor, and the largest value pgvector accepts.
+HNSW_EF_SEARCH_DEFAULT = 40
+HNSW_EF_SEARCH_MAX = 1000
+
 
 def describe_dsn(dsn: str | None) -> str:
     """Host, port and database name of a connection string, for log lines.
@@ -444,11 +449,61 @@ class VectorStoreManager(DatabaseManager):
             return None
         return "[" + ",".join(f"{float(x):.8g}" for x in embedding) + "]"
 
+    @property
+    def pgvector_version(self) -> tuple[int, ...] | None:
+        """Installed pgvector version, e.g. (0, 8, 6); None when it is not installed or not readable."""
+        cached = getattr(self, "_pgvector_version", None)
+        if cached is not None:
+            return cached or None
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector';")
+                    row = cur.fetchone()
+        except Exception as e:  # not cached: the next call asks again
+            logger.info(f"pgvector_version: could not read it ({e.__class__.__name__})")
+            return None
+        self._pgvector_version = tuple(int(p) for p in re.findall(r"\d+", row[0])[:3]) if row else ()
+        return self._pgvector_version or None
+
+    def search_settings(self, k: int) -> dict:
+        """Settings the hybrid statement runs with for a dense list of depth k, by parameter name.
+
+        hnsw.ef_search is the HNSW scan's candidate list: a scan returns at most that many
+        rows (pgvector's default, 40, is below RETRIEVE_K, 50), and its first k rows are
+        approximate. It is set to twice the depth, at least the default and at most
+        pgvector's limit. hnsw.iterative_scan = strict_order (pgvector 0.8 and later) lets a
+        scan that runs out of candidates keep searching instead of returning fewer rows, and
+        keeps its rows in distance order, which the statement's LIMIT relies on.
+        Both apply only to the statement's own transaction (apply_search_settings).
+        """
+        version = self.pgvector_version
+        settings: dict = {}
+        if version and version >= (0, 5, 0):  # the first release with HNSW
+            settings["hnsw.ef_search"] = min(HNSW_EF_SEARCH_MAX, max(2 * int(k), HNSW_EF_SEARCH_DEFAULT))
+        if version and version >= (0, 8, 0):
+            settings["hnsw.iterative_scan"] = "strict_order"
+        return settings
+
+    def apply_search_settings(self, cur, k: int) -> dict:
+        """set_config(..., is_local => true) for every search setting: SET LOCAL semantics.
+
+        The values end with the transaction the cursor is in (the pool's connections are not
+        in autocommit, and get_connection commits after its block), so the next statement on
+        the same pooled connection runs with the server defaults again. A session-level SET
+        would stay on whichever pooled connection ran it.
+        """
+        settings = self.search_settings(k)
+        for name, value in settings.items():
+            cur.execute("SELECT set_config(%s, %s, true);", (name, str(value)))
+        return settings
+
     def hybrid_search(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> list[dict]:
         """One round trip: dense top-k + lexical top-k + RRF in SQL (see sql/hybrid_*.sql).
 
         query_embedding=None runs the lexical list only (router skip_embed). Each row:
         node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf.
+        The statement runs in its own transaction with search_settings(k).
         """
         backend = self.hybrid_backend
         params = {
@@ -459,6 +514,7 @@ class VectorStoreManager(DatabaseManager):
         }
         with self.get_connection() as conn:
             with conn.cursor() as cur:
+                self.apply_search_settings(cur, k)
                 cur.execute(self.hybrid_sql(backend), params)
                 rows = cur.fetchall()
         self.last_bm25_backend = backend if any(r[3] is not None for r in rows) else "none"
@@ -477,7 +533,7 @@ class VectorStoreManager(DatabaseManager):
         ]
 
     def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> str:
-        """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query, for doc/sql/."""
+        """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query with the settings hybrid_search uses, for doc/sql/."""
         backend = self.hybrid_backend
         params = {
             "qvec": self.vector_literal(query_embedding),
@@ -487,6 +543,7 @@ class VectorStoreManager(DatabaseManager):
         }
         with self.get_connection() as conn:
             with conn.cursor() as cur:
+                self.apply_search_settings(cur, k)
                 cur.execute("EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), params)
                 return "\n".join(r[0] for r in cur.fetchall())
 
@@ -686,15 +743,6 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.warning(f"HNSW index not created: {e}")
             return False
-
-    def set_ef_search(self, ef_search: int) -> None:
-        with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SET hnsw.ef_search = %s", (int(ef_search),))
-                try:
-                    cur.execute("SET hnsw.iterative_scan = relaxed_order")
-                except Exception:
-                    pass
 
     def ensure_halfvec(self) -> bool:
         """2x storage cut. Requires pgvector with halfvec."""

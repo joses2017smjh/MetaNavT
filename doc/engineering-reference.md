@@ -654,7 +654,7 @@ chosen from that table in the API section below, not picked up front.
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
 one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsrank.sql))
-with a pgvector top-k CTE (`<=>`, HNSW index), a full-text top-k CTE
+with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
 (`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 when
 `pg_search` is installed), and reciprocal rank fusion computed in SQL, then
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
@@ -693,10 +693,18 @@ same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
 fails only when the API is broken (a question without an answer or with zero
-hits). On the fixture the planner answers the dense CTE with a sequential scan;
-when the HNSW index is used instead, a scan returns at most `hnsw.ef_search`
-rows (pgvector's default is below `RETRIEVE_K`), so the dense list is cut short.
-The test reports the plan and `ef_search` when it fails.
+hits). On the fixture the planner answers the dense CTE with a sequential scan.
+A second test forces the HNSW index (`enable_seqscan` off), requires the whole
+served statement to be planned on it, and requires the same `RETRIEVE_K` rows
+for every gold question. Two things kept the index from serving the full list
+before: the `params` CTE, read by both lists, was materialized, which made the
+query vector a column and left the dense list no index path at all; and an HNSW
+scan returns at most `hnsw.ef_search` rows, and pgvector's default is below
+`RETRIEVE_K`. The statement now marks `params` `NOT MATERIALIZED`, and
+`hybrid_search` sets `hnsw.ef_search` to twice the depth (plus
+`hnsw.iterative_scan = strict_order` on pgvector 0.8 or later) for its own
+transaction only, so no pooled connection keeps the value. `/health` reports the
+depth and these settings under `dense_search`.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres

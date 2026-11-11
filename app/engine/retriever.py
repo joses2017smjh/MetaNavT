@@ -165,6 +165,11 @@ class HybridRetriever(BaseRetriever):
         return self._mode
 
     @property
+    def depth(self) -> int:
+        """Depth of the dense list (and of the lexical and fused lists in SQL mode): RETRIEVE_K."""
+        return self._similarity_top_k
+
+    @property
     def staleness_enabled(self) -> bool:
         return bool(self._clusters)
 

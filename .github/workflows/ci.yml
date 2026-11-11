@@ -101,7 +101,9 @@ jobs:
     # started in the background, then the 136 gold questions replayed through
     # POST /api/retrieve/ and scored like the bench. The live-database tests include
     # the exact check: the dense leg equals the in-memory dense search on every gold
-    # question (tests/database/test_dense_parity.py). The end-to-end nDCG@10 gap is
+    # question, on the planner's own plan and with the HNSW index forced, where the
+    # served statement must still return RETRIEVE_K rows
+    # (tests/database/test_dense_parity.py). The end-to-end nDCG@10 gap is
     # reported with its paired interval, not gated (the lexical legs differ by design);
     # the step fails only when the API is broken (app/eval/parity.py).
     name: parity (API over Postgres vs in-memory bench)
@@ -146,7 +148,7 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install --no-deps -e .
           python -m pip check
-      - name: SQL RRF == Python RRF, dense leg == in-memory dense search, incremental indexing, schema migrations (tests/database, live Postgres)
+      - name: SQL RRF == Python RRF, dense leg == in-memory dense search (also on a forced HNSW scan), incremental indexing, schema migrations (tests/database, live Postgres)
         run: python -m pytest tests/database -q -rs
       - name: Fixture mtimes from the MANIFEST (the served staleness filter reads disk mtimes; a checkout's are arbitrary)
         run: make fixture-mtimes

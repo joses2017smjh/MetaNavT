@@ -10,13 +10,16 @@ Needs a live Postgres with pgvector: set PG_TEST_DSN (the CI parity service, or 
 local instance). Skipped otherwise. The fixture is indexed through the served
 indexer (app/engine/ingest.py::index_directory) into a temporary table, with the
 same text and HNSW indexes the API's startup creates, and the dense CTE of
-app/database/sql/hybrid_tsrank.sql is run with the retriever's depth (RETRIEVE_K).
+app/database/sql/hybrid_tsrank.sql is run with the retriever's depth (RETRIEVE_K)
+and the per-statement settings the served path applies
+(VectorStoreManager.apply_search_settings).
 
-On the 71-row fixture the planner answers the dense CTE with a sequential scan, so
-the list is exact. When the HNSW index is used instead (measured by forcing it with
-enable_seqscan=off), every gold question gets 40 rows, not 50: pgvector's default
-hnsw.ef_search is 40, below RETRIEVE_K. The failure message reports the plan and
-ef_search so a larger table that switches to the index shows up here.
+Two plans are checked. On the 71-row fixture the planner answers the dense CTE
+with a sequential scan, so the list is exact. With the HNSW index forced
+(enable_seqscan off) the served statement must still return RETRIEVE_K rows, the
+same rows: an HNSW scan returns at most hnsw.ef_search rows, and pgvector's
+default (40) is below RETRIEVE_K, so without the served settings every gold
+question gets 40 rows.
 """
 
 import json
@@ -38,6 +41,9 @@ SCORE_TOL = 1e-5  # the vector literal carries 8 significant digits; pgvector st
 # scores within this much of each other. Measured: q003 run_040/run_050 logs are both
 # 0.101494586043 in float64; q017's two chunks are both 0.0 in float64, -6e-9 and -2e-9 in float32.
 TIE_TOL = 1e-6
+# Forcing the index: every sequential scan costs more than any index path. The same penalty
+# pushes each plan past jit_above_cost, and compiling it would dominate the run, so JIT is off.
+FORCE_INDEX_OPTIONS = "-c enable_seqscan=off -c jit=off"
 
 
 def dense_sql(vsm) -> str:
@@ -51,6 +57,16 @@ def dense_sql(vsm) -> str:
         + f"\nSELECT t.metadata_->>'chunk_id', d.dense_score, d.dense_rank FROM dense d"
         + f" JOIN {table} t ON t.node_id = d.node_id ORDER BY d.dense_rank;"
     )
+
+
+def served_dense(manager, sql, text, qvec, k) -> list[tuple[str, float]]:
+    """The dense CTE in one transaction with the settings hybrid_search applies: [(chunk_id, score)] by rank."""
+    params = {"qvec": manager.vector_literal(qvec), "query": manager.lexical_query(text), "k": k, "rrf_k": 60.0}
+    with manager.get_connection() as conn:
+        with conn.cursor() as cur:
+            manager.apply_search_settings(cur, k)
+            cur.execute(sql, params)
+            return [(cid, float(score)) for cid, score, _ in cur.fetchall()]
 
 
 @pytest.fixture(scope="module")
@@ -87,6 +103,39 @@ def served(tmp_path_factory):
             os.environ.pop(k, None)
         else:
             os.environ[k] = v
+
+
+@pytest.fixture(scope="module")
+def memory(served):
+    """The in-memory dense search over the same corpus, and the gold questions."""
+    from app.eval.index_loader import build_index
+
+    _, corpus = served
+    k = int(os.getenv("RETRIEVE_K", "50"))
+    index = build_index(corpus, embedder_name="hash", retrieve_k=k, enable_rerank=False, enable_router=False)
+    questions = [json.loads(line) for line in QUESTIONS.read_text().splitlines() if line.strip()]
+    return index, questions, k
+
+
+@pytest.fixture(scope="module")
+def forced(served):
+    """A second manager on the same table whose connections cannot plan a sequential scan."""
+    from psycopg2.extensions import make_dsn
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    manager = VectorStoreManager(conn_string=make_dsn(os.environ["PG_TEST_DSN"], options=FORCE_INDEX_OPTIONS))
+    yield manager
+    manager.close()
+
+
+def in_memory(index, text, k):
+    """(ranked [(chunk_id, score)], {chunk_id: score} over every chunk) from the in-memory dense search."""
+    from app.retrieval.embedders import cosine_scores
+
+    mem_list = [(c.chunk_id, s) for c, s in index.search_dense(text, k=k)]
+    all_scores = cosine_scores(index.embedder.encode([text])[0], index.doc_mat)
+    return mem_list, {c.chunk_id: float(s) for c, s in zip(index.chunks, all_scores)}
 
 
 def compare_dense(sql_rows, mem_list, mem_all, k):
@@ -126,57 +175,107 @@ def compare_dense(sql_rows, mem_list, mem_all, k):
     return problems
 
 
-def test_dense_leg_matches_in_memory_on_every_gold_question(served):
-    from app.engine.embeddings import HashEmbedding
-    from app.eval.index_loader import build_index
-    from app.retrieval.embedders import cosine_scores
+def check_served_statement(manager, text, qvec, sql_rows, k):
+    """hybrid_search (the call the served retriever makes) carries the dense list's ranks and scores.
 
-    vsm, corpus = served
-    k = int(os.getenv("RETRIEVE_K", "50"))
-    index = build_index(corpus, embedder_name="hash", retrieve_k=k, enable_rerank=False, enable_router=False)
+    A row whose chunk is not in the dense list must come back without a dense rank, so a
+    dense list cut short inside hybrid_search shows up here even when this module's own
+    dense query is complete.
+    """
+    by_id = {cid: (s, r + 1) for r, (cid, s) in enumerate(sql_rows)}
+    for row in manager.hybrid_search(text, qvec, k=k, rrf_k=60):
+        cid = row["metadata"].get("chunk_id")
+        expected = by_id.get(cid)
+        assert row["dense_rank"] == (expected[1] if expected else None), (text, cid, row["dense_rank"], expected)
+        if expected:
+            assert abs(expected[0] - row["dense_score"]) < 1e-9
+
+
+def test_dense_leg_matches_in_memory_on_every_gold_question(served, memory):
+    from app.engine.embeddings import HashEmbedding
+
+    vsm, _ = served
+    index, questions, k = memory
     query_embed = HashEmbedding(256).get_query_embedding  # the served retriever's embed_fn with the hash model
     sql = dense_sql(vsm)
-    questions = [json.loads(line) for line in QUESTIONS.read_text().splitlines() if line.strip()]
 
     with vsm.get_connection() as conn:
         with conn.cursor() as cur:
+            vsm.apply_search_settings(cur, k)
             cur.execute("EXPLAIN " + sql, {"qvec": vsm.vector_literal(query_embed("x")), "query": "x", "k": k, "rrf_k": 60.0})
             plan = "\n".join(r[0] for r in cur.fetchall())
-            cur.execute("SHOW hnsw.ef_search;")
-            ef_search = int(cur.fetchone()[0])
     uses_hnsw = "hnsw" in plan.lower()
 
     failures, short = [], []
     for q in questions:
         text = q["question"]
         qvec = query_embed(text)
-        params = {"qvec": vsm.vector_literal(qvec), "query": vsm.lexical_query(text), "k": k, "rrf_k": 60.0}
-        with vsm.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, params)
-                sql_rows = [(cid, float(score)) for cid, score, _ in cur.fetchall()]
-        mem_list = [(c.chunk_id, s) for c, s in index.search_dense(text, k=k)]
-        all_scores = cosine_scores(index.embedder.encode([text])[0], index.doc_mat)
-        mem_all = {c.chunk_id: float(s) for c, s in zip(index.chunks, all_scores)}
+        sql_rows = served_dense(vsm, sql, text, qvec, k)
+        mem_list, mem_all = in_memory(index, text, k)
         if len(sql_rows) < len(mem_list):
             short.append((q["id"], len(sql_rows)))
         problems = compare_dense(sql_rows, mem_list, mem_all, k)
         if problems:
             failures.append(f"{q['id']}: " + "; ".join(problems[:3]))
-
         # The full served statement carries the same dense ranks and scores on the rows it returns.
-        by_id = {cid: (s, r + 1) for r, (cid, s) in enumerate(sql_rows)}
-        for row in vsm.hybrid_search(text, qvec, k=k, rrf_k=60):
-            if row["dense_rank"] is not None:
-                cid = row["metadata"].get("chunk_id")
-                assert cid in by_id and by_id[cid][1] == row["dense_rank"], (q["id"], cid)
-                assert abs(by_id[cid][0] - row["dense_score"]) < 1e-9
+        check_served_statement(vsm, text, qvec, sql_rows, k)
 
     summary = (
         f"{len(failures)}/{len(questions)} gold questions differ on the dense leg (k={k}, {len(index.chunks)} chunks). "
-        f"Plan uses HNSW: {uses_hnsw}; hnsw.ef_search={ef_search}; "
+        f"Plan uses HNSW: {uses_hnsw}; served settings {vsm.search_settings(k)}; "
         f"{len(short)} questions returned fewer SQL rows than in memory"
         + (f" (fewest {min(n for _, n in short)}; an HNSW scan returns at most ef_search rows)" if short else "")
         + ".\n"
     )
     assert not failures, summary + "\n".join(failures[:10])
+
+
+def test_forced_hnsw_scan_keeps_the_full_depth_and_the_exact_rows(served, memory, forced):
+    """enable_seqscan off: the served statement reads the HNSW index and still returns RETRIEVE_K exact rows."""
+    from app.engine.embeddings import HashEmbedding
+
+    vsm, _ = served
+    index, questions, k = memory
+    query_embed = HashEmbedding(256).get_query_embedding
+    sql = dense_sql(forced)
+
+    # The whole served statement (not only its dense CTE: a CTE shared by both lists can hide
+    # the index) is planned on the HNSW index, with the settings hybrid_search applies.
+    first = questions[0]["question"]
+    plan = forced.explain_hybrid(first, query_embed(first), k=k)
+    index_scan = f"Index Scan using {forced.table_name}_embedding_hnsw"
+    assert index_scan in plan, plan
+
+    failures, short = [], []
+    for q in questions:
+        text = q["question"]
+        qvec = query_embed(text)
+        sql_rows = served_dense(forced, sql, text, qvec, k)
+        if len(sql_rows) != k:
+            short.append((q["id"], len(sql_rows)))
+        mem_list, mem_all = in_memory(index, text, k)
+        problems = compare_dense(sql_rows, mem_list, mem_all, k)
+        if problems:
+            failures.append(f"{q['id']}: " + "; ".join(problems[:3]))
+        check_served_statement(forced, text, qvec, sql_rows, k)
+
+    assert not short, (
+        f"{len(short)}/{len(questions)} gold questions got fewer than k={k} dense rows from the HNSW scan "
+        f"(fewest {min(n for _, n in short)}); served settings {forced.search_settings(k)}"
+    )
+    assert not failures, f"{len(failures)}/{len(questions)} gold questions differ from the exact dense list:\n" + "\n".join(failures[:10])
+
+
+def test_search_settings_stay_inside_the_statement_transaction(served):
+    """SET LOCAL semantics: the pooled connection is back to the server default after hybrid_search."""
+    from app.engine.embeddings import HashEmbedding
+
+    vsm, _ = served
+    settings = vsm.search_settings(50)
+    assert settings["hnsw.ef_search"] >= 50
+    vsm.hybrid_search("learning rate", HashEmbedding(256).get_query_embedding("learning rate"), k=50)
+    with vsm.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_setting('hnsw.ef_search', true);")
+            value = cur.fetchone()[0]
+    assert value in (None, "", "40"), value  # unset placeholder or pgvector's default, never the statement's value

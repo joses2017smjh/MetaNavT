@@ -78,5 +78,8 @@ def build_retrieval_state() -> RetrievalState:
     logger.info(f"Staleness Tier 1: {len(clusters)} version clusters")
     index = get_index()
     retriever = create_hybrid_retriever(index, vsm, clusters=clusters)
-    logger.info(f"Retriever mode={retriever.mode} staleness={retriever.staleness_enabled}")
+    logger.info(
+        f"Retriever mode={retriever.mode} staleness={retriever.staleness_enabled} "
+        f"depth={retriever.depth} dense search settings={vsm.search_settings(retriever.depth)}"
+    )
     return RetrievalState(vsm=vsm, index=index, retriever=retriever, indexing=indexing)
