@@ -119,6 +119,15 @@ bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json fro
 bench-agent-injection-scores: ## every committed episode's score from the current scoring code -> bench/results/agent_injection_episodes_rescored.jsonl (no model call; the episodes file is not changed)
 	$(PYTHON) -m app.eval.agent_injection --write-scores bench/results/agent_injection_episodes_rescored.jsonl --k 4 --episodes bench/results/agent_injection_episodes.jsonl
 
+.PHONY: bench-companion-live bench-companion-live-rescore
+COMPANION_MODEL ?= qwen2.5:7b
+COMPANION_LOG_DIR ?=
+bench-companion-live: ## research companion, live mode: the Ollama model at OLLAMA_BASE_URL over two served APIs (default stack, databases created on PG_TEST_DSN), every gold question + ten planted-claim questions -> bench/results/companion_live.json; sets the live-run fields of doc/research-agent-validation.json
+	$(PYTHON) -m app.eval.companion_live --model $(COMPANION_MODEL) --out bench/results/companion_live.json --validation doc/research-agent-validation.json $(if $(COMPANION_LOG_DIR),--log-dir $(COMPANION_LOG_DIR))
+
+bench-companion-live-rescore: ## recompute the scores and summary of bench/results/companion_live.json from its stored responses (no model call)
+	$(PYTHON) -m app.eval.companion_live --rescore bench/results/companion_live.json --validation doc/research-agent-validation.json
+
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
 bench-trusted-actions: ## approval-gate regression on temporary fixtures (no LLM); each row names the refusing check -> $(TRUSTED_ACTIONS_OUT)
