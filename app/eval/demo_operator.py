@@ -19,8 +19,8 @@ def operator_fixture(*, index=None):
         root, private = base / "corpus", base / "operator-private"
         root.mkdir(); private.mkdir(mode=0o700)
         key = private / "key"
-        create_key(key)
-        tools = FilesystemTools(root=root, index=index, approval_verifier=ApprovalVerifier(root, key, private / "ledger.sqlite"))
+        create_key(key, private / "key.pub")
+        tools = FilesystemTools(root=root, index=index, approval_verifier=ApprovalVerifier(root, private / "key.pub", private / "ledger.sqlite"))
 
         def issue(plan_id, **options):
             review = tools.review_plan(plan_id, **options)
