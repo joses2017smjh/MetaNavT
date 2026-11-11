@@ -128,7 +128,7 @@ def python_ast_chunks(text: str) -> list[Span]:
     """
     try:
         tree = ast.parse(text)
-    except SyntaxError:
+    except (SyntaxError, ValueError, RecursionError, MemoryError):  # invalid, null bytes, or nested too deep to parse
         return fixed_size_chunks(text)
     definitions = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
     if not definitions:
@@ -205,6 +205,8 @@ def chunk_text(text: str, path: str = "", strategy: str = "auto") -> list[Span]:
                 json.loads(text)
             except json.JSONDecodeError:  # not one JSON value: one chunk per record line
                 return jsonl_record_chunks(text)
+            except RecursionError:  # nested deeper than the decoder recurses: cut like any long value
+                pass
             return _spans_from_slices(text, _bounded(text, [(0, len(text))]), "json")
         return fixed_size_chunks(text)
     if strategy == "markdown":

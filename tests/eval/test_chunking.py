@@ -194,6 +194,18 @@ def test_a_python_definition_longer_than_the_limit_is_recut_with_the_window():
     assert all(s.end - s.start <= 2000 for s in spans)
 
 
+def test_a_parser_that_gives_up_does_not_abort_the_chunker():
+    """ast and json raise RecursionError on deep nesting (3.11, 3.12); one such file must not stop an indexing run."""
+    deep_py = "x = " + "1+" * 100000 + "1\n"
+    assert _spans(python_ast_chunks(deep_py)) == _spans(fixed_size_chunks(deep_py))
+    nul = "def f():\n    return 1\x00\n"  # null bytes: SyntaxError, or ValueError on older interpreters
+    assert _spans(python_ast_chunks(nul)) == _spans(fixed_size_chunks(nul))
+    deep_json = "[" * 100000 + "]" * 100000  # one JSON value too deep to decode: cut like any long value
+    assert _spans(chunk_text(deep_json, path="results/deep.json")) == [
+        (s.start, s.end, "json") for s in fixed_size_chunks(deep_json, size=2000, overlap=80)
+    ]
+
+
 def test_late_chunk_mean_pool():
     tokens = np.vstack([np.ones((4, 3)), np.zeros((4, 3))]).astype(np.float32)
     pooled = mean_pool_spans(tokens, [(0, 4), (4, 8)])
