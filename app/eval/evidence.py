@@ -29,6 +29,8 @@ FILES = {
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "served_scale": "bench/results/served_scale_fiqa.json",
+    "pgvector_hnsw": "bench/results/pgvector_hnsw.json",
 }
 
 
@@ -207,6 +209,7 @@ def claims(root: Path = ROOT) -> list[dict]:
         out.append({"claim": "Docker CPU stack (bge-small + bge-reranker-v2-m3 fp32, max_length 512, depth 20): server total p50 / p95 (ms)", "value": f"{lat['server_total_ms']['p50']} / {lat['server_total_ms']['p95']}", "ci": "—", "n": lat["n"],
                     "command": "docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build; scripts/smoke_retrieve.py --latency bench/gold/questions.jsonl", "source": FILES["latency"] + " (CI artifact, docker-ml-smoke job)",
                     "not_shown": f"a 4-core CI runner; reranker device {h.get('device')}; the reranker is {lat['stages_p50_ms'].get('rerank')} ms of it"})
+    out += _served_scale_claims(root)
     jury = _load(FILES["jury"], root)
     if jury:
         s = jury["summary"]
@@ -252,6 +255,63 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
+    return out
+
+
+def _served_scale_claims(root: Path = ROOT) -> list[dict]:
+    """FiQA through the served path (A05 / D13) and pgvector on that table (C03, C04); nothing from a slice or a dry run."""
+    from app.eval.report import SERVED_ROWS, scale_run_problem, scale_machine
+
+    out: list[dict] = []
+    blob = _load(FILES["served_scale"], root)
+    if blob and not scale_run_problem(blob):
+        src, n, cmd = f"{FILES['served_scale']} @ {blob['git_sha']}", blob["n_queries"], "make bench-served-scale"
+        where = scale_machine(blob)
+        rerank = blob["served"][SERVED_ROWS[0]]
+        failed = (rerank.get("requests") or {}).get("failed")
+        v, ci = _ci(rerank["ci"]["ndcg@10"], digits=4)
+        out.append({"claim": f"BEIR FiQA ({blob['n_docs']} documents) through the served API (Postgres + pgvector, bge-small + bge-reranker-v2-m3): nDCG@10 at the document level",
+                    "value": v, "ci": ci, "n": n, "command": cmd, "source": src,
+                    "not_shown": f"one run on {where}; the lexical leg is Postgres ts_rank_cd (a fallback, not BM25); a document ranks at its best chunk; "
+                                 f"{failed} failed requests scored zero; the in-memory rows of the same job and the differences between the sides are in the results file"})
+        for row in SERVED_ROWS:
+            s = blob["served"][row]
+            d, ci = _ci(s["delta_vs_in_memory"]["ndcg@10"], "delta", digits=4)
+            zero = "the interval covers zero" if s["delta_vs_in_memory"]["ndcg@10"]["covers_zero"] else "the interval excludes zero"
+            out.append({"claim": f"FiQA: served `{row}` minus in-memory `{s['paired_with']}` (same query form, same job), paired delta in nDCG@10", "value": d, "ci": ci, "n": n,
+                        "command": cmd, "source": src,
+                        "not_shown": f"{zero}; the sides differ by design (chunks vs whole documents, ts_rank_cd vs BM25, at most 50 chunks vs 100 fused documents, a router on the served side); "
+                                     "not a measure of either side alone"})
+        build, report_ = blob["build"], blob["build"]["report"]
+        out.append({"claim": f"FiQA served index build: index_directory seconds for {report_['files_indexed']} files ({report_['chunks_embedded']} chunks), then the HNSW index build seconds",
+                    "value": f"{build['index_directory_seconds']} + {build['hnsw_seconds']}", "ci": "—", "n": report_["files_indexed"], "command": cmd, "source": src,
+                    "not_shown": f"one run on {where}, files on node-local disk; Postgres image defaults (maintenance_work_mem {build['server']['settings'].get('maintenance_work_mem')}); "
+                                 f"the embedder took {build['embedding']['seconds']} s of index_directory"})
+        top = max(blob["load"]["runs"], key=lambda r: r["concurrency"])
+        lat = top.get("e2e_successful") or {}
+        out.append({"claim": f"FiQA served API under load: p50 / p95 ms per successful request at concurrency {top['concurrency']} (reranker on, k = {blob['load']['k']})",
+                    "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": top["attempted"], "command": cmd, "source": src,
+                    "not_shown": f"{top['failed']} of {top['attempted']} requests failed ({', '.join(f'{k} {c}' for k, c in (top.get('error_counts') or {}).items()) or 'none'}); "
+                                 f"client and server on one node ({where}); one run"})
+    hnsw = _load(FILES["pgvector_hnsw"], root)
+    if hnsw and not scale_run_problem(hnsw):
+        src, n, cmd = f"{FILES['pgvector_hnsw']} @ {hnsw['git_sha']}", hnsw["queries"]["n"], "make bench-served-scale"
+        served = next(r for r in hnsw["rows"] if r["config"] == "served dense CTE")
+        v, ci = _ci(served["recall@50"], digits=4)
+        out.append({"claim": f"pgvector HNSW on the served FiQA table ({hnsw['table']['rows']} chunk vectors): Recall@50 against the exact scan with the served settings",
+                    "value": v, "ci": ci, "n": n, "command": cmd, "source": src,
+                    "not_shown": f"recall of the dense leg against an exact scan, not retrieval quality; {served['settings']}; one table and one index build "
+                                 f"(m {hnsw['index']['m']}, ef_construction {hnsw['index']['ef_construction']})"})
+        variants = hnsw["variants"]
+        by = {(r["variant"], r.get("ef_search")): r for r in variants["rows"]}
+        ef = min(e for v_, e in by if v_ == "halfvec")
+        half, f32 = by.get(("halfvec", ef)), by.get(("float32", ef))
+        if half and f32:
+            sizes = variants["sizes_after"]["indexes"]
+            out.append({"claim": f"halfvec vs float32 HNSW on the same table at ef_search {ef}: Recall@50 against the exact scan (index MiB)",
+                        "value": f"{half['recall@50']['mean']:.4f} vs {f32['recall@50']['mean']:.4f} ({sizes[variants['indexes']['halfvec']]['bytes'] / 2**20:.1f} vs "
+                                 f"{sizes[variants['indexes']['float32']]['bytes'] / 2**20:.1f})", "ci": "—", "n": n, "command": cmd, "source": src,
+                        "not_shown": "the served statement reads only the float32 column (no served path calls ensure_halfvec); the halfvec copy sits next to the float32 one, so the table grows"})
     return out
 
 
