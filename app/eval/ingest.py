@@ -19,10 +19,12 @@ without being counted:
 
 Confinement: a file whose real path (every symlink resolved) is not under the
 root, or is under a directory the scan skips (.git and the caches), is
-rejected as `outside_root` before its size or bytes are read, so a link to a
-file elsewhere on the machine never reaches a chunk, an embedding or a search
-result. A link that stays inside the scanned tree is read like any other file.
-The walk does not descend into symlinked directories.
+rejected as `outside_root` before its size or bytes are read, so a symbolic
+link to a file elsewhere on the machine never reaches a chunk, an embedding or
+a search result. A symbolic link that stays inside the scanned tree is read
+like any other file. The walk does not descend into symlinked directories. A
+hard link is not caught: it has no other path to resolve, so a hard link
+inside the root to a file elsewhere is read like a regular file.
 
 `files_removed` counts paths the manifest listed that are no longer accepted
 (deleted on disk, or now rejected); their rows are deleted.

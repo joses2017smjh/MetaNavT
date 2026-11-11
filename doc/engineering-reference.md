@@ -549,10 +549,10 @@ With `INDEX_ON_START`, every API start runs one indexing step
    the same scan the benchmark loader uses, with a stricter policy). The first
    gate resolves every symlink: a file whose real path leaves `DATA_DIR`, or
    lands in a directory the scan skips such as `.git`, is rejected as
-   `outside_root` before its size or bytes are read, so a link to a file
-   elsewhere on the machine is never embedded or returned by `/api/retrieve`.
-   A link that stays inside `DATA_DIR` is read like any other file, and the walk
-   does not enter symlinked directories.
+   `outside_root` before its size or bytes are read, so a symbolic link to a
+   file elsewhere on the machine is never embedded or returned by
+   `/api/retrieve`. A symbolic link that stays inside `DATA_DIR` is read like
+   any other file, and the walk does not enter symlinked directories.
 2. **Diff.** Each accepted file's SHA-256 is compared with a manifest table
    (`ingest_manifest_<table>`: path, content hash, chunk count, chunker version
    and embedder). Files are new, changed, unchanged or removed. Before the
@@ -637,7 +637,9 @@ fixture v1's chunks as the recorded benchmark cut them.
 Limits: a file is identified by its bytes, so a rename is a delete plus an
 insert; files are embedded one at a time inside the startup hook; the type
 gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
-are counted as rejected, not parsed. The older `indexed_files` table in
+are counted as rejected, not parsed; a hard link inside `DATA_DIR` has no other
+path to resolve, so the `outside_root` gate reads one to a file elsewhere like
+a regular file. The older `indexed_files` table in
 `app/database/index_manager.py` is not used by this path, and the legacy
 `python -m app.engine.generate` CLI still splits with `SentenceSplitter` and
 does not consult the manifest.
