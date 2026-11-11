@@ -445,3 +445,12 @@ def test_the_field_check_is_described_per_kind_of_field_as_stated_values_reads_i
         assert ("for any other field, another value the field takes in the corpus configs, or a bare word in quotes or "
                 "a code span (a path, a file name, a number, a key-value pair or the field's own name does not count)") in doc
         assert "a token in quotes" not in doc and "a number in decimal or scientific notation" not in doc
+
+
+def test_the_engineering_reference_names_the_targets_that_leave_the_episodes_file_alone():
+    # run(resume=True) rewrites the episodes file (the committed one was resumed once, per its sidecar); what never
+    # writes it is the two offline targets
+    text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
+    assert "the episodes file is never rewritten" not in text
+    assert ("neither `make bench-agent-injection-rescore` nor `make bench-agent-injection-scores` writes to the "
+            "episodes file") in text

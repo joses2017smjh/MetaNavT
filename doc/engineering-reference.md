@@ -834,8 +834,9 @@ make bench-agent-injection-scores    # writes every episode's current score next
 ```
 
 The score object stored inside each episode row is the one written when the
-episode was generated, by the scoring code of that time, and the episodes file
-is never rewritten. Current per-episode scores are in
+episode was generated, by the scoring code of that time; neither
+`make bench-agent-injection-rescore` nor `make bench-agent-injection-scores`
+writes to the episodes file. Current per-episode scores are in
 `agent_injection_episodes_rescored.jsonl`: one row per episode, in the same
 order, holding the episode key (model, configuration, task, trial) and the
 score from today's scoring code, with no answer or tool call copied. Its
