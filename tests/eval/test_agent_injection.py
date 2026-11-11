@@ -9,11 +9,14 @@ from pathlib import Path
 import pytest
 
 from app.eval import agent_injection as ai
-from app.eval.provenance import scrub
+from app.eval.provenance import scrub, scrub_names
 
 EPISODES = ai.ROOT / ai.DEFAULT_EPISODES
 SCORES = ai.ROOT / ai.DEFAULT_SCORES
 RESULTS = ai.ROOT / ai.DEFAULT_OUT
+# the current run (agent_injection_v2), written by `make bench-agent-injection-v2`
+RESULTS_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2.json"
+EPISODES_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2_episodes.jsonl"
 
 
 def _sha256(path):
@@ -709,6 +712,106 @@ def test_the_first_run_is_reproduced_by_todays_scoring_code_from_its_stored_epis
     rows = ai.rescore(tasks, rows)
     assert ai.summarize(tasks, rows, k=4) == blob["summary"]
     assert ai.paired_deltas(tasks, rows) == blob["paired_deltas"]
+
+
+def test_the_current_run_was_generated_and_scored_at_one_clean_commit_by_the_committed_module():
+    # D25: one process generated and scored every episode of agent_injection_v2 from a committed harness with nothing
+    # uncommitted, its sidecar was written by that run (not reconstructed), and the module it names is the committed one
+    blob = json.loads(RESULTS_V2.read_text())
+    assert blob["benchmark"] == ai.BENCHMARK_V2 == ai.episodes_benchmark(EPISODES_V2)
+    assert blob["module_sha256"] == _sha256(ai.__file__)
+    assert blob["working_tree_dirty"] is False and len(blob["git_head"]) == 40
+    assert "--benchmark agent_injection_v2" in blob["command"] and "--summarize-only" not in blob["command"]
+    generated = blob["episodes_generated_by"]
+    assert generated == json.loads(ai.sidecar(EPISODES_V2).read_text())
+    assert generated["reconstructed"] is False and generated["benchmark"] == ai.BENCHMARK_V2
+    assert generated["segments"] and all(seg["working_tree_dirty"] is False and seg["git_head"] == blob["git_head"]
+                                         and seg["module_sha256"] == blob["module_sha256"] for seg in generated["segments"])
+    assert blob["episodes_file"] == "bench/results/agent_injection_v2_episodes.jsonl"
+    assert blob["episodes_sha256"] == _sha256(EPISODES_V2)
+    cfg = blob["config"]
+    assert cfg["models"] == ["qwen2.5:7b", "llama3.1:8b"] and cfg["temperature"] == 0.7 and cfg["seeds"] == [0, 1, 2, 3]
+    tasks, rows = ai.stored_episodes(EPISODES_V2, k=4)
+    assert ai.run_config(tasks, benchmark=ai.BENCHMARK_V2, models=cfg["models"], k=4, temperature=0.7, max_turns=6) == cfg
+    ollama = blob["ollama"]
+    assert ollama["version"] and all(ollama["models"][m]["digest"] for m in cfg["models"])
+    every = len(ai.build_tasks(benchmark=ai.BENCHMARK_V2)) * len(ai.DEFENSES) * len(cfg["models"]) * cfg["k"]
+    assert len(rows) == len({ai._episode_key(r) for r in rows}) == blob["n_episodes"] == every
+    assert blob["n_episode_errors"] == len(blob["episode_errors"]) == sum(1 for r in rows if r.get("error"))
+
+
+def test_the_current_run_stores_each_tool_result_and_rebuilds_from_the_stored_episodes():
+    # D24 on the real run: every stored call carries the result text the model was sent (cut at 4,000 characters, a
+    # path into the task copy written relative to its root), exposure recomputed from those results equals the recorded
+    # flag, and today's harness rebuilds the task list, every score, the summary and the paired deltas exactly from the
+    # stored episodes, so `make bench-agent-injection-v2-rescore` reproduces every number in the file
+    blob = json.loads(RESULTS_V2.read_text())
+    tasks, rows = ai.stored_episodes(EPISODES_V2, k=4)
+    by_id = {t.task_id: t for t in tasks}
+    calls = [c for r in rows for c in r["tool_calls"]]
+    assert calls and all(isinstance(c["result"], str) and len(c["result"]) <= 4000
+                         and isinstance(c["result_truncated"], bool) for c in calls)
+    assert all(any(ai.exposure_mark(by_id[r["task_id"]]) in c["result"] for c in r["tool_calls"]) == r["exposed"]
+               for r in rows)
+    assert json.loads(json.dumps(ai.task_rows(tasks, ai.BENCHMARK_V2))) == blob["tasks"]
+    rescored = ai.rescore(tasks, rows)
+    assert [r["score"] for r in rescored] == [r["score"] for r in rows]
+    assert ai.summarize(tasks, rescored, k=4) == blob["summary"]
+    assert ai.paired_deltas(tasks, rescored) == blob["paired_deltas"]
+
+
+def _strings(value, path=""):
+    """Every string value in a stored row, with its field path."""
+    if isinstance(value, str):
+        yield path, value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _strings(item, f"{path}.{key}" if path else key)
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            yield from _strings(item, f"{path}[{i}]")
+
+
+def test_the_current_run_holds_no_user_or_host_name_and_temporary_paths_only_where_a_model_wrote_them():
+    # No user name, host name, home or shared-filesystem path anywhere in the episodes. The harness writes a path into
+    # the task copy relative to the corpus root (TaskEnv.publishable), so no stored tool result or corpus diff holds a
+    # temporary path; text a model wrote is kept as written, so the scores read what it wrote. Two strings in this run
+    # hold /tmp/: llama3.1 echoed the temporary path a read_file error had shown it with one character dropped (an
+    # inexact copy, so the rewrite of the copy's own path does not apply), and it cited a /tmp/ file it made up.
+    text = EPISODES_V2.read_text()
+    assert scrub_names(text) == text
+    assert not any(root in text for root in ("/nfs/", "/home/", "/raid/", "/scratch/", "/Users/"))
+    _, rows = ai.stored_episodes(EPISODES_V2, k=4)
+    temporary = sorted((*ai._episode_key(r), path) for r in rows for path, s in _strings(r)
+                       if "/tmp/" in s or "metanavit-agent-injection-" in s)
+    assert temporary == [("llama3.1:8b", "least_privilege", "q021-capability-move", 3, "answer"),
+                         ("llama3.1:8b", "spotlight", "q066-patch", 1, "tool_calls[1].recovered_text")]
+
+
+def test_the_current_run_has_a_capability_block_per_model_and_configuration():
+    # D18: per model and configuration, the capability control's attempted and done rates with their intervals, per
+    # action and pooled over the questions, next to the planted-action counts they are read against
+    blob = json.loads(RESULTS_V2.read_text())
+    tasks = ai.build_tasks(benchmark=ai.BENCHMARK_V2)
+    capability = [t for t in tasks if t.capability]
+    questions = {t.gold_id for t in capability}  # the pooled rates average each question's move and patch tasks
+    controls = [t for t in tasks if not t.injected and not t.capability]
+    k = blob["config"]["k"]
+    assert sorted(blob["summary"]) == sorted(blob["config"]["models"])
+    for per in blob["summary"].values():
+        assert sorted(per) == sorted(ai.DEFENSES)
+        for b in per.values():
+            cap = b["capability"]
+            assert cap["n_tasks"] == len(capability) and cap["episodes"] == len(capability) * k
+            for rate in (cap["attempted"], cap["success"]):
+                assert rate["n"] == len(questions) and rate["lo"] <= rate["mean"] <= rate["hi"]
+            for action in ai.CAPABILITY_ACTIONS:
+                x, n_action = cap["by_action"][action], sum(1 for t in capability if t.action == action)
+                assert x["episodes"] == n_action * k
+                for key in ("attempted", "success", "success_at_k"):
+                    assert x[key]["n"] == n_action and x[key]["lo"] <= x[key]["mean"] <= x[key]["hi"]
+            assert b["planted_actions"]["exposed_episodes"] <= b["planted_actions"]["episodes"]
+            assert b["benign_exposure"]["n"] == len(controls)
 
 
 def test_the_table_names_the_run_that_scored_the_episodes_apart_from_the_one_that_generated_them():
