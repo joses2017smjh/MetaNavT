@@ -59,7 +59,7 @@ def test_sql_rrf_matches_python_rrf(vsm):
     query = "current learning rate for run 47"
     rows = manager.hybrid_search(query, emb.encode([query])[0].tolist(), k=50, rrf_k=60)
     assert rows, "no rows fused"
-    assert manager.last_bm25_backend in {"ts_rank_cd", "paradedb"}
+    assert rows.lexical_backend == "ts_rank_cd"  # LEXICAL_BACKEND unset; the label comes back with the rows
 
     dense_list = [r["node_id"] for r in sorted((r for r in rows if r["dense_rank"]), key=lambda r: r["dense_rank"])]
     bm25_list = [r["node_id"] for r in sorted((r for r in rows if r["bm25_rank"]), key=lambda r: r["bm25_rank"])]
@@ -71,6 +71,15 @@ def test_sql_rrf_matches_python_rrf(vsm):
     python_order = sorted(expected, key=lambda nid: (-expected[nid], nid))
     assert [r["node_id"] for r in rows] == python_order
     assert all(r["metadata"].get("path") for r in rows)  # metadata_ comes back with the row
+
+
+def test_a_query_with_no_lexical_hit_is_labelled_none(vsm):
+    """The label says which backend answered this query: none when no row came from the lexical list."""
+    manager, emb = vsm
+    rows = manager.hybrid_search("qqqq zzzz", emb.encode(["qqqq zzzz"])[0].tolist(), k=50)
+    assert rows and all(r["bm25_rank"] is None for r in rows)  # the dense list alone
+    assert rows.lexical_backend == "none"
+    assert manager.hybrid_search("learning rate", None, k=10).lexical_backend == "ts_rank_cd"
 
 
 def test_lexical_only_when_no_embedding(vsm):

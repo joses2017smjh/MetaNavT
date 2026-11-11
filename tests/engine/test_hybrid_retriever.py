@@ -11,6 +11,7 @@ import time
 import pytest
 from llama_index.core.schema import NodeWithScore, TextNode
 
+from app.database.vector_store_manager import SearchRows
 from app.engine.retriever import Deadline, HybridRetriever, StageTimeout, reciprocal_rank_fusion
 
 
@@ -140,7 +141,6 @@ class _FakeSQLVSM:
 
     def __init__(self):
         self.calls = []
-        self.last_bm25_backend = "ts_rank_cd"
 
     def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60):
         self.calls.append((query, query_embedding, k, rrf_k))
@@ -149,10 +149,10 @@ class _FakeSQLVSM:
             ("old", "learning_rate: 1e-4", {"path": "configs/archive/run_047_v1.yaml", "mtime": 1.0, "start_byte": 0, "end_byte": 19}, 0.5, 2, None, None, 1 / 62),
             ("log", "run 47 val_rmse 0.055", {"path": "logs/run_047.out", "mtime": 2.0, "_node_content": "{...}"}, None, None, 0.4, 2, 1 / 62),
         ]
-        return [
+        return SearchRows([
             {"node_id": n, "text": t, "metadata": m, "bm25_score": bs, "bm25_rank": br, "dense_score": ds, "dense_rank": dr, "rrf_score": rrf}
             for n, t, m, bs, br, ds, dr, rrf in rows
-        ]
+        ], "ts_rank_cd")
 
 
 def _clusters_for_fake_rows():
@@ -262,8 +262,6 @@ def test_configured_but_unloaded_reranker_is_listed_as_degraded_on_every_respons
 
 def test_bm25_failure_in_python_mode_is_degraded_not_silent():
     class _FailingVSM:
-        last_bm25_backend = None
-
         def search_bm25(self, query, limit):
             raise ConnectionError("db gone")
 
@@ -359,3 +357,100 @@ def test_a_rerank_past_the_budget_is_named():
     with pytest.raises(StageTimeout) as caught:
         retriever.retrieve_detailed("anything", deadline=deadline)
     assert caught.value.stage == "rerank" and deadline.stage == "rerank"
+
+
+# ---------------------------------------------------------------- M17 (C28): the lexical label is request-local
+
+LABEL_HIT, LABEL_MISS = "learning rate", "qqqq"  # a query with a lexical hit, and one with none
+
+
+class _LabelConnection:
+    """A connection whose statements answer by query text: the hybrid statement returns a lexical row
+    for LABEL_HIT and a dense-only row otherwise; search_bm25's full-text query finds a row for
+    LABEL_HIT only (so LABEL_MISS falls through to ILIKE, which finds nothing)."""
+
+    def cursor(self):
+        return _LabelCursor()
+
+
+class _LabelCursor:
+    def __init__(self):
+        self.rows = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, statement, params=None):
+        text = statement if isinstance(statement, str) else repr(statement)
+        if "WITH params AS" in text:  # the hybrid statement (the settings statement rides along in front of it)
+            hit = "learning" in params["query"]
+            self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5 if hit else None, 1 if hit else None, 0.8, 1, 1 / 61 + (1 / 61 if hit else 0))]
+        elif "ts_rank_cd" in text:  # search_bm25's full-text query: (query, query, limit)
+            self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5)] if params[0] == LABEL_HIT else []
+        else:  # ILIKE, the last resort
+            self.rows = []
+
+    def fetchall(self):
+        return self.rows
+
+
+def _label_manager(pause_query: str, paused, resume):
+    """A real VectorStoreManager (no connection pool): its hybrid_search and search_bm25 run over
+    _LabelConnection, and the call for `pause_query` returns only after `resume` is set, so another
+    request can run start to finish between that call and the moment its caller reads the label."""
+    from contextlib import contextmanager
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    class _Pausing(VectorStoreManager):
+        def hybrid_search(self, query, *args, **kwargs):
+            rows = super().hybrid_search(query, *args, **kwargs)
+            if query == pause_query:
+                paused.set()
+                assert resume.wait(10), "the other request never finished"
+            return rows
+
+        def search_bm25(self, query, limit=5):
+            rows = super().search_bm25(query, limit=limit)
+            if query == pause_query:
+                paused.set()
+                assert resume.wait(10), "the other request never finished"
+            return rows
+
+    vsm = _Pausing.__new__(_Pausing)  # no __init__: it would connect
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+    vsm.lexical_backend, vsm._pgvector_version = "ts_rank_cd", (0, 8, 6)
+
+    @contextmanager
+    def get_connection():
+        yield _LabelConnection()
+
+    vsm.get_connection = get_connection
+    return vsm
+
+
+@pytest.mark.parametrize("mode", ["sql", "python"])
+def test_a_concurrent_request_does_not_change_the_lexical_label_of_another(mode):
+    """Request A (a lexical hit) is answered; before A's retriever reads its label, request B (no
+    lexical hit) runs start to finish on the same shared manager. Each response must carry the
+    backend that answered its own query: ts_rank_cd for A, none for B."""
+    import threading
+
+    paused, resume = threading.Event(), threading.Event()
+    vsm = _label_manager(LABEL_HIT, paused, resume)
+    if mode == "sql":
+        retriever = HybridRetriever(None, vsm, reranker=None, enable_router=False, mode="sql", embed_fn=lambda q: [0.1, 0.2])
+    else:
+        retriever = HybridRetriever(_FakeVectorRetriever(), vsm, reranker=None, enable_router=False, mode="python")
+    outcomes = {}
+    a = threading.Thread(target=lambda: outcomes.__setitem__("a", retriever.retrieve_detailed(LABEL_HIT)))
+    a.start()
+    assert paused.wait(10), "request A never reached the database"
+    outcomes["b"] = retriever.retrieve_detailed(LABEL_MISS)  # B runs while A waits between its search and its label
+    resume.set()
+    a.join(10)
+    assert outcomes["b"].bm25_backend == "none"
+    assert outcomes["a"].bm25_backend == "ts_rank_cd", f"request A reports B's label ({mode} mode)"

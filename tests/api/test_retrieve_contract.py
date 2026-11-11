@@ -105,7 +105,6 @@ class _FakeState:
 
 class _FakeVSM:
     hybrid_backend = "ts_rank_cd"
-    last_bm25_backend = None
     pgvector_version = (0, 8, 6)
 
     def count_nodes(self):

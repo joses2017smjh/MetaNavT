@@ -279,13 +279,14 @@ class HybridRetriever(BaseRetriever):
             "bm25": sum(1 for r in rows if r.get("bm25_rank") is not None),
             "vector": sum(1 for r in rows if r.get("dense_rank") is not None),
         }
-        return fused, scores, counts, getattr(self._vsm, "last_bm25_backend", None)
+        # The label comes back with this request's rows (SearchRows), never from the shared manager.
+        return fused, scores, counts, getattr(rows, "lexical_backend", None)
 
     def _fuse_python(self, query_str: str, timer: StageTimer, skip_embed: bool, deadline: Deadline):
         self._bm25_degraded = []
         deadline.stage = "bm25"
         with timer.stage("bm25"), span("bm25"):
-            bm25_nodes = self._bm25_retrieve(query_str)
+            bm25_nodes, backend = self._bm25_retrieve(query_str)
         deadline.check("bm25")
         vector_results: List[NodeWithScore] = []
         if not skip_embed:
@@ -307,7 +308,7 @@ class HybridRetriever(BaseRetriever):
             for n in fused
         }
         counts = {"bm25": len(bm25_nodes), "vector": len(vector_results)}
-        return fused, scores, counts, getattr(self._vsm, "last_bm25_backend", None)
+        return fused, scores, counts, backend
 
     def _prefer_current(self, query_str: str, fused: List[NodeWithScore]) -> List[NodeWithScore]:
         hits = [RetrievalHit(chunk=node_to_chunk(n), score=float(n.score or 0.0), rank=i) for i, n in enumerate(fused, start=1)]
@@ -316,8 +317,8 @@ class HybridRetriever(BaseRetriever):
         by_id = {n.node.node_id: n for n in fused}
         return [by_id[i] for i in keep_ids if i in by_id]
 
-    def _bm25_retrieve(self, query_str: str) -> List[NodeWithScore]:
-        """Run BM25 search via the vector store manager."""
+    def _bm25_retrieve(self, query_str: str) -> tuple[List[NodeWithScore], Optional[str]]:
+        """Run BM25 search via the vector store manager: (nodes, the lexical backend that answered)."""
         try:
             raw_results = self._vsm.search_bm25(query=query_str, limit=self._bm25_top_k)
             nodes = []
@@ -328,11 +329,11 @@ class HybridRetriever(BaseRetriever):
                     metadata=dict(r.get("metadata") or {}),  # file_path etc. from metadata_
                 )
                 nodes.append(NodeWithScore(node=node, score=float(r["score"])))
-            return nodes
+            return nodes, getattr(raw_results, "lexical_backend", None)
         except Exception as e:  # noqa: BLE001 - recorded on the outcome, never silent
             logger.warning(f"BM25 retrieval failed; this request is degraded to vector-only: {e}")
             self._bm25_degraded = [{"component": "bm25", "error": f"{type(e).__name__}: {e}"}]
-            return []
+            return [], None
 
     def _rerank(self, query_str: str, nodes: List[NodeWithScore], n: Optional[int] = None):
         """Rerank the fused top-`rerank_depth` with the cross-encoder; the rest keep RRF order.

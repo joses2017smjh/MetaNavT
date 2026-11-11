@@ -717,7 +717,12 @@ with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), 
 reciprocal rank fusion computed in SQL, then
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
-the response carries the route and per-stage latency. `k` is validated (1-50),
+the response carries the route and per-stage latency. Its `bm25_backend` names the
+lexical backend that answered that request (`ts_rank_cd`, `paradedb`, or `none` when
+no row came from the lexical list): the label comes back from the database call with
+the request's own rows, so a request served at the same moment on another worker
+thread cannot change it (`tests/engine/test_hybrid_retriever.py` interleaves two
+requests on threads); `/health` reports the configured backend. `k` is validated (1-50),
 bad bodies are 422, a down backend is 503, and a retrieval that runs past its
 time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
 statement gets the rest of the budget as its `statement_timeout`, so Postgres

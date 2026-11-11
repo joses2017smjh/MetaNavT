@@ -119,7 +119,7 @@ async def health():
         "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
         "devices": devices,
         "required_device": required,
-        "bm25_backend": getattr(state.vsm, "hybrid_backend", None) or state.vsm.last_bm25_backend,
+        "bm25_backend": getattr(state.vsm, "hybrid_backend", None),  # the configured backend; each response names the one that answered
         "dense_search": dense_search,
         "retrieval_mode": getattr(state.retriever, "mode", None),
         "reranker_loaded": state.retriever._reranker is not None,
