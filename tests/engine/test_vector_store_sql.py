@@ -89,11 +89,19 @@ def test_committed_plans_ran_with_the_current_statement_and_settings(name):
     assert line == str(manager(version).search_settings(k)), regenerate
 
 
-def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index():
+def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index_and_the_lexical_list_from_gin():
     text = (PLANS / "hybrid_explain_synthetic_10k.txt").read_text()
     rows = int(re.search(r"\((\d+) SYNTHETIC rows", text).group(1))
     assert rows >= 10_000
-    assert re.search(r"Index Scan using \S+_embedding_hnsw on ", text)
+    assert re.search(r"Index Scan using \S+_embedding_hnsw_m\d+_efc\d+ on ", text)
+    assert re.search(r"Bitmap Index Scan on \S+_text_tsv_english_gin", text)
+
+
+@pytest.mark.parametrize("name", ["hybrid_explain.txt", "hybrid_explain_synthetic_10k.txt"])
+def test_no_committed_plan_computes_to_tsvector_per_row(name):
+    """The lexical list reads the stored text_tsv column (schema migration vector/0006)."""
+    plan = "\n".join(line for line in (PLANS / name).read_text().splitlines() if not line.startswith("--"))
+    assert "to_tsvector" not in plan and "text_tsv @@" in plan
 
 
 # ---------------------------------------------------------------- the two statements

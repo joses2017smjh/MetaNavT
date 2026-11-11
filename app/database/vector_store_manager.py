@@ -400,9 +400,9 @@ class VectorStoreManager(DatabaseManager):
         try:
             # More powerful full-text search as fallback
             fallback_sql = sql.SQL("""
-                SELECT node_id, text, metadata_, ts_rank_cd(to_tsvector('english', text), plainto_tsquery('english', %s)) AS score
+                SELECT node_id, text, metadata_, ts_rank_cd(text_tsv, plainto_tsquery('english', %s)) AS score
                 FROM {table}
-                WHERE to_tsvector('english', text) @@ plainto_tsquery('english', %s)
+                WHERE text_tsv @@ plainto_tsquery('english', %s)
                 ORDER BY score DESC
                 LIMIT %s;
             """).format(table=sql.Identifier(self.schema_name, self.data_table))

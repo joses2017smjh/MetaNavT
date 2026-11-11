@@ -280,3 +280,57 @@ def test_search_settings_stay_inside_the_statement_transaction(served):
             cur.execute("SELECT current_setting('hnsw.ef_search', true);")
             value = cur.fetchone()[0]
     assert value in (None, "", "40"), value  # unset placeholder or pgvector's default, never the statement's value
+
+
+# ---------------------------------------------------------------- the lexical list: stored tsvector, GIN index
+
+
+def expression_lexical(vsm, text, k) -> list[tuple[str, float]]:
+    """The lexical list as the statement computed it before the stored column: to_tsvector('english', text) per row."""
+    with vsm.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"WITH p AS MATERIALIZED (SELECT websearch_to_tsquery('english', %(query)s) AS tsq) "
+                f"SELECT t.node_id, ts_rank_cd(to_tsvector('english', t.text), p.tsq) AS s "
+                f'FROM "{vsm.schema_name}"."{vsm.data_table}" t, p WHERE to_tsvector(\'english\', t.text) @@ p.tsq '
+                f"ORDER BY s DESC, t.node_id LIMIT %(k)s;",
+                {"query": vsm.lexical_query(text), "k": k},
+            )
+            return [(node_id, float(score)) for node_id, score in cur.fetchall()]
+
+
+def test_the_lexical_leg_ranks_on_the_stored_column_exactly_as_on_the_expression(served, memory):
+    """hybrid_tsrank.sql ranks on text_tsv (a stored to_tsvector('english', text)): on every gold question
+    its lexical list is the one the per-row expression gives, node for node and score for score."""
+    vsm, _ = served
+    _, questions, k = memory
+    assert "text_tsv" in vsm.hybrid_sql("ts_rank_cd") and "to_tsvector" not in vsm.hybrid_sql("ts_rank_cd").split("lexical AS (")[1]
+    differ = []
+    for q in questions:
+        served_rows = sorted((r for r in vsm.hybrid_search(q["question"], None, k=k) if r["bm25_rank"]), key=lambda r: r["bm25_rank"])
+        got = [(r["node_id"], r["bm25_score"]) for r in served_rows]
+        want = expression_lexical(vsm, q["question"], k)
+        if [n for n, _ in got] != [n for n, _ in want] or any(abs(a - b) > 1e-6 for (_, a), (_, b) in zip(got, want)):
+            differ.append(q["id"])
+    assert not differ, f"{len(differ)}/{len(questions)} gold questions rank differently on the stored column: {differ[:10]}"
+
+
+def test_the_lexical_list_reads_the_gin_index_and_the_dense_list_the_hnsw_index(served, memory, forced):
+    """With sequential scans disabled the served statement reads the lexical list with a bitmap scan of the
+    GIN index on text_tsv and the dense list from the HNSW index. On fixture v1's 71 rows the planner's own
+    plan reads the table for both lists (observed); either way no plan computes to_tsvector per row."""
+    from app.engine.embeddings import HashEmbedding
+
+    vsm, _ = served
+    _, questions, k = memory
+    text = questions[0]["question"]
+    qvec = HashEmbedding(256).get_query_embedding(text)
+    gin = f"Bitmap Index Scan on data_{vsm.table_name}_text_tsv_english_gin"
+    hnsw = f"Index Scan using {vsm.table_name}_embedding_hnsw_m16_efc64 on "
+    with vsm.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f'ANALYZE "{vsm.schema_name}"."{vsm.data_table}";')
+    own = vsm.explain_hybrid(text, qvec, k=k)
+    assert "to_tsvector" not in own and "text_tsv @@" in own, own  # the stored column, not the per-row expression
+    plan = forced.explain_hybrid(text, qvec, k=k)
+    assert gin in plan and hnsw in plan and "to_tsvector" not in plan, plan

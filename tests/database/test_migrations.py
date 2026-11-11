@@ -463,15 +463,15 @@ def test_a_version_2_database_holding_manifest_rows_upgrades_to_version_3_and_ke
 
 
 def test_vector_0001_builds_the_table_pgvectorstore_builds(schema):
-    """The migrated table has the columns and the LlamaIndex indexes PGVectorStore's own setup gives it,
-    so a table either made is the same table (adoption is a no-op, a fresh one is not different)."""
+    """vector/0001 creates the columns and the LlamaIndex indexes PGVectorStore's own setup gives it, so a
+    table either made is the same table when the later files (indexes, the stored text_tsv column) start."""
     from app.database.migrate import VectorTable, apply_vector_migrations, apply_migrations
 
     conn, plain = _connect(schema), _plain()
     try:
         apply_migrations(conn)
         _store(schema, "shape_llx", setup=True).add(_nodes()[:1])
-        apply_vector_migrations(conn, VectorTable(schema=schema, table="shape_mig", dim=256))
+        apply_vector_migrations(conn, VectorTable(schema=schema, table="shape_mig", dim=256), target=1)  # the table as created
 
         def shape(table):
             data = f"data_{table}"
