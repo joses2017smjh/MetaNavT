@@ -29,8 +29,12 @@ under "indexing". "Failed" is not a counted category: a failure (the embedder
 or the database raising, the rejection limit, a verification mismatch) aborts
 the run with an exception. main.py's lifespan records it: the process stays up,
 /health answers 503 with the error and /api/retrieve answers 503 until a later
-start succeeds. Files the run had not finished keep their previous rows and
-manifest entry, and the next run repeats them.
+start succeeds. A file the run had not reached keeps its previous rows and
+manifest entry, and so does the file in flight when the embedder raises (its
+old rows are deleted only after its chunks are embedded). When the database
+raises after that file's old rows were deleted, the file is no longer listed
+in the manifest, and may have no rows, until the next run indexes it again as
+new.
 """
 
 from __future__ import annotations

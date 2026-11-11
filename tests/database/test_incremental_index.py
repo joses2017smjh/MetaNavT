@@ -231,6 +231,32 @@ def test_an_interrupted_run_never_leaves_the_manifest_ahead_of_the_rows(run):
     assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
 
 
+def test_a_database_failure_while_a_file_is_written_leaves_it_unlisted_until_the_next_run(run, monkeypatch):
+    """The file in flight does not keep its old rows: they and its manifest entry go just before the insert."""
+    run.index()
+    vsm = run.managers[0]
+    store_type, state = type(vsm.get_vector_store()), {"armed": True}
+    real_add = store_type.add
+
+    def add_once_fails(self, nodes, **kwargs):
+        if state.pop("armed", False):
+            raise RuntimeError("database gone during the insert")
+        return real_add(self, nodes, **kwargs)
+
+    with (run.corpus / EDITED).open("a") as handle:
+        handle.write("note: edited\n")
+    monkeypatch.setattr(store_type, "add", add_once_fails)
+    with pytest.raises(RuntimeError, match="database gone during the insert"):
+        run.index()
+    assert EDITED not in vsm.ingest_manifest() and EDITED not in {path for _, _, path in run.rows()}
+
+    report = run.index()  # the next start indexes it again, as a new file
+
+    assert (report["files_indexed"], report["indexed_new"], report["reconciliation"]["files_mismatched_at_start"]) == (1, 1, 0)
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+    run.assert_manifest_matches_rows()
+
+
 def _table_sql(run, statement: str, *params) -> None:
     """Change the data table directly, the way a manual edit or another writer would (behind the manifest's back)."""
     vsm = run.managers[0]

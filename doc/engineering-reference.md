@@ -583,16 +583,20 @@ start together serialise on the lock; the second finds nothing to do.
 database raising, the rejection limit, a verification mismatch) aborts the run
 with an exception instead of being counted in a report. The API process stays
 up with the error recorded: `GET /health` answers 503 with it and
-`/api/retrieve` answers 503 until a later start succeeds. Files the run had not
-finished keep their previous rows and manifest entry, and the next start
-repeats them. A file is counted only as indexed, unchanged or rejected with a
-reason.
+`/api/retrieve` answers 503 until a later start succeeds. A file the run had
+not reached keeps its previous rows and manifest entry, and so does the file in
+flight when the embedder raises (its old rows are deleted only after its chunks
+are embedded). When the database raises after that file's old rows were
+deleted, the file is no longer listed in the manifest, and may have no rows,
+until the next start indexes it again as new. A file is counted only as
+indexed, unchanged or rejected with a reason.
 
 What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
 runs against a live Postgres in CI's `parity` job (unchanged re-run embeds
 nothing, an edit re-embeds one file, a delete removes its rows, the rejection
 limit, a link out of `DATA_DIR`, rows deleted or added behind the manifest's
-back, a run that does not verify, an interrupted run, two concurrent runs);
+back, a run that does not verify, an interrupted run, a database failure while
+a file is written, two concurrent runs);
 [tests/eval/test_ingest.py](../tests/eval/test_ingest.py) covers the scan, the
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
