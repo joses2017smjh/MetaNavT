@@ -162,10 +162,27 @@ def test_rejections_are_counted_by_reason_and_a_limit_fails_the_run_before_any_w
     assert run.rows() == before  # nothing deleted, nothing written
 
     report = run.index(policy=policy, max_rejected=5)
-    assert report["rejected_by_reason"] == {"unsupported_type": 1, "too_large": 1, "undecodable": 1, "empty": 1, "duplicate_content": 1}
+    assert report["rejected_by_reason"] == {
+        "outside_root": 0, "unsupported_type": 1, "too_large": 1, "undecodable": 1, "empty": 1, "duplicate_content": 1,
+    }
     assert report["files_seen"] == report["files_indexed"] + report["files_unchanged"] + report["files_rejected"]
     assert report["files_removed"] == 1
     assert {row["path"] for row in report["rejected_sample"]} == {"binary.yaml", "blank.md", "weights.bin", "huge.out", "zz_copy_of_run_047.yaml"}
+    run.assert_manifest_matches_rows()
+
+
+def test_a_link_out_of_the_data_dir_is_rejected_and_no_row_holds_its_text(run, tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.yaml").write_text("api_token: zqxjsecretmarker\n")
+    (run.corpus / "configs" / "linked.yaml").symlink_to(outside / "secret.yaml")
+
+    report = run.index()
+
+    assert report["rejected_by_reason"]["outside_root"] == report["files_rejected"] == 1
+    assert report["rejected_sample"] == [{"path": "configs/linked.yaml", "reason": "outside_root"}]
+    assert run.embedded and not [text for text in run.embedded if "zqxj" in text]  # never sent to the embedder
+    assert "configs/linked.yaml" not in {path for _, _, path in run.rows()} | set(run.managers[0].ingest_manifest())
     run.assert_manifest_matches_rows()
 
 
@@ -212,6 +229,94 @@ def test_an_interrupted_run_never_leaves_the_manifest_ahead_of_the_rows(run):
     assert run.rows() == before and vsm.ingest_manifest()[EDITED]["content_hash"] == old_hash
     assert run.index()["indexed_changed"] == 1
     assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+
+
+def test_a_database_failure_while_a_file_is_written_leaves_it_unlisted_until_the_next_run(run, monkeypatch):
+    """The file in flight does not keep its old rows: they and its manifest entry go just before the insert."""
+    run.index()
+    vsm = run.managers[0]
+    store_type, state = type(vsm.get_vector_store()), {"armed": True}
+    real_add = store_type.add
+
+    def add_once_fails(self, nodes, **kwargs):
+        if state.pop("armed", False):
+            raise RuntimeError("database gone during the insert")
+        return real_add(self, nodes, **kwargs)
+
+    with (run.corpus / EDITED).open("a") as handle:
+        handle.write("note: edited\n")
+    monkeypatch.setattr(store_type, "add", add_once_fails)
+    with pytest.raises(RuntimeError, match="database gone during the insert"):
+        run.index()
+    assert EDITED not in vsm.ingest_manifest() and EDITED not in {path for _, _, path in run.rows()}
+
+    report = run.index()  # the next start indexes it again, as a new file
+
+    assert (report["files_indexed"], report["indexed_new"], report["reconciliation"]["files_mismatched_at_start"]) == (1, 1, 0)
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+    run.assert_manifest_matches_rows()
+
+
+def _table_sql(run, statement: str, *params) -> None:
+    """Change the data table directly, the way a manual edit or another writer would (behind the manifest's back)."""
+    vsm = run.managers[0]
+    with vsm.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(statement.format(table=f'"{vsm.schema_name}"."{vsm.data_table}"'), params)
+
+
+def test_rows_changed_behind_the_manifests_back_are_reported_and_repaired_by_the_next_run(run):
+    from app.eval.ingest import file_chunks
+
+    run.index()
+    short, extra = "results/ablation.csv", EDITED  # one loses a row, the other gains a duplicate
+    _table_sql(run, "DELETE FROM {table} WHERE id = (SELECT max(id) FROM {table} WHERE metadata_->>'path' = %s);", short)
+    _table_sql(run, "INSERT INTO {table} (text, metadata_, node_id, embedding) "
+                    "SELECT text, metadata_, node_id || '-copy', embedding FROM {table} WHERE metadata_->>'path' = %s;", extra)
+    listed = {p: row["n_chunks"] for p, row in run.managers[0].ingest_manifest().items()}
+    run.embedded = []
+
+    report = run.index()
+
+    assert report["reconciliation"]["files_mismatched_at_start"] == 2
+    assert report["reconciliation"]["mismatched_sample"] == [
+        {"path": extra, "manifest_chunks": listed[extra], "rows": listed[extra] + 1},
+        {"path": short, "manifest_chunks": listed[short], "rows": listed[short] - 1},
+    ]
+    assert report["reconciliation"]["files_mismatched_after_run"] == 0
+    assert (report["files_indexed"], report["indexed_changed"], report["files_unchanged"]) == (2, 2, report["files_seen"] - 2)
+    assert run.embedded == [c.text for path in (extra, short) for c in file_chunks(path, (run.corpus / path).read_bytes().decode("utf-8"))]
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+    run.assert_manifest_matches_rows()
+    again = run.index()
+    assert again["reconciliation"]["files_mismatched_at_start"] == 0 and again["chunks_embedded"] == 0
+
+
+def test_a_run_whose_rows_do_not_match_its_manifest_fails_and_the_next_run_repairs_it(run):
+    from app.eval.ingest import IngestUnreconciled
+
+    run.index()
+    vsm = run.managers[0]
+    real_record = vsm.record_file
+
+    def record_one_chunk_too_many(path, content_hash, n_chunks, pipeline=""):
+        return real_record(path, content_hash, n_chunks + 1, pipeline)
+
+    with (run.corpus / EDITED).open("a") as handle:
+        handle.write("note: edited\n")
+    vsm.record_file = record_one_chunk_too_many  # the manifest claims a chunk the table does not hold
+    with pytest.raises(IngestUnreconciled) as unreconciled:
+        run.index()
+    vsm.record_file = real_record
+    (row,) = unreconciled.value.mismatches
+    assert row["path"] == EDITED and row["manifest_chunks"] == row["rows"] + 1
+    assert unreconciled.value.report["reconciliation"]["files_mismatched_after_run"] == 1
+
+    report = run.index()  # the next start finds the mismatch and indexes that file again
+
+    assert report["reconciliation"]["files_mismatched_at_start"] == 1 and report["files_indexed"] == 1
+    assert sorted(node_id for _, node_id, _ in run.rows()) == run.expected_ids()
+    run.assert_manifest_matches_rows()
 
 
 def test_two_replicas_starting_together_index_once(run):

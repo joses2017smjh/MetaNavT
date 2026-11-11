@@ -90,8 +90,8 @@ def test_server_starts_without_an_index_on_an_empty_root_or_when_asked(tmp_path)
 
 
 def test_index_leaves_out_files_reached_through_symlinks(tmp_path):
-    """The shared scanner follows a symlinked file out of the root; the tools refuse such
-    paths, so their text must not come back through search or a proposal either."""
+    """The shared scanner rejects a link out of the root (outside_root) and the tools refuse
+    such paths, so its text must not come back through search or a proposal either."""
     root, outside = tmp_path / "root", tmp_path / "outside"
     (outside / "dir").mkdir(parents=True)
     root.mkdir()
@@ -112,3 +112,24 @@ def test_index_leaves_out_files_reached_through_symlinks(tmp_path):
     assert "operator secret" not in json.dumps(proposal)
     assert responses[4]["result"]["isError"]  # read_file refuses the same path
     assert "1 file reached through a symlink left out" in stderr
+
+
+def test_the_start_line_counts_links_out_of_the_root_and_links_inside_it(tmp_path):
+    """Links out of the root never reach the index (the shared scanner rejects them); a link
+    that stays inside the root is indexed by the scanner and left out by the server, whose
+    tools refuse every path through a symlink. The start-up line counts both."""
+    from app.mcp.filesystem import build_root_index, index_summary
+
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    (root / "inside.txt").write_text("calibration notes for the fusion test\n")
+    (outside / "secret.txt").write_text("operator secret zqxjfilemarker\n")
+    (root / "link.txt").symlink_to(outside / "secret.txt")
+    (root / "alias.txt").symlink_to(root / "inside.txt")
+
+    index = build_root_index(root)
+
+    assert {chunk.path for chunk in index.chunks} == {"inside.txt"}
+    assert index.symlinked_files_left_out == 2
+    assert "2 files reached through a symlink left out" in index_summary(index)
