@@ -237,10 +237,23 @@ def test_listwise_row_says_how_many_questions_kept_the_fused_order(tmp_path):
 def test_bge_reranker_labels_fallback_when_model_missing():
     fn, loaded = bge_reranker("definitely-not-a-real-model-xxxxx")
     assert loaded is False
-    assert isinstance(fn, CrossEncoderReranker)
+    assert isinstance(fn, CrossEncoderReranker) and fn.fallback == "overlap"
     pairs = [(Chunk("c", "a.yaml", "hello world", 0, 11), 0.5)]
     out = fn("hello", pairs)
     assert out[0][0].chunk_id == "c"
+
+
+def test_cross_encoder_without_a_model_refuses_unless_the_fallback_is_asked_for():
+    import pytest
+
+    pairs = [(Chunk("a", "a.yaml", "zzz", 0, 3), 0.9), (Chunk("b", "b.yaml", "hello world", 0, 11), 0.1)]
+    direct = CrossEncoderReranker(model_name="definitely-not-a-real-model-xxxxx")
+    assert direct.model is None and direct.fallback is None
+    with pytest.raises(RuntimeError, match="allow_fallback"):
+        direct("hello", pairs)  # no overlap scores under a cross-encoder's name
+    allowed = CrossEncoderReranker(model_name="definitely-not-a-real-model-xxxxx", allow_fallback=True)
+    assert allowed.fallback == "overlap"
+    assert [(c.chunk_id, s) for c, s in allowed("hello", pairs)] == [(c.chunk_id, s) for c, s in OverlapReranker()("hello", pairs)]
 
 
 def test_index_loader_records_honest_fallback(tmp_path):
@@ -249,7 +262,8 @@ def test_index_loader_records_honest_fallback(tmp_path):
     if idx.reranker_loaded:
         assert not idx.reranker_fallback
     else:
-        assert idx.reranker_fallback == "overlap"
+        assert idx.reranker_fallback == "overlap" == idx.rerank_fn.fallback
+        assert idx.retrieve("learning rate").hits  # the loader asked for the fallback, so the rerank runs
     gpt = build_index(tmp_path, embedder_name="hash", reranker="rankgpt")
     assert gpt.reranker_fallback == "overlap-listwise"
 

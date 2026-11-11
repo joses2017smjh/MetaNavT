@@ -26,8 +26,8 @@ from app.retrieval.rerank import (
 
 
 def bge_reranker(model_name: str = "BAAI/bge-reranker-v2-m3") -> tuple[object, bool]:
-    """Return (rerank_fn, loaded_real_model)."""
-    ce = CrossEncoderReranker(model_name=model_name)
+    """Return (rerank_fn, loaded_real_model); when the model did not load, rerank_fn is the labelled overlap fallback."""
+    ce = CrossEncoderReranker(model_name=model_name, allow_fallback=True)
     loaded = ce.model is not None
     return ce, loaded
 

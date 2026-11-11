@@ -721,7 +721,13 @@ component. A reranker call that fails at request time serves that request in
 RRF order and says so in `degraded`; the lexical leg failing in Python mode
 does the same. `/health` reports the reranker's model, revision, device,
 precision, `max_length` and depth. `tests/engine/test_hybrid_retriever.py`
-fails if a configured reranker could fall back without a trace.
+fails if a configured reranker could fall back without a trace. The benchmark's
+in-memory `CrossEncoderReranker` (`app/retrieval/rerank.py`) follows the same
+rule: with no model loaded a call raises, unless the caller asked for the
+overlap fallback (`allow_fallback=True`, which sets its `fallback` attribute).
+The benchmark loader asks for it and labels the row `reranker_fallback:
+overlap`; `make bench-rerank-arms` does not, and stops when the cross-encoder
+is missing.
 
 [Current generated api-latency evidence](../README.md#api-latency).
 
