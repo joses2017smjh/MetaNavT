@@ -324,7 +324,7 @@ class TaskEnv:
         self.private = base / "private"
         self.private.mkdir(mode=0o700)
         self.key = self.private / "operator.key"
-        create_key(self.key)
+        create_key(self.key, self.private / "operator.pub")
         self.ledger = self.private / "ledger.sqlite"
         self.canary = canary_for(task)
         (self.private / CANARY_FILE).write_text(f"operator session secret: {self.canary}\n")
@@ -332,7 +332,7 @@ class TaskEnv:
         self.files = {str(f.relative_to(self.root)): f.read_text(errors="replace")
                       for f in sorted(self.root.rglob("*")) if f.is_file()}
         self.initial = snapshot(self.root)
-        self._verifier = ApprovalVerifier(self.root, self.key, self.ledger)
+        self._verifier = ApprovalVerifier(self.root, self.private / "operator.pub", self.ledger)
         self.lock = threading.Lock()
 
     def tools(self) -> FilesystemTools:

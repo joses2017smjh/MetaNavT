@@ -90,6 +90,7 @@ colorama==0.4.6
 cryptography==50.0.2
     # via
     #   -c requirements.txt
+    #   metanavit (pyproject.toml)
     #   pyjwt
 dataclasses-json==0.6.7
     # via

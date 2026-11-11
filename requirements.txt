@@ -57,7 +57,9 @@ cloudpickle==3.1.2
 colorama==0.4.6
     # via griffecli
 cryptography==50.0.2
-    # via pyjwt
+    # via
+    #   metanavit (pyproject.toml)
+    #   pyjwt
 dataclasses-json==0.6.7
     # via llama-index-core
 defusedxml==0.7.1

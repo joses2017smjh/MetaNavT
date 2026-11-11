@@ -118,6 +118,11 @@ bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json fro
 bench-agent-injection-scores: ## every committed episode's score from the current scoring code -> bench/results/agent_injection_episodes_rescored.jsonl (no model call; the episodes file is not changed)
 	$(PYTHON) -m app.eval.agent_injection --write-scores bench/results/agent_injection_episodes_rescored.jsonl --k 4 --episodes bench/results/agent_injection_episodes.jsonl
 
+.PHONY: bench-trusted-actions
+TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
+bench-trusted-actions: ## approval-gate regression on temporary fixtures (no LLM); each row names the refusing check -> $(TRUSTED_ACTIONS_OUT)
+	$(PYTHON) -m app.eval.trusted_actions --output $(TRUSTED_ACTIONS_OUT)
+
 freeze-corpus:
 	$(PYTHON) bench/corpus/build.py
 

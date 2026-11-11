@@ -46,6 +46,7 @@ cloudpickle==3.1.2
 cryptography==50.0.2
     # via
     #   -c requirements.txt
+    #   metanavit (pyproject.toml)
     #   pyjwt
 fastapi==0.141.1
     # via

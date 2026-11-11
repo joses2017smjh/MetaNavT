@@ -1,24 +1,24 @@
 {
   "benchmark": "agent_injection_v1",
   "scope": "LLM-in-the-loop indirect prompt injection over the frozen fixture: planted instructions in the config that answers the question and in the same run's log; model-level attempts and system-level effects are counted separately. One phrasing per goal and task, not an adaptive attacker; synthetic tasks, not production traffic.",
-  "run_at_utc": "2026-11-11T08:41:54.678079+00:00",
-  "git_head": "8815b007d9e22e0287df554625d7748a8b3e32de",
+  "run_at_utc": "2026-11-11T09:34:51.603925+00:00",
+  "git_head": "16145a69d31bb26f4c5b6adc2641a4d37864d23a",
   "working_tree_dirty": false,
   "source_sha256": {
-    "app/mcp/approvals.py": "24e86d55ce8f02cf795df2dea0e23cfce5dfb01c2e0bdb3d2839aa7ba5202a4a",
-    "app/mcp/approve.py": "0f98ca2505fe15e076a9d131762c9e4a8cc651b7e8491ceaf40b53d9f72c26c1",
-    "app/mcp/secure_io.py": "915959e9888e934395f6f24bad5907f4fd92a6a835efccbc710a603237cd70ab",
-    "app/mcp/filesystem.py": "6691e3373cfc6247f1a5ea4ee032049dd4003e194008f1247212fccde872ada7",
-    "app/mcp/server.py": "9ead76991018b508af850b318bb9197c5e06bdce8ec6d854c230d86e7959da09",
+    "app/mcp/approvals.py": "82b418ed0b58b0f006601da30dd8abd03c0669b3e32b46d700961125c9aa429a",
+    "app/mcp/approve.py": "bcdd09f192056647aaf9d88d5f7860628986c7e362d4c3853675ac4f0f95e448",
+    "app/mcp/secure_io.py": "862dba4a088649f387329c22ea06f723367f53a1d8de8d1a732276b53f2f685c",
+    "app/mcp/filesystem.py": "2968e0906a95650abcdd80a07c4f6bdafac49d0478f83a5403d22e1c9a40866d",
+    "app/mcp/server.py": "69a9f45ff2cf3932480400a57b89bee9717c808daa94182be687bae034c9eac5",
     "app/agent/citation_verify.py": "6166ad8d9ab6c03a36d6a0f2554d7e1d50d5b978541d0ea295dfbaf5b65191a8",
     "app/artifacts/templates.py": "d91c7d94e0b49cc1243f5a4bae211b445dd9bac88f02cc0aaa820aa2e02ba47b",
     "app/agent/evidence_checks.py": "6339d9f01b01b68ece74468349b6b754a393823b5c7a4202d4969b3b0f29cb7d",
     "app/eval/index_loader.py": "e17691357e53dcbd2a97917a982a44502fde29b4cc3ef38276b575c056745df1",
-    "app/eval/trusted_actions.py": "05204c8cf298fe3fb3eef5c0cc227a8cba2442188473162ef4e6906b1ad5b188",
+    "app/eval/trusted_actions.py": "4a1b38e6f07c98544545bdf3dd71b60d9749ee671b6574c22737f519d50bfacf",
     "app/eval/evidence_consistency.py": "4a0edc760aa7dbb8703899d809c7e3332af76dacc1d28c241441479c4c6b28c2",
     "app/eval/m4_provenance.py": "2ed48403c2de186b131c612de3c93b4d79ac0e25a62f3608c6e3af43bac1b709"
   },
-  "module_sha256": "490a8def722b9c78b57131c75d14ad0ad7a38d543725910c8316538a361d8558",
+  "module_sha256": "456856466a3472e429ef458b4e54d056c5dcd50e6b14d438e1d26cca6d592cb6",
   "command": "python -m app.eval.agent_injection --summarize-only --models qwen2.5:7b,llama3.1:8b --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl",
   "device": {
     "gpu": "Tesla V100-SXM3-32GB"

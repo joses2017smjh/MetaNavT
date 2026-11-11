@@ -405,20 +405,20 @@ The Next.js app type-checks and exports statically (`npm run build` in `.fronten
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
 
-Any MCP client can drive the corpus. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
+Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. Files reached through a symlink are left out of the index and of `collect_run_artifact`'s packs, and `read_file` and `stat` refuse their paths. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
 
 | tool | contract |
 |---|---|
-| `search_semantic` / `search_lexical` | retrieve |
+| `search_semantic` / `search_lexical` | routed hybrid search over the start-time index (BM25 and dense fused, then the overlap reranker; the router skips the reranker for aggregation queries and gives a path-like query path lookup and BM25 only) / BM25 over the same index |
 | `read_file(path, byte_range)` | citations resolve to bytes |
-| `list_dir` / `stat` | navigate the tree, not just vectors |
+| `list_dir` / `stat` | navigate the tree, not just vectors; `list_dir` shows a symlink as a link (`"symlink": true`, no size) without reading its target, and `stat` refuses it |
 | `propose_move` | returns a plan. never executes |
 | `apply_plan` | requires an externally signed, single-use `approval_token` |
-| `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper) |
+| `collect_run_artifact` | ACM-style pack for a run (config, code, log, paper); files reached through a symlink are left out |
 | `propose_artifact` | spec → generate → sandbox. never writes |
 | `apply_artifact` | requires a bound `approval_token`; refuses a failed sandbox |
 | `propose_patch` / `apply_patch` | SEARCH/REPLACE with the same signed approval gate |
-| `exec_sandboxed` | AST-gated Python. no `os`, no pip |
+| `exec_sandboxed` | A Python subset, checked on the syntax tree against an allow-list before anything runs. The list holds plain statements (assignment, `if` / `for` / `while`, `try`, `def` and the like) and expressions (calls, `lambda`, comprehensions, f-strings, `:=`); imports, attribute expressions (`x.y`), `match` statements, `class`, `with`, `global` / `nonlocal`, `yield` and async code are not on it, and a name that starts with `__` is refused. The code can read only the names it binds and a list of builtins that has no `getattr`, `vars`, `dir`, `type`, `format`, `open`, `eval` or `__import__`. It runs in a child process whose environment keeps only `PATH`, `HOME`, locale, `TZ` and `TMPDIR` (no API keys or connection strings), with CPU, memory and file-size limits. The child runs as the server's OS user, so this is a correctness runner, not OS isolation |
 | `inspect_spreadsheet` | schema, types, missingness, five-row preview |
 | `propose_visualization` | aggregation preview + chart recommendation/alternatives; never writes |
 | `apply_visualization` | user approves or overrides chart, then writes/runs MATLAB |
@@ -441,27 +441,53 @@ the files they read. A separate **240-case** balanced JSON-fact suite checks
 subject, value, physical units, polarity and source-supplied currency labels.
 Its results describe that narrow structured contract, without establishing
 natural-language entailment or human-reviewed citation accuracy.
-[Action evidence](../bench/results/trusted_actions.json) ·
+[Action evidence](../bench/results/trusted_actions_v2.json) ·
+[Action evidence v1, HMAC grants](../bench/results/trusted_actions.json) ·
 [Structured evidence](../bench/results/evidence_consistency.json)
 
-The boolean `approved=True` no longer authorizes a write. The operator key and
-SQLite replay ledger must live outside every agent-readable/indexed root, with
-private file permissions. Without configured approval state, file writes are
-refused. A capability binds the session, operation, paths, reviewed content and
+The action evidence is the v2 record, written by `make bench-trusted-actions`
+with Ed25519 grants; each of its attack rows also names the check that refused
+it (`refused_by`). The v1 record, made with the HMAC grants used before
+Ed25519 and without refusal reasons, stays linked as it was recorded. A
+replayed grant is refused by the staleness check when its action applied (the
+reviewed files changed), so the odd `replay_patch` variants replay a grant
+burnt by a failed apply instead: only the single-use ledger can refuse those.
+
+The boolean `approved=True` no longer authorizes a write. A grant is an Ed25519
+signature: the operator signs with a private key that only the operator CLI
+reads, and the servers verify with the public key alone, so a process that
+verifies grants cannot mint one. The private key (mode 0600), the public key (not
+writable by group or others) and the SQLite replay ledger must live outside
+every agent-readable/indexed root: whoever can replace the public key can mint
+grants, and whoever can replace the ledger can replay them. Without configured
+approval state, file writes are refused. A capability binds the session, operation, paths, reviewed content and
 source fingerprints, expires quickly, and is consumed transactionally before
-mutation. Symlink paths and implicit overwrites are refused.
+mutation. Symlink paths and implicit overwrites are refused. The audit trail
+names the check that refused an `apply_*` call (`REFUSAL_CHECKS` in
+`app/mcp/approvals.py`: signature, expiry, ledger, staleness and the rest). The
+SDK server also returns that name and a fixed description as a tool error, and
+gives a call without a capability the structured `approval_required` result;
+the JSON-RPC server returns the exception's message, as before.
 
 ```bash
 # Run as the trusted operator; choose paths outside the indexed corpus.
-python -m app.mcp.approve init --key /private/operator.key
+python -m app.mcp.approve init --key /private/operator.key --public-key /srv/metanavit/operator.pub
 python -m app.mcp.approve sign --key /private/operator.key --review review.json --actor operator
-# Server settings: METANAVIT_APPROVAL_KEY_FILE and METANAVIT_APPROVAL_LEDGER_FILE
+# Server settings: METANAVIT_APPROVAL_PUBLIC_KEY_FILE (the public key only) and METANAVIT_APPROVAL_LEDGER_FILE
 ```
+
+A token is the base64url of a canonical JSON body (review hash, grant id, issue
+and expiry times, actor), a dot, and the base64url of the Ed25519 signature over
+that body. Tokens and key files from the earlier HMAC scheme are refused. While
+the old `METANAVIT_APPROVAL_KEY_FILE` is set, even next to the new setting, the
+MCP servers refuse to start and the API's `/api/plans` answers 503 with that
+error; unset it, create the key pair, and name the public key in
+`METANAVIT_APPROVAL_PUBLIC_KEY_FILE`.
 
 Export the review from the plan panel, have the operator inspect and sign it,
 and paste the resulting token into the panel. Issuance is absent from MCP and
-HTTP tools. An agent with arbitrary operator code execution or access to the
-signing key is outside this boundary. Older GIFs illustrate the review flow;
+HTTP tools. An agent with arbitrary operator code execution, read access to the
+private key or write access to the public key is outside this boundary. Older GIFs illustrate the review flow;
 the current implementation requires the signed grant.
 
 ### Cutting-edge query processing
@@ -1002,7 +1028,7 @@ The product is a research tree, so “generate code” has to mean two different
 
 **Academia.** Pack a run the way a lab ships a reproducibility artifact: live YAML, Slurm, `.out` log, `src/fusion.py`, current paper draft. ACM-style badges: Available (files + hashes), Functional (sandbox tests pass), Reusable (env or paper + citations). Paper2Code (Seo et al., ICLR 2026) is plan → analyze → generate over *this* corpus, not a cloned GitHub repo. Claim-support: a generated `learning_rate` / encoder that is not in the citations is an unsupported claim.
 
-**Industry.** Spec card (citations, tests, template) before any file is proposed. SEARCH/REPLACE patches. Restricted exec (no `os`, no pip). Write is HITL, same as `propose_move`. Templates are `python-lib` / `pytest` / `research-repro`, not the 2024 Next.js-13 demo list.
+**Industry.** Spec card (citations, tests, template) before any file is proposed. SEARCH/REPLACE patches. Restricted exec: an AST check refuses `os` and other banned imports and calls (no pip), and the code runs in a child process whose environment keeps only `PATH`, `HOME`, locale, `TZ` and `TMPDIR`, with CPU, memory and file-size limits. The check is a block-list, not a boundary: code that gets past it runs as the server's OS user and can read what that user can read, so this is not OS isolation. Write is HITL, same as `propose_move`. Templates are `python-lib` / `pytest` / `research-repro`, not the 2024 Next.js-13 demo list.
 
 ```python
 art = tools.propose_artifact("reproduce run 47 from the paper")
