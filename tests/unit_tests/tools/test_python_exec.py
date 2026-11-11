@@ -94,12 +94,9 @@ class TestPythonExecTool:
                     return_value=workspace_path)
         mocker.patch('builtins.open', mock_open())
         
-        # Mock exec to create a plt object in namespace
-        def mock_exec(code, namespace):
-            namespace['plt'] = MagicMock()
-        
-        mocker.patch('builtins.exec', side_effect=mock_exec)
-        test_code = 'import matplotlib.pyplot as plt'
+        # The code runs in a child process, so exec cannot be mocked from here:
+        # the code itself defines a plt object whose savefig succeeds
+        test_code = 'class _Plt:\n    def savefig(self, path):\n        pass\nplt = _Plt()'
         
         # Act
         result = PythonExecTool.execute_code(test_code)
@@ -114,15 +111,8 @@ class TestPythonExecTool:
                     return_value=Path('/fake/workspace'))
         mocker.patch('builtins.open', mock_open())
         
-        # Create mock plt that raises exception on savefig
-        mock_plt = MagicMock()
-        mock_plt.savefig.side_effect = Exception("Figure error")
-        
-        def mock_exec(code, namespace):
-            namespace['plt'] = mock_plt
-        
-        mocker.patch('builtins.exec', side_effect=mock_exec)
-        test_code = 'import matplotlib.pyplot as plt'
+        # Code that defines a plt object whose savefig raises (it runs in a child process)
+        test_code = 'class _Plt:\n    def savefig(self, path):\n        raise Exception("Figure error")\nplt = _Plt()'
         mock_logger = mocker.patch('app.engine.tools.python_exec.logger')
         
         # Act
@@ -133,8 +123,10 @@ class TestPythonExecTool:
         mock_logger.warning.assert_called_once()
         assert "Figure error" in mock_logger.warning.call_args[0][0]
 
-    def test_get_tools(self, mocker):
-        # Arrange
+    def test_get_tools(self, mocker, monkeypatch):
+        # Arrange: the tool is offered only behind ENABLE_PYTHON_EXEC and an API key
+        monkeypatch.setenv('ENABLE_PYTHON_EXEC', 'true')
+        monkeypatch.setenv('METANAVIT_API_KEY', 'test-key')
         mock_function_tool = MagicMock()
         mocker.patch('app.engine.tools.python_exec.FunctionTool.from_defaults', 
                     return_value=mock_function_tool)

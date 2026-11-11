@@ -13,7 +13,7 @@ from llama_index.core.tools.function_tool import FunctionTool
 
 from app.engine.tools import ToolFactory
 
-CONFIG = Path("config/tools.yaml")
+CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.yaml"
 ENTRIES = [
     (tool_type, tool_name, config or {})
     for tool_type, entries in yaml.safe_load(CONFIG.read_text()).items()
@@ -35,6 +35,15 @@ def test_from_env_loads_the_whole_config():
     tools = ToolFactory.from_env(map_result=True)
     assert "artifact" in tools, sorted(tools)
     assert len(tools) >= len(ENTRIES)
+
+
+def test_from_env_finds_the_config_when_started_from_another_directory(tmp_path, monkeypatch):
+    # The loader used to open "config/tools.yaml" relative to the working directory, so an
+    # API started anywhere but the repository root loaded no tools and said nothing.
+    expected = sorted(ToolFactory.from_env(map_result=True))
+    monkeypatch.chdir(tmp_path)
+    assert sorted(ToolFactory.from_env(map_result=True)) == expected
+    assert "artifact" in expected
 
 
 def test_a_module_that_does_not_parse_is_reported_as_a_config_error(tmp_path, monkeypatch):
