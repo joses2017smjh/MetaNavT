@@ -150,3 +150,45 @@ def test_a_run_with_llm_arms_records_model_prompts_and_temperature_in_its_header
     assert ("hybrid+contextual-llm", "hybrid+contextual") in comp  # LLM-written against the heuristic prefix
     text = frontier_table(json.loads(out.read_text()))
     assert "stub:0b" in text and "temperature 0.0" in text
+
+
+def test_committed_generations_cover_the_fixture_and_are_the_ones_the_neural_rows_read():
+    from app.eval.frontier_llm import GENERATIONS_FILE, fixture_chunks
+    from app.eval.hashing import content_hash
+    from app.eval.report import FRONTIER_NEURAL_FILE
+
+    path = ROOT / GENERATIONS_FILE
+    if not path.exists():
+        pytest.skip(f"{GENERATIONS_FILE} not produced yet")
+    text = path.read_text()
+    gen = json.loads(text)
+    gold = load_gold(ROOT / "bench" / "gold" / "questions.jsonl")
+    assert [(i["id"], i["question"]) for i in gen["hyde"]["items"]] == [(q.id, q.question) for q in gold]
+    chunks = fixture_chunks(FILES)
+    assert [(i["chunk_id"], i["span_sha256"]) for i in gen["context"]["items"]] == [(c["chunk_id"], c["span_sha256"]) for c in chunks]
+    for kind in ("hyde", "context"):
+        items = gen[kind]["items"]
+        assert gen[kind]["n"] == len(items) and gen[kind]["n_failed"] == sum(1 for i in items if not i["ok"])
+        assert all(bool(i["text"]) == i["ok"] for i in items)
+    assert gen["options"]["temperature"] == 0.0 and gen["model"]
+    neural = json.loads((ROOT / FRONTIER_NEURAL_FILE).read_text())
+    header = neural["generations"]
+    assert header["file"] == GENERATIONS_FILE and header["sha256"] == content_hash(text)
+    assert header["model"] == gen["model"] and header["prompts"] == {"hyde": gen["hyde"]["prompt"], "context": gen["context"]["prompt"]}
+    rows = [r for r in neural["results"] if (r.get("settings") or {}).get("generations")]
+    assert {r["config"] for r in rows} == {"hybrid+hyde-llm@bge-small", "hybrid+hyde-llm+bge-rerank@bge-small", "hybrid+contextual-llm@bge-small"}
+    assert all(r["llm"]["model"] == gen["model"] for r in rows)
+
+
+def test_evidence_rows_of_llm_arms_name_the_model_that_wrote_them(tmp_path):
+    from app.eval.evidence import _frontier_claims
+    from app.eval.harness import BenchConfig, run_bench
+
+    gold = load_gold(ROOT / "bench" / "gold" / "questions.jsonl")
+    path, _ = _write_generations(tmp_path, gold)
+    base = dict(mode="hybrid", enable_router=False, staleness_tier1=False, e2e=False, log_triples=False, enable_rerank=False)
+    configs = [BenchConfig(name="hybrid", **base),
+               BenchConfig(name="hybrid+hyde-llm", hyde=True, hyde_stage="first_stage", generations=str(path), parent="hybrid", **base)]
+    run_bench(configs=configs, out=tmp_path / "bench" / "results" / "frontier.json", frontier=True)
+    (claim,) = _frontier_claims(tmp_path)
+    assert "HyDE hypotheses written by `stub:0b`" in claim["not_shown"] and "of 136 calls failed" in claim["not_shown"]

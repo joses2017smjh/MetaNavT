@@ -256,7 +256,7 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:
     """One row per prototype arm and per stack: the paired delta against its parent, the verdict word, the stand-ins."""
-    from app.eval.report import hyde_wiring, verdict
+    from app.eval.report import hyde_wiring, llm_note, verdict
 
     out: list[dict] = []
     for key, command, stack in (
@@ -283,6 +283,8 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
             wiring = hyde_wiring(row.get("settings") or {})
             if wiring:
                 limits.append(wiring)
+            if row.get("llm"):
+                limits.append(llm_note(row["llm"]).rstrip("."))
             cache = row.get("cache")
             if cache:
                 g = cache["gold"]

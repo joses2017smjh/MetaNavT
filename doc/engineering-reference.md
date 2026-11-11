@@ -480,7 +480,7 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 **Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`.
 
-HyDE, decomposition, corrective retrieval and adaptive retrieval are arms of `make bench-frontier` (first-stage HyDE: `hybrid+hyde` against `hybrid`, `dense_only+hyde` against `dense_only`, `hybrid+hyde+rerank` against `hybrid+rerank`; HyDE after the reranker: `hybrid+rerank+hyde`, `hybrid+rerank+hyde+corrective`; `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+adaptive`), each scored against the row it is one switch away from; what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). Citation verification has no harness flag and no benchmark row.
+HyDE, decomposition, corrective retrieval, adaptive retrieval and the semantic cache are arms of `make bench-frontier` (first-stage HyDE: `hybrid+hyde` against `hybrid`, `dense_only+hyde` against `dense_only`, `hybrid+hyde+rerank` against `hybrid+rerank`; HyDE after the reranker: `hybrid+rerank+hyde`, `hybrid+rerank+hyde+corrective`; `hybrid+rerank+decompose`, `hybrid+rerank+corrective`, `hybrid+rerank+adaptive`, `hybrid+rerank+cache`), each scored against the row it is one switch away from; the real-model run adds HyDE with an LLM-written hypothesis (`hybrid+hyde-llm`, `hybrid+hyde-llm+rerank`, the hypotheses stored by `make frontier-generations`); what the intervals support is under [Retrieval prototypes with a benchmark arm](#retrieval-prototypes-with-a-benchmark-arm). Citation verification has no harness flag and no benchmark row.
 
 ### Graph + staleness
 
@@ -850,14 +850,22 @@ numbers are in the generated tables this section links to.
 
 Generated tables: [CPU stand-ins](../README.md#bench-frontier) and
 [real models](../README.md#bench-frontier-neural). Each arm is one switch away
-from its parent (plain hybrid, or hybrid plus the reranker), both parents are
-computed in the same run, and the verdict word is computed from the interval of
-the paired nDCG@10 delta: above zero, covers zero, or below zero. Every row
-lists the stand-ins it ran on. On the CPU stand-ins every row uses the hash
-embedder and, where it reranks, the overlap reranker. The real-model run uses
+from its parent (plain hybrid, hybrid plus the reranker, or dense only), the
+parent rows are computed in the same run, and the verdict word is computed from
+the interval of the paired nDCG@10 delta: above zero, covers zero, or below
+zero. Every row lists the stand-ins it ran on. On the CPU stand-ins every row
+uses a model-free embedder (the hash embedder, or TF-IDF in its own two rows)
+and, where it reranks, the overlap reranker. The real-model run uses
 bge-small-en-v1.5 and the bge-reranker-v2-m3 cross-encoder and is the one that
 carries the verdicts. The query-side mechanisms are keyword or regex
-heuristics, not models, in both runs.
+heuristics, not models, in both runs, with one exception: the LLM-written arms
+of the real-model run read HyDE hypotheses and chunk prefixes that qwen2.5:7b
+wrote once through Ollama (`make frontier-generations`, temperature 0). They are
+stored with the model, its digest and both prompts in
+[bench/results/frontier_generations.json](../bench/results/frontier_generations.json),
+so those rows are rescored without the model. The generated tables also compare
+some arms directly (row minus other, same bootstrap): the two HyDE wirings, and
+each LLM-written arm against the heuristic arm it replaces.
 
 | arm | what it changes | CPU stand-ins | real models | what the intervals support |
 |---|---|---|---|---|
@@ -865,14 +873,21 @@ heuristics, not models, in both runs.
 | HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
 | Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
 | Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
-| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix, not an LLM-written one. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. |
+| Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. The LLM-written prefix is the next row. |
+| LLM-written contextual prefixes (`hybrid+contextual-llm`) | prepends the situating description qwen2.5:7b wrote for each chunk (`app/chunking/contextual.py` prompt, stored) | not evaluated (real models only) | covers zero | Evaluated with bge-small: no measured effect against plain hybrid, and above zero against the path-words prefix in the direct comparison. The loss of `hybrid+contextual` belongs to the path-words prefix, not to contextual prefixes in general; an LLM-written prefix is still not a measured gain. |
 | Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
-| HyDE after the reranker (`hybrid+rerank+hyde`) | RRF-fuses a second dense list from a pseudo-document with the reranked list and re-sorts, overriding the reranker's order | below zero | below zero | Evaluated: a recorded loss of this wiring, which is how every HyDE row before the first-stage arms was produced. The re-sort overrides the reranker and no HyDE hit outside the reranked list is added, so the loss is not evidence about HyDE as a dense query. |
+| HyDE in the first stage (`hybrid+hyde`) | the keyword-heuristic HyDE vector is the dense leg's query, fused with BM25; no reranker | below zero | below zero | Evaluated: a recorded loss. |
+| HyDE in the first stage, dense only (`dense_only+hyde`) | the same vector as the only query | below zero | below zero | Evaluated: a recorded loss. |
+| HyDE in the first stage, then the reranker (`hybrid+hyde+rerank`) | the same vector in the first stage; the reranker orders the fused candidates and has the last word | covers zero | covers zero | Evaluated: no measured effect once the reranker has the last word (the interval's lower bound is zero in the real-model run). In the direct comparison it is above zero against the after-reranker wiring in both runs, so that wiring's loss came from the re-sort. |
+| LLM-written HyDE hypothesis (`hybrid+hyde-llm`, `hybrid+hyde-llm+rerank`) | the first-stage arms with the hypothesis qwen2.5:7b wrote for each question (`app/retrieval/hyde.py` prompt, stored) | not evaluated (real models only) | below zero without the reranker; covers zero with it | Evaluated with bge-small: the LLM hypothesis beats the keyword one in the direct comparison without the reranker but still loses to plain hybrid; with the reranker neither hypothesis has a measured effect. |
+| HyDE after the reranker (`hybrid+rerank+hyde`) | RRF-fuses a second dense list from a pseudo-document with the reranked list and re-sorts, overriding the reranker's order | below zero | below zero | Evaluated: a recorded loss of this wiring, which is how every HyDE row before the first-stage arms was produced. The re-sort overrides the reranker and no HyDE hit outside the reranked list is added, so the loss is not evidence about HyDE as a dense query (see the first-stage rows above). |
 | Decomposition (`hybrid+rerank+decompose`) | retrieves per sub-query and merges | covers zero | covers zero | Evaluated: no measured effect; it fires on few questions (the count is in the table). |
 | Corrective retrieval (`hybrid+rerank+corrective`) | grades the top hits and retries with a rewrite or sub-queries | covers zero: identical first ten files | covers zero: identical first ten files | Evaluated: it fires on most questions but only appends candidates after the existing list, so it cannot change the top ten. |
 | HyDE after the reranker + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is that of the after-reranker HyDE wiring; the corrective step adds nothing to the top ten. |
 | Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
 | GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval in either run and is not kept in the served path. |
+| Semantic cache (`hybrid+rerank+cache`) | serves the cached file list of a near-duplicate earlier question (cosine threshold 0.92), replaying the gold set in gold order | below zero | below zero | Evaluated on the gold set as a false-hit test: every hit served another gold question's file list, and every such list differs from what retrieval returns for the question; most hits are templated questions that differ only in a run id (each hit and the question it was served from are in the results file). A recorded loss on this gold set. On the paraphrase probes (`bench/probes/`, rule-based, not gold labels) most probes hit their own question's entry with bge-small and the served lists are not measurably worse than fresh retrieval; with the hash embedder most probes miss. The counts are in the table notes. |
+| TF-IDF embedder (`dense_only@tfidf`, `hybrid@tfidf`) | replaces the hash embedder with TF-IDF and truncated SVD fitted on the indexed chunks | above zero, dense only and hybrid | not evaluated (model-free; CPU run only) | Evaluated: a better model-free stand-in than the hash embedder on this fixture. It is fitted on the fixture's own chunks, so the gain is not evidence about other corpora. |
 | Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM is not evaluated. |
 
 In the real-model table the arm names carry the model suffix (for example
@@ -895,9 +910,8 @@ set inside the run, and its replies mixed prose with the permutation, which
 the parser would read as ranks.
 
 Still without a benchmark row: a gradient-boosted distilled student, listwise
-reranking by an LLM, an LLM-written contextual prefix or HyDE hypothesis,
-GraphRAG with LLM extraction or modularity clustering, Tier 2 conflict notes
-(`app/graph/conflicts.py`), hierarchy summaries, the semantic cache and
+reranking by an LLM, GraphRAG with LLM extraction or modularity clustering,
+Tier 2 conflict notes (`app/graph/conflicts.py`), hierarchy summaries and
 citation verification.
 
 ### Modules with no measured result
