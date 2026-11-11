@@ -66,22 +66,26 @@ def test_frontier_configs_put_parents_first_and_name_a_parent_for_every_arm():
 
     cpu = frontier_configs()
     names = [c.name for c in cpu]
-    assert names[:2] == ["hybrid", "hybrid+rerank"] and len(names) == len(set(names))
+    assert names[:3] == ["hybrid", "hybrid+rerank", "dense_only"] and len(names) == len(set(names))
     defaults = {c.name: c for c in DEFAULT_CONFIGS}
-    for parent in cpu[:2]:  # the parents are the default bench's rows, switch for switch
+    for parent in cpu[:3]:  # the parents are the default bench's rows, switch for switch
         d = defaults[parent.name]
         assert (parent.mode, parent.embedder, parent.reranker, parent.enable_rerank, parent.enable_router, parent.staleness_tier1,
                 parent.retrieve_k, parent.rerank_n, parent.chunk_strategy) == (
                 d.mode, d.embedder, d.reranker, d.enable_rerank, d.enable_router, d.staleness_tier1, d.retrieve_k, d.rerank_n, d.chunk_strategy)
-    for arm in cpu[2:]:
-        assert arm.parent in names[:2], arm.name
+    for arm in cpu[3:]:
+        assert arm.parent in names[:3], arm.name
         assert arm.enable_router is False and arm.staleness_tier1 is False, arm.name  # same as the parents
         assert arm.enable_rerank == (arm.parent == "hybrid+rerank") or arm.reranker == "rankgpt", arm.name
+        assert arm.mode == ("dense" if arm.parent == "dense_only" else "hybrid"), arm.name
     assert not set(FRONTIER_NOT_EVALUATED) & set(names)  # no token embeddings on the hash embedder
     for wanted in ("hybrid+multiquery", "hybrid+hipporag", "hybrid+hops=1", "hybrid+fixed-chunks", "hybrid+contextual",
                    "hybrid+rerank+hyde", "hybrid+rerank+decompose", "hybrid+rerank+corrective", "hybrid+rerank+hyde+corrective",
-                   "hybrid+rerank+adaptive", "hybrid+rerank+graphrag"):
+                   "hybrid+rerank+adaptive", "hybrid+rerank+graphrag", "hybrid+hyde", "dense_only+hyde", "hybrid+hyde+rerank"):
         assert wanted in names
+    stages = {c.name: c.hyde_stage for c in cpu if c.hyde}
+    assert stages == {"hybrid+hyde": "first_stage", "dense_only+hyde": "first_stage", "hybrid+hyde+rerank": "first_stage",
+                      "hybrid+rerank+hyde": "after_rerank", "hybrid+rerank+hyde+corrective": "after_rerank"}
 
 
 def test_neural_frontier_has_its_own_parents_and_real_models():
@@ -89,10 +93,11 @@ def test_neural_frontier_has_its_own_parents_and_real_models():
 
     neural = frontier_configs(neural=True)
     names = [c.name for c in neural]
-    assert names[:2] == ["hybrid@bge-small", "hybrid+bge-rerank@bge-small"]
+    assert names[:3] == ["hybrid@bge-small", "hybrid+bge-rerank@bge-small", "dense_only@bge-small"]
     assert "hybrid+late-chunking@bge-small" in names and "hybrid+bge-rerank+graphrag@bge-small" in names
+    assert {"hybrid+hyde@bge-small", "dense_only+hyde@bge-small", "hybrid+hyde+bge-rerank@bge-small", "hybrid+bge-rerank+hyde@bge-small"} <= set(names)
     assert all(c.embedder == BGE_SMALL for c in neural)
-    assert all(c.parent in names[:2] for c in neural[2:])
+    assert all(c.parent in names[:3] for c in neural[3:])
     assert all(c.reranker == BGE_RERANKER for c in neural if c.enable_rerank and "rankgpt" not in c.name)
 
 
@@ -129,6 +134,139 @@ def test_adaptive_arm_skips_only_when_the_classifier_says_skip():
     expected, _ = _retrieve(index, query, base, StageTimer(), {}, None)
     got, _ = _retrieve(index, query, replace(base, adaptive=True), StageTimer(), {}, None, fired=fired)
     assert got == expected and fired["adaptive_retrieve"] == 1
+
+
+# ---- HyDE: where its dense list enters the pipeline ------------------------------------------
+
+class _AxisEmbedder:
+    """One axis per keyword (alpha, beta, gamma, delta), so every cosine is 0 or 1 and the dense order is easy to read."""
+
+    name, dim = "axis", 4
+    WORDS = ("alpha", "beta", "gamma", "delta")
+
+    def encode(self, texts):
+        import numpy as np
+
+        out = np.zeros((len(texts), self.dim), dtype=np.float32)
+        for i, text in enumerate(texts):
+            for j, word in enumerate(self.WORDS):
+                if word in (text or "").lower():
+                    out[i, j] = 1.0
+        return out
+
+
+def _hyde_index(rerank_fn):
+    chunks = [
+        Chunk("a", "a.md", "alpha one", 0, 9),
+        Chunk("b", "b.md", "alpha two", 0, 9),
+        Chunk("c", "c.md", "gamma three", 0, 11),
+        Chunk("d", "d.md", "delta four", 0, 10),
+    ]
+    return InMemoryHybridIndex(chunks, embedder=_AxisEmbedder(), retrieve_k=2, rerank_fn=rerank_fn,
+                               enable_rerank=rerank_fn is not None, enable_router=False)
+
+
+class _SpyReranker:
+    """Records the candidates it is given and returns them in reverse order (an order RRF would never produce)."""
+
+    def __init__(self):
+        self.seen: list[list[str]] = []
+        self.returned: list[list[str]] = []
+
+    def __call__(self, query, pairs):
+        self.seen.append([c.chunk_id for c, _ in pairs])
+        out = [(c, float(i)) for i, (c, _) in enumerate(reversed(pairs), start=1)]
+        self.returned.append([c.chunk_id for c, _ in out])
+        return out
+
+
+def _gamma_hyde(monkeypatch):
+    """The HyDE vector points at chunk c, which neither BM25 nor the raw query's dense search ranks in the top 2."""
+    import numpy as np
+
+    import app.eval.harness as harness
+
+    monkeypatch.setattr(harness, "hyde_embed", lambda *args, **kwargs: np.array([0.0, 0.0, 1.0, 0.0], dtype=np.float32))
+
+
+_HYDE = BenchConfig(name="hyde-test", mode="hybrid", retrieve_k=2, rerank_n=2, enable_router=False, staleness_tier1=False,
+                    e2e=False, log_triples=False)
+
+
+def test_first_stage_hyde_lets_the_reranker_order_candidates_that_include_hyde_hits(monkeypatch):
+    _gamma_hyde(monkeypatch)
+    spy = _SpyReranker()
+    index = _hyde_index(spy)
+    fired: dict[str, int] = {}
+    paths, result = _retrieve(index, "alpha", replace(_HYDE, enable_rerank=True, hyde=True, hyde_stage="first_stage"),
+                              StageTimer(), {}, None, fired=fired)
+    assert spy.seen == [["a", "c"]]  # BM25 top 2 (a, b) fused with the HyDE dense top 2 (c, a): c is a candidate
+    assert [h.chunk.chunk_id for h in result.hits] == spy.returned[0] == ["c", "a"]  # the reranker has the last word
+    assert paths == ["c.md", "a.md"] and fired == {"hyde": 1}
+    plain, _ = _retrieve(index, "alpha", replace(_HYDE, enable_rerank=True), StageTimer(), {}, None)
+    assert "c.md" not in plain  # without HyDE the raw query never reaches c
+
+
+def test_after_rerank_hyde_is_kept_and_still_overrides_the_reranker(monkeypatch):
+    # The wiring recorded before M18 as hybrid+rerank+hyde: rerank first, then RRF with the HyDE dense list and re-sort.
+    _gamma_hyde(monkeypatch)
+    spy = _SpyReranker()
+    index = _hyde_index(spy)
+    paths, result = _retrieve(index, "alpha", replace(_HYDE, enable_rerank=True, hyde=True, hyde_stage="after_rerank"),
+                              StageTimer(), {}, None)
+    assert spy.seen == [["a", "b"]] and spy.returned == [["b", "a"]]  # the raw query's candidates only
+    assert [h.chunk.chunk_id for h in result.hits] == ["a", "b"] != spy.returned[0]  # re-sorted after the reranker
+    assert "c.md" not in paths  # a HyDE hit outside the reranked list is never added
+
+
+def test_first_stage_hyde_without_a_reranker_and_in_dense_mode_uses_the_hyde_vector(monkeypatch):
+    _gamma_hyde(monkeypatch)
+    index = _hyde_index(None)
+    fired: dict[str, int] = {}
+    hybrid, _ = _retrieve(index, "alpha", replace(_HYDE, enable_rerank=False, hyde=True, hyde_stage="first_stage"),
+                          StageTimer(), {}, None, fired=fired)
+    assert hybrid == ["a.md", "c.md"]  # a: BM25 rank 1 + HyDE rank 2; c: HyDE rank 1
+    dense, _ = _retrieve(index, "alpha", replace(_HYDE, mode="dense", enable_rerank=False, hyde=True, hyde_stage="first_stage"),
+                         StageTimer(), {}, None, fired=fired)
+    assert dense == ["c.md", "a.md"] and fired == {"hyde": 2}
+
+
+def test_hyde_needs_a_stage_and_dense_mode_has_only_the_first():
+    index = _hyde_index(None)
+    with pytest.raises(ValueError, match="hyde_stage"):
+        _retrieve(index, "alpha", replace(_HYDE, hyde=True), StageTimer(), {}, None)
+    with pytest.raises(ValueError, match="hyde_stage"):
+        _retrieve(index, "alpha", replace(_HYDE, mode="dense", hyde=True, hyde_stage="after_rerank"), StageTimer(), {}, None)
+
+
+def test_the_frontier_block_and_the_evidence_name_each_hyde_wiring(tmp_path):
+    import json
+
+    from app.eval.evidence import _frontier_claims
+    from app.eval.harness import frontier_configs, run_bench
+    from app.eval.report import frontier_table
+
+    wanted = {"hybrid", "hybrid+rerank", "hybrid+hyde+rerank", "hybrid+rerank+hyde"}
+    out = tmp_path / "bench" / "results" / "frontier.json"
+    run_bench(configs=[c for c in frontier_configs() if c.name in wanted], out=out, frontier=True)
+    blob = json.loads(out.read_text())
+    notes = {line.split("`")[1]: line for line in frontier_table(blob).splitlines() if line.startswith("- `")}
+    assert "HyDE after the reranker" in notes["hybrid+rerank+hyde"] and "order does not survive" in notes["hybrid+rerank+hyde"]
+    assert "HyDE in the first stage" in notes["hybrid+hyde+rerank"] and "the reranker, which has the last word" in notes["hybrid+hyde+rerank"]
+    claims = {c["claim"].split("`")[1]: c["not_shown"] for c in _frontier_claims(tmp_path)}
+    assert "HyDE after the reranker" in claims["hybrid+rerank+hyde"] and "HyDE in the first stage" in claims["hybrid+hyde+rerank"]
+
+
+def test_switches_added_after_main_json_stay_out_of_the_settings_of_rows_that_do_not_use_them():
+    import json
+
+    from app.eval.harness import DEFAULT_CONFIGS, bench_settings, project_root
+
+    main = {r["config"]: r for r in json.loads((project_root() / "bench" / "results" / "main.json").read_text())["results"]}
+    for cfg in DEFAULT_CONFIGS:  # make bench-check compares settings field by field
+        assert bench_settings(cfg) == main[cfg.name]["settings"], cfg.name
+    hyde = replace(DEFAULT_CONFIGS[2], hyde=True, hyde_stage="first_stage")
+    assert bench_settings(hyde)["hyde_stage"] == "first_stage"
 
 
 def test_contextual_chunks_index_a_prefix_and_keep_the_cited_bytes():
@@ -259,7 +397,7 @@ def test_committed_frontier_file_is_self_contained(rel):
     assert "--frontier" in blob["command"]
     rows = {r["config"]: r for r in blob["results"]}
     parents, arms = blob["frontier"]["parents"], blob["frontier"]["arms"]
-    assert len(parents) == 2 and set(parents) <= set(rows) and arms
+    assert 2 <= len(parents) <= 3 and set(parents) <= set(rows) and arms
     for name in arms:
         row = rows[name]
         parent = row["settings"]["parent"]

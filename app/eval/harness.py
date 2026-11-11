@@ -6,7 +6,7 @@ import json
 import os
 import subprocess
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -75,6 +75,7 @@ class BenchConfig:
     hipporag: bool = False
     multi_query: bool = False
     hyde: bool = False
+    hyde_stage: str | None = None  # where the HyDE vector enters (HYDE_STAGES); required when hyde is on
     decompose: bool = False
     corrective: bool = False
     adaptive: bool = False  # skip retrieval when app.retrieval.adaptive says SKIP
@@ -82,6 +83,22 @@ class BenchConfig:
     contextual: bool = False  # prepend a situating prefix to every chunk before indexing
     late_chunking: bool = False  # pool document-level token embeddings per chunk (needs a token-level model)
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
+
+
+# first_stage:  the HyDE vector is the dense leg's query, before fusion; the reranker (if any) has the last word.
+# after_rerank: the wiring of the rows recorded before M18 as hybrid+rerank+hyde: retrieve and rerank with the raw
+#               query, then RRF-fuse the reranked list with the HyDE dense list and re-sort. The re-sort overrides
+#               the reranker's order and no HyDE hit outside the reranked list is added.
+HYDE_STAGES = ("first_stage", "after_rerank")
+# Switches added after bench/results/main.json was recorded. A row's settings carry them only when it sets them,
+# so rows that do not use them keep the settings they were recorded with (`make bench-check` compares settings).
+LATER_SETTINGS = ("hyde_stage",)
+
+
+def bench_settings(cfg: BenchConfig) -> dict[str, Any]:
+    """The config as a results row records it (`settings`)."""
+    defaults = {f.name: f.default for f in fields(BenchConfig)}
+    return {k: v for k, v in cfg.__dict__.items() if not (k in LATER_SETTINGS and v == defaults[k])}
 
 
 def _paths_from_hits(hits: list[RetrievalHit]) -> list[str]:
@@ -115,6 +132,8 @@ def _retrieve(
 
     `fired` counts the questions on which each optional mechanism triggered, so
     an arm that ties its parent can say whether it ever ran."""
+    if cfg.hyde and (cfg.hyde_stage not in HYDE_STAGES or (cfg.mode == "dense" and cfg.hyde_stage != "first_stage")):
+        raise ValueError(f"{cfg.name}: hyde needs hyde_stage in {HYDE_STAGES} (dense mode: first_stage), got {cfg.hyde_stage!r}")
     if cfg.adaptive:
         decision = should_retrieve(query).decision
         _count(fired, f"adaptive_{decision.value}")
@@ -149,6 +168,7 @@ def _retrieve(
     elif cfg.mode == "dense":
         with timer.stage("embed"):
             if cfg.hyde:
+                _count(fired, "hyde")
                 hyde_vec = hyde_embed(query, index.embedder)
                 pairs = index.search_dense(query, k=cfg.retrieve_k, query_vec=hyde_vec)
             else:
@@ -165,7 +185,13 @@ def _retrieve(
             result = multi_query_retrieve(index, query, n=3, k=cfg.retrieve_k)
         hits = result.hits
     else:
-        if cfg.hyde:
+        if cfg.hyde and cfg.hyde_stage == "first_stage":
+            _count(fired, "hyde")
+            with timer.stage("hyde"):
+                hyde_vec = hyde_embed(query, index.embedder)
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n, query_vec=hyde_vec)
+            hits = result.hits
+        elif cfg.hyde:  # after_rerank (HYDE_STAGES)
             _count(fired, "hyde")
             with timer.stage("hyde"):
                 hyde_vec = hyde_embed(query, index.embedder)
@@ -382,7 +408,7 @@ def run_config(
     retrieval = aggregate_retrieval(per_query, n_files=n_files)
     payload: dict[str, Any] = {
         "config": cfg.name,
-        "settings": cfg.__dict__,
+        "settings": bench_settings(cfg),
         "retrieval": retrieval.as_dict(),
         "latency": timer.summary(),
         "wall_ms": round(wall_ms, 2),
@@ -464,7 +490,8 @@ DEFAULT_CONFIGS = [
 # paired delta isolates the mechanism. Parents are not listed here: frontier_configs()
 # prepends them, and `hybrid+bge-rerank` is itself the reranked parent of the real-model run.
 _F = dict(mode="hybrid", enable_router=False, staleness_tier1=False, e2e=False, log_triples=False)
-FRONTIER_PARENT, FRONTIER_RERANK_PARENT = "hybrid", "hybrid+rerank"
+_D = {**_F, "mode": "dense"}
+FRONTIER_PARENT, FRONTIER_RERANK_PARENT, FRONTIER_DENSE_PARENT = "hybrid", "hybrid+rerank", "dense_only"
 FRONTIER_CONFIGS = [
     BenchConfig(name="hybrid+bge-rerank", enable_rerank=True, reranker=BGE_RERANKER, parent=FRONTIER_PARENT, **_F),
     BenchConfig(name="hybrid+rankgpt", enable_rerank=True, reranker="rankgpt", parent=FRONTIER_PARENT, **_F),
@@ -475,10 +502,16 @@ FRONTIER_CONFIGS = [
     BenchConfig(name="hybrid+fixed-chunks", enable_rerank=False, chunk_strategy="fixed", parent=FRONTIER_PARENT, **_F),
     BenchConfig(name="hybrid+contextual", enable_rerank=False, contextual=True, parent=FRONTIER_PARENT, **_F),
     BenchConfig(name="hybrid+late-chunking", enable_rerank=False, late_chunking=True, parent=FRONTIER_PARENT, **_F),
-    BenchConfig(name="hybrid+rerank+hyde", enable_rerank=True, hyde=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    # HyDE in the first stage: the HyDE vector is the dense leg's query (HYDE_STAGES).
+    BenchConfig(name="hybrid+hyde", enable_rerank=False, hyde=True, hyde_stage="first_stage", parent=FRONTIER_PARENT, **_F),
+    BenchConfig(name="dense_only+hyde", enable_rerank=False, hyde=True, hyde_stage="first_stage", parent=FRONTIER_DENSE_PARENT, **_D),
+    BenchConfig(name="hybrid+hyde+rerank", enable_rerank=True, hyde=True, hyde_stage="first_stage", parent=FRONTIER_RERANK_PARENT, **_F),
+    # HyDE fused after the reranker: the rows recorded under these names before M18, kept as that wiring's result.
+    BenchConfig(name="hybrid+rerank+hyde", enable_rerank=True, hyde=True, hyde_stage="after_rerank", parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+decompose", enable_rerank=True, decompose=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+corrective", enable_rerank=True, corrective=True, parent=FRONTIER_RERANK_PARENT, **_F),
-    BenchConfig(name="hybrid+rerank+hyde+corrective", enable_rerank=True, hyde=True, corrective=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    BenchConfig(name="hybrid+rerank+hyde+corrective", enable_rerank=True, hyde=True, hyde_stage="after_rerank", corrective=True,
+                parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+adaptive", enable_rerank=True, adaptive=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+graphrag", enable_rerank=True, graphrag=True, parent=FRONTIER_RERANK_PARENT, **_F),
 ]
@@ -490,21 +523,30 @@ FRONTIER_NOT_EVALUATED = {
 
 
 def _neural_name(name: str) -> str:
-    return name.replace("hybrid+rerank", "hybrid+bge-rerank") + "@bge-small"
+    return name.replace("+rerank", "+bge-rerank") + "@bge-small"
+
+
+def _frontier_parents() -> list[BenchConfig]:
+    """The rows the arms are compared with. dense_only's own delta is against hybrid (the BM25 leg removed)."""
+    return [
+        BenchConfig(name=FRONTIER_PARENT, enable_rerank=False, **_F),
+        BenchConfig(name=FRONTIER_RERANK_PARENT, enable_rerank=True, parent=FRONTIER_PARENT, **_F),
+        BenchConfig(name=FRONTIER_DENSE_PARENT, enable_rerank=False, parent=FRONTIER_PARENT, **_D),
+    ]
+
+
+FRONTIER_PARENTS = tuple(c.name for c in _frontier_parents())
 
 
 def frontier_configs(neural: bool = False) -> list[BenchConfig]:
     """Parent rows first, then every prototype arm with its parent named.
 
     CPU fallbacks: hash embedder and overlap reranker (the parents are the
-    `hybrid` and `hybrid+rerank` rows of the default bench). neural=True: the
+    `hybrid`, `hybrid+rerank` and `dense_only` rows of the default bench). neural=True: the
     same arms over bge-small and the real bge-reranker-v2-m3, with their own
     parent rows, so each results file is self-contained.
     """
-    parents = [
-        BenchConfig(name=FRONTIER_PARENT, enable_rerank=False, **_F),
-        BenchConfig(name=FRONTIER_RERANK_PARENT, enable_rerank=True, parent=FRONTIER_PARENT, **_F),
-    ]
+    parents = _frontier_parents()
     arms = [c for c in FRONTIER_CONFIGS if c.name != "hybrid+bge-rerank"]
     if not neural:
         return parents + [c for c in arms if c.name not in FRONTIER_NOT_EVALUATED]
@@ -563,7 +605,7 @@ def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[lis
             "n_top10_differs": sum(1 for a, b in zip(mine, theirs) if a[:10] != b[:10]),
             "n_list_differs": sum(1 for a, b in zip(mine, theirs) if a != b),
         }
-    parents = [n for n in (FRONTIER_PARENT, FRONTIER_RERANK_PARENT, _neural_name(FRONTIER_PARENT), _neural_name(FRONTIER_RERANK_PARENT)) if n in names]
+    parents = [n for n in (*FRONTIER_PARENTS, *(_neural_name(p) for p in FRONTIER_PARENTS)) if n in names]
     neural = any(n.endswith("@bge-small") for n in names)
     return {
         "parents": parents,

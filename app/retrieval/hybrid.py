@@ -144,7 +144,10 @@ class InMemoryHybridIndex:
         timer: StageTimer | None = None,
         k: int | None = None,
         n: int | None = None,
+        query_vec: np.ndarray | None = None,
     ) -> RetrievalResult:
+        """BM25 and dense legs, RRF, then the reranker. `query_vec` replaces the query's own
+        embedding in the dense leg (first-stage HyDE); BM25 and the reranker still read `query`."""
         retrieve_k = k or self.retrieve_k
         rerank_n = n or self.rerank_n
         local = StageTimer() if timer is None else timer
@@ -186,7 +189,7 @@ class InMemoryHybridIndex:
 
             if not skip_embed:
                 with local.stage("embed"):
-                    dense_hits = self.search_dense(query, k=retrieve_k)
+                    dense_hits = self.search_dense(query, k=retrieve_k, query_vec=query_vec)
                 stage_ms["embed"] = local.stages["embed"].samples_ms[-1]
                 ranked_ids.append([c.chunk_id for c, _ in dense_hits])
                 dense_map = {c.chunk_id: s for c, s in dense_hits}

@@ -646,6 +646,20 @@ FRONTIER_CATEGORY_ARMS = ("hipporag", "graphrag")  # the graph arms are aimed at
 FRONTIER_CATEGORIES = ("aggregation", "multi_hop", "comparative")
 
 
+def hyde_wiring(settings: dict) -> str | None:
+    """Where a HyDE arm's dense list enters the ranking (app.eval.harness.HYDE_STAGES), in words."""
+    if not settings.get("hyde"):
+        return None
+    if settings.get("hyde_stage") in (None, "after_rerank"):  # a file recorded before M18 has no stage: this was its wiring
+        return ("HyDE after the reranker: the reranked list is RRF-fused with the HyDE dense list and re-sorted, so the reranker's "
+                "order does not survive and no HyDE hit outside the reranked list is added (the wiring of every HyDE row recorded "
+                "before the first-stage arms existed)")
+    if settings.get("mode") == "dense":
+        return "HyDE in the first stage: the HyDE vector is the dense query"
+    return ("HyDE in the first stage: the HyDE vector is the dense leg's query, fused with BM25 before "
+            + ("the reranker, which has the last word" if settings.get("enable_rerank") else "anything else (no reranker)"))
+
+
 def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "make bench-frontier") -> str:
     """One row per prototype arm: parent, paired delta, interval, verdict word, what fired, stand-ins."""
     if not blob:
@@ -656,7 +670,7 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
     n = blob.get("n_gold")
     lines = [
         f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Each arm is one switch away from its parent and both parents are computed in the same run. The verdict is read off "
+        f"Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off "
         f"the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "
         f"\"Fired\" counts the questions (of {n}) on which the arm's mechanism triggered; \"top 10 differs\" counts the questions "
         f"whose first ten files differ from the parent's. The last column names every stand-in the row's number depends on.",
@@ -698,6 +712,9 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         if lc:
             notes.append(f"- `{name}`: {lc['n_chunks_late_pooled']} of {lc['n_chunks']} chunks ({lc['n_files_with_several_chunks']} files with several chunks) "
                          f"were re-pooled; {lc['pooling']}.")
+        wiring = hyde_wiring(row.get("settings") or {})
+        if wiring:
+            notes.append(f"- `{name}`: {wiring}.")
     for item in meta.get("not_evaluated") or []:
         notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
     if notes:
