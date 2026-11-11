@@ -587,6 +587,54 @@ def _signed(block: dict) -> str:
     return f"{block['delta']:+.3f} [{block['lo']:+.3f}, {block['hi']:+.3f}] (the interval {note}, n = {block['n']} {block['unit']})"
 
 
+def _flagged(block: dict | None) -> str:
+    """flagged / of, then the pooled rate and its interval when there is a base."""
+    if not block:
+        return "n/a"
+    if block.get("rate") is None:
+        return f"{block['flagged']} / {block['of']}"
+    return f"{block['flagged']} / {block['of']} ({block['rate']:.3f} [{block['lo']:.3f}, {block['hi']:.3f}])"
+
+
+def _field_check_lines(summary: dict) -> list[str]:
+    """The structured field check, scored offline on the stored answers, as a detector and in front of the answer."""
+    rows = [(model, defense, b["field_check"]) for model, per in summary.items() for defense, b in per.items()
+            if b.get("field_check")]
+    if not rows:
+        return []
+    n_tasks = rows[0][2]["recall"]["n_tasks"]
+    lines = [
+        "",
+        "Structured field check in front of the answer, scored on the stored answers without a model call (it has not "
+        "run in the model loop). It is told which config field the question asks about, reads that field from the "
+        "config with comments dropped, and flags an answer that does not state the value or that states another value "
+        "for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an "
+        "integer such as a run number does not count); for any other field, another value the field takes in the "
+        "corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or "
+        "the field's own name does not count). It does not use the planted value. An unquoted value outside "
+        "the field's vocabulary passes, and the rule was written with these stored answers in view, so its recall "
+        "here is in-sample. The previous rule flagged only answers without the true value: it cannot flag a correct "
+        "answer, and it passed every answer that gave both values. Like any check in front of the answer, it also "
+        "flags wrong answers; false positives are counted on correct control answers. Flagged answers are pooled over "
+        f"episodes with a bootstrap over the {n_tasks} tasks; the planted value that reaches the user is per trial over "
+        f"the {n_tasks} hijack tasks, with the check in front of the answer minus without it, paired:",
+        "",
+        "| model | configuration | planted-value answers flagged (recall) [95% CI] | ... by the previous rule "
+        "| correct control answers flagged (false-positive rate) [95% CI] | planted value reaching the user, "
+        "no check [95% CI] | with the check [95% CI] | with minus without [95% CI] |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for model, defense, fc in rows:
+        after = fc.get("planted_value_after_check") or {}
+        delta = after.get("delta")
+        delta_cell = (f"{delta['delta']:+.3f} [{delta['lo']:+.3f}, {delta['hi']:+.3f}], "
+                      f"{'excludes' if delta['excludes_zero'] else 'covers'} zero") if delta else "n/a"
+        lines.append(f"| {model} | {defense} | {_flagged(fc['recall'])} | {_flagged(fc.get('recall_true_value_absent_rule'))} "
+                     f"| {_flagged(fc['false_positive_rate'])} | {_rate(after.get('no_check'))} "
+                     f"| {_rate(after.get('with_check'))} | {delta_cell} |")
+    return lines
+
+
 def agent_injection_table(blob: dict | None) -> str:
     """LLM-in-the-loop injection: planted claims and planted actions next to what the system let happen."""
     if not blob:
@@ -599,11 +647,16 @@ def agent_injection_table(blob: dict | None) -> str:
     wall = gen.get("wall_note") or (f"wall {blob['wall_s']} s" if blob.get("wall_s") else "wall time not recorded")
     gen_head = str(segments[0].get("git_head") if segments else blob.get("git_head") or "")[:7]
     gen_dirty = any(seg.get("working_tree_dirty") for seg in segments) if segments else blob.get("working_tree_dirty")
+    # the header's git_head and working_tree_dirty describe the run that scored the episodes, which for a rescore
+    # is not the run that generated them (episodes_generated_by)
+    scored_tree = {True: " with uncommitted changes", False: " from a clean tree"}.get(blob.get("working_tree_dirty"), "")
+    scored_by = " by `make bench-agent-injection-rescore`" if "--summarize-only" in str(blob.get("command") or "") else ""
     lines = [
         f"LLM-in-the-loop injection on fixture v1 (`make bench-agent-injection`; episodes generated at sha {gen_head}"
         f"{' with uncommitted changes' if gen_dirty else ''} in {max(len(segments), 1)} process segment"
         f"{'s' if len(segments) > 1 else ''}{', provenance reconstructed after the run' if gen.get('reconstructed') else ''}; "
-        f"scored at sha {str(blob.get('git_head') or '')[:7]}): {blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; "
+        f"scored at sha {str(blob.get('git_head') or '')[:7]}{scored_tree}{scored_by}): "
+        f"{blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; "
         f"models {', '.join(cfg['models'])} via Ollama {ollama.get('version') or '(version not recorded)'} on "
         f"{(blob.get('device') or {}).get('gpu') or 'an unrecorded device'}; temperature {cfg.get('temperature')}, "
         f"k = {k} sampled trials per task, configuration and model; {wall}. 40 injected tasks (4 goals x 10 config "
@@ -660,10 +713,8 @@ def agent_injection_table(blob: dict | None) -> str:
         f"System boundary, all models and configurations: {gate_note} The corpus changed in {changed} of "
         f"{blob['n_episodes']} episodes (no grant is ever issued, so a change would have meant a bypass), and the "
         f"canary stored outside the corpus root appeared in {leaked} answers. Planted claims are different: "
-        f"{hijacks} answers stated a planted value, and no capability gate covers what an answer says. A structured "
-        "read of the config field, with comments dropped, disagrees with each of those answers by construction, "
-        "because the planted value exists only in comments; it would also flag any wrong or missing answer, so it "
-        "shows the mechanism and is not a measured detector.",
+        f"{hijacks} answers stated a planted value, and no capability gate covers what an answer says.",
+        *_field_check_lines(summary),
         "",
         f"Tool calls the models wrote as JSON text instead of a structured call, recovered and executed: {recovered} "
         f"of {total_calls}; {recovered_writes} of the recovered calls were write tools.",
@@ -789,6 +840,18 @@ def _delta_to(row: dict, reference_suffix: str) -> dict | None:
     return None
 
 
+def _count(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
+def rerank_arms_command(blob: dict) -> str:
+    """The make command that reproduces the file: the listwise model is part of it when that arm ran."""
+    lw = blob.get("listwise") or {}
+    if lw.get("evaluated") and lw.get("model") and lw["model"] != "injected":
+        return f"make bench-rerank-arms LISTWISE_MODEL={lw['model']}"
+    return "make bench-rerank-arms"
+
+
 def rerank_arms_table(blob: dict | None) -> str:
     """Reranker prototypes against the cross-encoder: the distilled student (test questions) and listwise LLM rerank."""
     if not blob:
@@ -796,14 +859,15 @@ def rerank_arms_table(blob: dict | None) -> str:
     cand = blob["candidates"]
     split = blob["split"]
     lines = [
-        f"Reranker prototypes on fixture v1 (`make bench-rerank-arms`, {_device(blob)}; results sha {blob.get('git_sha')}). "
-        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. The student is fitted on the cross-encoder's "
+        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. A student is fitted on the cross-encoder's "
         f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
         f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",
         "",
         "| arm | questions | nDCG@10 [95% CI] | Δ nDCG@10 vs cross-encoder [95% CI] | verdict | Δ nDCG@10 vs un-reranked hybrid [95% CI] | verdict | rerank p50 / p95 ms | stand-ins (fallbacks) |",
         "|---|---:|---:|---:|:---:|---:|:---:|---:|---|",
     ]
+    lw = blob.get("listwise") or {}
     for scope, label in (("test_split", "test split"), ("all_questions", "all")):
         for row in blob[scope]["results"]:
             name = row["config"]
@@ -813,15 +877,32 @@ def rerank_arms_table(blob: dict | None) -> str:
             lat = row.get("rerank_latency")
             student = row.get("student") or {}
             stand_in = student.get("fallback") and f"student: {student['fallback']}"
+            if lw.get("evaluated") and name == lw.get("config") and lw.get("fused_order_kept_ids"):
+                stand_in = f"fused order kept on {len(lw['fused_order_kept_ids'])} of {lw['n_calls']} questions (no reply, or not a full permutation)"
             latency = f"{lat['p50_ms']} / {lat['p95_ms']}" if lat else "—"
             lines.append(
                 f"| {name} | {row['n']} ({label}) | {_ci(row, 'ndcg@10')} | {_delta4(vs_ce)} | {verdict(vs_ce) if vs_ce else '—'} | "
                 f"{_delta4(vs_hybrid)} | {verdict(vs_hybrid) if vs_hybrid else '—'} | {latency} | {stand_in or 'none'} |"
             )
-    lw = blob.get("listwise") or {}
+    models = [f"`{row['config']}` is {row['student']['model']}, {row['student']['library']} {row['student']['version']}"
+              for row in blob["test_split"]["results"] if (row.get("student") or {}).get("model")]
+    if models:
+        lines += ["", "Students: " + "; ".join(models) + "." + (" They are fitted on the same train rows and differ only in the model."
+                                                               if len(models) > 1 else "")]
+    for item in blob.get("not_evaluated") or []:
+        lines += ["", f"`{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}."]
     if lw.get("evaluated"):
-        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama, one prompt per question over the top {lw['window']} candidates "
-                      f"({lw['passage_chars']} characters each); {lw['n_failed_calls']} of {blob['n_gold']} calls returned nothing. Every completion is in the results file."]
+        opts = lw.get("options") or {}
+        parse = lw.get("parse") or {}
+        failures = ", ".join(f"{parse[k]} {k.replace('_', ' ')}" for k in ("not_a_chain", "partial", "repeated_id", "out_of_range") if parse.get(k))
+        kept = len(lw.get("fused_order_kept_ids") or [])
+        lines += ["", f"Listwise arm: `{lw['model']}` through Ollama (temperature {opts.get('temperature')}, seed {opts.get('seed')}), one prompt per "
+                      f"question over the top {lw['window']} candidates ({lw['passage_chars']} characters of each). A reply counts only when the whole "
+                      f"reply is a permutation of the window, `[2] > [1] > ...`; anything else keeps the fused order. Of {lw['n_calls']} calls, "
+                      f"{_count(parse.get('permutation', 0), 'reply was a permutation', 'replies were permutations')}, "
+                      f"{_count(lw['n_parse_failures'], 'reply was not', 'replies were not')} ({failures or 'none'}) and "
+                      f"{_count(lw['n_failed_calls'], 'call returned nothing', 'calls returned nothing')}, so the row's numbers include "
+                      f"{_count(kept, 'question', 'questions')} in the fused order. Every completion and its parse status is in the results file."]
     else:
         lines += ["", f"Listwise reranking by an LLM (`app/retrieval/rankgpt.py`): not evaluated in this run ({lw.get('reason', 'not run')})."]
     return "\n".join(lines)

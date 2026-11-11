@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import ast
+import errno
 import hashlib
 import threading
 import tempfile
@@ -27,14 +28,154 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from app.retrieval.hybrid import InMemoryHybridIndex
-from app.mcp.approvals import ApprovalError, ApprovalVerifier, canonical, verifier_from_env
-from app.mcp.secure_io import fingerprint, relative, create_file, replace_file, move_file
+from app.mcp.approvals import REFUSAL_CHECKS, ApprovalError, ApprovalVerifier, canonical, verifier_from_env
+from app.mcp.secure_io import SymlinkRefused, fingerprint, relative, create_file, replace_file, move_file
 
 
 class ApprovalRequired(Exception):
-    def __init__(self, plan_id: str):
+    def __init__(self, plan_id: str, *, check: str = "capability_required"):
         super().__init__(f"Plan {plan_id} requires a trusted operator approval capability")
         self.plan_id = plan_id
+        self.check = check
+
+
+def refusal_check(exc: BaseException) -> str | None:
+    """The gate check that refused a call (a key of REFUSAL_CHECKS), or None when `exc` is not a refusal."""
+    check = getattr(exc, "check", None)
+    return check if check in REFUSAL_CHECKS else None
+
+
+DEFAULT_EMBEDDER = "hash"
+
+# The MCP expression tool (exec_sandboxed) runs a small language, checked on the syntax
+# tree before anything runs. Every node must be of one of these types, so whatever is
+# not listed is refused: import statements, attribute expressions (x.y), match
+# statements and every pattern (a class pattern looks attributes up by name), class
+# definitions, with, global and nonlocal, yield, await and async code, and syntax newer
+# than this list.
+EXPRESSION_NODES = frozenset({
+    ast.Module, ast.Expr, ast.Assign, ast.AugAssign, ast.Delete, ast.Pass, ast.Break, ast.Continue,
+    ast.If, ast.For, ast.While, ast.Try, ast.ExceptHandler, ast.Raise, ast.Assert, ast.FunctionDef, ast.Return,
+    ast.Name, ast.Constant, ast.List, ast.Tuple, ast.Set, ast.Dict, ast.Subscript, ast.Slice, ast.Starred,
+    ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare, ast.IfExp, ast.Call, ast.keyword, ast.Lambda,
+    ast.arguments, ast.arg, ast.NamedExpr, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp,
+    ast.comprehension, ast.JoinedStr, ast.FormattedValue,
+    ast.Load, ast.Store, ast.Del,
+    ast.And, ast.Or, ast.Add, ast.Sub, ast.Mult, ast.MatMult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift,
+    ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv, ast.Invert, ast.Not, ast.UAdd, ast.USub,
+    ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn,
+})
+# The builtins the expression tool's code can name, and the only ones it is given (a
+# subset of the artifact sandbox's SAFE_BUILTINS). getattr, setattr, vars, dir, type,
+# object, super, format, globals, locals, open, eval, exec, compile and __import__ are
+# not among them.
+EXPRESSION_BUILTINS = frozenset({
+    "abs", "all", "any", "bool", "dict", "enumerate", "filter", "float", "int", "isinstance", "len", "list",
+    "map", "max", "min", "print", "range", "reversed", "round", "set", "sorted", "str", "sum", "tuple", "zip",
+    "AssertionError", "Exception", "ValueError",
+})
+
+
+def expression_refusal(code: str) -> str | None:
+    """Why `code` is outside the expression tool's language, or None when it is inside.
+
+    Besides the node types (EXPRESSION_NODES): no identifier may start with two
+    underscores, so `__builtins__` and the like can be neither read nor bound; and every
+    name the code reads must be one of EXPRESSION_BUILTINS or a name the code binds itself
+    (an assignment, loop, comprehension or `:=` target, a parameter, a function name, an
+    `except ... as` name). The code therefore has no way to look an attribute up by name,
+    which is also the first step of a str.format or format_map field lookup. Raises
+    SyntaxError or ValueError for code that does not parse.
+    """
+    try:
+        tree = ast.parse(code)
+    except (RecursionError, MemoryError):
+        return "the code is nested too deeply to check"
+    bound, read = set(), set()
+    for node in ast.walk(tree):
+        if type(node) not in EXPRESSION_NODES:
+            return f"{type(node).__name__} is not part of the expression tool's language"
+        if isinstance(node, ast.Name):
+            name = node.id
+            (bound if isinstance(node.ctx, ast.Store) else read).add(name)
+        elif isinstance(node, ast.arg):
+            name = node.arg
+            bound.add(name)
+        elif isinstance(node, (ast.FunctionDef, ast.ExceptHandler)):
+            name = node.name or ""
+            bound.add(name)
+        elif isinstance(node, ast.keyword):
+            name = node.arg or ""
+        else:
+            continue
+        if name.startswith("__"):
+            return f"the name {name[:40]!r} starts with two underscores"
+    unknown = sorted(read - bound - EXPRESSION_BUILTINS)
+    if unknown:
+        return f"the name {unknown[0][:40]!r} is neither an allowed builtin nor bound by the code"
+    return None
+
+
+def _symlink_free(root: Path, rel: str) -> bool:
+    """True when no component of `rel` under `root` is a symlink (the path rule of FilesystemTools._safe)."""
+    current = root
+    for part in Path(rel).parts:
+        current = current / part
+        if current.is_symlink():
+            return False
+    return True
+
+
+def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHybridIndex | None:
+    """The search index both stdio servers build over their root at start.
+
+    app/eval/index_loader.build_index with its defaults, as the agent-injection
+    evaluation indexes its corpus copy: chunker "auto", router on, the overlap
+    reranker (token overlap, no model) and, unless `embedder` names another, the
+    hash embedder (no learned weights). None when no file under `root` can be
+    indexed. The index is a snapshot taken at start: it does not follow later
+    writes, including applied moves and patches.
+
+    The shared scanner reads a symlinked file wherever it points. The tools
+    refuse paths through a symlink, so those files are left out here as well;
+    otherwise search and proposals would return text from outside the root.
+    """
+    from app.eval.index_loader import build_index
+    from app.eval.ingest import BENCH_POLICY, scan_directory
+
+    root = Path(root).resolve()
+    try:
+        index = build_index(root, embedder_name=embedder)
+    except ValueError:  # the index refuses zero chunks; anything else is re-raised
+        if scan_directory(root, BENCH_POLICY).files:
+            raise
+        return None
+    kept = [chunk for chunk in index.chunks if _symlink_free(root, chunk.path)]
+    left_out = len({chunk.path for chunk in index.chunks}) - len({chunk.path for chunk in kept})
+    if left_out and not kept:
+        return None
+    if left_out:
+        # Same components, rebuilt over the kept chunks only (a fitted embedder is refitted).
+        confined = InMemoryHybridIndex(kept, embedder=index.embedder, retrieve_k=index.retrieve_k, rerank_n=index.rerank_n,
+                                       rrf_k=index.rrf_k, router=index.router, rerank_fn=index.rerank_fn,
+                                       enable_router=index.enable_router, enable_rerank=index.enable_rerank)
+        for name in ("reranker_name", "reranker_loaded", "reranker_fallback"):
+            setattr(confined, name, getattr(index, name, None))
+        index = confined
+    index.symlinked_files_left_out = left_out
+    return index
+
+
+def index_summary(index: InMemoryHybridIndex | None) -> str:
+    """One start-up line for stderr (stdout carries the protocol)."""
+    if index is None:
+        return "metanavit-filesystem: no index; search_semantic, search_lexical and propose_artifact are unavailable"
+    files = len({chunk.path for chunk in index.chunks})
+    left_out = getattr(index, "symlinked_files_left_out", 0)
+    return (f"metanavit-filesystem: indexed {len(index.chunks)} chunks from {files} files at start "
+            f"(embedder {index.embedder.name}, reranker {getattr(index, 'reranker_name', 'none')}"
+            + (f"; {left_out} file{'s' if left_out != 1 else ''} reached through a symlink left out" if left_out else "")
+            + "); the index does not follow later writes")
 
 
 def _serialized(method):
@@ -44,7 +185,7 @@ def _serialized(method):
             try:
                 result = method(self, plan_id, *args, **kwargs)
             except Exception as exc:
-                self._audit(plan_id, method.__name__, "rejected", type(exc).__name__)
+                self._audit(plan_id, method.__name__, "rejected", type(exc).__name__, check=refusal_check(exc))
                 raise
             self._audit(plan_id, method.__name__, result.get("status", "applied"))
             return result
@@ -92,15 +233,16 @@ class FilesystemTools:
         for component in Path(rel).parts:
             current = current / component
             if current.is_symlink():
-                raise PermissionError("symlink paths are refused")
+                raise SymlinkRefused("symlink paths are refused")
         return candidate
 
-    def _audit(self, plan_id: str, action: str, result: str, detail: str = "") -> None:
+    def _audit(self, plan_id: str, action: str, result: str, detail: str = "", *, check: str | None = None) -> None:
+        """`check` names the refusing check (REFUSAL_CHECKS) of a rejection, or is None."""
         event = {"plan_id": plan_id, "action": action, "result": result,
-                 "detail": detail, "timestamp": time.time()}
+                 "detail": detail, "check": check, "timestamp": time.time()}
         # No grant tokens, key material or file content in audit rows.
         if self.approval_verifier is not None:
-            self.approval_verifier.audit(plan_id, action, result, detail)
+            self.approval_verifier.audit(plan_id, action, result, detail if check is None else f"{detail} ({check})")
         self.audit_events.append(event)
 
     def _describe(self, plan_id: str) -> dict:
@@ -174,10 +316,18 @@ class FilesystemTools:
             raise ApprovalRequired(plan_id)
         review = self.review_plan(plan_id, **options)
         if review["action"] != action:
-            raise ApprovalError("capability action mismatch")
+            raise ApprovalError("capability action mismatch", check="action_mismatch")
         # Content and operation must still match the immutable proposal.
-        if canonical(self._describe(plan_id)).decode() != self._reviews[plan_id]:
-            raise ApprovalError("reviewed plan or file state is stale; propose again")
+        try:
+            current = canonical(self._describe(plan_id)).decode()
+        except OSError as exc:
+            # A reviewed source vanished, a destination appeared or a path became a
+            # symlink. The exception keeps its type (callers map them); it gains a check.
+            if refusal_check(exc) is None:
+                exc.check = "symlink" if exc.errno == errno.ELOOP else "staleness"
+            raise
+        if current != self._reviews[plan_id]:
+            raise ApprovalError("reviewed plan or file state is stale; propose again", check="staleness")
         self.approval_verifier.consume(approval_token, review)
         self._audit(plan_id, action, "authorized")  # durable intent before touching files
         return review
@@ -232,11 +382,17 @@ class FilesystemTools:
         entries = []
         for child in sorted(target.iterdir(), key=lambda p: p.name):
             rel = str(child.relative_to(self.root))
+            st = child.lstat()  # never follows a link
+            if statmod.S_ISLNK(st.st_mode):
+                # The other tools refuse a path through a symlink. It is listed as a
+                # link, without its target's type or size.
+                entries.append({"path": rel, "is_dir": False, "size": None, "symlink": True})
+                continue
             entries.append(
                 {
                     "path": rel,
-                    "is_dir": child.is_dir(),
-                    "size": child.stat().st_size if child.is_file() else None,
+                    "is_dir": statmod.S_ISDIR(st.st_mode),
+                    "size": st.st_size if statmod.S_ISREG(st.st_mode) else None,
                 }
             )
         return entries
@@ -347,19 +503,23 @@ class FilesystemTools:
     def exec_sandboxed(self, code: str) -> dict:
         from app.artifacts.sandbox import run_sandboxed
 
-        # The legacy artifact AST runner permits library file readers. Exposing
-        # those as an agent tool would let it read the operator's private key.
-        # This MCP tool therefore accepts only a no-import/no-attribute subset.
-        # It remains a correctness runner, not a CPU/memory/OS security sandbox.
+        # The legacy artifact AST runner is a block-list that permits library file
+        # readers. Exposing it as an agent tool would let it read the operator's private
+        # key, so this MCP tool accepts only the allow-listed language of
+        # expression_refusal and gives the code only EXPRESSION_BUILTINS. The code runs
+        # in the sandbox's child process (reduced environment; CPU, memory and file-size
+        # limits) as the server's OS user: a correctness runner, not OS isolation.
         try:
             if not isinstance(code, str) or len(code) > 65536:
                 raise ValueError("code exceeds the expression-tool limit")
-            tree = ast.parse(code)
-            if any(isinstance(node, (ast.Import, ast.ImportFrom, ast.Attribute)) for node in ast.walk(tree)):
-                raise ValueError("imports and attribute access are unavailable in the MCP expression tool")
+            refused = expression_refusal(code)
         except (ValueError, SyntaxError) as exc:
             return {"ok": False, "stdout": "", "stderr": "", "error": str(exc), "timed_out": False}
-        return run_sandboxed(code).as_dict()
+        if refused:
+            # "error" stays the check's fixed description; "detail" names what was refused.
+            return {"ok": False, "stdout": "", "stderr": "", "error": REFUSAL_CHECKS["expression_gate"],
+                    "timed_out": False, "refused_by": "expression_gate", "detail": refused}
+        return run_sandboxed(code, builtins=EXPRESSION_BUILTINS).as_dict()
 
     def inspect_spreadsheet(self, path: str) -> dict:
         from app.artifacts.visualization import inspect_spreadsheet
@@ -601,7 +761,7 @@ class FilesystemTools:
             },
             {
                 "name": "exec_sandboxed",
-                "description": "Run a no-import, no-attribute Python expression subset; no OS isolation or resource guarantees.",
+                "description": "Run an allow-listed Python subset (no imports, attribute access, match or class statements; only listed builtins) in a child process with CPU and memory limits; not OS isolation.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {"code": {"type": "string"}},
@@ -665,8 +825,8 @@ class FilesystemTools:
 
     def call(self, name: str, arguments: dict[str, Any]) -> Any:
         if name.startswith("apply_") and "approved" in arguments:
-            self._audit(str(arguments.get("plan_id", "")), name, "rejected", "untrusted_approval_argument")
-            raise ApprovalRequired(str(arguments.get("plan_id", "")))
+            self._audit(str(arguments.get("plan_id", "")), name, "rejected", "ApprovalRequired", check="approval_argument")
+            raise ApprovalRequired(str(arguments.get("plan_id", "")), check="approval_argument")
         if name == "search_semantic":
             return self.search_semantic(
                 arguments["query"],

@@ -12,11 +12,11 @@ def operator_grant(tmp_path_factory):
     from app.mcp.approvals import ApprovalVerifier, create_key, sign_review
     protected = tmp_path_factory.mktemp("operator-private")
     key = protected / "operator.key"
-    create_key(key)
+    create_key(key, protected / "operator.pub")
 
     def issue(tools, plan_id, **options):
-        if tools.approval_verifier is None:
-            tools.approval_verifier = ApprovalVerifier(tools.root, key, protected / "ledger.sqlite")
+        if tools.approval_verifier is None:  # the verifier gets the public key only
+            tools.approval_verifier = ApprovalVerifier(tools.root, protected / "operator.pub", protected / "ledger.sqlite")
         return sign_review(tools.review_plan(plan_id, **options), key, actor="test-operator")
     return issue
 

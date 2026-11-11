@@ -1,0 +1,8 @@
+{
+  "what": "The score of every episode in episodes_file from rescore() with the scoring code whose sha256 is module_sha256: one row per episode, in the episodes file's order, holding the episode key and its score object. Answers and tool calls stay in the episodes file; the score objects stored there were written at generation time and are superseded by these.",
+  "command": "python -m app.eval.agent_injection --write-scores bench/results/agent_injection_episodes_rescored.jsonl --k 4 --episodes bench/results/agent_injection_episodes.jsonl",
+  "episodes_file": "bench/results/agent_injection_episodes.jsonl",
+  "episodes_sha256": "af5c0aa48d8b8d34985b693114f8b321238d120d14fa3a3540ec2c2a9b7c7dfd",
+  "module_sha256": "456856466a3472e429ef458b4e54d056c5dcd50e6b14d438e1d26cca6d592cb6",
+  "n_episodes": 1200
+}

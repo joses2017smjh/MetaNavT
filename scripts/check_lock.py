@@ -31,6 +31,7 @@ PROFILES: dict[str, tuple[str, ...]] = {
     "requirements/mobile.txt": ("eval", "mobile"),
     "requirements/agent.txt": ("eval", "mobile", "agent"),
     "requirements/dev.txt": ("dev",),
+    "requirements/distill.txt": ("distill",),
 }
 PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)")
 

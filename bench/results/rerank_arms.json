@@ -1,16 +1,16 @@
 {
-  "git_sha": "729308e",
-  "timestamp": "2026-11-11T06:49:56.463957+00:00",
-  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.rerank_arms --out bench/results/rerank_arms.json",
+  "git_sha": "c681be7",
+  "timestamp": "2026-11-11T08:58:51.210107+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.rerank_arms --listwise-model qwen2.5:7b --out bench/results/rerank_arms.json",
   "device": {
     "requested": "auto",
     "python": "3.11.16",
-    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
-    "cpu_count": 64,
+    "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 96,
     "torch": "2.5.1+cu121",
     "cuda_available": true,
     "device": "cuda",
-    "device_name": "NVIDIA A40",
+    "device_name": "Tesla V100-SXM3-32GB",
     "threads": 1,
     "sentence_transformers": "6.1.0"
   },
@@ -382,8 +382,8 @@
           }
         },
         "rerank_latency": {
-          "p50_ms": 219.51,
-          "p95_ms": 237.075,
+          "p50_ms": 260.394,
+          "p95_ms": 289.606,
           "n": 68
         },
         "deltas": [
@@ -499,8 +499,8 @@
           }
         },
         "rerank_latency": {
-          "p50_ms": 1.178,
-          "p95_ms": 1.316,
+          "p50_ms": 1.579,
+          "p95_ms": 1.742,
           "n": 68
         },
         "deltas": [
@@ -543,7 +543,181 @@
         ],
         "student": {
           "backend": "numpy_lstsq",
-          "fallback": "linear least squares (LightGBM not installed)",
+          "fallback": null,
+          "model": "linear least squares with an intercept column (numpy.linalg.lstsq)",
+          "library": "numpy",
+          "version": "2.4.6",
+          "n_train_questions": 68,
+          "n_train_triples": 3400,
+          "features": [
+            "dense_cosine",
+            "bm25_score",
+            "rrf_score",
+            "rrf_rank",
+            "jaccard",
+            "exact_overlap",
+            "path_depth",
+            "recency",
+            "is_yaml",
+            "is_log",
+            "is_code",
+            "is_csv",
+            "is_md"
+          ],
+          "teacher": "BAAI/bge-reranker-v2-m3"
+        }
+      },
+      {
+        "config": "hybrid+distilled-student(lightgbm)@bge-small",
+        "n": 68,
+        "retrieval": {
+          "ndcg@10": 0.6904,
+          "recall@5": 0.7433,
+          "recall@10": 0.8132,
+          "recall@50": 0.9338,
+          "mrr@10": 0.7038,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.824,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.8708,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5403,
+              "recall@10": 0.775,
+              "recall@50": 1.0,
+              "mrr@10": 0.4875,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.445,
+              "recall@10": 0.5833,
+              "recall@50": 1.0,
+              "mrr@10": 0.4583,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4143,
+              "recall@10": 0.5225,
+              "recall@50": 1.0,
+              "mrr@10": 0.3833,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.4209,
+              "recall@10": 0.5625,
+              "recall@50": 0.875,
+              "mrr@10": 0.3583,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.4893,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.3857,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4299,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.3375,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.871,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 1.0,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6904,
+            "lo": 0.6157,
+            "hi": 0.7617
+          },
+          "recall@10": {
+            "mean": 0.8132,
+            "lo": 0.7363,
+            "hi": 0.8809
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          }
+        },
+        "rerank_latency": {
+          "p50_ms": 1.804,
+          "p95_ms": 2.111,
+          "n": 68
+        },
+        "deltas": [
+          {
+            "reference": "hybrid+bge-rerank@bge-small",
+            "ndcg@10": {
+              "delta": -0.1144,
+              "lo": -0.1702,
+              "hi": -0.0656
+            },
+            "recall@10": {
+              "delta": -0.0657,
+              "lo": -0.1143,
+              "hi": -0.0254
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          },
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0164,
+              "lo": -0.0698,
+              "hi": 0.0356
+            },
+            "recall@10": {
+              "delta": -0.0167,
+              "lo": -0.0726,
+              "hi": 0.0458
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          }
+        ],
+        "student": {
+          "backend": "lightgbm",
+          "fallback": null,
+          "model": "LightGBM regression trees (lightgbm.train)",
+          "library": "lightgbm",
+          "version": "4.7.0",
+          "params": {
+            "objective": "regression",
+            "max_depth": 4,
+            "learning_rate": 0.1,
+            "num_threads": 1,
+            "seed": 0,
+            "deterministic": true,
+            "force_row_wise": true,
+            "verbosity": -1
+          },
+          "rounds": 80,
           "n_train_questions": 68,
           "n_train_triples": 3400,
           "features": [
@@ -760,8 +934,8 @@
           }
         },
         "rerank_latency": {
-          "p50_ms": 218.765,
-          "p95_ms": 237.049,
+          "p50_ms": 260.394,
+          "p95_ms": 289.615,
           "n": 136
         },
         "deltas": [
@@ -784,11 +958,1074 @@
             }
           }
         ]
+      },
+      {
+        "config": "hybrid+listwise(qwen2.5:7b)@bge-small",
+        "n": 136,
+        "retrieval": {
+          "ndcg@10": 0.7571,
+          "recall@5": 0.7996,
+          "recall@10": 0.8459,
+          "recall@50": 0.9375,
+          "mrr@10": 0.7851,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.7957,
+              "recall@10": 0.8875,
+              "recall@50": 0.9,
+              "mrr@10": 0.8358,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6953,
+              "recall@10": 0.8313,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6085,
+              "recall@10": 0.6875,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6268,
+              "recall@10": 0.6896,
+              "recall@50": 1.0,
+              "mrr@10": 0.6101,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6312,
+              "recall@10": 0.75,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6667,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.9188,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.9167,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.6429,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.8129,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7571,
+            "lo": 0.7093,
+            "hi": 0.8022
+          },
+          "recall@10": {
+            "mean": 0.8459,
+            "lo": 0.7967,
+            "hi": 0.8908
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          }
+        },
+        "rerank_latency": {
+          "p50_ms": 4988.102,
+          "p95_ms": 6022.882,
+          "n": 136
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0615,
+              "lo": 0.0261,
+              "hi": 0.1003
+            },
+            "recall@10": {
+              "delta": 0.0259,
+              "lo": -0.0092,
+              "hi": 0.0625
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small",
+            "ndcg@10": {
+              "delta": -0.0549,
+              "lo": -0.0971,
+              "hi": -0.0142
+            },
+            "recall@10": {
+              "delta": -0.033,
+              "lo": -0.0641,
+              "hi": -0.0057
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          }
+        ]
       }
     ]
   },
   "listwise": {
-    "evaluated": false,
-    "reason": "no --listwise-model given"
-  }
+    "evaluated": true,
+    "config": "hybrid+listwise(qwen2.5:7b)@bge-small",
+    "model": "qwen2.5:7b",
+    "ollama_version": "0.34.3",
+    "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+    "window": 20,
+    "options": {
+      "temperature": 0.0,
+      "seed": 0,
+      "num_ctx": 8192,
+      "num_predict": 200
+    },
+    "passage_chars": 280,
+    "fallback": "a question whose call returned nothing or whose reply is not a full permutation keeps the fused order",
+    "example_prompt": {
+      "id": "q001",
+      "prompt": "Rank the 20 passages below by their relevance to the query. Each passage has an id from [1] to [20].\nQuery: what learning rate did run 40 use\n[1] logs/run_040.out\nSlurm job for run 40\nencoder=resnet50 fusion=False num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0612\nfinished status=SUCCESS\nconfig=configs/run_040.yaml\n\n[2] configs/run_040.yaml\n# run 40 config (CURRENT)\nrun_id: 40\nencoder: resnet50\nfusion: false\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0612\nseed: 7\nbaseline_rmse: 0.055\nrender:\n  trellis: false\ncheckpoint: checkpoints/run_040.ckpt.meta.json\nnotes: none\n\n[3] logs/run_041.out\nSlurm job for run 41\nencoder=resnet50 fusion=True num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0588\nfinished status=SUCCESS\nconfig=configs/run_041.yaml\n\n[4] logs/run_042.out\nSlurm job for run 42\nencoder=resnet50 fusion=True num_pairs=3\nbark_type=pine learning_rate=0.0003\n[epoch 10] val_rmse=0.0571\nfinished status=SUCCESS\nconfig=configs/run_042.yaml\n\n[5] configs/archive/run_047_v1.yaml\n# run 47 config (SUPERSEDED)\nrun_id: 47\nencoder: dinov2\nfusion: true\nnum_pairs: 3\nbark_type: birch\nlearning_rate: 1e-05\nval_rmse: 0.063\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_047.ckpt.meta.json\nnotes: superseded learning rate 1e-5\n\n[6] logs/run_044.out\nSlurm job for run 44\nencoder=clip fusion=True num_pairs=3\nbark_type=maple learning_rate=0.0002\n[epoch 10] val_rmse=0.0595\nfinished status=SUCCESS\nconfig=configs/run_044.yaml\n\n[7] logs/run_043.out\nSlurm job for run 43\nencoder=clip fusion=False num_pairs=1\nbark_type=maple learning_rate=0.0001\n[epoch 10] val_rmse=0.072\nfinished status=SUCCESS\nconfig=configs/run_043.yaml\n\n[8] logs/run_045.out\nSlurm job for run 45\nencoder=dinov2 fusion=False num_pairs=2\nbark_type=birch learning_rate=0.0001\n[epoch 10] val_rmse=0.0568\nfinished status=SUCCESS\nconfig=configs/run_045.yaml\n\n[9] logs/run_050.out\nSlurm job for run 50\nencoder=resnet50 fusion=False num_pairs=3\nbark_type=oak learning_rate=0.001\n[epoch 10] val_rmse=0.064\nfinished status=SUCCESS\nconfig=configs/run_050.yaml\n\n[10] configs/run_041.yaml\n# run 41 config (CURRENT)\nrun_id: 41\nencoder: resnet50\nfusion: true\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0588\nseed: 7\nbaseline_rmse: 0.055\nrender:\n  trellis: false\ncheckpoint: checkpoints/run_041.ckpt.meta.json\nnotes: none\n\n[11] logs/run_046.out\nSlurm job for run 46\nencoder=dinov2 fusion=True num_pairs=2\nbark_type=birch learning_rate=0.0001\n[epoch 10] val_rmse=0.0542\nfinished status=SUCCESS\nconfig=configs/run_046.yaml\n\n[12] logs/run_048.out\nSlurm job for run 48\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=oak learning_rate=0.0003\n[epoch 10] val_rmse=0.0533\nfinished status=SUCCESS\nconfig=configs/run_048.yaml\n\n[13] logs/run_054.out\nSlurm job for run 54\nencoder=resnet50 fusion=True num_pairs=3\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0564\nfinished status=SUCCESS\nconfig=configs/run_054.yaml\n\n[14] logs/run_053.out\nSlurm job for run 53\nencoder=dinov2 fusion=True num_pairs=3\nbark_type=maple learning_rate=0.0002\n[epoch 10] val_rmse=0.053\nfinished status=SUCCESS\nconfig=configs/run_053.yaml\n\n[15] logs/run_052.out\nSlurm job for run 52\nencoder=dinov2 fusion=True num_pairs=1\nbark_type=birch learning_rate=0.0003\n[epoch 10] val_rmse=0.0548\nfinished status=SUCCESS\nconfig=configs/run_052.yaml\n\n[16] paper/draft_v2.md\n# Depth fusion draft v2 (current)\n\nStereo fusion **does** help. The current DINOv2 + fusion + 3-pair run (run 47)\nreaches val RMSE 0.0521, beating the 0.0550 baseline. Bark type for that run\nis birch. Learning rate is 3.0e-4.\n\nThis draft supersedes draft v1. Prefer this file for \n[17] configs/run_042.yaml\n# run 42 config (CURRENT)\nrun_id: 42\nencoder: resnet50\nfusion: true\nnum_pairs: 3\nbark_type: pine\nlearning_rate: 0.0003\nval_rmse: 0.0571\nseed: 11\nbaseline_rmse: 0.055\nrender:\n  trellis: false\ncheckpoint: checkpoints/run_042.ckpt.meta.json\nnotes: none\n\n[18] src/dinov2_encoder.py\ndef load_encoder(freeze_backbone: bool = True):\n    \"\"\"Load DINOv2 ViT-B/14. Learning rate is set in the run config, not here.\"\"\"\n    return MODEL_NAME\n\n[19] logs/run_049.out\nSlurm job for run 49\nencoder=dinov2 fusion=False num_pairs=3\nbark_type=pine learning_rate=0.0005\n[epoch 10] val_rmse=0.0559\nfinished status=SUCCESS\nconfig=configs/run_049.yaml\n\n[20] logs/run_051.out\nSlurm job for run 51\nencoder=clip fusion=False num_pairs=2\nbark_type=pine learning_rate=0.0001\n[epoch 10] val_rmse=0.0681\nfinished status=SUCCESS\nconfig=configs/run_051.yaml\n\nAnswer with the ranking of all 20 passages, most relevant first, as ids in the form [2] > [1] > [3]. Write only the ranking: no words, no explanation."
+    },
+    "n_calls": 136,
+    "n_failed_calls": 0,
+    "n_parse_failures": 39,
+    "parse": {
+      "permutation": 97,
+      "no_completion": 0,
+      "not_a_chain": 6,
+      "out_of_range": 1,
+      "repeated_id": 10,
+      "partial": 22
+    },
+    "parse_failure_ids": [
+      "q006",
+      "q008",
+      "q009",
+      "q023",
+      "q028",
+      "q030",
+      "q031",
+      "q033",
+      "q045",
+      "q048",
+      "q062",
+      "q063",
+      "q064",
+      "q065",
+      "q067",
+      "q068",
+      "q069",
+      "q071",
+      "q073",
+      "q076",
+      "q078",
+      "q091",
+      "q096",
+      "q097",
+      "q098",
+      "q099",
+      "q102",
+      "q103",
+      "q105",
+      "q106",
+      "q110",
+      "q113",
+      "q116",
+      "q117",
+      "q124",
+      "q125",
+      "q128",
+      "q132",
+      "q135"
+    ],
+    "fused_order_kept_ids": [
+      "q006",
+      "q008",
+      "q009",
+      "q023",
+      "q028",
+      "q030",
+      "q031",
+      "q033",
+      "q045",
+      "q048",
+      "q062",
+      "q063",
+      "q064",
+      "q065",
+      "q067",
+      "q068",
+      "q069",
+      "q071",
+      "q073",
+      "q076",
+      "q078",
+      "q091",
+      "q096",
+      "q097",
+      "q098",
+      "q099",
+      "q102",
+      "q103",
+      "q105",
+      "q106",
+      "q110",
+      "q113",
+      "q116",
+      "q117",
+      "q124",
+      "q125",
+      "q128",
+      "q132",
+      "q135"
+    ],
+    "completions": [
+      {
+        "id": "q001",
+        "ms": 3655.0,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [10] > [7] > [8] > [11] > [12] > [13] > [14] > [15] > [4] > [5] > [6] > [9] > [16] > [17] > [19] > [20] > [18] > [3]"
+      },
+      {
+        "id": "q002",
+        "ms": 5915.2,
+        "parse": "permutation",
+        "completion": "[1] > [7] > [4] > [6] > [2] > [3] > [5] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q003",
+        "ms": 4473.9,
+        "parse": "permutation",
+        "completion": "[1] > [3] > [7] > [20] > [14] > [5] > [16] > [9] > [11] > [17] > [18] > [2] > [4] > [6] > [8] > [10] > [12] > [13] > [15] > [19]"
+      },
+      {
+        "id": "q004",
+        "ms": 5648.3,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [11] > [14] > [15] > [4] > [7] > [8] > [9] > [10] > [12] > [13] > [16] > [17] > [18] > [19] > [20] > [5] > [6]"
+      },
+      {
+        "id": "q005",
+        "ms": 4973.8,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [3] > [14] > [20] > [18] > [19] > [5] > [7] > [17] > [15] > [13] > [16] > [8] > [9] > [10] > [11] > [12] > [6] > [4]"
+      },
+      {
+        "id": "q006",
+        "ms": 5055.6,
+        "parse": "repeated_id",
+        "completion": "[1] > [3] > [20] > [19] > [17] > [16] > [15] > [14] > [13] > [12] > [11] > [10] > [9] > [8] > [7] > [6] > [5] > [4] > [3] > [2]"
+      },
+      {
+        "id": "q007",
+        "ms": 5224.8,
+        "parse": "permutation",
+        "completion": "[1] > [6] > [4] > [2] > [3] > [8] > [9] > [12] > [16] > [19] > [7] > [15] > [11] > [14] > [17] > [5] > [10] > [13] > [20] > [18]"
+      },
+      {
+        "id": "q008",
+        "ms": 2430.8,
+        "parse": "partial",
+        "completion": "[2] > [1] > [3]"
+      },
+      {
+        "id": "q009",
+        "ms": 4158.0,
+        "parse": "not_a_chain",
+        "completion": "[1] [2] [3] [20] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16] [17] [18] [19]"
+      },
+      {
+        "id": "q010",
+        "ms": 5603.5,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [15] > [5] > [10] > [11] > [12] > [17] > [18] > [19] > [20] > [4] > [6] > [7] > [8] > [9] > [13] > [14] > [16]"
+      },
+      {
+        "id": "q011",
+        "ms": 5891.7,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [13] > [19] > [7] > [17] > [5] > [3] > [4] > [6] > [8] > [9] > [10] > [11] > [12] > [14] > [15] > [16] > [18] > [20]"
+      },
+      {
+        "id": "q012",
+        "ms": 4620.4,
+        "parse": "permutation",
+        "completion": "[1] > [4] > [5] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [17] > [2] > [3] > [6] > [14] > [15] > [16] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q013",
+        "ms": 4358.9,
+        "parse": "permutation",
+        "completion": "[1] > [13] > [3] > [20] > [14] > [15] > [17] > [18] > [19] > [2] > [4] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [16]"
+      },
+      {
+        "id": "q014",
+        "ms": 3735.2,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [4] > [5] > [7] > [11] > [15] > [17] > [3] > [6] > [8] > [9] > [10] > [12] > [13] > [14] > [16] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q015",
+        "ms": 5349.1,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [4] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q016",
+        "ms": 5326.6,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [5] > [7] > [10] > [11] > [13] > [17] > [3] > [4] > [6] > [8] > [9] > [12] > [14] > [15] > [16] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q017",
+        "ms": 5529.9,
+        "parse": "permutation",
+        "completion": "[1] > [5] > [20] > [2] > [3] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [4] > [6]"
+      },
+      {
+        "id": "q018",
+        "ms": 6019.6,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [17] > [5] > [14] > [6] > [8] > [9] > [10] > [11] > [12] > [13] > [15] > [16] > [18] > [19] > [20] > [3] > [4] > [7]"
+      },
+      {
+        "id": "q019",
+        "ms": 4890.8,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [7] > [12] > [15] > [19] > [20] > [3] > [6] > [10] > [5] > [8] > [4] > [11] > [13] > [16] > [17] > [18] > [9] > [14]"
+      },
+      {
+        "id": "q020",
+        "ms": 4710.5,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [4] > [5] > [7] > [8] > [11] > [17] > [18] > [12] > [14] > [15] > [16] > [19] > [3] > [6] > [9] > [10] > [13] > [20]"
+      },
+      {
+        "id": "q021",
+        "ms": 5422.4,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [18] > [17] > [15] > [14] > [3] > [4] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [16] > [19] > [20]"
+      },
+      {
+        "id": "q022",
+        "ms": 4529.7,
+        "parse": "permutation",
+        "completion": "[1] > [6] > [3] > [10] > [20] > [5] > [13] > [7] > [9] > [14] > [8] > [11] > [12] > [17] > [4] > [2] > [15] > [16] > [19] > [18]"
+      },
+      {
+        "id": "q023",
+        "ms": 4958.9,
+        "parse": "repeated_id",
+        "completion": "[1] > [3] > [20] > [12] > [17] > [1] > [3] > [2] > [3] > [13] > [14] > [18] > [19] > [4] > [5] > [6] > [7] > [8] > [9] > [11]"
+      },
+      {
+        "id": "q024",
+        "ms": 3932.9,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [7] > [8] > [10] > [14] > [16] > [17] > [18] > [19] > [4] > [5] > [6] > [9] > [11] > [12] > [13] > [15] > [20]"
+      },
+      {
+        "id": "q025",
+        "ms": 5608.9,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [3] > [19] > [17] > [16] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [4] > [18] > [20]"
+      },
+      {
+        "id": "q026",
+        "ms": 5622.1,
+        "parse": "permutation",
+        "completion": "[1] > [4] > [20] > [14] > [6] > [16] > [5] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [15] > [17] > [18] > [19] > [2] > [3]"
+      },
+      {
+        "id": "q027",
+        "ms": 4686.2,
+        "parse": "permutation",
+        "completion": "[3] > [4] > [5] > [1] > [2] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q028",
+        "ms": 1176.0,
+        "parse": "partial",
+        "completion": "[2] > [1] > [3]"
+      },
+      {
+        "id": "q029",
+        "ms": 4023.2,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [8] > [20] > [7] > [9] > [5] > [4] > [13] > [11] > [14] > [15] > [16] > [3] > [6] > [10] > [12] > [17] > [19] > [18]"
+      },
+      {
+        "id": "q030",
+        "ms": 1006.6,
+        "parse": "partial",
+        "completion": "[2] > [1] > [3]"
+      },
+      {
+        "id": "q031",
+        "ms": 4212.7,
+        "parse": "repeated_id",
+        "completion": "[3] > [1] > [20] > [1] > [1] > [5] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1] > [1]"
+      },
+      {
+        "id": "q032",
+        "ms": 4740.1,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [5] > [8] > [6] > [18] > [3] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [19] > [7] > [20] > [4]"
+      },
+      {
+        "id": "q033",
+        "ms": 1028.2,
+        "parse": "partial",
+        "completion": "[1] > [6] > [3]"
+      },
+      {
+        "id": "q034",
+        "ms": 4567.0,
+        "parse": "permutation",
+        "completion": "[14] > [1] > [4] > [5] > [2] > [12] > [19] > [3] > [6] > [7] > [8] > [9] > [10] > [11] > [13] > [15] > [16] > [17] > [18] > [20]"
+      },
+      {
+        "id": "q035",
+        "ms": 5084.8,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [4] > [5] > [7] > [8] > [11] > [14] > [17] > [18] > [19] > [3] > [6] > [9] > [10] > [12] > [13] > [15] > [16] > [20]"
+      },
+      {
+        "id": "q036",
+        "ms": 4956.7,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [18] > [15] > [20] > [10] > [11] > [13] > [5] > [7] > [4] > [6] > [9] > [16] > [17] > [19] > [12] > [14] > [8]"
+      },
+      {
+        "id": "q037",
+        "ms": 6329.0,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [5] > [6] > [3] > [8] > [9] > [12] > [14] > [16] > [18] > [20] > [4] > [7] > [10] > [11] > [13] > [15] > [17] > [19]"
+      },
+      {
+        "id": "q038",
+        "ms": 3872.0,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [4] > [16] > [20] > [19] > [5] > [6] > [7] > [8] > [9] > [11] > [12] > [13] > [14] > [15] > [17] > [18] > [10]"
+      },
+      {
+        "id": "q039",
+        "ms": 4263.9,
+        "parse": "permutation",
+        "completion": "[15] > [1] > [3] > [2] > [5] > [13] > [14] > [16] > [17] > [20] > [4] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [19] > [18]"
+      },
+      {
+        "id": "q040",
+        "ms": 5788.4,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [5] > [7] > [4] > [8] > [3] > [6] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q041",
+        "ms": 4694.4,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [6] > [7] > [16] > [5] > [10] > [12] > [14] > [19] > [3] > [4] > [8] > [9] > [11] > [13] > [15] > [17] > [18] > [20]"
+      },
+      {
+        "id": "q042",
+        "ms": 4655.9,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [6] > [3] > [5] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [4] > [20]"
+      },
+      {
+        "id": "q043",
+        "ms": 4157.6,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [3] > [4] > [15] > [7] > [10] > [18] > [5] > [6] > [8] > [9] > [12] > [13] > [14] > [16] > [17] > [19] > [20] > [11]"
+      },
+      {
+        "id": "q044",
+        "ms": 5302.5,
+        "parse": "permutation",
+        "completion": "[12] > [1] > [4] > [20] > [19] > [18] > [17] > [16] > [15] > [14] > [13] > [11] > [10] > [8] > [7] > [6] > [5] > [3] > [2] > [9]"
+      },
+      {
+        "id": "q045",
+        "ms": 2141.6,
+        "parse": "partial",
+        "completion": "[1] > [2] > [3]"
+      },
+      {
+        "id": "q046",
+        "ms": 4715.8,
+        "parse": "permutation",
+        "completion": "[4] > [14] > [1] > [20] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [15] > [16] > [17] > [18] > [19] > [3] > [2]"
+      },
+      {
+        "id": "q047",
+        "ms": 4454.9,
+        "parse": "permutation",
+        "completion": "[3] > [8] > [5] > [2] > [12] > [10] > [7] > [14] > [9] > [6] > [11] > [4] > [17] > [16] > [19] > [18] > [15] > [13] > [1] > [20]"
+      },
+      {
+        "id": "q048",
+        "ms": 5110.6,
+        "parse": "partial",
+        "completion": "[2] > [5] > [7] > [17] > [1] > [3] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q049",
+        "ms": 5421.5,
+        "parse": "permutation",
+        "completion": "[4] > [10] > [1] > [2] > [3] > [5] > [6] > [7] > [8] > [9] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q050",
+        "ms": 5081.4,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [20] > [16] > [8] > [14] > [17] > [18] > [15] > [11] > [13] > [5] > [10] > [7] > [3] > [4] > [9] > [6] > [12] > [19]"
+      },
+      {
+        "id": "q051",
+        "ms": 5512.8,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [13] > [16] > [5] > [7] > [8] > [9] > [10] > [11] > [12] > [14] > [15] > [17] > [18] > [19] > [20] > [3] > [4] > [6]"
+      },
+      {
+        "id": "q052",
+        "ms": 5761.1,
+        "parse": "permutation",
+        "completion": "[1] > [4] > [2] > [3] > [7] > [8] > [12] > [13] > [16] > [5] > [6] > [9] > [10] > [11] > [14] > [15] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q053",
+        "ms": 4204.3,
+        "parse": "permutation",
+        "completion": "[1] > [3] > [9] > [7] > [8] > [5] > [6] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20] > [4] > [2]"
+      },
+      {
+        "id": "q054",
+        "ms": 5536.1,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [8] > [14] > [19] > [10] > [11] > [3] > [4] > [5] > [6] > [7] > [9] > [12] > [13] > [15] > [16] > [17] > [18] > [20]"
+      },
+      {
+        "id": "q055",
+        "ms": 4639.0,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [7] > [16] > [17] > [18] > [19] > [20] > [3] > [4] > [5] > [6] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15]"
+      },
+      {
+        "id": "q056",
+        "ms": 4788.2,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [18] > [17] > [16] > [15] > [14] > [13] > [12] > [11] > [10] > [9] > [8] > [7] > [6] > [5] > [4] > [3] > [20] > [19]"
+      },
+      {
+        "id": "q057",
+        "ms": 6032.3,
+        "parse": "permutation",
+        "completion": "[1] > [4] > [2] > [3] > [7] > [8] > [10] > [11] > [13] > [14] > [16] > [17] > [18] > [19] > [5] > [6] > [9] > [12] > [15] > [20]"
+      },
+      {
+        "id": "q058",
+        "ms": 5226.0,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [13] > [14] > [15] > [3] > [17] > [18] > [19] > [20] > [4] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [16]"
+      },
+      {
+        "id": "q059",
+        "ms": 5327.9,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [5] > [10] > [19] > [3] > [4] > [6] > [7] > [8] > [9] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [20]"
+      },
+      {
+        "id": "q060",
+        "ms": 5493.9,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [5] > [14] > [15] > [16] > [3] > [7] > [9] > [10] > [11] > [12] > [13] > [17] > [18] > [19] > [20] > [4] > [6] > [8]"
+      },
+      {
+        "id": "q061",
+        "ms": 5433.7,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [15] > [12] > [14] > [13] > [5] > [16] > [17] > [7] > [18] > [19] > [3] > [4] > [6] > [8] > [9] > [10] > [11] > [20]"
+      },
+      {
+        "id": "q062",
+        "ms": 3340.4,
+        "parse": "not_a_chain",
+        "completion": "[1] [4] [5] [20] [15] [14] [7] [11] [12] [13] [16] [17] [6] [9] [10] [8] [18] [19] [3] [2]"
+      },
+      {
+        "id": "q063",
+        "ms": 2064.4,
+        "parse": "partial",
+        "completion": "[2] > [1] > [3]"
+      },
+      {
+        "id": "q064",
+        "ms": 4598.7,
+        "parse": "out_of_range",
+        "completion": "[2] > [1] > [3] > [4] > [52] > [51] > [50] > [49] > [48] > [47] > [46] > [45] > [44] > [43] > [42] > [41] > [40] > [39] > [38] > [37]"
+      },
+      {
+        "id": "q065",
+        "ms": 6183.3,
+        "parse": "repeated_id",
+        "completion": "[2] > [1] > [3] > [19] > [12] > [16] > [18] > [4] > [7] > [8] > [10] > [11] > [14] > [15] > [17] > [5] > [6] > [9] > [13] > [14]"
+      },
+      {
+        "id": "q066",
+        "ms": 5937.6,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [16] > [4] > [14] > [3] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [15] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q067",
+        "ms": 5438.7,
+        "parse": "partial",
+        "completion": "[1] > [4] > [3] > [13] > [7] > [6] > [5] > [2] > [8] > [9] > [10] > [11] > [12] > [14] > [15] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q068",
+        "ms": 1021.6,
+        "parse": "partial",
+        "completion": "[2] > [1] > [3]"
+      },
+      {
+        "id": "q069",
+        "ms": 5129.7,
+        "parse": "partial",
+        "completion": "[1] > [2] > [3] > [10] > [19] > [20] > [4] > [5] > [7] > [8] > [9] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18]"
+      },
+      {
+        "id": "q070",
+        "ms": 5157.6,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [20] > [18] > [17] > [16] > [14] > [12] > [11] > [10] > [8] > [7] > [6] > [5] > [4] > [3] > [9] > [15] > [13] > [19]"
+      },
+      {
+        "id": "q071",
+        "ms": 5325.9,
+        "parse": "repeated_id",
+        "completion": "[1] > [3] > [20] > [11] > [12] > [8] > [9] > [16] > [7] > [13] > [14] > [18] > [4] > [5] > [6] > [10] > [15] > [17] > [19] > [10]"
+      },
+      {
+        "id": "q072",
+        "ms": 5909.9,
+        "parse": "permutation",
+        "completion": "[1] > [4] > [2] > [3] > [8] > [6] > [7] > [12] > [5] > [9] > [10] > [11] > [14] > [17] > [16] > [19] > [13] > [18] > [20] > [15]"
+      },
+      {
+        "id": "q073",
+        "ms": 2501.6,
+        "parse": "partial",
+        "completion": "[2] > [1] > [3]"
+      },
+      {
+        "id": "q074",
+        "ms": 5187.6,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [10] > [18] > [19] > [3] > [4] > [7] > [6] > [12] > [13] > [14] > [15] > [16] > [17] > [8] > [9] > [5] > [11] > [20]"
+      },
+      {
+        "id": "q075",
+        "ms": 4481.3,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [7] > [18] > [19] > [4] > [5] > [6] > [10] > [11] > [14] > [15] > [17] > [3] > [8] > [9] > [12] > [13] > [16] > [20]"
+      },
+      {
+        "id": "q076",
+        "ms": 4955.1,
+        "parse": "partial",
+        "completion": "[1] > [2] > [20] > [4] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19]"
+      },
+      {
+        "id": "q077",
+        "ms": 4217.6,
+        "parse": "permutation",
+        "completion": "[1] > [4] > [20] > [14] > [11] > [6] > [5] > [12] > [7] > [8] > [15] > [16] > [17] > [18] > [3] > [9] > [10] > [13] > [19] > [2]"
+      },
+      {
+        "id": "q078",
+        "ms": 3455.5,
+        "parse": "partial",
+        "completion": "[1] > [3] > [7] > [11] > [14] > [20] > [5] > [6] > [16] > [17] > [19] > [4] > [8] > [9] > [10] > [12] > [13] > [15] > [18]"
+      },
+      {
+        "id": "q079",
+        "ms": 6531.5,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [7] > [11] > [16] > [3] > [4] > [5] > [6] > [8] > [9] > [10] > [12] > [13] > [14] > [15] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q080",
+        "ms": 4436.1,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [11] > [5] > [8] > [7] > [17] > [18] > [10] > [16] > [9] > [4] > [3] > [15] > [14] > [13] > [6] > [12] > [19] > [20]"
+      },
+      {
+        "id": "q081",
+        "ms": 4667.4,
+        "parse": "permutation",
+        "completion": "[2] > [18] > [4] > [3] > [7] > [11] > [20] > [5] > [17] > [14] > [16] > [12] > [15] > [13] > [6] > [8] > [9] > [10] > [19] > [1]"
+      },
+      {
+        "id": "q082",
+        "ms": 4992.6,
+        "parse": "permutation",
+        "completion": "[6] > [11] > [4] > [5] > [2] > [10] > [7] > [9] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [8] > [1] > [3] > [20]"
+      },
+      {
+        "id": "q083",
+        "ms": 4933.7,
+        "parse": "permutation",
+        "completion": "[11] > [8] > [2] > [1] > [15] > [6] > [16] > [10] > [17] > [7] > [3] > [9] > [4] > [5] > [14] > [19] > [20] > [18] > [12] > [13]"
+      },
+      {
+        "id": "q084",
+        "ms": 4799.0,
+        "parse": "permutation",
+        "completion": "[2] > [6] > [10] > [4] > [3] > [16] > [14] > [18] > [7] > [12] > [13] > [19] > [5] > [9] > [11] > [15] > [17] > [1] > [8] > [20]"
+      },
+      {
+        "id": "q085",
+        "ms": 4842.6,
+        "parse": "permutation",
+        "completion": "[4] > [6] > [12] > [20] > [14] > [7] > [13] > [5] > [9] > [10] > [8] > [15] > [11] > [19] > [3] > [2] > [16] > [17] > [18] > [1]"
+      },
+      {
+        "id": "q086",
+        "ms": 5594.1,
+        "parse": "permutation",
+        "completion": "[6] > [1] > [8] > [20] > [16] > [13] > [7] > [4] > [17] > [9] > [10] > [5] > [19] > [18] > [14] > [3] > [15] > [11] > [12] > [2]"
+      },
+      {
+        "id": "q087",
+        "ms": 5795.6,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [20] > [18] > [11] > [4] > [5] > [6] > [7] > [8] > [10] > [14] > [15] > [16] > [17] > [3] > [9] > [12] > [13] > [19]"
+      },
+      {
+        "id": "q088",
+        "ms": 5096.3,
+        "parse": "permutation",
+        "completion": "[14] > [2] > [20] > [4] > [10] > [12] > [17] > [18] > [19] > [1] > [5] > [7] > [8] > [9] > [11] > [15] > [3] > [6] > [13] > [16]"
+      },
+      {
+        "id": "q089",
+        "ms": 4983.6,
+        "parse": "permutation",
+        "completion": "[7] > [4] > [19] > [8] > [5] > [6] > [3] > [15] > [20] > [16] > [17] > [18] > [1] > [14] > [13] > [9] > [10] > [11] > [2] > [12]"
+      },
+      {
+        "id": "q090",
+        "ms": 4992.4,
+        "parse": "permutation",
+        "completion": "[14] > [15] > [2] > [10] > [11] > [12] > [4] > [6] > [13] > [19] > [17] > [7] > [8] > [9] > [16] > [5] > [3] > [18] > [1] > [20]"
+      },
+      {
+        "id": "q091",
+        "ms": 4511.5,
+        "parse": "not_a_chain",
+        "completion": "[13] [16] [14] [15] [5] [3] [10] [17] [18] [19] [20] [4] [7] [8] [9] [6] [11] [12] [2] [1]"
+      },
+      {
+        "id": "q092",
+        "ms": 5364.6,
+        "parse": "permutation",
+        "completion": "[2] > [3] > [17] > [19] > [14] > [12] > [15] > [6] > [7] > [8] > [9] > [10] > [11] > [13] > [16] > [18] > [20] > [4] > [5] > [1]"
+      },
+      {
+        "id": "q093",
+        "ms": 4887.8,
+        "parse": "permutation",
+        "completion": "[14] > [1] > [9] > [11] > [20] > [6] > [7] > [8] > [19] > [5] > [3] > [4] > [10] > [16] > [2] > [15] > [12] > [13] > [17] > [18]"
+      },
+      {
+        "id": "q094",
+        "ms": 5871.3,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [4] > [7] > [5] > [8] > [11] > [14] > [15] > [16] > [18] > [19] > [20] > [3] > [6] > [9] > [10] > [12] > [13] > [17]"
+      },
+      {
+        "id": "q095",
+        "ms": 4900.3,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [5] > [17] > [6] > [18] > [20] > [19] > [4] > [3] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16]"
+      },
+      {
+        "id": "q096",
+        "ms": 4454.9,
+        "parse": "not_a_chain",
+        "completion": "[17] [1] [7] [20] [14] [10] [16] [19] [15] [4] [5] [8] [9] [11] [12] [13] [18] [1] [6] [3] [14]"
+      },
+      {
+        "id": "q097",
+        "ms": 5916.1,
+        "parse": "partial",
+        "completion": "[5] > [10] > [3] > [4] > [7] > [20] > [18] > [15] > [16] > [13] > [14] > [17] > [2] > [19] > [6] > [9] > [11] > [8] > [12]"
+      },
+      {
+        "id": "q098",
+        "ms": 4340.5,
+        "parse": "partial",
+        "completion": "[1] > [10] > [7] > [2] > [3] > [4] > [5] > [6] > [8] > [11] > [12] > [13] > [14] > [9] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q099",
+        "ms": 3898.6,
+        "parse": "not_a_chain",
+        "completion": "[17] [1] [6] [3] [4] [18] [11] [2] [7] [16] [5] [14] [10] [12] [19] [15] [13] [9] [8] [10] [12]"
+      },
+      {
+        "id": "q100",
+        "ms": 5545.7,
+        "parse": "permutation",
+        "completion": "[8] > [9] > [2] > [1] > [6] > [18] > [20] > [11] > [15] > [13] > [14] > [16] > [5] > [7] > [10] > [3] > [12] > [4] > [17] > [19]"
+      },
+      {
+        "id": "q101",
+        "ms": 6436.8,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [9] > [6] > [18] > [16] > [12] > [5] > [14] > [4] > [10] > [11] > [3] > [7] > [8] > [15] > [17] > [13] > [19] > [20]"
+      },
+      {
+        "id": "q102",
+        "ms": 4631.3,
+        "parse": "repeated_id",
+        "completion": "[1] > [3] > [4] > [5] > [7] > [8] > [11] > [12] > [13] > [18] > [20] > [16] > [17] > [6] > [9] > [14] > [15] > [19] > [5]"
+      },
+      {
+        "id": "q103",
+        "ms": 4358.5,
+        "parse": "partial",
+        "completion": "[2] > [10] > [1] > [8] > [9] > [7] > [6] > [5] > [4] > [3] > [12] > [13] > [17] > [18] > [19] > [20] > [16] > [15] > [11]"
+      },
+      {
+        "id": "q104",
+        "ms": 4618.3,
+        "parse": "permutation",
+        "completion": "[2] > [4] > [5] > [6] > [7] > [11] > [19] > [20] > [3] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [1] > [8] > [9] > [10]"
+      },
+      {
+        "id": "q105",
+        "ms": 4745.3,
+        "parse": "repeated_id",
+        "completion": "[3] > [1] > [10] > [6] > [8] > [7] > [11] > [4] > [5] > [13] > [15] > [16] > [17] > [18] > [19] > [20] > [14] > [9] > [12] > [1]"
+      },
+      {
+        "id": "q106",
+        "ms": 4817.5,
+        "parse": "repeated_id",
+        "completion": "[2] > [18] > [1] > [14] > [16] > [19] > [5] > [3] > [13] > [17] > [12] > [10] > [9] > [7] > [6] > [4] > [11] > [15] > [16] > [8]"
+      },
+      {
+        "id": "q107",
+        "ms": 5587.6,
+        "parse": "permutation",
+        "completion": "[15] > [8] > [18] > [1] > [20] > [4] > [19] > [5] > [6] > [7] > [3] > [13] > [10] > [11] > [12] > [9] > [14] > [16] > [17] > [2]"
+      },
+      {
+        "id": "q108",
+        "ms": 6211.5,
+        "parse": "permutation",
+        "completion": "[18] > [20] > [1] > [6] > [8] > [11] > [17] > [5] > [3] > [4] > [7] > [12] > [13] > [14] > [15] > [16] > [19] > [9] > [10] > [2]"
+      },
+      {
+        "id": "q109",
+        "ms": 5542.6,
+        "parse": "permutation",
+        "completion": "[16] > [1] > [14] > [5] > [20] > [13] > [17] > [6] > [15] > [9] > [4] > [11] > [12] > [10] > [7] > [8] > [3] > [2] > [19] > [18]"
+      },
+      {
+        "id": "q110",
+        "ms": 4554.4,
+        "parse": "partial",
+        "completion": "[5] > [2] > [1] > [3] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q111",
+        "ms": 4447.1,
+        "parse": "permutation",
+        "completion": "[16] > [1] > [3] > [9] > [12] > [2] > [7] > [10] > [11] > [14] > [15] > [13] > [18] > [17] > [19] > [20] > [4] > [5] > [6] > [8]"
+      },
+      {
+        "id": "q112",
+        "ms": 5313.9,
+        "parse": "permutation",
+        "completion": "[1] > [14] > [16] > [5] > [10] > [11] > [9] > [4] > [7] > [12] > [13] > [15] > [3] > [6] > [8] > [17] > [18] > [19] > [20] > [2]"
+      },
+      {
+        "id": "q113",
+        "ms": 2871.0,
+        "parse": "partial",
+        "completion": "[1] > [2] > [4] > [7] > [9] > [11]"
+      },
+      {
+        "id": "q114",
+        "ms": 5548.1,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [8] > [9] > [17] > [18] > [7] > [14] > [11] > [12] > [15] > [16] > [10] > [13] > [19] > [5] > [6] > [4] > [20]"
+      },
+      {
+        "id": "q115",
+        "ms": 5084.5,
+        "parse": "permutation",
+        "completion": "[3] > [2] > [1] > [4] > [20] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19]"
+      },
+      {
+        "id": "q116",
+        "ms": 5190.5,
+        "parse": "partial",
+        "completion": "[1] > [3] > [4] > [5] > [20] > [2] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [17] > [18] > [19]"
+      },
+      {
+        "id": "q117",
+        "ms": 5065.2,
+        "parse": "not_a_chain",
+        "completion": "[1] [2] [4] [9] [11] [14] [12] [18] [19] [3] [7] [8] [10] [16] [13] [15] [17] [1] [5] [6] [20]"
+      },
+      {
+        "id": "q118",
+        "ms": 4974.9,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [7] > [5] > [10] > [11] > [17] > [18] > [20] > [4] > [8] > [9] > [12] > [13] > [14] > [15] > [16] > [19] > [3] > [6]"
+      },
+      {
+        "id": "q119",
+        "ms": 5062.0,
+        "parse": "permutation",
+        "completion": "[2] > [1] > [5] > [7] > [10] > [3] > [9] > [15] > [6] > [11] > [12] > [14] > [16] > [17] > [18] > [4] > [8] > [13] > [19] > [20]"
+      },
+      {
+        "id": "q120",
+        "ms": 5689.6,
+        "parse": "permutation",
+        "completion": "[6] > [1] > [10] > [2] > [7] > [8] > [5] > [9] > [3] > [4] > [11] > [17] > [18] > [13] > [16] > [19] > [20] > [15] > [14] > [12]"
+      },
+      {
+        "id": "q121",
+        "ms": 4945.7,
+        "parse": "permutation",
+        "completion": "[1] > [7] > [6] > [12] > [14] > [13] > [4] > [11] > [10] > [8] > [16] > [15] > [5] > [9] > [17] > [18] > [20] > [3] > [2] > [19]"
+      },
+      {
+        "id": "q122",
+        "ms": 5099.4,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [18] > [17] > [3] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [16] > [19] > [20] > [4]"
+      },
+      {
+        "id": "q123",
+        "ms": 5202.3,
+        "parse": "permutation",
+        "completion": "[16] > [14] > [5] > [15] > [13] > [1] > [10] > [7] > [4] > [11] > [17] > [8] > [9] > [12] > [3] > [6] > [2] > [19] > [18] > [20]"
+      },
+      {
+        "id": "q124",
+        "ms": 2468.8,
+        "parse": "partial",
+        "completion": "[7] > [2] > [3]"
+      },
+      {
+        "id": "q125",
+        "ms": 3820.4,
+        "parse": "partial",
+        "completion": "[1] > [2] > [3] > [4] > [5] > [6] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [15] > [16] > [17] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q126",
+        "ms": 4505.8,
+        "parse": "permutation",
+        "completion": "[10] > [5] > [4] > [3] > [12] > [13] > [14] > [15] > [2] > [7] > [6] > [11] > [16] > [17] > [18] > [19] > [20] > [1] > [8] > [9]"
+      },
+      {
+        "id": "q127",
+        "ms": 6004.6,
+        "parse": "permutation",
+        "completion": "[19] > [4] > [6] > [16] > [1] > [5] > [7] > [8] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [2] > [3] > [17] > [18] > [20]"
+      },
+      {
+        "id": "q128",
+        "ms": 5722.6,
+        "parse": "repeated_id",
+        "completion": "[16] > [12] > [19] > [1] > [20] > [14] > [17] > [5] > [10] > [8] > [15] > [7] > [13] > [6] > [3] > [4] > [11] > [9] > [18] > [12]"
+      },
+      {
+        "id": "q129",
+        "ms": 5602.7,
+        "parse": "permutation",
+        "completion": "[9] > [18] > [4] > [14] > [11] > [6] > [16] > [7] > [12] > [10] > [13] > [5] > [15] > [17] > [3] > [2] > [19] > [8] > [1] > [20]"
+      },
+      {
+        "id": "q130",
+        "ms": 6221.5,
+        "parse": "permutation",
+        "completion": "[1] > [9] > [10] > [2] > [7] > [6] > [13] > [18] > [19] > [3] > [8] > [17] > [4] > [5] > [11] > [12] > [15] > [16] > [14] > [20]"
+      },
+      {
+        "id": "q131",
+        "ms": 5433.7,
+        "parse": "permutation",
+        "completion": "[1] > [8] > [3] > [4] > [16] > [17] > [2] > [5] > [6] > [7] > [9] > [10] > [11] > [12] > [13] > [14] > [15] > [18] > [19] > [20]"
+      },
+      {
+        "id": "q132",
+        "ms": 5324.5,
+        "parse": "repeated_id",
+        "completion": "[1] > [3] > [7] > [8] > [9] > [16] > [17] > [1] > [2] > [4] > [5] > [6] > [10] > [11] > [12] > [13] > [14] > [15] > [19] > [18]"
+      },
+      {
+        "id": "q133",
+        "ms": 5358.9,
+        "parse": "permutation",
+        "completion": "[1] > [6] > [10] > [18] > [20] > [3] > [4] > [5] > [7] > [8] > [9] > [11] > [12] > [13] > [17] > [19] > [2] > [15] > [16] > [14]"
+      },
+      {
+        "id": "q134",
+        "ms": 5832.8,
+        "parse": "permutation",
+        "completion": "[2] > [9] > [12] > [16] > [7] > [11] > [14] > [15] > [17] > [5] > [3] > [19] > [18] > [13] > [10] > [4] > [1] > [6] > [8] > [20]"
+      },
+      {
+        "id": "q135",
+        "ms": 4714.4,
+        "parse": "partial",
+        "completion": "[19] > [17] > [15] > [14] > [13] > [12] > [11] > [10] > [9] > [8] > [7] > [6] > [5] > [4] > [3] > [2] > [1] > [16] > [20]"
+      },
+      {
+        "id": "q136",
+        "ms": 5524.0,
+        "parse": "permutation",
+        "completion": "[1] > [2] > [3] > [4] > [6] > [7] > [9] > [14] > [15] > [19] > [5] > [8] > [10] > [11] > [12] > [13] > [16] > [17] > [18] > [20]"
+      }
+    ]
+  },
+  "not_evaluated": []
 }

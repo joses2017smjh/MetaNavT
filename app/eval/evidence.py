@@ -257,14 +257,14 @@ def claims(root: Path = ROOT) -> list[dict]:
 
 def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
     """The reranker prototypes against the cross-encoder: paired deltas and the latency they buy."""
-    from app.eval.report import verdict
+    from app.eval.report import rerank_arms_command, verdict
 
     blob = _load(FILES["rerank_arms"], root)
     if not blob:
         return []
     out: list[dict] = []
     src = f"{FILES['rerank_arms']} @ {blob['git_sha']}"
-    cmd = "make bench-rerank-arms"
+    cmd = rerank_arms_command(blob)
     for scope in ("test_split", "all_questions"):
         rows = {r["config"]: r for r in blob[scope]["results"]}
         teacher = rows.get("hybrid+bge-rerank@bge-small") or {}
@@ -273,6 +273,16 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                 continue
             student = row.get("student") or {}
             stand_in = f"student backend: {student['fallback']}" if student.get("fallback") else "no stand-in: the model ran"
+            if student.get("model") and not student.get("fallback"):
+                stand_in = f"student: {student['model']}"
+            lw = blob.get("listwise") or {}
+            reranks = f"both rerank the fused top {blob['candidates']['retrieve_k']}"
+            if lw.get("evaluated") and name == lw.get("config"):
+                stand_in = (f"{len(lw.get('fused_order_kept_ids') or [])} of {lw['n_calls']} questions keep the fused order "
+                            f"({lw['n_failed_calls']} calls returned nothing, {lw['n_parse_failures']} replies were not a full permutation)")
+                # The file records the model, its digest and the Ollama version, not where Ollama ran: say no more than that.
+                reranks = (f"the cross-encoder reranks the fused top {blob['candidates']['retrieve_k']}, the listwise model its first "
+                           f"{lw['window']} (`{lw['model']}` through Ollama)")
             for block in row.get("deltas") or []:
                 d = block["ndcg@10"]
                 value, ci = _ci(d, "delta")
@@ -280,7 +290,7 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                 out.append({"claim": f"Reranker prototype `{name}` minus `{block['reference']}`, paired delta in nDCG@10 ({'held-out test questions' if scope == 'test_split' else 'all questions'})",
                             "value": value, "ci": ci, "n": row["n"], "command": cmd, "source": src,
                             "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
-                                         f"both rerank the fused top {blob['candidates']['retrieve_k']} of a {blob['n_files']}-file synthetic fixture"})
+                                         f"{reranks} of a {blob['n_files']}-file synthetic fixture"})
     return out
 
 
@@ -328,6 +338,10 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
         return []
     out: list[dict] = []
     src = f"{FILES['agent_injection']} @ {str(blob.get('git_head') or '')[:7]}"
+    segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
+    if segments and "--summarize-only" in str(blob.get("command") or ""):  # the header names the scoring run
+        src += (f" (episodes generated at {str(segments[0].get('git_head') or '')[:7]}, scored by "
+                "`make bench-agent-injection-rescore`)")
     cmd = "make bench-agent-injection"
     k = blob["config"]["k"]
     scope = "one phrasing per goal and task, written for this benchmark (not an adaptive attacker); two local 7-8B models; synthetic config questions"

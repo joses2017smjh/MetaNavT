@@ -1,17 +1,24 @@
 """Minimal MCP stdio server for FilesystemTools (JSON-RPC 2.0).
 
+    python -m app.mcp.server [ROOT] [--embedder NAME | --no-index]
+
 Any MCP client can drive the corpus: search, read, list, propose_move,
 collect_run_artifact, propose_artifact / patch. apply_* requires a separately issued operator capability.
+Search and propose_artifact use an index built over ROOT at start
+(filesystem.build_root_index: hash embedder and overlap reranker unless
+--embedder names another); --no-index, or a root with no indexable file,
+starts without one and those tools refuse.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Any, TextIO
 
-from app.mcp.filesystem import FilesystemTools
+from app.mcp.filesystem import DEFAULT_EMBEDDER, FilesystemTools, build_root_index, index_summary
 
 
 class MCPServer:
@@ -84,10 +91,15 @@ def serve(tools: FilesystemTools, stdin: TextIO | None = None, stdout: TextIO | 
             stdout.flush()
 
 
-def main() -> None:
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("bench/corpus/files")
-    tools = FilesystemTools(root=root)
-    serve(tools)
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("root", nargs="?", type=Path, default=Path("bench/corpus/files"))
+    parser.add_argument("--embedder", default=DEFAULT_EMBEDDER, help="hash (default), tfidf, st or st:<model>")
+    parser.add_argument("--no-index", action="store_true", help="start without a search index (large roots)")
+    args = parser.parse_args(argv)
+    index = None if args.no_index else build_root_index(args.root, args.embedder)
+    print(index_summary(index), file=sys.stderr, flush=True)
+    serve(FilesystemTools(root=args.root, index=index))
 
 
 if __name__ == "__main__":
