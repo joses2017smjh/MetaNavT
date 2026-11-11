@@ -184,3 +184,23 @@ def test_graphrag_community_order_does_not_depend_on_the_hash_seed():
     }
     assert len(outputs) == 1, outputs
     assert outputs.pop().count("(") == 4  # four communities, three of them the same size
+
+
+def test_fixture_mtimes_puts_back_the_manifest_mtimes_and_refuses_on_drift(tmp_path):
+    """make fixture-mtimes: for the served indexer, which reads disk mtimes (the API side of the parity run)."""
+    from app.eval.corpus import apply_manifest_mtimes, load_manifest, mtime_mismatches
+
+    files = _fixture_copy(tmp_path, lambda rel, entry: time.time()) / "bench" / "corpus" / "files"
+    manifest = load_manifest(files.parent / "MANIFEST.json")
+    contents = {e["path"]: (files / e["path"]).read_bytes() for e in manifest["files"]}
+    assert len(mtime_mismatches(files, manifest)) == manifest["n_files"]
+
+    assert apply_manifest_mtimes(files, manifest) == manifest["n_files"]
+
+    assert mtime_mismatches(files, manifest) == []
+    assert {p: (files / p).read_bytes() for p in contents} == contents
+    (files / "README.md").write_text("edited\n")
+    os.utime(files / "src" / "fusion.py", (0, 0))
+    with pytest.raises(RuntimeError, match="corpus drift"):
+        apply_manifest_mtimes(files, manifest)
+    assert (files / "src" / "fusion.py").stat().st_mtime == 0  # nothing was set while the fixture disagreed

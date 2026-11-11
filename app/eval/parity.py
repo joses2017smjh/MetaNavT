@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 from urllib import error, request
 
-from app.eval.corpus import load_manifest
+from app.eval.corpus import load_manifest, mtime_mismatches
 from app.eval.gold import load_gold
 from app.eval.harness import BenchConfig, attach_confidence, project_root, run_config
 from app.eval.index_loader import mtime_provenance
@@ -160,7 +160,10 @@ def run(url: str, *, root: Path | None = None, k: int = 50) -> dict[str, Any]:
         "corpus_sha256": manifest["aggregate_sha256"],
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
-        "mtimes": {"in_memory": mtime_provenance(files_root, "manifest", base=root)},
+        # The in-memory row reads the MANIFEST's mtimes; the API (app/engine/ingest.py) reads the disk's, so the
+        # run says whether bench/corpus/files on disk had them (make fixture-mtimes), as in CI.
+        "mtimes": {"in_memory": mtime_provenance(files_root, "manifest", base=root),
+                   "api": {"source": "disk", "dir": "bench/corpus/files", "equal_to_manifest": not mtime_mismatches(files_root, manifest)}},
         "api_health": scrub(health),  # what /health reported, with paths, user and host names made publishable
         "bootstrap": boot,
         "gap": gap_report,
