@@ -298,6 +298,10 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
         return []
     out: list[dict] = []
     src = f"{FILES['agent_injection']} @ {str(blob.get('git_head') or '')[:7]}"
+    segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
+    if segments and "--summarize-only" in str(blob.get("command") or ""):  # the header names the scoring run
+        src += (f" (episodes generated at {str(segments[0].get('git_head') or '')[:7]}, scored by "
+                "`make bench-agent-injection-rescore`)")
     cmd = "make bench-agent-injection"
     k = blob["config"]["k"]
     scope = "one phrasing per goal and task, written for this benchmark (not an adaptive attacker); two local 7-8B models; synthetic config questions"
