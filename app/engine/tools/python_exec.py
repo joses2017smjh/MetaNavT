@@ -13,12 +13,13 @@ The tool runs model-written code, so it is off unless switched on explicitly
     PYTHON_EXEC_MAX_MEMORY_MB       address-space limit per call
 When it is on, each call runs the code in a child process (python_exec_runner.py),
 never in the API process: a new session, its own environment reduced to PATH, HOME,
-locale and TMPDIR (the API key and the database string are not in it), CPU, memory
-and file-size limits, and its process group is killed at the time limit and after
-every call. A child process is not OS isolation: it runs as the API's OS user, so it
-can still read what that user can read (the API process's start-up environment under
-/proc, a .env file in the working directory), and a process it starts in a session
-of its own leaves the group and is not killed.
+locale, TZ and TMPDIR plus one-thread settings for the maths libraries (the API key
+and the database string are not in it), CPU, memory and file-size limits, and its
+process group is killed at the time limit and after every call. A child process is
+not OS isolation: it runs as the API's OS user, so it can still read what that user
+can read (the API process's start-up environment under /proc, a .env file in the
+working directory), and a process it starts in a session of its own leaves the group
+and is not killed.
 """
 
 # Standard library imports for file, system and text operations
