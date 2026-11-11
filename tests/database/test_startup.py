@@ -124,3 +124,112 @@ def test_the_probe_refuses_a_missing_table_and_keeps_no_store(monkeypatch):
                 assert cur.fetchone()[0]  # still no table: the probe wrote nothing
     finally:
         vsm.close()
+
+
+def _fresh_database(monkeypatch, prefix):
+    """(name, URL) of a database that does not exist yet, set as DB_NAME and PG_CONNECTION_STRING: the
+    admin connection is PG_CONNECTION_STRING with /postgres, the name it creates is DB_NAME, and the pool
+    connects to the URL passed as conn_string."""
+    from urllib.parse import urlparse, urlunparse
+
+    name = prefix + uuid.uuid4().hex[:8]
+    fresh = urlunparse(urlparse(os.environ["PG_TEST_DSN"])._replace(path="/" + name))
+    monkeypatch.setenv("PG_CONNECTION_STRING", fresh)
+    monkeypatch.setenv("DB_NAME", name)
+    monkeypatch.setenv("PGVECTOR_TABLE", "createtest")
+    monkeypatch.setenv("EMBEDDING_DIM", "256")
+    monkeypatch.delenv("LEXICAL_BACKEND", raising=False)
+    return name, fresh
+
+
+def _drop_database(name):
+    admin = _plain()
+    with admin.cursor() as cur:
+        cur.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE);')
+    admin.close()
+
+
+def test_a_manager_creates_its_missing_database(monkeypatch):
+    """The create-if-missing branch had never run: `with psycopg2.connect(...)` opens a transaction even in
+    autocommit mode since psycopg2 2.9, and CREATE DATABASE cannot run inside one (ActiveSqlTransaction).
+    Compose, CI and the local instances all create the database before the API starts."""
+    from app.database.vector_store_manager import VectorStoreManager
+
+    name, fresh = _fresh_database(monkeypatch, "createtest_")
+    try:
+        manager = VectorStoreManager(conn_string=fresh)
+        try:
+            with manager.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT current_database();")
+                    assert cur.fetchone()[0] == name
+        finally:
+            manager.close()
+    finally:
+        _drop_database(name)
+
+
+@pytest.mark.parametrize("interleaving", ["together", "one_after_the_other"])
+def test_two_replicas_creating_a_fresh_database_at_once_both_start(monkeypatch, interleaving):
+    """C37: DatabaseManager (the base of the API's VectorStoreManager and the deploy step's manager) checks
+    pg_database and then runs CREATE DATABASE. Two replicas that start together can both find nothing; the
+    loser's CREATE used to raise and that replica failed to start. A barrier in the admin connection's cursor
+    holds each CREATE until both existence checks have found nothing, so the race happens every time. Sent
+    together, both CREATEs pass Postgres's own name check and the loser fails on pg_database's unique index
+    (UniqueViolation); sent one after the other, the second finds the first's database (DuplicateDatabase)."""
+    import psycopg2
+    import psycopg2.extensions
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    name, fresh = _fresh_database(monkeypatch, "racetest_")
+    barrier, first_done, creates, real_connect = threading.Barrier(2, timeout=30), threading.Event(), [], psycopg2.connect
+
+    class RacingCursor(psycopg2.extensions.cursor):
+        def execute(self, query, vars=None):
+            text = query.as_string(self) if hasattr(query, "as_string") else str(query)
+            if not text.lstrip().upper().startswith("CREATE DATABASE"):
+                return super().execute(query, vars)
+            creates.append(text)
+            turn = barrier.wait()  # both existence checks have found nothing: the two CREATEs race
+            if interleaving == "together":
+                return super().execute(query, vars)
+            if turn == 1:  # the second CREATE waits until the first one has finished
+                first_done.wait(30)
+                return super().execute(query, vars)
+            try:
+                return super().execute(query, vars)
+            finally:
+                first_done.set()
+
+    def connect(*args, **kwargs):
+        if kwargs.get("database") == "postgres":  # DatabaseManager's admin connection
+            kwargs["cursor_factory"] = RacingCursor
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(psycopg2, "connect", connect)
+    started: dict = {}
+
+    def start(replica):
+        try:
+            manager = VectorStoreManager(conn_string=fresh)
+            try:
+                with manager.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT current_database();")
+                        started[replica] = cur.fetchone()[0]
+            finally:
+                manager.close()
+        except Exception as exc:  # noqa: BLE001 - reported by the assertion below
+            started[replica] = f"{type(exc).__name__}: {exc}".strip()
+
+    threads = [threading.Thread(target=start, args=(replica,)) for replica in (0, 1)]
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+    finally:
+        _drop_database(name)
+    assert len(creates) == 2, creates  # both replicas found no database and sent CREATE DATABASE: a real race
+    assert started == {0: name, 1: name}, started
