@@ -34,9 +34,8 @@ def test_bm25_ranks_exact_term_higher():
 
 
 def test_tokenize_keeps_flags_and_paths():
-    toks = tokenize("see --num_pairs=3 in configs/run_047.yaml")
-    assert "--num_pairs" in toks or "num_pairs" in toks
-    assert any("run_047" in t for t in toks)
+    # A flag keeps its dashes and a path stays one token; "=" ends the flag. Bare "num_pairs" is not a token.
+    assert tokenize("see --num_pairs=3 in configs/run_047.yaml") == ["see", "--num_pairs", "3", "in", "configs/run_047.yaml"]
 
 
 def test_router_path_aggregation_semantic():
