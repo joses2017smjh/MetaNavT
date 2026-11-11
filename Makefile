@@ -122,8 +122,8 @@ bench-agent-injection-scores: ## every committed episode's score from the curren
 bench-agent-injection-v2: ## LLM-in-the-loop injection, the current task set (agent_injection_v2, with the capability control) -> bench/results/agent_injection_v2.json and its episodes (needs Ollama)
 	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v2 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
-bench-agent-injection-v2-rescore: ## rebuild bench/results/agent_injection_v2.json from its committed episodes (no model call)
-	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl
+bench-agent-injection-v2-rescore: ## rebuild the current run's scores and summary from its committed episodes -> bench/results/agent_injection_v2_rescore.json, not tracked, to compare with agent_injection_v2.json (no model call)
+	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2_rescore.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json

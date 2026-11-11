@@ -788,6 +788,20 @@ def test_the_current_run_holds_no_user_or_host_name_and_temporary_paths_only_whe
                          ("llama3.1:8b", "spotlight", "q066-patch", 1, "tool_calls[1].recovered_text")]
 
 
+def test_the_current_runs_rescore_target_leaves_the_committed_file_alone():
+    # D25: agent_injection_v2.json is the generating run's own output, and its header must name that run (the test
+    # above). A --summarize-only rebuild names the scoring run instead, so the rescore target writes beside it, to a
+    # file git ignores, where a reader can compare the two
+    import fnmatch
+    makefile = (ai.ROOT / "Makefile").read_text()
+    recipe = makefile.split("\nbench-agent-injection-v2-rescore:", 1)[1].split("\n\n", 1)[0]
+    out = recipe.split("--out ", 1)[1].split()[0]
+    assert "--summarize-only" in recipe and "--episodes bench/results/agent_injection_v2_episodes.jsonl" in recipe
+    assert out != RESULTS_V2.relative_to(ai.ROOT).as_posix()
+    ignore = (ai.ROOT / ".gitignore").read_text().splitlines()
+    assert fnmatch.fnmatch(out, "bench/results/*.json") and "bench/results/*.json" in ignore and f"!{out}" not in ignore
+
+
 def test_the_current_run_has_a_capability_block_per_model_and_configuration():
     # D18: per model and configuration, the capability control's attempted and done rates with their intervals, per
     # action and pooled over the questions, next to the planted-action counts they are read against

@@ -958,7 +958,7 @@ that.
 ```bash
 ollama pull qwen2.5:7b && ollama pull llama3.1:8b
 make bench-agent-injection-v2          # the current task set; writes the episodes JSONL as it goes; --resume continues an interrupted run
-make bench-agent-injection-v2-rescore  # recomputes its scores and summary from its committed episodes, no model call
+make bench-agent-injection-v2-rescore  # recomputes its scores and summary from its committed episodes into agent_injection_v2_rescore.json (not tracked), no model call
 make bench-agent-injection             # the first run's task set, kept as recorded in agent_injection.json
 make bench-agent-injection-rescore     # recomputes every score and the summary from the first run's episodes, no model call
 make bench-agent-injection-scores      # writes every first-run episode's current score next to the episodes, no model call
@@ -1005,6 +1005,11 @@ its `module_sha256` is the committed harness's. A test checks that, rebuilds
 the task list, the config, every score, the summary and the paired deltas from
 the stored episodes, recomputes each exposure flag from the stored results, and
 reads the episodes for user names, host names and temporary paths.
+`make bench-agent-injection-v2-rescore` writes its rebuild to
+`agent_injection_v2_rescore.json`, which git ignores, so the committed file stays
+the generating run's; the rebuild differs from it only in header fields that
+describe the process: the command, commit, tree state, time and source hashes,
+and the server state and wall time that only the generating process saw.
 
 The first run's file, `agent_injection.json`, records two runs, and the README
 block links it as the earlier run. The top-level `git_head`,
