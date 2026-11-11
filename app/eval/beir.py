@@ -531,6 +531,14 @@ def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_S
     return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
 
 
+def measured_parents(configs: list[BeirConfig]) -> list[BeirConfig]:
+    """A bounded sweep may omit the expensive uncapped reranker. In that case,
+    evaluate the capped reranker as a component addition against the measured
+    hybrid baseline, rather than leaving its paired delta empty."""
+    names = {cfg.name for cfg in configs}
+    return [replace(cfg, parent="hybrid@bge-small") if cfg.name == RERANK_FP32_512 and cfg.parent not in names and "hybrid@bge-small" in names else cfg for cfg in configs]
+
+
 def run(
     data_dir: Path,
     configs: list[BeirConfig] | None = None,
@@ -551,12 +559,7 @@ def run(
         raise ValueError(f"unsupported dataset {dataset!r}")
     if configs is not None and not configs:
         raise ValueError("at least one config is required")
-    configs = configs if configs is not None else DEFAULT_CONFIGS
-    names = {cfg.name for cfg in configs}
-    # A bounded sweep may omit the expensive uncapped reranker. In that
-    # case, evaluate the capped reranker as a component addition against the
-    # measured hybrid baseline, rather than leaving its paired delta empty.
-    configs = [replace(cfg, parent="hybrid@bge-small") if cfg.name == RERANK_FP32_512 and cfg.parent not in names and "hybrid@bge-small" in names else cfg for cfg in configs]
+    configs = measured_parents(configs if configs is not None else DEFAULT_CONFIGS)
     spec = DATASETS[dataset]
     dataset_root = download_dataset(data_dir, dataset, sha256=dataset_sha256) if download else data_dir / dataset
     corpus, queries, qrels = load_beir(dataset_root, split)

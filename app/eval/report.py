@@ -315,6 +315,23 @@ def _rerank_settings(row: dict) -> str:
     return f"{st.get('precision', 'fp32')} / {ml} / top {st.get('rerank_top')}"
 
 
+RERANK_FP32, RERANK_FP32_512, RERANK_FP16 = (f"hybrid+bge-rerank@bge-small{v}" for v in ("", "/fp32-512/top20", "/fp16-512/top20"))
+# (row, the parent its paired delta is against, what that one change is). The capped fp32 row joined the ladder
+# after the first SciFact file, whose fp16 row was paired with fp32 uncapped: the label follows the recorded parent.
+BEIR_STEPS = (
+    ("dense@bge-small", "bm25", "Dense bge-small vs BM25"),
+    ("dense@bge-small+instruction", "dense@bge-small", "The bge-v1.5 query instruction vs no instruction"),
+    ("hybrid@bge-small", "dense@bge-small", "Hybrid RRF over dense"),
+    (RERANK_FP32, "hybrid@bge-small", "bge-reranker-v2-m3 (top 20, fp32, uncapped) over the hybrid"),
+    (RERANK_FP32_512, RERANK_FP32, "max_length 512 vs uncapped (both fp32)"),
+    (RERANK_FP32_512, "hybrid@bge-small", "bge-reranker-v2-m3 (top 20, fp32, max_length 512) over the hybrid"),
+    (RERANK_FP16, RERANK_FP32_512, "fp16 vs fp32 (both max_length 512)"),
+    (RERANK_FP16, RERANK_FP32, "fp16 with max_length 512 vs fp32 uncapped"),
+    ("hybrid+bge-rerank@bge-small/fp16-512/top50", RERANK_FP16, "Rerank depth 50 vs 20"),
+    ("hybrid+bge-rerank@bge-small/fp16-512/top100", "hybrid+bge-rerank@bge-small/fp16-512/top50", "Depth 100 vs 50"),
+)
+
+
 def beir_table(blob: dict | None) -> str:
     if not blob:
         return f"_{BEIR_FILE} is missing; run `make bench-beir`._"
@@ -335,8 +352,9 @@ def beir_table(blob: dict | None) -> str:
         db = (row.get("delta_vs_bm25") or {}).get("ndcg@10")
         lat = (row.get("latency") or {}).get("total") or {}
         build = ((row.get("build_ms") or {}).get("total_ms") or 0) / 1000
+        models = _models(row) if row.get("models") else "none (BM25 only)"  # BEIR records no model for a BM25 row
         lines.append(
-            f"| {row['config']} | {row.get('parent') or '—'} | {_models(row)} | {_rerank_settings(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+            f"| {row['config']} | {row.get('parent') or '—'} | {models} | {_rerank_settings(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
             f"{_ci(row, 'recall@100')} | {_delta(dp)} | {_delta(db)} | {_beats(db)} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} | {build:.1f} |"
         )
     by = _rows(blob)
@@ -345,17 +363,9 @@ def beir_table(blob: dict | None) -> str:
     if bm25 and bm25.get("vs_published"):
         vp = bm25["vs_published"]
         parts.append(f"Our BM25 with the same analyzer and document text scores nDCG@10 {bm25['retrieval']['ndcg@10']:.4f} against Anserini's published {vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f}).")
-    for name, label in (
-        ("dense@bge-small", "Dense bge-small vs BM25"),
-        ("dense@bge-small+instruction", "The bge-v1.5 query instruction vs no instruction"),
-        ("hybrid@bge-small", "Hybrid RRF over dense"),
-        ("hybrid+bge-rerank@bge-small", "bge-reranker-v2-m3 (top 20, fp32, uncapped) over the hybrid"),
-        ("hybrid+bge-rerank@bge-small/fp16-512/top20", "fp16 with max_length 512 vs fp32 uncapped"),
-        ("hybrid+bge-rerank@bge-small/fp16-512/top50", "Rerank depth 50 vs 20"),
-        ("hybrid+bge-rerank@bge-small/fp16-512/top100", "Depth 100 vs 50"),
-    ):
+    for name, parent, label in BEIR_STEPS:
         row = by.get(name)
-        if row:
+        if row and row.get("parent") == parent:
             d = (row.get("delta_vs_parent") or {}).get("ndcg@10")
             lat = (row.get("latency") or {}).get("total") or {}
             parts.append(f"{label}: nDCG@10 {_delta(d)} ({_zero_note(d)}), p50 {lat.get('p50_ms', '—')} ms.")

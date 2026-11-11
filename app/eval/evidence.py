@@ -48,6 +48,10 @@ def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
 
 
+def _p50(row: dict, stage: str = "total"):
+    return ((row.get("latency") or {}).get(stage) or {}).get("p50_ms")
+
+
 def _templated(root: Path = ROOT) -> int:
     """Questions bench/corpus/build.py stamps from per-run templates: the simple_factual category."""
     p = root / "bench" / "gold" / "questions.jsonl"
@@ -146,8 +150,18 @@ def claims(root: Path = ROOT) -> list[dict]:
             d, ci = _ci((rer.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             out.append({"claim": "BEIR SciFact, reranker over the hybrid it reranks (incremental), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
                         "not_shown": "the increment over hybrid is a tie on SciFact even though both beat BM25"})
-        f16 = by.get("hybrid+bge-rerank@bge-small/fp16-512/top20")
-        if f16 and rer:
+        # The capped fp32 row joined the ladder after the first SciFact file: there, fp16 + cap was one step from fp32
+        # uncapped; with it, the cap and the precision are separate steps, each paired with its own parent.
+        f32c, f16 = by.get("hybrid+bge-rerank@bge-small/fp32-512/top20"), by.get("hybrid+bge-rerank@bge-small/fp16-512/top20")
+        if f32c and rer and f32c.get("parent") == rer["config"]:
+            d, ci = _ci((f32c.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
+            out.append({"claim": "BEIR SciFact, reranker max_length 512 vs uncapped (both fp32, depth 20), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
+                        "not_shown": f"rerank-stage p50 {_p50(f32c, 'rerank')} ms vs {_p50(rer, 'rerank')} ms per query on the GPU: the cap alone; CPU latency is a different table"})
+        if f16 and f32c and f16.get("parent") == f32c["config"]:
+            d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
+            out.append({"claim": "BEIR SciFact, reranker fp16 vs fp32 (both max_length 512, depth 20; fp16 is the served setting on CUDA, the CPU stack serves fp32), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-beir", "source": src,
+                        "not_shown": f"rerank-stage p50 {_p50(f16, 'rerank')} ms vs {_p50(f32c, 'rerank')} ms per query on the GPU: the precision alone; CPU latency is a different table"})
+        elif f16 and rer and f16.get("parent") == rer["config"]:
             d, ci = _ci((f16.get("delta_vs_parent") or {}).get("ndcg@10"), "delta")
             l16 = (f16.get("latency") or {}).get("total") or {}
             l32 = (rer.get("latency") or {}).get("total") or {}

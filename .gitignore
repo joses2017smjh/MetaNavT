@@ -36,6 +36,8 @@ bench/results/*.json
 !bench/results/neural.json
 !bench/results/beir_scifact.json
 !bench/results/beir_scifact_bm25_ablation.json
+!bench/results/beir_scifact_rerank_cap.json
+!bench/results/beir_fiqa.json
 !bench/results/parity.json
 !bench/results/parity_shared_chunker.json
 !bench/results/parity_shared_chunker_restart.json

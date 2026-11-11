@@ -227,3 +227,66 @@ def test_cli_ladder_runs_the_bm25_ablation(tmp_path):
     assert "The analyzer alone: nDCG@10" in table and "k1 and b alone: nDCG@10" in table and "All three together: nDCG@10" in table
     assert beir.main([*args[:-2], "--only", "bm25@default-analyzer", "--out", str(out)]) == 0
     assert [r["config"] for r in json.loads(out.read_text())["results"]] == ["bm25@default-analyzer"]
+
+
+def _reranker_ladder_blob(tmp_path):
+    """A results file with the real ladder's row names and parents, run offline on hash / overlap stand-ins."""
+    _write_dataset(tmp_path)
+    configs = [
+        beir.BeirConfig(name="bm25", mode="bm25"),
+        beir.BeirConfig(name="hybrid@bge-small", mode="hybrid", embedder="hash", parent="dense@bge-small"),
+        beir.BeirConfig(name=beir.RERANK_FP32, mode="hybrid", embedder="hash", reranker="overlap", rerank_top=3, parent="hybrid@bge-small"),
+        beir.BeirConfig(name=beir.RERANK_FP32_512, mode="hybrid", embedder="hash", reranker="overlap", rerank_top=3, parent=beir.RERANK_FP32, max_length=512),
+        beir.BeirConfig(name=beir.RERANK_FP16, mode="hybrid", embedder="hash", reranker="overlap", rerank_top=3, parent=beir.RERANK_FP32_512, precision="fp16", max_length=512),
+    ]
+    return beir.run(tmp_path, configs, device="cpu", n_boot=20, download=False)
+
+
+def test_reranker_step_labels_follow_the_recorded_parent(tmp_path):
+    """With fp32-512/top20 in the ladder, the fp16 row's parent is fp32 at the same cap: the sentence and the
+    evidence rows name the change each paired delta measures (the cap, then the precision), and BM25 rows carry no
+    model label."""
+    from app.eval.evidence import FILES, claims
+    from app.eval.report import beir_table
+
+    blob = _reranker_ladder_blob(tmp_path)
+    text = beir_table(blob)
+    assert "max_length 512 vs uncapped (both fp32): nDCG@10" in text and "fp16 vs fp32 (both max_length 512): nDCG@10" in text
+    assert "fp16 with max_length 512 vs fp32 uncapped" not in text
+    assert "| bm25 | — | none (BM25 only) |" in text
+
+    root = tmp_path / "repo"
+    (root / "bench" / "results").mkdir(parents=True)
+    (root / FILES["beir"]).write_text(json.dumps(blob))
+    labels = [c["claim"] for c in claims(root)]
+    assert any(c.startswith("BEIR SciFact, reranker max_length 512 vs uncapped (both fp32") for c in labels)
+    assert any(c.startswith("BEIR SciFact, reranker fp16 vs fp32 (both max_length 512") for c in labels)
+    assert not any("fp16 + max_length 512 vs fp32 uncapped" in c for c in labels)
+
+    old = json.loads(json.dumps(blob))  # the October-era chain without the capped fp32 row
+    old["results"] = [r for r in old["results"] if r["config"] != beir.RERANK_FP32_512]
+    fp16 = old["results"][-1]
+    fp16["parent"] = beir.RERANK_FP32
+    fp16["delta_vs_parent"]["reference"] = beir.RERANK_FP32
+    assert "fp16 with max_length 512 vs fp32 uncapped: nDCG@10" in beir_table(old)
+    (root / FILES["beir"]).write_text(json.dumps(old))
+    assert any("fp16 + max_length 512 vs fp32 uncapped" in c["claim"] for c in claims(root))
+
+
+def test_make_selections_pair_every_row_with_a_measured_parent():
+    """The --only lists of make bench-beir-fiqa and bench-beir-rerank-cap: after run()'s re-parenting every row but
+    the base has its parent in the same run (so its paired delta is not empty). On FiQA the capped fp32 reranker is
+    paired with hybrid@bge-small and fp16 with the capped fp32 row."""
+    import re
+
+    makefile = (Path(__file__).resolve().parents[2] / "Makefile").read_text()
+    by_name = {c.name: c for c in beir.DEFAULT_CONFIGS}
+    parents = {}
+    for var, base in (("BEIR_FIQA_ROWS", "bm25"), ("BEIR_RERANK_CAP_ROWS", "hybrid@bge-small")):
+        names = re.search(rf"^{var} = (.+)$", makefile, re.M).group(1).split(",")
+        configs = beir.measured_parents([by_name[n] for n in names])
+        parents[var] = {c.name: c.parent for c in configs}
+        assert names[0] == base and all(parents[var][n] in names for n in names[1:]), parents[var]
+    assert parents["BEIR_FIQA_ROWS"][beir.RERANK_FP32_512] == "hybrid@bge-small"
+    assert parents["BEIR_FIQA_ROWS"][beir.RERANK_FP16] == beir.RERANK_FP32_512
+    assert parents["BEIR_RERANK_CAP_ROWS"][beir.RERANK_FP32_512] == beir.RERANK_FP32
