@@ -30,7 +30,7 @@ from app.graph.conflicts import (
     detect_structural_conflicts,
 )
 from app.graph.graphrag import answer_global, build_graphrag
-from app.graph.hipporag import apply_hipporag, triples_from_chunks
+from app.graph.hipporag import apply_hipporag, should_apply, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools
 from app.retrieval.types import RetrievalHit
@@ -122,17 +122,19 @@ def _gold_case(
         clusters,
         question.question,
     )
+    # The PPR gate is the router's own prediction, as in the benchmark arm (app/eval/harness.py). The gold
+    # category is never passed: until M24 this demo gated on it, a label the served system does not have.
+    ppr_applied = bool(current and triples) and should_apply(question.question, router=index.router)
     graph = apply_hipporag(
         question.question,
         current,
         triples,
-        category=question.category,
         router=index.router,
     )
     feature = spec["feature"]
     if feature in {"graph", "aggregation"}:
         method_hits = graph
-        method_label = "typed PPR rank fusion"
+        method_label = "typed PPR rank fusion" if ppr_applied else "current-version filter; PPR gate off"
     elif feature == "deep-research":
         method_hits = multi
         method_label = "three-query RRF + staleness"
@@ -205,6 +207,15 @@ def _gold_case(
 
     checks = _checks(method_paths, question.relevant_paths, extra=extra_checks)
     passed = all(row["pass"] for row in checks)
+    method_result = {
+        "label": method_label,
+        "gold_rank": _rank(method_paths, question.relevant_paths),
+        "recall@50": round(recall_at_k(method_paths, question.relevant_paths, 50), 4),
+        "hits": _hits(method_hits, question.relevant_paths),
+        "dropped": dropped[:8],
+    }
+    if feature in {"graph", "aggregation"}:
+        method_result["ppr_applied"] = ppr_applied  # what the router's gate decided for this question
     return {
         "id": spec["id"],
         "gold_id": question.id,
@@ -222,13 +233,7 @@ def _gold_case(
             "recall@50": round(recall_at_k(base_paths, question.relevant_paths, 50), 4),
             "hits": _hits(baseline, question.relevant_paths),
         },
-        "method_result": {
-            "label": method_label,
-            "gold_rank": _rank(method_paths, question.relevant_paths),
-            "recall@50": round(recall_at_k(method_paths, question.relevant_paths, 50), 4),
-            "hits": _hits(method_hits, question.relevant_paths),
-            "dropped": dropped[:8],
-        },
+        "method_result": method_result,
         "conflicts": [conflict.as_dict() for conflict in conflicts],
         "agent": agent_trace,
         "checks": checks,
@@ -372,6 +377,20 @@ def _artifact_cases(index) -> list[dict[str, Any]]:
     return [artifact, safety]
 
 
+def demo_index(files_root: Path):
+    """The demo's offline stack over `files_root`: (index, staleness clusters, HippoRAG triples)."""
+    index = build_index(
+        files_root,
+        embedder_name="hash",
+        retrieve_k=50,
+        rerank_n=8,
+        enable_router=True,
+        enable_rerank=True,
+        reranker="overlap",
+    )
+    return index, cluster_versions(index.chunks), triples_from_chunks(index.chunks)
+
+
 def build_demo(root: Path | None = None) -> dict[str, Any]:
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
@@ -382,17 +401,7 @@ def build_demo(root: Path | None = None) -> dict[str, Any]:
         raise RuntimeError("corpus drift:\n" + "\n".join(drift))
 
     gold = {q.id: q for q in load_gold(root / "bench" / "gold" / "questions.jsonl")}
-    index = build_index(
-        files_root,
-        embedder_name="hash",
-        retrieve_k=50,
-        rerank_n=8,
-        enable_router=True,
-        enable_rerank=True,
-        reranker="overlap",
-    )
-    clusters = cluster_versions(index.chunks)
-    triples = triples_from_chunks(index.chunks)
+    index, clusters, triples = demo_index(files_root)
     sweeps = json.loads((root / "bench" / "results" / "sweeps.json").read_text())
 
     cases = [
