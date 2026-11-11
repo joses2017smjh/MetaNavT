@@ -737,6 +737,10 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
         cache = row.get("cache")
         if cache:
             notes.append(f"- `{name}`: {cache_note(cache)}")
+        emb = (row.get("models") or {}).get("embedder") or {}
+        if emb.get("library"):
+            libs = ", ".join(f"{k} {v}" for k, v in emb["library"].items())
+            notes.append(f"- `{name}`: model-free embedder `{emb.get('model')}` fitted on the indexed chunks ({emb.get('dim')} dimensions; {libs}).")
     for item in meta.get("not_evaluated") or []:
         notes.append(f"- `{item['arm']}`: not evaluated in this run. {item['reason'][0].upper()}{item['reason'][1:]}.")
     if notes:

@@ -324,6 +324,14 @@ def _replay_probes(cache: SemanticCache, probes: list, fresh_paths, n_files: int
     }
 
 
+def _sklearn_versions() -> dict[str, str]:
+    """The TF-IDF embedder's fit (TfidfVectorizer + randomized TruncatedSVD) depends on these versions."""
+    import scipy
+    import sklearn
+
+    return {"scikit-learn": sklearn.__version__, "scipy": scipy.__version__}
+
+
 def _jury_complete():
     """Optional Ollama backend. Probe once; stay heuristic if the daemon is down."""
     flag = os.environ.get("JUDGE", "").strip().lower()
@@ -532,6 +540,7 @@ def run_config(
             "dim": int(getattr(index.embedder, "dim", 0)),
             "device": model_device(getattr(index.embedder, "_model", None)),
             "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used, same text both sides
+            **({"library": _sklearn_versions()} if cfg.embedder == "tfidf" else {}),
         },
         "reranker": {
             **model_provenance(cfg.reranker, "reranker"),
@@ -612,11 +621,19 @@ FRONTIER_CONFIGS = [
     BenchConfig(name="hybrid+rerank+adaptive", enable_rerank=True, adaptive=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+graphrag", enable_rerank=True, graphrag=True, parent=FRONTIER_RERANK_PARENT, **_F),
     BenchConfig(name="hybrid+rerank+cache", enable_rerank=True, cache=True, parent=FRONTIER_RERANK_PARENT, **_F),
+    # A second model-free embedder (TF-IDF + truncated SVD, fitted on the indexed chunks) against the hash embedder.
+    BenchConfig(name="dense_only@tfidf", embedder="tfidf", enable_rerank=False, parent=FRONTIER_DENSE_PARENT, **_D),
+    BenchConfig(name="hybrid@tfidf", embedder="tfidf", enable_rerank=False, parent=FRONTIER_PARENT, **_F),
 ]
 # Arms a run cannot score, with the reason; written into the results file instead of a row.
 FRONTIER_NOT_EVALUATED = {
     "hybrid+late-chunking": "late chunking pools a model's token embeddings; the hash embedder (character n-grams) has none, "
                             "so this arm exists only in the real-model run (make bench-frontier-neural)",
+}
+# Arms of the CPU run only: the real-model run swaps every embedder for bge-small, which would turn them into their parents.
+FRONTIER_CPU_ONLY = {
+    "dense_only@tfidf": "TF-IDF is a model-free embedder compared with the hash embedder; its rows are in the CPU run (make bench-frontier)",
+    "hybrid@tfidf": "TF-IDF is a model-free embedder compared with the hash embedder; its rows are in the CPU run (make bench-frontier)",
 }
 
 
@@ -649,7 +666,7 @@ def frontier_configs(neural: bool = False) -> list[BenchConfig]:
     if not neural:
         return parents + [c for c in arms if c.name not in FRONTIER_NOT_EVALUATED]
     out = []
-    for c in parents + arms:
+    for c in parents + [c for c in arms if c.name not in FRONTIER_CPU_ONLY]:
         out.append(replace(
             c,
             name=_neural_name(c.name),
@@ -708,7 +725,7 @@ def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[lis
     return {
         "parents": parents,
         "arms": [row["config"] for row in results if row["config"] not in parents],
-        "not_evaluated": [] if neural else [{"arm": k, "reason": v} for k, v in FRONTIER_NOT_EVALUATED.items()],
+        "not_evaluated": [{"arm": k, "reason": v} for k, v in (FRONTIER_CPU_ONLY if neural else FRONTIER_NOT_EVALUATED).items()],
         "verdict_rule": "paired bootstrap interval of nDCG@10 (arm minus parent): above zero, covers zero, or below zero",
     }
 

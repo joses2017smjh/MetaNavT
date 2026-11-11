@@ -143,7 +143,7 @@ def load_chunks(
 def build_index(
     root: Path,
     *,
-    embedder_name: str = "tfidf",
+    embedder_name: str = "hash",
     retrieve_k: int = 50,
     rerank_n: int = 8,
     enable_router: bool = True,

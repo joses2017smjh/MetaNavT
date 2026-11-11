@@ -6,7 +6,7 @@ export PYTHONPATH := $(CURDIR):$(PYTHONPATH)
 SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
 # ---- setup -----------------------------------------------------------------
-install:        ## bench + eval tests only: numpy, pydantic, pytest (no LlamaIndex, no torch)
+install:        ## bench + eval tests only: numpy, pydantic, pytest, scikit-learn (no LlamaIndex, no torch)
 	$(PYTHON) -m pip install -e ".[eval]"
 
 install-app:    ## + FastAPI, LlamaIndex, Postgres client (what the Docker image installs)

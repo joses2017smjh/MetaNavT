@@ -203,7 +203,7 @@ fixture, hash embeddings and overlap reranking; it needs no Ollama server,
 Postgres instance, GPU or model download, and takes a few seconds.
 
 ```bash
-pip install -e ".[eval]"   # numpy, pydantic, pytest
+pip install -e ".[eval]"   # numpy, pydantic, pytest, scikit-learn (no LlamaIndex, no torch)
 make test-eval             # evaluation tests
 make bench                 # writes bench/results/<git-sha>.json and latest.json
 make bench-gate            # latest.json vs the committed baseline bench/results/main.json
