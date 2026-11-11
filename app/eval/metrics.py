@@ -1,7 +1,8 @@
 """BEIR-style retrieval metrics.
 
 Always reported together: nDCG@10, Recall@5/10/50, MRR@10.
-Relevance is binary at the document-path (or chunk-id) level.
+Relevance is binary at the document-path level (app/eval/gold.py: a gold question
+that names only chunk ids is refused, since every scorer ranks paths).
 
 Recall@k on a 61-file corpus is mostly a function of list length: a uniformly
 random list of M distinct files scores an expected min(k, M) / N. `score_query`

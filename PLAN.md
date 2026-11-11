@@ -241,7 +241,7 @@ MCP additions: `collect_run_artifact`, `propose_artifact`, `apply_artifact`, `pr
 
 The original README stories were hand-maintained in four places. The challenge suite now starts with curated gold IDs in `bench/demo/manifest.json`, runs the real offline stack, and writes `doc/demo/traces.json` / `.js`. The interactive HTML and three new GIFs consume the same trace artifact.
 
-Cases cover structural and semantic staleness (`q115`, `q117`), multi-hop typed PPR (`q107`, `q108`, `q114`), aggregation coverage (`q100`), Deep Research (`q120`), exact-path routing (`q130`), the committed graph-hop loser (`q036` + sweeps), Paper2Code, and sandbox/HITL.
+Cases cover structural and semantic staleness (`q115`, `q117`), multi-hop graph cases (`q107` and `q108` with typed PPR; `q114`, where the router's gate leaves PPR off), aggregation coverage (`q100`), Deep Research (`q120`), exact-path routing (`q130`), the committed graph-hop loser (`q036` + sweeps), Paper2Code, and sandbox/HITL.
 
 Methodology changes found while building the demos:
 

@@ -29,7 +29,7 @@
       "id": "q114",
       "title": "Source file joined to enabled runs",
       "feature": "graph",
-      "method": "Lexical evidence + graph rank fusion"
+      "method": "Lexical evidence; PPR gated by the router"
     },
     {
       "id": "q100",

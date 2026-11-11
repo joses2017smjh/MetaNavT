@@ -19,6 +19,8 @@ CATEGORIES = (
     "exact_path",
 )
 
+CHUNK_IDS_ONLY = "names only relevant_chunk_ids; every scorer ranks file paths, so it would score zero (give relevant_paths)"
+
 
 @dataclass
 class GoldQuestion:
@@ -31,8 +33,16 @@ class GoldQuestion:
     notes: str = ""
 
     def relevant_ids(self) -> list[str]:
-        """Primary retrieval targets: paths, falling back to chunk ids."""
-        return list(self.relevant_paths) or list(self.relevant_chunk_ids)
+        """The retrieval targets every scorer compares with its ranked list: file paths.
+
+        `relevant_chunk_ids` stays in the schema, but no scorer reads it: the harness, the
+        parity run and the rerank arms rank file paths, so a question whose only targets are
+        chunk ids would score zero on every metric even with its chunk ranked first.
+        load_gold refuses such a question, and this raises for one built in code.
+        """
+        if self.relevant_chunk_ids and not self.relevant_paths:
+            raise ValueError(f"{self.id} {CHUNK_IDS_ONLY}")
+        return list(self.relevant_paths)
 
     def to_dict(self) -> dict:
         return {
@@ -70,6 +80,8 @@ def load_gold(path: str | Path) -> list[GoldQuestion]:
             q = GoldQuestion.from_dict(raw)
             if q.category not in CATEGORIES:
                 raise ValueError(f"{path}:{line_no} unknown category {q.category!r}")
+            if q.relevant_chunk_ids and not q.relevant_paths:
+                raise ValueError(f"{path}:{line_no} {q.id} {CHUNK_IDS_ONLY}")
             questions.append(q)
     return questions
 
