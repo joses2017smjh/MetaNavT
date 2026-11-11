@@ -92,9 +92,10 @@ python -m pip install -e ".[eval]"
 make test-eval
 make bench
 make bench-gate
+make bench-check
 ```
 
-`make bench` writes a new result and `bench/results/latest.json`; `make bench-gate` compares it with the committed baseline. Keep the frozen corpus unchanged when reproducing the published table. [Dependency specification](pyproject.toml) · [CI](.github/workflows/ci.yml).
+`make bench` writes a new result and `bench/results/latest.json`; `make bench-gate` compares it with the committed baseline; `make bench-check` re-runs the bench and fails unless every field of every row equals that baseline (the bench reads the fixture's mtimes from its MANIFEST and breaks dense-score ties by corpus order, so the numbers do not depend on the machine or the checkout). Keep the frozen corpus unchanged when reproducing the published table. [Dependency specification](pyproject.toml) · [CI](.github/workflows/ci.yml).
 
 ## Run the retrieval API
 
