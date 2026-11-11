@@ -1,6 +1,6 @@
 window.METANAVIT_DEMO = {
   "meta": {
-    "git_sha": "aef98b7",
+    "git_sha": "8907b0c",
     "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
     "n_gold": 136,
     "n_files": 61,
@@ -263,8 +263,8 @@ window.METANAVIT_DEMO = {
             "path": "configs/run_047.yaml",
             "rank": 3,
             "status": "candidate",
-            "score": 0.312122,
-            "rrf": 0.03031
+            "score": 0.31211,
+            "rrf": 0.030077
           },
           {
             "path": "configs/run_043.yaml",
@@ -295,11 +295,11 @@ window.METANAVIT_DEMO = {
             "rrf": 0.026316
           },
           {
-            "path": "configs/run_055.yaml",
+            "path": "configs/run_040.yaml",
             "rank": 8,
             "status": "candidate",
-            "score": 0.311908,
-            "rrf": 0.026044
+            "score": 0.311903,
+            "rrf": 0.025942
           }
         ]
       },
@@ -319,8 +319,8 @@ window.METANAVIT_DEMO = {
             "path": "configs/run_047.yaml",
             "rank": 2,
             "status": "candidate",
-            "score": 0.312122,
-            "rrf": 0.03031
+            "score": 0.31211,
+            "rrf": 0.030077
           },
           {
             "path": "configs/run_043.yaml",
@@ -351,18 +351,18 @@ window.METANAVIT_DEMO = {
             "rrf": 0.026316
           },
           {
-            "path": "configs/run_055.yaml",
-            "rank": 7,
-            "status": "candidate",
-            "score": 0.311908,
-            "rrf": 0.026044
-          },
-          {
             "path": "configs/run_040.yaml",
-            "rank": 8,
+            "rank": 7,
             "status": "candidate",
             "score": 0.311903,
             "rrf": 0.025942
+          },
+          {
+            "path": "configs/run_055.yaml",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.311899,
+            "rrf": 0.025859
           }
         ],
         "dropped": [
@@ -424,7 +424,7 @@ window.METANAVIT_DEMO = {
       "route": "aggregation_query",
       "control": {
         "label": "single-query hybrid",
-        "gold_rank": 22,
+        "gold_rank": 20,
         "recall@50": 1.0,
         "hits": [
           {
@@ -502,7 +502,7 @@ window.METANAVIT_DEMO = {
             "rank": 2,
             "status": "candidate",
             "score": 0.044647,
-            "rrf": 0.02073
+            "rrf": 0.020842
           },
           {
             "path": "configs/run_053.yaml",
@@ -523,14 +523,14 @@ window.METANAVIT_DEMO = {
             "rank": 5,
             "status": "candidate",
             "score": 0.043763,
-            "rrf": 0.020619
+            "rrf": 0.020726
           },
           {
             "path": "configs/run_048.yaml",
             "rank": 6,
             "status": "candidate",
             "score": 0.043541,
-            "rrf": 0.02109
+            "rrf": 0.021193
           },
           {
             "path": "configs/run_052.yaml",
@@ -614,46 +614,46 @@ window.METANAVIT_DEMO = {
             "rrf": 0.025582
           },
           {
-            "path": "results/ablation.csv",
-            "rank": 3,
-            "status": "candidate",
-            "score": 0.025429,
-            "rrf": 0.025429
-          },
-          {
             "path": "logs/run_043.out",
-            "rank": 4,
+            "rank": 3,
             "status": "candidate",
             "score": 0.025245,
             "rrf": 0.025245
           },
           {
             "path": "README.md",
-            "rank": 5,
+            "rank": 4,
             "status": "candidate",
             "score": 0.025182,
             "rrf": 0.025182
           },
           {
+            "path": "configs/run_055.yaml",
+            "rank": 5,
+            "status": "candidate",
+            "score": 0.025123,
+            "rrf": 0.025123
+          },
+          {
             "path": "paper/draft_v1.md",
             "rank": 6,
             "status": "superseded",
-            "score": 0.024971,
-            "rrf": 0.024971
-          },
-          {
-            "path": "configs/run_055.yaml",
-            "rank": 7,
-            "status": "candidate",
-            "score": 0.024909,
-            "rrf": 0.024909
+            "score": 0.025059,
+            "rrf": 0.025059
           },
           {
             "path": "configs/run_049.yaml",
-            "rank": 8,
+            "rank": 7,
             "status": "candidate",
             "score": 0.024625,
             "rrf": 0.024625
+          },
+          {
+            "path": "results/ablation.csv",
+            "rank": 8,
+            "status": "candidate",
+            "score": 0.02409,
+            "rrf": 0.02409
           }
         ]
       },
@@ -687,36 +687,36 @@ window.METANAVIT_DEMO = {
             "path": "slurm/run_049.sbatch",
             "rank": 4,
             "status": "candidate",
-            "score": 0.043186,
-            "rrf": 0.015385
+            "score": 0.043301,
+            "rrf": 0.015625
           },
           {
             "path": "slurm/run_047.sbatch",
             "rank": 5,
             "status": "gold",
-            "score": 0.043015,
-            "rrf": 0.014925
-          },
-          {
-            "path": "slurm/run_054.sbatch",
-            "rank": 6,
-            "status": "candidate",
-            "score": 0.042448,
-            "rrf": 0.014706
+            "score": 0.043121,
+            "rrf": 0.015152
           },
           {
             "path": "logs/run_043.out",
-            "rank": 7,
+            "rank": 6,
             "status": "candidate",
-            "score": 0.042411,
+            "score": 0.042659,
             "rrf": 0.025245
           },
           {
-            "path": "logs/run_054.out",
+            "path": "slurm/run_054.sbatch",
+            "rank": 7,
+            "status": "candidate",
+            "score": 0.042549,
+            "rrf": 0.014925
+          },
+          {
+            "path": "logs/run_051.out",
             "rank": 8,
             "status": "candidate",
-            "score": 0.042179,
-            "rrf": 0.021674
+            "score": 0.042021,
+            "rrf": 0.023088
           }
         ],
         "dropped": [
@@ -818,15 +818,15 @@ window.METANAVIT_DEMO = {
             "path": "configs/run_049.yaml",
             "rank": 7,
             "status": "candidate",
-            "score": 0.119849,
-            "rrf": 0.023235
+            "score": 0.119862,
+            "rrf": 0.023504
           },
           {
             "path": "configs/run_055.yaml",
             "rank": 8,
             "status": "candidate",
-            "score": 0.119787,
-            "rrf": 0.021995
+            "score": 0.119791,
+            "rrf": 0.02208
           }
         ]
       },
@@ -868,7 +868,7 @@ window.METANAVIT_DEMO = {
             "rank": 5,
             "status": "candidate",
             "score": 0.03055,
-            "rrf": 0.021995
+            "rrf": 0.02208
           },
           {
             "path": "src/fusion.py",
@@ -881,15 +881,15 @@ window.METANAVIT_DEMO = {
             "path": "configs/run_049.yaml",
             "rank": 7,
             "status": "candidate",
-            "score": 0.030077,
-            "rrf": 0.023235
+            "score": 0.029857,
+            "rrf": 0.023504
           },
           {
-            "path": "configs/run_044.yaml",
+            "path": "configs/run_046.yaml",
             "rank": 8,
-            "status": "candidate",
-            "score": 0.029324,
-            "rrf": 0.025604
+            "status": "gold",
+            "score": 0.029031,
+            "rrf": 0.023138
           }
         ],
         "dropped": [
@@ -1201,15 +1201,15 @@ window.METANAVIT_DEMO = {
             "path": "configs/archive/run_047_v1.yaml",
             "rank": 3,
             "status": "superseded",
-            "score": 0.493818,
-            "rrf": 0.030798
+            "score": 0.493829,
+            "rrf": 0.031025
           },
           {
             "path": "logs/run_046.out",
             "rank": 4,
             "status": "candidate",
-            "score": 0.303981,
-            "rrf": 0.029199
+            "score": 0.303992,
+            "rrf": 0.029418
           },
           {
             "path": "logs/run_045.out",
@@ -1717,10 +1717,10 @@ window.METANAVIT_DEMO = {
       "gold_id": null,
       "title": "Sandbox and approval gate",
       "feature": "safety",
-      "method": "AST gate + propose/apply split",
+      "method": "AST correctness check + content-bound operator fixture capability",
       "question": "write an artifact, but do not mutate the tree without approval",
       "category": "synthetic (unit-tested, not retrieval gold)",
-      "gold_answer": "blocked, then applied only in a temporary directory",
+      "gold_answer": "blocked, then applied with an explicit disposable operator capability",
       "gold_paths": [],
       "checks": [
         {
@@ -1729,7 +1729,7 @@ window.METANAVIT_DEMO = {
           "value": "ApprovalRequired"
         },
         {
-          "label": "approved temp write succeeds",
+          "label": "operator fixture capability authorizes a temp write",
           "pass": true,
           "value": "artifacts/reproduce.py"
         },
