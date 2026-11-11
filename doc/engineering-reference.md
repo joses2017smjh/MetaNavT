@@ -661,7 +661,13 @@ staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. `k` is validated (1-50),
 bad bodies are 422, a down backend is 503. The committed
-[EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1.
+[EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1
+(`make explain-sql`): both lists are sequential scans at that size.
+[hybrid_explain_synthetic_10k.txt](../doc/sql/hybrid_explain_synthetic_10k.txt)
+(`make explain-sql-synthetic`) is the same statement over generated rows with
+hash vectors in a scratch table, synthetic text rather than data: there the planner
+reads the dense list from the HNSW index on its own. Both plans run with the
+statement's per-transaction settings, which their headers list.
 `tests/database/test_hybrid_sql.py` checks that the SQL fusion equals the Python
 RRF on identical input lists, against a live Postgres in CI.
 
