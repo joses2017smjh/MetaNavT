@@ -180,6 +180,22 @@ def test_small_yaml_is_one_chunk_and_a_long_one_splits_at_top_level_keys():
     assert [s.text for s in spans] == [head, head + blocks[1], head + blocks[2]]  # run_id travels with every block
 
 
+def test_a_long_yaml_carries_the_run_id_block_or_the_first_key_as_its_header():
+    comment = "# sweep config, generated\n"
+    model = "model:\n" + "".join(f"  layer_{i}: 1\n" for i in range(90))
+    train = "train:\n" + "".join(f"  step_{i}: 2\n" for i in range(90))
+    text = comment + model + "run_id: 47\n" + train
+    assert len(text) >= 2000
+    spans = yaml_chunks(text)
+    head = "run_id: 47\n"  # not the leading comment, and wherever the key sits
+    assert [s.text for s in spans] == [head + comment, head + model, head, head + train]
+    assert [text[s.start:s.end] for s in spans] == [comment, model, head, train]
+
+    no_run_id = comment + "experiment: fusion\n" + model + train
+    first_key = "experiment: fusion\n"
+    assert [s.text for s in yaml_chunks(no_run_id)] == [first_key + comment, first_key, first_key + model, first_key + train]
+
+
 def test_csv_rows_keep_crlf_and_skip_blank_lines():
     text = "h1,h2\r\na,1\r\n\r\nb,2\r\n"
     spans = csv_record_chunks(text)

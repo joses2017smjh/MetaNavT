@@ -208,29 +208,38 @@ def _first_line_with_code(text: str, line_starts: list[int], start: int, end: in
     return max(start, line_starts[bisect.bisect_right(line_starts, match.start()) - 1])
 
 
+_YAML_TOP_KEY = re.compile(r"([A-Za-z0-9_\-]+):")
+
+
 def yaml_chunks(text: str) -> list[Span]:
-    """Keep small configs intact so keys like learning_rate stay next to run_id."""
-    if len(text) < 2000:
+    """Keep small configs intact so keys like learning_rate stay next to run_id.
+
+    A config of MAX_CHUNK_CHARS or more is split before every top-level key.
+    Every block's searched text then starts with the header block, so run_id
+    stays in every split: the run_id block when there is one, else the first
+    key's block (a leading comment is not a header). The header block itself
+    is indexed as it is; path context is the caller's job.
+    """
+    if len(text) < MAX_CHUNK_CHARS:
         return [Span(0, len(text), text, "yaml")] if text.strip() else []
-    lines = text.splitlines(keepends=True)
-    starts = [0]
-    offset = 0
-    for i, line in enumerate(lines):
-        if i > 0 and re.match(r"^[A-Za-z0-9_\-]+:", line) and not line.startswith(" "):
-            starts.append(offset)
-        offset += len(line)
+    starts, keys = [0], [None]
+    for start, end in _line_slices(text):
+        key = _YAML_TOP_KEY.match(text, start, end)
+        if key is None:
+            continue
+        if start == 0:
+            keys[0] = key.group(1)
+        else:
+            starts.append(start)
+            keys.append(key.group(1))
     starts.append(len(text))
-    slices = list(zip(starts, starts[1:]))
-    spans = _spans_from_slices(text, slices, "yaml")
-    # prepend path context is the caller's job; keep run_id in every split by
-    # attaching the first key block as a header when present.
-    if len(spans) <= 1:
-        return spans
-    header = spans[0].text
-    out = [spans[0]]
-    for span in spans[1:]:
-        out.append(Span(span.start, span.end, header + span.text, "yaml"))
-    return out
+    blocks = [(a, b, key) for (a, b), key in zip(zip(starts, starts[1:]), keys) if text[a:b].strip()]
+    if len(blocks) <= 1:
+        return [Span(a, b, text[a:b], "yaml") for a, b, _ in blocks]
+    keyed = [block for block in blocks if block[2] is not None]
+    header = next((block for block in keyed if block[2] == "run_id"), keyed[0] if keyed else blocks[0])
+    head = text[header[0]:header[1]]
+    return [Span(a, b, text[a:b] if (a, b, key) == header else head + text[a:b], "yaml") for a, b, key in blocks]
 
 
 def chunk_text(text: str, path: str = "", strategy: str = "auto") -> list[Span]:
