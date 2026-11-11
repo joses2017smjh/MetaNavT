@@ -7,6 +7,8 @@ parity job (M3).
 """
 
 import os
+import threading
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -88,7 +90,7 @@ class _FakeRetriever:
     def __init__(self):
         self.calls = []
 
-    def retrieve_detailed(self, query, top_n=None):
+    def retrieve_detailed(self, query, top_n=None, deadline=None):
         self.calls.append((query, top_n))
         return _FakeOutcome()
 
@@ -167,3 +169,69 @@ def test_health_refuses_unverified_required_cuda_device(ready_client, monkeypatc
     assert body["required_device"] == "cuda"
     assert body["devices"] == {"embedding": None, "reranker": None}
     assert {issue["component"] for issue in body["degraded"]} == {"embedding", "reranker", "rerank"}
+
+
+# ---------------------------------------------------------------- the request's time budget (RETRIEVE_TIMEOUT_SECONDS)
+
+
+class _StuckRetriever(_FakeRetriever):
+    """Enters a stage and does not come back until the test releases it (a hung model call)."""
+
+    def __init__(self, stage):
+        super().__init__()
+        self.stage = stage
+        self.release = threading.Event()
+
+    def retrieve_detailed(self, query, top_n=None, deadline=None):
+        deadline.stage = self.stage
+        self.release.wait(30)
+        return _FakeOutcome()
+
+
+class _OverrunRetriever(_FakeRetriever):
+    """A stage that notices the overrun itself (the hybrid statement's statement_timeout, or a stage check)."""
+
+    def retrieve_detailed(self, query, top_n=None, deadline=None):
+        from app.engine.retriever import StageTimeout
+
+        raise StageTimeout("hybrid_sql", deadline.budget_s)
+
+
+def test_a_retrieval_that_overruns_the_budget_is_504_naming_the_stage(ready_client, monkeypatch):
+    from app.api.routers.retrieve import TIMEOUT_GRACE_SECONDS
+
+    monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", "0.2")
+    stuck = _StuckRetriever("rerank")
+    ready_client.app.state.retrieval.retriever = stuck
+    started = time.monotonic()
+    try:
+        resp = ready_client.post("/api/retrieve/", json={"query": "q"})
+    finally:
+        stuck.release.set()
+    elapsed = time.monotonic() - started
+    assert resp.status_code == 504, resp.text
+    assert "rerank" in resp.json()["detail"] and "0.2 s" in resp.json()["detail"]
+    assert elapsed < 0.2 + TIMEOUT_GRACE_SECONDS + 2.0, elapsed  # answered at the budget, not when the stage returned
+
+
+def test_a_stage_timeout_from_the_retriever_is_504(ready_client, monkeypatch):
+    monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", "5")
+    ready_client.app.state.retrieval.retriever = _OverrunRetriever()
+    resp = ready_client.post("/api/retrieve/", json={"query": "q"})
+    assert resp.status_code == 504 and "hybrid_sql" in resp.json()["detail"], resp.text
+
+
+def test_within_the_budget_the_answer_is_unchanged(ready_client, monkeypatch):
+    monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", "5")
+    assert ready_client.post("/api/retrieve/", json={"query": "q"}).status_code == 200
+
+
+@pytest.mark.parametrize("raw, expected", [(None, 30.0), ("2.5", 2.5), ("abc", 30.0), ("0", 30.0), ("-1", 30.0), ("inf", 30.0), ("nan", 30.0)])
+def test_the_budget_setting(monkeypatch, raw, expected):
+    from app.api.routers.retrieve import retrieve_timeout_seconds
+
+    if raw is None:
+        monkeypatch.delenv("RETRIEVE_TIMEOUT_SECONDS", raising=False)
+    else:
+        monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", raw)
+    assert retrieve_timeout_seconds() == expected

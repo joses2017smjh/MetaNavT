@@ -6,10 +6,12 @@ raw score, so a BM25 score above a cosine score replaced the node that carried
 file_path. Real llama_index node types, fake vector store + retriever.
 """
 
+import time
+
 import pytest
 from llama_index.core.schema import NodeWithScore, TextNode
 
-from app.engine.retriever import HybridRetriever, reciprocal_rank_fusion
+from app.engine.retriever import Deadline, HybridRetriever, StageTimeout, reciprocal_rank_fusion
 
 
 def _hit(node_id: str, text: str, score: float, meta: dict | None = None) -> NodeWithScore:
@@ -289,3 +291,71 @@ def test_load_reranker_never_falls_back_silently(monkeypatch):
     monkeypatch.setattr(mod, "reranker_settings", lambda: {"model": "none", "precision": "fp32", "max_length": 512, "depth": 20, "required": True, "device": "cpu"})
     model, info = mod.load_reranker()
     assert model is None and info == {"configured": False, "loaded": False, "model": None, "revision": None, "device": None, "precision": "fp32", "max_length": 512, "depth": 20, "error": None}
+
+
+# ---------------------------------------------------------------- M11 (A22): one request's time budget
+
+
+class _TimedSQLVSM(_FakeSQLVSM):
+    """hybrid_search that records its keyword arguments, and can stand in for a cancelled statement."""
+
+    def __init__(self, cancelled=False):
+        super().__init__()
+        self.kwargs = []
+        self.cancelled = cancelled
+
+    def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60, **kwargs):
+        self.kwargs.append(kwargs)
+        if self.cancelled:
+            raise TimeoutError("hybrid statement cancelled by its statement_timeout")
+        return super().hybrid_search(query, query_embedding, k, rrf_k)
+
+
+class _SlowCrossEncoder:
+    def predict(self, pairs, batch_size=32, show_progress_bar=False, activation_fn=None):
+        time.sleep(0.4)
+        return [0.0] * len(pairs)
+
+
+def _sql_retriever(vsm, embed_fn=lambda q: [0.1, 0.2]):
+    return HybridRetriever(None, vsm, reranker=None, enable_router=False, mode="sql", embed_fn=embed_fn)
+
+
+def test_the_statement_gets_the_rest_of_the_budget_as_its_statement_timeout():
+    vsm = _TimedSQLVSM()
+    out = _sql_retriever(vsm).retrieve_detailed("current learning rate for run 47", top_n=2, deadline=Deadline(5.0))
+    assert len(out.nodes) == 2
+    (kwargs,) = vsm.kwargs
+    assert 0 < kwargs["statement_timeout_ms"] <= 5000
+
+
+def test_without_a_budget_the_statement_has_no_timeout():
+    vsm = _TimedSQLVSM()
+    _sql_retriever(vsm).retrieve_detailed("q")
+    assert vsm.kwargs == [{}]
+
+
+def test_a_cancelled_statement_is_a_timeout_of_its_stage():
+    with pytest.raises(StageTimeout) as caught:
+        _sql_retriever(_TimedSQLVSM(cancelled=True)).retrieve_detailed("q", deadline=Deadline(5.0))
+    assert caught.value.stage == "hybrid_sql" and caught.value.budget_s == 5.0
+
+
+def test_an_embedding_past_the_budget_stops_the_request_before_the_statement():
+    vsm = _TimedSQLVSM()
+
+    def slow_embed(query):
+        time.sleep(0.3)
+        return [0.1, 0.2]
+
+    with pytest.raises(StageTimeout) as caught:
+        _sql_retriever(vsm, slow_embed).retrieve_detailed("q", deadline=Deadline(0.1))
+    assert caught.value.stage == "embed" and vsm.calls == []
+
+
+def test_a_rerank_past_the_budget_is_named():
+    retriever = HybridRetriever(_FakeVectorRetriever(), _FakeVSM(), reranker=_SlowCrossEncoder(), enable_router=False)
+    deadline = Deadline(0.2)
+    with pytest.raises(StageTimeout) as caught:
+        retriever.retrieve_detailed("anything", deadline=deadline)
+    assert caught.value.stage == "rerank" and deadline.stage == "rerank"

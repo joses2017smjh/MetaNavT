@@ -660,7 +660,15 @@ with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), 
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. `k` is validated (1-50),
-bad bodies are 422, a down backend is 503. The committed
+bad bodies are 422, a down backend is 503, and a retrieval that runs past its
+time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
+statement gets the rest of the budget as its `statement_timeout`, so Postgres
+cancels it and its connection goes back to the pool rolled back; the embedding
+and reranking stages are checked when they end, so a late one stops the request
+before the next stage. A model call cannot be interrupted: when one hangs, the
+route answers shortly after the budget and the call keeps its worker thread
+until it returns (`tests/api/test_retrieve_contract.py`,
+`tests/database/test_retrieve_timeout.py`). The committed
 [EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1
 (`make explain-sql`): both lists are sequential scans at that size.
 [hybrid_explain_synthetic_10k.txt](../doc/sql/hybrid_explain_synthetic_10k.txt)

@@ -3,24 +3,44 @@
 POST /api/retrieve/  {"query": "...", "k": 8}
   -> route, per-stage latency, counts, and hits with path + byte range +
      per-stage scores (bm25, dense, rrf, rerank). 422 on a bad body, 503 when
-     the backend is down. The index, vector store, clusters and retriever are
-     built once in main.py's lifespan; the blocking retrieve runs in a worker
-     thread and returns a per-request RetrievalOutcome (no shared state).
+     the backend is down, 504 when the retrieval runs past its time budget
+     (RETRIEVE_TIMEOUT_SECONDS), naming the stage. The index, vector store,
+     clusters and retriever are built once in main.py's lifespan; the blocking
+     retrieve runs in a worker thread and returns a per-request RetrievalOutcome
+     (no shared state).
 """
 
 from __future__ import annotations
 
+import functools
+import math
 import os
 from typing import Optional
 
+import anyio
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
+
+from app.engine.budget import Deadline, StageTimeout
 
 retrieve_router = r = APIRouter()
 
 MAX_K = 50
 MAX_QUERY_CHARS = 2000
+RETRIEVE_TIMEOUT_DEFAULT_SECONDS = 30.0
+# How long past the budget the route still waits for the worker thread. The stages notice the
+# budget themselves (Postgres cancels the statement at its statement_timeout, a stage that ends
+# late raises), and their answer names the stage; this wait only ends a call that does not return.
+TIMEOUT_GRACE_SECONDS = 1.0
+
+
+def retrieve_timeout_seconds() -> float:
+    """RETRIEVE_TIMEOUT_SECONDS: one request's time budget; anything but a positive finite number keeps the default."""
+    try:
+        value = float(os.getenv("RETRIEVE_TIMEOUT_SECONDS", "").strip())
+    except ValueError:
+        return RETRIEVE_TIMEOUT_DEFAULT_SECONDS
+    return value if math.isfinite(value) and value > 0 else RETRIEVE_TIMEOUT_DEFAULT_SECONDS
 
 
 class RetrieveRequest(BaseModel):
@@ -111,8 +131,19 @@ async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
     if state is None:
         detail = getattr(request.app.state, "startup_error", None) or "retrieval backend not initialised"
         raise HTTPException(status_code=503, detail=f"retrieval backend unavailable: {detail}")
+    budget = retrieve_timeout_seconds()
+    deadline = Deadline(budget)
+    work = functools.partial(state.retriever.retrieve_detailed, req.query, req.k, deadline=deadline)
     try:
-        outcome = await run_in_threadpool(state.retriever.retrieve_detailed, req.query, req.k)
+        # abandon_on_cancel: when the wait ends, the response goes out and the thread is left to
+        # finish on its own (run_in_threadpool would hold the response until the thread returned).
+        with anyio.fail_after(budget + TIMEOUT_GRACE_SECONDS):
+            outcome = await anyio.to_thread.run_sync(work, abandon_on_cancel=True)
+    except StageTimeout as exc:
+        raise HTTPException(status_code=504, detail=f"retrieval timed out: {exc}") from exc
+    except TimeoutError as exc:
+        stage = deadline.stage or "waiting for a worker thread"
+        raise HTTPException(status_code=504, detail=f"retrieval timed out: stage {stage} still running past the {budget:g} s retrieval budget") from exc
     except Exception as exc:  # noqa: BLE001 - any backend failure is a 503 to the client
         raise HTTPException(status_code=503, detail=f"retrieval backend unavailable: {exc}") from exc
 

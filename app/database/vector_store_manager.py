@@ -38,6 +38,7 @@ import unicodedata
 import uuid
 import time
 import psycopg2
+import psycopg2.errors
 
 from .db_base_manager import DatabaseManager
 
@@ -509,12 +510,16 @@ class VectorStoreManager(DatabaseManager):
             cur.execute("SELECT set_config(%s, %s, true);", (name, str(value)))
         return settings
 
-    def hybrid_search(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> list[dict]:
+    def hybrid_search(
+        self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None
+    ) -> list[dict]:
         """One round trip: dense top-k + lexical top-k + RRF in SQL (see sql/hybrid_*.sql).
 
         query_embedding=None runs the lexical list only (router skip_embed). Each row:
         node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf.
-        The statement runs in its own transaction with search_settings(k).
+        The statement runs in its own transaction with search_settings(k), and with
+        statement_timeout_ms as its statement_timeout when given: Postgres cancels it
+        there, the transaction is rolled back and this raises TimeoutError.
         """
         backend = self.hybrid_backend
         params = {
@@ -526,7 +531,12 @@ class VectorStoreManager(DatabaseManager):
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 self.apply_search_settings(cur, k)
-                cur.execute(self.hybrid_sql(backend), params)
+                if statement_timeout_ms is not None:  # 0 would mean no limit in Postgres
+                    cur.execute("SELECT set_config('statement_timeout', %s, true);", (str(max(1, int(statement_timeout_ms))),))
+                try:
+                    cur.execute(self.hybrid_sql(backend), params)
+                except psycopg2.errors.QueryCanceled as exc:
+                    raise TimeoutError(f"hybrid statement cancelled by its statement_timeout ({statement_timeout_ms} ms)") from exc
                 rows = cur.fetchall()
         self.last_bm25_backend = backend if any(r[3] is not None for r in rows) else "none"
         return [
