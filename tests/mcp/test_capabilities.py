@@ -167,11 +167,16 @@ def test_list_dir_lists_a_symlink_without_its_target_metadata(tmp_path):
     (outside / "secret.bin").write_bytes(b"s" * 1234)
     (root / "link.txt").symlink_to(outside / "secret.bin")
     (root / "linkdir").symlink_to(outside / "dir", target_is_directory=True)
-    listed = {entry["path"]: entry for entry in FilesystemTools(root=root).call("list_dir", {"path": "."})}
+    tools = FilesystemTools(root=root)
+    listed = {entry["path"]: entry for entry in tools.call("list_dir", {"path": "."})}
     assert listed["plain.txt"] == {"path": "plain.txt", "is_dir": False, "size": 7}  # regular entries as before
     assert listed["sub"] == {"path": "sub", "is_dir": True, "size": None}
     assert listed["link.txt"] == {"path": "link.txt", "is_dir": False, "size": None, "symlink": True}
     assert listed["linkdir"] == {"path": "linkdir", "is_dir": False, "size": None, "symlink": True}
+    for link in ("link.txt", "linkdir"):  # stat refuses the link, as the engineering reference says
+        with pytest.raises(PermissionError):
+            tools.stat([link])
+    assert tools.stat(["plain.txt"])[0]["size"] == 7
 
 
 def test_generated_goal_and_citation_newlines_cannot_execute_library_key_reader(tmp_path):
