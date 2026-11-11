@@ -109,6 +109,10 @@ def test_the_sandbox_child_has_limits_a_new_session_a_reduced_environment_and_an
     assert flags == "True True True"
     memory = sandbox._run_child({"code": "block = bytearray(2 * 1024 ** 3)", "builtins": ["bytearray"], "globals": {}}, timeout_s=5)
     assert not memory.ok and memory.error.startswith("MemoryError"), memory
+    # A runner that fails before it can report: the error says so, without the child's
+    # traceback, which names server paths (the result can reach an MCP client).
+    broken = sandbox._run_child({"code": "", "builtins": ["no_such_builtin"], "globals": {}}, timeout_s=5)
+    assert (broken.ok, broken.error) == (False, "the sandbox process exited with status 1 without a result")
 
 
 def test_safe_builtins_are_the_builtins_of_the_same_name():

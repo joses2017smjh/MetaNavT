@@ -152,7 +152,6 @@ DEFAULT_TIMEOUT_S = 10  # wall clock per run, interpreter start included; also t
 MEMORY_BYTES = 1024 * 1024 * 1024  # address-space limit of the child
 FILE_BYTES = 16 * 1024 * 1024  # largest file the child may write, its stdout included
 REPORT_TAIL_BYTES = 8 * 1024 * 1024  # the report is the last line of stdout and its fields are capped
-STDERR_TAIL_BYTES = 4096
 
 
 def _child_env() -> dict[str, str]:
@@ -243,8 +242,9 @@ def _run_child(request: dict, timeout_s: float) -> ExecResult:
                                   error=f"the sandbox process {reason} (its CPU limit is {cpu_seconds} s)")
         else:
             reason = f"exited with status {proc.returncode}"
-        return ExecResult(ok=False, stdout="", stderr="",
-                          error=f"the sandbox process {reason} without a result\n{_tail(err, STDERR_TAIL_BYTES)}")
+        # The child's own stderr is not passed on: a traceback there names server paths,
+        # and the result can reach an MCP client.
+        return ExecResult(ok=False, stdout="", stderr="", error=f"the sandbox process {reason} without a result")
 
 
 def run_sandboxed(
