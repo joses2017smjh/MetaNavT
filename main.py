@@ -94,6 +94,7 @@ async def health():
             content={"status": "unavailable", "error": getattr(app.state, "startup_error", None), **security_status()},
         )
     n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    dense_search = await run_in_threadpool(_dense_search_status, state)
     reranker = getattr(state.retriever, "reranker_info", None) or {}
     from app.settings import embedding_device
 
@@ -119,6 +120,7 @@ async def health():
         "devices": devices,
         "required_device": required,
         "bm25_backend": getattr(state.vsm, "hybrid_backend", None) or state.vsm.last_bm25_backend,
+        "dense_search": dense_search,
         "retrieval_mode": getattr(state.retriever, "mode", None),
         "reranker_loaded": state.retriever._reranker is not None,
         "reranker": reranker,
@@ -128,6 +130,18 @@ async def health():
         **security_status(),
     }
     return JSONResponse(status_code=503, content=payload) if device_errors else payload
+
+
+def _dense_search_status(state) -> dict:
+    """Depth of the dense list and the settings each hybrid statement runs with (hnsw.ef_search, ...)."""
+    depth = getattr(state.retriever, "depth", None)
+    settings_for = getattr(state.vsm, "search_settings", None)
+    version = getattr(state.vsm, "pgvector_version", None)
+    return {
+        "depth": depth,
+        "settings": settings_for(depth) if settings_for and depth else {},
+        "pgvector": ".".join(str(p) for p in version) if version else None,
+    }
 
 
 

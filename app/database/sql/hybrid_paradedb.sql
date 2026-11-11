@@ -1,7 +1,9 @@
 -- Same shape as hybrid_tsrank.sql, with ParadeDB pg_search BM25 for the lexical
--- list (text @@@ query, paradedb.score). Selected automatically when the
--- pg_search extension is installed. Not exercised by CI, which runs
--- pgvector/pgvector:pg16 without ParadeDB; the result label says which ran.
+-- list (text @@@ query, paradedb.score). Runs only with LEXICAL_BACKEND=paradedb,
+-- never because pg_search happens to be installed (the default is ts_rank_cd).
+-- Not exercised by CI, which runs pgvector/pgvector:pg16 without ParadeDB, nor by
+-- any results file; the result label says which ran. Its dense CTE is
+-- hybrid_tsrank.sql's, verbatim (tests/engine/test_vector_store_sql.py).
 WITH params AS (
     SELECT %(qvec)s::vector AS qvec
 ),
@@ -9,10 +11,23 @@ dense AS (
     SELECT node_id, dense_score,
            row_number() OVER (ORDER BY dense_score DESC, node_id) AS dense_rank
     FROM (
-        SELECT t.node_id, 1 - (t.embedding <=> p.qvec) AS dense_score
-        FROM {table} t, params p
-        WHERE p.qvec IS NOT NULL
-        ORDER BY t.embedding <=> p.qvec
+        -- The cut at k orders equal distances by node_id. That key cannot go into the
+        -- index-ordered scan below: an index ordering operator must match every ORDER
+        -- BY key, so a second key would leave the HNSW index unused. The scan reads the
+        -- 2k nearest rows instead and this level keeps k of them, so a tie at the cut
+        -- is decided by node_id unless the tied rows run past the 2k read. This level
+        -- sorts by distance ascending, as the scan does: an all-zero embedding has a NaN
+        -- distance, which sorts after every number, and a descending score would put it
+        -- first.
+        SELECT node_id, 1 - distance AS dense_score
+        FROM (
+            SELECT t.node_id, t.embedding <=> p.qvec AS distance
+            FROM {table} t, params p
+            WHERE p.qvec IS NOT NULL
+            ORDER BY t.embedding <=> p.qvec
+            LIMIT 2 * %(k)s
+        ) nearest
+        ORDER BY distance, node_id
         LIMIT %(k)s
     ) s
 ),

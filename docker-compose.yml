@@ -8,8 +8,8 @@
 #   docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 services:
   db:
-    # pgvector only. ParadeDB's pg_search (true BM25) is not in this image, so lexical
-    # search falls back to Postgres ts_rank_cd; /health reports bm25_backend.
+    # pgvector only, without ParadeDB's pg_search (true BM25): lexical search is Postgres
+    # ts_rank_cd, LEXICAL_BACKEND's default; /health reports bm25_backend.
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: postgres
