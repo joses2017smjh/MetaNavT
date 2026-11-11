@@ -205,6 +205,14 @@ def test_rescore_recomputes_checks_from_stored_answers(tmp_path):
     assert [r["judges"] for r in out["rows"]] == [r["judges"] for r in blob["rows"]]
     assert out["rescore"]["rows_git_sha"] == blob["git_sha"] and out["rescore"]["rows_command"] == blob["command"]
     assert out["git_sha"] == out["rescore"]["checks_git_sha"]
+    published = json.loads(path.read_text())  # a file written before the provenance sanitizer
+    published.pop("rescore", None)
+    published["command"] = "HF_HOME=/nfs/hpc/share/jdoe42/hf_cache python -m app.eval.llm_eval --out /scratch/jdoe42/jury.json"
+    published["device"] = {**published["device"], "hostname": "node-17.cluster.example.edu"}
+    path.write_text(json.dumps(published))
+    again = llm_eval.rescore(path)
+    assert again["rescore"]["rows_command"] == "HF_HOME=<path>/hf_cache python -m app.eval.llm_eval --out <path>/jury.json"
+    assert "hostname" not in again["device"] and "node-17" not in json.dumps(again)
     tampered = json.loads(path.read_text())
     tampered["rows"][0]["retrieved_paths"] = ["nope.txt"]
     path.write_text(json.dumps(tampered))
