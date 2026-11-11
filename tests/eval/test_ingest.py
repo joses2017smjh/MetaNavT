@@ -1,5 +1,6 @@
 """Pure ingestion logic: scan gates, content-hash diff, accounting, rejection limit. No database."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -25,6 +26,9 @@ from app.retrieval.hybrid import chunk_id_for
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "bench" / "corpus" / "files"
+# sha256 of fixture v1's chunks (id, path, byte range, kind, searched text, cited text) as the chunker of
+# bench/results/main.json cuts them, computed at fe666cb. A chunker change that moves a fixture chunk fails here.
+FIXTURE_CHUNKS_SHA256 = "c49edb286b982303b8fb5fdeead02ab3c6bfd9c75fea5a95881d8f8972eeaad3"
 
 
 def _messy_corpus(root: Path) -> None:
@@ -207,6 +211,13 @@ def test_fixture_chunks_are_the_ones_the_recorded_benchmark_used():
     assert {row["n_chunks"] for row in recorded["results"]} == {len(chunks)}
     assert (report["files_seen"], report["files_indexed"], report["files_rejected"]) == (recorded["n_files"], recorded["n_files"], 0)
     assert [c.chunk_id for c in load_chunks(FIXTURE)] == [c[0] for c in got]
+
+
+def test_fixture_chunks_match_the_digest_pinned_from_the_recorded_benchmark():
+    """Independent of the live chunker: the reference loader above calls the same chunk_text."""
+    rows = [[c.chunk_id, c.path, c.start_byte, c.end_byte, c.metadata["kind"], c.text, c.metadata["evidence_raw"]]
+            for c in load_chunks(FIXTURE)]
+    assert hashlib.sha256(json.dumps(rows, ensure_ascii=False).encode("utf-8")).hexdigest() == FIXTURE_CHUNKS_SHA256
 
 
 def test_file_chunks_addresses_bytes_and_keeps_the_searched_text():

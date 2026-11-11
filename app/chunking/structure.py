@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import bisect
 import json
 import re
 from dataclasses import dataclass
@@ -99,37 +100,52 @@ def jsonl_record_chunks(text: str) -> list[Span]:
     return spans
 
 
+_PY_LINE_END = re.compile(r"\r\n|\r|\n")  # the line ends ast counts; str.splitlines also splits at \f, U+2028, ...
+_NON_SPACE = re.compile(r"\S")
+
+
 def python_ast_chunks(text: str) -> list[Span]:
+    """One chunk per top-level function or class, and one per stretch of module-level code around them.
+
+    A definition's chunk starts at its first decorator and ends with its last
+    line. The code before the first definition (docstring, imports) is one
+    chunk, and so is each non-blank stretch between or after definitions
+    (constants, registration calls, a main guard), so every non-blank line of
+    the module is in exactly one chunk. A module without definitions, or one
+    that does not parse, takes the fixed window.
+    """
     try:
         tree = ast.parse(text)
     except SyntaxError:
         return fixed_size_chunks(text)
-    slices: list[tuple[int, int]] = []
-    lines = text.splitlines(keepends=True)
-    # module docstring / imports as a preamble
-    first_body = None
-    for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            first_body = node
-            break
-    if first_body is not None:
-        preamble_end = _line_start(lines, first_body.lineno)
-        if preamble_end > 0:
-            slices.append((0, preamble_end))
-    for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            start = _line_start(lines, node.lineno)
-            end = _line_start(lines, node.end_lineno + 1) if node.end_lineno else len(text)
-            slices.append((start, min(end, len(text))))
-    if not slices:
+    definitions = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
+    if not definitions:
         return fixed_size_chunks(text)
+    line_starts = [0] + [m.end() for m in _PY_LINE_END.finditer(text)]
+
+    def line_start(lineno: int) -> int:  # 1-based, as ast counts; past the last line is the end of the text
+        return line_starts[lineno - 1] if lineno <= len(line_starts) else len(text)
+
+    slices: list[tuple[int, int]] = []
+    cursor = 0  # one forward cursor: slices never overlap
+    for node in definitions:
+        start = max(cursor, line_start(min([node.lineno] + [d.lineno for d in node.decorator_list])))
+        if start > cursor:  # the preamble from 0; a later stretch from its first non-blank line
+            slices.append((cursor if not slices else _first_line_with_code(text, line_starts, cursor, start), start))
+        end = max(start, line_start(node.end_lineno + 1) if node.end_lineno else len(text))
+        slices.append((start, end))
+        cursor = end
+    if cursor < len(text):
+        slices.append((_first_line_with_code(text, line_starts, cursor, len(text)), len(text)))
     return _spans_from_slices(text, slices, "ast")
 
 
-def _line_start(lines: list[str], lineno: int) -> int:
-    if lineno <= 1:
-        return 0
-    return sum(len(l) for l in lines[: lineno - 1])
+def _first_line_with_code(text: str, line_starts: list[int], start: int, end: int) -> int:
+    """Start of the first line in text[start:end] that is not blank (end when there is none)."""
+    match = _NON_SPACE.search(text, start, end)
+    if match is None:
+        return end
+    return max(start, line_starts[bisect.bisect_right(line_starts, match.start()) - 1])
 
 
 def yaml_chunks(text: str) -> list[Span]:

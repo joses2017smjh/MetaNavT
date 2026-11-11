@@ -580,6 +580,22 @@ diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
 [bench/results/ingest_runs.json](../bench/results/ingest_runs.json).
 
+Chunking. Both the benchmark loader and the served indexer cut every file
+with `chunk_text` in [app/chunking/structure.py](../app/chunking/structure.py),
+routed by suffix. A Python file gets one chunk per top-level function or class,
+starting at its first decorator, one for the code before the first definition,
+and one for each non-blank stretch of module-level code between or after
+definitions (constants, registration calls, a main guard), so every non-blank
+line is in exactly one chunk; lines are counted the way `ast` counts them (a
+form feed is not a line break). A module without definitions, or one that does
+not parse, takes the fixed character window. `CHUNKER_VERSION` in
+[app/eval/ingest.py](../app/eval/ingest.py) names the boundaries: when it
+changes, every served file counts as changed at the next start and is
+re-indexed. [tests/eval/test_chunking.py](../tests/eval/test_chunking.py) holds
+the expected spans, and
+[tests/eval/test_ingest.py](../tests/eval/test_ingest.py) pins a digest of
+fixture v1's chunks as the recorded benchmark cut them.
+
 Limits: a file is identified by its bytes, so a rename is a delete plus an
 insert; files are embedded one at a time inside the startup hook; the type
 gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
