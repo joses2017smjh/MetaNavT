@@ -50,7 +50,8 @@ class DemoRetriever:
     def __init__(self, index):
         self.index = index
 
-    def retrieve_detailed(self, query: str, top_n: int | None = None):
+    def retrieve_detailed(self, query: str, top_n: int | None = None, deadline=None):
+        # The route's time budget (deadline) is not checked: one in-memory search, no model or database call.
         started = time.perf_counter()
         result = self.index.retrieve(query, k=top_n or 8)
         hits = result.hits[:top_n or 8]
