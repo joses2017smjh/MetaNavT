@@ -719,7 +719,9 @@ same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
 fails only when the API is broken (a question without an answer or with zero
-hits). On the fixture the planner answers the dense CTE with a sequential scan;
+hits), and before it contacts the API it refuses a `bench/corpus/files` that
+differs from its MANIFEST (the check the bench runs, `verify_manifest` in
+[app/eval/corpus.py](../app/eval/corpus.py)). On the fixture the planner answers the dense CTE with a sequential scan;
 when the HNSW index is used instead, a scan returns at most `hnsw.ef_search`
 rows (pgvector's default is below `RETRIEVE_K`), so the dense list is cut short.
 The test reports the plan and `ef_search` when it fails.

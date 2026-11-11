@@ -159,7 +159,7 @@ demos: matlab-demo demo-data figures gifs
 API_URL ?= http://localhost:8000
 PARITY_OUT ?= bench/results/parity.json
 
-parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails only if the API is broken)
+parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
 	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
 
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
