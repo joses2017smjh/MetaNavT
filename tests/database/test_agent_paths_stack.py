@@ -118,6 +118,15 @@ class _Handler(BaseHTTPRequestHandler):
         return self._send(done)
 
 
+def _names_this_account(text):
+    """The text names the account running the test (provenance's names: generic CI accounts are left out)."""
+    import re
+
+    from app.eval.provenance import user_names
+
+    return any(re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text) for name in user_names())
+
+
 def _databases(dsn):
     import psycopg2
 
@@ -154,7 +163,7 @@ def test_companion_live_run_end_to_end(tmp_path):
     assert report["ollama"]["models"][MODEL]["digest"] == "0" * 64
     assert cs.rescore(report) == report
     assert json.loads(validation.read_text())["real_LLM_inference_tested"] is True
-    assert os.environ.get("USER", "-") not in out.read_text()
+    assert not _names_this_account(out.read_text())
 
 
 def test_chat_route_smoke_run_end_to_end(tmp_path):
@@ -179,4 +188,5 @@ def test_chat_route_smoke_run_end_to_end(tmp_path):
     assert offered == {"artifact", "get_file_content", "list_available_files", "query_index"}
     assert report["code_execution"]["ENABLE_PYTHON_EXEC"] == "false" and not report["code_execution"]["METANAVIT_API_KEY_set"]
     assert report["chat_llm"]["model"] == MODEL and report["summary"]["/api/chat/request"]["code_tool_calls"] == 0
-    assert os.environ.get("USER", "-") not in out.read_text()
+    assert report["working_tree_dirty"] == bool(report["working_tree_changes"])
+    assert not _names_this_account(out.read_text())

@@ -32,6 +32,7 @@ import argparse
 import json
 import os
 import statistics
+import subprocess
 import sys
 import tempfile
 import time
@@ -186,6 +187,15 @@ def warm_up(ollama_url: str, model: str) -> float:
     return round(time.perf_counter() - started, 3)
 
 
+def working_tree_changes() -> list[str] | None:
+    """`git status --porcelain` paths when the report is built: what makes working_tree_dirty true, if it is."""
+    try:
+        out = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return [line[3:] for line in out.splitlines() if line.strip()]
+
+
 def _median(values: Sequence[float | None]) -> float | None:
     values = [v for v in values if v is not None]
     return round(statistics.median(values), 3) if values else None
@@ -252,6 +262,7 @@ def run(*, model: str, ollama_url: str, pg_dsn: str, limit: int | None, log_dir:
         "benchmark": BENCHMARK,
         "scope": SCOPE,
         **run_provenance(SOURCES),
+        "working_tree_changes": working_tree_changes(),
         "command": recorded_command(),
         "model": model,
         "ollama": {**info, "loaded": loaded, "warm_up_s": warm},
