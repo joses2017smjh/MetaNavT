@@ -172,6 +172,11 @@ async def _run_backend(envs: dict[str, str | None] = {}) -> Process:
             f"Port {APP_PORT} is not available! Please change the port in .env file."
         )
     
+    # The deploy step first: the API applies no schema migration and refuses to start while one is pending.
+    migrate = await asyncio.create_subprocess_exec(sys.executable, "-m", "app.database.migrate", env=envs)
+    if await migrate.wait() != 0:
+        rich.print("[bold yellow]Schema migrations failed (python -m app.database.migrate); /health will say why.[/bold yellow]")
+
     rich.print(f"\n[bold]Starting backend on port {APP_PORT}...[/bold]")
     
     # Run uvicorn as a child process (not poetry) so `envs` applies and the caller gets a Process

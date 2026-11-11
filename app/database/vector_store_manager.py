@@ -7,9 +7,11 @@ Provides connection pooling and vector store management through a singleton patt
 Features:
     - Vector store initialization and management
     - Connection pooling via parent DatabaseManager
-    - pgvector extension handling
     - Both sync (psycopg2) and async (asyncpg) support
-    - Automatic table creation and dimension handling
+    - Dimension detection; no DDL for the vector table: the data table, the ingest manifest,
+      their indexes and the vector extension come from the schema migrations
+      (app/database/migrate.py, `make migrate`), which check_migrations() requires before the
+      API starts
 
 Configuration (via environment variables):
     PGVECTOR_SCHEMA: Schema name for vector tables (default: "public")
@@ -41,6 +43,7 @@ import psycopg2
 import psycopg2.errors
 
 from .db_base_manager import DatabaseManager
+from .migrate import VectorTable, require_current
 
 load_dotenv()
 logger = logging.getLogger("uvicorn")
@@ -142,27 +145,21 @@ class VectorStoreManager(DatabaseManager):
             logger.info(f"Using vector dimension from environment: {self.embed_dim}")
         
         self.vector_store = None
-        
-        # Ensure required extensions exist (pg_search only for the ParadeDB backend)
-        self._ensure_vector_extension()
+        # The vector extension, data_<table_name> (in the shape PGVectorStore gives it), the
+        # ingest manifest and the GIN / HNSW / path indexes come from the schema migrations
+        # (app/database/migrations/vector/), applied by the deploy step, not from this class.
         if self.lexical_backend == "paradedb":
             self._ensure_pg_search_extension()
-        
-        # PGVectorStore creates data_<table_name> itself on first use (see get_vector_store).
-        
-    def _ensure_vector_extension(self) -> None:
-        """Create pgvector extension if it doesn't exist."""
+
+    @property
+    def vector_table(self) -> VectorTable:
+        """This manager's table as the schema migrations name it (app/database/migrate.py)."""
+        return VectorTable(schema=self.schema_name, table=self.table_name, dim=int(self.embed_dim), lexical_backend=self.lexical_backend)
+
+    def check_migrations(self) -> None:
+        """Raise MigrationsPending unless every migration this table and backend need is applied. Reads only."""
         with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                try:
-                    logger.info("Ensuring 'vector' extension exists...")
-                    cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-                    logger.info("'vector' extension check complete.")
-                except Exception as e:
-                    logger.error(f"Error creating vector extension: {e}")
-                    # Rollback might not be needed if autocommit is true, but good practice
-                    conn.rollback()
-                    raise
+            require_current(conn, self.vector_table)
 
     def _ensure_pg_search_extension(self):
         """Ensure the pg_search extension exists."""
@@ -251,13 +248,14 @@ class VectorStoreManager(DatabaseManager):
                 logger.info(f"DatabaseManager's pool is configured for database: '{parsed_main_conn.path.lstrip('/')}' (derived from PG_CONNECTION_STRING)")
 
 
-            logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.data_table}' (PGVectorStore creates data_<table> on first use)...")
+            logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.data_table}' (created by the schema migrations)...")
             self.vector_store = PGVectorStore(
                 connection_string=psycopg2_conn_str,
                 async_connection_string=asyncpg_conn_str,
                 schema_name=self.schema_name,
                 table_name=self.table_name,
                 embed_dim=self.embed_dim,
+                perform_setup=False,  # no CREATE SCHEMA / EXTENSION / TABLE from LlamaIndex: vector/0001 owns them
             )
             logger.info(f"PGVectorStore Python object initialized for table '{self.schema_name}.{self.data_table}'")
 
@@ -623,22 +621,6 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute(settings + "EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), {**params, **settings_params})
                 return "\n".join(r[0] for r in cur.fetchall())
 
-    def ensure_text_index(self) -> bool:
-        """GIN index on to_tsvector('english', text): the expression the lexical CTE filters on."""
-        index_name = f"{self.data_table}_text_tsv_gin"
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f'CREATE INDEX IF NOT EXISTS "{index_name}" ON "{self.schema_name}"."{self.data_table}" '
-                        f"USING GIN (to_tsvector('english', text));"
-                    )
-                conn.commit()
-            return True
-        except Exception as e:
-            logger.warning(f"ensure_text_index failed: {e}")
-            return False
-
     def fetch_all_chunks(self) -> list[dict]:
         """node_id, text, metadata for every row (staleness clusters at startup)."""
         with self.get_connection() as conn:
@@ -673,7 +655,8 @@ class VectorStoreManager(DatabaseManager):
     # source of truth for the diff app/engine/ingest.py runs on every start. A file's
     # manifest row is written only after its chunks are in the data table, and is
     # deleted in the same transaction as those chunks, so the manifest never lists a
-    # file whose rows are missing.
+    # file whose rows are missing. The table and the path index the per-file delete reads
+    # are schema migrations (migrations/vector/0002 and 0003), not created here.
 
     @property
     def manifest_table(self) -> str:
@@ -703,19 +686,6 @@ class VectorStoreManager(DatabaseManager):
             yield {"waited": waited, "waited_ms": round((time.perf_counter() - started) * 1000.0, 1)}
         finally:
             conn.close()
-
-    def ensure_ingest_manifest(self) -> None:
-        """Create the manifest table and the path index the per-file delete uses. Call under ingest_lock."""
-        with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql.SQL(
-                    "CREATE TABLE IF NOT EXISTS {manifest} ("
-                    "path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, n_chunks INTEGER NOT NULL, "
-                    "pipeline TEXT NOT NULL DEFAULT '', indexed_at TIMESTAMPTZ NOT NULL DEFAULT now());"
-                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)))
-                cur.execute(sql.SQL("CREATE INDEX IF NOT EXISTS {index} ON {table} ((metadata_->>'path'));").format(
-                    index=sql.Identifier(f"{self.data_table}_path_idx"),
-                    table=sql.Identifier(self.schema_name, self.data_table)))
 
     def ingest_manifest(self) -> dict[str, dict]:
         """{path: {"content_hash", "n_chunks", "pipeline"}} for every file the manifest lists."""
@@ -799,81 +769,6 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.warning(f"Error detecting vector dimensions: {e}")
             return None
-
-    def ensure_hnsw(self, m: int = 16, ef_construction: int = 64) -> bool:
-        """Create an HNSW index on the embedding column. No-op if pgvector lacks HNSW."""
-        index_name = f"{self.table_name}_embedding_hnsw"
-        stmt = f"""
-            CREATE INDEX IF NOT EXISTS {index_name}
-            ON {self.schema_name}.{self.data_table}
-            USING hnsw (embedding vector_cosine_ops)
-            WITH (m = {int(m)}, ef_construction = {int(ef_construction)});
-        """
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(stmt)
-                conn.commit()
-            logger.info(f"HNSW index {index_name} ready (m={m}, ef_construction={ef_construction})")
-            return True
-        except Exception as e:
-            logger.warning(f"HNSW index not created: {e}")
-            return False
-
-    def ensure_halfvec(self) -> bool:
-        """2x storage cut. Requires pgvector with halfvec."""
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f"""
-                        ALTER TABLE {self.schema_name}.{self.data_table}
-                        ADD COLUMN IF NOT EXISTS embedding_half halfvec({self.embed_dim});
-                        """
-                    )
-                    cur.execute(
-                        f"""
-                        UPDATE {self.schema_name}.{self.data_table}
-                        SET embedding_half = embedding::halfvec
-                        WHERE embedding_half IS NULL AND embedding IS NOT NULL;
-                        """
-                    )
-                conn.commit()
-            return True
-        except Exception as e:
-            logger.warning(f"halfvec column not created: {e}")
-            return False
-
-    def ensure_binary(self) -> bool:
-        """1-bit/dim storage + Hamming index. Rescore with float cosine at query time."""
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f"""
-                        ALTER TABLE {self.schema_name}.{self.data_table}
-                        ADD COLUMN IF NOT EXISTS embedding_bit bit({self.embed_dim});
-                        """
-                    )
-                    cur.execute(
-                        f"""
-                        UPDATE {self.schema_name}.{self.data_table}
-                        SET embedding_bit = binary_quantize(embedding)::bit({self.embed_dim})
-                        WHERE embedding_bit IS NULL AND embedding IS NOT NULL;
-                        """
-                    )
-                    cur.execute(
-                        f"""
-                        CREATE INDEX IF NOT EXISTS {self.table_name}_embedding_bit_hnsw
-                        ON {self.schema_name}.{self.data_table}
-                        USING hnsw (embedding_bit bit_hamming_ops);
-                        """
-                    )
-                conn.commit()
-            return True
-        except Exception as e:
-            logger.warning(f"binary quantization column not created: {e}")
-            return False
 
 
 # Global instance - Consider if singleton is truly needed or if explicit instantiation is better

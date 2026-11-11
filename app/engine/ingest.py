@@ -120,8 +120,7 @@ def index_directory(
     policy = policy or policy_from_env()
     pipeline = f"{CHUNKER_VERSION}|{embedder}"
     with vsm.ingest_lock() as lock:
-        store = vsm.get_vector_store()  # creates the data table on first use
-        vsm.ensure_ingest_manifest()
+        store = vsm.get_vector_store()  # the data table and the manifest are schema migrations (vector/0001, 0002)
         manifest = vsm.ingest_manifest()
         scan = scan_directory(root, policy)
         try:

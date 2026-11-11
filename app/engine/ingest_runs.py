@@ -8,8 +8,8 @@
   delete_one_file    one file deleted: its rows are removed
 
 Each run is app/engine/ingest.index_directory, the function the API calls on
-start, against a live Postgres and a table of its own that is dropped at the
-end. The frozen fixture is copied first; bench/corpus/files is never written.
+start, against a live Postgres and a table of its own, built by the schema
+migrations (the deploy step's migrate_all) and dropped at the end. The frozen fixture is copied first; bench/corpus/files is never written.
 Vectors come from the hash embedder (a fallback: deterministic, no model), so
 the file records what was indexed, not retrieval quality.
 tests/database/test_incremental_index.py regenerates the runs and compares
@@ -41,6 +41,7 @@ def record_runs(dsn: str) -> list[dict]:
     os.environ["PGVECTOR_TABLE"] = "ingestruns_" + uuid.uuid4().hex[:8]
     os.environ["EMBEDDING_DIM"] = str(HASH_DIM)
 
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
     from app.engine.ingest import index_directory
     from app.eval.ingest import SERVED_POLICY
@@ -54,6 +55,8 @@ def record_runs(dsn: str) -> list[dict]:
         return embedder.encode(texts).tolist()
 
     vsm = VectorStoreManager(conn_string=dsn)
+    with vsm.get_connection() as conn:
+        migrate_all(conn, vsm.vector_table)
     runs = []
     with tempfile.TemporaryDirectory() as tmp:
         corpus = Path(tmp) / "files"
@@ -76,9 +79,7 @@ def record_runs(dsn: str) -> list[dict]:
             step("delete_one_file")
         finally:
             with vsm.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
-                    cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.manifest_table}";')
+                drop_vector_table(conn, vsm.vector_table)
             vsm.close()
     return runs
 

@@ -1,7 +1,9 @@
 """API process startup: build the retrieval singletons, bring the index in line with DATA_DIR.
 
-main.py's lifespan calls build_retrieval_state() once, off the event loop. With
-INDEX_ON_START=true (docker-compose sets it), every start runs
+main.py's lifespan calls build_retrieval_state() once, off the event loop. It first
+requires every schema migration this configuration needs (the deploy step,
+`python -m app.database.migrate`, applies them; start-up runs no DDL) and raises
+MigrationsPending otherwise. With INDEX_ON_START=true (docker-compose sets it), every start runs
 app/engine/ingest.index_directory under a Postgres advisory lock: DATA_DIR is
 scanned, each file's SHA-256 is compared with the manifest table, and only new
 or changed files are chunked (app/chunking, the benchmark's chunker), embedded
@@ -61,6 +63,8 @@ def build_retrieval_state() -> RetrievalState:
     vsm = get_vector_store_manager()
     # LEXICAL_BACKEND is checked before anything else: paradedb without pg_search fails the start.
     logger.info(f"Lexical backend: {vsm.hybrid_backend} (LEXICAL_BACKEND)")
+    # Then the schema: a pending migration (database, vector table, ParadeDB when selected) fails the start.
+    vsm.check_migrations()
     indexing: dict = {"indexed": False, "reason": "INDEX_ON_START not set"}
     if os.getenv("INDEX_ON_START", "false").strip().lower() in {"1", "true", "yes"}:
         indexing = index_directory(
@@ -70,11 +74,7 @@ def build_retrieval_state() -> RetrievalState:
             embedder=str(getattr(Settings.embed_model, "model_name", "") or type(Settings.embed_model).__name__),
             max_rejected=max_rejected_from_env(),
         )
-    vsm.ensure_text_index()  # GIN on to_tsvector('english', text) for the lexical CTE
-    try:
-        vsm.ensure_hnsw()  # HNSW on the embedding column for the dense CTE
-    except Exception as exc:  # noqa: BLE001 - index is an optimisation, not a requirement
-        logger.warning(f"ensure_hnsw failed: {exc}")
+    # The GIN and HNSW indexes the hybrid statement reads are migrations (vector/0004, 0005), not built here.
     enable_staleness = os.getenv("ENABLE_STALENESS", "true").strip().lower() != "false"
     clusters = build_clusters(vsm) if enable_staleness else {}
     logger.info(f"Staleness Tier 1: {len(clusters)} version clusters")

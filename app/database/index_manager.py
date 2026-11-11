@@ -63,12 +63,12 @@ class IndexManager(DatabaseManager):
         }
         self.block_hidden_files = True
         
-        # Create required tables
-        self._create_tables()
+        # The tables come from the schema migrations; refuse to run before they are applied
+        self._check_tables()
 
-    def _create_tables(self) -> None:
+    def _check_tables(self) -> None:
         """
-        Ensure the tables for file and directory tracking exist (schema migrations).
+        Refuse (MigrationsPending) unless the schema migrations that create these tables are applied.
         
         Tables:
             indexed_files:
@@ -86,12 +86,12 @@ class IndexManager(DatabaseManager):
                 - mtime: Directory modification time
         """
         # The DDL lives in app/database/migrations/0001_baseline.sql (it used to be inline
-        # here, with content_hash added by a later ALTER). The runner is idempotent and
-        # takes an advisory lock, so two processes starting together do not both run DDL.
-        from .migrate import apply_migrations
+        # here, with content_hash added by a later ALTER), applied by the deploy step
+        # (`python -m app.database.migrate`). This only reads the ledger.
+        from .migrate import require_current
 
         with self.get_connection() as conn:
-            apply_migrations(conn)
+            require_current(conn)
         logger.info("Database tables are at the newest schema migration")
 
     def is_path_blocked(self, path: str) -> bool:

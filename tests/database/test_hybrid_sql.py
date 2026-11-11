@@ -33,10 +33,13 @@ def vsm():
     os.environ["EMBEDDING_DIM"] = "256"
     from llama_index.core.schema import TextNode
 
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
     from app.retrieval.embedders import HashEmbedder
 
     manager = VectorStoreManager(conn_string=dsn)
+    with manager.get_connection() as conn:
+        migrate_all(conn, manager.vector_table)  # the table and the indexes the served one has
     store = manager.get_vector_store()
     emb = HashEmbedder(256)
     nodes = [
@@ -44,12 +47,9 @@ def vsm():
         for nid, text in DOCS.items()
     ]
     store.add(nodes)
-    manager.ensure_text_index()
     yield manager, emb
     with manager.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{manager.schema_name}"."{manager.data_table}";')
-        conn.commit()
+        drop_vector_table(conn, manager.vector_table)
 
 
 def test_sql_rrf_matches_python_rrf(vsm):
@@ -113,10 +113,11 @@ TIE_ROWS = {  # cosine with QUERY_VECTOR: 1.0, 0.894, 0.707 (twice, the same vec
 @contextmanager
 def vector_table(vectors: dict, order: list[str]):
     """(manager, forced) over a scratch table holding `vectors` (node_id -> vector), stored in `order`,
-    with the start-up indexes; `forced` cannot plan a sequential scan. The table is dropped on exit."""
+    with the migrations' indexes; `forced` cannot plan a sequential scan. The table is dropped on exit."""
     from llama_index.core.schema import TextNode
     from psycopg2.extensions import make_dsn
 
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
 
     dsn = os.environ["PG_TEST_DSN"]
@@ -128,16 +129,15 @@ def vector_table(vectors: dict, order: list[str]):
     finally:
         os.environ["PGVECTOR_TABLE"] = saved
     try:
+        with manager.get_connection() as conn:
+            migrate_all(conn, manager.vector_table)
         manager.get_vector_store().add(
             [TextNode(id_=nid, text=f"document {nid}", embedding=vectors[nid], metadata={"path": f"{nid}.txt"}) for nid in order]
         )
-        manager.ensure_text_index()
-        manager.ensure_hnsw()
         yield manager, forced
     finally:
         with manager.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(f'DROP TABLE IF EXISTS "{manager.schema_name}"."{manager.data_table}";')
+            drop_vector_table(conn, manager.vector_table)
         forced.close()
         manager.close()
 

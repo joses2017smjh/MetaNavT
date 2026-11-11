@@ -248,7 +248,6 @@ def test_start_up_creates_pg_search_objects_only_for_paradedb(monkeypatch, setti
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_ensure_database_exists", lambda self: None)
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_initialize_connection_pool", lambda self, *a, **k: None)
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_detect_vector_dimensions", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_vector_extension", lambda self: None)
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_pg_search_extension", lambda self: calls.append("extension"))
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_create_bm25_index", lambda self, conn: calls.append("bm25 index") or True)
 

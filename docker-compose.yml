@@ -57,6 +57,9 @@ services:
       # observability (both optional): LOG_FORMAT=json for structured logs;
       # OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces with --profile otel
       LOG_FORMAT: text
+    # The deploy step first (schema migrations: tables, indexes, the vector extension; the
+    # API runs no DDL and refuses to start while one is pending), then the server.
+    command: ["sh", "-c", "python -m app.database.migrate && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
     ports:
       - "8000:8000"
     healthcheck:

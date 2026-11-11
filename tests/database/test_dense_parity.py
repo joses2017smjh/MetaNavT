@@ -8,8 +8,8 @@ is reported by `make parity` instead.
 
 Needs a live Postgres with pgvector: set PG_TEST_DSN (the CI parity service, or a
 local instance). Skipped otherwise. The fixture is indexed through the served
-indexer (app/engine/ingest.py::index_directory) into a temporary table, with the
-same text and HNSW indexes the API's startup creates, and the dense CTE of
+indexer (app/engine/ingest.py::index_directory) into a temporary table built by
+the schema migrations (the text and HNSW indexes the served table has), and the dense CTE of
 app/database/sql/hybrid_tsrank.sql is run with the retriever's depth (RETRIEVE_K)
 and the per-statement settings the served path sends with it, in the same execute
 (VectorStoreManager.settings_sql).
@@ -79,6 +79,7 @@ def served(tmp_path_factory):
         PGVECTOR_TABLE="densetest_" + uuid.uuid4().hex[:8],
         EMBEDDING_DIM="256",
     )
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
     from app.engine.ingest import index_directory
     from app.retrieval.embedders import HashEmbedder
@@ -86,17 +87,14 @@ def served(tmp_path_factory):
     corpus = tmp_path_factory.mktemp("dense") / "files"
     shutil.copytree(FIXTURE, corpus)
     vsm = VectorStoreManager(conn_string=dsn)
+    with vsm.get_connection() as conn:
+        migrate_all(conn, vsm.vector_table)  # the deploy step: table, manifest, GIN and HNSW indexes
     emb = HashEmbedder(256)
     report = index_directory(vsm, str(corpus), embed_fn=lambda texts: emb.encode(texts).tolist(), embedder="hash-256")
     assert report["files_rejected"] == 0
-    vsm.ensure_text_index()  # what app/engine/bootstrap.py does after indexing
-    vsm.ensure_hnsw()
     yield vsm, corpus
     with vsm.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.manifest_table}";')
-        conn.commit()
+        drop_vector_table(conn, vsm.vector_table)
     vsm.close()
     for k, v in saved.items():
         if v is None:
