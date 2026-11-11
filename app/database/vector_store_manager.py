@@ -52,8 +52,8 @@ HNSW_EF_SEARCH_MAX = 1000
 # Words websearch_to_tsquery reads as an operator rather than a term (lowercase; it ignores case).
 WEBSEARCH_OPERATOR_WORDS = frozenset({"or"})
 # The lexical list's backend, chosen by LEXICAL_BACKEND and never detected. ts_rank_cd (Postgres
-# full text, the default) is what CI and every results file ran; paradedb (ParadeDB pg_search
-# BM25, sql/hybrid_paradedb.sql) has not been run by any test or results file.
+# full text, the default) is what CI and every served-path results file ran; paradedb (ParadeDB
+# pg_search BM25, sql/hybrid_paradedb.sql) has not been run by any test or results file.
 LEXICAL_BACKENDS = ("ts_rank_cd", "paradedb")
 
 
@@ -109,7 +109,7 @@ def describe_dsn(dsn: str | None) -> str:
 
 
 class VectorStoreManager(DatabaseManager):
-    """Manages vector store operations using pgvector and pg_search extensions."""
+    """Manages vector store operations using pgvector (and pg_search only with LEXICAL_BACKEND=paradedb)."""
     
     def __init__(self, conn_string: str = None):
         """Initialize vector store manager with connection pooling."""

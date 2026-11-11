@@ -1,7 +1,8 @@
 """Okapi BM25 over an in-memory corpus.
 
 Used by the bench harness so retrieval metrics do not require ParadeDB.
-Production still uses pg_search / ts_rank_cd via VectorStoreManager.
+The served path ranks its lexical list with Postgres ts_rank_cd (VectorStoreManager;
+ParadeDB's pg_search only with LEXICAL_BACKEND=paradedb, which nothing has run).
 
 Two analyzers:
 - "default": lowercase, keep `_ . / -` inside tokens (paths and config keys stay
