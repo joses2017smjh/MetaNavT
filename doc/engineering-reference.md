@@ -176,9 +176,11 @@ isolates precision more directly than the historical SciFact joint precision/
 truncation comparison. It excludes model load, index build and HTTP concurrency.
 On SciFact the cap and the precision are now also measured one at a time:
 fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
-before it (`make bench-beir-rerank-cap`;
-[results](../bench/results/beir_scifact_rerank_cap.json); the evidence table quotes
-both steps with their rerank-stage latency).
+before it, in the ladder behind the [generated SciFact table](../README.md#bench-beir)
+(`make bench-beir`); the evidence table quotes both steps with their rerank-stage
+latency. `make bench-beir-rerank-cap` runs only those rows after the hybrid
+([results](../bench/results/beir_scifact_rerank_cap.json)); their metrics equal
+the ladder's.
 
 ### Real robotics experiment lookup
 
@@ -671,12 +673,11 @@ rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
 postings lists of the query's terms and keeps the top k with a heap; it
 returns the same scores in the same order as scoring every document
 (`tests/eval/test_bm25_postings.py`). The ladder file behind the first
-table (`bench/results/beir_scifact.json`) was recorded before both changes, so
-its latency columns come from the earlier search over every document; current
-BM25 latency is in the one-at-a-time and FiQA files. The rows measured again
-since then (`bm25` and `bm25@default-tokenizer` in the one-at-a-time file;
-hybrid, fp32 uncapped and fp16 at 512 tokens in
-`bench/results/beir_scifact_rerank_cap.json`) equal it in every metric.
+table (`bench/results/beir_scifact.json`) was recorded again after both
+changes, with the capped fp32 row added. The nine rows it shares with the
+earlier recording keep every metric, interval and the published-score
+difference; what changed is the latency columns, the GPU, and the fp16 row's
+paired delta, which is now against fp32 at the same cap.
 
 [Current generated bench-beir evidence](../README.md#bench-beir) ·
 [BM25 settings one at a time](../README.md#bench-beir-bm25).
@@ -699,7 +700,7 @@ fixture-specific mechanisms; their gains are reported per category with the
 small n they rest on, and they are not part of the SciFact rows.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
-uncapped and fp16 with `max_length` 512 side by side, and sweeps the rerank
+uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
 depth (20, 50, 100), each with its own p50/p95; the served configuration is
 chosen from that table in the API section below, not picked up front.
 
