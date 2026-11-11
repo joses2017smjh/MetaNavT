@@ -208,7 +208,9 @@ def claims(root: Path = ROOT) -> list[dict]:
                     "command": "docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build; scripts/smoke_retrieve.py --latency bench/gold/questions.jsonl", "source": FILES["latency"] + " (CI artifact, docker-ml-smoke job)",
                     "not_shown": f"a 4-core CI runner; reranker device {h.get('device')}; the reranker is {lat['stages_p50_ms'].get('rerank')} ms of it"})
     jury = _load(FILES["jury"], root)
-    if jury:
+    if jury and "protocol" in jury:
+        out += _jury_v2_claims(jury, FILES["jury"])
+    elif jury:
         s = jury["summary"]
         c = s["checks"]
         rs = jury.get("rescore") or {}
@@ -252,6 +254,65 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
+    return out
+
+
+def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
+    """M29: the run's deterministic checks; each judge's kappa against exact match on the calibration set; a judge's
+    correctness score of the run's answers only when it passed the gate."""
+    s, c = blob["summary"], blob["summary"]["checks"]
+    gen = blob["models"]["generator"]["model"]
+    calgen = ((blob.get("calibration") or {}).get("generator") or {}).get("model")
+    rs = blob.get("rescore") or {}
+    src = f"{file} @ {blob['git_sha']}" + (f" (answers generated at {rs['rows_git_sha']}, checks recomputed by `make bench-jury-v2-rescore`)" if rs else "")
+    cmd, gate, ref = "make bench-jury-v2", blob.get("kappa_gate", 0.6), s["reference"]
+    out = [
+        {"claim": f"Generated answers ({gen} via Ollama, fixture v1): answers with no valid citation (failed loud)", "value": f"{c['uncited_answers']['count']} of {c['uncited_answers']['n']}",
+         "ci": "—", "n": c["uncited_answers"]["n"], "command": cmd, "source": src, "not_shown": "a deterministic check of the citation contract, not answer quality"},
+        {"claim": "Generated answers: every cited path is in the retrieved set (answers with at least one citation)", "value": f"{c['cited_in_retrieved']['rate']}", "ci": "—",
+         "n": c["cited_in_retrieved"]["n"], "command": cmd, "source": src,
+         "not_shown": f"{round((1 - c['cited_in_retrieved']['rate']) * c['cited_in_retrieved']['n']) if c['cited_in_retrieved']['rate'] is not None else 0} answers cited a path the retrieval "
+                      "had not returned (a fabricated or malformed path); abstentions are not counted"},
+        {"claim": "Generated answers: every number / config value appears in the cited bytes", "value": f"{c['values_in_cited_bytes']['rate']}", "ci": "—",
+         "n": c["values_in_cited_bytes"]["n"], "command": cmd, "source": src,
+         "not_shown": "only answers that state a value are counted; string containment, case-insensitive; a value in a different numeric format, or one the model computed, counts as missing"},
+        {"claim": "Generated answers: exact match vs gold (bounded, numeric-equivalent), simple_factual", "value": f"{c['exact_match_simple_factual']['rate']}", "ci": "—",
+         "n": c["exact_match_simple_factual"]["n"], "command": cmd, "source": src,
+         "not_shown": "string / numeric match; paraphrased correct answers count as non-matches"
+                      + ("; the slice is saturated for this generator, which is why the kappa gate's reference is a calibration set" if c["exact_match_simple_factual"]["rate"] == 1.0 else "")},
+    ]
+    planted = (f"the reference is {calgen}'s answers to the simple-factual questions from retrieved and from planted contexts (another gold value of the "
+               "same field written over the gold in memory), so a pass shows gold comparison on single-value answers, not general correctness")
+    for name, k in s["kappa"].items():
+        if name == "jury_majority":
+            continue
+        if not ref.get("gate_evaluable", True):
+            status = "gate not evaluable: the reference is one class or empty; this judge's scores are not published"
+        else:
+            status = f"passes the {gate} gate; its correctness score of the run's answers is published" if k["readme_ok"] else f"below the {gate} gate; this judge's scores are not published"
+        ci = f"[{k['interval']['lo']}, {k['interval']['hi']}]" if k.get("interval") else "—"
+        out.append({"claim": f"Judge {name}: Cohen's kappa of its correctness verdicts vs exact-match labels, calibration set", "value": f"{k['kappa_vs_exact_match_simple_factual']}",
+                    "ci": ci, "n": k["n"], "command": cmd, "source": src, "not_shown": f"{status}; {planted}; percentile bootstrap interval over the calibration answers"})
+    jm = s["kappa"].get("jury_majority")
+    if jm:
+        ci = f"[{jm['interval']['lo']}, {jm['interval']['hi']}]" if jm.get("interval") else "—"
+        out.append({"claim": "Jury majority (two judge models, correctness verdicts): Cohen's kappa vs exact-match labels, calibration set", "value": f"{jm['kappa_vs_exact_match_simple_factual']}",
+                    "ci": ci, "n": jm["n"], "command": cmd, "source": src, "not_shown": f"a tie between the two judges counts as partial; gate {gate}; {planted}"})
+    for name in s.get("publishable_judges") or []:
+        k = s["kappa"][name]
+        self_pref = "; the judge is also the generator, so its score of these answers carries self-preference risk" if name == gen else ""
+        out.append({"claim": f"Judge {name} (passed the gate): mean correctness of the run's answers (correct 1, partial 0.5, wrong 0)", "value": f"{k['mean_correctness_all']}",
+                    "ci": "—", "n": k["n_all"], "command": cmd, "source": src,
+                    "not_shown": f"an LLM judge validated only on single-value answers; the run's answers also include multi-part, comparative, aggregate and "
+                                 f"path answers it was not validated on{self_pref}"})
+    ja = s.get("judge_agreement")
+    if ja:
+        out.append({"claim": f"Judge-judge agreement ({ja['judges'][0]} vs {ja['judges'][1]}): Cohen's kappa of correctness verdicts on the run's answers", "value": f"{ja['kappa']}",
+                    "ci": "—", "n": ja["n"], "command": cmd, "source": src,
+                    "not_shown": "agreement between two judges says nothing about agreement with the truth; both judged the same generator's answers"})
+    for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
+        out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"],
+                    "command": cmd, "source": src, "not_shown": "a measure of order bias, not of answer quality"})
     return out
 
 

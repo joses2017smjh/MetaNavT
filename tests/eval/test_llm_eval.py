@@ -570,3 +570,19 @@ def test_the_readme_block_renders_the_calibration_gate_and_links_the_earlier_rec
     blob["summary"]["publishable_judges"] = []
     blob["summary"]["kappa"]["gen:7b"]["readme_ok"] = False
     assert "Judge scores of the run's answers" not in report.jury_table(blob)
+
+
+def test_the_evidence_rows_publish_a_judge_score_only_after_the_gate():
+    from app.eval import evidence, llm_eval
+    from app.eval.harness import BenchConfig
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="gen:7b", judge_models=["gen:7b", "other:8b"], limit=5,
+                        complete_fn=_echo_and_exact_judge, calibration_generator="gen:1b")
+    rows = evidence._jury_v2_claims(blob, "bench/results/jury_v2.json")
+    assert all(r["command"] == "make bench-jury-v2" and r["source"].startswith("bench/results/jury_v2.json @ ") and r["not_shown"] for r in rows)
+    scores = [r for r in rows if "mean correctness" in r["claim"]]
+    assert [r["claim"].split(" (")[0] for r in scores] == ["Judge gen:7b", "Judge other:8b"] and "self-preference" in scores[0]["not_shown"]
+    kappas = [r for r in rows if "Cohen's kappa of its correctness verdicts" in r["claim"]]
+    assert [r["ci"] for r in kappas] == ["[1.0, 1.0]", "[1.0, 1.0]"] and all("planted" in r["not_shown"] for r in kappas)
+    blob["summary"]["publishable_judges"] = []
+    assert not [r for r in evidence._jury_v2_claims(blob, "bench/results/jury_v2.json") if "mean correctness" in r["claim"]]
