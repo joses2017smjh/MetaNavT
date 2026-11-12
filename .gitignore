@@ -70,6 +70,8 @@ bench/external/
 !bench/results/rerank_arms.json
 # the research companion's live-mode run (make bench-companion-live): every stored response is in the file
 !bench/results/companion_live.json
+# the chat routes with a real model (make chat-route-smoke)
+!bench/results/chat_route_smoke.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

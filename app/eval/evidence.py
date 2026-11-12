@@ -30,6 +30,7 @@ FILES = {
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
     "companion_live": "bench/results/companion_live.json",
+    "chat_route_smoke": "bench/results/chat_route_smoke.json",
 }
 
 
@@ -254,6 +255,40 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
     out += _companion_live_claims(root)
+    out += _chat_route_claims(root)
+    return out
+
+
+def _chat_route_claims(root: Path = ROOT) -> list[dict]:
+    """The chat routes with a real model on the default stack (make chat-route-smoke): a smoke run, not accuracy."""
+    blob = _load(FILES["chat_route_smoke"], root)
+    if not blob:
+        return []
+    src = f"{FILES['chat_route_smoke']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make chat-route-smoke"
+    model, gpu = blob["model"], (blob.get("device") or {}).get("gpu") or "the recorded GPU"
+    llm = blob.get("chat_llm") or {}
+    common = (f"a smoke run: one request per question, the first gold question of each category; not an accuracy "
+              f"measurement; hash embeddings, Postgres ts_rank_cd, no reranker; chat temperature {llm.get('temperature')} "
+              f"(the default), no seed; code execution off")
+    out = []
+
+    def stated(route: dict) -> str:
+        aside = route["states_gold_value_aside"]
+        return (f"answered means the route returned text, not that the text answers the question (it states the gold "
+                f"value in {aside['k']} of the {aside['n']} questions with a value answer)")
+
+    stream = blob["summary"].get("/api/chat")
+    if stream:
+        out.append({"claim": f"Chat route POST /api/chat (the web UI's streaming route), {model} through Ollama on the default stack: requests answered (HTTP 200, text, no error line)",
+                    "value": f"{stream['answered']} of {stream['n']}", "ci": "—", "n": stream["n"], "command": cmd, "source": src,
+                    "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
+    request = blob["summary"].get("/api/chat/request")
+    if request:
+        tools = ", ".join(f"{name} {count}" for name, count in (request.get("tool_calls") or {}).items()) or "none"
+        out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name",
+                    "value": f"{request['answered']} of {request['n']}; tool calls: {tools}; code tool calls: {request['code_tool_calls']}",
+                    "ci": "—", "n": request["n"], "command": cmd, "source": src, "not_shown": f"{common}; {stated(request)}"})
     return out
 
 
