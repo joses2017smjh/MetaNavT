@@ -1,0 +1,929 @@
+{
+  "git_sha": "066fcdf",
+  "timestamp": "2026-11-11T23:01:47.850533+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.rrf_sweep --out bench/results/rrf_sweep.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA A40",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "mtimes": {
+    "source": "manifest",
+    "file": "bench/corpus/MANIFEST.json",
+    "field": "files[].mtime"
+  },
+  "n_chunks": 71,
+  "models": {
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "neural": true,
+      "dim": 384,
+      "device": "cuda:0"
+    }
+  },
+  "retrieval": {
+    "config": "hybrid@bge-small",
+    "retrieve_k": 50,
+    "router": false,
+    "reranker": null,
+    "staleness_tier1": false,
+    "fusion": "[BM25, dense] top retrieve_k chunks each, app.retrieval.fuse.rrf_score_map, stable sort by score, top retrieve_k chunks, scored by their files"
+  },
+  "grid": {
+    "k": [
+      1,
+      10,
+      30,
+      60,
+      100,
+      200
+    ],
+    "dense_weight": [
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ],
+    "bm25_weight": 1.0,
+    "selection": "the highest mean nDCG@10 on the tune half (means equal to 10 decimals tie)",
+    "tie_break": "the point nearest the default: the dense weight nearest 1 (smallest |log2 w|), then the k nearest 60 (smallest |ln(k / 60)|), then the smaller k, then the smaller weight; the default wins every tie it is in"
+  },
+  "split": {
+    "rule": "alternate train / test inside each category, gold order (app.eval.rerank_arms.split_questions)",
+    "tune": "train",
+    "held_out": "test",
+    "tune_ids": [
+      "q001",
+      "q003",
+      "q005",
+      "q007",
+      "q009",
+      "q011",
+      "q013",
+      "q015",
+      "q017",
+      "q019",
+      "q021",
+      "q023",
+      "q025",
+      "q027",
+      "q029",
+      "q031",
+      "q033",
+      "q035",
+      "q037",
+      "q039",
+      "q041",
+      "q043",
+      "q045",
+      "q047",
+      "q049",
+      "q051",
+      "q053",
+      "q055",
+      "q057",
+      "q059",
+      "q061",
+      "q063",
+      "q065",
+      "q067",
+      "q069",
+      "q071",
+      "q073",
+      "q075",
+      "q077",
+      "q079",
+      "q081",
+      "q083",
+      "q085",
+      "q087",
+      "q089",
+      "q091",
+      "q093",
+      "q095",
+      "q097",
+      "q099",
+      "q101",
+      "q103",
+      "q105",
+      "q107",
+      "q109",
+      "q111",
+      "q113",
+      "q115",
+      "q117",
+      "q119",
+      "q121",
+      "q123",
+      "q125",
+      "q127",
+      "q129",
+      "q131",
+      "q133",
+      "q135"
+    ],
+    "held_out_ids": [
+      "q002",
+      "q004",
+      "q006",
+      "q008",
+      "q010",
+      "q012",
+      "q014",
+      "q016",
+      "q018",
+      "q020",
+      "q022",
+      "q024",
+      "q026",
+      "q028",
+      "q030",
+      "q032",
+      "q034",
+      "q036",
+      "q038",
+      "q040",
+      "q042",
+      "q044",
+      "q046",
+      "q048",
+      "q050",
+      "q052",
+      "q054",
+      "q056",
+      "q058",
+      "q060",
+      "q062",
+      "q064",
+      "q066",
+      "q068",
+      "q070",
+      "q072",
+      "q074",
+      "q076",
+      "q078",
+      "q080",
+      "q082",
+      "q084",
+      "q086",
+      "q088",
+      "q090",
+      "q092",
+      "q094",
+      "q096",
+      "q098",
+      "q100",
+      "q102",
+      "q104",
+      "q106",
+      "q108",
+      "q110",
+      "q112",
+      "q114",
+      "q116",
+      "q118",
+      "q120",
+      "q122",
+      "q124",
+      "q126",
+      "q128",
+      "q130",
+      "q132",
+      "q134",
+      "q136"
+    ]
+  },
+  "tune": {
+    "n": 68,
+    "note": "in-sample: these questions chose the setting, so their numbers are not evidence",
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 68,
+      "level": 0.95
+    },
+    "default": "hybrid@bge-small/k=60/dense-weight=1",
+    "chosen": "hybrid@bge-small/k=200/dense-weight=0.5",
+    "points": [
+      {
+        "config": "hybrid@bge-small/k=1/dense-weight=0.25",
+        "k": 1,
+        "dense_weight": 0.25,
+        "ndcg@10": 0.5364,
+        "recall@10": 0.7528,
+        "recall@50": 0.9412,
+        "mrr@10": 0.4922,
+        "ndcg@10_vs_default": {
+          "delta": -0.1479,
+          "lo": -0.2044,
+          "hi": -0.0915
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=1/dense-weight=0.5",
+        "k": 1,
+        "dense_weight": 0.5,
+        "ndcg@10": 0.5744,
+        "recall@10": 0.7693,
+        "recall@50": 0.9412,
+        "mrr@10": 0.539,
+        "ndcg@10_vs_default": {
+          "delta": -0.11,
+          "lo": -0.1649,
+          "hi": -0.0531
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=1/dense-weight=1",
+        "k": 1,
+        "dense_weight": 1.0,
+        "ndcg@10": 0.6036,
+        "recall@10": 0.8055,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5773,
+        "ndcg@10_vs_default": {
+          "delta": -0.0807,
+          "lo": -0.1302,
+          "hi": -0.033
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=1/dense-weight=2",
+        "k": 1,
+        "dense_weight": 2.0,
+        "ndcg@10": 0.5795,
+        "recall@10": 0.8129,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5283,
+        "ndcg@10_vs_default": {
+          "delta": -0.1048,
+          "lo": -0.1519,
+          "hi": -0.0568
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=1/dense-weight=4",
+        "k": 1,
+        "dense_weight": 4.0,
+        "ndcg@10": 0.5784,
+        "recall@10": 0.8158,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5235,
+        "ndcg@10_vs_default": {
+          "delta": -0.106,
+          "lo": -0.1521,
+          "hi": -0.0597
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=10/dense-weight=0.25",
+        "k": 10,
+        "dense_weight": 0.25,
+        "ndcg@10": 0.5959,
+        "recall@10": 0.7545,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5792,
+        "ndcg@10_vs_default": {
+          "delta": -0.0885,
+          "lo": -0.1411,
+          "hi": -0.0358
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=10/dense-weight=0.5",
+        "k": 10,
+        "dense_weight": 0.5,
+        "ndcg@10": 0.6655,
+        "recall@10": 0.7871,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6596,
+        "ndcg@10_vs_default": {
+          "delta": -0.0188,
+          "lo": -0.0585,
+          "hi": 0.019
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=10/dense-weight=1",
+        "k": 10,
+        "dense_weight": 1.0,
+        "ndcg@10": 0.675,
+        "recall@10": 0.8052,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6752,
+        "ndcg@10_vs_default": {
+          "delta": -0.0093,
+          "lo": -0.0286,
+          "hi": 0.0083
+        },
+        "n_top10_differs_from_default": 63
+      },
+      {
+        "config": "hybrid@bge-small/k=10/dense-weight=2",
+        "k": 10,
+        "dense_weight": 2.0,
+        "ndcg@10": 0.6254,
+        "recall@10": 0.807,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5991,
+        "ndcg@10_vs_default": {
+          "delta": -0.059,
+          "lo": -0.0988,
+          "hi": -0.0196
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=10/dense-weight=4",
+        "k": 10,
+        "dense_weight": 4.0,
+        "ndcg@10": 0.5893,
+        "recall@10": 0.7833,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5485,
+        "ndcg@10_vs_default": {
+          "delta": -0.095,
+          "lo": -0.1399,
+          "hi": -0.047
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=30/dense-weight=0.25",
+        "k": 30,
+        "dense_weight": 0.25,
+        "ndcg@10": 0.6625,
+        "recall@10": 0.7812,
+        "recall@50": 0.9412,
+        "mrr@10": 0.66,
+        "ndcg@10_vs_default": {
+          "delta": -0.0219,
+          "lo": -0.062,
+          "hi": 0.0153
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=30/dense-weight=0.5",
+        "k": 30,
+        "dense_weight": 0.5,
+        "ndcg@10": 0.6927,
+        "recall@10": 0.7982,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6958,
+        "ndcg@10_vs_default": {
+          "delta": 0.0083,
+          "lo": -0.0194,
+          "hi": 0.0349
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=30/dense-weight=1",
+        "k": 30,
+        "dense_weight": 1.0,
+        "ndcg@10": 0.6864,
+        "recall@10": 0.8143,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6847,
+        "ndcg@10_vs_default": {
+          "delta": 0.0021,
+          "lo": -0.0052,
+          "hi": 0.0106
+        },
+        "n_top10_differs_from_default": 55
+      },
+      {
+        "config": "hybrid@bge-small/k=30/dense-weight=2",
+        "k": 30,
+        "dense_weight": 2.0,
+        "ndcg@10": 0.6424,
+        "recall@10": 0.7838,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6336,
+        "ndcg@10_vs_default": {
+          "delta": -0.0419,
+          "lo": -0.0775,
+          "hi": -0.0088
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=30/dense-weight=4",
+        "k": 30,
+        "dense_weight": 4.0,
+        "ndcg@10": 0.6028,
+        "recall@10": 0.7821,
+        "recall@50": 0.9412,
+        "mrr@10": 0.5747,
+        "ndcg@10_vs_default": {
+          "delta": -0.0815,
+          "lo": -0.1241,
+          "hi": -0.0369
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=60/dense-weight=0.25",
+        "k": 60,
+        "dense_weight": 0.25,
+        "ndcg@10": 0.6844,
+        "recall@10": 0.7902,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6906,
+        "ndcg@10_vs_default": {
+          "delta": 0.0,
+          "lo": -0.041,
+          "hi": 0.0372
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=60/dense-weight=0.5",
+        "k": 60,
+        "dense_weight": 0.5,
+        "ndcg@10": 0.7026,
+        "recall@10": 0.8031,
+        "recall@50": 0.9412,
+        "mrr@10": 0.7059,
+        "ndcg@10_vs_default": {
+          "delta": 0.0183,
+          "lo": -0.0034,
+          "hi": 0.0428
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=60/dense-weight=1",
+        "k": 60,
+        "dense_weight": 1.0,
+        "ndcg@10": 0.6843,
+        "recall@10": 0.8102,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6816,
+        "ndcg@10_vs_default": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "n_top10_differs_from_default": 0
+      },
+      {
+        "config": "hybrid@bge-small/k=60/dense-weight=2",
+        "k": 60,
+        "dense_weight": 2.0,
+        "ndcg@10": 0.6478,
+        "recall@10": 0.7985,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6362,
+        "ndcg@10_vs_default": {
+          "delta": -0.0365,
+          "lo": -0.0705,
+          "hi": -0.0048
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=60/dense-weight=4",
+        "k": 60,
+        "dense_weight": 4.0,
+        "ndcg@10": 0.6216,
+        "recall@10": 0.7838,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6012,
+        "ndcg@10_vs_default": {
+          "delta": -0.0628,
+          "lo": -0.1029,
+          "hi": -0.0226
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=100/dense-weight=0.25",
+        "k": 100,
+        "dense_weight": 0.25,
+        "ndcg@10": 0.6919,
+        "recall@10": 0.7935,
+        "recall@50": 0.9412,
+        "mrr@10": 0.698,
+        "ndcg@10_vs_default": {
+          "delta": 0.0076,
+          "lo": -0.0353,
+          "hi": 0.0494
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=100/dense-weight=0.5",
+        "k": 100,
+        "dense_weight": 0.5,
+        "ndcg@10": 0.7027,
+        "recall@10": 0.8031,
+        "recall@50": 0.9412,
+        "mrr@10": 0.7059,
+        "ndcg@10_vs_default": {
+          "delta": 0.0184,
+          "lo": -0.0034,
+          "hi": 0.0428
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=100/dense-weight=1",
+        "k": 100,
+        "dense_weight": 1.0,
+        "ndcg@10": 0.6846,
+        "recall@10": 0.8102,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6816,
+        "ndcg@10_vs_default": {
+          "delta": 0.0003,
+          "lo": 0.0,
+          "hi": 0.0006
+        },
+        "n_top10_differs_from_default": 42
+      },
+      {
+        "config": "hybrid@bge-small/k=100/dense-weight=2",
+        "k": 100,
+        "dense_weight": 2.0,
+        "ndcg@10": 0.6531,
+        "recall@10": 0.7985,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6434,
+        "ndcg@10_vs_default": {
+          "delta": -0.0312,
+          "lo": -0.0651,
+          "hi": -0.0004
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=100/dense-weight=4",
+        "k": 100,
+        "dense_weight": 4.0,
+        "ndcg@10": 0.6259,
+        "recall@10": 0.7911,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6047,
+        "ndcg@10_vs_default": {
+          "delta": -0.0584,
+          "lo": -0.1001,
+          "hi": -0.0176
+        },
+        "n_top10_differs_from_default": 65
+      },
+      {
+        "config": "hybrid@bge-small/k=200/dense-weight=0.25",
+        "k": 200,
+        "dense_weight": 0.25,
+        "ndcg@10": 0.6829,
+        "recall@10": 0.7861,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6864,
+        "ndcg@10_vs_default": {
+          "delta": -0.0014,
+          "lo": -0.0397,
+          "hi": 0.0328
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=200/dense-weight=0.5",
+        "k": 200,
+        "dense_weight": 0.5,
+        "ndcg@10": 0.7036,
+        "recall@10": 0.8057,
+        "recall@50": 0.9412,
+        "mrr@10": 0.7042,
+        "ndcg@10_vs_default": {
+          "delta": 0.0192,
+          "lo": -0.0005,
+          "hi": 0.0423
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=200/dense-weight=1",
+        "k": 200,
+        "dense_weight": 1.0,
+        "ndcg@10": 0.6798,
+        "recall@10": 0.7955,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6795,
+        "ndcg@10_vs_default": {
+          "delta": -0.0045,
+          "lo": -0.014,
+          "hi": 0.0006
+        },
+        "n_top10_differs_from_default": 50
+      },
+      {
+        "config": "hybrid@bge-small/k=200/dense-weight=2",
+        "k": 200,
+        "dense_weight": 2.0,
+        "ndcg@10": 0.6476,
+        "recall@10": 0.7838,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6418,
+        "ndcg@10_vs_default": {
+          "delta": -0.0367,
+          "lo": -0.0712,
+          "hi": -0.0042
+        },
+        "n_top10_differs_from_default": 64
+      },
+      {
+        "config": "hybrid@bge-small/k=200/dense-weight=4",
+        "k": 200,
+        "dense_weight": 4.0,
+        "ndcg@10": 0.6264,
+        "recall@10": 0.7911,
+        "recall@50": 0.9412,
+        "mrr@10": 0.6069,
+        "ndcg@10_vs_default": {
+          "delta": -0.0579,
+          "lo": -0.0997,
+          "hi": -0.0171
+        },
+        "n_top10_differs_from_default": 64
+      }
+    ]
+  },
+  "held_out": {
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 68,
+      "level": 0.95
+    },
+    "results": [
+      {
+        "config": "hybrid@bge-small/k=60/dense-weight=1",
+        "n": 68,
+        "retrieval": {
+          "ndcg@10": 0.7068,
+          "recall@5": 0.7507,
+          "recall@10": 0.8299,
+          "recall@50": 0.9338,
+          "mrr@10": 0.7281,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.782,
+              "recall@10": 0.875,
+              "recall@50": 0.9,
+              "mrr@10": 0.8187,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6256,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5944,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.6607,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4693,
+              "recall@10": 0.52,
+              "recall@50": 1.0,
+              "mrr@10": 0.5286,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5323,
+              "recall@10": 0.625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8016,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7917,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4583,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.369,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7956,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7068,
+            "lo": 0.6316,
+            "hi": 0.7773
+          },
+          "recall@10": {
+            "mean": 0.8299,
+            "lo": 0.7564,
+            "hi": 0.8946
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          }
+        }
+      },
+      {
+        "config": "hybrid@bge-small/k=200/dense-weight=0.5",
+        "n": 68,
+        "retrieval": {
+          "ndcg@10": 0.7053,
+          "recall@5": 0.7314,
+          "recall@10": 0.826,
+          "recall@50": 0.9338,
+          "mrr@10": 0.7339,
+          "mean_unique_paths@50": 44.62,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8001,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.8358,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5136,
+              "recall@10": 0.8375,
+              "recall@50": 1.0,
+              "mrr@10": 0.4792,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6093,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.39,
+              "recall@10": 0.43,
+              "recall@50": 1.0,
+              "mrr@10": 0.4952,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5384,
+              "recall@10": 0.625,
+              "recall@50": 0.875,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7849,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.775,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4583,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.369,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7956,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7314
+        },
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7053,
+            "lo": 0.6297,
+            "hi": 0.7734
+          },
+          "recall@10": {
+            "mean": 0.826,
+            "lo": 0.7522,
+            "hi": 0.89
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small/k=60/dense-weight=1",
+            "ndcg@10": {
+              "delta": -0.0015,
+              "lo": -0.0255,
+              "hi": 0.0235
+            },
+            "recall@10": {
+              "delta": -0.0039,
+              "lo": -0.0392,
+              "hi": 0.0392
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "decision": {
+    "default": {
+      "k": 60,
+      "weights": {
+        "bm25": 1.0,
+        "dense": 1.0
+      }
+    },
+    "chosen": {
+      "k": 200,
+      "weights": {
+        "bm25": 1.0,
+        "dense": 0.5
+      }
+    },
+    "chosen_is_default": false,
+    "held_out_ndcg@10": {
+      "delta": -0.0015,
+      "lo": -0.0255,
+      "hi": 0.0235
+    },
+    "verdict": "held-out nDCG@10, chosen minus default: covers zero",
+    "excludes_zero_in_favour_of_chosen": false,
+    "owner_decision_needed": false,
+    "default_changed": false,
+    "rule": "the default changes only if the held-out nDCG@10 interval (chosen minus default) excludes zero in favour of the chosen setting, and then by the owner: every hybrid row of bench/results/main.json and neural.json would be re-recorded. This command never changes it."
+  },
+  "reproduces": {
+    "file": "bench/results/neural.json",
+    "git_sha": "729308e",
+    "compared": "every field of each row's retrieval block (rounded means, by category)",
+    "rows": {
+      "bm25_only": true,
+      "dense_only@bge-small": true,
+      "hybrid@bge-small": true
+    },
+    "all": true
+  }
+}

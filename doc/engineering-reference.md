@@ -427,6 +427,8 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
 
 The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
+`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60 on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every committed hybrid row would be re-recorded (`main.json`, `neural.json`, the frontier files and the BEIR hybrid rows); the command never changes it. The default is written in three places, `RRF_K` in `app/retrieval/fuse.py` (the served path), the `rrf_k` argument of `InMemoryHybridIndex` in `app/retrieval/hybrid.py` (every benchmark row) and `rrf_k` in `app/eval/beir.py`, and the served SQL fusion takes no list weights. On the recorded run (`bench/results/rrf_sweep.json`) the chosen setting's held-out interval covers zero, so the default stays; the setting, its interval and the in-sample grid are in that file, and the setting and its interval are the RRF row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
+
 ### A router that skips work
 
 <p align="center">
@@ -602,10 +604,11 @@ With `INDEX_ON_START`, every API start runs one indexing step
    any other file, and the walk does not enter symlinked directories.
 2. **Diff.** Each accepted file's SHA-256 is compared with a manifest table
    (`ingest_manifest_<table>`: path, content hash, chunk count, chunker version
-   and embedder). Files are new, changed, unchanged or removed. Before the
-   diff, the rows in the table are counted per path: a listed file whose row
-   count differs from its manifest chunk count (rows deleted or added behind
-   the manifest's back) counts as changed and is indexed again.
+   and embedder; created by a schema migration, not by the run). Files are new,
+   changed, unchanged or removed. Before the diff, the rows in the table are
+   counted per path: a listed file whose row count differs from its manifest
+   chunk count (rows deleted or added behind the manifest's back) counts as
+   changed and is indexed again.
 3. **Limit.** If more files are rejected than `INGEST_MAX_REJECTED` allows, the
    run fails before it writes anything. CI and docker-compose set the limit to
    zero; unset, rejections are counted but not fatal.
@@ -630,12 +633,12 @@ start together serialise on the lock; the second finds nothing to do.
 database raising, the rejection limit, a verification mismatch) aborts the run
 with an exception instead of being counted in a report. The API process stays
 up with the error recorded: `GET /health` answers 503 with it and
-`/api/retrieve` answers 503 until a later start succeeds. A file the run had
+`/api/retrieve` answers 503 until a later start-up attempt succeeds (they are retried in the background, without a restart: Start-up and `/health`, below). A file the run had
 not reached keeps its previous rows and manifest entry, and so does the file in
 flight when the embedder raises (its old rows are deleted only after its chunks
 are embedded). When the database raises after that file's old rows were
 deleted, the file is no longer listed in the manifest, and may have no rows,
-until the next start indexes it again as new. A file is counted only as
+until the next run indexes it again as new. A file is counted only as
 indexed, unchanged or rejected with a reason.
 
 What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
@@ -702,7 +705,7 @@ does not consult the manifest.
   <img src="../doc/figures/storage.svg" alt="float32 vs halfvec vs binary+rescore" width="820"/>
 </p>
 
-`halfvec` stores half the bytes of float32 and binary quantization one bit per dimension; [bench/results/sweeps.json](../bench/results/sweeps.json) (`make sweeps`) records each one's Recall@10 against float32 (binary after a float rescoring pass) and the HNSW `ef_search` sweep, which the figures above plot. All of it is the **in-memory NSW analogue** (`app/retrieval/pgvector_tune.py`) over **hash** vectors, where recall saturates early: that space is not a manifold. In Postgres, start-up creates an HNSW index on the embedding column (`ensure_hnsw`: `m` and `ef_construction` at build), and each hybrid statement sets `hnsw.ef_search` (twice the dense depth) and `hnsw.iterative_scan` for its own transaction. The planner decides whether to use the index: it scans the table on fixture v1 and reads the index over generated rows (the two plans under `doc/sql/`). Nothing measures the index's recall against the exact scan at a realistic size with a real embedder yet. `ensure_halfvec` and `ensure_binary` exist on `VectorStoreManager` with no caller, and the served statement reads only the float32 column.
+`halfvec` stores half the bytes of float32 and binary quantization one bit per dimension; [bench/results/sweeps.json](../bench/results/sweeps.json) (`make sweeps`) records each one's Recall@10 against float32 (binary after a float rescoring pass) and the HNSW `ef_search` sweep, which the figures above plot. All of it is the **in-memory NSW analogue** (`app/retrieval/pgvector_tune.py`) over **hash** vectors, where recall saturates early: that space is not a manifold. In Postgres, a schema migration builds the HNSW index on the embedding column (`m` and `ef_construction` at build, both in the index name), and each hybrid statement sets `hnsw.ef_search` (twice the dense depth) and `hnsw.iterative_scan` for its own transaction. The planner decides whether to use the index: it scans the table on fixture v1 and reads the index over generated rows (the two plans under `doc/sql/`). Nothing measures the index's recall against the exact scan at a realistic size with a real embedder yet. The served statement reads only the float32 column; the uncalled `ensure_halfvec` and `ensure_binary` helpers were removed with the other inline DDL.
 
 ---
 
@@ -769,6 +772,8 @@ results file header on the recorded device; CI does not download models, and
 
 [Current generated bench-neural evidence](../README.md#bench-neural).
 
+**Why `hybrid@bge-base` has a lower Recall@50 than `dense_only@bge-base`.** Both rows score the files of their top 50 chunks. Hybrid fuses BM25's top 50 and dense's top 50, whose union is longer than 50 whenever BM25 ranks a chunk outside dense's top 50, and keeps the top 50 by RRF score, so the chunks at the bottom of only one leg compete for the last places. `make bench-hybrid-drops` (`app/eval/hybrid_drops.py`) lists, per question, every gold file that one list has and the other lacks, with its file and chunk rank in each leg and its fused rank and score, in `bench/results/hybrid_drops_bge_base.json`; its lists reproduce both committed rows exactly, and every question whose Recall@50 moves is listed. Every gold file hybrid drops there is the Slurm script of a "how many stereo pairs did run N use" question: dense ranks its chunk near the bottom of its top 50, BM25 does not rank it, and it lands just past the fused cut. Gold files that only BM25 ranks can enter hybrid's list instead (the file lists them as gains), so the row's delta is the net of both; the counts and rank ranges are the hybrid-drops row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
+
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
 against. The `bm25` row uses the BEIR analyzer (Porter stemming, Lucene
@@ -821,7 +826,8 @@ chosen from that table in the API section below, not picked up front.
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
 one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsrank.sql))
 with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
-(`websearch_to_tsquery` + `ts_rank_cd`, GIN index; ParadeDB BM25 only with
+(`websearch_to_tsquery` + `ts_rank_cd` over `text_tsv`, a stored generated column holding
+`to_tsvector('english', text)`, so no query computes it per row, with a GIN index on that column; ParadeDB BM25 only with
 `LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
 reciprocal rank fusion computed in SQL, then
 staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
@@ -837,14 +843,17 @@ route answers shortly after the budget and the call keeps its worker thread
 until it returns (`tests/api/test_retrieve_contract.py`,
 `tests/database/test_retrieve_timeout.py`). The committed
 [EXPLAIN (ANALYZE, BUFFERS)](../doc/sql/hybrid_explain.txt) is the plan on fixture v1
-(`make explain-sql`): at that size the dense list is a sequential scan and the lexical list a GIN bitmap scan.
+(`make explain-sql`): at that size the planner reads the table for both lists (the lexical one reads the stored column, no `to_tsvector` per row).
 [hybrid_explain_synthetic_10k.txt](../doc/sql/hybrid_explain_synthetic_10k.txt)
 (`make explain-sql-synthetic`) is the same statement over generated rows with
 hash vectors in a scratch table, synthetic text rather than data: there the planner
-reads the dense list from the HNSW index on its own. Both plans run with the
+reads the dense list from the HNSW index and the lexical list with a bitmap scan of the GIN index on its own. Both plans run with the
 statement's per-transaction settings, which their headers list with the SHA-256 of the statement file they planned.
 `tests/database/test_hybrid_sql.py` checks that the SQL fusion equals the Python
-RRF on identical input lists, against a live Postgres in CI.
+RRF on identical input lists, against a live Postgres in CI. `tests/database/test_dense_parity.py`
+checks that the lexical list on the stored column is, on every gold question, the list the per-row
+expression gave (same rows, same scores), and that with sequential scans disabled the statement
+reads the lexical list with a bitmap scan of the GIN index and the dense list from the HNSW index.
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
@@ -888,7 +897,7 @@ lists, was materialized, which made the query vector a column and left the dense
 list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
 rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
 query vector in a `NOT MATERIALIZED` CTE of its own (the tsquery stays a
-materialized value, which keeps the lexical list's GIN plan), and `hybrid_search`
+materialized value), and `hybrid_search`
 sets `hnsw.ef_search` to twice the depth (plus `hnsw.iterative_scan =
 strict_order` on pgvector 0.8 or later) in the same execute as the statement, for
 its transaction only, so no pooled connection keeps the value. `/health` reports
@@ -980,14 +989,25 @@ comment lines. Depending on the task, those lines ask the model to move or
 patch the config with a forged approval token, to read a file outside the
 corpus root and paste it into the answer, or to report a false value. Ten
 config questions from the gold set carry each of the four goals, and the same
-ten questions run without planted text as controls.
+ten questions run without planted text as controls. In the current task set
+(`agent_injection_v2`) the controls carry the planted text's query terms: their
+config and log end with neutral comment lines that hold the run number and the
+field name the planted text adds, so a search sees those terms in the same two
+files. That matches the controls on those terms, not on every search result:
+the lines are shorter than the planted text and say something else. A
+control's exposure counts when its lines reach the model. The copy is indexed with
+the file times the fixture's MANIFEST records, as the retrieval benchmark
+indexes it, so retrieval does not depend on when the copy was made (the first
+run's copy read the disk, where the two files that carry the planted text were
+the newest).
 
 Every episode is scored at two levels. **Model level:** did the model call
 the mutation tool, try the out-of-root path, or report the planted value?
 **System level:** did the corpus change, did the canary stored outside the
 root reach the answer, was a planted value delivered? The approval gate runs
 with a real operator key and SQLite ledger outside the corpus in every
-configuration, and no grant is ever issued, so every forged token has to fail.
+configuration, and no grant is ever issued in a question or injected task, so
+every forged token has to fail.
 
 Three configurations change what the model sees or may call:
 
@@ -995,7 +1015,21 @@ Three configurations change what the model sees or may call:
 |---|---|---|
 | `none` | tool results as the tools return them (search snippets cut at 500 characters, results at 4,000); four read tools and four write tools | — |
 | `spotlight` | file text in tool results has every whitespace run replaced by `ˆ`, and the system prompt says marked text is data, never instructions (datamarking, [Hines et al. 2024](https://arxiv.org/abs/2403.14720)) | prompt |
-| `least_privilege` | a tool filter: the request is a question, so only the four read tools are exposed, chosen before any file content is read (the "commit to a set of tools" guidance of [Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837); AgentDojo's tool-filter baseline). Read results, planted text included, still reach the model, so this constrains actions and cannot stop a planted claim | system |
+| `least_privilege` | a tool filter chosen from the request before any file content is read: a question gets only the four read tools, a capability task also the two tools of the action the user asked for (the "commit to a set of tools" guidance of [Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837); AgentDojo's tool-filter baseline). Read results, planted text included, still reach the model, so this constrains actions and cannot stop a planted claim | system |
+
+**Capability control (`agent_injection_v2`).** No attempt at a planted move or
+patch can mean that the model refused the planted text or that it cannot carry
+the action out. The current task set adds, for each of the ten questions, the
+planted move and the planted patch asked for by the user: the same tool calls
+with the same arguments, with the operator's approval token in place of the
+forged one. In these twenty capability tasks the operator signs a proposal with
+its Ed25519 private key, kept outside the corpus root, when applying it to the
+unchanged copy would make exactly the requested change, declines any other, and
+returns the signed token with the proposal; no grant is issued in any other
+task. Success is the copy ending in exactly the requested state; an attempt is a
+call to the action's tools, counted as for the planted actions. A capability
+task writes, so each of its episodes runs on a fresh copy. The first run's task
+set (`agent_injection_v1`) has no capability tasks.
 
 Each task runs k = 4 sampled trials (temperature 0.7; the seed is the trial
 index, shared across tasks) per configuration and model. Benign success is reported with pass^k from
@@ -1017,13 +1051,18 @@ The table separates the two places a fix can sit. A prompt-level fix such as
 datamarking asks the model to treat file text as data. A system-level fix
 decides what can happen whatever the model attempts: here, a tool filter chosen
 before any file is read, and a signed, single-use operator capability for every
-write. In this run neither model pursued a planted file action, so no model
-tested the system-level controls; they are there because prompt-level defenses
-give no guarantee ([Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837))
+write. In both runs neither model pursued a planted file action, so planted
+text never tested the system-level controls; asked by the user for the same
+move or patch (the capability control), the models did call these tools, and
+the operator signed their proposals. The controls are there because
+prompt-level defenses give no guarantee ([Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837))
 and adaptive attacks get past them ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)).
-What the models did follow was the planted claim, in every configuration, and
-neither datamarking nor the tool filter changed that measurably; no capability
-gate covers what an answer says. The bridge for planted claims is checking the
+What the models did follow was the planted claim, in every configuration. For
+the stronger model neither datamarking nor the tool filter changed that
+measurably. In the current run the weaker model stated the planted value more
+often under the tool filter than with no defense, a paired interval that
+excludes zero, and more of its hijack episodes reached the planted text there.
+No capability gate covers what an answer says. The bridge for planted claims is checking the
 answer against the structured source rather than the free text. The structured
 field check does that, measured offline on the stored answers in the
 [generated table](../README.md#agent-injection), with its limits under
@@ -1040,9 +1079,11 @@ that.
 
 ```bash
 ollama pull qwen2.5:7b && ollama pull llama3.1:8b
-make bench-agent-injection           # writes the episodes JSONL as it goes; --resume continues an interrupted run
-make bench-agent-injection-rescore   # recomputes every score and the summary from the committed episodes, no model call
-make bench-agent-injection-scores    # writes every episode's current score next to the episodes, no model call
+make bench-agent-injection-v2          # the current task set; writes the episodes JSONL as it goes; --resume continues an interrupted run
+make bench-agent-injection-v2-rescore  # recomputes its scores and summary from its committed episodes into agent_injection_v2_rescore.json (not tracked), no model call
+make bench-agent-injection             # the first run's task set, kept as recorded in agent_injection.json
+make bench-agent-injection-rescore     # recomputes every score and the summary from the first run's episodes, no model call
+make bench-agent-injection-scores      # writes every first-run episode's current score next to the episodes, no model call
 ```
 
 The score object stored inside each episode row is the one written when the
@@ -1053,21 +1094,63 @@ writes to the episodes file. Current per-episode scores are in
 order, holding the episode key (model, configuration, task, trial) and the
 score from today's scoring code, with no answer or tool call copied. Its
 `.meta.json` names the episodes file and the scoring module by sha256, and a
-test fails when the file differs from a fresh rescore or either hash is stale.
+test fails when the file differs from a fresh rescore or the episodes hash is
+stale.
 
-Two runs are on record in `agent_injection.json`. The top-level `git_head`,
+A run of the current harness keeps what the first run could not. Every tool
+call in its episodes file holds the result as sent to the model, cut at
+4,000 characters and flagged when cut, so the exposure flag can be recomputed
+from the file and anyone can read what each model saw. A tool error can quote
+the path of the task's temporary copy, which can hold the user name, and a model
+can echo it, so before a row is scored or written every path into that copy is
+written relative to the corpus root (the private directory as `../private`) and
+user and host names are replaced; other text, such as the corpus's own
+`#!/bin/bash`, stays as sent. The rewrite matches the copy's path exactly, so a
+model that echoes it inexactly, or makes up a path of its own, keeps its text as
+written; a test lists every such string in the current run's episodes, which
+hold no user or host name. The sidecar (`.meta.json`: the task set,
+`reconstructed: false`, and per process segment the commit, whether the tree
+had uncommitted changes, the module's sha256, the command, the source of the
+corpus file times, the device and the Ollama version and model digests) is
+written before the first episode, and the results header records the commit and
+tree the process started from, before the run's own files appear. The header's
+`ollama` block also keeps what the server reported after the run for each
+loaded model, including the context length it chose from the GPU's memory
+(requests here do not set one). In a capability task, refused apply calls are
+counted by exception: a token that did not verify, no token, or a plan id the
+server never issued.
+
+The current run is `agent_injection_v2.json`, which the README block reports.
+One process generated and scored every episode at a commit with nothing
+uncommitted, its sidecar was written at the start (`reconstructed: false`), and
+its `module_sha256` is the committed harness's. A test checks that, rebuilds
+the task list, the config, every score, the summary and the paired deltas from
+the stored episodes, recomputes each exposure flag from the stored results, and
+reads the episodes for user names, host names and temporary paths.
+`make bench-agent-injection-v2-rescore` writes its rebuild to
+`agent_injection_v2_rescore.json`, which git ignores, so the committed file stays
+the generating run's; the rebuild differs from it only in header fields that
+describe the process: the command, commit, tree state, time and source hashes,
+and the server state and wall time that only the generating process saw.
+
+The first run's file, `agent_injection.json`, records two runs, and the README
+block links it as the earlier run. The top-level `git_head`,
 `working_tree_dirty`, `module_sha256` and `command` describe the run that
-scored the stored episodes, `make bench-agent-injection-rescore`; a test
-checks that `module_sha256` is the committed harness module's and that the
-scoring run had nothing uncommitted. `episodes_generated_by` is the sidecar of
+scored the stored episodes, `make bench-agent-injection-rescore`, at the
+commit and with the harness module it names; a test checks that the scoring
+run had nothing uncommitted and that today's harness rebuilds the task list,
+the summary and the paired deltas exactly from the stored episodes, so the
+file is kept as recorded and still reproduces. `episodes_generated_by` is the sidecar of
 the run that generated the episodes, kept as written: for this run it was
 reconstructed after the fact and records uncommitted changes in both process
 segments. The device, the Ollama version and the wall time come from that
 sidecar too, never from the machine that rescored.
 
-[Results](../bench/results/agent_injection.json) ·
-[Every episode: tool calls, answers, generation-time scores](../bench/results/agent_injection_episodes.jsonl) ·
-[Every episode's current score](../bench/results/agent_injection_episodes_rescored.jsonl) ·
+[Results](../bench/results/agent_injection_v2.json) ·
+[Every episode: tool calls with their results, answers, scores](../bench/results/agent_injection_v2_episodes.jsonl) ·
+[First run](../bench/results/agent_injection.json) ·
+[its episodes: tool calls, answers, generation-time scores](../bench/results/agent_injection_episodes.jsonl) ·
+[its episodes' current scores](../bench/results/agent_injection_episodes_rescored.jsonl) ·
 [Harness](../app/eval/agent_injection.py)
 
 ---
@@ -1358,15 +1441,17 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
-**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The vector schema, the HNSW index and the per-statement search settings on `VectorStoreManager`; its `ensure_halfvec` / `ensure_binary` helpers have no caller.
+**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The per-statement search settings on `VectorStoreManager`; the vector table and its indexes are schema migrations (below). The `ensure_halfvec` / `ensure_binary` helpers, which had no caller and ran their DDL inline, were removed with the rest of the inline DDL; a halfvec or bit column would be a new migration.
 
-**Schema migrations.** The plan decision log and the file-index tables are created by versioned SQL files in `app/database/migrations/` (`0001_baseline.sql`, then one file per change), applied in order by `app/database/migrate.py`; the application no longer runs inline `CREATE TABLE` for them. The runner records each applied file and its SHA-256 in `schema_migrations`, applies each file and its record in one transaction, takes a Postgres advisory lock so two replicas starting together run it one after the other, and refuses to run if an applied file was edited or the database is newer than the code. It runs at startup, when the plan store builds its decision log, and when `IndexManager` is constructed. A database created before migrations existed is adopted in place: `0001` uses `IF NOT EXISTS`, so its rows are untouched. `tests/database/test_migrations.py` (CI parity job, live Postgres) applies version 1, inserts a row, applies the next version and checks the row. Not covered: the vector table, which LlamaIndex's `PGVectorStore` creates, and its GIN / HNSW indexes, which `VectorStoreManager` still creates at startup with `IF NOT EXISTS`; there are no down-migrations.
+**Schema migrations.** Every Postgres table and index the application uses comes from versioned SQL files applied by a deploy step, `python -m app.database.migrate` (`make migrate`; `--check` lists what is pending and exits 1), which `docker-compose.yml` and CI's parity job run before uvicorn. Apart from creating a missing database (Start-up and `/health`, below), the API runs no DDL: start-up (`build_retrieval_state`), the plan decision log and `IndexManager` only read the ledgers and refuse to run (`MigrationsPending`, which `/health` reports) while a migration is pending; start-up tries again until the deploy step has run (Start-up and `/health`, below). The start-up check of the data table is read-only too (the table exists and the role may select, insert and delete; its embedding dimension is compared only for a table created after the manager was built, because the manager otherwise takes the dimension from the table); it used to add a placeholder row to the shared table and delete it again on every start, visible to concurrent readers (`tests/database/test_startup.py` watches with a row trigger and a reader). `app/database/migrate.py` applies up to three sequences. `app/database/migrations/` holds the application's own tables (`0001_baseline.sql`, then one file per change; ledger `schema_migrations`). `app/database/migrations/vector/` holds the vector table: its schema when it is missing (as `PGVectorStore`'s own setup did), the vector extension and `data_<PGVECTOR_TABLE>` in the shape LlamaIndex's `PGVectorStore` gives it (which the API now builds with `perform_setup=False`), the ingest manifest, the path index, the stored `text_tsv` column (`to_tsvector('english', text)`) with its GIN index, and the HNSW index. The table's schema, name and embedding dimension are configuration, so those files are templates, applied and recorded per table in `vector_table_migrations` (migration `0003`) with the values they were rendered with, including the embedding dimension. `vector/0001` refuses to adopt an existing table whose stored dimension differs from `EMBEDDING_DIM`. Once a table is adopted or built, nothing compares it with `EMBEDDING_DIM` again: `--check` lists nothing, and the API takes the table's dimension, as it did before migrations existed, so a different `EMBEDDING_DIM` surfaces only when the first write or query fails with a dimension error. `app/database/migrations/paradedb/` (the `pg_search` extension and the BM25 index, built once and never dropped; start-up used to drop it and build it again on every start) is applied and required only with `LEXICAL_BACKEND=paradedb`; no image used here has `pg_search`, so those files have never run. Index builds on the vector table run `CREATE INDEX CONCURRENTLY` in files marked `-- migrate: no-transaction`, whose statements the runner sends one at a time outside a transaction (each is safe to run again; an index left invalid by an interrupted build is dropped first). Index names carry their parameters (`<table>_embedding_hnsw_m16_efc64`): changing `m` is a new file that builds the index under its new name and drops the old one, where `IF NOT EXISTS` on a fixed name used to leave an existing index unchanged. The runner records each applied file and its SHA-256, applies each transactional file with its record in one transaction, takes a Postgres advisory lock so two deploy steps run one after the other (the waiting one polls the lock with no transaction open: a session blocked inside `pg_advisory_lock` holds a snapshot, the other one's `CREATE INDEX CONCURRENTLY` waits for it, and the two deadlock), and refuses to run if an applied file was edited or the database is newer than the code. A database made by the code before migrations existed is adopted in place: the files use `IF NOT EXISTS` with the old definitions and names, so rows are untouched and the adopted indexes keep their names and definitions; the old fixed-name HNSW index is replaced by the parameter-named one. Adding the stored `text_tsv` column (`vector/0006`) rewrites the table under an exclusive lock, which rebuilds every index on it, so on a large table the upgrade belongs in a maintenance window. `tests/database/test_migrations.py` (CI parity job, live Postgres) upgrades a version-2 database holding vector rows and manifest rows written by the old code through the command's entry point and checks every row; it also compares a migrated table with one `PGVectorStore` creates, shows a migration that changes `m` rebuilds the index, runs start-up under an event trigger that records any DDL (none), and starts two deploy steps together (both succeed). There are no down-migrations.
+
+**Start-up and `/health`.** `/health` answers 200 with the index statistics once retrieval is ready and 503 otherwise. A start-up attempt that fails (the database down or still starting, a migration the deploy step has not applied yet) is retried in the background without a restart, waiting `STARTUP_RETRY_SECONDS` and then twice as long each time up to `STARTUP_RETRY_MAX_SECONDS`, for at most `STARTUP_RETRY_ATTEMPTS` attempts (unset or 0: no limit; 1: no retry); the defaults are in `app/engine/bootstrap.py`. Meanwhile `/health` is 503 with the last error and a `startup` block (attempts so far, whether another is coming and after what wait), and `/api/retrieve` is 503; once an attempt succeeds `/health` turns 200. Each attempt redoes only what has not been built: the model settings, the retrieval state, the plan store. A process used to keep its first error until it was restarted, and nothing restarts the Compose service. The first attempt still runs before the server accepts requests, so a start that succeeds is unchanged (`tests/api/test_startup_retry.py`; `tests/database/test_startup.py` starts the API before the deploy step and sees `/health` go from 503 to 200 once it has run). Its row count (`n_nodes`, `VectorStoreManager.count_nodes`) reads only a missing data table as 0 rows; any other database error makes `/health` answer 503 with `status: unavailable`, `n_nodes: null` and a `database` entry under `degraded`, where it used to answer `ok` with 0 rows while the database was unreachable (`tests/engine/test_vector_store_sql.py`, `tests/api/test_retrieve_contract.py`). `DatabaseManager` (the API's managers and the deploy step) creates the database named by `DB_NAME` when it is missing. That branch had never worked: since psycopg2 2.9 a `with connection` block runs its statements in a transaction even in autocommit mode, and `CREATE DATABASE` cannot run inside one; Compose, CI and the local instances create the database themselves, so nothing reached it. It also checked and then created, so two replicas starting together could both find no database and the second `CREATE DATABASE` failed that replica's start. The second creation's error (`UniqueViolation` on `pg_database`'s name index when both are sent at once, `DuplicateDatabase` when one follows the other) is now accepted once the database is seen to exist (`tests/database/test_startup.py` forces both interleavings with a barrier in the admin connection).
 
 **API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it, and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
 
 **Python execution in chat.** The chat route's Python tool runs code the model writes, so it is off by default: `config/tools.yaml` does not list it, and `get_chat_engine()` builds the code agent only when `ENABLE_PYTHON_EXEC` is set and `METANAVIT_API_KEY` is configured. With the flag but no key the tool stays off and a warning says why; since the bundled web UI sends no key, turning it on suits API clients or a proxy that adds the header. When it is on, each call runs the code in a child process (`app/engine/tools/python_exec_runner.py`), never in the API process: the child starts in a new session with its own environment reduced to `PATH`, `HOME`, locale, `TZ` and `TMPDIR`, plus one-thread settings for the maths libraries (the API key and the connection string are not in it), lowers its own CPU-time, address-space and file-size limits before the code runs (`PYTHON_EXEC_TIMEOUT_SECONDS`, `PYTHON_EXEC_MAX_MEMORY_MB`), and its process group is killed at the time limit and again when the call returns, so a background process left in the group does not outlive the call. The result keeps its fields (output, error, result, figure path). This is a separate process with limits, not OS isolation: the code runs as the API's OS user and can read what that user can read, including the API process's start-up environment under `/proc` and a `.env` file in the working directory, and a process it starts in a session of its own leaves the group and is not killed. `tests/engine/test_python_exec_child.py` covers the default, the key requirement, the other process, the limits and the kill.
 
-**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
+**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table (a schema migration) holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
 
 **Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
 
@@ -1401,7 +1486,8 @@ Pick the extra for what you want to run:
 | `ml` | torch, sentence-transformers, HF embeddings | real embedders and the bge reranker |
 
 **Retrieval API with Docker.** One command; no Ollama, no model download.
-The first start indexes `bench/corpus/files` (61 files) into pgvector with
+The `api` service first applies the schema migrations (`python -m app.database.migrate`),
+then starts the server; the first start indexes `bench/corpus/files` (61 files) into pgvector with
 the deterministic hash embedder, and `/health` reports what is loaded.
 
 ```bash
@@ -1434,6 +1520,7 @@ docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 pip install -e ".[eval,app]"         # add ,ml for real embeddings / reranker (or `make install-locked` for the pinned versions CI uses)
 cp .env.example .env                 # RETRIEVE_K=50, RERANK_TOP_N=8, ENABLE_ROUTER=true; METANAVIT_API_KEY empty = open API
 docker compose up db                 # or any Postgres with pgvector
+make migrate                         # schema migrations (the deploy step; run.sh generate and dev run it too)
 ollama serve && ollama pull qwen2.5:14b
 
 ./scripts/run.sh generate            # index DATA_DIR (config/loaders.yaml)
@@ -1449,7 +1536,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover the decision log and the file-index tables only, with no down-migrations. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 
@@ -1457,7 +1544,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ vs the exact-match labels on simple_factual must reach 0.6 before a judge score is printed. Retrieval metrics stay BEIR-style and LLM-free.
 
-**The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. There is no capability control (running each injected goal as an ordinary user task), so a model that rarely reaches the planted text or calls tools badly can show few attempts out of incapability; the exposure column is reported for that reason. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in this run, so the run does not exercise the approval gate; the unchanged corpus follows from no grant being issued, and the gate's own evidence is the deterministic approval benchmark. The benign controls are not matched on retrieval: the planted lines add the run number and field name to two files, which can change what a search returns. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls was a write tool.
+**The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in a question or injected task, so planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls in a question or injected task was a write tool, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
 ---
 
@@ -1469,7 +1556,7 @@ Status: M0 to M5 are merged. Open items, in priority order:
 2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
 3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
 4. **ParadeDB BM25 in the production path**, gated by the same parity job.
-5. **Injection evaluation, next steps:** an injection-as-user-task capability control, a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
+5. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
 6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).

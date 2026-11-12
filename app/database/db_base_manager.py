@@ -20,6 +20,7 @@ from typing import Optional, Generator
 from urllib.parse import urlparse, urlunparse
 
 import psycopg2
+import psycopg2.errors
 from psycopg2 import sql
 from psycopg2.pool import SimpleConnectionPool
 
@@ -80,15 +81,19 @@ class DatabaseManager:
     def _ensure_database_exists(self) -> None:
         """Create database if it doesn't exist."""
         parsed = urlparse(self._get_admin_conn_string())
-        
-        # Connect to default 'postgres' database to create our database
-        with psycopg2.connect(
+
+        # Connect to default 'postgres' database to create our database. Not `with
+        # psycopg2.connect(...) as conn`: since psycopg2 2.9 that block runs its statements in a
+        # transaction even in autocommit mode, and CREATE DATABASE cannot run inside one, so the
+        # create branch below failed every time it was reached (tests/database/test_startup.py).
+        conn = psycopg2.connect(
             database="postgres",   # Default PostgreSQL database
             user=parsed.username,
             password=parsed.password,
             host=parsed.hostname,
             port=parsed.port
-        ) as conn:
+        )
+        try:
             # autocommit required for database creation
             conn.autocommit = True
             with conn.cursor() as cur:
@@ -99,12 +104,25 @@ class DatabaseManager:
                 )
                 if not cur.fetchone():
                     # Use sql.SQL and Identifier to safely quote database name
-                    cur.execute(
-                        sql.SQL("CREATE DATABASE {}").format(
-                            sql.Identifier(self.DATABASE_NAME)
+                    try:
+                        cur.execute(
+                            sql.SQL("CREATE DATABASE {}").format(
+                                sql.Identifier(self.DATABASE_NAME)
+                            )
                         )
-                    )
-                    logger.info(f"Database '{self.DATABASE_NAME}' created")
+                        logger.info(f"Database '{self.DATABASE_NAME}' created")
+                    except (psycopg2.errors.DuplicateDatabase, psycopg2.errors.UniqueViolation) as exc:
+                        # Check-then-act: another process (a second replica, the deploy step) created it
+                        # between the check and this CREATE. Sent at the same moment, both CREATEs pass
+                        # Postgres's own name check and the later one fails on pg_database's unique
+                        # index (UniqueViolation); sent after the other one committed, it is
+                        # DuplicateDatabase. Either way the database exists now, which is all we need.
+                        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (self.DATABASE_NAME,))
+                        if not cur.fetchone():
+                            raise
+                        logger.info(f"Database '{self.DATABASE_NAME}' was created by another process ({type(exc).__name__})")
+        finally:
+            conn.close()
 
     def _initialize_connection_pool(self, minconn: int = 1, maxconn: int = 10) -> None:
         """Initialize the connection pool."""

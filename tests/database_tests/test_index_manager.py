@@ -13,7 +13,7 @@ def mock_db_connection():
 @pytest.fixture
 def index_manager(mock_db_connection):
     """Fixture to create IndexManager instance with mocked dependencies."""
-    with patch('app.database.index_manager.IndexManager._create_tables'):
+    with patch('app.database.index_manager.IndexManager._check_tables'):
         manager = IndexManager("postgresql://test:test@localhost:5432/test")
         return manager
 

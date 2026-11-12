@@ -2,10 +2,12 @@
 
 score = Σ 1/(k + rank) with k=60 by default (Cormack et al. 2009).
 Ranks are 1-indexed so the first hit contributes 1/(k+1).
+rrf_score_map optionally weights each list: Σ w/(k + rank), every w 1.0 by default.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Hashable, Iterable, Sequence, TypeVar
 
 T = TypeVar("T")
@@ -52,10 +54,26 @@ def reciprocal_rank_fusion(
 def rrf_score_map(
     ranked_lists: Sequence[Iterable[Hashable]],
     k: int = RRF_K,
+    *,
+    weights: Sequence[float] | None = None,
 ) -> dict[Hashable, float]:
-    """Same fusion, returning id -> score (when items are already ids)."""
+    """Same fusion, returning id -> score (when items are already ids).
+
+    `weights`: one positive weight per list; an id at rank r of list i adds
+    weights[i] / (k + r). None weights every list 1.0, and 1.0 / (k + r) is the
+    unweighted term to the last bit, so the default fusion (scores and key
+    order) is the one without weights. Multiplying every weight by one factor
+    scales every score by it, so only the ratio of the weights matters for the
+    order (app/eval/rrf_sweep.py fixes BM25's at 1.0 and tunes the dense list's).
+    """
+    if weights is None:
+        weights = [1.0] * len(ranked_lists)
+    elif len(weights) != len(ranked_lists):
+        raise ValueError(f"{len(weights)} weights for {len(ranked_lists)} ranked lists")
+    elif not all(math.isfinite(w) and w > 0 for w in weights):
+        raise ValueError(f"RRF list weights must be positive and finite, got {list(weights)}")
     fused: dict[Hashable, float] = {}
-    for ranked in ranked_lists:
+    for ranked, weight in zip(ranked_lists, weights):
         for rank, key in enumerate(ranked, start=1):
-            fused[key] = fused.get(key, 0.0) + 1.0 / (k + rank)
+            fused[key] = fused.get(key, 0.0) + weight / (k + rank)
     return fused
