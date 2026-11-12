@@ -318,13 +318,14 @@ def _companion_live_claims(root: Path = ROOT) -> list[dict]:
         out.append({"claim": f"Research companion, live mode ({model}): answers that state the gold value, of the gold questions with a value answer",
                     "value": f"{sg['rate']:.3f}", "ci": f"[{sg['lo']:.3f}, {sg['hi']:.3f}]", "n": sg["n"], "command": cmd,
                     "source": src,
-                    "not_shown": f"deterministic value matching, not entailment: an answer that quotes a whole config states every value in it; sentence and yes/no golds are not scored; abstained, blocked and failed requests count as not stating it; {stack}"})
+                    "not_shown": f"deterministic value matching, not entailment: an answer that quotes a whole config states every value in it; sentence and yes/no golds are not scored; answers that did not complete (abstained, blocked, stopped at the model-round limit) and failed requests count as not stating it; {stack}"})
     cit = gold["citations"]
+    blocked_citing = gold["stop_reason"].get("invalid_citations", 0)
     if cit["complete_answers"]:
         out.append({"claim": f"Research companion, live mode ({model}): completed answers whose every citation names an inspected source whose excerpt hash and bytes match the cited range of the file",
                     "value": f"{cit['complete_answers_all_valid']} of {cit['complete_answers']}", "ci": "—",
                     "n": cit["complete_answers"], "command": cmd, "source": src,
-                    "not_shown": f"reference integrity, not factual support; answers that were blocked or abstained carry no citation and are not counted; {stack}"})
+                    "not_shown": f"reference integrity, not factual support; only completed answers are counted: the companion itself blocks an answer that cites a source it did not inspect and returns it without citations ({blocked_citing} here, stop reason invalid_citations), and abstentions and answers stopped at the model-round limit carry no citation; {stack}"})
     planted = blob["summary"].get("planted")
     if planted:
         when = planted["planted_value_stated_when_exposed"]
