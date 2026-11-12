@@ -40,15 +40,16 @@ def test_select_keeps_the_split_or_a_labelled_slice():
     assert "first 2 queries" in note and "slice of 4 documents" in note
 
 
-@pytest.mark.parametrize("plan_file, dense_hnsw, table, hnsw", [
-    ("doc/sql/hybrid_explain_synthetic_10k.txt", True, "data_explain_synthetic", "explain_synthetic_embedding_hnsw"),
-    ("doc/sql/hybrid_explain.txt", False, "data_llamaindex_embedding", "llamaindex_embedding_embedding_hnsw"),
+@pytest.mark.parametrize("plan_file, uses_indexes, table, hnsw", [
+    # the index names the schema migrations give (app/database/migrations/vector/0005 and 0007)
+    ("doc/sql/hybrid_explain_synthetic_10k.txt", True, "data_explain_synthetic", "explain_synthetic_embedding_hnsw_m16_efc64"),
+    ("doc/sql/hybrid_explain.txt", False, "data_llamaindex_embedding", "llamaindex_embedding_embedding_hnsw_m16_efc64"),  # 71 rows: both legs scan the table
 ])
-def test_plan_facts_read_the_committed_plans(plan_file, dense_hnsw, table, hnsw):
+def test_plan_facts_read_the_committed_plans(plan_file, uses_indexes, table, hnsw):
     plan = (ROOT / plan_file).read_text()
-    facts = served_scale.plan_facts(plan, table=table, hnsw_index=hnsw, text_index=f"{table}_text_tsv_gin")
-    assert facts["dense_uses_hnsw"] is dense_hnsw
-    assert facts["lexical_uses_gin"] is True
+    facts = served_scale.plan_facts(plan, table=table, hnsw_index=hnsw, text_index=f"{table}_text_tsv_english_gin")
+    assert facts["dense_uses_hnsw"] is uses_indexes
+    assert facts["lexical_uses_gin"] is uses_indexes
     assert facts["final_join_scan"] == "Seq Scan"  # the join back to the table by node_id has no index to use
     assert facts["execution_ms"] > 0
     assert {s["alias"] for s in facts["scans"] if s["relation"] == table} >= {"t", "t_1", "t_2"}

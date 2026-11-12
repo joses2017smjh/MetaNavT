@@ -35,11 +35,11 @@ def served_blob():
                        "documents_per_response": {"mean": 31.5, "queries_under_50": 4}, "routes": {"semantic": 3, "lexical_path": 1}}
     in_memory = {name: {**summary(0.3645), "latency": {"total": {"n": 4, "p50_ms": 60.1, "p95_ms": 90.2}}} for name in (RERANK, RERANK + SAME_FORM_SUFFIX, HYBRID, HYBRID + SAME_FORM_SUFFIX)}
     return {
-        "n_docs": 57638, "n_queries": 4, "query_selection": "full split", "embedder_note": None, "git_sha": "abc1234",
+        "schema": "served-scale-v2", "n_docs": 57638, "n_queries": 4, "query_selection": "full split", "embedder_note": None, "git_sha": "abc1234",
         "stage_machines": {"index": MACHINE, "inmemory": dict(MACHINE)},
         "build": {"rows": 117000, "server": {"postgres": "PostgreSQL 16.15", "pgvector": "0.8.6", "settings": {"shared_buffers": "128MB", "maintenance_work_mem": "64MB", "work_mem": "4MB"}},
                   "report": {"files_rejected": 40, "rejected_by_reason": {"empty": 38, "duplicate_content": 2, "too_large": 0}, "files_indexed": 57598, "chunks_embedded": 117000},
-                  "index_directory_seconds": 1200.5, "embedding": {"seconds": 300.25}, "files_per_second": 47.98, "text_index_seconds": 20.5, "hnsw_seconds": 400.75, "analyze_seconds": 2.5,
+                  "migrate_seconds": 12.25, "index_directory_seconds": 1200.5, "embedding": {"seconds": 300.25}, "files_per_second": 47.98, "analyze_seconds": 2.5,
                   "index_names": {"hnsw": "h_idx", "text_index": "g_idx"}, "indexes_ddl": {"h_idx": "CREATE INDEX h_idx ... WITH (m='16', ef_construction='64')"},
                   "sizes": {"table_bytes_with_toast": 500 * 2**20, "indexes": {"h_idx": {"bytes": 230 * 2**20}, "g_idx": {"bytes": 60 * 2**20}, "pkey": {"bytes": 3 * 2**20}}},
                   "unchanged_rerun": {"seconds": 45.5}},
@@ -72,7 +72,8 @@ def test_served_block_shows_every_row_with_its_pair_and_labels_the_fallback():
     assert f"Against {HYBRID} (bare query): nDCG@10 -0.0634" in text and "The served prompt alone, in memory" in text and "(the interval covers zero)" in text
     assert "minimum cosine 1.0" in text and "the same ranking for 640 of 648 queries (the same first 10 for 647)" in text
     assert "Recall@50: a served ranking holds the documents of at most 50 returned chunks (mean 31.5" in text
-    assert "index_directory 1200.5 s for 57598 files and 117000 chunks" in text and "HNSW (m 16, ef_construction 64) 400.75 s" in text
+    assert "the deploy step (`python -m app.database.migrate`) 12.25 s on the empty database, creating the table, the HNSW index (m 16, ef_construction 64)" in text
+    assert "index_directory 1200.5 s for 57598 files and 117000 chunks with both indexes maintained per insert" in text
     assert "the table 500.0 MiB" in text and "the HNSW index 230.0 MiB, the GIN index 60.0 MiB, 1 other indexes 3.0 MiB" in text
     assert "61.5 s from launch to /health ok" in text and "the dense CTE read the HNSW index in 3 of 3" in text
     assert "| 16 | 64 | 6 | http_503 6 | 16008.0 / 32008.0 | 1.25 |" in text
@@ -96,9 +97,9 @@ def hnsw_blob():
     names = {"float32": "h_idx", "halfvec": "h_half", "binary": "h_bit"}
     sizes = {"table_bytes_with_toast": 500 * 2**20, "indexes": {"h_idx": {"bytes": 230 * 2**20}, "h_half": {"bytes": 120 * 2**20}, "h_bit": {"bytes": 20 * 2**20}}}
     return {
-        "query_selection": "full split", "git_sha": "abc1234", "k": 50, "stage_machines": {"index": MACHINE, "hnsw": MACHINE},
+        "schema": "pgvector-hnsw-v2", "query_selection": "full split", "git_sha": "abc1234", "k": 50, "stage_machines": {"index": MACHINE, "hnsw": MACHINE},
         "table": {"rows": 117000, "dim": 384, "embedder": "BAAI/bge-small-en-v1.5"}, "queries": {"n": 648},
-        "index": {"m": 16, "ef_construction": 64, "build_seconds": 400.75, "bytes": 230 * 2**20}, "server": {"postgres": "PostgreSQL 16.15", "pgvector": "0.8.6"},
+        "index": {"m": 16, "ef_construction": 64, "reindex_seconds": 400.75, "bytes": 230 * 2**20}, "server": {"postgres": "PostgreSQL 16.15", "pgvector": "0.8.6"},
         "recall_definition": "R", "latency_definition": "L",
         "rows": [{"config": "exact", "plan_node": "Seq Scan", "recall@10": {"mean": 1.0}, "recall@50": {"mean": 1.0}, "latency": {"n": 4, "p50_ms": 150.5, "p95_ms": 170.5}},
                  {**row, "config": "hnsw ef_search=40", "ef_search": 40, "plan_node": "Index Scan using h_idx"},
@@ -112,12 +113,14 @@ def hnsw_blob():
 
 def test_pgvector_block_shows_the_sweep_and_the_variants_on_one_table():
     text = report.pgvector_hnsw_table(hnsw_blob())
-    assert "117000 chunk vectors, 384 dimensions (BAAI/bge-small-en-v1.5)" in text and "the 648 test queries" in text and "built in 400.75 s, 230.0 MiB" in text
+    assert "117000 chunk vectors, 384 dimensions (BAAI/bge-small-en-v1.5)" in text and "the 648 test queries" in text
+    assert "the served index (m 16, ef_construction 64, 230.0 MiB) as a deployment builds it" in text and "a REINDEX of it on the final table took 400.75 s" in text
     assert "| exact | — | 1.0000 | 1.0000 | — | 150.5 / 170.5 | Seq Scan |" in text
     assert "| hnsw ef_search=40 | 40 | 0.9700 [0.9500, 0.9900] | 0.9500 [0.9300, 0.9700] | 300 | 1.5 / 2.5 | Index Scan using h_idx |" in text
     assert "| served dense CTE | 100 |" in text and "GPU X (44.4 GB) with CPU Y" in text
     assert "float32 230.0 MiB, halfvec 120.0 MiB, binary 20.0 MiB" in text and "grew from 500.0 MiB to 900.0 MiB" in text
     assert "| binary+rescore | 400 | 400 |" in text and "| halfvec | 100 | — |" in text and "reads only the float32 column" in text
+    assert "no schema migration adds either copy" in text and "ensure_halfvec" not in text
 
 
 def test_pgvector_block_refuses_a_hash_dry_run_or_a_slice():
@@ -153,7 +156,7 @@ def test_evidence_rows_come_from_the_full_run_files(tmp_path):
     pair = claims[f"FiQA: served `api:hybrid` minus in-memory `{HYBRID + SAME_FORM_SUFFIX}` (same query form, same job), paired delta in nDCG@10"]
     assert (pair["value"], pair["ci"]) == ("-0.0512", "[-0.0612, -0.0412]") and pair["not_shown"].startswith("the interval excludes zero")
     build = next(r for r in rows if r["claim"].startswith("FiQA served index build"))
-    assert build["value"] == "1200.5 + 400.75" and build["n"] == 57598
+    assert build["value"] == "12.25 + 1200.5" and build["n"] == 57598 and "maintained per insert" in build["claim"]
     load = next(r for r in rows if r["claim"].startswith("FiQA served API under load"))
     assert "concurrency 16" in load["claim"] and load["value"] == "16008.0 / 32008.0" and load["not_shown"].startswith("6 of 64 requests failed (http_503 6)")
     recall = next(r for r in rows if r["claim"].startswith("pgvector HNSW on the served FiQA table (117000 chunk vectors)"))
@@ -169,4 +172,17 @@ def test_evidence_has_no_row_from_a_slice_or_a_dry_run(tmp_path):
     served["query_selection"] = "first 40 queries by id"
     hnsw["table"]["embedder"] = "hash-384"
     write_results(tmp_path, served, hnsw)
+    assert evidence._served_scale_claims(tmp_path) == []
+
+
+def test_a_file_measured_before_the_schema_migrations_is_not_rendered(tmp_path):
+    """served-scale-v1 / pgvector-hnsw-v1 files describe the served path before the vector table and its indexes became
+    schema migrations (the lexical leg computed to_tsvector per row, start-up built the indexes)."""
+    from app.eval import evidence
+
+    old_served, old_hnsw = served_blob(), hnsw_blob()
+    old_served["schema"], old_hnsw["schema"] = "served-scale-v1", "pgvector-hnsw-v1"
+    for text in (report.served_scale_table(old_served), report.pgvector_hnsw_table(old_hnsw)):
+        assert "before the served schema moved to migrations" in text and "not the benchmark" in text and "0.3123" not in text
+    write_results(tmp_path, old_served, old_hnsw)
     assert evidence._served_scale_claims(tmp_path) == []

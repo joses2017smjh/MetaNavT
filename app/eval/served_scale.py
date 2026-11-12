@@ -15,11 +15,12 @@ exists, so a job that dies late keeps what it measured. The corpus and the datab
 index stage the data directory is copied to <state>, and a resumed run on a fresh node restores it.
 
   files          FiQA as one file per document, <doc_id>.txt, the in-memory rows' text (beir_api.write_corpus)
-  index          app/engine/ingest.index_directory into the task-local Postgres with the served embedder:
-                 seconds (and the embedder's share), rows, rejections by reason; then the two indexes the API's
-                 start-up would create (GIN on to_tsvector, HNSW on the embedding), each timed and checked in
-                 pg_indexes, and ANALYZE, so the start-up measured below does not build them; sizes on disk;
-                 index_directory again over the unchanged directory (what INDEX_ON_START=true costs per start)
+  index          the deploy step first (python -m app.database.migrate: the vector table, the HNSW index on the
+                 embedding and the GIN index on the stored text_tsv, all on the empty table), timed; then
+                 app/engine/ingest.index_directory into it with the served embedder, the indexes maintained per
+                 insert: seconds (and the embedder's share), rows, rejections by reason; ANALYZE; the indexes read
+                 from pg_indexes; sizes on disk; index_directory again over the unchanged directory (what
+                 INDEX_ON_START=true costs per start)
   startup        what start-up reads: every chunk back (fetch_all_chunks) and the version clusters
                  (bootstrap.build_clusters), timed here; then the API (uvicorn main:app, INDEX_ON_START unset,
                  both models), seconds from launch to /health ok
@@ -82,7 +83,7 @@ SERVED_STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", 
 HNSW_STAGES = ("files", "index", "hnsw", "variants")  # pgvector_hnsw.json
 SERVER_SETTINGS = ("shared_buffers", "maintenance_work_mem", "work_mem", "effective_cache_size", "max_parallel_maintenance_workers",
                    "max_parallel_workers_per_gather", "jit", "synchronous_commit", "random_page_cost")
-SOURCES = ("app/eval/served_scale.py", "app/eval/beir_api.py", "app/eval/service.py", "app/eval/beir.py", "app/eval/http_load.py", "app/engine/ingest.py",
+SOURCES = ("app/eval/served_scale.py", "app/eval/beir_api.py", "app/eval/service.py", "app/eval/beir.py", "app/eval/http_load.py", "app/engine/ingest.py", "app/database/migrate.py",
            "app/eval/ingest.py", "app/engine/bootstrap.py", "app/engine/retriever.py", "app/database/vector_store_manager.py",
            "app/database/sql/hybrid_tsrank.sql", "app/api/routers/retrieve.py", "main.py", "app/eval/pgvector_hnsw.py")
 _VECTOR_LITERAL = re.compile(r"'\[[-0-9.,eE+ ]*\]'::(vector|halfvec)")
@@ -271,7 +272,8 @@ def differences(*, rows: int | None, chunker: str | None, rejected: dict, not_in
         f"depth: the API returns at most {SERVED_K} chunks, so a served ranking holds at most {SERVED_K} documents and its Recall@50 counts within those chunks; "
         f"the in-memory rows fuse {mem_k} + {mem_k} candidates into {mem_k} documents (RRF k {in_memory_settings.get('rrf_k')}), the served statement {served_depth} + {served_depth} into {served_depth} chunks",
         "lexical leg: in-memory Okapi BM25 (Lucene-style English analyzer, k1 "
-        f"{in_memory_settings.get('k1')}, b {in_memory_settings.get('b')}) vs Postgres ts_rank_cd over to_tsvector('english') with the query terms OR-joined",
+        f"{in_memory_settings.get('k1')}, b {in_memory_settings.get('b')}) vs Postgres ts_rank_cd over the stored text_tsv (to_tsvector('english', text)) "
+        "with the query terms OR-joined",
         f"dense leg: in-memory exact cosine over whole-document vectors (the BEIR cache) vs pgvector over chunk vectors with {search_settings} per statement, "
         "through the HNSW index when the planner picks it (the plan block)",
         query_line,
@@ -297,6 +299,14 @@ def query_rows(vsm, statement: str, params: tuple = ()) -> list[tuple]:
 
 def table_exists(vsm) -> bool:
     return bool(query_rows(vsm, "SELECT to_regclass(%s) IS NOT NULL;", (f'"{vsm.schema_name}"."{vsm.data_table}"',))[0][0])
+
+
+def applied_migrations(vsm) -> dict:
+    """The migrations the deploy step left applied to this database and this vector table: version -> checksum."""
+    from app.database.migrate import applied_versions, vector_applied_versions
+
+    with vsm.get_connection() as conn:
+        return {"database": applied_versions(conn), "vector": vector_applied_versions(conn, "vector", vsm.vector_table)}
 
 
 def server_facts(vsm) -> dict:
@@ -326,26 +336,19 @@ def table_sizes(vsm) -> dict:
     }
 
 
-def build_indexes(vsm) -> dict:
-    """The two indexes app/engine/bootstrap.py creates at start-up, each timed, then checked in pg_indexes; ANALYZE."""
-    out: dict[str, Any] = {}
-    for name, ensure in (("text_index", vsm.ensure_text_index), ("hnsw", vsm.ensure_hnsw)):
-        started = time.perf_counter()
-        ok = ensure()
-        out[f"{name}_seconds"] = round(time.perf_counter() - started, 3)
-        if not ok:  # the helpers log a failure and return False; a measurement must not carry on without the index
-            raise RuntimeError(f"{ensure.__name__} failed; see the log")
+def served_indexes(vsm) -> dict:
+    """The indexes the schema migrations built that the hybrid statement reads, found in pg_indexes by what they
+    index (the HNSW index on the embedding, the GIN index on the stored text_tsv), and every index's definition."""
+    from app.eval.pgvector_hnsw import find_index
+
     ddl = index_ddl(vsm)
-    expected = {"hnsw": f"{vsm.table_name}_embedding_hnsw", "text_index": f"{vsm.data_table}_text_tsv_gin"}
-    missing = [n for n in expected.values() if n not in ddl]
-    if missing:
-        raise RuntimeError(f"indexes missing after start-up's ensure_* calls: {missing}")
-    out["index_names"] = expected
-    started = time.perf_counter()
-    query_rows_commit(vsm, f'ANALYZE "{vsm.schema_name}"."{vsm.data_table}";')
-    out["analyze_seconds"] = round(time.perf_counter() - started, 3)
-    out["indexes_ddl"] = ddl
-    return out
+    return {"index_names": {"hnsw": find_index(ddl, "hnsw", "embedding"), "text_index": find_index(ddl, "gin", "text_tsv")}, "indexes_ddl": ddl}
+
+
+def hnsw_parameters(ddl: str | None) -> dict:
+    """m and ef_construction from an HNSW index definition (pg_indexes.indexdef)."""
+    found = {key: re.search(rf"{key}='?(\d+)", ddl or "") for key in ("m", "ef_construction")}
+    return {key: int(m.group(1)) if m else None for key, m in found.items()}
 
 
 def query_rows_commit(vsm, statement: str) -> None:
@@ -355,7 +358,8 @@ def query_rows_commit(vsm, statement: str) -> None:
 
 
 def index_corpus(vsm, corpus_dir: Path, embed_batch: Callable[[list], list], embedder: str) -> dict:
-    """index_directory over corpus_dir, timed, with the embedder's own share; the unchanged re-run; the indexes."""
+    """index_directory over corpus_dir into the migrated table, timed, with the embedder's own share; ANALYZE; the
+    indexes and the sizes; the unchanged re-run."""
     from app.engine.ingest import index_directory
 
     spent = {"seconds": 0.0, "calls": 0, "texts": 0}
@@ -372,7 +376,10 @@ def index_corpus(vsm, corpus_dir: Path, embed_batch: Callable[[list], list], emb
     report = index_directory(vsm, str(corpus_dir), embed_fn=embed_fn, embedder=embedder)
     seconds = time.perf_counter() - started
     embedding = dict(spent)
-    built = build_indexes(vsm)
+    started = time.perf_counter()
+    query_rows_commit(vsm, f'ANALYZE "{vsm.schema_name}"."{vsm.data_table}";')
+    analyze_seconds = time.perf_counter() - started
+    built = served_indexes(vsm)
     sizes = table_sizes(vsm)
     spent.update(seconds=0.0, calls=0, texts=0)
     started = time.perf_counter()
@@ -388,6 +395,8 @@ def index_corpus(vsm, corpus_dir: Path, embed_batch: Callable[[list], list], emb
         "other_seconds": round(seconds - embedding["seconds"], 3),
         "files_per_second": round(report["files_indexed"] / seconds, 2) if seconds else None,
         "chunks_per_second": round(report["chunks_embedded"] / seconds, 2) if seconds else None,
+        "index_maintenance": "per insert: the schema migrations built the HNSW and GIN indexes on the empty table, so index_directory's seconds include keeping them",
+        "analyze_seconds": round(analyze_seconds, 3),
         **built,
         "sizes": sizes,
         "unchanged_rerun": {"seconds": round(rerun_seconds, 3), "files_unchanged": rerun["files_unchanged"], "chunks_embedded": rerun["chunks_embedded"], "embed_calls": spent["calls"]},
@@ -434,6 +443,11 @@ def probe(vsm, queries: list[tuple[str, str]], vectors, k: int = SERVED_K) -> di
 
 
 # ---------------------------------------------------------------- the run
+
+
+def migration_files() -> tuple[str, ...]:
+    """The vector table's schema migrations (app/database/migrations/vector/), repository-relative."""
+    return tuple(sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "app" / "database" / "migrations" / "vector").glob("*.sql")))
 
 
 def git_dirty(root: Path) -> bool | None:
@@ -642,12 +656,19 @@ class Run:
                 raise RuntimeError("the corpus written now differs from the one the files stage recorded")
 
     def stage_index(self) -> dict:
+        from app.eval.service import base_environment, migrate
+
         model = self.embed_model()
+        pg = self.postgres()
+        # the deploy step, as on a deployment: the vector table and its indexes are schema migrations, applied before
+        # anything is indexed (no start-up runs DDL); on this fresh database they build the indexes on the empty table
+        migrate_seconds = migrate(base_environment({**self.settings, **pg.env()}), cwd=ROOT, log_path=self.scratch / "migrate.log")
         vsm = self.vsm()
-        if table_exists(vsm) and vsm.count_nodes():  # an interrupted index stage leaves rows: index_directory would resume, and the timing would be partial
+        if vsm.count_nodes():  # an interrupted index stage leaves rows: index_directory would resume, and the timing would be partial
             raise RuntimeError("the database already holds rows; the index stage measures a build from empty: use a fresh --scratch")
         label = str(getattr(model, "model_name", "") or type(model).__name__)  # what app/engine/bootstrap.py passes
-        blob = {"embedder": label, "server": server_facts(vsm), **index_corpus(vsm, self.corpus_dir, model.get_text_embedding_batch, label)}
+        blob = {"embedder": label, "server": server_facts(vsm), "migrate_seconds": round(migrate_seconds, 3), "migrations": applied_migrations(vsm),
+                **index_corpus(vsm, self.corpus_dir, model.get_text_embedding_batch, label)}
         blob["not_indexed"] = not_indexed(self.corpus, self.qrels, set(vsm.ingest_manifest()))
         if self.args.snapshot:
             self.snapshot()
@@ -791,7 +812,10 @@ class Run:
         self.stop_api()
         vectors = self.query_vectors()
         exact = self.done("hnsw")["exact"]
-        out = pgvector_hnsw.variants(self.vsm(), vectors, exact, resample_indices(len(vectors), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED))
+        index = self.done("index")
+        name = index["index_names"]["hnsw"]
+        out = pgvector_hnsw.variants(self.vsm(), vectors, exact, resample_indices(len(vectors), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED), float32_index=name,
+                                     **hnsw_parameters(index["indexes_ddl"][name]))
         log(f"variants: build {out['build_seconds']}, exact unchanged {out['exact_unchanged']}")
         for row in out["rows"]:
             log(f"{row['config']}: recall@50 {row['recall@50']['mean']}, p50 {row['latency'].get('p50_ms')} ms, plan {row.get('plan_node')}")
@@ -874,7 +898,7 @@ def assemble(run: Run) -> dict:
     idx = resample_indices(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED)
     build = stages["index"]
     blob: dict[str, Any] = {
-        "schema": "served-scale-v1",
+        "schema": "served-scale-v2",  # v2: the schema migrations build the table and its indexes before index_directory
         "measurement": "BEIR FiQA indexed by the served indexer into Postgres + pgvector and scored through POST /api/retrieve/, paired with the in-memory BEIR rows on the same queries in the same job",
         **run.identity,
         "n_docs": len(run.corpus), "n_queries": len(run.queries), "full_split": run.full, "query_selection": run.selection,
@@ -933,7 +957,7 @@ def assemble(run: Run) -> dict:
     blob["git_dirty"] = git_dirty(ROOT)
     blob["timestamp"] = datetime.now(timezone.utc).isoformat()
     blob["command"] = run.command
-    blob["source_sha256"] = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in SOURCES}
+    blob["source_sha256"] = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in SOURCES + migration_files()}
     blob["embedder_note"] = "hash embedder, no reranker: a dry run of the machinery, not a measurement" if run.hash else None
     return scrub(blob)
 
@@ -946,23 +970,26 @@ def assemble_hnsw(run: Run) -> dict:
     index, sweep, variants = run.done("index"), run.done("hnsw"), run.done("variants")
     name = index["index_names"]["hnsw"]
     ddl = index["indexes_ddl"][name]
-    param = {key: re.search(rf"{key}='?(\d+)", ddl) for key in ("m", "ef_construction")}
+    param = hnsw_parameters(ddl)
     blob = {
-        "schema": "pgvector-hnsw-v1",
+        "schema": "pgvector-hnsw-v2",  # v2: the served index as the migrations and index_directory build it; C04's DDL is this module's
         "measurement": "pgvector's HNSW index against the exact scan, then halfvec and binary + rescore against float32, on the table the served indexer built from FiQA with bge-small, queried with the served query embedding of every test query",
         "dataset": run.identity["dataset"], "split": run.identity["split"], "files_sha256": run.identity["files_sha256"], "query_selection": run.selection,
         "table": {"rows": index["rows"], "dim": sweep["dim"], "embedder": index["embedder"], "vectors": "the chunk vectors app/engine/ingest.index_directory wrote (the same run as " + RESULTS_FILE + ")",
                   "bytes": index["sizes"]["table_bytes_with_toast"], "avg_embedding_bytes": index["sizes"]["avg_column_bytes"].get("embedding")},
         "queries": {"n": len(run.queries), "embedding": "the served query embedding (LlamaIndex HuggingFaceEmbedding with its query prompt for bge-small)"},
-        "index": {"name": name, "ddl": ddl, "m": int(param["m"].group(1)) if param["m"] else None, "ef_construction": int(param["ef_construction"].group(1)) if param["ef_construction"] else None,
-                  "build_seconds": index["hnsw_seconds"], "bytes": index["sizes"]["indexes"][name]["bytes"], "built_by": "VectorStoreManager.ensure_hnsw (what the API's start-up runs), after every row was inserted"},
+        "index": {"name": name, "ddl": ddl, **param, "bytes": index["sizes"]["indexes"][name]["bytes"],
+                  "built_by": "the schema migrations (app/database/migrations/vector/) on the empty table, then index_directory's inserts, row by row: the served build, which the rows below read",
+                  "reindex_seconds": variants["build_seconds"].get("reindex_float32"),
+                  "reindex_note": "a bulk rebuild (REINDEX) of the same index on the final table, after the variants step's VACUUM; the variants rows read the rebuilt indexes"},
         "server": index["server"],
         "k": sweep["k"], "tie_eps": sweep["tie_eps"],
         "recall_definition": "a returned row counts when its float32 distance is at most the exact k-th distance plus tie_eps; Recall@10 reads the first 10 rows of the same k-row list",
         "latency_definition": "client wall time of each statement (execute and fetch) on one connection, after an untimed pass of the exact scan and of the widest index scan",
         "rows": sweep["rows"],
         "variants": {
-            "what": "VectorStoreManager.ensure_halfvec and ensure_binary on the same table after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); "
+            "what": "a halfvec and a bit copy of the embedding column with their HNSW indexes (app/retrieval/pgvector_tune.py HALFVEC_SQL, BINARY_SQL; the measurement's own DDL on this "
+                    "task-local table, not a schema migration) after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); "
                     "then float32 and halfvec at the same ef_search, and binary candidates rescored by float32 cosine (hnsw.ef_search set to the candidate depth, at most 1000)",
             **{k: v for k, v in variants.items() if k not in {"stage", "finished", "git_sha", "stage_seconds"}},
             "served": "the served statement reads only the float32 column (app/database/sql/hybrid_tsrank.sql)",
@@ -972,7 +999,8 @@ def assemble_hnsw(run: Run) -> dict:
         **stage_machines({s: run.done(s) for s in HNSW_STAGES}),
         "stage_git_sha": {s: run.done(s).get("git_sha") for s in HNSW_STAGES},
         "git_sha": git_sha(ROOT), "git_dirty": git_dirty(ROOT), "timestamp": datetime.now(timezone.utc).isoformat(), "command": run.command,
-        "source_sha256": {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in ("app/eval/pgvector_hnsw.py", "app/eval/served_scale.py", "app/database/vector_store_manager.py", "app/database/sql/hybrid_tsrank.sql")},
+        "source_sha256": {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in ("app/eval/pgvector_hnsw.py", "app/eval/served_scale.py", "app/database/vector_store_manager.py",
+                                                                                           "app/database/sql/hybrid_tsrank.sql", "app/retrieval/pgvector_tune.py") + migration_files()},
     }
     return scrub(blob)
 

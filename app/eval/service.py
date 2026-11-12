@@ -195,6 +195,22 @@ class ApiServer:
         self.stop()
 
 
+def migrate(env: Mapping[str, str], *, cwd: Path, log_path: Path | None = None, python: str | None = None) -> float:
+    """The deploy step, `python -m app.database.migrate`, against the database `env` names (PG_CONNECTION_STRING;
+    the vector table from PGVECTOR_SCHEMA, PGVECTOR_TABLE and EMBEDDING_DIM). It creates the vector table and its
+    indexes; the API runs no DDL and refuses to start while a migration is pending. Returns its wall seconds;
+    raises CalledProcessError when it fails."""
+    command = [python or sys.executable, "-m", "app.database.migrate"]
+    started = time.monotonic()
+    if log_path is None:
+        subprocess.run(command, cwd=cwd, env=dict(env), check=True)
+    else:
+        Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+        with Path(log_path).open("a") as log:
+            subprocess.run(command, cwd=cwd, env=dict(env), check=True, stdout=log, stderr=subprocess.STDOUT)
+    return time.monotonic() - started
+
+
 def base_environment(extra: Mapping[str, str] | None = None) -> dict[str, str]:
     """The caller's environment without the variables a measured API must not inherit from a shell."""
     env = {k: v for k, v in os.environ.items() if k not in {"FRONTEND_ENDPOINT", "PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "INDEX_ON_START"}}

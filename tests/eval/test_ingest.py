@@ -1,5 +1,6 @@
 """Pure ingestion logic: scan gates, content-hash diff, accounting, rejection limit. No database."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from app.eval.ingest import (
     file_chunks,
     plan_and_report,
     plan_ingest,
+    row_mismatches,
     scan_directory,
 )
 from app.eval.reindex import files_to_remove, sha256_file
@@ -24,6 +26,9 @@ from app.retrieval.hybrid import chunk_id_for
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "bench" / "corpus" / "files"
+# sha256 of fixture v1's chunks (id, path, byte range, kind, searched text, cited text) as the chunker of
+# bench/results/main.json cuts them, computed at fe666cb. A chunker change that moves a fixture chunk fails here.
+FIXTURE_CHUNKS_SHA256 = "c49edb286b982303b8fb5fdeead02ab3c6bfd9c75fea5a95881d8f8972eeaad3"
 
 
 def _messy_corpus(root: Path) -> None:
@@ -88,7 +93,9 @@ def test_report_accounts_for_every_file_and_the_limit_fails_the_run(tmp_path):
 
     assert report["files_seen"] == report["files_indexed"] + report["files_unchanged"] + report["files_rejected"] == 8
     assert (report["files_indexed"], report["files_unchanged"], report["files_removed"], report["files_rejected"]) == (1, 1, 1, 6)
-    assert report["rejected_by_reason"] == {"unsupported_type": 1, "too_large": 1, "undecodable": 1, "empty": 2, "duplicate_content": 1}
+    assert report["rejected_by_reason"] == {
+        "outside_root": 0, "unsupported_type": 1, "too_large": 1, "undecodable": 1, "empty": 2, "duplicate_content": 1,
+    }
     assert plan.removed == ["deleted.md"]
     with pytest.raises(IngestRejected) as refused:
         plan_and_report(scan, manifest, max_rejected=5)
@@ -106,16 +113,79 @@ def test_a_file_that_stops_being_accepted_is_removed_from_the_index(tmp_path):
     assert plan.removed == ["a.md"] and report["rejected_by_reason"]["undecodable"] == 1
 
 
+def test_row_mismatches_compares_rows_per_path_with_the_manifest_chunk_counts():
+    listed = {"a.yaml": 1, "b.csv": 9, "c.md": 2, "no_chunks.md": 0}
+    rows = {"a.yaml": 2, "b.csv": 8, "c.md": 2, "unlisted.out": 3}
+
+    assert row_mismatches(listed, rows) == [
+        {"path": "a.yaml", "manifest_chunks": 1, "rows": 2},
+        {"path": "b.csv", "manifest_chunks": 9, "rows": 8},
+        {"path": "unlisted.out", "manifest_chunks": 0, "rows": 3},
+    ]
+    assert row_mismatches(listed, {"a.yaml": 1, "b.csv": 9, "c.md": 2}) == []  # a path missing on one side counts as 0 there
+
+
 def test_bench_loader_counts_the_file_it_used_to_skip_silently(tmp_path):
     _messy_corpus(tmp_path)
 
     chunks, report = load_chunks_with_report(tmp_path)
 
     assert BENCH_POLICY == IngestPolicy()  # the benchmark keeps accepting every decodable, non-empty file
-    assert report["rejected_by_reason"] == {"unsupported_type": 0, "too_large": 0, "undecodable": 1, "empty": 2, "duplicate_content": 0}
+    assert report["rejected_by_reason"] == {
+        "outside_root": 0, "unsupported_type": 0, "too_large": 0, "undecodable": 1, "empty": 2, "duplicate_content": 0,
+    }
     assert report["files_seen"] == 8 and report["files_indexed"] == 5 and report["chunks_embedded"] == len(chunks)
     assert "broken.out" not in {c.path for c in chunks}
     assert build_index(tmp_path, embedder_name="hash", enable_rerank=False).ingest_report == report
+
+
+def _root_with_links_out_of_it(tmp_path: Path) -> Path:
+    """One plain file, links whose real path leaves the scanned tree, and a link that stays inside it."""
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    (outside / "dir").mkdir(parents=True)
+    (root / ".git").mkdir(parents=True)
+    (root / "notes.md").write_text("# Notes\nfusion helps\n")
+    (outside / "secret.txt").write_text("operator secret zqxjfilemarker\n")
+    (outside / "weights.ckpt").write_bytes(b"zqxjckptmarker")
+    (outside / "dir" / "log.out").write_text("outside directory zqxjdirmarker\n")
+    (root / ".git" / "config").write_text("[remote] url = https://zqxjgitmarker@example.invalid/repo\n")
+    (root / "link.txt").symlink_to(outside / "secret.txt")
+    (root / "link.ckpt").symlink_to(outside / "weights.ckpt")  # confinement is the first gate, before the type
+    (root / "linkdir").symlink_to(outside / "dir", target_is_directory=True)  # a directory link is not walked
+    (root / "gitconfig.txt").symlink_to(root / ".git" / "config")  # inside the root, but in a directory the scan skips
+    (root / "notes_alias.md").symlink_to(root / "notes.md")  # stays inside the scanned tree: read like any file
+    return root
+
+
+def test_a_symlink_out_of_the_root_is_rejected_as_outside_root_and_its_text_is_in_no_chunk(tmp_path):
+    root = _root_with_links_out_of_it(tmp_path)
+    outside = {"gitconfig.txt": "outside_root", "link.ckpt": "outside_root", "link.txt": "outside_root"}
+
+    bench, served = scan_directory(root, BENCH_POLICY), scan_directory(root, SERVED_POLICY)
+
+    assert [f.path for f in bench.files] == ["notes.md", "notes_alias.md"]
+    assert {row["path"]: row["reason"] for row in bench.rejected} == outside
+    assert [f.path for f in served.files] == ["notes.md"]
+    assert {row["path"]: row["reason"] for row in served.rejected} == {**outside, "notes_alias.md": "duplicate_content"}
+    assert REJECT_REASONS[0] == "outside_root" and bench.seen == served.seen == 5  # the directory link is never walked
+    chunks, report = load_chunks_with_report(root)
+    served_chunks = [piece for source in served.files for piece in file_chunks(source.path, source.text)]
+    assert chunks and served_chunks
+    assert not [c for c in chunks if "zqxj" in c.text or "zqxj" in c.metadata["evidence_raw"]]
+    assert not [piece for piece in served_chunks if "zqxj" in piece.text or "zqxj" in piece.raw]
+    assert report["rejected_by_reason"]["outside_root"] == 3 and report["files_seen"] == report["files_indexed"] + 3
+    assert {row["path"] for row in report["rejected_sample"]} == set(outside)  # the link's own path, never its target
+
+
+def test_a_root_reached_through_a_symlinked_prefix_is_scanned_normally(tmp_path):
+    real = tmp_path / "real"
+    (real / "configs").mkdir(parents=True)
+    (real / "configs" / "run_001.yaml").write_text("run_id: 1\n")
+    (tmp_path / "via").symlink_to(real, target_is_directory=True)
+
+    scan = scan_directory(tmp_path / "via", SERVED_POLICY)
+
+    assert [f.path for f in scan.files] == ["configs/run_001.yaml"] and scan.rejected == []
 
 
 def _chunks_as_loaded_before_m8(root: Path) -> list[tuple]:
@@ -141,6 +211,13 @@ def test_fixture_chunks_are_the_ones_the_recorded_benchmark_used():
     assert {row["n_chunks"] for row in recorded["results"]} == {len(chunks)}
     assert (report["files_seen"], report["files_indexed"], report["files_rejected"]) == (recorded["n_files"], recorded["n_files"], 0)
     assert [c.chunk_id for c in load_chunks(FIXTURE)] == [c[0] for c in got]
+
+
+def test_fixture_chunks_match_the_digest_pinned_from_the_recorded_benchmark():
+    """Independent of the live chunker: the reference loader above calls the same chunk_text."""
+    rows = [[c.chunk_id, c.path, c.start_byte, c.end_byte, c.metadata["kind"], c.text, c.metadata["evidence_raw"]]
+            for c in load_chunks(FIXTURE)]
+    assert hashlib.sha256(json.dumps(rows, ensure_ascii=False).encode("utf-8")).hexdigest() == FIXTURE_CHUNKS_SHA256
 
 
 def test_file_chunks_addresses_bytes_and_keeps_the_searched_text():

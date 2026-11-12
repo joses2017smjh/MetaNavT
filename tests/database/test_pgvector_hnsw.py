@@ -1,7 +1,7 @@
 """HNSW against the exact scan on a live table (app/eval/pgvector_hnsw.py; PG_TEST_DSN, skipped otherwise).
 
-A scratch table of generated rows with hash vectors, created through PGVectorStore (the served schema)
-with the HNSW index start-up creates. The sweep must read the plans it claims (a sequential scan for
+A scratch table of generated rows with hash vectors in the served schema: the schema migrations create the
+table and its HNSW index first, as the deploy step does, and the rows are inserted after. The sweep must read the plans it claims (a sequential scan for
 the exact rows, the HNSW index for the others), an index scan with iterative scan off must stop at
 ef_search rows, and a wide ef_search must find the exact neighbours of a table this small.
 """
@@ -26,11 +26,13 @@ def table():
     os.environ.update(PG_CONNECTION_STRING=dsn, PSYCOPG2_CONNECTION_STRING=dsn, PGVECTOR_TABLE="hnswtest_" + uuid.uuid4().hex[:8], EMBEDDING_DIM=str(DIM))
     from psycopg2.extras import execute_values
 
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
     from app.retrieval.embedders import HashEmbedder
 
     vsm = VectorStoreManager(conn_string=dsn)
-    vsm.get_vector_store()
+    with vsm.get_connection() as conn:
+        migrate_all(conn, vsm.vector_table)
     rng = random.Random(7)
     words = [f"w{i}" for i in range(400)]
     docs = [" ".join(rng.choice(words) for _ in range(rng.randint(5, 30))) for _ in range(ROWS)]
@@ -41,15 +43,13 @@ def table():
             execute_values(cur, f'INSERT INTO "{vsm.schema_name}"."{vsm.data_table}" (text, metadata_, node_id, embedding) VALUES %s',
                            [(d, json.dumps({"path": f"g/{i}.txt"}), f"n{i:05d}", vsm.vector_literal(v)) for i, (d, v) in enumerate(zip(docs, vectors))],
                            template="(%s, %s::json, %s, %s::vector)")
-    assert vsm.ensure_hnsw() and vsm.ensure_text_index()
     with vsm.get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(f'ANALYZE "{vsm.schema_name}"."{vsm.data_table}";')
     queries = emb.encode([" ".join(rng.choice(words) for _ in range(6)) for _ in range(12)])
     yield vsm, queries
     with vsm.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
+        drop_vector_table(conn, vsm.vector_table)
     vsm.close()
     for k, v in saved.items():
         if v is None:
@@ -60,10 +60,11 @@ def table():
 
 def test_sweep_reads_the_plans_it_names_and_ef_search_bounds_the_scan(table):
     from app.eval import pgvector_hnsw as hnsw
+    from app.eval.served_scale import served_indexes
     from app.eval.stats import resample_indices
 
     vsm, queries = table
-    index = f"{vsm.table_name}_embedding_hnsw"
+    index = served_indexes(vsm)["index_names"]["hnsw"]  # the migration's index, found in the catalog
     out = hnsw.hnsw_sweep(vsm, queries, resample_indices(len(queries), n_boot=100, seed=0), hnsw_index=index, ef_values=(10, 400))
     rows = {r["config"]: r for r in out["rows"]}
     assert "Seq Scan" in rows["exact"]["plan_node"]

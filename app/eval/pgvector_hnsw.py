@@ -13,13 +13,19 @@ Results: bench/results/pgvector_hnsw.json.
             (VectorStoreManager.settings_sql: ef_search twice the depth, iterative scan, read 2k keep k),
             planned freely: what the served statement reads
 
-variants   (last: it rewrites the table) VectorStoreManager.ensure_halfvec and ensure_binary add a halfvec
-           and a bit copy of the embedding column, each with an HNSW index; VACUUM (ANALYZE) then clears the
-           old row versions the rewrite left in every index, and the three HNSW indexes are rebuilt (REINDEX,
-           timed) so they are built the same way on the same rows. Then, on that one table: the exact scan
-           again (it must find the same rows), float32 and halfvec at the same ef_search values, and binary
-           candidates read from the bit index (hnsw.ef_search set to the candidate depth, so the index does
-           not cut the list short) and rescored by float32 cosine. The served statement reads none of them.
+variants   (last: it rewrites the table) a halfvec and a bit copy of the embedding column, each with an HNSW
+           index, added with app/retrieval/pgvector_tune.py's HALFVEC_SQL and BINARY_SQL to the run's own
+           task-local table: this DDL belongs to the measurement, not to a schema migration, and the served
+           statement reads neither copy. VACUUM (ANALYZE) then clears the old row versions the rewrite left in
+           every index, and the three HNSW indexes are rebuilt (REINDEX, timed: the float32 one is the bulk
+           build time of the served index) so they are built the same way on the same rows. Then, on that one
+           table: the exact scan again (it must find the same rows), float32 and halfvec at the same ef_search
+           values, and binary candidates read from the bit index (hnsw.ef_search set to the candidate depth, so
+           the index does not cut the list short) and rescored by float32 cosine.
+
+The hnsw rows read the served index as a deployment builds it: the schema migrations create it on the empty
+table (app/database/migrations/vector/), and index_directory's inserts grow it row by row. The variants rows
+read indexes rebuilt in bulk (REINDEX). Index names come from the catalog (find_index), not from the code.
 
 Every configuration's plan is read once (EXPLAIN, same settings) and must use the scan it is named for, so an
 "hnsw" row can never be the exact scan in disguise. Recall@k: a returned row counts when its float32 distance
@@ -42,6 +48,14 @@ K = 50
 EF_SEARCH_VALUES = (40, 64, 100, 200, 400, 1000)  # 40 is pgvector's default; 1000 its maximum
 TIE_EPS = 1e-6
 _SCAN = re.compile(r"(Parallel Seq Scan|Seq Scan|Index Scan|Index Only Scan|Bitmap Heap Scan)(?: using (\S+))? on (\S+)")
+
+
+def find_index(ddl: dict[str, str], method: str, column: str) -> str:
+    """The one index in `ddl` (pg_indexes: name -> definition) that is `USING <method> (<column> ...)`."""
+    found = sorted(name for name, definition in ddl.items() if re.search(rf"USING {re.escape(method)} \({re.escape(column)}[ )]", definition))
+    if len(found) != 1:
+        raise RuntimeError(f"expected one {method} index on {column}, found {found} in {sorted(ddl)}")
+    return found[0]
 
 
 def literal(vector: Iterable[float]) -> str:
@@ -227,18 +241,34 @@ VARIANT_EF_VALUES = (100, 1000)  # the served setting for k = 50 (2k) and pgvect
 CANDIDATES = (50, 100, 200, 400, 1000)  # binary candidates per query before the float32 rescoring
 
 
-def variants(vsm, vectors, exact, idx, *, ef_values: Sequence[int] = VARIANT_EF_VALUES, candidates: Sequence[int] = CANDIDATES, k: int = K) -> dict:
-    """float32, halfvec and binary + rescore on one table state (see the module docstring); `exact` from hnsw_sweep."""
-    from app.eval.served_scale import table_sizes
+def add_copies(vsm, *, m: int, ef_construction: int) -> dict[str, float]:
+    """The halfvec and the bit copy of the embedding column with their HNSW indexes, on the run's task-local table:
+    app/retrieval/pgvector_tune.py's HALFVEC_SQL (m and ef_construction as the float32 index has them) and
+    BINARY_SQL (pgvector's defaults). Each fills its column for every row, so each rewrites the table. Seconds each."""
+    from app.retrieval.pgvector_tune import BINARY_SQL, HALFVEC_SQL
 
-    names = {"float32": f"{vsm.table_name}_embedding_hnsw", "halfvec": f"{vsm.table_name}_embedding_half_hnsw", "binary": f"{vsm.table_name}_embedding_bit_hnsw"}
-    seconds: dict[str, float] = {}
-    sizes_before = table_sizes(vsm)
-    for name, ensure in (("ensure_halfvec", vsm.ensure_halfvec), ("ensure_binary", vsm.ensure_binary)):
+    seconds = {}
+    for name, template in (("add_halfvec", HALFVEC_SQL), ("add_binary", BINARY_SQL)):
+        statement = template.format(schema=vsm.schema_name, table=vsm.data_table, dim=int(vsm.embed_dim), m=int(m), ef_construction=int(ef_construction))
         started = time.perf_counter()
-        if not ensure():  # the helpers log a failure and return False
-            raise RuntimeError(f"{name} failed; see the log")
+        with vsm.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(statement)
+            conn.commit()
         seconds[name] = round(time.perf_counter() - started, 3)
+    return seconds
+
+
+def variants(vsm, vectors, exact, idx, *, float32_index: str, m: int, ef_construction: int, ef_values: Sequence[int] = VARIANT_EF_VALUES,
+             candidates: Sequence[int] = CANDIDATES, k: int = K) -> dict:
+    """float32, halfvec and binary + rescore on one table state (see the module docstring); `exact` from hnsw_sweep,
+    `float32_index` the served HNSW index (from the catalog), m and ef_construction its parameters."""
+    from app.eval.served_scale import index_ddl, table_sizes
+
+    sizes_before = table_sizes(vsm)
+    seconds = add_copies(vsm, m=m, ef_construction=ef_construction)
+    ddl = index_ddl(vsm)
+    names = {"float32": float32_index, "halfvec": find_index(ddl, "hnsw", "embedding_half"), "binary": find_index(ddl, "hnsw", "embedding_bit")}
     session = Session(vsm)
     try:
         with session.conn.cursor() as cur:
@@ -277,4 +307,5 @@ def variants(vsm, vectors, exact, idx, *, ef_values: Sequence[int] = VARIANT_EF_
                          "plan_node": node, "settings": settings})
     finally:
         session.close()
-    return {"k": k, "indexes": names, "build_seconds": seconds, "sizes_before": sizes_before, "sizes_after": sizes_after, "exact_unchanged": unchanged, "rows": rows}
+    return {"k": k, "indexes": names, "indexes_ddl": {n: ddl[n] for n in names.values()}, "build_seconds": seconds, "sizes_before": sizes_before, "sizes_after": sizes_after,
+            "exact_unchanged": unchanged, "rows": rows}

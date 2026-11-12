@@ -32,6 +32,7 @@ def served_api(monkeypatch):
     from llama_index.core.schema import TextNode
 
     from app.database import vector_store
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
     from app.engine.bootstrap import RetrievalState
     from app.engine.embeddings import HashEmbedding
@@ -43,11 +44,12 @@ def served_api(monkeypatch):
     monkeypatch.setenv("PGVECTOR_TABLE", "timeouttest_" + uuid.uuid4().hex[:8])
     monkeypatch.setenv("EMBEDDING_DIM", "256")
     vsm = VectorStoreManager(conn_string=dsn)
+    with vsm.get_connection() as conn:
+        migrate_all(conn, vsm.vector_table)
     embed = HashEmbedding(256)
     vsm.get_vector_store().add(
         [TextNode(id_=nid, text=text, embedding=embed.get_text_embedding(text), metadata={"path": f"{nid}.txt"}) for nid, text in DOCS.items()]
     )
-    vsm.ensure_text_index()
     retriever = HybridRetriever(None, vsm, reranker=None, enable_router=False, mode="sql", embed_fn=embed.get_query_embedding)
 
     # Start-up against a closed port records an error and builds nothing; the state is ours.
@@ -66,8 +68,7 @@ def served_api(monkeypatch):
         client.app.state.retrieval = None
     vector_store.get_vector_store_manager.cache_clear()
     with vsm.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
+        drop_vector_table(conn, vsm.vector_table)
     vsm.close()
 
 

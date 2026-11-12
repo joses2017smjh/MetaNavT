@@ -5,7 +5,8 @@ the service or alter the existing database. All servers terminate on exit.
 
 The services come from app/eval/service.py: Postgres runs in the Apptainer image
 with only its own scratch directory bound (--scratch, default a temporary
-directory under TMPDIR), and the connection strings name no user. Everything this
+directory under TMPDIR), and the connection strings name no user. The schema
+migrations run before the API starts (the deploy step; the API applies none). Everything this
 script writes under --out-dir (http_load.json, setup_failure.json) passes through
 app/eval/provenance.scrub, so it carries no absolute path, user or host name; the
 service logs stay in the scratch directory, which is not published.
@@ -26,7 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.eval.provenance import sanitize_path, scrub  # noqa: E402
-from app.eval.service import ApiServer, TaskPostgres, base_environment  # noqa: E402
+from app.eval.service import ApiServer, TaskPostgres, base_environment, migrate  # noqa: E402
 
 
 def main() -> int:
@@ -42,7 +43,7 @@ def main() -> int:
     parser.add_argument("--rerank-depth", type=int, default=20)
     parser.add_argument("--scratch", type=Path, default=None, help="service data and logs (default: a temporary directory under TMPDIR, removed at exit)")
     args = parser.parse_args()
-    sources = ["main.py", "app/api/routers/retrieve.py", "app/engine/retriever.py", "app/settings.py", "app/eval/http_load.py", "app/eval/service.py", "scripts/revamp_http_service.py"]
+    sources = ["main.py", "app/api/routers/retrieve.py", "app/engine/retriever.py", "app/settings.py", "app/eval/http_load.py", "app/eval/service.py", "app/database/migrate.py", "scripts/revamp_http_service.py"]
     source_sha256 = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sources}
     corpus_identity = hashlib.sha256(json.dumps([(str(p.relative_to(args.data)), hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(args.data.rglob("*")) if p.is_file()], separators=(",", ":")).encode()).hexdigest()
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -54,7 +55,9 @@ def main() -> int:
         api = None
         try:
             postgres.start()
-            api = ApiServer(base_environment({**settings, **postgres.env()}), cwd=ROOT, log_path=scratch / "api.log").start()
+            environment = base_environment({**settings, **postgres.env()})
+            migrate(environment, cwd=ROOT, log_path=scratch / "migrate.log")  # the deploy step: the API refuses pending migrations
+            api = ApiServer(environment, cwd=ROOT, log_path=scratch / "api.log").start()
             health, _ = api.wait_ready(timeout=300)
             startup_seconds = time.monotonic() - started
             from app.eval.http_load import run_load

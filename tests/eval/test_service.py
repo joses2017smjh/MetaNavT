@@ -123,3 +123,42 @@ def test_http_service_script_binds_its_scratch_directory_and_scrubs_its_failure_
     assert str(tmp_path) not in failure and "/usr/lib/postgresql" not in failure
     assert "<path>/initdb" in failure  # the command is still named, as a placeholder path
     assert json.loads(failure)["error"].startswith("CalledProcessError")
+
+
+def test_migrate_runs_the_deploy_step_against_the_given_environment(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda command, **kwargs: calls.append((command, kwargs)) or subprocess.CompletedProcess(command, 0))
+    seconds = service.migrate({"PG_CONNECTION_STRING": "postgresql://127.0.0.1:5/x", "EMBEDDING_DIM": "384"}, cwd=tmp_path, log_path=tmp_path / "logs" / "migrate.log")
+    ((command, kwargs),) = calls
+    assert command[1:] == ["-m", "app.database.migrate"] and kwargs["cwd"] == tmp_path and kwargs["check"] is True
+    assert kwargs["env"] == {"PG_CONNECTION_STRING": "postgresql://127.0.0.1:5/x", "EMBEDDING_DIM": "384"} and seconds >= 0.0
+    assert (tmp_path / "logs" / "migrate.log").exists()
+
+
+def test_http_service_script_applies_the_migrations_before_the_api_starts(tmp_path, monkeypatch):
+    """The deploy step comes first: the API refuses to start while a schema migration is pending."""
+    data = tmp_path / "corpus"
+    data.mkdir()
+    (data / "a.md").write_text("alpha\n")
+    queries = tmp_path / "q.jsonl"
+    queries.write_text(json.dumps({"id": "q1", "question": "alpha?"}) + "\n")
+    order = []
+    monkeypatch.setattr(service.TaskPostgres, "start", lambda self: order.append("postgres") or self)
+    monkeypatch.setattr(service.TaskPostgres, "stop", lambda self: None)
+
+    def fake_migrate(env, *, cwd, log_path=None, python=None):
+        order.append(("migrate", env["PG_CONNECTION_STRING"].startswith("postgresql://127.0.0.1:"), env["EMBEDDING_DIM"], cwd == ROOT))
+        return 0.5
+
+    def fake_api_start(self):
+        order.append("api")
+        raise RuntimeError("stop here")
+
+    module = load_script()
+    monkeypatch.setattr(module, "migrate", fake_migrate)
+    monkeypatch.setattr(module.ApiServer, "start", fake_api_start)
+    monkeypatch.setattr(sys, "argv", ["revamp_http_service.py", "--container", str(tmp_path / "pg.sif"), "--data", str(data), "--queries", str(queries),
+                                      "--out-dir", str(tmp_path / "out"), "--device", "cpu", "--scratch", str(tmp_path / "scratch")])
+    with pytest.raises(RuntimeError, match="stop here"):
+        module.main()
+    assert order == ["postgres", ("migrate", True, "384", True), "api"]

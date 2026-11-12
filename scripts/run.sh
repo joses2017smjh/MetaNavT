@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 
 case $1 in
   "generate")
+    python -m app.database.migrate   # the tables and indexes come from the schema migrations
     python -m app.engine.generate
     ;;
   "dev")

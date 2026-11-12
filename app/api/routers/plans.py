@@ -142,19 +142,18 @@ class DecisionLog:
 
     def __init__(self, vsm):
         self.vsm = vsm
-        self.ensure_table()
+        self.check_schema()
 
-    def ensure_table(self) -> None:
-        """Bring the schema to the newest migration (app/database/migrations/).
+    def check_schema(self) -> None:
+        """Refuse (MigrationsPending) unless the database's schema migrations are all applied.
 
-        This replaces the inline CREATE TABLE IF NOT EXISTS that used to live here:
-        plan_decisions is created by migration 0001, and the runner takes an advisory
-        lock so two replicas starting together do not both run DDL.
+        plan_decisions is created by migration 0001 (app/database/migrations/), which the
+        deploy step applies (`python -m app.database.migrate`); this only reads the ledger.
         """
-        from app.database.migrate import apply_migrations
+        from app.database.migrate import require_current
 
         with self.vsm.get_connection() as conn:
-            apply_migrations(conn)
+            require_current(conn)
 
     def write(self, record: dict[str, Any]) -> None:
         with self.vsm.get_connection() as conn:

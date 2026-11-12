@@ -10,8 +10,9 @@ random text, mostly made-up words with a few domain words, embedded with the has
 embedder. They exist so the planner sees a table of that size; they are not data,
 and the lexical leg's cost on them says nothing about real text.
 
-Either way the table gets the indexes the API's startup creates (GIN on the text,
-HNSW on the embedding) and is ANALYZEd, the query vector comes from the hash
+Either way the table has the indexes the schema migrations build (GIN for the
+lexical list, HNSW on the embedding; the fixture's database must be migrated, as
+the API requires, and the scratch table is built by migrate_all) and is ANALYZEd, the query vector comes from the hash
 embedder (no model), and the statement runs with the per-transaction settings
 hybrid_search applies (VectorStoreManager.search_settings), which the header lists.
 """
@@ -50,15 +51,15 @@ def synthetic_documents(n: int, seed: int = 0) -> list[str]:
 
 
 def load_synthetic(vsm, n: int, dim: int) -> None:
-    """Create the scratch table through PGVectorStore (the served schema) and insert n generated rows."""
+    """Build the scratch table with the schema migrations (the served schema) and insert n generated rows."""
     from psycopg2.extras import execute_values
 
+    from app.database.migrate import drop_vector_table, migrate_all
     from app.retrieval.embedders import HashEmbedder
 
     with vsm.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
-    vsm.get_vector_store()  # creates data_<table> with the columns and indexes LlamaIndex gives it
+        drop_vector_table(conn, vsm.vector_table)
+        migrate_all(conn, vsm.vector_table)  # the data table with every index the served table has
     docs = synthetic_documents(n)
     vectors = HashEmbedder(dim).encode(docs)
     rows = [
@@ -103,8 +104,7 @@ def main() -> int:
         load_synthetic(vsm, args.synthetic_rows, dim)
     n = vsm.count_nodes()
     qvec = HashEmbedder(dim).encode([args.query])[0].tolist()
-    vsm.ensure_text_index()
-    vsm.ensure_hnsw()
+    vsm.check_migrations()  # the indexes are the migrations' (make migrate), as the API requires
     try:
         with vsm.get_connection() as conn:
             with conn.cursor() as cur:
@@ -120,9 +120,10 @@ def main() -> int:
         settings = vsm.search_settings(args.k)
     finally:
         if args.synthetic_rows:
+            from app.database.migrate import drop_vector_table
+
             with vsm.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
+                drop_vector_table(conn, vsm.vector_table)
     pgvector = ".".join(str(part) for part in vsm.pgvector_version or ()) or "?"
     rows_note = (
         f"{n} SYNTHETIC rows: seeded generated text (scripts/explain_hybrid.py synthetic_documents), hash-embedded; not data"
