@@ -11,14 +11,19 @@ where there is no Docker. The server's data directory, its socket and its log st
 chooses (node-local scratch in a job). Apptainer gets exactly that directory, resolved, as its only
 bind: no path is written into the code. The connection strings name no user: libpq (and asyncpg)
 default to the account that ran initdb, so neither the environment nor a results file needs the
-user name. Nothing here is published; a caller that records a value from it passes it through
-app/eval/provenance.scrub first.
+user name. Every connection needs a password (scram-sha-256): a GPU node is shared, and with the trust
+authentication this used to set, any account on it could connect to the loopback port as the superuser.
+The password is random, one per data directory, kept in a file inside it (initdb makes the directory 0700,
+so a restored snapshot still opens), and reaches clients only through PGPASSWORD in env(): no connection
+string and no command line carries it. Nothing here is published; a caller that records a value from it
+passes it through app/eval/provenance.scrub first.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -30,6 +35,7 @@ from typing import Mapping, Sequence
 
 POSTGRES_BIN = "/usr/lib/postgresql/16/bin"  # inside the pgvector/pgvector:pg16 image (and its Apptainer build)
 DATABASE = "metanavit"
+PASSWORD_FILE = "task_password"  # inside the data directory: the superuser's password, written when initdb creates it
 
 
 def free_port() -> int:
@@ -51,8 +57,10 @@ def apptainer_exec(container: Path, binds: Sequence[Path]) -> list[str]:
 class TaskPostgres:
     """PostgreSQL with pgvector in an Apptainer image, data and socket under `root`, listening on 127.0.0.1.
 
-    A data directory that already exists under root (a restored snapshot) is started as it is;
-    otherwise initdb creates it (UTF-8, no locale, trust authentication on the loopback only).
+    A data directory that already exists under root (a restored snapshot) is started as it is, with the
+    password stored in it; otherwise initdb creates it (UTF-8, no locale, scram-sha-256 for every connection,
+    a random superuser password of its own). A data directory without the file (made before passwords were
+    set here) still uses trust authentication, and env() then names no password.
     """
 
     def __init__(self, container: Path, root: Path, *, port: int | None = None, database: str = DATABASE, ready_timeout: float = 60.0):
@@ -66,6 +74,7 @@ class TaskPostgres:
         self.log_path = self.root / "postgres.log"
         self.process: subprocess.Popen | None = None
         self.initialized = False
+        self.password: str | None = None
 
     def command(self, program: str, *args: str) -> list[str]:
         """One server program run inside the image, which sees only `root`."""
@@ -80,16 +89,49 @@ class TaskPostgres:
         return f"dbname={self.database} host=127.0.0.1 port={self.port}"
 
     def env(self) -> dict[str, str]:
-        """The variables the API and VectorStoreManager read their connection from."""
-        return {"PG_CONNECTION_STRING": self.dsn, "PSYCOPG2_CONNECTION_STRING": self.keyword_dsn}
+        """The variables the API and VectorStoreManager read their connection from; PGPASSWORD is read by libpq (psycopg2)
+        and asyncpg alike, so the connection strings stay without it."""
+        env = {"PG_CONNECTION_STRING": self.dsn, "PSYCOPG2_CONNECTION_STRING": self.keyword_dsn}
+        if self.password:
+            env["PGPASSWORD"] = self.password
+        return env
+
+    def client_environment(self) -> dict[str, str]:
+        """The environment of a client program run inside the image: --cleanenv passes only APPTAINERENV_ variables."""
+        env = dict(os.environ)
+        if self.password:
+            env["APPTAINERENV_PGPASSWORD"] = self.password
+        return env
+
+    def initdb(self, log) -> None:
+        """A new data directory whose every connection needs the superuser's password, a random one written to a file
+        (0600) that initdb reads and that then moves into the data directory."""
+        password = secrets.token_urlsafe(32)
+        pwfile = self.root / "initdb.pw"
+        descriptor = os.open(pwfile, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w") as out:
+            out.write(password + "\n")
+        try:
+            subprocess.run(self.command("initdb", "-D", str(self.data), "--auth=scram-sha-256", f"--pwfile={pwfile}", "--no-locale", "--encoding=UTF8"),
+                           stdout=log, stderr=subprocess.STDOUT, check=True)
+            os.replace(pwfile, self.data / PASSWORD_FILE)
+        finally:
+            pwfile.unlink(missing_ok=True)
+        self.password = password
 
     def start(self) -> "TaskPostgres":
         self.root.mkdir(parents=True, exist_ok=True)
         self.socket_dir.mkdir(exist_ok=True)
         with self.log_path.open("a") as log:
             if not self.data.exists():
-                subprocess.run(self.command("initdb", "-D", str(self.data), "--auth=trust", "--no-locale", "--encoding=UTF8"), stdout=log, stderr=subprocess.STDOUT, check=True)
+                self.initdb(log)
                 self.initialized = True
+            else:
+                # A restored snapshot: tarfile's data filter ignores a directory's stored mode, so the directory took the umask
+                # (and a parent's setgid bit), and postgres refuses a data directory with group write or other access.
+                self.data.chmod(0o700)
+                stored = self.data / PASSWORD_FILE
+                self.password = stored.read_text().strip() if stored.exists() else None
             self.process = subprocess.Popen(self.command("postgres", "-D", str(self.data), "-h", "127.0.0.1", "-p", str(self.port), "-k", str(self.socket_dir)), stdout=log, stderr=subprocess.STDOUT)
         deadline = time.monotonic() + self.ready_timeout
         while True:
@@ -102,7 +144,7 @@ class TaskPostgres:
                 raise RuntimeError(f"task-local PostgreSQL not ready after {self.ready_timeout:g} s")
             time.sleep(0.5)
         if self.initialized:
-            subprocess.run(self.command("createdb", "-h", "127.0.0.1", "-p", str(self.port), self.database), check=True)
+            subprocess.run(self.command("createdb", "-h", "127.0.0.1", "-p", str(self.port), self.database), check=True, env=self.client_environment())
         return self
 
     def stop(self) -> None:

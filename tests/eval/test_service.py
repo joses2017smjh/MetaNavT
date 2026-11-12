@@ -91,6 +91,74 @@ def test_task_postgres_starts_once_initialised_and_stops(tmp_path, monkeypatch):
     assert [Path(c[6]).name for _, c in calls] == ["postgres", "pg_isready", "pg_ctl"]
 
 
+class FakePostgresProcess:
+    def __init__(self, command, **kwargs):
+        self.returncode = None
+
+    def poll(self):
+        return self.returncode
+
+    def terminate(self):
+        self.returncode = 0
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+
+def test_task_postgres_needs_a_password_of_its_own_that_no_command_line_carries(tmp_path, monkeypatch):
+    """initdb used to set trust authentication: anyone on a shared node could connect to 127.0.0.1:<port> as the superuser."""
+    import stat
+
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        if command[6].endswith("/initdb"):
+            pwfile = Path(next(a for a in command if a.startswith("--pwfile=")).split("=", 1)[1])
+            assert stat.S_IMODE(pwfile.stat().st_mode) == 0o600
+            calls.append(("password given to initdb", pwfile.read_text().strip()))
+            Path(command[8]).mkdir(parents=True)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(service.subprocess, "run", fake_run)
+    monkeypatch.setattr(service.subprocess, "Popen", FakePostgresProcess)
+    pg = service.TaskPostgres(Path("/images/pgvector.sif"), tmp_path / "pg", port=5555)
+    with pg:
+        password = pg.env()["PGPASSWORD"]
+    assert len(password) >= 32 and ("password given to initdb", password) in calls
+    commands = [c for c in calls if isinstance(c[0], list)]
+    initdb = next(c for c, _ in commands if c[6].endswith("/initdb"))
+    assert "--auth=scram-sha-256" in initdb and not any("trust" in a for a in initdb)
+    assert all(password not in " ".join(c) for c, _ in commands)  # never on a command line (ps shows those to every user)
+    assert password not in pg.env()["PG_CONNECTION_STRING"] and password not in pg.env()["PSYCOPG2_CONNECTION_STRING"]
+    createdb = next(kw for c, kw in commands if c[6].endswith("/createdb"))
+    assert createdb["env"]["APPTAINERENV_PGPASSWORD"] == password  # --cleanenv passes only APPTAINERENV_ variables
+    # the password lives inside the data directory (initdb makes it 0700), so a restored snapshot still opens
+    stored = tmp_path / "pg" / "pgdata" / service.PASSWORD_FILE
+    assert stored.read_text().strip() == password and stat.S_IMODE(stored.stat().st_mode) == 0o600
+    assert not (tmp_path / "pg" / "initdb.pw").exists()
+    with service.TaskPostgres(Path("/images/pgvector.sif"), tmp_path / "pg", port=5556) as again:  # existing data: no initdb
+        assert again.env()["PGPASSWORD"] == password
+    other = service.TaskPostgres(Path("/images/pgvector.sif"), tmp_path / "other", port=5557)
+    with other:
+        assert other.env()["PGPASSWORD"] != password  # one password per data directory
+
+
+def test_a_restored_data_directory_is_made_private_again(tmp_path, monkeypatch):
+    """tarfile's data filter ignores a directory's stored mode: the restored data directory took the umask and the parent's
+    setgid bit (2770 on the login node's scratch), and postgres refuses to start on a directory with group write access."""
+    import stat
+
+    monkeypatch.setattr(service.subprocess, "run", lambda command, **kwargs: subprocess.CompletedProcess(command, 0))
+    monkeypatch.setattr(service.subprocess, "Popen", FakePostgresProcess)
+    data = tmp_path / "pg" / "pgdata"
+    data.mkdir(parents=True)
+    data.chmod(0o2770)
+    with service.TaskPostgres(Path("/images/pgvector.sif"), tmp_path / "pg", port=5555) as pg:
+        assert not pg.initialized and pg.password is None  # no password file: a data directory from before passwords were set
+    assert stat.S_IMODE(data.stat().st_mode) == 0o700
+
+
 def test_http_service_script_binds_its_scratch_directory_and_scrubs_its_failure_file(tmp_path, monkeypatch):
     """The script once bound a hard-coded home path into Apptainer and wrote its failure file unsanitized."""
     data = tmp_path / "corpus"

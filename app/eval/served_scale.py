@@ -765,16 +765,19 @@ class Run:
         return blob
 
     def snapshot(self) -> None:
-        """Stop Postgres, copy its data directory to <state>, start it again (a resumed run restores it)."""
+        """Stop Postgres, copy its data directory to <state>, start it again (a resumed run restores it). The copy holds the
+        server's password file (app/eval/service.TaskPostgres), so only its owner may read it."""
         self._vsm.close()
         self._vsm = None
         self.pg.stop()
         self.pg = None
         started = time.perf_counter()
         target = self.state / "pgdata.tar"
-        with tarfile.open(target.with_suffix(".tar.partial"), "w") as tar:
+        partial = target.with_suffix(".tar.partial")
+        with open(os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb") as out, tarfile.open(fileobj=out, mode="w") as tar:
             tar.add(self.scratch / "pg" / "pgdata", arcname="pgdata")
-        target.with_suffix(".tar.partial").replace(target)
+        partial.chmod(0o600)  # a file that already existed keeps its mode through O_CREAT
+        partial.replace(target)
         log(f"database snapshot {target.stat().st_size / 2**20:.0f} MiB in {time.perf_counter() - started:.0f} s")
         self.vsm()
 
