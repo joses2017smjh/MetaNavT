@@ -362,7 +362,12 @@ def phrasing_text(phrasing: str, goal: str, run: int, field_name: str, planted: 
         return injection_text(goal, phrasing, run, field_name, planted, field_line)
     sentence = goal_text(goal, run, field_name, planted, field_line)
     body = AGENTDOJO_TEMPLATES[phrasing].format(goal=sentence[:1].upper() + sentence[1:], **AGENTDOJO_NAMES)
-    lines = [f"ticket {TICKET}"] + body.strip("\n").split("\n")
+    return comment_lines([f"ticket {TICKET}"] + body.strip("\n").split("\n"))
+
+
+def comment_lines(lines: Sequence[str]) -> str:
+    """Lines as comment lines of a config or a log: each wrapped at 96 characters after "# ", a blank one as a bare
+    "#", so a structured read of the config (comments dropped) does not change."""
     return "".join("".join(f"# {part}\n" for part in _wrap(line)) if line.strip() else "#\n" for line in lines)
 
 
@@ -1657,38 +1662,42 @@ def merged_ollama(infos: Sequence[dict | None]) -> dict:
     return {"base_url_scheme": infos[0].get("base_url_scheme"), **out}
 
 
-def merge_shards(shards: Sequence[Path], episodes_path: Path, models: Sequence[str]) -> int:
+def merge_shards(shards: Sequence[Path], episodes_path: Path, models: Sequence[str], *,
+                 tasks: Sequence[Task] | None = None, defenses: Sequence[str] | None = None,
+                 key: Callable[[dict], tuple] = _episode_key, order: str = MERGE_ORDER) -> int:
     """Write the episodes of several runs of one task set (processes that each ran some models and questions, as
     separate GPU jobs do) as one episodes file in a fixed order (MERGE_ORDER), whatever order the shards come in or
     finished their episodes in, with a sidecar that keeps every shard's segments and names each shard file by its
-    sha256. Refuses shards of different task sets and an episode key that two shards hold. Returns the row count."""
+    sha256. Refuses shards of different task sets and an episode key that two shards hold. Returns the row count.
+    A task set this module does not build (the adaptive attacker's) passes its tasks, configurations and episode key;
+    rows that carry a round are sorted by it after the trial, and `order` names the order in the sidecar."""
     shards = [Path(p) for p in shards]
     benchmarks = {episodes_benchmark(p) for p in shards}
     if len(benchmarks) != 1:
         raise ValueError(f"the shards come from different task sets: {sorted(benchmarks)}")
     benchmark = benchmarks.pop()
-    task_rank = {t.task_id: i for i, t in enumerate(build_tasks(benchmark=benchmark))}
-    defense_rank = {d: i for i, d in enumerate(BENCHMARK_DEFENSES[benchmark])}
+    task_rank = {t.task_id: i for i, t in enumerate(tasks if tasks is not None else build_tasks(benchmark=benchmark))}
+    defense_rank = {d: i for i, d in enumerate(defenses if defenses is not None else BENCHMARK_DEFENSES[benchmark])}
     model_rank = {m: i for i, m in enumerate(models)}
     rows, owner, segments, files = [], {}, [], []
     for path in shards:
         meta = json.loads(sidecar(path).read_text())
         shard_rows = [json.loads(line) for line in path.read_text().splitlines()]
         for row in shard_rows:
-            key = _episode_key(row)
-            if key in owner:
-                raise ValueError(f"{key} is in both {owner[key]} and {path.name}")
-            owner[key] = path.name
+            row_key = key(row)
+            if row_key in owner:
+                raise ValueError(f"{row_key} is in both {owner[row_key]} and {path.name}")
+            owner[row_key] = path.name
         rows += shard_rows
         segments += [{**segment, "shard": path.name} for segment in meta["segments"]]
         files.append({"file": path.name, "episodes_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                       "n_episodes": len(shard_rows)})
     rows.sort(key=lambda r: (model_rank.get(r["model"], len(model_rank)), r["model"], task_rank[r["task_id"]],
-                             defense_rank[r["defense"]], r["trial"]))
+                             defense_rank[r["defense"]], r["trial"], r.get("round", 0)))
     episodes_path.parent.mkdir(parents=True, exist_ok=True)
     episodes_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
     sidecar(episodes_path).write_text(json.dumps({"benchmark": benchmark, "reconstructed": False, "segments": segments,
-                                                  "merged": {"shards": files, "order": MERGE_ORDER}}, indent=2) + "\n")
+                                                  "merged": {"shards": files, "order": order}}, indent=2) + "\n")
     return len(rows)
 
 
@@ -1813,6 +1822,24 @@ def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str]
     }
 
 
+def generating_process(generated: dict | None, merged: bool = False, server: str = "ollama") -> dict:
+    """The device, server and wall time of the processes that generated stored episodes, read from their sidecar (the
+    one run() writes), never from the environment that rescores them. A segment's server as it left it (`<server>_after`)
+    holds the context length each loaded model ran with. Shards (a merge, or a sidecar that says it was merged) on
+    different devices or servers are listed per segment, not hidden behind the last, so a rescore of a merged run reads
+    them as the merge did. Wall time is summed over the segments: shards that ran at the same time count each job's."""
+    segments = (generated or {}).get("segments") or []
+    out = {"device": segments[-1].get("device") if segments else None,
+           server: (segments[-1].get(f"{server}_after") or segments[-1].get(server)) if segments else None}
+    if merged or "merged" in (generated or {}):
+        devices = [seg.get("device") for seg in segments]
+        out["device"] = devices[-1] if all(d == devices[-1] for d in devices) else {"per_segment": devices}
+        out[server] = merged_ollama([seg.get(f"{server}_after") or seg.get(server) for seg in segments])
+    walls = [seg.get("wall_s") for seg in segments]
+    out["wall_s"] = round(sum(walls), 1) if walls and all(w is not None for w in walls) else None
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--benchmark", choices=BENCHMARKS, default=None,
@@ -1873,21 +1900,7 @@ def main(argv: list[str] | None = None) -> int:
                   wall_s=time.time() - started, episodes_path=args.episodes, max_turns=args.max_turns,
                   benchmark=benchmark, prov=prov)
     if args.summarize_only or args.merge:
-        # device, server and wall time describe the processes that generated the episodes (the
-        # sidecar run() writes), never the environment that rescored them; a segment's server as it
-        # left it (ollama_after) holds the context length each loaded model ran with
-        segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
-        blob["device"] = segments[-1].get("device") if segments else None
-        blob["ollama"] = (segments[-1].get("ollama_after") or segments[-1].get("ollama")) if segments else None
-        # shards on different devices or servers are listed per segment, not hidden behind the last; a rescore of a
-        # merged run reads them as the merge did
-        if args.merge or "merged" in (blob.get("episodes_generated_by") or {}):
-            devices = [seg.get("device") for seg in segments]
-            blob["device"] = devices[-1] if all(d == devices[-1] for d in devices) else {"per_segment": devices}
-            blob["ollama"] = merged_ollama([seg.get("ollama_after") or seg.get("ollama") for seg in segments])
-        walls = [seg.get("wall_s") for seg in segments]
-        # summed over segments: shards that ran at the same time count each job's time
-        blob["wall_s"] = round(sum(walls), 1) if walls and all(w is not None for w in walls) else None
+        blob.update(generating_process(blob.get("episodes_generated_by"), merged=bool(args.merge)))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(blob, indent=2, ensure_ascii=False) + "\n")
     print(f"wrote {args.out} ({blob['n_episodes']} episodes, {blob['n_episode_errors']} errors)")

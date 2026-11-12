@@ -1124,6 +1124,41 @@ def test_a_merged_run_keeps_one_server_record_only_where_the_shards_agree():
         assert ai.merged_ollama([a, other]) == {"per_segment": [a, other]}
 
 
+def test_shards_of_a_task_set_built_elsewhere_merge_with_their_rounds_in_the_order_given(tmp_path):
+    # The adaptive attacker (agent_injection_adaptive) writes one row per round of a trajectory and builds its tasks
+    # itself: the merge takes the task order, the configurations and the episode key it is given, keeps the rounds of
+    # one trial apart, and sorts them after the trial; a v3 merge (no round) is unchanged
+    tasks = [t for t in ai.build_tasks(benchmark=ai.BENCHMARK_V3) if t.injected and t.style == "direct"][:2]
+
+    def shard(name, keys):
+        path = tmp_path / f"{name}_episodes.jsonl"
+        path.write_text("".join(json.dumps({"model": m, "defense": d, "task_id": t, "trial": k, "round": r}) + "\n"
+                                for m, d, t, k, r in keys))
+        ai.sidecar(path).write_text(json.dumps({"benchmark": "elsewhere", "reconstructed": False,
+                                                "segments": [{"git_head": "x"}]}))
+        return path
+
+    a, b = tasks[0].task_id, tasks[1].task_id
+    shards = [shard("one", [("m", "none", b, 0, 2), ("m", "none", b, 0, 1), ("m", "spotlight", a, 1, 1)]),
+              shard("two", [("m", "none", a, 1, 1), ("m", "none", a, 0, 3), ("m", "none", a, 0, 1)])]
+
+    def key(row):
+        return (*ai._episode_key(row), row["round"])
+
+    out = tmp_path / "merged.jsonl"
+    assert ai.merge_shards(shards, out, ["m"], tasks=tasks, defenses=("none", "spotlight"), key=key,
+                           order="model, task, configuration, trial, round") == 6
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [(r["task_id"], r["defense"], r["trial"], r["round"]) for r in rows] == [
+        (a, "none", 0, 1), (a, "none", 0, 3), (a, "none", 1, 1), (a, "spotlight", 1, 1), (b, "none", 0, 1), (b, "none", 0, 2)]
+    meta = json.loads(ai.sidecar(out).read_text())
+    assert meta["benchmark"] == "elsewhere" and meta["merged"]["order"] == "model, task, configuration, trial, round"
+    # two rounds of one trial are two episodes, so only a repeated round is a duplicate
+    with pytest.raises(ValueError, match="is in both"):
+        ai.merge_shards([shards[0], shard("three", [("m", "none", b, 0, 2)])], tmp_path / "dup.jsonl", ["m"], tasks=tasks,
+                        defenses=("none", "spotlight"), key=key)
+
+
 def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     # The score objects inside the episodes file are the ones written at generation time, by older scoring
     # code; the rescored file next to it must equal rescore() of every stored episode, in file order, and
