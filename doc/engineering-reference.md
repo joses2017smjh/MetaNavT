@@ -1362,7 +1362,8 @@ excludes zero, and more of its hijack episodes reached the planted text there.
 In the third run, with seven phrasings, the stronger model stated the planted
 value under at least one of them for every hijack question and seed in every
 configuration, a rate at its ceiling that cannot separate the configurations;
-per draw, the tool filter lowered its rate, a paired interval below zero, and
+per draw, the tool filter lowered its rate, a paired interval below zero, while
+the planted text also reached fewer of its hijack episodes there, and
 datamarking did not change it measurably. The weaker model's tool-filter
 difference covers zero there. Datamarking lowered the weaker model's
 planted-value rate, but also its benign success and its utility under attack,

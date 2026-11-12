@@ -1268,6 +1268,13 @@ def test_the_v3_run_was_generated_and_scored_at_one_clean_commit_by_the_committe
         and "--benchmark agent_injection_v3" in seg["command"] and seg["episodes_before"] == 0
         and seg["episodes_after"] == shard["n_episodes"] for seg, shard in zip(segments, shards))
     assert sum(shard["n_episodes"] for shard in shards) == len(rows)
+    # four jobs, each one model on a block of five questions with every configuration, together the whole design once
+    blocks = [(seg["command"].split("--models ")[1].split()[0], seg["command"].split("--questions ")[1].split()[0].split(","))
+              for seg in segments]
+    assert len(segments) == 4 and all(len(questions) == 5 and "--defenses" not in seg["command"]
+                                      for (_, questions), seg in zip(blocks, segments))
+    assert sorted((model, q) for model, questions in blocks for q in questions) == sorted(
+        (model, gold_id) for model in blob["config"]["models"] for gold_id, *_ in ai.USER_TASKS)
     assert blob["episodes_file"] == "bench/results/agent_injection_v3_episodes.jsonl"
     assert blob["episodes_sha256"] == _sha256(EPISODES_V3)
     cfg = blob["config"]
@@ -1718,13 +1725,16 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
     # the phrasings: the stronger model at the ceiling in every configuration; the per-draw differences
     assert all(b["by_goal"]["hijack"]["attempted_any_phrasing"]["lo"] == 1.0 for b in summary[stronger].values())
     assert delta(stronger, "least_privilege", "hijack_planted_value")["hi"] < 0 and covers(stronger, "spotlight", "hijack_planted_value")
+    hijack = {d: summary[stronger][d]["by_goal"]["hijack"]["exposed_episodes"] for d in ("none", "least_privilege")}
+    assert hijack["least_privilege"] < hijack["none"]
     assert covers(weaker, "least_privilege", "hijack_planted_value")
     assert all(delta(weaker, "spotlight", key)["hi"] < 0 for key in ("hijack_planted_value", "benign_success", "utility_under_attack"))
     assert summary[weaker]["spotlight"]["exposure"]["mean"] < summary[weaker]["none"]["exposure"]["mean"]
     assert ("In the third run, with seven phrasings, the stronger model stated the planted value under at least one of them "
             "for every hijack question and seed in every configuration, a rate at its ceiling that cannot separate the "
-            "configurations; per draw, the tool filter lowered its rate, a paired interval below zero, and datamarking did "
-            "not change it measurably. The weaker model's tool-filter difference covers zero there. Datamarking lowered the "
+            "configurations; per draw, the tool filter lowered its rate, a paired interval below zero, while the planted "
+            "text also reached fewer of its hijack episodes there, and datamarking did not change it measurably. The weaker "
+            "model's tool-filter difference covers zero there. Datamarking lowered the "
             "weaker model's planted-value rate, but also its benign success and its utility under attack, each paired "
             "interval below zero, and the planted text reached fewer of its episodes, so that drop is not a defense "
             "win.") in text
