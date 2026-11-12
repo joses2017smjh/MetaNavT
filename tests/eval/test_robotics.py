@@ -6,8 +6,12 @@ import pytest
 from app.eval.robotics import confined, evaluate, freeze, group_bootstrap, scalar_questions, verify
 
 
-@pytest.fixture
-def snapshot(tmp_path):
+def _summary(i: int) -> bytes:
+    return json.dumps({"success": bool(i % 2), "steps": 100 + i, "verdict": "PASS", "seed": i}).encode()
+
+
+def _source_repo(tmp_path, extra: dict[str, bytes] | None = None):
+    """A throwaway source repository: twelve campaigns with one summary.json each, plus `extra` files, committed."""
     repo = tmp_path / "source"
     repo.mkdir()
     def git(*args):
@@ -16,15 +20,60 @@ def snapshot(tmp_path):
     git("config", "user.name", "Test fixture")
     git("config", "user.email", "fixture@example.invalid")
     git("remote", "add", "origin", "https://example.invalid/robot.git")
-    for i in range(12):
-        p = repo / "results" / f"campaign-{i}" / "summary.json"
-        p.parent.mkdir(parents=True)
-        p.write_text(json.dumps({"success": bool(i % 2), "steps": 100 + i, "verdict": "PASS", "seed": i}))
+    files = {f"results/campaign-{i}/summary.json": _summary(i) for i in range(12)} | (extra or {})
+    for relative, data in files.items():
+        p = repo / relative
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
     git("add", "results")
     git("commit", "-qm", "fixture")
+    return repo
+
+
+@pytest.fixture
+def snapshot(tmp_path):
     destination = tmp_path / "snapshot"
-    freeze(repo, destination, n_files=12, dev_n=4, test_n=8)
+    freeze(_source_repo(tmp_path), destination, n_files=12, dev_n=4, test_n=8)
     return destination
+
+
+def _frozen_paths(snapshot_dir) -> set[str]:
+    corpus = snapshot_dir / "corpus"
+    return {p.relative_to(corpus).as_posix() for p in corpus.rglob("*") if p.is_file()}
+
+
+def test_freeze_counts_undecodable_duplicate_and_secret_files_by_reason_and_exports_none(tmp_path):
+    rejected = {
+        "results/campaign-1/notes.txt": "café au lait\n".encode("latin-1"),  # not UTF-8
+        "results/campaign-0/summary_copy.json": _summary(0),  # sorts after its twin, so the copy is the one rejected
+        "results/campaign-2/config.yaml": b"run_id: c2\napi_key: abcdefghijklmnop1234\n",
+    }
+    destination = tmp_path / "snapshot"
+    # n_files is the number of eligible files: every accepted file is exported.
+    manifest = freeze(_source_repo(tmp_path, rejected), destination, n_files=12, dev_n=4, test_n=8)
+    assert manifest["rejected"] == {"not_utf8": 1, "duplicate_content": 1, "possible_secret": 1}
+    listed = {row["path"] for row in manifest["files"]}
+    for path in rejected:
+        assert path not in listed
+        assert not (destination / "corpus" / path).exists()
+    assert "results/campaign-0/summary.json" in listed  # the first copy of the duplicated bytes stays
+    assert _frozen_paths(destination) == listed
+    verify(destination)
+
+
+def test_freeze_secret_pattern_misses_other_key_names_and_json_quoted_keys(tmp_path):
+    """Documented limit: the pattern names api_key, access_token and password with `=` or `:` right after the name.
+    A secret under another name, or a JSON key whose closing quote comes before the colon, is exported."""
+    exported = {
+        "results/campaign-3/env.txt": b"secret_key: abcdefghijklmnop1234\n",
+        "results/campaign-4/creds.json": b'{"api_key": "abcdefghijklmnop1234"}',
+    }
+    destination = tmp_path / "snapshot"
+    manifest = freeze(_source_repo(tmp_path, exported), destination, n_files=14, dev_n=4, test_n=8)
+    assert manifest["rejected"] == {}
+    assert set(exported) <= {row["path"] for row in manifest["files"]}
+    for path, data in exported.items():
+        assert (destination / "corpus" / path).read_bytes() == data
 
 
 def test_utf8_evidence_and_nested_collision():
