@@ -136,3 +136,14 @@ def test_the_image_resolves_no_version_range():
     dockerfile = (ROOT / "Dockerfile").read_text()
     assert "print_deps" not in dockerfile
     assert "pip install torch " not in dockerfile and " -c " not in _dependency_step()
+
+
+def test_the_package_is_built_with_the_pinned_setuptools():
+    """`pip install -e .` builds the package in an isolated environment by default, and pip fills that environment from
+    the index with the newest setuptools pyproject.toml's [build-system] allows, at build time and unpinned (seen in the
+    pinned python image: with --no-index that install fails on `setuptools>=68`). With --no-build-isolation the build
+    uses the setuptools requirements/app.txt pins, which every image installs first."""
+    text = (ROOT / "Dockerfile").read_text().replace("\\\n", "")
+    installs = [line.strip() for line in text.splitlines() if line.strip().startswith("RUN ") and " -e ." in line]
+    assert installs == ["RUN pip install --no-deps --no-build-isolation -e ."]
+    assert "setuptools" in check_lock.read_pins(ROOT / "requirements" / "app.txt")

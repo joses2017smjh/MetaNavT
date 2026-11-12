@@ -1701,7 +1701,9 @@ file first and then the package with `--no-deps`
 (`make install-locked` does the same locally). The image installs
 `requirements/app.txt`, then the file of each other extra named in its
 `EXTRAS` build argument (`ml`, `otel`), all with `--no-deps`, and runs
-`pip check`; an extra with no pinned file stops the build.
+`pip check`; an extra with no pinned file stops the build. It then installs the
+package itself with `--no-deps --no-build-isolation`, so the package is built
+with the pinned setuptools rather than one pip fetches for `[build-system]`.
 `requirements/ml.txt` is resolved with PyTorch's CPU wheel index next to PyPI,
 so torch is pinned as its CPU build and the file holds no CUDA package. The
 image's three files also pin setuptools: `llama-index-core` and torch need a

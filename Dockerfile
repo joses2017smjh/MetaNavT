@@ -63,9 +63,11 @@ RUN set -eu; \
     done; \
     pip check
 
-# Source tree, installed in place so bench/ and app/ resolve from /app.
+# Source tree, installed in place so bench/ and app/ resolve from /app. --no-build-isolation: the
+# package is built with the setuptools requirements/app.txt pins, not the newest one pip would
+# otherwise fetch into an isolated build environment for [build-system] in pyproject.toml.
 COPY . .
-RUN pip install --no-deps -e .
+RUN pip install --no-deps --no-build-isolation -e .
 
 COPY --from=frontend /frontend/out /app/static
 
