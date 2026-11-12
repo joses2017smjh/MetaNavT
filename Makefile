@@ -232,7 +232,8 @@ demos: matlab-demo demo-data figures gifs
 
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
-PARITY_OUT ?= bench/results/parity.json
+# Untracked by default; a committed parity file is written by naming it (PARITY_OUT=bench/results/parity_shared_chunker.json).
+PARITY_OUT ?= bench/results/parity_latest.json
 # The in-memory row's named configuration (app/eval/parity.py IN_MEMORY_CONFIGS): CI's hash one by default; the
 # model-backed one is in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first.
 PARITY_CONFIG ?= in_memory:hybrid+router+staleness

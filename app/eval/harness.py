@@ -1145,16 +1145,16 @@ def _parse_args(argv: list[str] | None = None):
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     if args.backend == "api":
-        from app.eval.parity import IN_MEMORY, markdown_table as parity_table, run as parity_run
+        from app.eval.parity import DEFAULT_OUT, IN_MEMORY, markdown_table as parity_table, run as parity_run
 
         blob = parity_run(args.url, in_memory=args.parity_config or IN_MEMORY.name)
-        out = args.out or (project_root() / "bench" / "results" / "parity.json")
+        out = args.out or (project_root() / DEFAULT_OUT)  # untracked; a committed parity file is named with --out
         out = out if out.is_absolute() else project_root() / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
         print(parity_table(blob))
         print(f"wrote {out}")
-        if not blob["api_ok"]:  # a broken API, not the size of the gap
+        if not blob["api_ok"]:  # a broken API, not the size of the gap (the table above lists the problems)
             raise SystemExit(1)
         return
     jury = args.jury or os.environ.get("JUDGE", "").strip().lower() in {"1", "true", "yes"}

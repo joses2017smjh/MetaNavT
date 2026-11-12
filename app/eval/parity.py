@@ -1,7 +1,10 @@
 """Parity: replay the gold questions through POST /api/retrieve/ and score them like the bench.
 
     python -m app.eval.harness --backend api --url http://localhost:8000 \
-        --out bench/results/parity.json [--parity-config NAME]
+        [--out bench/results/parity_latest.json] [--parity-config NAME]
+
+The default output (DEFAULT_OUT, `make parity`'s PARITY_OUT, CI's artifact) is not tracked;
+a committed parity file is written by naming it (PARITY_OUT=bench/results/<file>.json).
 
 Two rows come out of one run:
   in_memory  the bench harness on fixture v1 with a named configuration
@@ -28,7 +31,9 @@ and the paired gap per gold category (on the API row, delta_vs_parent_by_categor
 on fixture v1 the exact_path questions are the router's lexical_path route); the gap
 is a measurement, not a pass/fail gate. The exact check is the dense leg
 (tests/database/test_dense_parity.py). The run fails (exit 1) when the API is
-broken: a request error, a question without an answer, or a question with zero hits.
+broken (api_problems): a request error, which stops the replay (the questions
+after it have no answer), a question without an answer, or a question with zero
+hits. The results file is written either way, so the failure can be read.
 Before it contacts the API it refuses (RuntimeError) a bench/corpus/files that differs
 from bench/corpus/MANIFEST.json (app/eval/corpus.verify_manifest), as the bench does.
 
@@ -57,6 +62,7 @@ import time
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from http.client import HTTPException
 from typing import Any
 from urllib import error, request
 
@@ -82,6 +88,7 @@ IN_MEMORY = BenchConfig(
 IN_MEMORY_NEURAL = replace(RERANK_DEPTH_CONFIGS[-1], name="in_memory:" + RERANK_DEPTH_CONFIGS[-1].name, parent=None)
 IN_MEMORY_CONFIGS = {cfg.name: cfg for cfg in (IN_MEMORY, IN_MEMORY_NEURAL)}
 API_ROW = "api:postgres"
+DEFAULT_OUT = "bench/results/parity_latest.json"  # untracked (.gitignore: bench/results/*.json)
 
 
 def in_memory_config(name: str) -> BenchConfig:
@@ -149,29 +156,45 @@ def wait_for_health(url: str, timeout: float = 180.0) -> dict:
 
 
 def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
-    """Score the API on the gold set; per-query metrics kept for the bootstrap."""
+    """Score the API on the gold set; per-query metrics kept for the bootstrap.
+
+    A request error (no response, an HTTP error status, a body that is not a JSON object) stops the replay: the API is
+    broken, and asking on would only wait out more timeouts. The question and the error are recorded
+    (request_errors); that question and every one after it have no answer (n_answered counts the others), and each
+    keeps an empty row so the per-question scores stay in gold order. api_problems() then fails the run."""
     timer = StageTimer()
     per_query = []
     stage_sums: dict[str, float] = {}
     sample: dict | None = None
     zero_hit: list[str] = []
+    request_errors: list[dict[str, str]] = []
     routes: dict[str, int] = {}
+    answered = 0
     t0 = time.perf_counter()
     for q in gold:
-        t = time.perf_counter()
-        body = post_retrieve(url, q.question, k=k)
-        timer.record("e2e", (time.perf_counter() - t) * 1000.0)
-        route = body.get("route") or "none"  # the router's prediction for this question (none: router off)
-        routes[route] = routes.get(route, 0) + 1
-        for name, ms in (body.get("latency_ms") or {}).items():
-            stage_sums[name] = stage_sums.get(name, 0.0) + float(ms)
-            timer.record(f"server:{name}", float(ms))
-        paths = list(dict.fromkeys(h["path"] for h in body.get("hits", []) if h.get("path")))
-        if not body.get("hits"):
-            zero_hit.append(q.id)
+        paths: list[str] = []
+        if not request_errors:
+            t = time.perf_counter()
+            try:
+                body = post_retrieve(url, q.question, k=k)
+                if not isinstance(body, dict):
+                    raise ValueError(f"the response is a JSON {type(body).__name__}, not an object")
+            except (OSError, ValueError, HTTPException) as exc:  # URLError and HTTPError are OSErrors, a bad body a ValueError
+                request_errors.append({"id": q.id, "error": scrub(f"{type(exc).__name__}: {exc}")})
+            else:
+                answered += 1
+                timer.record("e2e", (time.perf_counter() - t) * 1000.0)
+                route = body.get("route") or "none"  # the router's prediction for this question (none: router off)
+                routes[route] = routes.get(route, 0) + 1
+                for name, ms in (body.get("latency_ms") or {}).items():
+                    stage_sums[name] = stage_sums.get(name, 0.0) + float(ms)
+                    timer.record(f"server:{name}", float(ms))
+                paths = list(dict.fromkeys(h["path"] for h in body.get("hits", []) if h.get("path")))
+                if not body.get("hits"):
+                    zero_hit.append(q.id)
+                if sample is None:
+                    sample = {k2: body.get(k2) for k2 in ("route", "retrieval_mode", "bm25_backend", "embedding_provider", "reranker_loaded", "staleness")}
         per_query.append({"id": q.id, "retrieved": paths, "relevant": q.relevant_ids(), "category": q.category})
-        if sample is None:
-            sample = {k2: body.get(k2) for k2 in ("route", "retrieval_mode", "bm25_backend", "embedding_provider", "reranker_loaded", "staleness")}
     wall_ms = (time.perf_counter() - t0) * 1000.0
     retrieval = aggregate_retrieval(per_query, n_files=n_files)
     return {
@@ -182,16 +205,20 @@ def replay_api(url: str, gold, n_files: int, k: int = 50) -> dict[str, Any]:
         "wall_ms": round(wall_ms, 2),
         "routes": routes,
         "n_queries": len(per_query),
+        "n_answered": answered,
         "zero_hit_queries": zero_hit,
+        "request_errors": request_errors,
         "_per_query_scores": retrieval.per_query,
     }
 
 
 def api_problems(api: dict, n_gold: int) -> list[str]:
-    """Why the API row cannot be trusted (empty when it can). The nDCG@10 gap is not one of them."""
-    problems = []
-    if api["n_queries"] != n_gold:
-        problems.append(f"{n_gold - api['n_queries']} of {n_gold} questions have no answer")
+    """Why the API row cannot be trusted (empty when it can): a request error, questions without an answer, questions
+    with zero hits. The nDCG@10 gap is not one of them."""
+    problems = [f"request error on {e['id']} ({e['error']}); the replay stopped there" for e in (api.get("request_errors") or [])[:1]]
+    answered = api.get("n_answered", api["n_queries"])  # files recorded before n_answered: every row was an answer
+    if answered != n_gold:
+        problems.append(f"{n_gold - answered} of {n_gold} questions have no answer")
     if api.get("zero_hit_queries"):
         problems.append(f"{len(api['zero_hit_queries'])} questions returned zero hits: {', '.join(api['zero_hit_queries'][:10])}")
     return problems

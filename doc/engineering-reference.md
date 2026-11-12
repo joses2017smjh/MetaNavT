@@ -1048,10 +1048,15 @@ indexes the fixture through the served indexer, runs the dense CTE of
 same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
-fails when the API is broken (a question without an answer or with zero hits)
-and, before it contacts the API, when `bench/corpus/files` differs from its
-MANIFEST (the check the bench runs, `verify_manifest` in
-[app/eval/corpus.py](../app/eval/corpus.py)). On the fixture the planner answers the dense CTE with a sequential scan.
+fails when the API is broken (a request error, which stops the replay and
+leaves the questions after it without an answer; a question without an answer;
+a question with zero hits; `parity.api_problems`, tested in
+[tests/eval/test_parity_report.py](../tests/eval/test_parity_report.py), where a
+large gap passes) and, before it contacts the API, when `bench/corpus/files`
+differs from its MANIFEST (the check the bench runs, `verify_manifest` in
+[app/eval/corpus.py](../app/eval/corpus.py)). It writes the file either way, by
+default to the untracked `bench/results/parity_latest.json` (CI's artifact); a
+committed parity file is written by naming it in `PARITY_OUT`. On the fixture the planner answers the dense CTE with a sequential scan.
 A second test forces the HNSW index (`enable_seqscan` off), requires the whole
 served statement to be planned on it, and requires the same `RETRIEVE_K` rows
 for every gold question. On the fixture that scan reaches every row (the

@@ -5,6 +5,7 @@ category against the in-memory row, so the exact_path questions (the lexical_pat
 are reported for both rows.
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -158,3 +159,92 @@ def test_the_readme_block_names_every_category_whose_interval_excludes_zero():
     text = _parity_run_text(blob, PARITY_FILE)
     assert f"Gold categories whose paired interval excludes zero (API minus in-memory, nDCG@10): simple_factual -0.0448 [-0.0726, -0.0188] (n = {simple['n']})." in text
     assert "covers zero." not in text.split("Gold categories whose")[1].split("(n = ")[0]
+
+
+# ---------------------------------------------------------------- A40: what fails make parity, and where it writes
+
+def _replay(monkeypatch, tmp_path, answer):
+    """make parity end to end through harness.main with a fake API: `answer(question)` is the body of POST /api/retrieve/
+    (or raises). The in-memory row is faked (every relevant file first); the default output goes under tmp_path."""
+    from app.eval import harness
+
+    monkeypatch.setattr(parity, "wait_for_health", lambda url: {"status": "ok"})
+    monkeypatch.setattr(parity, "run_config", fake_run_config)
+    monkeypatch.setattr(parity, "post_retrieve", lambda url, query, k=50, timeout=60.0: answer(query))
+    monkeypatch.setattr(harness, "project_root", lambda: tmp_path)  # where the default output lands; the fixture is read from ROOT
+    harness.main(["--backend", "api", "--url", "http://127.0.0.1:9"])
+    return json.loads((tmp_path / parity.DEFAULT_OUT).read_text())
+
+
+GOLD = {q.question: q for q in load_gold(ROOT / "bench" / "gold" / "questions.jsonl")}
+QUESTIONS = list(GOLD)
+
+
+def _right(query):
+    return {"route": "semantic", "hits": [{"path": p} for p in GOLD[query].relevant_ids()]}
+
+
+def test_api_problems_names_each_broken_api_case_and_not_the_gap():
+    healthy = {"n_queries": 136, "n_answered": 136, "zero_hit_queries": [], "request_errors": []}
+    assert parity.api_problems(healthy, 136) == []
+    assert parity.api_problems({**healthy, "n_answered": 135}, 136) == ["1 of 136 questions have no answer"]
+    assert parity.api_problems({**healthy, "zero_hit_queries": ["q007", "q009"]}, 136) == ["2 questions returned zero hits: q007, q009"]
+    errors = [{"id": "q003", "error": "HTTPError: HTTP Error 500: Internal Server Error"}]
+    assert parity.api_problems({**healthy, "n_answered": 2, "request_errors": errors}, 136) == [
+        "request error on q003 (HTTPError: HTTP Error 500: Internal Server Error); the replay stopped there",
+        "134 of 136 questions have no answer"]
+    assert parity.api_problems({"n_queries": 136, "zero_hit_queries": []}, 136) == []  # a file recorded before n_answered
+
+
+def test_a_question_with_zero_hits_fails_the_run(monkeypatch, tmp_path):
+    with pytest.raises(SystemExit) as stop:
+        _replay(monkeypatch, tmp_path, lambda q: {"route": "semantic", "hits": []} if q == QUESTIONS[5] else _right(q))
+    assert stop.value.code == 1
+    blob = json.loads((tmp_path / parity.DEFAULT_OUT).read_text())
+    assert blob["api_ok"] is False and blob["api_problems"] == [f"1 questions returned zero hits: {GOLD[QUESTIONS[5]].id}"]
+
+
+def test_a_request_error_fails_the_run_and_the_questions_after_it_have_no_answer(monkeypatch, tmp_path):
+    from urllib.error import HTTPError
+
+    def answer(query):
+        if query == QUESTIONS[2]:
+            raise HTTPError("http://127.0.0.1:9/api/retrieve/", 500, "Internal Server Error", None, None)
+        return _right(query)
+
+    with pytest.raises(SystemExit) as stop:
+        _replay(monkeypatch, tmp_path, answer)
+    assert stop.value.code == 1
+    blob = json.loads((tmp_path / parity.DEFAULT_OUT).read_text())  # the file is written, so the failure can be read
+    api = blob["results"][1]
+    assert blob["api_ok"] is False and api["n_answered"] == 2 and api["n_queries"] == len(QUESTIONS)
+    assert api["request_errors"] == [{"id": GOLD[QUESTIONS[2]].id, "error": "HTTPError: HTTP Error 500: Internal Server Error"}]
+    assert blob["api_problems"] == [f"request error on {GOLD[QUESTIONS[2]].id} (HTTPError: HTTP Error 500: Internal Server Error); "
+                                    "the replay stopped there", f"{len(QUESTIONS) - 2} of {len(QUESTIONS)} questions have no answer"]
+
+
+def test_a_response_that_is_not_an_answer_is_a_request_error(monkeypatch, tmp_path):
+    with pytest.raises(SystemExit):
+        _replay(monkeypatch, tmp_path, lambda q: ["not", "an", "object"] if q == QUESTIONS[0] else _right(q))
+    api = json.loads((tmp_path / parity.DEFAULT_OUT).read_text())["results"][1]
+    assert api["n_answered"] == 0 and api["request_errors"][0]["error"].startswith("ValueError: ")
+
+
+def test_a_large_gap_does_not_fail_the_run(monkeypatch, tmp_path):
+    blob = _replay(monkeypatch, tmp_path, lambda q: {"route": "semantic", "hits": [{"path": "README.md"}]})  # returns, no exit
+    assert blob["api_ok"] is True and blob["api_problems"] == [] and blob["gap"]["gap"] < -0.5
+
+
+def test_make_parity_writes_an_untracked_file_by_default():
+    """The default used to be the committed bench/results/parity.json, so a local run overwrote it."""
+    import re
+    import shutil
+    import subprocess
+
+    (default,) = re.findall(r"^PARITY_OUT \?= (\S+)$", (ROOT / "Makefile").read_text(), re.M)
+    assert default == parity.DEFAULT_OUT and default != "bench/results/parity.json"
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert f"path: {default}\n" in ci and "path: bench/results/parity.json\n" not in ci  # CI's artifact is that file
+    if shutil.which("git") and (ROOT / ".git").exists():
+        assert subprocess.run(["git", "ls-files", "--error-unmatch", default], cwd=ROOT, capture_output=True).returncode != 0
+        assert subprocess.run(["git", "check-ignore", "-q", default], cwd=ROOT).returncode == 0

@@ -181,7 +181,7 @@ jobs:
         if: always()
         with:
           name: parity-results
-          path: bench/results/parity.json
+          path: bench/results/parity_latest.json
 
   docker-smoke:
     # docker compose up --build, wait for /health (the api container migrates, then indexes
