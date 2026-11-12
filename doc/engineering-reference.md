@@ -1696,9 +1696,10 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 resolves it into pinned files: `requirements.txt` (eval + app) and one
 `requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
 `agent`, `dev`, `distill`, `ml`, `otel`), each compiled under `requirements.txt` as a constraint so a
-package has the same version in every file. Every CI job installs its pinned
-file first and then the package with `--no-deps`
-(`make install-locked` does the same locally). The image installs
+package has the same version in every file. Every CI job that imports the
+package installs its pinned file first and then the package with `--no-deps`,
+as `make install-locked` does locally; the lint job installs only
+`requirements/dev.txt`. The image installs
 `requirements/app.txt`, then the file of each other extra named in its
 `EXTRAS` build argument (`ml`, `otel`), all with `--no-deps`, and runs
 `pip check`; an extra with no pinned file stops the build. It then installs the
@@ -1706,13 +1707,14 @@ package itself with `--no-deps --no-build-isolation`, so the package is built
 with the pinned setuptools rather than one pip fetches for `[build-system]`.
 `requirements/ml.txt` is resolved with PyTorch's CPU wheel index next to PyPI,
 so torch is pinned as its CPU build and the file holds no CUDA package. The
-image's three files also pin setuptools: `llama-index-core` and torch need a
+image's three files are compiled with `--allow-unsafe`, so `app.txt` and
+`ml.txt` pin setuptools (`otel.txt` needs none): `llama-index-core` needs a
 newer one than the base image ships, which pip used to fetch, unpinned, while
 it resolved `app.txt`. There is no Docker on the development host, so
 `tests/eval/test_image_build.py` runs the image's install step under `sh` with
 a stand-in `pip`. The CUDA override (`docker-compose.gpu.yml`, built by hand
 only) takes every ml pin but torch from `requirements/ml.txt` and installs the
-same torch release from the CUDA wheel index that file names; the CUDA packages
+same torch release from the CUDA wheel index `docker-compose.gpu.yml` names; the CUDA packages
 torch requires are resolved at build time, so that build is not reproducible
 from a lock file. The torch range in `pyproject.toml` stops below the first
 release that index lacks. `make lock-check`, which is
@@ -1788,7 +1790,8 @@ docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 CI builds and starts this CPU real-model stack in its `docker-ml-smoke` job
 once a week (the `schedule` in `.github/workflows/ci.yml`; a scheduled run
 runs that job alone, on `main`) and when the workflow is started by hand with
-`ml_smoke`; each run uploads `api_latency_docker_cpu_ml.json` as an artifact.
+`ml_smoke`; a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
+its latency step wrote the file.
 GitHub turns off the scheduled workflows of a public repository that has had
 no activity for a while (see GitHub's documentation on disabling and enabling
 workflows), so after a quiet spell the schedule has to be switched back on in
@@ -1817,7 +1820,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest; the CUDA packages of the hand-built GPU override are resolved at build time, not pinned.
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest, with two exceptions: setuptools outside the image (`requirements.txt` and `requirements/dev.txt` leave it unpinned, and the CI jobs' `pip install --no-deps -e .` builds the package with the newest `setuptools>=68`), and the CUDA packages of the hand-built GPU override, which are resolved at build time.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 

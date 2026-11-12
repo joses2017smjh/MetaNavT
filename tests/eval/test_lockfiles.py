@@ -54,9 +54,10 @@ def test_the_ml_file_pins_the_cpu_torch_wheel_and_no_cuda_package():
 
 def test_the_image_files_also_pin_setuptools():
     """The image installs app.txt, ml.txt and otel.txt with --no-deps and then runs pip check, so they must pin every
-    package the image needs. pip-compile leaves setuptools out unless --allow-unsafe, and llama-index-core (app) and
-    torch (ml) need a newer setuptools than python:3.11-slim ships; pip used to fetch the newest one, unpinned, while
-    it resolved app.txt (found by running the install step in the pinned base image)."""
+    package the image needs. pip-compile leaves setuptools out unless --allow-unsafe, and llama-index-core (in app.txt
+    and ml.txt) needs a newer setuptools than python:3.11-slim ships (torch's setuptools>=77.0.3 is met by the image's
+    79.0.1; otel.txt needs none); pip used to fetch the newest one, unpinned, while it resolved app.txt (found by
+    running the install step in the pinned base image)."""
     for name in ("app", "ml", "otel"):
         lines = (ROOT / "requirements" / f"{name}.txt").read_text().splitlines()
         assert "# setuptools" not in lines and "# pip" not in lines, name  # how pip-compile lists one it left unpinned

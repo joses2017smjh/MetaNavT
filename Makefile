@@ -25,9 +25,10 @@ install-locked: ## the pinned versions CI and the image use: requirements.txt, t
 # requirements/ml.txt is resolved with PyTorch's CPU wheel index next to PyPI, so torch is
 # pinned as its CPU build (+cpu) with no CUDA packages; pip-compile writes the index line
 # into the file, so `pip install -r requirements/ml.txt` finds the wheel.
-# The image installs app.txt, ml.txt and otel.txt with --no-deps, so those three also pin
-# setuptools (--allow-unsafe): llama-index-core and torch need a newer one than the base
-# image ships, which pip used to fetch unpinned while it resolved app.txt.
+# The image installs app.txt, ml.txt and otel.txt with --no-deps, so those three are compiled
+# with --allow-unsafe and pin setuptools where it is needed (app.txt, ml.txt): llama-index-core
+# needs a newer one than the base image ships, which pip used to fetch unpinned while it
+# resolved app.txt.
 #   make lock                  upgrade everything to the newest allowed versions
 #   make lock LOCK_UPGRADE=    keep the current pins; only add or drop what pyproject.toml changed
 LOCK_UPGRADE ?= --upgrade
