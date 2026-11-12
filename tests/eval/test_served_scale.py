@@ -148,6 +148,7 @@ def restore_environ():
 
 
 def test_inmemory_stage_adds_a_same_query_form_row_when_the_served_embedder_has_a_prompt(tmp_path, monkeypatch, restore_environ):
+    pytest.importorskip("llama_index.core")  # the served embedder; CI's eval job installs the eval extra only, without it
     from llama_index.core.settings import Settings
 
     monkeypatch.setattr(Settings, "_embed_model", None)  # restored after the test; the stage sets the served (hash) embedder
@@ -327,7 +328,10 @@ def test_the_deploy_orders_index_step_must_accept_the_build(tmp_path, monkeypatc
 
 def test_the_build_passes_the_arguments_the_index_step_passes(tmp_path, monkeypatch):
     """The timed build calls index_directory as app/engine/ingest.index_data_dir does (the call of the index step and of a
-    start with INDEX_ON_START): the same directory, embedder label and rejection limit; only embed_fn is wrapped by a timer."""
+    start with INDEX_ON_START): the same directory, embedder label and rejection limit; only embed_fn is wrapped by a timer.
+    Needs the app's engine (llama_index), which CI's eval job does not install; its parity job runs
+    tests/database/test_served_scale.py, where the real index step must accept the build."""
+    pytest.importorskip("llama_index.core")
     from llama_index.core.settings import Settings
 
     from app.engine import ingest
