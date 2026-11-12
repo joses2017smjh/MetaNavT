@@ -208,7 +208,10 @@ def test_an_operating_system_errors_text_never_reaches_the_client(client, corpus
         token = operator_grant(store.tools, plan["review"])  # each failed move burns its capability
         resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": token})
         assert (resp.status_code, resp.json()["detail"]) == (status, detail)
-        assert "Errno" not in resp.text and "secret_name" not in resp.text and str(corpus) not in resp.text
+        log = client.get("/api/plans/decisions/recent")  # the decision log's result is served too
+        assert log.status_code == 200 and log.json()[-1]["result"].endswith(detail)
+        for text in (resp.text, log.text):
+            assert "Errno" not in text and "secret_name" not in text and str(corpus) not in text
     monkeypatch.undo()
     (corpus / "configs" / "run_047.yaml").unlink()  # a refusal worded here is sent as it is
     resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": operator_grant(store.tools, plan["review"])})

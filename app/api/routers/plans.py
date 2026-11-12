@@ -27,8 +27,9 @@ new status is saved, so an approval and a rejection of one plan, or two approval
 are decided one after the other.
 
 A database failure answers 503 with a fixed text; its cause (which can name tables, hosts and ports) goes
-to the server log only, and an operating system error's text (file names) is replaced by a fixed one
-(told()). Without a database (build_plan_store(None)) the plans live in this process only.
+to the server log only, and an operating system error's text (file names) is replaced by a fixed one in
+the answer and in the decision log (told()). build_plan_store(None), without a database (the API tests),
+keeps the rows in a MemoryPlans object instead of the table.
 """
 
 from __future__ import annotations
@@ -64,10 +65,11 @@ NOT_RECORDED = "the approval could not be recorded; nothing was applied"
 
 
 def told(exc: BaseException, fallback: str | None) -> str | None:
-    """What a client is told of a refused or failed file action. A text this repository wrote (an exception raised
-    without an errno: a check's error, "reviewed source is missing") goes as it is. An operating system error's text
-    names files (absolute paths among them) and calls, and does not: the fixed description of the check that refused
-    it (REFUSAL_CHECKS) when there is one, else `fallback`. The decision log keeps the full text."""
+    """What a client is told of a refused or failed file action, in the answer and in the decision log (which GET
+    /api/plans/decisions/recent serves). A text this repository wrote (an exception raised without an errno: a
+    check's error, "reviewed source is missing") goes as it is. An operating system error's text names files
+    (absolute paths among them) and calls, and does not: the fixed description of the check that refused it
+    (REFUSAL_CHECKS) when there is one, else `fallback`. The exception's own text goes to the server log only."""
     if getattr(exc, "errno", None) is None:
         return str(exc)
     check = refusal_check(exc)
@@ -320,29 +322,36 @@ class PlanStore:
         try:
             return self.tools.apply_plan(row.plan_id, approval_token=approval_token).get("status", "applied")
         except (ApprovalRequired, PermissionError) as exc:
-            self._result(record, f"refused: {exc}")
-            raise HTTPException(status_code=403, detail=told(exc, "the file system refused the move")) from exc
+            text = self._result(record, "refused: ", exc, told(exc, "the file system refused the move"))
+            raise HTTPException(status_code=403, detail=text) from exc
         except FileExistsError as exc:
-            self._result(record, f"refused: {exc}")
-            raise HTTPException(status_code=409, detail=told(exc, "the destination already exists")) from exc
+            text = self._result(record, "refused: ", exc, told(exc, "the destination already exists"))
+            raise HTTPException(status_code=409, detail=text) from exc
         except OSError as exc:
-            self._result(record, f"failed: {exc}")
             text = told(exc, None)
-            raise HTTPException(status_code=500, detail=f"move failed: {text}" if text else "move failed") from exc
+            text = self._result(record, "failed: ", exc, f"move failed: {text}" if text else "move failed")
+            raise HTTPException(status_code=500, detail=text) from exc
         except Exception as exc:  # noqa: BLE001 - not a refusal: the grant ledger's or the audit trail's database
             if plan.applied:  # the move ran; only the audit event written after it failed
                 logger.error(f"plan {row.plan_id} applied, but its audit event was not written: {type(exc).__name__}: {exc}")
                 return "applied"
             logger.error(f"approval of plan {row.plan_id} not recorded: {type(exc).__name__}: {exc}")
-            self._result(record, f"failed: {type(exc).__name__}")
+            record["result"] = f"failed: {type(exc).__name__}"
+            if self.log is not None:
+                self.log.update(record)
             raise HTTPException(status_code=503, detail=NOT_RECORDED) from exc
         finally:
             self.tools.forget_plan(row.plan_id)
 
-    def _result(self, record: dict[str, Any], result: str) -> None:
-        record["result"] = result
+    def _result(self, record: dict[str, Any], prefix: str, exc: BaseException, text: str) -> str:
+        """Record a refused or failed approval: the decision log, which GET /api/plans/decisions/recent serves, gets
+        the client's text (told()); the exception's own text goes to the server log. Returns the client's text."""
+        if text != str(exc):
+            logger.warning(f"plan {record['plan_id']}: {record['action']} {prefix.strip(': ')}: {type(exc).__name__}: {exc}")
+        record["result"] = prefix + text
         if self.log is not None:
             self.log.update(record)
+        return text
 
 
 class DecisionLog:
