@@ -39,11 +39,15 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def confined(root: Path, relative: str) -> Path:
+def _relative(relative: str) -> Path:
     p = Path(relative)
     if p.is_absolute() or ".." in p.parts:
         raise ValueError(f"unsafe relative path: {relative}")
-    target = (root / p).resolve()
+    return p
+
+
+def confined(root: Path, relative: str) -> Path:
+    target = (root / _relative(relative)).resolve()
     if not target.is_relative_to(root.resolve()):
         raise ValueError(f"path escapes snapshot: {relative}")
     return target
@@ -51,6 +55,67 @@ def confined(root: Path, relative: str) -> Path:
 
 def _git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
+
+
+# The freeze reads git objects, never the working tree, so the frozen bytes, their blob ids and source_commit
+# describe one commit. Only regular files are eligible: a symlink's blob holds its target's path.
+FROZEN_FROM = "source_commit tree (git ls-tree, git cat-file)"
+REGULAR_FILE_MODES = {"100644", "100755"}
+
+
+def _head_commit(root: Path) -> str | None:
+    """The commit HEAD names, or None before the first commit."""
+    done = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD^{commit}"], cwd=root, capture_output=True, text=True)
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def _tree_entries(root: Path, commit: str, *paths: str) -> list[tuple[str, str, str, str, str]]:
+    """(mode, type, object id, size, path) of every entry under `paths` in the commit's tree.
+
+    -z prints each path as git stores it; without it a non-ASCII path comes
+    back quoted with octal escapes and names no file.
+    """
+    out = subprocess.check_output(["git", "ls-tree", "-r", "-l", "-z", commit, "--", *paths], cwd=root)
+    entries = []
+    for entry in out.decode("utf-8", "surrogateescape").split("\0"):
+        if entry:
+            meta, relative = entry.split("\t", 1)
+            mode, kind, oid, size = meta.split()
+            entries.append((mode, kind, oid, size, relative))
+    return entries
+
+
+def _read_blobs(root: Path, oids: list[str]) -> dict[str, bytes]:
+    """The bytes of each blob, from one `git cat-file --batch` process."""
+    if not oids:
+        return {}
+    out = subprocess.run(["git", "cat-file", "--batch"], cwd=root, input="".join(f"{oid}\n" for oid in oids).encode(),
+                         capture_output=True, check=True).stdout
+    blobs: dict[str, bytes] = {}
+    pos = 0
+    for oid in oids:
+        end = out.index(b"\n", pos)
+        header = out[pos:end].decode().split()
+        if len(header) != 3 or header[0] != oid or header[1] != "blob":
+            raise ValueError(f"git object {oid} is not a readable blob: {header}")
+        size = int(header[2])
+        blobs[oid] = out[end + 1:end + 1 + size]
+        pos = end + 1 + size + 1  # each object's bytes are followed by a newline
+    return blobs
+
+
+def _blob_id(data: bytes, id_length: int) -> str:
+    """The id git gives these bytes as a blob: SHA-1, or SHA-256 in a repository with that object format."""
+    digest = hashlib.sha256 if id_length == 64 else hashlib.sha1
+    return digest(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+
+
+def _utf8_name(relative: str) -> bool:
+    try:
+        relative.encode("utf-8")
+    except UnicodeEncodeError:  # a path byte that is not UTF-8 (decoded with surrogateescape)
+        return False
+    return True
 
 
 def scalar_questions(relative: str, data: bytes, family: str) -> list[dict]:
@@ -121,20 +186,35 @@ def _is_top_level(prefix: bytes) -> bool:
 
 
 def freeze(source: Path, output: Path, *, n_files: int = 600, dev_n: int = 120, test_n: int = 240) -> dict:
+    """Freeze a snapshot from the git objects of the source repository's HEAD commit.
+
+    Every file comes from the commit's tree, never from the working tree: an
+    uncommitted edit, a staged change or a file deleted on disk does not reach
+    the snapshot, and every frozen file matches its tracked blob. A symlink is
+    rejected as type_or_size, and nothing it points to is read.
+    """
     if output.exists():
         raise ValueError("snapshot destination already exists; choose a new destination")
     source = source.resolve()
-    tracked = _git(source, "ls-files", "-s", "--", "results", "docs").splitlines()
+    commit = _head_commit(source)
+    entries = _tree_entries(source, commit, "results", "docs") if commit else []
     families: dict[str, list[dict]] = defaultdict(list)
     seen: set[str] = set()
     rejected = defaultdict(int)
-    for row in tracked:
-        meta, relative = row.split("\t", 1)
-        path = confined(source, relative)
-        if not path.is_file() or path.suffix not in SUFFIXES or not 0 < path.stat().st_size <= 65536:
+    eligible = []
+    for mode, kind, oid, size, relative in entries:
+        _relative(relative)
+        if (mode not in REGULAR_FILE_MODES or kind != "blob" or not _utf8_name(relative)
+                or Path(relative).suffix not in SUFFIXES or not 0 < int(size) <= 65536):
             rejected["type_or_size"] += 1
             continue
-        data = path.read_bytes()
+        eligible.append((oid, relative))
+    blobs = _read_blobs(source, [oid for oid, _ in eligible])
+    contents: dict[str, bytes] = {}
+    for oid, relative in eligible:
+        data = blobs[oid]
+        if _blob_id(data, len(oid)) != oid:
+            raise ValueError(f"git object {oid} for {relative} does not hash to its id")
         try:
             data.decode("utf-8")
         except UnicodeDecodeError:
@@ -149,10 +229,10 @@ def freeze(source: Path, output: Path, *, n_files: int = 600, dev_n: int = 120, 
             rejected["possible_secret"] += 1
             continue
         seen.add(digest)
+        contents[relative] = data
         family = "/".join(Path(relative).parts[:2])
-        git_blob = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
         families[family].append({"path": relative, "sha256": digest, "size_bytes": len(data), "family": family,
-                                 "source_git_blob": meta.split()[1], "matches_tracked_blob": git_blob == meta.split()[1]})
+                                 "source_git_blob": oid, "matches_tracked_blob": True})
     # Round robin prevents a large campaign from consuming the file budget.
     selected = []
     depth = 0
@@ -164,7 +244,7 @@ def freeze(source: Path, output: Path, *, n_files: int = 600, dev_n: int = 120, 
         depth += 1
     candidates: dict[str, list[dict]] = defaultdict(list)
     for row in selected:
-        candidates[row["family"]].extend(scalar_questions(row["path"], confined(source, row["path"]).read_bytes(), row["family"]))
+        candidates[row["family"]].extend(scalar_questions(row["path"], contents[row["path"]], row["family"]))
     # Assign whole experiment families before selecting questions. No query tuning.
     dev_families = {f for f in candidates if int(sha256(f.encode())[:8], 16) % 3 == 0}
     gold = []
@@ -187,10 +267,10 @@ def freeze(source: Path, output: Path, *, n_files: int = 600, dev_n: int = 120, 
     for row in selected:
         target = confined(corpus, row["path"])
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(confined(source, row["path"]).read_bytes())
+        target.write_bytes(contents[row["path"]])
     aggregate = sha256(json.dumps([(r["path"], r["sha256"]) for r in sorted(selected, key=lambda r: r["path"])], separators=(",", ":")).encode())
     manifest = {"schema": SCHEMA, "source_remote": _git(source, "remote", "get-url", "origin"),
-                "source_commit": _git(source, "rev-parse", "HEAD"), "aggregate_sha256": aggregate,
+                "source_commit": commit, "frozen_from": FROZEN_FROM, "aggregate_sha256": aggregate,
                 "n_files": len(selected), "n_families": len({r["family"] for r in selected}),
                 "selection": "unique UTF-8 tracked experiment artifacts, <=64KiB, family round-robin",
                 "rejected": dict(rejected), "files": sorted(selected, key=lambda r: r["path"]),
@@ -252,6 +332,17 @@ def verify(snapshot: Path) -> tuple[dict, list[dict]]:
     return manifest, questions
 
 
+def tracked_blob_mismatches(manifest: dict) -> dict:
+    """The frozen files whose bytes are not the blob git tracked for them (matches_tracked_blob is not true).
+
+    A freeze from git objects has none. A snapshot frozen from a working tree
+    keeps its mismatches: re-freezing makes a new snapshot version, so verify
+    and evaluate report them instead.
+    """
+    paths = [r["path"] for r in manifest["files"] if r.get("matches_tracked_blob") is not True]
+    return {"n_files": len(paths), "paths": paths}
+
+
 def group_bootstrap(rows: list[dict], field: str, *, paired_field: str | None = None, n_boot: int = 2000) -> dict:
     """Sample whole families with replacement; report the query-weighted mean."""
     grouped: dict[str, list[float]] = defaultdict(list)
@@ -310,7 +401,7 @@ def evaluate(snapshot: Path, output: Path) -> dict:
     result = {"schema": SCHEMA, "snapshot_sha256": manifest["aggregate_sha256"], "source_commit": manifest["source_commit"],
               "questions_sha256": manifest["questions_sha256"], "manifest_sha256": manifest_fingerprint, "code_sha256": code_sha256,
               "n_files": manifest["n_files"], "n_questions": len(questions), "n_families": manifest["n_families"],
-              "labels": manifest["labels"], "runtime": {"python": platform.python_version(), "numpy": np.__version__, "platform": platform.platform(), "device": "CPU", "backend": "BM25, no neural model"},
+              "labels": manifest["labels"], "tracked_blob_mismatches": tracked_blob_mismatches(manifest), "runtime": {"python": platform.python_version(), "numpy": np.__version__, "platform": platform.platform(), "device": "CPU", "backend": "BM25, no neural model"},
               "build_ms": builds, "summary": summary, "per_query": rows,
               "interpretation": "Generated source-file lookup, not human-reviewed answer correctness; warm offline search excludes HTTP and model inference.",
               "configuration_policy": "two fixed configurations declared before test evaluation; no parameter search"}
@@ -337,10 +428,11 @@ def main() -> None:
         print(json.dumps({k: result[k] for k in ("n_files", "n_families", "aggregate_sha256", "labels")}))
     elif args.command == "verify":
         m, q = verify(args.snapshot)
-        print(json.dumps({"verified": True, "n_files": m["n_files"], "n_questions": len(q)}))
+        print(json.dumps({"verified": True, "n_files": m["n_files"], "n_questions": len(q), "tracked_blob_mismatches": tracked_blob_mismatches(m)}))
     else:
         result = evaluate(args.snapshot, args.output)
-        print(json.dumps({"n_files": result["n_files"], "n_questions": result["n_questions"], "test": result["summary"]["test"]}, indent=2))
+        print(json.dumps({"n_files": result["n_files"], "n_questions": result["n_questions"],
+                          "tracked_blob_mismatches": result["tracked_blob_mismatches"], "test": result["summary"]["test"]}, indent=2))
 
 
 if __name__ == "__main__":

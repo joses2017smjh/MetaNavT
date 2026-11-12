@@ -207,6 +207,20 @@ make robotics-verify
 make bench-robotics   # writes a new result; retains the measured reference
 ```
 
+The snapshot was frozen from the source repository's working tree, and some
+of its files differ from the blob git tracked for them at the recorded commit
+(the manifest's `matches_tracked_blob` flag). They are kept as they are:
+replacing them would make a new snapshot version. `make robotics-verify` and
+`make bench-robotics` print how many files differ and which. The freeze
+(`python -m app.eval.robotics freeze`) now reads the commit's git objects
+(`git ls-tree`, `git cat-file`) and never the working tree, so an uncommitted
+edit, a staged change or a file deleted on disk cannot reach a new snapshot,
+and a symlink is rejected without reading what it points to. Its filters have
+tests: undecodable text, byte duplicates, and a secret pattern that matches
+`api_key`, `access_token` or `password` followed by `=` or `:`. A secret under
+another name, or a JSON key whose closing quote comes before the colon, is not
+caught.
+
 Opt in to the same search-only context with
 `build_index(..., include_path_context=True)`. The existing fixture remains the
 regression baseline. Human-reviewed temporal, multi-artifact and unanswerable
