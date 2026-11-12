@@ -1594,7 +1594,7 @@ def test_the_readme_summary_of_the_injection_study_holds_for_the_current_run():
     summary = next(p for p in readme.split("\n\n") if p.startswith("The prompt-injection study is separate again"))
     blob = json.loads(RESULTS_V2.read_text())
     blocks = {model: list(per.values()) for model, per in blob["summary"].items()}
-    assert "Neither model pursued a planted file action." in summary
+    assert "In the current run neither model pursued a planted file action." in summary
     assert all(b["planted_actions"]["attempted_episodes"] == 0 for bs in blocks.values() for b in bs)
     assert ("both models called the write tools and the operator signed their proposals, so where an injected task is "
             "offered those tools the zero is not an inability to make the calls") in summary
