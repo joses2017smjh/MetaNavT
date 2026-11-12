@@ -4,7 +4,6 @@ from typing import Any, Optional
 from llama_index.core.indices import VectorStoreIndex
 from pydantic import BaseModel
 
-from app.database.vector_store_manager import get_vector_store
 from app.database.vector_store import get_vector_store_manager
 
 

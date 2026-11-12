@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import numpy as np
-
 from app.eval.harness import BenchConfig, git_sha, project_root, run_config
 from app.eval.gold import load_gold
 from app.eval.index_loader import build_index

@@ -13,10 +13,7 @@ import asyncio
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Any
-import csv
-from datetime import datetime
 
-from deepeval import evaluate
 from deepeval.metrics import GEval, TaskCompletionMetric, ToolCorrectnessMetric
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 

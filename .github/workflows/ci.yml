@@ -25,9 +25,10 @@ concurrency:
 
 jobs:
   lint:
-    # ruff with the narrow defect-only rule set in pyproject.toml ([tool.ruff.lint]):
-    # syntax errors, undefined names, shadowed imports. Also checks that the pinned
-    # requirement files every other job installs still cover pyproject.toml.
+    # ruff with the narrow rule set in pyproject.toml ([tool.ruff.lint]): syntax errors,
+    # undefined names, shadowed and unused imports (unused imports are waived only under the
+    # frozen bench/corpus fixture). Also checks that the pinned requirement files every
+    # other job installs still cover pyproject.toml.
     name: lint (ruff) + lock check
     if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest

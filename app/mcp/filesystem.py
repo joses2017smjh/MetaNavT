@@ -19,7 +19,6 @@ import hashlib
 import threading
 import tempfile
 from functools import wraps
-import os
 import stat as statmod
 import time
 import uuid

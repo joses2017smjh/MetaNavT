@@ -4,7 +4,7 @@ import sys
 from unittest.mock import MagicMock
 
 import app.database.vector_store  # noqa: F401 - imported at collection, before conftest swaps in the module mocks
-import app.engine.loaders  # noqa: F401
+import app.engine.loaders  # noqa: F401 - imported at collection, before conftest swaps in the module mocks; patched below
 from app.engine import ingest
 from app.engine.generate import get_doc_store, run_pipeline, generate_datasource
 
