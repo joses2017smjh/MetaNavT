@@ -474,7 +474,7 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
 
-The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the manual `docker-ml-smoke` CI job together with the CPU real-model stack, not on every push.
+The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
 
 <p align="center">
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
@@ -1770,6 +1770,16 @@ bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:
 docker compose down -v   # the table width changes from 256 to 1024
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
+
+CI builds and starts this CPU real-model stack in its `docker-ml-smoke` job
+once a week (the `schedule` in `.github/workflows/ci.yml`; a scheduled run
+runs that job alone, on `main`) and when the workflow is started by hand with
+`ml_smoke`; each run uploads `api_latency_docker_cpu_ml.json` as an artifact.
+GitHub turns off the scheduled workflows of a public repository that has had
+no activity for a while (see GitHub's documentation on disabling and enabling
+workflows), so after a quiet spell the schedule has to be switched back on in
+the Actions tab. The CUDA override, `docker-compose.gpu.yml`, has no CI job:
+GitHub's hosted runners have no GPU, so it is built and run by hand only.
 
 **Full application locally** (chat needs Ollama; retrieval does not):
 
