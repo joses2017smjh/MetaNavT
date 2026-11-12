@@ -646,6 +646,15 @@ class VectorStoreManager(DatabaseManager):
                     "n_chunks = EXCLUDED.n_chunks, pipeline = EXCLUDED.pipeline, indexed_at = now();"
                 ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)), (path, content_hash, int(n_chunks), pipeline))
 
+    def rows_per_path(self) -> dict[str, int]:
+        """{path: chunk rows} for every row that carries a path, what the manifest's n_chunks must equal."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "SELECT metadata_->>'path', count(*) FROM {table} WHERE metadata_->>'path' IS NOT NULL GROUP BY 1;"
+                ).format(table=sql.Identifier(self.schema_name, self.data_table)))
+                return {r[0]: int(r[1]) for r in cur.fetchall()}
+
     def delete_unlisted_chunks(self) -> int:
         """Delete chunks whose path the manifest does not list (an interrupted run, or rows from before the manifest)."""
         with self.get_connection() as conn:

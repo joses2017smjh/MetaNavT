@@ -3,15 +3,20 @@
 build_retrieval_state() calls index_directory() on every API start when
 INDEX_ON_START is set. One run, under a Postgres advisory lock:
 
-  1. scan DATA_DIR and sort every file into accepted or rejected-with-a-reason
+  1. reconcile: count the rows per path and compare them with the manifest
+     table (one row per indexed file: path, content hash, chunk count, chunker
+     version + embedder); a listed file whose rows differ from its chunk count
+     (rows deleted or added behind the manifest's back) counts as changed;
+  2. scan DATA_DIR and sort every file into accepted or rejected-with-a-reason
      (app/eval/ingest.py, the same scan and chunker the benchmark loader uses);
-  2. diff the accepted files' SHA-256 against the manifest table (one row per
-     indexed file: path, content hash, chunk count, chunker version + embedder);
-  3. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
-  4. delete the rows of removed files; for each new or changed file embed its
+  3. diff the accepted files' SHA-256 against the manifest;
+  4. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
+  5. delete the rows of removed files; for each new or changed file embed its
      chunks, delete its old rows by path, insert the new ones, then list it in
      the manifest;
-  5. delete chunks whose path the manifest does not list.
+  6. delete chunks whose path the manifest does not list;
+  7. verify: the rows per path must now equal the manifest's chunk counts, or
+     the run raises IngestUnreconciled instead of reporting success.
 
 An unchanged re-run embeds nothing. The step can be interrupted anywhere: a
 file is listed in the manifest only after its chunks are committed, and a
@@ -19,7 +24,17 @@ file's old rows are deleted before its new ones are inserted, so the next run
 repeats the unfinished files and leaves one set of rows.
 
 The report (counts of files seen, indexed, unchanged, removed and rejected by
-reason) is returned, logged, and served by /health under "indexing".
+reason, and the reconciliation) is returned, logged, and served by /health
+under "indexing". "Failed" is not a counted category: a failure (the embedder
+or the database raising, the rejection limit, a verification mismatch) aborts
+the run with an exception. main.py's lifespan records it: the process stays up,
+/health answers 503 with the error and /api/retrieve answers 503 until a later
+start succeeds. A file the run had not reached keeps its previous rows and
+manifest entry, and so does the file in flight when the embedder raises (its
+old rows are deleted only after its chunks are embedded). When the database
+raises after that file's old rows were deleted, the file is no longer listed
+in the manifest, and may have no rows, until the next run indexes it again as
+new.
 """
 
 from __future__ import annotations
@@ -33,7 +48,20 @@ from typing import Callable, Optional
 
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 
-from app.eval.ingest import CHUNKER_VERSION, SERVED_MAX_BYTES, SERVED_SUFFIXES, IngestPolicy, IngestRejected, SourceFile, file_chunks, plan_and_report, scan_directory
+from app.eval.ingest import (
+    CHUNKER_VERSION,
+    REJECTED_SAMPLE,
+    SERVED_MAX_BYTES,
+    SERVED_SUFFIXES,
+    IngestPolicy,
+    IngestRejected,
+    IngestUnreconciled,
+    SourceFile,
+    file_chunks,
+    plan_and_report,
+    row_mismatches,
+    scan_directory,
+)
 
 logger = logging.getLogger("uvicorn")
 
@@ -111,8 +139,11 @@ def index_directory(
     """Bring the vector table in line with data_dir and return the run's report.
 
     embed_fn maps a list of chunk texts to a list of vectors; `embedder` names it.
-    A file indexed by another chunker version or embedder counts as changed.
-    Raises IngestRejected (nothing written) when more than max_rejected files are rejected.
+    A file indexed by another chunker version or embedder counts as changed, and
+    so does a listed file whose rows no longer equal its manifest chunk count.
+    Raises IngestRejected (nothing written) when more than max_rejected files are
+    rejected, and IngestUnreconciled when the rows per path do not equal the
+    manifest's chunk counts after the run's writes.
     """
     root = Path(data_dir).resolve()
     if not root.is_dir():
@@ -122,9 +153,13 @@ def index_directory(
     with vsm.ingest_lock() as lock:
         store = vsm.get_vector_store()  # the data table and the manifest are schema migrations (vector/0001, 0002)
         manifest = vsm.ingest_manifest()
+        # Rows of unlisted paths are left to delete_unlisted_chunks below; a listed file whose rows do not
+        # match its chunk count is indexed again, whatever its content hash says.
+        at_start = [m for m in row_mismatches(_chunk_counts(manifest), vsm.rows_per_path()) if m["path"] in manifest]
+        repair = {m["path"] for m in at_start}
         scan = scan_directory(root, policy)
         try:
-            known = {p: row["content_hash"] if row["pipeline"] == pipeline else "" for p, row in manifest.items()}
+            known = {p: row["content_hash"] if row["pipeline"] == pipeline and p not in repair else "" for p, row in manifest.items()}
             plan, report = plan_and_report(scan, known, max_rejected=max_rejected)
         except IngestRejected as exc:
             logger.error(f"Indexing refused: {exc}")
@@ -142,6 +177,8 @@ def index_directory(
             vsm.record_file(path, source.sha256, len(nodes), pipeline)
             chunks_embedded += len(nodes)
         unlisted = vsm.delete_unlisted_chunks()
+        listed = vsm.ingest_manifest()
+        after_run = row_mismatches(_chunk_counts(listed), vsm.rows_per_path())
         report.update(
             indexed=bool(plan.to_index),
             data_dir=data_dir,
@@ -149,8 +186,20 @@ def index_directory(
             chunks_embedded=chunks_embedded,
             chunks_deleted=chunks_deleted,
             unlisted_chunks_deleted=unlisted,
-            n_nodes=sum(row["n_chunks"] for row in vsm.ingest_manifest().values()),
+            n_nodes=sum(row["n_chunks"] for row in listed.values()),
+            reconciliation={
+                "files_mismatched_at_start": len(at_start),  # each one indexed again (or removed) by this run
+                "mismatched_sample": at_start[:REJECTED_SAMPLE],
+                "files_mismatched_after_run": len(after_run),  # 0 in every returned report
+            },
             lock=lock,
         )
+        if after_run:
+            logger.error(f"Indexing did not verify: {json.dumps(after_run[:REJECTED_SAMPLE])}")
+            raise IngestUnreconciled(after_run, report)
     logger.info(f"Indexing report: {json.dumps(report, sort_keys=True)}")
     return report
+
+
+def _chunk_counts(manifest: dict[str, dict]) -> dict[str, int]:
+    return {path: row["n_chunks"] for path, row in manifest.items()}

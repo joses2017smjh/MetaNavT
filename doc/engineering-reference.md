@@ -380,6 +380,8 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
 
 The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
+`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60 on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every committed hybrid row would be re-recorded (`main.json`, `neural.json`, the frontier files and the BEIR hybrid rows); the command never changes it. The default is written in three places, `RRF_K` in `app/retrieval/fuse.py` (the served path), the `rrf_k` argument of `InMemoryHybridIndex` in `app/retrieval/hybrid.py` (every benchmark row) and `rrf_k` in `app/eval/beir.py`, and the served SQL fusion takes no list weights. On the recorded run (`bench/results/rrf_sweep.json`) the chosen setting's held-out interval covers zero, so the default stays; the setting, its interval and the in-sample grid are in that file, and the setting and its interval are the RRF row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
+
 ### A router that skips work
 
 <p align="center">
@@ -421,7 +423,7 @@ The Next.js app type-checks and exports statically (`npm run build` in `.fronten
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
 </p>
 
-Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. Files reached through a symlink are left out of the index and of `collect_run_artifact`'s packs, and `read_file` and `stat` refuse their paths. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
+Any MCP client can drive the corpus over stdio, through either server. Each indexes its root when it starts, with the hash embedder (unless `--embedder` names another) and the overlap reranker, neither of which is a learned model; `--no-index` skips the index for roots too large to index at start, and then search and `propose_artifact` refuse. The index is a snapshot taken at start: it does not follow applied moves or patches. Files reached through a symlink are left out of the index and of `collect_run_artifact`'s packs, and `read_file` and `stat` refuse their paths: the shared scanner already rejects a link whose real path leaves the root (`outside_root`, see the indexing section), the server also drops a link that stays inside it, and the start-up line on stderr counts both. OverlayFS already sandboxed file edits in the original app. The contract is now explicit in the tool:
 
 | tool | contract |
 |---|---|
@@ -544,13 +546,22 @@ With `INDEX_ON_START`, every API start runs one indexing step
 ([app/engine/ingest.py](../app/engine/ingest.py)) under a Postgres advisory lock:
 
 1. **Scan.** Every file under `DATA_DIR` is read once and either accepted or
-   rejected with a reason: unsupported type, too large, undecodable, empty,
-   duplicate content ([app/eval/ingest.py](../app/eval/ingest.py), the same scan
-   the benchmark loader uses, with a stricter policy).
+   rejected with a reason: outside the root, unsupported type, too large,
+   undecodable, empty, duplicate content ([app/eval/ingest.py](../app/eval/ingest.py),
+   the same scan the benchmark loader uses, with a stricter policy). The first
+   gate resolves every symlink: a file whose real path leaves `DATA_DIR`, or
+   lands in a directory the scan skips such as `.git`, is rejected as
+   `outside_root` before its size or bytes are read, so a symbolic link to a
+   file elsewhere on the machine is never embedded or returned by
+   `/api/retrieve`. A symbolic link that stays inside `DATA_DIR` is read like
+   any other file, and the walk does not enter symlinked directories.
 2. **Diff.** Each accepted file's SHA-256 is compared with a manifest table
    (`ingest_manifest_<table>`: path, content hash, chunk count, chunker version
    and embedder; created by a schema migration, not by the run). Files are new,
-   changed, unchanged or removed.
+   changed, unchanged or removed. Before the diff, the rows in the table are
+   counted per path: a listed file whose row count differs from its manifest
+   chunk count (rows deleted or added behind the manifest's back) counts as
+   changed and is indexed again.
 3. **Limit.** If more files are rejected than `INGEST_MAX_REJECTED` allows, the
    run fails before it writes anything. CI and docker-compose set the limit to
    zero; unset, rejections are counted but not fatal.
@@ -558,28 +569,81 @@ With `INDEX_ON_START`, every API start runs one indexing step
    its chunks are embedded, its old rows are deleted by path, the new rows are
    inserted, and only then is it listed in the manifest. Unchanged files are
    not sent to the embedder and their rows are not rewritten.
-5. **Report.** The run returns the counts of files seen, indexed, unchanged,
-   removed and rejected by reason. The report is logged and served by
-   `GET /health` under `indexing`.
+5. **Verify.** The rows are counted per path again and must equal the
+   manifest's chunk counts; otherwise the run raises `IngestUnreconciled`
+   instead of reporting success.
+6. **Report.** The run returns the counts of files seen, indexed, unchanged,
+   removed and rejected by reason, and a `reconciliation` block (files whose
+   rows did not match at the start, with a sample, and the count after the
+   run). The report is logged and served by `GET /health` under `indexing`.
 
 The step is idempotent and can be interrupted: because the manifest row is
 written last and old rows are deleted before new ones are inserted, the next
 run repeats the unfinished files and leaves one set of rows. Two replicas that
 start together serialise on the lock; the second finds nothing to do.
 
+"Failed" is not a counted category. Every failure (the embedder or the
+database raising, the rejection limit, a verification mismatch) aborts the run
+with an exception instead of being counted in a report. The API process stays
+up with the error recorded: `GET /health` answers 503 with it and
+`/api/retrieve` answers 503 until a later start succeeds. A file the run had
+not reached keeps its previous rows and manifest entry, and so does the file in
+flight when the embedder raises (its old rows are deleted only after its chunks
+are embedded). When the database raises after that file's old rows were
+deleted, the file is no longer listed in the manifest, and may have no rows,
+until the next start indexes it again as new. A file is counted only as
+indexed, unchanged or rejected with a reason.
+
 What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
 runs against a live Postgres in CI's `parity` job (unchanged re-run embeds
 nothing, an edit re-embeds one file, a delete removes its rows, the rejection
-limit, an interrupted run, two concurrent runs);
+limit, a link out of `DATA_DIR`, rows deleted or added behind the manifest's
+back, a run that does not verify, an interrupted run, a database failure while
+a file is written, two concurrent runs);
 [tests/eval/test_ingest.py](../tests/eval/test_ingest.py) covers the scan, the
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
 [bench/results/ingest_runs.json](../bench/results/ingest_runs.json).
 
+Chunking. Both the benchmark loader and the served indexer cut every file
+with `chunk_text` in [app/chunking/structure.py](../app/chunking/structure.py),
+routed by suffix. A Python file gets one chunk per top-level function or class,
+starting at its first decorator, one for the code before the first definition,
+and one for each non-blank stretch of module-level code between or after
+definitions (constants, registration calls, a main guard), so every non-blank
+line is in exactly one chunk, except where the windows of a chunk re-cut for
+length (below) overlap; lines are counted the way `ast` counts them (a form
+feed is not a line break). A module without definitions, or one that does
+not parse, takes the fixed character window. A CSV file gives one chunk per
+record, read with the `csv` module so a quoted line break stays in its row, and
+each row's searched text starts with the header record; a CSV that does not
+parse strictly (an unclosed quote, say) falls back to one record per line. A
+JSON Lines file gives one chunk per line, and a JSON file is one chunk, or one
+per line when it is not a single JSON value; a value the decoder gives up on
+(nested too deep, or an integer over Python's digit limit) still counts as one
+value instead of stopping the indexing run.
+Markdown splits before every `#` heading outside fenced code, so a `# comment`
+in a shell block does not start a section; `.rst` files take the same rule,
+and their underlined titles do not start a chunk. A YAML config shorter than
+`MAX_CHUNK_CHARS` is one chunk; a longer one is split before every top-level
+key, and each block's searched text starts with the `run_id` block (or, without
+one, the first key's block), so the run id travels with every split. A
+Markdown section, a JSON value or a Python chunk longer than `MAX_CHUNK_CHARS`
+characters is re-cut into windows of that size that overlap by
+`RECUT_OVERLAP` characters. `CHUNKER_VERSION` in
+[app/eval/ingest.py](../app/eval/ingest.py) names the boundaries: when it
+changes, every served file counts as changed at the next start and is
+re-indexed. [tests/eval/test_chunking.py](../tests/eval/test_chunking.py) holds
+the expected spans, and
+[tests/eval/test_ingest.py](../tests/eval/test_ingest.py) pins a digest of
+fixture v1's chunks as the recorded benchmark cut them.
+
 Limits: a file is identified by its bytes, so a rename is a delete plus an
 insert; files are embedded one at a time inside the startup hook; the type
 gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
-are counted as rejected, not parsed. The older `indexed_files` table in
+are counted as rejected, not parsed; a hard link inside `DATA_DIR` has no other
+path to resolve, so the `outside_root` gate reads one to a file elsewhere like
+a regular file. The older `indexed_files` table in
 `app/database/index_manager.py` is not used by this path, and the legacy
 `python -m app.engine.generate` CLI still splits with `SentenceSplitter` and
 does not consult the manifest.
@@ -660,6 +724,8 @@ results file header on the recorded device; CI does not download models, and
 **Fixture v1 with real models.**
 
 [Current generated bench-neural evidence](../README.md#bench-neural).
+
+**Why `hybrid@bge-base` has a lower Recall@50 than `dense_only@bge-base`.** Both rows score the files of their top 50 chunks. Hybrid fuses BM25's top 50 and dense's top 50, whose union is longer than 50 whenever BM25 ranks a chunk outside dense's top 50, and keeps the top 50 by RRF score, so the chunks at the bottom of only one leg compete for the last places. `make bench-hybrid-drops` (`app/eval/hybrid_drops.py`) lists, per question, every gold file that one list has and the other lacks, with its file and chunk rank in each leg and its fused rank and score, in `bench/results/hybrid_drops_bge_base.json`; its lists reproduce both committed rows exactly, and every question whose Recall@50 moves is listed. Every gold file hybrid drops there is the Slurm script of a "how many stereo pairs did run N use" question: dense ranks its chunk near the bottom of its top 50, BM25 does not rank it, and it lands just past the fused cut. Gold files that only BM25 ranks can enter hybrid's list instead (the file lists them as gains), so the row's delta is the net of both; the counts and rank ranges are the hybrid-drops row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
 
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
