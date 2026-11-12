@@ -84,6 +84,14 @@ def test_a_pattern_is_a_glob_over_the_whole_relative_path(manifest):
     assert _call("list_available_files", pattern=" * ").raw_output == sorted(MANIFEST)
 
 
+def test_a_bare_name_pattern_matches_only_paths_that_start_with_it(monkeypatch):
+    # What doc/engineering-reference.md (Backend) says: `fusion*` does not find src/fusion.py, and since `*` crosses
+    # "/" it does find a file below a top-level directory whose name starts with "fusion".
+    monkeypatch.setattr(files, "get_vector_store_manager",
+                        lambda: FakeManager(["src/fusion.py", "fusion.md", "fusion_x/a.py"]))
+    assert _call("list_available_files", pattern="fusion*").raw_output == ["fusion.md", "fusion_x/a.py"]
+
+
 def test_one_call_lists_at_most_the_first_hundred_paths(monkeypatch):
     many = [f"logs/run_{i:03d}.out" for i in range(150)]
     monkeypatch.setattr(files, "get_vector_store_manager", lambda: FakeManager(many))
@@ -157,6 +165,14 @@ def test_whitespace_the_chunker_did_not_store_is_left_out_with_a_line_break_wher
     rebuilt = files.file_text(rows)
     assert rebuilt.count("\n") == 1 and rebuilt.replace("\n", "").strip(" ") != text.strip(" ")
     assert rebuilt.startswith("a" * 600 + " ") and rebuilt.endswith(" " + "b" * 600)
+
+
+def test_blank_lines_between_top_level_python_definitions_do_not_come_back():
+    # What doc/engineering-reference.md (Backend) says: python_ast_chunks stores no chunk for the blank lines between
+    # two top-level definitions (none of the fixture's Python files has two), and the definition before them ends
+    # its line, so nothing stands in for them.
+    text = "import os\n\n\ndef a():\n    return 1\n\n\ndef b():\n    return 2\n"
+    assert files.file_text(stored_chunks("src/m.py", text)) == "import os\n\n\ndef a():\n    return 1\ndef b():\n    return 2\n"
 
 
 def test_get_file_content_returns_the_file_by_its_relative_path(monkeypatch):

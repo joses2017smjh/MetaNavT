@@ -88,6 +88,18 @@ def test_the_runner_reads_the_file_tools_own_reply_texts():
     assert {"app/engine/tools/index_file_access.py", "app/database/vector_store_manager.py"} <= set(smoke.SOURCES)
 
 
+def test_no_fixture_file_starts_the_way_a_failed_or_not_found_reply_does():
+    # get_file_content returns a file's own text, and the runner reads a reply by how it starts: a fixture file that
+    # started with "Error" or "Not found" would be counted as a failed call or a not-found reply
+    # (doc/engineering-reference.md, Backend, says none does).
+    from pathlib import Path
+
+    fixture = Path(__file__).resolve().parents[2] / "bench" / "corpus" / "files"
+    texts = {p: p.read_bytes().decode("utf-8") for p in fixture.rglob("*") if p.is_file()}
+    assert texts
+    assert not [p for p, t in texts.items() if t.lstrip().startswith((smoke.ERROR_TEXT_PREFIX, smoke.NOT_FOUND_PREFIX))]
+
+
 def test_summary_counts_answers_tools_failed_calls_and_code_tool_calls():
     rows = [{"route": "/api/chat", "http_status": 200, "answered": True, "ttfb_s": 3.0, "total_s": 4.0, "tools": None,
              "gold_value_stated": True},
