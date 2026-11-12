@@ -69,18 +69,17 @@ def get_file_by_path(
         logger.error(f"Error retrieving file from index: {str(e)}")
         return f"Error: {str(e)}"
 
-def list_available_files(
-    pattern: str = Field(
-        default="*",
-        description="Filter pattern to match file paths (e.g., *.py for Python files)"
-    )
-) -> List[str]:
+def list_available_files(pattern: str = "*") -> List[str]:
     """
     List available files in the index with optional pattern matching.
-    
+
     Args:
-        pattern: Filter pattern for file paths
-        
+        pattern: Filter pattern for file paths. The model sees its description in
+            ListFileSchema. The default is a plain "*": the agent calls the function with
+            only the arguments the model gave, so a pydantic Field(default="*") here was
+            the default itself (a FieldInfo, not a string) and a call without a pattern
+            raised.
+
     Returns:
         List of available file paths matching the pattern
     """
