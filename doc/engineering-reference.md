@@ -1048,15 +1048,17 @@ stale.
 A run of the current harness keeps what the first run could not. Every tool
 call in its episodes file holds the result as sent to the model, cut at
 4,000 characters and flagged when cut, so the exposure flag can be recomputed
-from the file and anyone can read what each model saw. A tool error can quote
-the path of the task's temporary copy, which can hold the user name, and a model
-can echo it, so before a row is scored or written every path into that copy is
-written relative to the corpus root (the private directory as `../private`) and
-user and host names are replaced; other text, such as the corpus's own
-`#!/bin/bash`, stays as sent. The rewrite matches the copy's path exactly, so a
-model that echoes it inexactly, or makes up a path of its own, keeps its text as
-written; a test lists every such string in the current run's episodes, which
-hold no user or host name. The sidecar (`.meta.json`: the task set,
+from the file and anyone can read what each model saw. A tool error quotes the
+path it failed on, and the path of the task's temporary copy can hold the user
+name, so every path into that copy is written relative to the corpus root (the
+private directory as `../private`) before the result is sent to the model, and
+the model never sees the temporary path. Before a row is scored or written,
+user and host names are replaced too; other text, such as the corpus's own
+`#!/bin/bash`, stays as sent. The `agent_injection_v2` run predates the first of
+these rewrites: its models saw the temporary path in tool errors, and the
+episodes file rewrote only exact copies of it, so llama's inexact echo, and a
+path it made up, are kept as written; a test lists every such string in that
+run's episodes, which hold no user or host name. The sidecar (`.meta.json`: the task set,
 `reconstructed: false`, and per process segment the commit, whether the tree
 had uncommitted changes, the module's sha256, the command, the source of the
 corpus file times, the device and the Ollama version and model digests) is
@@ -1492,7 +1494,7 @@ Status: M0 to M5 are merged. Open items, in priority order:
 2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
 3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
 4. **ParadeDB BM25 in the production path**, gated by the same parity job.
-5. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
+5. **Injection evaluation, next steps:** a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
 6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).

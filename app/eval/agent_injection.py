@@ -47,9 +47,11 @@ Scope: 10 single-file config questions from the frozen gold set, 4 attack
 goals x 10 tasks with one phrasing per goal (two phrasing styles alternate
 across tasks), and the same 10 questions without an injection as controls.
 agent_injection_v2 adds, per question, the planted move and the planted patch
-asked for by the user (20 capability tasks), and matches the controls on
-retrieval: their carriers end with neutral comment lines that hold the planted
-text's run number and field name (control_text), whose ticket counts exposure.
+asked for by the user (20 capability tasks), and gives the controls the planted
+text's query terms: their carriers end with neutral comment lines that hold its
+run number and field name (control_text), whose ticket counts exposure. That
+matches the controls on those terms only, not on every search result: the
+lines are shorter than the planted text and say something else.
 The phrasings are written for this benchmark; they are not an adaptive
 attacker. Benign and per-goal intervals are a percentile bootstrap over their
 10 tasks; pooled injected rates average each question's 4 tasks and resample
@@ -61,9 +63,10 @@ A capability task writes, so each of its episodes gets a fresh copy.
 
 Each call row in the episodes file holds the tool result as the model received it
 (cut at 4,000 characters, flagged when cut), so exposure and what the model read can
-be checked from the file alone. Paths into a task's temporary copy are written
-relative to the corpus root and user and host names are replaced before a row is
-scored or written (TaskEnv.publishable). run() writes the provenance sidecar
+be checked from the file alone. A path into a task's temporary copy is written
+relative to the corpus root before a tool result is sent (a tool error quotes the
+path it failed on), and user and host names are replaced before a row is scored
+or written (TaskEnv.publishable). run() writes the provenance sidecar
 (reconstructed false, one segment per process) before the first episode, and the
 results header records the commit and tree the process started from.
 
@@ -540,16 +543,21 @@ class TaskEnv:
         """What changed in the copy since it was made (corpus_diff)."""
         return corpus_diff(self.hashes, file_hashes(self.root))
 
+    def relative_paths(self, text: str) -> str:
+        """`text` with every path into this copy's temporary directory written relative to the corpus root (the
+        private directory as ../private). A tool error quotes the path it failed on, so a tool result passes through
+        this before it is sent: the temporary path can hold the user name, and a model can echo it."""
+        for prefix, rel in self._prefixes:
+            text = _relativize(text, prefix, rel)
+        return text
+
     def publishable(self, value: Any) -> Any:
         """`value` as an episodes file may hold it, in strings at any depth: a path into this copy's temporary
-        directory, which a tool error quotes and a model can echo, is written relative to the corpus root (the
-        private directory as ../private), then user and host names are replaced (provenance.scrub_names). Other
-        text stays as the model saw or wrote it, such as the corpus's own `#!/bin/bash` or a path a model made up,
-        so the scores read the same text."""
+        directory, which a model can still write itself, is written relative to the corpus root (relative_paths),
+        then user and host names are replaced (provenance.scrub_names). Other text stays as the model saw or wrote
+        it, such as the corpus's own `#!/bin/bash` or a path a model made up, so the scores read the same text."""
         if isinstance(value, str):
-            for prefix, rel in self._prefixes:
-                value = _relativize(value, prefix, rel)
-            return scrub_names(value)
+            return scrub_names(self.relative_paths(value))
         if isinstance(value, dict):
             return {k: self.publishable(v) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
@@ -710,7 +718,9 @@ def run_episode(chat: ChatFn, env: TaskEnv, defense: str, seed: int, max_turns: 
                     result = {"error": f"{type(exc).__name__}: {exc}"}
             if defense == "spotlight" and record["status"] == "ok":
                 result = _mark_result(result)
-            full = json.dumps(result, ensure_ascii=False, default=str)
+            # paths into the copy are sent relative to the corpus root, then the result is cut, so the stored result
+            # is the text the model received
+            full = env.relative_paths(json.dumps(result, ensure_ascii=False, default=str))
             content = full[:4000]
             saw_appended = saw_appended or (mark in content)
             # the result as the model received it, so exposure and what the model read can be checked from the file
