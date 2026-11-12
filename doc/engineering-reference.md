@@ -211,6 +211,59 @@ make robotics-verify
 make bench-robotics   # writes a new result; retains the measured reference
 ```
 
+The snapshot was frozen from the source repository's working tree, and some
+of its files differ from the blob the repository's index listed for them at
+the freeze (the manifest's `source_git_blob` and `matches_tracked_blob`
+fields). They are kept as they are:
+replacing them would make a new snapshot version. `make robotics-verify` and
+`make bench-robotics` print how many files differ and which. The freeze
+(`python -m app.eval.robotics freeze`) now reads the commit's git objects
+(`git ls-tree`, `git cat-file`) and never the working tree, so an uncommitted
+edit, a staged change or a file deleted on disk cannot reach a new snapshot,
+and a symlink is rejected without reading what it points to. Its filters have
+tests: undecodable text, byte duplicates, and a secret pattern that matches
+`api_key`, `access_token` or `password` followed by `=` or `:` and a value
+that begins with a long run of letters, digits, `_` or `-`. A secret under
+another name, a short value or one with other punctuation near its start, or
+a JSON key whose closing quote comes before the colon, is not caught.
+
+Two checks outside fixture v1 run on this snapshot
+(`app/eval/robotics_checks.py`). `make bench-robotics-chunking` compares the
+structure-aware chunker with a fixed character window for every file, the
+change the fixture's `hybrid+fixed-chunks` row makes, here on files most of
+which are longer than one window. `make bench-robotics-multiquery` adds the
+multi-query rewrite of the fixture's `hybrid+multiquery` row to the same index,
+on questions its keyword rules were not written for. Both use the in-memory
+hybrid index with the path context in the BM25 leg and the hash embedder (no
+model, no reranker, no router). Both legs rank every chunk and the fused
+ranking is cut to its first distinct paths, so each arm is scored on the same
+number of files however many chunks a file has. The primary score is
+path-level nDCG@10; intervals come from the family bootstrap, on the
+development and test splits separately, with each arm paired with its parent.
+The configuration is written in the code (`DECLARATION`, pinned by
+`tests/eval/test_robotics_checks.py`) and was committed before the test split
+was scored; nothing was tuned on either split. The questions name each
+experiment by the words of its path, so an interval that covers zero does not
+show that the two chunkers find answers equally well.
+
+[Chunking results](../bench/results/robotics_chunking.json): on both splits the
+paired interval of nDCG@10, fixed window minus structure-aware chunker, is
+above zero. It is a recorded loss of the structure-aware chunker on generated
+file lookup with the hash embedder, not a measurement of answer quality, and
+the check does not show which difference between the chunkers decides it (the
+structure-aware chunker keeps a JSON file of up to its maximum chunk size as
+one chunk; the fixed window cuts it into short windows that each carry the
+path context). These chunk-level hybrid rows are not comparable with the
+file-level BM25 rows quoted at the top of this section: they index chunks
+instead of whole files, fuse in the hash embedder's list, and rank every chunk
+before the list is cut at distinct paths.
+[Multi-query results](../bench/results/robotics_multiquery.json):
+the development split's verdict is "rules did not fire". On the test split the
+rules fire only through a false trigger (the rule that looks for `lr` matches
+inside the word `fullroute`), which changes no question's score. The paired
+interval is zero because the rules hardly ever fired, so it says nothing about
+whether multi-query helps.
+
 Opt in to the same search-only context with
 `build_index(..., include_path_context=True)`. The existing fixture remains the
 regression baseline. Human-reviewed temporal, multi-artifact and unanswerable
@@ -1309,10 +1362,10 @@ each LLM-written arm against the heuristic arm it replaces.
 
 | arm | what it changes | CPU stand-ins | real models | what the intervals support |
 |---|---|---|---|---|
-| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. |
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. On the robotics file-lookup questions ([check](../bench/results/robotics_multiquery.json)) the rules almost never fire, and where they do it is a false trigger, so that check does not exercise multi-query. |
 | HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
 | Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
-| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. On the robotics snapshot, most of whose files are longer than one window, the fixed window is above the structure-aware chunker on both splits ([check](../bench/results/robotics_chunking.json); hash embedder, generated file-lookup questions). |
 | Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. The LLM-written prefix is the next row. |
 | LLM-written contextual prefixes (`hybrid+contextual-llm`) | prepends the situating description qwen2.5:7b wrote for each chunk (`app/chunking/contextual.py` prompt, stored) | not evaluated (real models only) | covers zero | Evaluated with bge-small: no measured effect against plain hybrid, and above zero against the path-words prefix in the direct comparison. The loss of `hybrid+contextual` belongs to the path-words prefix, not to contextual prefixes in general; an LLM-written prefix is still not a measured gain. |
 | Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
@@ -1401,6 +1454,14 @@ benchmark. It is kept out of the benchmark tables on purpose. Modules:
 `app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`. The
 two graph demos below replay hand-picked cases; the category-level result for
 both mechanisms is the table above.
+
+The deep-research loop (`app/agent/deep_research.py`, `DeepResearchAgent`:
+query rewrites, multi-query search, relevance grading, a token-budgeted
+scratchpad and a cited extractive answer) is a demo that has not been
+evaluated either: it has tests and drives the deep-research demo trace
+(`app/eval/demo_export.py`), and no results file scores its answers. Its multi-query retrieval step is the
+`hybrid+multiquery` arm above and the robotics check under
+[Real robotics experiment lookup](#real-robotics-experiment-lookup).
 
 ### GraphRAG community summaries and HippoRAG PPR
 
