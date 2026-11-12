@@ -142,3 +142,24 @@ def test_exact_cli_exit_codes(tmp_path):
     (tmp_path / "moved.json").write_text(json.dumps(base))
     assert main(["--exact", "--current", str(tmp_path / "same.json"), "--baseline", str(tmp_path / "main.json")]) == 0
     assert main(["--exact", "--current", str(tmp_path / "moved.json"), "--baseline", str(tmp_path / "main.json")]) == 1
+
+
+# ---- A26: the gate's labels name every gated metric
+
+ROOT = Path(__file__).resolve().parents[2]
+METRIC_NAMES = {"ndcg@10": "nDCG@10", "recall@10": "Recall@10", "recall@50": "Recall@50"}  # as the docs write them
+
+
+def test_the_gate_step_and_the_make_help_name_every_gated_metric():
+    """The CI step that runs `make bench-gate` and that target's help line used to name nDCG@10 and Recall@50 only."""
+    from app.eval.compare import GATED_METRICS
+
+    names = [METRIC_NAMES[m] for m in GATED_METRICS]  # a newly gated metric needs its name here and in both labels
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text().splitlines()
+    (at,) = [i for i, line in enumerate(ci) if line.strip() == "run: make bench-gate"]
+    step = ci[at - 1].strip()
+    assert step.startswith("- name: ")
+    (help_line,) = [line for line in (ROOT / "Makefile").read_text().splitlines() if line.startswith("bench-gate:")]
+    for name in names:
+        assert name in step, (name, step)
+        assert name in help_line.split("##", 1)[1], (name, help_line)

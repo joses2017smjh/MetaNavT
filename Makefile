@@ -68,7 +68,7 @@ bench:          ## frozen fixture v1 -> bench/results/<git-sha>.json and latest.
 bench-compare:  ## report latest.json vs the committed baseline main.json
 	$(PYTHON) -m app.eval.compare
 
-bench-gate:     ## same, but exit 1 if nDCG@10 or Recall@50 drops more than the threshold
+bench-gate:     ## same, but exit 1 if nDCG@10, Recall@10 or Recall@50 drops more than the threshold
 	$(PYTHON) -m app.eval.compare --fail-on-regression
 
 bench-check:    ## run the CPU bench into bench/results/check.json; exit 1 unless every field of every row equals main.json (timings excepted)
