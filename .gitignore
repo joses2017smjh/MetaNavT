@@ -72,6 +72,10 @@ bench/external/
 !bench/results/companion_live.json
 # the chat routes with a real model (make chat-route-smoke)
 !bench/results/chat_route_smoke.json
+# RRF k and the dense-vs-BM25 weight chosen on half the gold questions, scored on the other half (make bench-rrf-sweep)
+!bench/results/rrf_sweep.json
+# per question, the gold files hybrid@bge-base drops at Recall@50 against dense_only@bge-base (make bench-hybrid-drops)
+!bench/results/hybrid_drops_bge_base.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log
