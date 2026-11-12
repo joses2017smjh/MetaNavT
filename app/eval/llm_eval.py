@@ -2,6 +2,7 @@
 
     python -m app.eval.llm_eval --out bench/results/jury.json \
         [--generator qwen2.5:7b] [--judges qwen2.5:7b,llama3.1:8b] [--limit N] \
+        [--calibration-generator qwen2.5:1.5b] \
         [--embedder st:BAAI/bge-small-en-v1.5 --reranker BAAI/bge-reranker-v2-m3]
 
 For every gold question, on fixture v1:
@@ -29,15 +30,17 @@ For every gold question, on fixture v1:
      asking the judge.
    - composite label, kept as a labelled column from M4: pointwise
      faithfulness / relevancy / groundedness -> label. Never gated: a wrong
-     value copied faithfully from a retrieved chunk scores about 1, 1, 0, which
-     reads as partial.
+     value copied faithfully from a retrieved chunk would score about 1, 1, 0,
+     which reads as partial.
    - pairwise AB/BA position swap between the LLM answer and the extractive
      answer, so position bias is measured (position_gap).
    The heuristic judge is kept as a labelled composite column. Every reply is
    stored; empty and unreadable replies are counted per judge.
 5. Cohen's kappa between each judge's correctness verdicts and the exact-match
-   labels on the simple_factual answers it labelled (rule-labelled abstentions
-   are left out and counted), paired per question, with a bootstrap interval.
+   labels of the reference answers it labelled: the calibration set when the
+   run has a --calibration-generator (CALIBRATION_CONDITIONS), else the
+   simple_factual answers; rule-labelled abstentions are left out and counted.
+   Labels are paired per answer, with a bootstrap interval over those answers.
    A judge's correctness score may be published only when kappa >= KAPPA_GATE
    (0.6); the results file says so either way (readme_ok). If the reference is
    a single class (every answer matched, or none did) kappa is 0 by
@@ -192,7 +195,7 @@ def _recording(complete):
 
 
 # ---- the calibration set: the gate's reference when the run has a calibration generator (M29) -----------------
-# The simple-factual slice is saturated (every generator tried answers nearly all of it correctly), so the reference
+# The simple-factual slice is saturated for the generator (bench/results/jury_v2.json), so the reference
 # gets its second class from planted contexts: the same questions answered from the same chunks with the gold value
 # replaced, in memory, by another value of the same field. A judge that passes shows it compares a single-value
 # answer with the gold; the planted value says nothing about the corpus.

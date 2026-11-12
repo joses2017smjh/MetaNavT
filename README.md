@@ -340,7 +340,7 @@ llama3.1:8b labelled all 160 calibration answers correct: its verdicts carry no 
 
 On the run's own simple-factual answers the correctness verdict equals the exact-match label for qwen2.5:7b 80 of 80, llama3.1:8b 80 of 80.
 
-Abstention rubric: an answer that is NOT IN SOURCES and nothing else, to a question that has a gold answer, is labelled wrong without asking a judge (7 of the run's answers, 0 calibration answers). The first run's composite label (the mean of faithfulness, relevancy and groundedness, with the retrieved context) is kept in the results file and never gated, because it reads a wrong value copied faithfully from a chunk as partial; it still labelled these abstentions correct: qwen2.5:7b (q093, q109, q123); llama3.1:8b (q093, q106, q109, q123, q134, q135).
+Abstention rubric: an answer that is NOT IN SOURCES and nothing else, to a question that has a gold answer, is labelled wrong without asking a judge (7 of the run's answers, 0 calibration answers). The first run's composite label (the mean of faithfulness, relevancy and groundedness, with the retrieved context) is kept in the results file and never gated, because two of its three parts reward agreement with the retrieved context, so a wrong value copied faithfully from a chunk would read as partial; it still labelled these abstentions correct: qwen2.5:7b (q093, q109, q123); llama3.1:8b (q093, q106, q109, q123, q134, q135).
 
 Judge replies that were empty (a failed call reads as partial or as a tie) or could not be read:
 

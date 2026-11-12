@@ -688,7 +688,8 @@ def jury_v2_table(blob: dict) -> str:
               f"wrong without asking a judge ({ab.get('n', 0)} of the run's answers"
               + (f", {len(ab.get('calibration') or [])} calibration answers). " if cal else "). ")
               + "The first run's composite label (the mean of faithfulness, relevancy and groundedness, with the retrieved context) is "
-              "kept in the results file and never gated, because it reads a wrong value copied faithfully from a chunk as partial; "
+              "kept in the results file and never gated, because two of its three parts reward agreement with the retrieved context, "
+              "so a wrong value copied faithfully from a chunk would read as partial; "
               + (f"it still labelled these abstentions correct: {'; '.join(called)}." if called else "it labelled no such abstention correct in this run.")]
     rp = s.get("replies") or {}
     if rp:

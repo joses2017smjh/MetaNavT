@@ -1057,20 +1057,22 @@ answer, is labelled wrong by rule without asking a judge (the abstention
 rubric; both judges of the first run had called such answers correct). The
 first run's composite label (the mean of faithfulness, relevancy and
 groundedness scores) is kept as a labelled column and never gated: a wrong
-value copied faithfully from a retrieved chunk scores high on two of the three
-and reads as partial, so it disagrees with an exact-match "wrong" by
-construction. A position-swapped (AB/BA) pairwise comparison against the
+value copied faithfully from a retrieved chunk would score high on two of the
+three and read as partial, disagreeing with an exact-match "wrong" (an argument
+from the prompts, not a measurement: the calibration answers get only the
+correctness verdict). A position-swapped (AB/BA) pairwise comparison against the
 extractive answer measures order bias. Every reply is stored, and empty or
 unreadable replies are counted per judge, because a failed call would
 otherwise read as partial or as a tie.
 
 Cohen's kappa is computed between each judge's correctness verdicts and the
-exact-match labels of the simple-factual answers it labelled, paired per
-question, with a bootstrap interval; rule-labelled abstentions are left out of
-kappa and counted, since they would agree with the reference by construction.
-The simple-factual slice is saturated for every generator tried, so
-`make bench-jury-v2` adds a calibration set and
-makes it the reference: a smaller model that is neither judge answers each
+exact-match labels of the reference answers it labelled, paired per answer,
+with a bootstrap interval over those answers; rule-labelled abstentions are
+left out of kappa and counted, since they would agree with the reference by
+construction. The run's own simple-factual answers would be the reference, but
+the slice is saturated for the generator (exact match labels every one of its
+answers correct), so `make bench-jury-v2` adds a calibration set and makes it
+the reference: a smaller model that is neither judge answers each
 simple-factual question twice, once from the retrieved chunks and once from the
 same chunks with every standalone occurrence of the gold value replaced in
 memory by another gold value of the same question template (the fixture is not
