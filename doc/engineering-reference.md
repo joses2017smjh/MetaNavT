@@ -1708,6 +1708,31 @@ also a test and a CI step, fails when a pinned file no longer covers
 narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
 names, shadowed imports); CI runs it as its own job.
 
+**Pinned base images.** Every image a build or a CI run pulls is pinned by
+digest: the Dockerfile's `# syntax` frontend and its three `FROM` images, the
+Postgres image of `docker-compose.yml` and of CI's parity job, and the optional
+Jaeger image. Each reference keeps the tag it was looked up from in front of
+the digest (`name:tag@sha256:...`), and a comment beside it names the release
+that tag pointed to on that day, so a tag that moves later does not change the
+build. The digest is the multi-platform index's, so other architectures still
+resolve. `tests/eval/test_image_build.py` fails on a reference without one. To
+move to a newer image, look up the tag's current index digest, replace digest
+and comment together (the Postgres image is named in both `docker-compose.yml`
+and `ci.yml`), and let CI rebuild: docker-smoke builds the default image, the
+Node stage is built only with `WITH_FRONTEND=1` (docker-ml-smoke), and no job
+pulls Jaeger (`--profile otel`).
+
+```bash
+docker buildx imagetools inspect python:3.11-slim     # the "Digest:" line
+# without Docker, from the registry (Docker Hub here; library/ for official images):
+repo=library/python tag=3.11-slim
+token=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$repo:pull" \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["token"])')
+curl -sI -H "Authorization: Bearer $token" \
+     -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+     "https://registry-1.docker.io/v2/$repo/manifests/$tag" | grep -i docker-content-digest
+```
+
 Pick the extra for what you want to run:
 
 | extra | installs | for |
@@ -1768,7 +1793,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included; the CUDA packages of the hand-built GPU override and the base images are not pinned.
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest; the CUDA packages of the hand-built GPU override are resolved at build time, not pinned.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 

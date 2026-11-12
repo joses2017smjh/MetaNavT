@@ -95,6 +95,41 @@ def test_the_cuda_override_installs_the_locked_torch_version_from_its_index(tmp_
     assert without_torch.read_text().splitlines() == [line for line in kept if not line.startswith("torch==")]
 
 
+PINNED = re.compile(r"[a-z0-9][a-z0-9._/-]*:[\w.-]+@sha256:[0-9a-f]{64}")
+
+
+def _image_references() -> list[tuple[str, str]]:
+    """(file, reference) for every image a build or a CI run pulls: the Dockerfile's syntax line and FROM lines (not
+    the build stage a FROM selects by name), and every `image:` line of the Compose files and the workflows."""
+    dockerfile = (ROOT / "Dockerfile").read_text().splitlines()
+    stages = {m.group(1) for line in dockerfile if (m := re.match(r"FROM\s+\S+\s+AS\s+(\S+)", line.strip(), re.I))}
+    references = []
+    for line in dockerfile:
+        if m := re.match(r"#\s*syntax=(\S+)", line):
+            references.append(("Dockerfile", m.group(1)))
+        elif m := re.match(r"FROM\s+(\S+)", line.strip(), re.I):
+            ref = m.group(1)
+            if ref in stages or ("${" in ref and any(stage.startswith(ref.split("${")[0]) for stage in stages)):
+                continue
+            references.append(("Dockerfile", ref))
+    sources = [*sorted(ROOT.glob("docker-compose*.yml")), *sorted((ROOT / ".github" / "workflows").glob("*.yml"))]
+    for path in sources:
+        for line in path.read_text().splitlines():
+            if m := re.match(r"\s*image:\s*(\S+)", line):
+                references.append((path.name, m.group(1).strip("'\"")))
+    return references
+
+
+def test_every_base_image_is_pinned_by_digest():
+    """A tag can point at a different image later, so the same commit could build differently. Each reference keeps
+    the tag it was looked up from in front of the digest; doc/engineering-reference.md says how to refresh them."""
+    references = _image_references()
+    names = {ref.split("@")[0].rsplit(":", 1)[0] for _, ref in references}
+    assert {"docker/dockerfile", "node", "alpine", "python", "pgvector/pgvector", "jaegertracing/all-in-one"} <= names
+    assert {name for name, _ in references} >= {"Dockerfile", "docker-compose.yml", "ci.yml"}
+    assert [(name, ref) for name, ref in references if not PINNED.fullmatch(ref)] == []
+
+
 def test_the_image_resolves_no_version_range():
     """Before M33 the ml and otel extras were installed from pyproject.toml's ranges (scripts/print_deps.py) under
     `-c requirements/app.txt`, and torch with no version."""
