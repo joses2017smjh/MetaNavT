@@ -297,7 +297,11 @@ make bench-check           # re-runs the bench; every field of every row must eq
 CI runs exactly this on every push and pull request (Python 3.11 and 3.12).
 The gate fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than
 0.002 below `main.json`; `make bench-check` fails on any difference at all
-outside timings, in either direction. The bench gives the same numbers on any
+outside timings, in either direction. The gate is one-sided: a rise above the
+threshold does not fail it but is printed as drift (`main.json` no longer
+describes the code), with the commit `main.json` was recorded at and how many
+commits HEAD has moved since (CI's shallow checkout does not have that commit,
+and says so). The bench gives the same numbers on any
 machine and checkout: the staleness filter and the file graph compare mtimes,
 and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
 (a checkout sets them to the moment it wrote each file); dense scores are

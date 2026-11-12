@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from app.eval.compare import DEFAULT_THRESHOLD, compare, exact_differences, main, regressions
 
 
@@ -163,3 +165,65 @@ def test_the_gate_step_and_the_make_help_name_every_gated_metric():
     for name in names:
         assert name in step, (name, step)
         assert name in help_line.split("##", 1)[1], (name, help_line)
+
+
+# ---- B34: a rise is reported as drift (the gate stays one-sided), with the commit the baseline was recorded at
+
+def test_a_rise_beyond_the_threshold_is_reported_as_drift_and_never_fails():
+    from app.eval.compare import improvements
+
+    cur = _blob("bbbbbbb", bm25_only=(0.843, 0.505 + 0.01), hybrid=(0.938 + DEFAULT_THRESHOLD, 0.454))
+    assert regressions(cur, BASE) == []  # one-sided, as before
+    assert improvements(cur, BASE) == [f"bm25_only: ndcg@10 rose 0.5050 -> 0.5150 (delta +0.0100, threshold {DEFAULT_THRESHOLD})"]
+    assert improvements(BASE, BASE) == [] and improvements(cur, BASE, metrics=("recall@50",)) == []  # within the threshold
+    assert improvements(_blob("c", bm25_only=(0.9, 0.6)), BASE) == [  # a config missing on one side is the gate's business
+        f"bm25_only: ndcg@10 rose 0.5050 -> 0.6000 (delta +0.0950, threshold {DEFAULT_THRESHOLD})",
+        f"bm25_only: recall@10 rose 0.6430 -> 0.7000 (delta +0.0570, threshold {DEFAULT_THRESHOLD})",
+        f"bm25_only: recall@50 rose 0.8430 -> 0.9000 (delta +0.0570, threshold {DEFAULT_THRESHOLD})"]
+
+
+def test_the_gate_prints_the_drift_and_the_baseline_commit(tmp_path, capsys):
+    base_path, cur_path = tmp_path / "main.json", tmp_path / "latest.json"
+    base_path.write_text(json.dumps(BASE))
+    cur_path.write_text(json.dumps(_blob("bbbbbbb", bm25_only=(0.843, 0.600), hybrid=(0.938, 0.454))))
+    assert main(["--current", str(cur_path), "--baseline", str(base_path), "--fail-on-regression"]) == 0
+    out = capsys.readouterr().out
+    assert "gate: OK" in out and "baseline: main.json recorded at aaaaaaa" in out
+    assert "drift: 1 gated metric rose more than 0.002 above the baseline" in out and "bm25_only: ndcg@10 rose 0.5050 -> 0.6000" in out
+    cur_path.write_text(json.dumps(BASE))
+    assert main(["--current", str(cur_path), "--baseline", str(base_path), "--fail-on-regression"]) == 0
+    assert "drift: none" in capsys.readouterr().out
+    dirty = {**BASE, "working_tree_dirty": True}
+    base_path.write_text(json.dumps(dirty))
+    assert main(["--current", str(cur_path), "--baseline", str(base_path)]) == 0
+    assert "baseline: main.json recorded at aaaaaaa with uncommitted changes" in capsys.readouterr().out
+
+
+def test_how_far_head_has_moved_since_the_baseline_commit(tmp_path, monkeypatch):
+    import shutil
+    import subprocess
+
+    from app.eval.compare import baseline_note
+
+    if shutil.which("git") is None:
+        pytest.skip("needs git")
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *args],
+                              cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+    git("init", "-q")
+    shas = []
+    for i in range(3):
+        (repo / "f.txt").write_text(f"{i}\n")
+        git("add", "f.txt")
+        git("commit", "-q", "-m", f"c{i}")
+        shas.append(git("rev-parse", "--short", "HEAD"))
+    assert baseline_note({"git_sha": shas[0]}, "main.json", repo) == f"baseline: main.json recorded at {shas[0]}; HEAD is 2 commits after it"
+    assert baseline_note({"git_sha": shas[2]}, "main.json", repo) == f"baseline: main.json recorded at {shas[2]}; HEAD is that commit"
+    assert baseline_note({"git_sha": "0000000"}, "main.json", repo) == (
+        "baseline: main.json recorded at 0000000, a commit not in this checkout's history (a shallow clone has only its own)")
+    assert baseline_note({}, "main.json", repo) == "baseline: main.json records no commit"
