@@ -224,6 +224,22 @@ def test_files_stage_refuses_a_directory_holding_other_files(tmp_path):
     assert (corpus / "stray.txt").exists()  # nothing deleted
 
 
+def test_the_served_results_file_reads_only_its_own_stages():
+    asked = []
+
+    class Recorder:
+        queries = {"q1": "x"}
+
+        def done(self, stage):
+            asked.append(stage)
+            return None
+
+    with pytest.raises(RuntimeError, match="stages not recorded yet"):
+        served_scale.assemble(Recorder())
+    # a pgvector stage that failed (hnsw, variants) must not hold back served_scale_fiqa.json
+    assert asked == list(served_scale.SERVED_STAGES)
+
+
 def test_unknown_stages_are_refused(tmp_path):
     with pytest.raises(SystemExit):
         served_scale.main(args_for(tmp_path, "--stages", "files,nonsense"))

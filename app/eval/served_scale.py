@@ -867,7 +867,7 @@ def assemble(run: Run) -> dict:
     from app.eval.provenance import git_sha, scrub
     from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, resample_indices, settings as bootstrap_settings
 
-    stages = {s: run.done(s) for s in STAGES}
+    stages = {s: run.done(s) for s in SERVED_STAGES}  # not hnsw / variants: they have their own file (assemble_hnsw)
     missing = [s for s, blob in stages.items() if blob is None]
     if missing:
         raise RuntimeError(f"stages not recorded yet: {missing}")
