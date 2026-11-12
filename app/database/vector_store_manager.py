@@ -58,6 +58,10 @@ WEBSEARCH_OPERATOR_WORDS = frozenset({"or"})
 LEXICAL_BACKENDS = ("ts_rank_cd", "paradedb")
 
 
+class IngestLockTimeout(TimeoutError):
+    """Another process held the ingest lock longer than the wait allows; this run indexed nothing."""
+
+
 def lexical_backend_setting() -> str:
     """LEXICAL_BACKEND, lowercased; unset or empty is ts_rank_cd, an unknown value is a ValueError."""
     value = os.getenv("LEXICAL_BACKEND", "").strip().lower() or "ts_rank_cd"
@@ -562,14 +566,6 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute(settings + "EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), {**params, **settings_params})
                 return "\n".join(r[0] for r in cur.fetchall())
 
-    def fetch_all_chunks(self) -> list[dict]:
-        """node_id, text, metadata for every row (staleness clusters at startup)."""
-        with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql.SQL("SELECT node_id, text, metadata_ FROM {table};").format(
-                    table=sql.Identifier(self.schema_name, self.data_table)))
-                return [{"node_id": r[0], "text": r[1], "metadata": r[2] or {}} for r in cur.fetchall()]
-
     @staticmethod
     def _bm25_rows(results) -> list[dict]:
         """Rows are (node_id, text, metadata_, score). metadata_ is JSON/JSONB, decoded by psycopg2."""
@@ -597,27 +593,39 @@ class VectorStoreManager(DatabaseManager):
     # ------------------------------------------------------------------ ingest manifest (incremental indexing)
     # One row per indexed file: path, SHA-256 of its bytes, chunk count, and the
     # pipeline (chunker version + embedder) that produced its rows. It is the
-    # source of truth for the diff app/engine/ingest.py runs on every start. A file's
+    # source of truth for the diff app/engine/ingest.py runs in every indexing run. A file's
     # manifest row is written only after its chunks are in the data table, and is
     # deleted in the same transaction as those chunks, so the manifest never lists a
     # file whose rows are missing. The table and the path index the per-file delete reads
-    # are schema migrations (migrations/vector/0002 and 0003), not created here.
+    # are schema migrations (migrations/vector/0002 and 0003), not created here. The row also
+    # carries what the staleness clusters need from the file (vector/0008: its mtime and the
+    # node id of its last chunk), so start-up builds them without reading a chunk.
 
     @property
     def manifest_table(self) -> str:
         return f"ingest_manifest_{self.table_name}"
 
+    @property
+    def ingest_lock_key(self) -> int:
+        """The pg_advisory_lock key of this table's indexing step (a signed 64-bit integer derived from its name)."""
+        name = f"metanavit.ingest:{self.schema_name}.{self.data_table}"
+        return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+
     @contextmanager
-    def ingest_lock(self):
+    def ingest_lock(self, timeout_s: float | None = None):
         """Session-level advisory lock around the diff-and-index step.
 
-        Two replicas that start together serialise here: the second waits, then
-        diffs against the manifest the first one wrote and finds nothing to do.
-        The lock lives on its own connection, so closing it (or the process
-        dying) releases it.
+        Two processes that index together (the index step, an upload, a replica
+        with INDEX_ON_START) serialise here: the second waits, then diffs against
+        the manifest the first one wrote and finds nothing to do. It waits at most
+        timeout_s seconds (None or 0: no limit), then raises IngestLockTimeout
+        having written nothing; the wait used to have no limit, so a stuck holder
+        stopped every other start. The lock lives on its own connection, so
+        closing it (or the process dying) releases it. The waiter blocks inside
+        pg_advisory_lock under lock_timeout, so it shows in pg_locks as an
+        advisory lock not granted yet.
         """
-        name = f"metanavit.ingest:{self.schema_name}.{self.data_table}"
-        key = int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+        key = self.ingest_lock_key
         conn = psycopg2.connect(self.conn_string)
         conn.autocommit = True
         started = time.perf_counter()
@@ -626,11 +634,28 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute("SELECT pg_try_advisory_lock(%s);", (key,))
                 waited = not cur.fetchone()[0]
                 if waited:
-                    logger.info("Another process is indexing; waiting for the ingest lock")
-                    cur.execute("SELECT pg_advisory_lock(%s);", (key,))
+                    logger.info(f"Another process is indexing; waiting {'up to %g s ' % timeout_s if timeout_s else ''}for the ingest lock")
+                    if timeout_s:
+                        cur.execute("SELECT set_config('lock_timeout', %s, false);", (f"{max(1, int(timeout_s * 1000))}ms",))
+                    try:
+                        cur.execute("SELECT pg_advisory_lock(%s);", (key,))
+                    except psycopg2.errors.LockNotAvailable as exc:
+                        raise IngestLockTimeout(
+                            f"another process held the ingest lock of {self.schema_name}.{self.data_table} for more than "
+                            f"{timeout_s:g} s (INGEST_LOCK_TIMEOUT_SECONDS); nothing was indexed"
+                        ) from exc
             yield {"waited": waited, "waited_ms": round((time.perf_counter() - started) * 1000.0, 1)}
         finally:
             conn.close()
+
+    def manifest_summary(self) -> dict:
+        """What the manifest lists, without reading a chunk: {"files", "chunks", "pipelines"} (pipelines sorted)."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT count(*), coalesce(sum(n_chunks), 0), array_agg(DISTINCT pipeline) FROM {manifest};").format(
+                    manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                files, chunks, pipelines = cur.fetchone()
+        return {"files": int(files), "chunks": int(chunks), "pipelines": sorted(p for p in (pipelines or []) if p is not None)}
 
     def ingest_manifest(self) -> dict[str, dict]:
         """{path: {"content_hash", "n_chunks", "pipeline"}} for every file the manifest lists."""
@@ -650,15 +675,45 @@ class VectorStoreManager(DatabaseManager):
                     table=sql.Identifier(self.schema_name, self.data_table)), (path,))
                 return int(cur.rowcount)
 
-    def record_file(self, path: str, content_hash: str, n_chunks: int, pipeline: str = "") -> None:
-        """List a file in the manifest. Call only after its chunks are committed to the data table."""
+    def record_file(
+        self, path: str, content_hash: str, n_chunks: int, pipeline: str = "", *, mtime: float | None = None, member_node_id: str | None = None
+    ) -> None:
+        """List a file in the manifest. Call only after its chunks are committed to the data table.
+
+        mtime and member_node_id (the node id of the file's last chunk) are what the staleness clusters read.
+        """
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL(
-                    "INSERT INTO {manifest} (path, content_hash, n_chunks, pipeline) VALUES (%s, %s, %s, %s) "
-                    "ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash, "
-                    "n_chunks = EXCLUDED.n_chunks, pipeline = EXCLUDED.pipeline, indexed_at = now();"
-                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)), (path, content_hash, int(n_chunks), pipeline))
+                    "INSERT INTO {manifest} (path, content_hash, n_chunks, pipeline, mtime, member_node_id) VALUES (%s, %s, %s, %s, %s, %s) "
+                    "ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash, n_chunks = EXCLUDED.n_chunks, "
+                    "pipeline = EXCLUDED.pipeline, mtime = EXCLUDED.mtime, member_node_id = EXCLUDED.member_node_id, indexed_at = now();"
+                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)),
+                    (path, content_hash, int(n_chunks), pipeline, None if mtime is None else float(mtime), member_node_id))
+
+    def cluster_records(self) -> list[dict]:
+        """One record per listed file, what the staleness clusters are built from: path, content hash, mtime and
+        member node id, in path order (code point order, the order the indexer writes files in). No chunk is read."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT path, content_hash, mtime, member_node_id FROM {manifest};").format(
+                    manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                rows = cur.fetchall()
+        return [{"path": r[0], "content_hash": r[1], "mtime": r[2], "member_node_id": r[3]} for r in sorted(rows, key=lambda r: r[0])]
+
+    def chunks_of_path(self, path: str) -> list[dict]:
+        """The chunk rows of one indexed file, by the path the manifest lists (relative to DATA_DIR), in byte order:
+        {"text", "start_byte", "end_byte", "verbatim"} each (verbatim: the text is the source slice itself, see
+        app/engine/ingest.build_nodes). The path is a query parameter, compared with the expression the path index
+        (vector/0003) covers; [] when no row carries it."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "SELECT text, (metadata_->>'start_byte')::bigint, (metadata_->>'end_byte')::bigint, "
+                    "metadata_->>'text_is_verbatim' FROM {table} WHERE metadata_->>'path' = %s ORDER BY 2, 3, node_id;"
+                ).format(table=sql.Identifier(self.schema_name, self.data_table)), (path,))
+                rows = cur.fetchall()
+        return [{"text": r[0], "start_byte": int(r[1]), "end_byte": int(r[2]), "verbatim": r[3] != "false"} for r in rows]
 
     def rows_per_path(self) -> dict[str, int]:
         """{path: chunk rows} for every row that carries a path, what the manifest's n_chunks must equal."""

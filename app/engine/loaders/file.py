@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-PRIVATE_STORE_PATH = str(Path("output", "uploaded"))
+# Uploads are saved under DATA_DIR/uploads and indexed (app/engine/uploads.py); they used to go to
+# output/uploaded, relative to the working directory, and were never indexed.
 TOOL_STORE_PATH = str(Path("output", "tools"))
 LLAMA_CLOUD_STORE_PATH = str(Path("output", "llamacloud"))
 
@@ -64,51 +65,30 @@ class FileService:
         params: Optional[dict] = None,
     ) -> DocumentFile:
         """
-        Process uploaded files by saving them and optionally indexing their contents.
+        Process uploaded files by saving them and indexing their contents.
         This is the main entry point for file handling in the application.
 
-        Flow:
-        1. Configure indexing system
-        2. Save file to storage
-        3. Index content (skip for CSV files)
-        4. Return file metadata
+        Flow (app/engine/uploads.save_and_index):
+        1. Check the file against the index step's gates (type, size, UTF-8 text,
+           not empty, not already indexed); refuse it otherwise (UploadRejected)
+        2. Save it under DATA_DIR/uploads, inside the ingest lock
+        3. Index it with the rest of DATA_DIR (app/engine/ingest.index_data_dir),
+           CSV files included: the served chunker cuts them into rows
+        4. Return file metadata (refs: the document id of its chunks)
         """
-        # Import indexing components - these handle document storage and retrieval
         try:
-            from app.engine.index import IndexConfig, get_index
+            from app.engine.index import IndexConfig
         except ImportError as e:
-            raise ValueError("IndexConfig or get_index is not found") from e
+            raise ValueError("IndexConfig is not found") from e
+        from app.engine.uploads import decode_data_url, save_and_index
 
-        # Initialize optional indexing parameters
-        if params is None:
-            params = {}
+        # Validate the optional indexing parameters, as before
+        IndexConfig(**(params or {}))
 
-        # Set up the indexing system with provided configuration
-        index_config = IndexConfig(**params)
-        index = get_index(index_config)
-
-        # Decode the base64 file content and identify file type
-        file_data, extension = cls._preprocess_base64_file(base64_content)
-
-        # Save file to private storage area and get metadata
-        document_file = cls.save_file(
-            file_data,
-            file_name=file_name,
-            save_dir=PRIVATE_STORE_PATH,
-        )
-
-        # TODO: It might be a good idea to have specific handlers for other types as well
-        # CSV files are handled separately by tools, so skip indexing
-        if extension == "csv":
-            return document_file
-        
-        # Load file content into documents and add to index
-        # TODO: Implement with postgresql databse
-        documents = cls._load_file_to_documents(document_file)
-        cls._add_documents_to_vector_store_index(documents, index)
-        document_file.refs = [doc.doc_id for doc in documents]
-
-        return document_file
+        # Decode the base64 file content; the stored name keeps the uploaded name's extension, and the declared
+        # type is not used (_preprocess_base64_file fails on a type mimetypes does not know, e.g. YAML's)
+        file_data = decode_data_url(base64_content)
+        return DocumentFile(**save_and_index(file_name, file_data))
 
     @classmethod
     def save_file(cls, content: bytes | str, file_name: str, save_dir: Optional[str] = None) -> DocumentFile:

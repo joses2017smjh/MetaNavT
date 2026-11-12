@@ -1,6 +1,8 @@
 # docker compose up --build   -> Postgres + pgvector, then the API on :8000.
-# First start indexes bench/corpus/files (61 files) with the deterministic hash
-# embedder, so no model download is needed and retrieval works without Ollama.
+# The api container runs three steps in order, as CI's parity job does: the schema
+# migrations, the index step (bench/corpus/files, 61 files, with the deterministic hash
+# embedder, so no model download is needed and retrieval works without Ollama; later
+# starts embed only changed files), then the server, which does not index itself.
 # Only /api/chat needs an Ollama server (OLLAMA_BASE_URL).
 #
 # Nothing here is interpolated from .env on purpose: `cp .env.example .env` (the
@@ -10,7 +12,9 @@ services:
   db:
     # pgvector only, without ParadeDB's pg_search (true BM25): lexical search is Postgres
     # ts_rank_cd, LEXICAL_BACKEND's default; /health reports bm25_backend.
-    image: pgvector/pgvector:pg16
+    # Pinned by digest, as is every image here, in the Dockerfile and in CI (refresh: doc/engineering-reference.md,
+    # Pinned base images). pg16 = 0.8.7-pg16 (pgvector 0.8.7, PostgreSQL 16.15, Debian bookworm) on 2026-11-11.
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -47,10 +51,8 @@ services:
       RERANKER_MODEL: none
       RETRIEVAL_MODE: sql          # one SQL round trip (app/database/sql/); python = the reference path
       DATA_DIR: bench/corpus/files
-      INDEX_ON_START: "true"       # every start: diff DATA_DIR against the manifest, embed only what changed
-      INGEST_MAX_REJECTED: "0"     # a rejected file fails the start (undecodable, empty, too large, ...): /health 503, retried
-      CHUNK_SIZE: "512"
-      CHUNK_OVERLAP: "50"
+      INDEX_ON_START: "false"      # the server does not index: the index step below does, before it starts
+      INGEST_MAX_REJECTED: "0"     # a rejected file (undecodable, empty, too large, ...) fails the index step, which stops the container
       RETRIEVE_K: "50"
       RERANK_TOP_N: "8"
       ENABLE_ROUTER: "true"
@@ -58,8 +60,15 @@ services:
       # OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces with --profile otel
       LOG_FORMAT: text
     # The deploy step first (schema migrations: tables, indexes, the vector extension; the
-    # API runs no DDL; while one is pending it answers 503 and retries), then the server.
-    command: ["sh", "-c", "python -m app.database.migrate && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
+    # API runs no DDL; while one is pending it answers 503 and retries), then the index step
+    # (python -m app.engine.ingest: diff DATA_DIR against the manifest, embed only what changed;
+    # stopped after 900 s, and a failure stops the container), then the server.
+    command: ["sh", "-c", "python -m app.database.migrate && timeout 900 python -m app.engine.ingest && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
+    volumes:
+      # POST /api/chat/upload saves under DATA_DIR/uploads and indexes the file with the rest of DATA_DIR. A volume,
+      # so an upload outlives the container; every container that indexes or serves this table must mount the same
+      # one (a shared volume for more than one replica), or its index run removes the upload's rows as a deleted file's.
+      - metanavit_uploads:/app/bench/corpus/files/uploads
     ports:
       - "8000:8000"
     healthcheck:
@@ -75,7 +84,8 @@ services:
     # docker compose --profile otel up --build : Jaeger UI on :16686, OTLP/HTTP on :4318.
     # The API exports spans only when OTEL_EXPORTER_OTLP_ENDPOINT is set and the image
     # was built with EXTRAS=app,otel; otherwise spans are no-ops (/health.observability).
-    image: jaegertracing/all-in-one:1.60
+    # 1.60 = 1.60.0, pinned by digest (refresh: doc/engineering-reference.md, Pinned base images).
+    image: jaegertracing/all-in-one:1.60@sha256:4fd2d70fa347d6a47e79fcb06b1c177e6079f92cba88b083153d56263082135e
     profiles: ["otel"]
     ports:
       - "16686:16686"
@@ -83,3 +93,4 @@ services:
 
 volumes:
   metanavit_pg:
+  metanavit_uploads:

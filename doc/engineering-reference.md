@@ -111,6 +111,17 @@ localhost refers to the phone. HTTP loopback URLs are available only in the web 
 as a fixture replay. The web demo allows only origins configured with
 `MOBILE_DEMO_ORIGINS`.
 
+CI's mobile workflow (`.github/workflows/mobile-app.yml`) starts the research
+companion in demo mode (scripted decisions over its real retrieval and
+inspection tools; no model, no key) and points the browser test
+`mobile/e2e/connected.spec.ts` at it with `AGENT_E2E_URL`, so the app's research
+agent panel is exercised against the real service over HTTP. A skipped test
+leaves Playwright's exit code at zero, so a guard step
+(`scripts/require_playwright_tests.py`, reading Playwright's JSON report) fails
+the job unless that test passed in every viewport project. The file's other
+test, the soccer workflow, needs the Agentic-Soccer repository's servers and
+still skips in CI; `mobile/e2e/run-connected.py` runs both by hand.
+
 ### Measured neural HTTP service
 
 The original FastAPI/PostgreSQL 16/pgvector service now has explicit device
@@ -210,6 +221,59 @@ separate from citation text. Both configurations use BM25 without a neural model
 make robotics-verify
 make bench-robotics   # writes a new result; retains the measured reference
 ```
+
+The snapshot was frozen from the source repository's working tree, and some
+of its files differ from the blob the repository's index listed for them at
+the freeze (the manifest's `source_git_blob` and `matches_tracked_blob`
+fields). They are kept as they are:
+replacing them would make a new snapshot version. `make robotics-verify` and
+`make bench-robotics` print how many files differ and which. The freeze
+(`python -m app.eval.robotics freeze`) now reads the commit's git objects
+(`git ls-tree`, `git cat-file`) and never the working tree, so an uncommitted
+edit, a staged change or a file deleted on disk cannot reach a new snapshot,
+and a symlink is rejected without reading what it points to. Its filters have
+tests: undecodable text, byte duplicates, and a secret pattern that matches
+`api_key`, `access_token` or `password` followed by `=` or `:` and a value
+that begins with a long run of letters, digits, `_` or `-`. A secret under
+another name, a short value or one with other punctuation near its start, or
+a JSON key whose closing quote comes before the colon, is not caught.
+
+Two checks outside fixture v1 run on this snapshot
+(`app/eval/robotics_checks.py`). `make bench-robotics-chunking` compares the
+structure-aware chunker with a fixed character window for every file, the
+change the fixture's `hybrid+fixed-chunks` row makes, here on files most of
+which are longer than one window. `make bench-robotics-multiquery` adds the
+multi-query rewrite of the fixture's `hybrid+multiquery` row to the same index,
+on questions its keyword rules were not written for. Both use the in-memory
+hybrid index with the path context in the BM25 leg and the hash embedder (no
+model, no reranker, no router). Both legs rank every chunk and the fused
+ranking is cut to its first distinct paths, so each arm is scored on the same
+number of files however many chunks a file has. The primary score is
+path-level nDCG@10; intervals come from the family bootstrap, on the
+development and test splits separately, with each arm paired with its parent.
+The configuration is written in the code (`DECLARATION`, pinned by
+`tests/eval/test_robotics_checks.py`) and was committed before the test split
+was scored; nothing was tuned on either split. The questions name each
+experiment by the words of its path, so an interval that covers zero does not
+show that the two chunkers find answers equally well.
+
+[Chunking results](../bench/results/robotics_chunking.json): on both splits the
+paired interval of nDCG@10, fixed window minus structure-aware chunker, is
+above zero. It is a recorded loss of the structure-aware chunker on generated
+file lookup with the hash embedder, not a measurement of answer quality, and
+the check does not show which difference between the chunkers decides it (the
+structure-aware chunker keeps a JSON file of up to its maximum chunk size as
+one chunk; the fixed window cuts it into short windows that each carry the
+path context). These chunk-level hybrid rows are not comparable with the
+file-level BM25 rows quoted at the top of this section: they index chunks
+instead of whole files, fuse in the hash embedder's list, and rank every chunk
+before the list is cut at distinct paths.
+[Multi-query results](../bench/results/robotics_multiquery.json):
+the development split's verdict is "rules did not fire". On the test split the
+rules fire only through a false trigger (the rule that looks for `lr` matches
+inside the word `fullroute`), which changes no question's score. The paired
+interval is zero because the rules hardly ever fired, so it says nothing about
+whether multi-query helps.
 
 Opt in to the same search-only context with
 `build_index(..., include_path_context=True)`. The existing fixture remains the
@@ -421,7 +485,7 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
 
-The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the manual `docker-ml-smoke` CI job together with the CPU real-model stack, not on every push.
+The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
 
 <p align="center">
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
@@ -481,8 +545,20 @@ reads, and the servers verify with the public key alone, so a process that
 verifies grants cannot mint one. The private key (mode 0600), the public key (not
 writable by group or others) and the SQLite replay ledger must live outside
 every agent-readable/indexed root: whoever can replace the public key can mint
-grants, and whoever can replace the ledger can replay them. Without configured
-approval state, file writes are refused. A capability binds the session, operation, paths, reviewed content and
+grants, and whoever can replace the ledger can replay them. A ledger file gives
+single use among the processes on one host that share it; for the API's
+replicas, `METANAVIT_APPROVAL_LEDGER=postgres` keeps the grants and the audit
+trail in the API's database instead (`approval_grants` and `approval_audit`,
+migration `0005`), where a capability is consumed by committing its grant row
+before the action runs and a second commit of the same grant id fails on the
+primary key and is refused as already consumed, from whichever replica it
+comes; whoever can write those tables can replay grants. The stdio servers have
+no database and refuse that setting rather than fall back to a file, and the API
+refuses it next to a ledger file: with two ledgers one capability could be
+consumed once in each (`tests/database/test_approval_ledger.py` runs every
+attack family of the approval benchmark with the Postgres ledger, and two
+verifier processes on it).
+Without configured approval state, file writes are refused. A capability binds the session the plan was proposed in, the operation, paths, reviewed content and
 source fingerprints, expires quickly, and is consumed transactionally before
 mutation. Symlink paths and implicit overwrites are refused. The audit trail
 names the check that refused an `apply_*` call (`REFUSAL_CHECKS` in
@@ -495,7 +571,8 @@ the JSON-RPC server returns the exception's message, as before.
 # Run as the trusted operator; choose paths outside the indexed corpus.
 python -m app.mcp.approve init --key /private/operator.key --public-key /srv/metanavit/operator.pub
 python -m app.mcp.approve sign --key /private/operator.key --review review.json --actor operator
-# Server settings: METANAVIT_APPROVAL_PUBLIC_KEY_FILE (the public key only) and METANAVIT_APPROVAL_LEDGER_FILE
+# Server settings: METANAVIT_APPROVAL_PUBLIC_KEY_FILE (the public key only) and METANAVIT_APPROVAL_LEDGER_FILE;
+# for the API's replicas METANAVIT_APPROVAL_LEDGER=postgres instead of the ledger file
 ```
 
 A token is the base64url of a canonical JSON body (review hash, grant id, issue
@@ -546,8 +623,14 @@ One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446*
 
 ### Indexing that does not redo the whole tree
 
-With `INDEX_ON_START`, every API start runs one indexing step
-([app/engine/ingest.py](../app/engine/ingest.py)) under a Postgres advisory lock:
+Indexing is a step of its own, `python -m app.engine.ingest` (`make index`,
+[app/engine/ingest.py](../app/engine/ingest.py)). `docker-compose.yml` and CI's
+parity job run it after the schema migrations and before the API, and the API's
+start does not index: it reads what the manifest lists (`GET /health`, under
+`indexing`), so a start never waits for a process that is indexing. With
+`INDEX_ON_START=true` (a single-process setup) every API start runs the same
+step first. The step prints its report and exits 0, or exits 1 and says why.
+One run, under a Postgres advisory lock:
 
 1. **Scan.** Every file under `DATA_DIR` is read once and either accepted or
    rejected with a reason: outside the root, unsupported type, too large,
@@ -571,8 +654,9 @@ With `INDEX_ON_START`, every API start runs one indexing step
    zero; unset, rejections are counted but not fatal.
 4. **Apply.** Rows of removed files are deleted. For each new or changed file
    its chunks are embedded, its old rows are deleted by path, the new rows are
-   inserted, and only then is it listed in the manifest. Unchanged files are
-   not sent to the embedder and their rows are not rewritten.
+   inserted, and only then is it listed in the manifest, with the file's mtime
+   and the id of its last chunk, what the staleness clusters are built from.
+   Unchanged files are not sent to the embedder and their rows are not rewritten.
 5. **Verify.** The rows are counted per path again and must equal the
    manifest's chunk counts; otherwise the run raises `IngestUnreconciled`
    instead of reporting success.
@@ -583,14 +667,23 @@ With `INDEX_ON_START`, every API start runs one indexing step
 
 The step is idempotent and can be interrupted: because the manifest row is
 written last and old rows are deleted before new ones are inserted, the next
-run repeats the unfinished files and leaves one set of rows. Two replicas that
-start together serialise on the lock; the second finds nothing to do.
+run repeats the unfinished files and leaves one set of rows. Two runs that
+start together serialise on the lock; the second finds nothing to do. A run
+waits for the lock at most `INGEST_LOCK_TIMEOUT_SECONDS` (default in
+`app/engine/ingest.py`; 0 waits without a limit) and then fails with
+`IngestLockTimeout`, having written nothing; the wait used to have no limit, so
+a holder that hung stopped every other start. Compose stops its index step
+after a fixed time as well, and CI's index step has its own time limit.
 
 "Failed" is not a counted category. Every failure (the embedder or the
-database raising, the rejection limit, a verification mismatch) aborts the run
-with an exception instead of being counted in a report. The API process stays
-up with the error recorded: `GET /health` answers 503 with it and
-`/api/retrieve` answers 503 until a later start-up attempt succeeds (they are retried in the background, without a restart: Start-up and `/health`, below). A file the run had
+database raising, the rejection limit, a verification mismatch, the lock wait
+running out) aborts the run with an exception instead of being counted in a
+report. The index step exits 1 with the error, which stops the Compose
+container and fails the CI step before the API starts. An API start that
+indexes (`INDEX_ON_START`) stays up with the error recorded: `GET /health`
+answers 503 with it and `/api/retrieve` answers 503 until a later start-up
+attempt succeeds (they are retried in the background, without a restart:
+Start-up and `/health`, below). A file the run had
 not reached keeps its previous rows and manifest entry, and so does the file in
 flight when the embedder raises (its old rows are deleted only after its chunks
 are embedded). When the database raises after that file's old rows were
@@ -604,10 +697,35 @@ nothing, an edit re-embeds one file, a delete removes its rows, the rejection
 limit, a link out of `DATA_DIR`, rows deleted or added behind the manifest's
 back, a run that does not verify, an interrupted run, a database failure while
 a file is written, two concurrent runs);
+[tests/database/test_staleness_clusters.py](../tests/database/test_staleness_clusters.py)
+covers the staleness record each run writes (an edit rewrites only that file's);
+[tests/database/test_index_step.py](../tests/database/test_index_step.py) runs
+the command twice, holds the lock from another process while a run gives up
+after its limit and while the API starts (as Compose configures it, it answers
+`/health` at once; with `INDEX_ON_START` it answers nothing while its first
+start-up attempt waits for the lock, then 503 once that wait runs out, until
+the holder is gone and a retried attempt succeeds), and
+[tests/engine/test_index_step_order.py](../tests/engine/test_index_step_order.py) checks the
+order of the steps in `docker-compose.yml` and in CI, which only CI runs;
 [tests/eval/test_ingest.py](../tests/eval/test_ingest.py) covers the scan, the
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
 [bench/results/ingest_runs.json](../bench/results/ingest_runs.json).
+`make ingest-scale` indexes 1, 10 and 100 copies of the fixture (every copy
+after the first with one line added to each file, so none is a duplicate) with
+the hash embedder and records, per size, the first index run, the unchanged
+re-run, the cluster read-back and the API's start with and without
+`INDEX_ON_START`, in
+[bench/results/ingest_scale.json](../bench/results/ingest_scale.json). Its
+`before` rows were recorded at the commit that added the command, before
+indexing left the API's start and the clusters stopped reading chunk text; its
+`after` rows at a later commit, after both. The timings are wall seconds on one
+shared machine, taken at different times (each row records its own timestamp),
+and leave out Python's imports and the HTTP server; the counts beside them
+(files, rows, chunks embedded, and the rows of chunk text each step read,
+counted on the client) are what a re-run reproduces,
+and [tests/eval/test_ingest_scale.py](../tests/eval/test_ingest_scale.py)
+checks that both sets of rows measured the same corpus.
 
 Chunking. Both the benchmark loader and the served indexer cut every file
 with `chunk_text` in [app/chunking/structure.py](../app/chunking/structure.py),
@@ -643,14 +761,52 @@ the expected spans, and
 fixture v1's chunks as the recorded benchmark cut them.
 
 Limits: a file is identified by its bytes, so a rename is a delete plus an
-insert; files are embedded one at a time inside the startup hook; the type
+insert; files are embedded one at a time by the index step, and an API that
+is already running keeps the staleness clusters it loaded at its start until
+it restarts; the type
 gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
 are counted as rejected, not parsed; a hard link inside `DATA_DIR` has no other
 path to resolve, so the `outside_root` gate reads one to a file elsewhere like
 a regular file. The older `indexed_files` table in
-`app/database/index_manager.py` is not used by this path, and the legacy
-`python -m app.engine.generate` CLI still splits with `SentenceSplitter` and
-does not consult the manifest.
+`app/database/index_manager.py` is not used by this path. `python -m
+app.engine.generate` (`scripts/run.sh generate`) is the index step under its
+old name: it used to split the crawler's documents with LlamaIndex's
+`SentenceSplitter` into the served table, outside the manifest, so a second
+run added a second copy of every chunk
+([tests/database/test_generate_cli.py](../tests/database/test_generate_cli.py)
+runs it after an API start, which leaves every row as it was, and compares the
+rows it writes with the rows a start writes). That pipeline (`run_pipeline` in
+`app/engine/generate.py`) and the team's crawler (`get_documents` in
+`app/engine/loaders/__init__.py`, `app/engine/loaders/file_system.py`) are kept,
+by the owner's decision on team code, and nothing calls them any more.
+`CHUNK_SIZE` and `CHUNK_OVERLAP` sized that splitter only, so Compose, CI and
+`.env.example` no longer set them (`app/settings.py` still reads them into
+LlamaIndex's `Settings`, which nothing that runs uses for chunking).
+
+Uploads. `POST /api/chat/upload` saves the file under `DATA_DIR/uploads` and
+indexes it with the same call ([app/engine/uploads.py](../app/engine/uploads.py)):
+the file is first checked against the scan's own gates (type, size, UTF-8
+text, not empty, not the bytes of a file already indexed) and refused with the
+reason (415, 413, 422, 409) without writing anything, because a rejected file
+left in `DATA_DIR` would fail every later run under `INGEST_MAX_REJECTED`; it is
+written while the run holds the ingest lock, before its scan, and removed again
+if the run fails. Listed in the manifest like any file of `DATA_DIR`, it
+survives a restart and any later index run, as long as every process that
+indexes or serves reads the same `DATA_DIR` (a symbolic link out of it is
+rejected as `outside_root`, so the shared directory has to be mounted there:
+`docker-compose.yml` mounts a volume at `DATA_DIR/uploads`); a process with a
+`DATA_DIR` of its own would remove the upload's rows as a deleted file's. They
+used to be written to `output/uploaded` under the receiving process's working
+directory and never indexed. An upload is searchable by every caller of
+`/api/retrieve`: the team's `private` flag (true on uploads, false on the
+crawler's documents) is enforced nowhere, neither by the hybrid statement nor
+by the chat engine, which receives the filters and does not use them, and the
+served rows do not carry it.
+[tests/database/test_uploads.py](../tests/database/test_uploads.py) posts a
+file to one API process, finds it through `/api/retrieve/`, and finds it again
+after a restart that indexes; with two API processes sharing `DATA_DIR`, a file
+uploaded through one is retrieved and served as a file by the other and kept by
+an index run beside them.
 
 ### pgvector knobs on a trade-off curve
 
@@ -797,7 +953,16 @@ scan) on that route only; on every other route its parameter is NULL and the sca
 never runs. `tests/database/test_dense_parity.py` requires the same score for every
 chunk as the in-memory lookup on each gold question the router sends down that
 route, and `tests/database/test_hybrid_sql.py` checks that a path query returns the
-named file first where the lexical list alone ranks a note that mentions it first. Every hit
+named file first where the lexical list alone ranks a note that mentions it first. The API
+builds its version clusters once, at start, from the ingest manifest: the
+indexer writes each new or changed file's mtime and the id of its last chunk
+on its manifest row (schema migration `vector/0008`, which fills both from the
+rows' metadata for a manifest written before it), and `cluster_versions` gets
+one record per file instead of every chunk's text, which start-up used to read
+back from the whole table
+([tests/database/test_staleness_clusters.py](../tests/database/test_staleness_clusters.py)
+shows the clusters equal the ones every chunk gives, and that a restart sends
+no statement that selects the text column). Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
 the response carries the route and per-stage latency. Its `bm25_backend` names the
 lexical backend that answered that request (`ts_rank_cd`, `paradedb`, or `none` when
@@ -983,25 +1148,69 @@ is missing.
 
 ## Does the judge agree with the gold labels?
 
-`make bench-jury` generates a cited answer for every gold question with a local
-model through Ollama, from the top 8 chunks of the best measured retrieval
-configuration, then runs three deterministic checks before any judge is asked:
-the cited path is in the retrieved set, every number or config value in the
-answer appears inside the cited bytes (not merely somewhere in the evidence),
-and exact match against the gold answer on the simple-factual slice. An answer
-that carries no valid `[path:start-end]` citation fails loudly and is excluded
-from judging. Two different judge models label each answer pointwise, and a
-position-swapped (AB/BA) pairwise comparison against the extractive answer
-measures their order bias. Judge scores are published only if a judge's
-Cohen's kappa against the exact-match labels reaches the gate; otherwise the
-table says so and the scores stay in the results file. If the reference is a
-single class (every simple-factual answer matched, as on the first run) kappa
-is 0 by construction and the gate is reported as not evaluable, which also
-keeps it closed. `make bench-jury-rescore` recomputes the deterministic checks
+`make bench-jury-v2` (results in `jury_v2.json`; the first run, `make bench-jury`,
+is kept in `jury.json`) generates a cited answer for every gold question with a
+local model through Ollama, from the top 8 chunks of the best measured retrieval
+configuration (a run refuses to start when the configured reranker falls
+back), then runs the deterministic checks before any judge is asked: the cited
+path is in the retrieved set, every number or config value in the answer
+appears inside the cited bytes (not merely somewhere in the evidence), and
+exact match against the gold answer on the simple-factual slice. Exact match
+counts the gold string only where it is not part of a longer number or word,
+or the same number written in another format; plain containment had found the
+gold `8` inside `48`. An answer that carries no valid `[path:start-end]`
+citation fails loudly and is excluded from judging.
+
+Each judge model then gives three things per answer. The gated label is a
+correctness verdict: the judge sees the question, the gold answer and the
+answer, and no retrieved context, and replies correct, partial or wrong. An
+answer that is `NOT IN SOURCES` and nothing else, to a question that has a gold
+answer, is labelled wrong by rule without asking a judge (the abstention
+rubric; both judges of the first run had called such answers correct). The
+first run's composite label (the mean of faithfulness, relevancy and
+groundedness scores) is kept as a labelled column and never gated: a wrong
+value copied faithfully from a retrieved chunk would score high on two of the
+three and read as partial, disagreeing with an exact-match "wrong" (an argument
+from the prompts, not a measurement: the calibration answers get only the
+correctness verdict). A position-swapped (AB/BA) pairwise comparison against the
+extractive answer measures order bias. Every reply is stored, and empty or
+unreadable replies are counted per judge, because a failed call would
+otherwise read as partial or as a tie.
+
+Cohen's kappa is computed between each judge's correctness verdicts and the
+exact-match labels of the reference answers it labelled, paired per answer,
+with a percentile bootstrap interval that resamples the questions: a drawn
+question brings all of its reference answers, so on the calibration set below
+a question's retrieved and planted answers move together; rule-labelled
+abstentions are left out of kappa and counted, since they would agree with the
+reference by construction. The run's own simple-factual answers would be the reference, but
+the slice is saturated for the generator (exact match labels every one of its
+answers correct), so `make bench-jury-v2` adds a calibration set and makes it
+the reference: a smaller model that is neither judge answers each
+simple-factual question twice, once from the retrieved chunks and once from the
+same chunks with every standalone occurrence of the gold value replaced in
+memory by another gold value of the same question template (the fixture is not
+touched). The planted answers give the reference its wrong class. Calibration
+answers get the correctness verdict only, cited or not, and stay out of every
+deterministic-check rate; the run's own answers are judged as before, and a
+judge that passes the gate on the calibration set has its correctness score of
+those answers published. A pass shows that the judge compares a single-value
+answer with the gold, not that it judges every kind of answer correctly.
+A judge's correctness score is published only if its kappa reaches the gate;
+otherwise the table says so and the scores stay in the results file. If the
+reference is a single class (every simple-factual answer matched, as on the
+first run) kappa is 0 by construction and the gate is reported as not
+evaluable, which also keeps it closed. `make bench-jury-v2-rescore` (and
+`make bench-jury-rescore` for the first run) recomputes the deterministic checks
 and the summary of the committed file from its stored answers without a model
-call, re-running retrieval and refusing if the retrieved paths differ; the file
-and the block name both the sha that generated the answers and the sha that
-rescored them.
+call, re-running retrieval and the planting and refusing if the retrieved
+paths, the planted values or their counts differ or the abstention rule would
+label other rows; the file and the block name both the sha that generated the
+answers and the sha that rescored them. The first run's stored retrieval no
+longer matches today's, so its rescore refuses. The results header pins the generator and each judge by the
+manifest digest Ollama reports for its tag (`revision`), next to the server
+version, and a model run refuses to start when a tag has no digest; files
+recorded before that (`jury.json`) name the Ollama models by tag only.
 
 [Current generated bench-jury evidence](../README.md#bench-jury).
 
@@ -1304,10 +1513,10 @@ each LLM-written arm against the heuristic arm it replaces.
 
 | arm | what it changes | CPU stand-ins | real models | what the intervals support |
 |---|---|---|---|---|
-| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. |
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. On the robotics file-lookup questions ([check](../bench/results/robotics_multiquery.json)) the rules almost never fire, and where they do it is a false trigger, so that check does not exercise multi-query. |
 | HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
 | Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
-| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. On the robotics snapshot, most of whose files are longer than one window, the fixed window is above the structure-aware chunker on both splits ([check](../bench/results/robotics_chunking.json); hash embedder, generated file-lookup questions). |
 | Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. The LLM-written prefix is the next row. |
 | LLM-written contextual prefixes (`hybrid+contextual-llm`) | prepends the situating description qwen2.5:7b wrote for each chunk (`app/chunking/contextual.py` prompt, stored) | not evaluated (real models only) | covers zero | Evaluated with bge-small: no measured effect against plain hybrid, and above zero against the path-words prefix in the direct comparison. The loss of `hybrid+contextual` belongs to the path-words prefix, not to contextual prefixes in general; an LLM-written prefix is still not a measured gain. |
 | Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
@@ -1396,6 +1605,14 @@ benchmark. It is kept out of the benchmark tables on purpose. Modules:
 `app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`. The
 two graph demos below replay hand-picked cases; the category-level result for
 both mechanisms is the table above.
+
+The deep-research loop (`app/agent/deep_research.py`, `DeepResearchAgent`:
+query rewrites, multi-query search, relevance grading, a token-budgeted
+scratchpad and a cited extractive answer) is a demo that has not been
+evaluated either: it has tests and drives the deep-research demo trace
+(`app/eval/demo_export.py`), and no results file scores its answers. Its multi-query retrieval step is the
+`hybrid+multiquery` arm above and the robotics check under
+[Real robotics experiment lookup](#real-robotics-experiment-lookup).
 
 ### GraphRAG community summaries and HippoRAG PPR
 
@@ -1544,21 +1761,23 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
                                               or fail loud
 ```
 
-**Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). Pending plans live in the API process's memory (one worker); the decision log is the durable record and `GET /api/plans/decisions/recent` reads it back. The page background is the four-stop radial gradient in `globals.css`.
+**Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). The plans themselves are rows of `plan_proposals`, read by id on every request, so the replicas on the database that see `DATA_DIR` at the same path on the same filesystem, and a restarted one, serve the same plans and statuses (Shared state across replicas, below); the decision log records every attempt and `GET /api/plans/decisions/recent` reads it back. The page background is the four-stop radial gradient in `globals.css`.
 
-**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text. The recorded run shows two file-access tools failing on the default stack, both defects in `app/engine/tools/index_file_access.py` that the run does not fix: `list_available_files` called without a pattern raises, because its `pattern` default is a pydantic `Field` object rather than a string, and with a pattern it returns an empty list, because the served indexer never writes the `indexed_files` table it reads; `get_file_content` passes a plain dict as metadata filters, and the query engine's error comes back to the model as text. Only `query_index` returned file content to the model; the counts are in the generated rows. Retrieval is now hybrid + loop, not a single dense `top_k`.
+**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text; a `Not found: ...` reply (`get_file_content` asked for a path the index does not hold) is counted apart, as an answer from a working tool. The runner tells these apart by how the returned text starts, so a file whose own text starts with `Error` or `Not found` would be counted the same way; no file of fixture v1 does. The two file-access tools in `app/engine/tools/index_file_access.py` work on the default stack since M30b. `list_available_files` lists the paths of the ingest manifest, the record of the files the index step stored, relative to `DATA_DIR`, filtered by a glob over the whole relative path (so a bare name pattern such as `fusion*` matches only paths that start with `fusion`: not `src/fusion.py`, but a file under a top-level `fusion_x/`, since `*` also matches `/`), at most `MAX_LISTED_FILES` of them in code point order; called without a pattern it lists every file up to that cap, and the model is not told when a list was cut. `get_file_content` reads the file's chunk rows by that relative path with a parameterized query, not with the vector store's metadata filters, which the installed `PGVectorStore` formats into the SQL text, and rebuilds the file from them on their byte offsets, cut after `MAX_CONTENT_CHARS` characters with a note. A whitespace-only stretch the chunker stored no chunk for, such as the blank lines between two top-level Python definitions, does not come back: a line break stands in only where the text before it does not end a line. A database failure gives the model a fixed `Error: ...` text and the reason goes to the API log. `tests/engine/test_index_file_access.py` calls both tools through their `FunctionTool` with only the model's arguments, as the agent does; `tests/database/test_file_access_tools.py` lists the fixture indexed through the served path and fetches every file by its relative path; `tests/database/test_agent_paths_stack.py` drives them through the request route with a scripted model. Before M30b, the run then recorded (at 44d2c5f, replaced by the current file) showed both tools failing: `list_available_files` called without a pattern raised, because its `pattern` default was a pydantic `Field` object rather than a string, and with a pattern it returned an empty list, because it read the `indexed_files` table the served indexer never writes; `get_file_content` passed a plain dict as metadata filters, and the query engine's error came back to the model as text, so only `query_index` returned file content to the model. The current file was recorded after the fixes; its counts, including the calls that failed and the not-found replies, are in the generated rows. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
-**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The per-statement search settings on `VectorStoreManager`; the vector table and its indexes are schema migrations (below). The `ensure_halfvec` / `ensure_binary` helpers, which had no caller and ran their DDL inline, were removed with the rest of the inline DDL; a halfvec or bit column would be a new migration.
+**Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`: a `ThreadedConnectionPool` (requests run in worker threads; the `SimpleConnectionPool` it replaced is not for use across threads, and unsynchronised it let concurrent callers hold more connections than its maximum) sized by `PG_POOL_MIN` and `PG_POOL_MAX` (defaults in `app/database/db_base_manager.py`), where a caller that finds every connection out waits up to `PG_POOL_WAIT_SECONDS` for one instead of failing at once with "connection pool exhausted" (`tests/database/test_pool.py`: more threads running the hybrid statement than the pool holds). Each replica holds its own pool, so the database sees up to `PG_POOL_MAX` connections per replica besides the ones opened outside it (the ingest lock, a plan decision, `PGVectorStore`'s own engine); with many replicas a pooler in front of Postgres keeps that number down. The per-statement search settings on `VectorStoreManager`; the vector table and its indexes are schema migrations (below). The `ensure_halfvec` / `ensure_binary` helpers, which had no caller and ran their DDL inline, were removed with the rest of the inline DDL; a halfvec or bit column would be a new migration.
 
-**Schema migrations.** Every Postgres table and index the application uses comes from versioned SQL files applied by a deploy step, `python -m app.database.migrate` (`make migrate`; `--check` lists what is pending and exits 1), which `docker-compose.yml` and CI's parity job run before uvicorn. Apart from creating a missing database (Start-up and `/health`, below), the API runs no DDL: start-up (`build_retrieval_state`), the plan decision log and `IndexManager` only read the ledgers and refuse to run (`MigrationsPending`, which `/health` reports) while a migration is pending; start-up tries again until the deploy step has run (Start-up and `/health`, below). The start-up check of the data table is read-only too (the table exists and the role may select, insert and delete; its embedding dimension is compared only for a table created after the manager was built, because the manager otherwise takes the dimension from the table); it used to add a placeholder row to the shared table and delete it again on every start, visible to concurrent readers (`tests/database/test_startup.py` watches with a row trigger and a reader). `app/database/migrate.py` applies up to three sequences. `app/database/migrations/` holds the application's own tables (`0001_baseline.sql`, then one file per change; ledger `schema_migrations`). `app/database/migrations/vector/` holds the vector table: its schema when it is missing (as `PGVectorStore`'s own setup did), the vector extension and `data_<PGVECTOR_TABLE>` in the shape LlamaIndex's `PGVectorStore` gives it (which the API now builds with `perform_setup=False`), the ingest manifest, the path index, the stored `text_tsv` column (`to_tsvector('english', text)`) with its GIN index, and the HNSW index. The table's schema, name and embedding dimension are configuration, so those files are templates, applied and recorded per table in `vector_table_migrations` (migration `0003`) with the values they were rendered with, including the embedding dimension. `vector/0001` refuses to adopt an existing table whose stored dimension differs from `EMBEDDING_DIM`. Once a table is adopted or built, nothing compares it with `EMBEDDING_DIM` again: `--check` lists nothing, and the API takes the table's dimension, as it did before migrations existed, so a different `EMBEDDING_DIM` surfaces only when the first write or query fails with a dimension error. `app/database/migrations/paradedb/` (the `pg_search` extension and the BM25 index, built once and never dropped; start-up used to drop it and build it again on every start) is applied and required only with `LEXICAL_BACKEND=paradedb`; no image used here has `pg_search`, so those files have never run. Index builds on the vector table run `CREATE INDEX CONCURRENTLY` in files marked `-- migrate: no-transaction`, whose statements the runner sends one at a time outside a transaction (each is safe to run again; an index left invalid by an interrupted build is dropped first). Index names carry their parameters (`<table>_embedding_hnsw_m16_efc64`): changing `m` is a new file that builds the index under its new name and drops the old one, where `IF NOT EXISTS` on a fixed name used to leave an existing index unchanged. The runner records each applied file and its SHA-256, applies each transactional file with its record in one transaction, takes a Postgres advisory lock so two deploy steps run one after the other (the waiting one polls the lock with no transaction open: a session blocked inside `pg_advisory_lock` holds a snapshot, the other one's `CREATE INDEX CONCURRENTLY` waits for it, and the two deadlock), and refuses to run if an applied file was edited or the database is newer than the code. A database made by the code before migrations existed is adopted in place: the files use `IF NOT EXISTS` with the old definitions and names, so rows are untouched and the adopted indexes keep their names and definitions; the old fixed-name HNSW index is replaced by the parameter-named one. Adding the stored `text_tsv` column (`vector/0006`) rewrites the table under an exclusive lock, which rebuilds every index on it, so on a large table the upgrade belongs in a maintenance window. `tests/database/test_migrations.py` (CI parity job, live Postgres) upgrades a version-2 database holding vector rows and manifest rows written by the old code through the command's entry point and checks every row; it also compares a migrated table with one `PGVectorStore` creates, shows a migration that changes `m` rebuilds the index, runs start-up under an event trigger that records any DDL (none), and starts two deploy steps together (both succeed). There are no down-migrations.
+**Schema migrations.** Every Postgres table and index the application uses comes from versioned SQL files applied by a deploy step, `python -m app.database.migrate` (`make migrate`; `--check` lists what is pending and exits 1), which `docker-compose.yml` and CI's parity job run before uvicorn. Apart from creating a missing database (Start-up and `/health`, below), the API runs no DDL: start-up (`build_retrieval_state`), the plan decision log and `IndexManager` only read the ledgers and refuse to run (`MigrationsPending`, which `/health` reports) while a migration is pending; start-up tries again until the deploy step has run (Start-up and `/health`, below). The start-up check of the data table is read-only too (the table exists and the role may select, insert and delete; its embedding dimension is compared only for a table created after the manager was built, because the manager otherwise takes the dimension from the table); it used to add a placeholder row to the shared table and delete it again on every start, visible to concurrent readers (`tests/database/test_startup.py` watches with a row trigger and a reader). `app/database/migrate.py` applies up to three sequences. `app/database/migrations/` holds the application's own tables (`0001_baseline.sql`, then one file per change; ledger `schema_migrations`). `app/database/migrations/vector/` holds the vector table: its schema when it is missing (as `PGVectorStore`'s own setup did), the vector extension and `data_<PGVECTOR_TABLE>` in the shape LlamaIndex's `PGVectorStore` gives it (which the API now builds with `perform_setup=False`), the ingest manifest (with each file's staleness record, `vector/0008`), the path index, the stored `text_tsv` column (`to_tsvector('english', text)`) with its GIN index, and the HNSW index. The table's schema, name and embedding dimension are configuration, so those files are templates, applied and recorded per table in `vector_table_migrations` (migration `0003`) with the values they were rendered with, including the embedding dimension. `vector/0001` refuses to adopt an existing table whose stored dimension differs from `EMBEDDING_DIM`. Once a table is adopted or built, nothing compares it with `EMBEDDING_DIM` again: `--check` lists nothing, and the API takes the table's dimension, as it did before migrations existed, so a different `EMBEDDING_DIM` surfaces only when the first write or query fails with a dimension error. `app/database/migrations/paradedb/` (the `pg_search` extension and the BM25 index, built once and never dropped; start-up used to drop it and build it again on every start) is applied and required only with `LEXICAL_BACKEND=paradedb`; no image used here has `pg_search`, so those files have never run. Index builds on the vector table run `CREATE INDEX CONCURRENTLY` in files marked `-- migrate: no-transaction`, whose statements the runner sends one at a time outside a transaction (each is safe to run again; an index left invalid by an interrupted build is dropped first). Index names carry their parameters (`<table>_embedding_hnsw_m16_efc64`): changing `m` is a new file that builds the index under its new name and drops the old one, where `IF NOT EXISTS` on a fixed name used to leave an existing index unchanged. The runner records each applied file and its SHA-256, applies each transactional file with its record in one transaction, takes a Postgres advisory lock so two deploy steps run one after the other (the waiting one polls the lock with no transaction open: a session blocked inside `pg_advisory_lock` holds a snapshot, the other one's `CREATE INDEX CONCURRENTLY` waits for it, and the two deadlock), and refuses to run if an applied file was edited or the database is newer than the code. A database made by the code before migrations existed is adopted in place: the files use `IF NOT EXISTS` with the old definitions and names, so rows are untouched and the adopted indexes keep their names and definitions; the old fixed-name HNSW index is replaced by the parameter-named one. Adding the stored `text_tsv` column (`vector/0006`) rewrites the table under an exclusive lock, which rebuilds every index on it, so on a large table the upgrade belongs in a maintenance window. `tests/database/test_migrations.py` (CI parity job, live Postgres) upgrades a version-2 database holding vector rows and manifest rows written by the old code through the command's entry point and checks every row; it also compares a migrated table with one `PGVectorStore` creates, shows a migration that changes `m` rebuilds the index, runs start-up under an event trigger that records any DDL (none), and starts two deploy steps together (both succeed). There are no down-migrations.
 
-**Start-up and `/health`.** `/health` answers 200 with the index statistics once retrieval is ready and 503 otherwise. A start-up attempt that fails (the database down or still starting, a migration the deploy step has not applied yet) is retried in the background without a restart, waiting `STARTUP_RETRY_SECONDS` and then twice as long each time up to `STARTUP_RETRY_MAX_SECONDS`, for at most `STARTUP_RETRY_ATTEMPTS` attempts (unset or 0: no limit; 1: no retry); the defaults are in `app/engine/bootstrap.py`. Meanwhile `/health` is 503 with the last error and a `startup` block (attempts so far, whether another is coming and after what wait), and `/api/retrieve` is 503; once an attempt succeeds `/health` turns 200. Each attempt redoes only what has not been built: the model settings, the retrieval state, the plan store. A process used to keep its first error until it was restarted, and nothing restarts the Compose service. The first attempt still runs before the server accepts requests, so a start that succeeds is unchanged (`tests/api/test_startup_retry.py`; `tests/database/test_startup.py` starts the API before the deploy step and sees `/health` go from 503 to 200 once it has run). Its row count (`n_nodes`, `VectorStoreManager.count_nodes`) reads only a missing data table as 0 rows; any other database error makes `/health` answer 503 with `status: unavailable`, `n_nodes: null` and a `database` entry under `degraded`, where it used to answer `ok` with 0 rows while the database was unreachable (`tests/engine/test_vector_store_sql.py`, `tests/api/test_retrieve_contract.py`). `DatabaseManager` (the API's managers and the deploy step) creates the database named by `DB_NAME` when it is missing. That branch had never worked: since psycopg2 2.9 a `with connection` block runs its statements in a transaction even in autocommit mode, and `CREATE DATABASE` cannot run inside one; Compose, CI and the local instances create the database themselves, so nothing reached it. It also checked and then created, so two replicas starting together could both find no database and the second `CREATE DATABASE` failed that replica's start. The second creation's error (`UniqueViolation` on `pg_database`'s name index when both are sent at once, `DuplicateDatabase` when one follows the other) is now accepted once the database is seen to exist (`tests/database/test_startup.py` forces both interleavings with a barrier in the admin connection).
+**Start-up and `/health`.** `/health` answers 200 with the index statistics once retrieval is ready and 503 otherwise. A start indexes nothing unless `INDEX_ON_START` is set (the index step does that before it): `indexing` then names the chunker and what the manifest listed when the API started (`manifest_at_start`: files, chunks, pipelines; an upload or a later index run changes the manifest, not this record), and `n_nodes` counts the rows at each request. A start-up attempt that fails (the database down or still starting, a migration the deploy step has not applied yet) is retried in the background without a restart, waiting `STARTUP_RETRY_SECONDS` and then twice as long each time up to `STARTUP_RETRY_MAX_SECONDS`, for at most `STARTUP_RETRY_ATTEMPTS` attempts (unset or 0: no limit; 1: no retry); the defaults are in `app/engine/bootstrap.py`. Meanwhile `/health` is 503 with the last error and a `startup` block (attempts so far, whether another is coming and after what wait), and `/api/retrieve` is 503; once an attempt succeeds `/health` turns 200. Each attempt redoes only what has not been built: the model settings, the retrieval state, the plan store. A process used to keep its first error until it was restarted, and nothing restarts the Compose service. The first attempt still runs before the server accepts requests, so a start that succeeds is unchanged (`tests/api/test_startup_retry.py`; `tests/database/test_startup.py` starts the API before the deploy step and sees `/health` go from 503 to 200 once it has run). Its row count (`n_nodes`, `VectorStoreManager.count_nodes`) reads only a missing data table as 0 rows; any other database error makes `/health` answer 503 with `status: unavailable`, `n_nodes: null` and a `database` entry under `degraded`, where it used to answer `ok` with 0 rows while the database was unreachable (`tests/engine/test_vector_store_sql.py`, `tests/api/test_retrieve_contract.py`). `DatabaseManager` (the API's managers and the deploy step) creates the database named by `DB_NAME` when it is missing. That branch had never worked: since psycopg2 2.9 a `with connection` block runs its statements in a transaction even in autocommit mode, and `CREATE DATABASE` cannot run inside one; Compose, CI and the local instances create the database themselves, so nothing reached it. It also checked and then created, so two replicas starting together could both find no database and the second `CREATE DATABASE` failed that replica's start. The second creation's error (`UniqueViolation` on `pg_database`'s name index when both are sent at once, `DuplicateDatabase` when one follows the other) is now accepted once the database is seen to exist (`tests/database/test_startup.py` forces both interleavings with a barrier in the admin connection).
 
-**API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it, and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
+**Shared state across replicas.** What one API process decides, another on the same database sees. A plan proposed through `/api/plans` is a row of `plan_proposals` (migration `0004`): the move, the canonical review the operator signs (its text and SHA-256), the session it was proposed in, the identity of the root it was proposed over (the path, device and inode of `DATA_DIR`) and the decision (status, time, actor, note). Every request reads its plan by id there and no saved plan stays in the process between requests, so a plan proposed on one replica is listed, viewed, approved or rejected on another and survives a restart, and its status is the row's (`GET /api/plans` lists the newest plans of the root up to a cap, `MAX_LISTED_PLANS` in `app/api/routers/plans.py`); they used to live in one process's memory, where a second worker answered 404 and a restart lost them. An approval loads the row into the process's `FilesystemTools` and runs the gate the MCP tools run: the review is rebuilt from the row's move and session and from the files as this process sees them, must equal the stored review, and the capability must be signed over it, so a row edited after signing is refused and nothing moves (`tests/database/test_shared_plans.py`, two plan stores on one database). Plans are read under the identity of the reading process's `DATA_DIR`, and a review binds that identity and each file's device and inode, so replicas share plans only when they see `DATA_DIR` at the same path on the same filesystem: a replica whose `DATA_DIR` is another directory, or the same files under another device number (a network volume mounted on another host), lists none of them and answers 404. A decision holds its row's lock until the new status is saved, so an approval and a rejection of one plan, or two approvals, sent to two replicas are decided one after the other, and the second finds the plan decided (409). A database error on these routes answers 503 with a fixed text and leaves its cause (which can name tables, hosts and ports) to the server log, except for a record that fails to be written after the fact (the audit event of a move that has run, the decision log's copy of the result of a saved decision): that failure is logged and the answer is the decision. A refused or failed move is answered, and logged in the decision log, with the text this repository wrote for it, never an operating system error's (which names files); of a failed start, `/api/plans` shows an approval configuration error in full and any other error by its class only. The grants of operator capabilities are shared too when `METANAVIT_APPROVAL_LEDGER=postgres` (MCP section): with a ledger file per host, a capability burnt by a failed move on one replica could still apply on another. The request budget is not shared: it stays per replica, because a cross-replica limit belongs at the proxy (owner decision; API access, below). `make two-replicas` (`app/eval/two_replicas.py`) runs two API processes on one database of its own, with one copy of fixture v1 as their `DATA_DIR`, the deploy and index steps once and the Postgres ledger, and writes what they answered to [bench/results/two_replicas.json](../bench/results/two_replicas.json): neither replica indexes at start and both count the rows the index step wrote, both serve `/api/retrieve` with the same paths, a plan proposed on one is read and approved on the other with a capability signed over the review the first returned (and the first reports it applied), an approval without a capability is refused (403) on both, and one with a capability signed by another key on the other, a replayed capability changes nothing, a rejection on one is reported by the other, a capability burnt by a failed move on one is refused by the ledger on the other, and both read the same decision log. `tests/database/test_two_replicas_run.py` runs the same code in the live test suite.
+
+**API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it (the file is then saved under `DATA_DIR/uploads` and indexed, see Uploads above), and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
 
 **Python execution in chat.** The chat route's Python tool runs code the model writes, so it is off by default: `config/tools.yaml` does not list it, and `get_chat_engine()` builds the code agent only when `ENABLE_PYTHON_EXEC` is set and `METANAVIT_API_KEY` is configured. With the flag but no key the tool stays off and a warning says why; since the bundled web UI sends no key, turning it on suits API clients or a proxy that adds the header. When it is on, each call runs the code in a child process (`app/engine/tools/python_exec_runner.py`), never in the API process: the child starts in a new session with its own environment reduced to `PATH`, `HOME`, locale, `TZ` and `TMPDIR`, plus one-thread settings for the maths libraries (the API key and the connection string are not in it), lowers its own CPU-time, address-space and file-size limits before the code runs (`PYTHON_EXEC_TIMEOUT_SECONDS`, `PYTHON_EXEC_MAX_MEMORY_MB`), and its process group is killed at the time limit and again when the call returns, so a background process left in the group does not outlive the call. The result keeps its fields (output, error, result, figure path). This is a separate process with limits, not OS isolation: the code runs as the API's OS user and can read what that user can read, including the API process's start-up environment under `/proc` and a `.env` file in the working directory, and a process it starts in a session of its own leaves the group and is not killed. `tests/engine/test_python_exec_child.py` covers the default, the key requirement, the other process, the limits and the kill.
 
-**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table (a schema migration) holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
+**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` in the index step (`python -m app.engine.ingest`, run before the API; or at the API's start with `INDEX_ON_START`): a manifest table (a schema migration) holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table, and the chat's `list_available_files` tool reads the manifest instead.
 
 **Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
 
@@ -1573,16 +1792,59 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 `pyproject.toml` is the single dependency spec (version ranges). `make lock`
 resolves it into pinned files: `requirements.txt` (eval + app) and one
 `requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
-`agent`, `dev`), each compiled under `requirements.txt` as a constraint so a
-package has the same version in every file. The image and every CI job install
-their pinned file first and then the package with `--no-deps`
-(`make install-locked` does the same locally); `make lock-check`, which is
+`agent`, `dev`, `distill`, `ml`, `otel`), each compiled under `requirements.txt` as a constraint so a
+package has the same version in every file. Every CI job that imports the
+package installs its pinned file first and then the package with `--no-deps`,
+as `make install-locked` does locally; the lint job installs only
+`requirements/dev.txt`. The image installs
+`requirements/app.txt`, then the file of each other extra named in its
+`EXTRAS` build argument (`ml`, `otel`), all with `--no-deps`, and runs
+`pip check`; an extra with no pinned file stops the build. It then installs the
+package itself with `--no-deps --no-build-isolation`, so the package is built
+with the pinned setuptools rather than one pip fetches for `[build-system]`.
+`requirements/ml.txt` is resolved with PyTorch's CPU wheel index next to PyPI,
+so torch is pinned as its CPU build and the file holds no CUDA package. The
+image's three files are compiled with `--allow-unsafe`, so `app.txt` and
+`ml.txt` pin setuptools (`otel.txt` needs none): `llama-index-core` needs a
+newer one than the base image ships, which pip used to fetch, unpinned, while
+it resolved `app.txt`. There is no Docker on the development host, so
+`tests/eval/test_image_build.py` runs the image's install step under `sh` with
+a stand-in `pip`. The CUDA override (`docker-compose.gpu.yml`, built by hand
+only) takes every ml pin but torch from `requirements/ml.txt` and installs the
+same torch release from the CUDA wheel index `docker-compose.gpu.yml` names; the CUDA packages
+torch requires are resolved at build time, so that build is not reproducible
+from a lock file. The torch range in `pyproject.toml` stops below the first
+release that index lacks. `make lock-check`, which is
 also a test and a CI step, fails when a pinned file no longer covers
-`pyproject.toml`. The `ml` and `otel` extras have no pinned file: the image
-installs them from their ranges with the pinned app file as a constraint, so
-they are not reproducible to the same degree. `make lint` runs ruff with the
+`pyproject.toml`. `make lint` runs ruff with the
 narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
 names, shadowed imports); CI runs it as its own job.
+
+**Pinned base images.** Every image a build or a CI run pulls is pinned by
+digest: the Dockerfile's `# syntax` frontend and its three `FROM` images, the
+Postgres image of `docker-compose.yml` and of CI's parity job, the optional
+Jaeger image, and the Node image of `.frontend/Dockerfile` (a standalone
+Next.js image that no Compose file or CI job builds). Each reference keeps the tag it was looked up from in front of
+the digest (`name:tag@sha256:...`), and a comment beside it names the release
+that tag pointed to on that day, so a tag that moves later does not change the
+build. The digest is the multi-platform index's, so other architectures still
+resolve. `tests/eval/test_image_build.py` fails on a reference without one. To
+move to a newer image, look up the tag's current index digest, replace digest
+and comment together (the Postgres image is named in both `docker-compose.yml`
+and `ci.yml`), and let CI rebuild: docker-smoke builds the default image, the
+Node stage is built only with `WITH_FRONTEND=1` (docker-ml-smoke), and no job
+pulls Jaeger (`--profile otel`) or builds `.frontend/Dockerfile`.
+
+```bash
+docker buildx imagetools inspect python:3.11-slim     # the "Digest:" line
+# without Docker, from the registry (Docker Hub here; library/ for official images):
+repo=library/python tag=3.11-slim
+token=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$repo:pull" \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["token"])')
+curl -sI -H "Authorization: Bearer $token" \
+     -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+     "https://registry-1.docker.io/v2/$repo/manifests/$tag" | grep -i docker-content-digest
+```
 
 Pick the extra for what you want to run:
 
@@ -1593,9 +1855,10 @@ Pick the extra for what you want to run:
 | `ml` | torch, sentence-transformers, HF embeddings | real embedders and the bge reranker |
 
 **Retrieval API with Docker.** One command; no Ollama, no model download.
-The `api` service first applies the schema migrations (`python -m app.database.migrate`),
-then starts the server; the first start indexes `bench/corpus/files` (61 files) into pgvector with
-the deterministic hash embedder, and `/health` reports what is loaded.
+The `api` container applies the schema migrations (`python -m app.database.migrate`),
+runs the index step (`python -m app.engine.ingest`: the first start indexes `bench/corpus/files`
+(61 files) into pgvector with the deterministic hash embedder, a later one embeds only changed
+files), then starts the server, and `/health` reports what is loaded.
 
 ```bash
 git clone https://github.com/joses2017smjh/MetaNavT.git
@@ -1621,6 +1884,17 @@ docker compose down -v   # the table width changes from 256 to 1024
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
 
+CI builds and starts this CPU real-model stack in its `docker-ml-smoke` job
+once a week (the `schedule` in `.github/workflows/ci.yml`; a scheduled run
+runs that job alone, on `main`) and when the workflow is started by hand with
+`ml_smoke`; a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
+its latency step wrote the file.
+GitHub turns off the scheduled workflows of a public repository that has had
+no activity for a while (see GitHub's documentation on disabling and enabling
+workflows), so after a quiet spell the schedule has to be switched back on in
+the Actions tab. The CUDA override, `docker-compose.gpu.yml`, has no CI job:
+GitHub's hosted runners have no GPU, so it is built and run by hand only.
+
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash
@@ -1630,7 +1904,7 @@ docker compose up db                 # or any Postgres with pgvector
 make migrate                         # schema migrations (the deploy step; run.sh generate and dev run it too)
 ollama serve && ollama pull qwen2.5:14b
 
-./scripts/run.sh generate            # index DATA_DIR (config/loaders.yaml)
+./scripts/run.sh generate            # the index step (same as make index): DATA_DIR into pgvector
 ./scripts/run.sh dev                 # API + Next.js dev server, http://localhost:8000
 ```
 
@@ -1643,13 +1917,13 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans are shared through Postgres, but only by replicas that see `DATA_DIR` at the same path on the same filesystem. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest, except: outside the image setuptools is not pinned (`requirements.txt` and `requirements/dev.txt` leave it unpinned, `dev.txt` leaves pip unpinned too, and the CI jobs' `pip install --no-deps -e .` builds the package with the newest setuptools `[build-system]` allows), and the CUDA packages of the hand-built GPU override are resolved at build time.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 
 **The CI table's rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`; it is within noise of plain RRF (see the [ablation table](#the-number)). The real reranker is measured in the [real-models tables](#real-models-and-a-corpus-where-k50-means-something), which are committed artifacts rather than CI output. Until M2 the cross-encoder was called through the wrong API (`compute_score` instead of sentence-transformers' `predict`). In the bench, the weights were never cached, so `get_cross_encoder()` returned nothing and the row fell back to overlap for lack of weights; the first run with weights present raised. In the production retriever the same call was inside a broad `except`, so reranking silently returned the RRF order. No earlier "bge-rerank" number in this repository's history was a cross-encoder result; `reranker_loaded` in the results file is the check.
 
-**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ vs the exact-match labels on simple_factual must reach 0.6 before a judge score is printed. Retrieval metrics stay BEIR-style and LLM-free.
+**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ between a judge's correctness verdicts and the exact-match labels of the calibration set must reach 0.6 before that judge's score is printed. The calibration set's wrong answers are planted same-field values, so a judge that passes is validated on single-value answers only. Retrieval metrics stay BEIR-style and LLM-free.
 
 **The injection evaluation is not an adaptive attack.** The first two runs plant one phrasing per goal and task, written for this benchmark; the third task set plants seven, five of them AgentDojo's templates, which is still a fixed set that no loop rewrites against a model or a defense. Each plants its text in two files per task, and each runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample. The third run puts the unchanged check in the model loop, on answers it was not written against ([generated table](../README.md#agent-injection-v3)): it is still told each question's config field and file, so it covers single-field questions only, and a model that answers on its last turn gets no second chance. No model called a write tool in a question or injected task, so planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls in a question or injected task was a write tool, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
@@ -1659,12 +1933,11 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 Status: M0 to M5 are merged. Open items, in priority order:
 
-1. **Kappa reference with variance.** The generator matched gold on all simple-factual questions, so the judge gate is not evaluable. This needs a harder slice as fixture v2; v1 stays frozen.
+1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers, and the judge that passed is the generator's own model. Multi-part, paraphrased and computed answers need human labels or a fixture v2 slice (v1 stays frozen), and a judge from another model family would remove the self-preference caveat.
 2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
-3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
-4. **ParadeDB BM25 in the production path**, gated by the same parity job.
-5. **Injection evaluation, next steps:** an attacker that rewrites the planted text against each defense (the third run's phrasings are a fixed set), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
-6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+3. **ParadeDB BM25 in the production path**, gated by the same parity job.
+4. **Injection evaluation, next steps:** an attacker that rewrites the planted text against each defense (the third run's phrasings are a fixed set), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
+5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 

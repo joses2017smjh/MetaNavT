@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -22,18 +22,28 @@ install-locked: ## the pinned versions CI and the image use: requirements.txt, t
 # requirements.txt (eval + app) is the one resolution. Every requirements/<profile>.txt is
 # compiled under it as a constraint (-c), so a package has the same version in every file
 # and each CI job / the image installs exactly its own extras, pinned.
+# requirements/ml.txt is resolved with PyTorch's CPU wheel index next to PyPI, so torch is
+# pinned as its CPU build (+cpu) with no CUDA packages; pip-compile writes the index line
+# into the file, so `pip install -r requirements/ml.txt` finds the wheel.
+# The image installs app.txt, ml.txt and otel.txt with --no-deps, so those three are compiled
+# with --allow-unsafe and pin setuptools where it is needed (app.txt, ml.txt): llama-index-core
+# needs a newer one than the base image ships, which pip used to fetch unpinned while it
+# resolved app.txt.
 #   make lock                  upgrade everything to the newest allowed versions
 #   make lock LOCK_UPGRADE=    keep the current pins; only add or drop what pyproject.toml changed
 LOCK_UPGRADE ?= --upgrade
 PIP_COMPILE = $(PYTHON) -m piptools compile --strip-extras
+TORCH_CPU_INDEX = https://download.pytorch.org/whl/cpu
 lock:           ## regenerate requirements.txt and requirements/*.txt from pyproject.toml
 	$(PIP_COMPILE) $(LOCK_UPGRADE) --extra eval --extra app -o requirements.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval -o requirements/eval.txt pyproject.toml
-	$(PIP_COMPILE) -c requirements.txt --extra app -o requirements/app.txt pyproject.toml
+	$(PIP_COMPILE) --allow-unsafe -c requirements.txt --extra app -o requirements/app.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile -o requirements/mobile.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile --extra agent -o requirements/agent.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra dev -o requirements/dev.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra distill -o requirements/distill.txt pyproject.toml
+	$(PIP_COMPILE) --allow-unsafe -c requirements.txt --extra ml --extra-index-url $(TORCH_CPU_INDEX) -o requirements/ml.txt pyproject.toml
+	$(PIP_COMPILE) --allow-unsafe -c requirements.txt --extra otel -o requirements/otel.txt pyproject.toml
 
 lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or disagrees with requirements.txt
 	$(PYTHON) scripts/check_lock.py
@@ -83,11 +93,17 @@ evidence:       ## render docs/RESUME_EVIDENCE.md from the committed results fil
 evidence-check: ## exit 1 if docs/RESUME_EVIDENCE.md drifted from the results files
 	$(PYTHON) -m app.eval.evidence --check
 
-bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml])
+bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml]); rewrites bench/results/jury.json, the M4 record, with today's protocol
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out bench/results/jury.json
 
 bench-jury-rescore: ## recompute the deterministic checks + summary of bench/results/jury.json from its stored answers (no model call)
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore bench/results/jury.json
+
+bench-jury-v2:  ## M29: qwen2.5:7b answers + a calibration set from qwen2.5:1.5b (retrieved and planted contexts) as the kappa gate's reference, judges qwen2.5:7b + llama3.1:8b (needs Ollama + .[ml]) -> bench/results/jury_v2.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out bench/results/jury_v2.json --generator qwen2.5:7b --judges qwen2.5:7b,llama3.1:8b --calibration-generator qwen2.5:1.5b
+
+bench-jury-v2-rescore: ## recompute the deterministic checks + summary of bench/results/jury_v2.json, calibration set included, from its stored answers (no model call)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore bench/results/jury_v2.json
 
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
@@ -201,12 +217,18 @@ BEIR_FIQA_ROWS = bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-sma
 bench-beir-fiqa: ## BEIR FiQA: BM25 / dense / hybrid / + bge-reranker at depth 20 (fp32, then fp16; max_length 512), TREC runs -> bench/results/beir_fiqa.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa --data-dir $(BEIR_DATA_DIR) --only $(BEIR_FIQA_ROWS) --trec-dir bench/results/beir_fiqa_trec --out bench/results/beir_fiqa.json
 
-.PHONY: robotics-verify bench-robotics
-robotics-verify: ## verify real experiment source hashes, evidence spans and family split
+.PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
+robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)
 
 bench-robotics: robotics-verify ## generated lookup benchmark; preserves the measured reference
 	$(PYTHON) -m app.eval.robotics evaluate --snapshot $(ROBOTICS_SNAPSHOT) --output bench/results/robotics_file_lookup_latest.json
+
+bench-robotics-chunking: robotics-verify ## structure-aware vs fixed-window chunks on the robotics snapshot, dev and test, paired family bootstrap (CPU, hash embedder) -> bench/results/robotics_chunking.json
+	$(PYTHON) -m app.eval.robotics_checks chunking --snapshot $(ROBOTICS_SNAPSHOT) --out bench/results/robotics_chunking.json
+
+bench-robotics-multiquery: robotics-verify ## hybrid vs hybrid+multiquery (keyword-heuristic rewrites) on the robotics snapshot, dev and test -> bench/results/robotics_multiquery.json
+	$(PYTHON) -m app.eval.robotics_checks multiquery --snapshot $(ROBOTICS_SNAPSHOT) --out bench/results/robotics_multiquery.json
 
 # ---- demos / figures -------------------------------------------------------
 figures:
@@ -239,8 +261,20 @@ migrate:        ## the deploy step: apply pending schema migrations (PG_CONNECTI
 migrate-check:  ## list pending schema migrations, exit 1 if any (applies nothing)
 	$(PYTHON) -m app.database.migrate --check
 
+index:          ## the index step, after migrate and before the API: DATA_DIR into pgvector, only new and changed files embedded (PG_CONNECTION_STRING, DATA_DIR, the embedder settings); prints the report, exit 1 on failure
+	$(PYTHON) -m app.engine.ingest
+
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
 	$(PYTHON) -m app.engine.ingest_runs
+
+INGEST_SCALE_LABEL ?=
+ingest-scale:   ## indexing and start-up time at 1x, 10x and 100x copies of the fixture, hash embedder (PG_TEST_DSN); INGEST_SCALE_LABEL=before|after names the rows it writes, other rows are kept -> bench/results/ingest_scale.json
+	$(PYTHON) -m app.engine.ingest_scale --label $(INGEST_SCALE_LABEL)
+
+.PHONY: two-replicas
+TWO_REPLICAS_OUT ?= bench/results/two_replicas.json
+two-replicas:   ## two API processes on one Postgres (PG_TEST_DSN; a database of its own, dropped after): one index step, both serve retrieve, a plan proposed on one approved on the other, approve without a valid capability 403, a burnt capability refused on the other -> $(TWO_REPLICAS_OUT)
+	$(PYTHON) -m app.eval.two_replicas --out $(TWO_REPLICAS_OUT)
 
 explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN (fixture v1 already indexed) -> doc/sql/hybrid_explain.txt
 	$(PYTHON) scripts/explain_hybrid.py

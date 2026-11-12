@@ -77,8 +77,8 @@ class AnnotationFileData(BaseModel):
             if file.url is not None:
                 return f"File URL: {file.url}\n"
             else:
-                # Construct url from file name
-                return f"File URL (instruction: do not update this file URL yourself): {url_prefix}/output/uploaded/{file.name}\n"
+                # Construct url from file name (uploads are saved under DATA_DIR/uploads, served at /data)
+                return f"File URL (instruction: do not update this file URL yourself): {url_prefix}/data/uploads/{file.name}\n"
         else:
             logger.warning(
                 "Warning: FILESERVER_URL_PREFIX not set in environment variables. Can't use file server"
@@ -107,7 +107,7 @@ class AnnotationFileData(BaseModel):
         
         # file path
         sandbox_file_path = f"/tmp/{file.name}"
-        local_file_path = f"output/uploaded/{file.name}"
+        local_file_path = f"{DATA_DIR}/uploads/{file.name}"
         default_content += f"Sandbox file path (instruction: only use sandbox path for artifact or code interpreter tool): {sandbox_file_path}\n"
         default_content += f"Local file path (instruction: Use for local tools: form filling, extractor): {local_file_path}\n"
         return default_content

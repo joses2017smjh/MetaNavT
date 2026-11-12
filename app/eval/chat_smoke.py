@@ -20,8 +20,10 @@ to both chat routes, one request at a time, after the model is loaded:
   POST /api/chat/request  the non-streaming route: the answer, the source nodes and the tool calls (name,
                           arguments, the size of the text the model got back, and whether the call failed: the
                           error flag of a call that raised, or a returned text that starts with "Error", which is
-                          how app/engine/tools/index_file_access.get_file_by_path reports a failure it catches;
-                          a failed call keeps the first 200 characters of that text).
+                          how the file tools in app/engine/tools/index_file_access.py report a failure they catch;
+                          a failed call keeps the first 200 characters of that text). A text that starts with
+                          "Not found" (get_file_content asked for a path the index does not hold) is counted
+                          apart: the tool worked, the path did not name an indexed file.
 
 Answered means HTTP 200, no error line (3:) and non-empty text. Whether the answer states the gold value
 (app/eval/companion_score.states_value) is recorded as an aside: this is a smoke run of a route, not an accuracy
@@ -56,12 +58,13 @@ BENCHMARK = "chat_route_smoke_v1"
 DEFAULT_OUT = Path("bench/results/chat_route_smoke.json")
 ROUTES = ("/api/chat", "/api/chat/request")
 CODE_TOOLS = ("execute_code", "python_exec")
-ERROR_TEXT_PREFIX = "Error"  # app/engine/tools/index_file_access.get_file_by_path: a caught failure is returned as text
+ERROR_TEXT_PREFIX = "Error"  # app/engine/tools/index_file_access: a caught failure is returned as text
+NOT_FOUND_PREFIX = "Not found"  # app/engine/tools/index_file_access.NOT_FOUND: no indexed file at the path asked for
 ERROR_CHARS = 200
 QUESTION_RULE = "the first gold question of each category of bench/gold/questions.jsonl, in file order"
 SOURCES = ("app/eval/chat_smoke.py", "app/eval/served_stack.py", "app/api/routers/chat.py", "app/engine/engine.py",
            "app/engine/agents/file_access_agent.py", "app/engine/agents/multi_agent_workflow.py", "app/settings.py",
-           "config/tools.yaml", "main.py")
+           "config/tools.yaml", "main.py", "app/engine/tools/index_file_access.py", "app/database/vector_store_manager.py")
 SCOPE = ("POST /api/chat and POST /api/chat/request of main:app with a local Ollama model, on the default stack "
          "(hash embeddings, ts_rank_cd, no reranker) over fixture v1, code execution off. One request per question "
          "and route, one at a time, after a warm-up. A smoke run of the routes: status, latency, tool calls; not an "
@@ -110,8 +113,8 @@ def tool_output_text(tool: Mapping[str, Any]) -> str:
 
 def tool_calls(result: Mapping[str, Any]) -> list[dict]:
     """The tool calls /api/chat/request returns (llama-index ToolOutput objects): name, arguments, output size, and
-    whether the call raised (is_error) or returned a text that starts with "Error" (returned_error_text); a failed
-    call keeps the start of its text."""
+    whether the call raised (is_error), returned a text that starts with "Error" (returned_error_text) or one that
+    starts with "Not found" (returned_not_found, not a failure); a failed call keeps the start of its text."""
     out = []
     for tool in result.get("tools") or []:
         if not isinstance(tool, dict):
@@ -120,8 +123,10 @@ def tool_calls(result: Mapping[str, Any]) -> list[dict]:
         text = tool_output_text(tool)
         is_error = bool(tool.get("is_error"))
         error_text = not is_error and text.lstrip().startswith(ERROR_TEXT_PREFIX)
+        not_found = not is_error and text.lstrip().startswith(NOT_FOUND_PREFIX)
         call = {"name": tool.get("tool_name"), "arguments": raw.get("kwargs", raw) if isinstance(raw, dict) else raw,
-                "is_error": is_error, "returned_error_text": error_text, "output_chars": len(text)}
+                "is_error": is_error, "returned_error_text": error_text, "returned_not_found": not_found,
+                "output_chars": len(text)}
         if is_error or error_text:
             call["error"] = text[:ERROR_CHARS]
         out.append(call)
@@ -260,6 +265,7 @@ def summarize(rows: Sequence[Mapping[str, Any]]) -> dict:
             "tool_calls": dict(sorted(Counter(names).items())) if visible else None,
             "tool_calls_raised": by_name("is_error"),
             "tool_calls_returned_error_text": by_name("returned_error_text"),
+            "tool_calls_returned_not_found": by_name("returned_not_found"),
             "questions_with_a_tool_call": sum(1 for r in mine if r.get("tools")) if visible else None,
             "code_tool_calls": sum(n in CODE_TOOLS for n in names) if visible else None,
             "states_gold_value_aside": {"k": sum(bool(r["gold_value_stated"]) for r in scored), "n": len(scored),
@@ -345,7 +351,8 @@ def main(argv: list[str] | None = None) -> int:
     for route, s in report["summary"].items():
         print(f"{route}: answered {s['answered']} of {s['n']}, total p50 {s['total_s']['p50']} s, "
               f"tools {s['tool_calls']}, raised {s['tool_calls_raised']}, returned an error text "
-              f"{s['tool_calls_returned_error_text']}, code tool calls {s['code_tool_calls']}")
+              f"{s['tool_calls_returned_error_text']}, not found {s['tool_calls_returned_not_found']}, "
+              f"code tool calls {s['code_tool_calls']}")
     print(f"wrote {args.out}")
     if any(s["code_tool_calls"] for s in report["summary"].values()):
         print("a code tool was called although code execution is off")

@@ -63,7 +63,9 @@ app = [
 # Real models on CPU or GPU: sentence-transformers embedders, the bge reranker,
 # HuggingFace embeddings for LlamaIndex, and the demo/figure extras.
 ml = [
-    "torch>=2.2",
+    # <2.15: requirements/ml.txt pins torch's CPU wheel for the image, and docker-compose.gpu.yml installs the same
+    # release from PyTorch's CUDA 12.6 wheel index, which has no 2.15 (checked 2026-11-11).
+    "torch>=2.2,<2.15",
     "sentence-transformers>=3.0",
     "llama-index-embeddings-huggingface>=0.4",
     "scikit-learn>=1.4",

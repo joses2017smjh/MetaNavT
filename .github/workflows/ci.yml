@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # docker-ml-smoke once a week (owner decision OD18): Sundays 09:41 UTC, night in US Pacific
+  # time and off the top of the hour, when GitHub delays scheduled runs most. GitHub runs a
+  # schedule on the default branch only, and a scheduled run runs that job alone.
+  schedule:
+    - cron: "41 9 * * 0"
   workflow_dispatch:
     inputs:
       ml_smoke:
@@ -13,7 +18,9 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A scheduled run gets a group of its own: it runs on refs/heads/main like a push to main, and
+  # in one group with cancel-in-progress a merge would cancel the weekly smoke, or the smoke a push run.
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'schedule' && '-schedule' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +29,7 @@ jobs:
     # syntax errors, undefined names, shadowed imports. Also checks that the pinned
     # requirement files every other job installs still cover pyproject.toml.
     name: lint (ruff) + lock check
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -41,6 +49,7 @@ jobs:
   eval:
     # Frozen fixture v1, hash embeddings, overlap reranker: no downloads, no database.
     name: eval (py${{ matrix.python }})
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -81,6 +90,7 @@ jobs:
   unit:
     # FastAPI + LlamaIndex stack installed, no Postgres: import-time side effects would fail here.
     name: unit + engine + api (app extra, no database)
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -99,9 +109,9 @@ jobs:
         run: make test-unit
 
   parity:
-    # Postgres + pgvector service, fixture v1 indexed with the hash embedder (the same
-    # chunker as the bench, app/chunking through app/eval/ingest.py), the API
-    # started in the background, then the 136 gold questions replayed through
+    # Postgres + pgvector service, the schema migrations, fixture v1 indexed by the index
+    # step with the hash embedder (the same chunker as the bench, app/chunking through
+    # app/eval/ingest.py), the API started in the background, then the 136 gold questions replayed through
     # POST /api/retrieve/ and scored like the bench. The live-database tests include
     # the exact check: the dense leg equals the in-memory dense search on every gold
     # question, on the planner's own plan and with the HNSW index forced, where the
@@ -111,11 +121,13 @@ jobs:
     # the step fails only when the API is broken or bench/corpus/files differs from its
     # MANIFEST (app/eval/parity.py).
     name: parity (API over Postgres vs in-memory bench)
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        # the digest docker-compose.yml pins (pg16 = 0.8.7-pg16 on 2026-11-11); refresh both together
+        image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -133,10 +145,8 @@ jobs:
       EMBEDDING_DIM: "256"
       RERANKER_MODEL: none
       DATA_DIR: bench/corpus/files
-      INDEX_ON_START: "true"
-      INGEST_MAX_REJECTED: "0"   # a fixture file that stops being indexable fails the start
-      CHUNK_SIZE: "512"
-      CHUNK_OVERLAP: "50"
+      INDEX_ON_START: "false"    # the index step below indexes DATA_DIR; the API does not
+      INGEST_MAX_REJECTED: "0"   # a fixture file that stops being indexable fails the index step
       RETRIEVE_K: "50"
       RERANK_TOP_N: "8"
       ENABLE_ROUTER: "true"
@@ -158,7 +168,10 @@ jobs:
         run: make fixture-mtimes
       - name: Schema migrations (the deploy step; while one is pending the API answers 503 and retries)
         run: make migrate
-      - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
+      - name: Index bench/corpus/files (the index step; a later run embeds only changed files)
+        timeout-minutes: 10
+        run: make index
+      - name: Start the API (serves the indexed table; it does not index)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
           python scripts/smoke_retrieve.py --require-bm25
@@ -174,9 +187,11 @@ jobs:
           path: bench/results/parity.json
 
   docker-smoke:
-    # docker compose up --build, wait for /health (indexes bench/corpus/files with the
-    # hash embedder on first start), POST one query, require hits with non-null paths.
+    # docker compose up --build, wait for /health (the api container migrates, then indexes
+    # bench/corpus/files with the hash embedder, then starts the server), POST one query,
+    # require hits with non-null paths.
     name: docker compose smoke
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -195,12 +210,14 @@ jobs:
         run: docker compose down -v
 
   docker-ml-smoke:
-    # Manual: builds the CPU real-model stack once, confirms the reranker loads on CPU
-    # (/health.reranker.loaded, no degraded components) and records per-query latency
-    # over the 136 gold questions as an artifact. Not part of every push: it downloads
-    # about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
-    name: docker compose ml smoke (CPU, manual)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ml_smoke }}
+    # Weekly (the schedule above) and on a manual run with ml_smoke: builds the CPU real-model
+    # stack from the pinned files (requirements/ml.txt, torch's CPU wheel; the Next.js export
+    # too), confirms the reranker loads on CPU (/health.reranker.loaded, no degraded components)
+    # and records per-query latency over the 136 gold questions as an artifact. Not part of
+    # every push: it downloads about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
+    # docker-compose.gpu.yml has no job: hosted runners have no GPU, so it is built by hand only.
+    name: docker compose ml smoke (CPU, weekly + manual)
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.ml_smoke) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
