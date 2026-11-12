@@ -20,7 +20,7 @@ import os
 import re
 import time
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Sequence
 
 from app.retrieval.types import RetrievalHit

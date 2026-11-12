@@ -12,7 +12,6 @@ No LLM, GPU, network, or corpus mutation is used.
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -32,7 +31,7 @@ from app.graph.conflicts import (
 from app.graph.graphrag import answer_global, build_graphrag
 from app.graph.hipporag import apply_hipporag, should_apply, triples_from_chunks
 from app.graph.staleness import cluster_versions, prefer_current
-from app.mcp.filesystem import ApprovalRequired, FilesystemTools
+from app.mcp.filesystem import ApprovalRequired
 from app.retrieval.types import RetrievalHit
 
 

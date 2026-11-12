@@ -1,16 +1,14 @@
 """Tests for LLM-based code capability using synthetic dataset"""
 
-import os
 import json
 import subprocess
 from pathlib import Path
 import pytest
-from scripts.generate_code_data import main, TEST_DATA_DIR
+from scripts.generate_code_data import main
 from deepeval import assert_test
 from deepeval.metrics import AnswerRelevancyMetric
 from deepeval.test_case import LLMTestCase
 
-from tests.benchmark_tests.common.utils import write_results_to_csv
 
 @pytest.fixture(scope="module")
 def dataset():

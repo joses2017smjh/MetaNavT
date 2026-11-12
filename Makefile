@@ -49,7 +49,7 @@ lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or
 	$(PYTHON) scripts/check_lock.py
 
 # ---- lint ------------------------------------------------------------------
-lint:           ## ruff, narrow defect-only rule set from pyproject.toml (needs requirements/dev.txt)
+lint:           ## ruff, narrow rule set from pyproject.toml: defects and unused imports (needs requirements/dev.txt)
 	$(PYTHON) -m ruff check .
 
 # ---- tests -----------------------------------------------------------------

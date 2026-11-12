@@ -8,7 +8,7 @@ from pathlib import Path
 from app.artifacts.visualization import propose_visualization
 from app.eval.harness import project_root
 from app.eval.demo_operator import operator_fixture
-from app.mcp.filesystem import ApprovalRequired, FilesystemTools
+from app.mcp.filesystem import ApprovalRequired
 
 
 QUESTION = "Compare average val RMSE by encoder against the 0.055 baseline"

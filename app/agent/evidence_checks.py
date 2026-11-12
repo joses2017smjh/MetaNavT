@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from decimal import Decimal, InvalidOperation
 import json
-from typing import Any, Sequence
+from typing import Sequence
 
 from app.agent.citation_verify import cited_chunks
 from app.retrieval.types import Chunk

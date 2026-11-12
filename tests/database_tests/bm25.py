@@ -11,9 +11,7 @@ import json
 import time
 import logging
 import os
-from typing import List, Dict, Any
 import uuid
-from llama_index.core.schema import TextNode
 from llama_index.core.settings import Settings
 
 # Add this import for get_vector_store_manager

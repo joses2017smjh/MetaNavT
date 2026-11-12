@@ -1,6 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, call
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 from app.database.index_manager import IndexManager
 
 @pytest.fixture

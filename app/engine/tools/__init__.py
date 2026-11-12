@@ -17,7 +17,6 @@ from typing import Dict, List, Union, Any, Optional
 import yaml
 from llama_index.core.tools.function_tool import FunctionTool
 from llama_index.core.tools.tool_spec.base import BaseToolSpec
-from llama_index.core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,9 @@
-import os
 import json
-import aiohttp
 import asyncio
 from pathlib import Path
 from typing import List, Any
-import csv
-from datetime import datetime
 
-from deepeval.metrics import AnswerRelevancyMetric, TaskCompletionMetric, ToolCorrectnessMetric, ContextualRelevancyMetric
+from deepeval.metrics import AnswerRelevancyMetric, ContextualRelevancyMetric
 from deepeval.test_case import LLMTestCase
 
 from tests.benchmark_tests.common.eval_llm import EvalLLM_4Bit

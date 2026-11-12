@@ -1,9 +1,8 @@
 import os  # Add the missing import
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.core.tools import BaseTool
 from llama_index.core.settings import Settings
 
 from app.engine.tools import ToolFactory
