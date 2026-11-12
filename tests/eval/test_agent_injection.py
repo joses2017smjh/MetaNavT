@@ -1144,9 +1144,11 @@ def test_the_first_run_is_reproduced_by_todays_scoring_code_from_its_stored_epis
     # agent_injection.json is the first run, kept as recorded: its header describes the run that scored the stored
     # episodes (make bench-agent-injection-rescore, at a clean commit), and the generating run keeps its own record,
     # as written. Today's harness must rebuild its task list, summary and paired deltas exactly from those episodes,
-    # so `make bench-agent-injection-rescore` still reproduces every number in it.
+    # so `make bench-agent-injection-rescore` still reproduces every number in it. D27: the module it names is the
+    # harness as committed at the scoring commit it records, an ancestor of HEAD.
     blob = json.loads(RESULTS.read_text())
     assert blob["working_tree_dirty"] is False and "--summarize-only" in blob["command"]
+    assert len(blob["git_head"]) == 40 and blob["module_sha256"] == _module_committed_at(blob["git_head"])
     generated = blob["episodes_generated_by"]
     assert generated == json.loads(ai.sidecar(EPISODES).read_text())
     assert generated["reconstructed"] is True

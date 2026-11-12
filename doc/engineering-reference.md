@@ -1462,7 +1462,8 @@ block links it as the earlier run. The top-level `git_head`,
 `working_tree_dirty`, `module_sha256` and `command` describe the run that
 scored the stored episodes, `make bench-agent-injection-rescore`, at the
 commit and with the harness module it names; a test checks that the scoring
-run had nothing uncommitted and that today's harness rebuilds the task list,
+run had nothing uncommitted, that the module it names is the harness as
+committed at that commit, and that today's harness rebuilds the task list,
 the summary and the paired deltas exactly from the stored episodes, so the
 file is kept as recorded and still reproduces. `episodes_generated_by` is the sidecar of
 the run that generated the episodes, kept as written: for this run it was
