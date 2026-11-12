@@ -28,11 +28,14 @@ def add_key(path: Path, name: str) -> str:
         raise KeyFileError("a name is 1-64 letters, digits, '.', '_' or '-', starting with a letter or digit")
     if name == SHARED_KEY_IDENTITY:
         raise KeyFileError(f"{SHARED_KEY_IDENTITY} is reserved for METANAVIT_API_KEY")
-    existing = parse_key_file(path.read_text(encoding="utf-8")) if path.exists() else {}
-    if name in existing:
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    if name in parse_key_file(text):
         raise KeyFileError(f"{name} already has a key; delete its line first to replace it")
     key = secrets.token_urlsafe(32)
     line = f"{name}:{hashlib.sha256(key.encode('utf-8')).hexdigest()}\n"
+    if text and not text.endswith("\n"):  # a last line written without a newline: the new line must not join it
+        line = "\n" + line
+    parse_key_file(text + line)  # the file the API will read: never write one it would refuse
     fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
     try:
         os.write(fd, line.encode("utf-8"))

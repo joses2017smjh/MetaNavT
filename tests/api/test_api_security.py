@@ -306,3 +306,27 @@ def test_keys_add_stores_only_the_hash_and_prints_the_key_once(tmp_path, capsys)
         with pytest.raises(SystemExit):
             keys.main(["add", "--file", str(path), name])
     assert capsys.readouterr().out == ""  # a refused name prints no key
+
+
+def test_keys_add_to_a_file_whose_last_line_has_no_newline_keeps_every_key_working(client, monkeypatch, tmp_path, capsys):
+    """A file written by hand often ends without a newline; the added line used to join the last one, so the API
+    refused every request (503) and the printed key never worked."""
+    from app.api import keys
+
+    path = tmp_path / "api_keys"
+    path.write_text(f"alice:{hashlib.sha256(ALICE.encode()).hexdigest()}")
+    assert keys.main(["add", "--file", str(path), "bob"]) == 0
+    bob = capsys.readouterr().out.strip()
+    assert sorted(security.parse_key_file(path.read_text())) == ["alice", "bob"]
+    monkeypatch.setenv(KEYS_FILE_ENV, str(path))
+    for key in (ALICE, bob):
+        assert client.get("/api/plans/", headers={"X-API-Key": key}).status_code == 200
+
+
+def test_deleting_a_line_revokes_that_key_without_a_restart(client, monkeypatch, tmp_path):
+    path = _key_file(tmp_path, alice=ALICE, bob=BOB)
+    monkeypatch.setenv(KEYS_FILE_ENV, str(path))
+    assert client.get("/api/plans/", headers={"X-API-Key": BOB}).status_code == 200
+    path.write_text("".join(f"{line}\n" for line in path.read_text().splitlines() if not line.startswith("bob:")))
+    assert client.get("/api/plans/", headers={"X-API-Key": BOB}).status_code == 401  # the same process, the file reread
+    assert client.get("/api/plans/", headers={"X-API-Key": ALICE}).status_code == 200
