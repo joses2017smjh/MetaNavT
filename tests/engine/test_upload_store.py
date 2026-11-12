@@ -125,7 +125,7 @@ def test_the_route_answers_with_the_refusals_status(monkeypatch):
     from app.database import vector_store
 
     errors = iter([uploads.UploadRejected(409, "duplicate_content", "a file with these bytes is already indexed: a.md"),
-                   IngestLockTimeout("another process held the ingest lock")])
+                   IngestLockTimeout("another process held the ingest lock of public.data_internal_table for more than 600 s")])
 
     def refuse(*args):
         raise next(errors)
@@ -138,6 +138,7 @@ def test_the_route_answers_with_the_refusals_status(monkeypatch):
         busy = client.post("/api/chat/upload", json=body)
     assert refused.status_code == 409 and refused.json()["detail"].startswith("duplicate_content: ")
     assert busy.status_code == 503 and busy.headers["retry-after"] == "10"
+    assert "data_internal_table" not in busy.text  # the client is told to retry; the table name stays in the server log
 
 
 @pytest.mark.parametrize("declared", ["application/x-yaml", "text/yaml", "", "text/plain"])

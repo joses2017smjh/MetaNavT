@@ -113,7 +113,9 @@ async def upload_file(request: Request) -> DocumentFile:
         logger.info(f"Upload refused ({e.reason}): {e}")
         raise HTTPException(status_code=e.status, detail=f"{e.reason}: {e}") from e
     except IngestLockTimeout as e:  # another indexing run held the lock: nothing was written
-        raise HTTPException(status_code=503, detail=f"indexing is busy, try again: {e}", headers={"Retry-After": "10"}) from e
+        logger.warning(f"Upload refused, indexing is busy: {e}")  # names the table; the client is only told to retry
+        raise HTTPException(status_code=503, detail="indexing is busy (another indexing run holds the ingest lock), try again",
+                            headers={"Retry-After": "10"}) from e
     except Exception as e:
         logger.error(f"Error processing file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing file")
