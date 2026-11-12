@@ -1938,8 +1938,12 @@ under `bench/corpus`: fixture v1 is frozen, so its own unused imports stay,
 and every other rule still runs over it (a per-file ignore, not an exclude).
 An import kept on purpose, a re-export or one made for its side effect, is
 named in `__all__` or carries `# noqa: F401` with its reason on the same line.
-`tests/eval/test_lint_config.py` fails if unused imports leave the rule set
-or a second exemption appears.
+`tests/eval/test_lint_config.py` fails if unused imports leave the rule set,
+if a ruff setting beyond the target version, the rule set and that per-file
+ignore appears (in `pyproject.toml`, or in a `ruff.toml` or a
+`pyproject.toml` lower in the tree), or if a comment outside `bench/corpus`
+waives unused imports for a whole file or a range of lines (a `ruff: noqa`
+or `flake8: noqa` directive, or `ruff: disable[F401]`).
 
 **Pinned base images.** Every image a build or a CI run pulls is pinned by
 digest: the Dockerfile's `# syntax` frontend and its three `FROM` images, the

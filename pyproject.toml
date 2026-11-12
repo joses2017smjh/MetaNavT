@@ -114,7 +114,9 @@ exclude = ["tests*"]
 #        effect) says so: the name in __all__, or `# noqa: F401` with the reason on that line.
 # The one exemption: F401 under bench/corpus, fixture v1, which is frozen (never edited) and
 # has unused imports of its own. Every other rule still runs over it.
-# tests/eval/test_lint_config.py fails if F401 leaves the set or another exemption appears.
+# tests/eval/test_lint_config.py fails if F401 leaves the set, if any other ruff setting appears
+# (here, or in a ruff.toml or a pyproject.toml lower in the tree), or if a comment outside
+# bench/corpus waives F401 for a whole file or a range of lines.
 [tool.ruff]
 target-version = "py311"
 
