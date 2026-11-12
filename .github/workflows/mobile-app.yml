@@ -17,7 +17,9 @@ concurrency:
 
 jobs:
   web:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, where Playwright 1.56 refuses to install Chromium
+    # ("Playwright does not support chromium on ubuntu26.04-x64"). Move with the Playwright pin in package.json.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:

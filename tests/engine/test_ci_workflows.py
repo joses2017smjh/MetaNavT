@@ -77,3 +77,12 @@ def test_the_mobile_workflow_runs_when_the_companion_or_the_guard_changes():
         for path in ("app/agent/**", "app/mobile/**", "app/api/routers/retrieve.py", "requirements/agent.txt",
                      "scripts/require_playwright_tests.py"):
             assert path in paths, (event, path)
+
+
+def test_the_mobile_browser_job_runs_on_an_image_its_playwright_supports():
+    """ubuntu-latest became 26.04, where the pinned Playwright cannot install Chromium, and the web job failed at
+    the install step. The job names an Ubuntu release Playwright supports instead of following ubuntu-latest."""
+    workflow, _ = _workflow("mobile-app.yml")
+    runner = workflow["jobs"]["web"]["runs-on"]
+    assert runner != "ubuntu-latest"
+    assert re.fullmatch(r"ubuntu-(22|24)\.04", runner), runner
