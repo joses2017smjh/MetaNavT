@@ -11,6 +11,7 @@ import math
 import platform
 import socket
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -166,3 +167,45 @@ def test_results_file_records_no_host_user_or_absolute_path(tmp_path, monkeypatc
         if len(name) >= 3:
             assert name not in text
     assert str(tmp_path) not in text and "/nfs/" not in text and "/home/" not in text
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split())
+
+
+def test_the_docs_state_the_recorded_robotics_outcomes():
+    """The typed outcome sentences of README.md and the engineering reference agree with the committed results files
+    they cite (a re-recording with another outcome must rewrite them). Reads committed output and scores nothing."""
+    chunking = json.loads((ROOT / "bench" / "results" / "robotics_chunking.json").read_text())
+    multiquery = json.loads((ROOT / "bench" / "results" / "robotics_multiquery.json").read_text())
+    for blob in (chunking, multiquery):
+        assert blob["working_tree_dirty"] is False and blob["declaration"] == rc.DECLARATION
+        assert blob["splits"] == ["dev", "test"] and blob["snapshot"]["path"] == rc.DEFAULT_SNAPSHOT
+    reference = (ROOT / "doc" / "engineering-reference.md").read_text()
+    para = _flat(next(p for p in reference.split("\n\n") if p.startswith("[Chunking results](../bench/results/robotics_chunking.json)")))
+    assert "on both splits the paired interval of nDCG@10, fixed window minus structure-aware chunker, is above zero" in para
+    for split in ("dev", "test"):
+        delta = chunking["summary"][split]["paired_delta"]["ndcg@10"]
+        assert chunking["summary"][split]["verdict"] == "above zero" and (delta["of"], delta["minus"]) == ("fixed", "auto")
+    dev, test = multiquery["summary"]["dev"], multiquery["summary"]["test"]
+    assert 'the development split\'s verdict is "rules did not fire"' in para
+    assert dev["verdict"] == "rules did not fire" and dev["fired"] == 0
+    assert ("the rules fire only through a false trigger (the rule that looks for `lr` matches inside the word "
+            "`fullroute`), which changes no question\'s score") in para
+    assert test["fired"] > 0 and test["questions_with_a_different_score"] == 0
+    fired = [r for r in multiquery["per_query"] if r["fired"]]
+    assert {r["split"] for r in fired} == {"test"} and len(fired) == test["fired"]
+    for row in fired:
+        question = row["queries"][0].lower()
+        assert row["queries"][1] == "current " + row["queries"][0]  # the "current" rule, not an identifier rewrite
+        assert "fullroute" in question and "lr" not in question.replace("fullroute", "")
+        assert not any(word in question for word in ("learning rate", "draft", "config"))
+    # The prototype table rows and the README sentence.
+    flat = _flat(reference)
+    assert "the fixed window is above the structure-aware chunker on both splits" in flat
+    assert "the rules almost never fire, and where they do it is a false trigger" in flat
+    assert "where those rules almost never fire, so that check does not exercise multi-query" in _flat((ROOT / "README.md").read_text())
+    assert (dev["fired"] + test["fired"]) / (dev["n_questions"] + test["n_questions"]) < 0.05  # "almost never"

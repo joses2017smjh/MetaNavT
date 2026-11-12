@@ -247,7 +247,11 @@ file lookup with the hash embedder, not a measurement of answer quality, and
 the check does not show which difference between the chunkers decides it (the
 structure-aware chunker keeps a JSON file of up to its maximum chunk size as
 one chunk; the fixed window cuts it into short windows that each carry the
-path context). [Multi-query results](../bench/results/robotics_multiquery.json):
+path context). These chunk-level hybrid rows are not comparable with the
+file-level BM25 rows quoted at the top of this section: they index chunks
+instead of whole files, fuse in the hash embedder's list, and rank every chunk
+before the list is cut at distinct paths.
+[Multi-query results](../bench/results/robotics_multiquery.json):
 the development split's verdict is "rules did not fire". On the test split the
 rules fire only through a false trigger (the rule that looks for `lr` matches
 inside the word `fullroute`), which changes no question's score. The paired
