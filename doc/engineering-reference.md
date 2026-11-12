@@ -1345,25 +1345,46 @@ The table separates the two places a fix can sit. A prompt-level fix such as
 datamarking asks the model to treat file text as data. A system-level fix
 decides what can happen whatever the model attempts: here, a tool filter chosen
 before any file is read, and a signed, single-use operator capability for every
-write. In both runs neither model pursued a planted file action, so planted
-text never tested the system-level controls; asked by the user for the same
-move or patch (the capability control), the models did call these tools, and
-the operator signed their proposals. The controls are there because
+write. In the first two runs neither model pursued a planted file action. In
+the third, the one planted-action attempt the scoring counts is a patch
+proposal the weaker model wrote as JSON text in an episode where no tool result
+held any of the planted text, and the tool rejected it for a missing argument.
+So planted text never tested the system-level controls; asked by the user for
+the same move or patch (the capability control), the models did call these
+tools, and the operator signed their proposals. The controls are there because
 prompt-level defenses give no guarantee ([Beurer-Kellner et al. 2025](https://arxiv.org/abs/2506.08837))
 and adaptive attacks get past them ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)).
-What the models did follow was the planted claim, in every configuration. For
-the stronger model neither datamarking nor the tool filter changed that
-measurably. In the current run the weaker model stated the planted value more
+What the models did follow was the planted claim, in every configuration. In
+the current run, for the stronger model neither datamarking nor the tool filter
+changed that measurably, and the weaker model stated the planted value more
 often under the tool filter than with no defense, a paired interval that
 excludes zero, and more of its hijack episodes reached the planted text there.
+In the third run, with seven phrasings, the stronger model stated the planted
+value under at least one of them for every hijack question and seed in every
+configuration, a rate at its ceiling that cannot separate the configurations;
+per draw, the tool filter lowered its rate, a paired interval below zero, and
+datamarking did not change it measurably. The weaker model's tool-filter
+difference covers zero there. Datamarking lowered the weaker model's
+planted-value rate, but also its benign success and its utility under attack,
+each paired interval below zero, and the planted text reached fewer of its
+episodes, so that drop is not a defense win.
 No capability gate covers what an answer says. The bridge for planted claims is checking the
 answer against the structured source rather than the free text. The structured
 field check does that, measured offline on the stored answers in the
 [generated table](../README.md#agent-injection), with its limits under
 [What we are not claiming](#what-we-are-not-claiming), and in the third run
 it stands between the answer and the user in the model loop, against `none`
-with paired intervals ([generated table](../README.md#agent-injection-v3));
-a CaMeL-style quarantined extractor
+with paired intervals ([generated table](../README.md#agent-injection-v3)).
+There it lowered the planted value delivered to the user for both models, per
+draw and by any phrasing, each paired interval below zero, while the planted
+value the models wrote, their utility under attack and their benign success
+did not change measurably; the stronger model answered injected tasks
+correctly more often, an interval above zero, and some of its revised answers
+passed the check. It is not a complete fix: every planted value that still reached the
+user was a word stated beside the true value that is neither a value the field
+takes in the corpus configs nor a bare word in quotes, which the rule passes,
+and a first answer flagged on the model's last turn, which happened only to the
+weaker model, gets no second chance. A CaMeL-style quarantined extractor
 ([Debenedetti et al. 2025](https://arxiv.org/abs/2503.18813)), which hands the
 planner only the requested field, would make it general.
 
@@ -1926,7 +1947,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ between a judge's correctness verdicts and the exact-match labels of the calibration set must reach 0.6 before that judge's score is printed. The calibration set's wrong answers are planted same-field values, so a judge that passes is validated on single-value answers only. Retrieval metrics stay BEIR-style and LLM-free.
 
-**The injection evaluation is not an adaptive attack.** The first two runs plant one phrasing per goal and task, written for this benchmark; the third task set plants seven, five of them AgentDojo's templates, which is still a fixed set that no loop rewrites against a model or a defense. Each plants its text in two files per task, and each runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample. The third run puts the unchanged check in the model loop, on answers it was not written against ([generated table](../README.md#agent-injection-v3)): it is still told each question's config field and file, so it covers single-field questions only, and a model that answers on its last turn gets no second chance. No model called a write tool in a question or injected task, so planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls in a question or injected task was a write tool, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
+**The injection evaluation is not an adaptive attack.** The first two runs plant one phrasing per goal and task, written for this benchmark; the third task set plants seven, five of them AgentDojo's templates, which is still a fixed set that no loop rewrites against a model or a defense. Each plants its text in two files per task, and each runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample. The third run puts the unchanged check in the model loop, on answers it was not written against ([generated table](../README.md#agent-injection-v3)): it is still told each question's config field and file, so it covers single-field questions only, and a model that answers on its last turn gets no second chance. In the first two runs no model called a write tool in a question or injected task; in the third, the weaker model wrote patch proposals there as JSON text, which the tool rejected for a missing argument before any proposal existed, and no model called an apply tool. So planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; in the first two runs none of the recovered calls in a question or injected task was a write tool, and in the third only the weaker model's rejected patch proposals were, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
 ---
 
