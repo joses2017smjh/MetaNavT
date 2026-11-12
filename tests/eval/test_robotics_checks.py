@@ -146,6 +146,27 @@ def test_multiquery_check_stops_when_an_unfired_question_changes_its_list(tmp_pa
         rc.run_check("multiquery", snapshot)
 
 
+def test_every_retrieval_asks_for_every_chunk(tmp_path, monkeypatch):
+    """The declared depth: each search of either check (both chunking arms, the multi-query parent and every rewrite
+    inside multi_query_retrieve) asks the index for all its chunks, not the index's default depth."""
+    snapshot = _snapshot(tmp_path, CAMPAIGNS)
+    real = InMemoryHybridIndex.retrieve
+    signature = inspect.signature(real)
+    depths = []
+
+    def recording(self, *args, **kwargs):
+        depths.append((signature.bind(self, *args, **kwargs).arguments.get("k"), len(self.chunks)))
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(InMemoryHybridIndex, "retrieve", recording)
+    for check in ("chunking", "multiquery"):
+        depths.clear()
+        result = rc.run_check(check, snapshot, splits=("dev",))
+        searches_per_question = 2 if check == "chunking" else 1 + rc.MQ_QUERIES
+        assert len(depths) == searches_per_question * len(result["per_query"]) > 0
+        assert all(k == n_chunks for k, n_chunks in depths), (check, depths[:4])
+
+
 def test_dev_only_run_scores_no_test_question(tmp_path):
     snapshot = _snapshot(tmp_path, CAMPAIGNS)
     result = rc.run_check("chunking", snapshot, splits=("dev",))
