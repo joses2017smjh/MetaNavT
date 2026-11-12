@@ -4,8 +4,10 @@ make chat-route-smoke).
     with ServedAPI(server_dsn, data_dir, model="qwen2.5:7b", ollama_url=..., log_dir=...) as api:
         api.url, api.health
 
-What runs: `python -m uvicorn main:app` on a free loopback port with docker-compose.yml's api environment
-(COMPOSE_API_ENV: the hash embedder, no reranker, the SQL retrieval path, the router), DATA_DIR set to a
+What runs, in the order of docker-compose.yml's api command: the deploy step (DEPLOY_STEP, the schema
+migrations; the API runs no DDL and answers 503 until they have run), then `python -m uvicorn main:app` on a free
+loopback port, both with docker-compose.yml's api environment (COMPOSE_API_ENV: the hash embedder, no reranker,
+the SQL retrieval path, the router), DATA_DIR set to a
 task-local copy of fixture v1 (copy_fixture: verified against the MANIFEST, with its mtimes, which the served
 staleness filter reads), and a database of its own created on the Postgres server the caller names
 (PG_TEST_DSN, as for make ingest-runs) and dropped at the end. Two runs never share a database or a table.
@@ -58,6 +60,8 @@ COMPOSE_API_ENV = {
     "ENABLE_ROUTER": "true",
     "LOG_FORMAT": "text",
 }
+# docker-compose.yml, services.api.command: this runs before the API, on the same database; a test compares.
+DEPLOY_STEP = ("-m", "app.database.migrate")
 RUN_SET = ("PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "MODEL", "OLLAMA_BASE_URL", "DATA_DIR")
 OFF_SWITCHES = {"ENABLE_PYTHON_EXEC": "false", "METANAVIT_API_KEY": "", "RATE_LIMIT_PER_MINUTE": ""}
 KEEP = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "TMPDIR", "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
@@ -197,7 +201,13 @@ class ServedAPI:
         create_database(self.server_dsn, self.database)
         self._created = True
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        log = self.log_path.open("w")
+        with self.log_path.open("w") as log:
+            deploy = subprocess.run([sys.executable, *DEPLOY_STEP], cwd=ROOT, env=self.env, stdout=log,
+                                    stderr=subprocess.STDOUT)
+        if deploy.returncode != 0:
+            raise RuntimeError(f"{self.label}: the deploy step (schema migrations) exited with {deploy.returncode}; "
+                               f"see {self.log_path}\n" + self.log_tail())
+        log = self.log_path.open("a")
         self.process = subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1",
                                          "--port", str(self.port)], cwd=ROOT, env=self.env, stdout=log,
                                         stderr=subprocess.STDOUT)

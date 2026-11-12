@@ -19,6 +19,12 @@ def test_environment_is_the_compose_api_service_with_the_run_set_variables_left_
     assert set(ss.RUN_SET) <= set(compose)
 
 
+def test_the_deploy_step_runs_before_the_api_as_in_compose():
+    command = " ".join(yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]["api"]["command"])
+    step = "python " + " ".join(ss.DEPLOY_STEP)
+    assert step + " &&" in command and command.index(step) < command.index("uvicorn main:app")
+
+
 def test_code_execution_key_and_budget_stay_off_whatever_the_parent_sets(tmp_path):
     parent = {"PATH": "/usr/bin", "HOME": "/home/someone", "ENABLE_PYTHON_EXEC": "true",
               "METANAVIT_API_KEY": "parent-key", "RATE_LIMIT_PER_MINUTE": "5", "PG_TEST_DSN": DSN,
