@@ -204,13 +204,14 @@ def test_migrate_runs_the_deploy_step_against_the_given_environment(tmp_path, mo
 
 
 def test_index_step_runs_the_index_command_and_returns_its_report(tmp_path, monkeypatch):
-    """The deploy order's index step, `python -m app.engine.ingest`: its report is the last line it prints."""
+    """The deploy order's index step, `python -m app.engine.ingest`: its report is the last line it prints (a line printed
+    to stdout before it, by a library for example, is not the report)."""
     calls = []
 
     def fake_run(command, **kwargs):
         calls.append((command, kwargs))
         kwargs["stderr"].write("Indexing report: ...\n")
-        return subprocess.CompletedProcess(command, 0, stdout='{"chunks_embedded": 0, "files_unchanged": 3}\n')
+        return subprocess.CompletedProcess(command, 0, stdout='a line a library printed\n{"chunks_embedded": 0, "files_unchanged": 3}\n')
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     env = {"PG_CONNECTION_STRING": "postgresql://127.0.0.1:5/x", "DATA_DIR": str(tmp_path)}
