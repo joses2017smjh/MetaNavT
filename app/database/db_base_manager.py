@@ -11,10 +11,13 @@ Environment Variables:
     PG_CONNECTION_STRING: Primary connection string
     PSYCOPG2_CONNECTION_STRING: Alternative connection string
     DB_NAME: Database name (default: metanavit)
+    PG_POOL_MIN, PG_POOL_MAX, PG_POOL_WAIT_SECONDS: the connection pool (pool_settings below)
 """
 
 import logging
+import math
 import os
+import threading
 from contextlib import contextmanager
 from typing import Optional, Generator
 from urllib.parse import urlparse, urlunparse
@@ -22,9 +25,43 @@ from urllib.parse import urlparse, urlunparse
 import psycopg2
 import psycopg2.errors
 from psycopg2 import sql
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import PoolError, ThreadedConnectionPool
 
 logger = logging.getLogger(__name__)
+
+# The connection pool of one process: PG_POOL_MIN connections opened at start, at most PG_POOL_MAX out at once,
+# and a caller that finds them all out waits up to PG_POOL_WAIT_SECONDS for one to come back. Requests run in
+# worker threads (AnyIO allows 40 at once), so the pool is a ThreadedConnectionPool: the SimpleConnectionPool it
+# replaced is not for use across threads (unsynchronised, it let concurrent callers open more connections than
+# its maximum), and either pool raises PoolError at once when every connection is out. Each API replica holds a
+# pool of its own, so the database sees up to PG_POOL_MAX connections per replica, plus the connections opened
+# outside the pool (the ingest lock, a plan decision, PGVectorStore's own engine); with many replicas, a pooler in
+# front of Postgres (such as PgBouncer) keeps that number down.
+POOL_MIN_DEFAULT = 1
+POOL_MAX_DEFAULT = 10
+POOL_WAIT_DEFAULT_SECONDS = 30.0
+
+
+class PoolTimeout(PoolError):
+    """No pooled connection came back within PG_POOL_WAIT_SECONDS."""
+
+
+def _env_number(name: str, default, cast, smallest):
+    """`name` from the environment as cast(value) when it is at least `smallest` (and finite); else the default."""
+    try:
+        value = cast(os.getenv(name, "").strip())
+    except ValueError:
+        return default
+    return value if math.isfinite(value) and value >= smallest else default
+
+
+def pool_settings() -> tuple[int, int, float]:
+    """(PG_POOL_MIN, PG_POOL_MAX, PG_POOL_WAIT_SECONDS): at least 0, at least 1, more than 0 seconds; a value that
+    is not one of those keeps its default (1, 10, 30), and the minimum is never above the maximum."""
+    largest = _env_number("PG_POOL_MAX", POOL_MAX_DEFAULT, int, 1)
+    smallest = min(_env_number("PG_POOL_MIN", POOL_MIN_DEFAULT, int, 0), largest)
+    wait = _env_number("PG_POOL_WAIT_SECONDS", POOL_WAIT_DEFAULT_SECONDS, float, 0.0) or POOL_WAIT_DEFAULT_SECONDS
+    return smallest, largest, wait
 
 class DatabaseManager:
     """Manages database connections and operations using connection pooling."""
@@ -57,6 +94,10 @@ class DatabaseManager:
         
         Yields:
             psycopg2.extensions.connection: Database connection
+
+        At most PG_POOL_MAX connections are out at once: a caller beyond that waits for one to come
+        back, up to PG_POOL_WAIT_SECONDS, then gets PoolTimeout (its text names the settings, not
+        the database). It used to get PoolError ("connection pool exhausted") at once.
             
         Example:
             ```python
@@ -65,7 +106,14 @@ class DatabaseManager:
                     cur.execute("SELECT * FROM table")
             ```
         """
-        conn = self.pool.getconn()
+        if not self._slots.acquire(timeout=self.pool_wait_s):
+            raise PoolTimeout(f"no database connection became free within {self.pool_wait_s:g} s "
+                              f"(PG_POOL_MAX={self.pool_max}, PG_POOL_WAIT_SECONDS)")
+        try:
+            conn = self.pool.getconn()
+        except BaseException:
+            self._slots.release()
+            raise
         try:
             yield conn  # Pass connection to the 'with' block
         except Exception as e:
@@ -77,6 +125,7 @@ class DatabaseManager:
         finally:
             # Always return connection to pool, even if there was an error
             self.pool.putconn(conn)
+            self._slots.release()
 
     def _ensure_database_exists(self) -> None:
         """Create database if it doesn't exist."""
@@ -124,14 +173,19 @@ class DatabaseManager:
         finally:
             conn.close()
 
-    def _initialize_connection_pool(self, minconn: int = 1, maxconn: int = 10) -> None:
-        """Initialize the connection pool."""
-        self.pool = SimpleConnectionPool(
+    def _initialize_connection_pool(self, minconn: Optional[int] = None, maxconn: Optional[int] = None) -> None:
+        """Initialize the connection pool, sized by pool_settings() unless the sizes are given."""
+        settings_min, settings_max, self.pool_wait_s = pool_settings()
+        maxconn = settings_max if maxconn is None else maxconn
+        minconn = min(settings_min if minconn is None else minconn, maxconn)
+        self.pool_max = maxconn
+        self._slots = threading.BoundedSemaphore(maxconn)  # one per connection the pool may hand out
+        self.pool = ThreadedConnectionPool(
             minconn,
             maxconn,
             self.conn_string
         )
-        logger.info("Connection pool initialized")
+        logger.info(f"Connection pool initialized ({minconn} to {maxconn} connections)")
 
     def _get_admin_conn_string(self) -> str:
         """Get admin connection string for database creation."""
