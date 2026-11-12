@@ -227,3 +227,10 @@ def test_how_far_head_has_moved_since_the_baseline_commit(tmp_path, monkeypatch)
     assert baseline_note({"git_sha": "0000000"}, "main.json", repo) == (
         "baseline: main.json recorded at 0000000, a commit not in this checkout's history (a shallow clone has only its own)")
     assert baseline_note({}, "main.json", repo) == "baseline: main.json records no commit"
+
+
+def test_exact_compares_the_gold_digest():
+    """A38's gold_sha256 defines the run like corpus_sha256: a run on another gold file is not a reproduction."""
+    base, cur = _main_blob(), _main_blob()
+    base["gold_sha256"], cur["gold_sha256"] = "a" * 64, "b" * 64
+    assert [p for p in exact_differences(cur, base) if p.startswith("gold_sha256")] == [f"gold_sha256: baseline {'a' * 64!r}, current {'b' * 64!r}"]

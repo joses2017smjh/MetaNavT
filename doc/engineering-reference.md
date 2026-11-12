@@ -52,8 +52,8 @@ external-domain evaluation, measured neural service load, trusted action grants
 and an [LLM-in-the-loop prompt-injection evaluation](#does-the-agent-follow-instructions-planted-in-files)
 of local models in front of the same tools.
 
-The [ablation table](#the-number) reports ranking quality (nDCG@10), coverage
-(Recall@10, and Recall@50 next to a random-list baseline), paired deltas with
+The [ablation table](#the-number) reports ranking quality (nDCG@10, MRR@10), coverage
+(Recall@5, Recall@10, and Recall@50 next to a random-list baseline), paired deltas with
 intervals, and the number of gold questions behind each category.
 
 [Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) ·
@@ -847,7 +847,9 @@ an index run beside them.
 ## The number
 
 A frozen fixture, BEIR-style retrieval metrics, and 95% confidence intervals from
-a seeded, paired bootstrap over the gold questions. No LLM judge. One design
+a seeded, paired bootstrap over the gold questions (`CI_METRICS` in
+`app/eval/harness.py`: nDCG@10, Recall@10, Recall@50, MRR@10 and Recall@5, each
+with paired deltas; the regression gate checks the first three). No LLM judge. One design
 change per row. Losers stay in the table. The table below, the headline in the
 overview and the figures are all rendered from
 [`bench/results/main.json`](../bench/results/main.json) (`make bench-table`,

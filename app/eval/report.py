@@ -151,21 +151,31 @@ def headline(blob: dict) -> str:
     return " ".join(parts)
 
 
+def _with_new_intervals(rows: list[dict]) -> bool:
+    """Whether a file has the MRR@10 and Recall@5 intervals (B33); a file recorded before keeps its columns."""
+    return any(m in (row.get("ci") or {}) for row in rows for m in ("mrr@10", "recall@5"))
+
+
 def table(blob: dict) -> str:
     rows = list(blob.get("results", []))
     boot = blob.get("bootstrap") or {}
+    wide = _with_new_intervals(rows)
     lines = [
+        "| config | nDCG@10 [95% CI] | Recall@5 [95% CI] | Recall@10 [95% CI] | random list @10 | Recall@50 | random list @50 | unique files in top 50 | MRR@10 [95% CI] |"
+        if wide else
         "| config | nDCG@10 [95% CI] | Recall@10 [95% CI] | random list @10 | Recall@50 | random list @50 | unique files in top 50 | MRR@10 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|" if wide else "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in rows:
         r = row["retrieval"]
         rand50 = r.get("random_recall@50")
         rand10 = r.get("random_recall@10")
         fmt = lambda v: "—" if v is None else f"{v:.3f}"  # noqa: E731
+        recall5 = f" {_ci(row, 'recall@5')} |" if wide else ""
+        mrr = _ci(row, "mrr@10") if wide else f"{r['mrr@10']:.3f}"
         lines.append(
-            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {fmt(rand10)} | {r['recall@50']:.3f} | "
-            f"{fmt(rand50)} | {r.get('mean_unique_paths@50', 0):.1f} | {r['mrr@10']:.3f} |"
+            f"| {row['config']} | {_ci(row, 'ndcg@10')} |{recall5} {_ci(row, 'recall@10')} | {fmt(rand10)} | {r['recall@50']:.3f} | "
+            f"{fmt(rand50)} | {r.get('mean_unique_paths@50', 0):.1f} | {mrr} |"
         )
     lines += [
         "",
@@ -284,14 +294,21 @@ def neural_table(blob: dict | None) -> str:
         f"Each row names its parent (one change away); the paired delta is against that parent. "
         f"Wall time is the whole row after a warm-up query.",
         "",
+    ]
+    wide = _with_new_intervals(rows)  # MRR@10 and Recall@5 intervals (B33), for a file recorded with them
+    lines += [
+        "| config | parent | models (revision) | nDCG@10 [95% CI] | Recall@5 [95% CI] | Recall@10 [95% CI] | MRR@10 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25_only | beats BM25? | wall s |"
+        if wide else
         "| config | parent | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25_only | beats BM25? | wall s |",
-        "|---|---|---|---:|---:|---:|---:|:---:|---:|",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|:---:|---:|" if wide else "|---|---|---|---:|---:|---:|---:|:---:|---:|",
     ]
     for row in rows:
         dp = (row.get("delta_vs_previous") or {}).get("ndcg@10")
         db = (row.get("delta_vs_bm25_only") or {}).get("ndcg@10")
+        cells = (f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@5')} | {_ci(row, 'recall@10')} | {_ci(row, 'mrr@10')}" if wide
+                 else f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')}")
         lines.append(
-            f"| {row['config']} | {_parent_of(row)} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+            f"| {row['config']} | {_parent_of(row)} | {_models(row)} | {cells} | "
             f"{_delta(dp)} | {_delta(db)} | {_beats(db)} | {row.get('wall_ms', 0) / 1000:.1f} |"
         )
     parts = []

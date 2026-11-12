@@ -59,8 +59,9 @@ def test_attach_confidence_uses_parent_and_reports_small_n_categories():
 
     n = 12
     cats = ["exact_path"] * 4 + ["staleness"] * 4 + ["semantic"] * 4
-    base = [{"ndcg@10": 0.5, "recall@10": 0.5, "recall@50": 0.9} for _ in range(n)]
-    better = [{"ndcg@10": 0.5 + (0.2 if c == "exact_path" else 0.0), "recall@10": 0.5, "recall@50": 0.9} for c in cats]
+    other = {"recall@10": 0.5, "recall@50": 0.9, "mrr@10": 0.5, "recall@5": 0.5}  # every metric with an interval (CI_METRICS)
+    base = [{"ndcg@10": 0.5, **other} for _ in range(n)]
+    better = [{"ndcg@10": 0.5 + (0.2 if c == "exact_path" else 0.0), **other} for c in cats]
     results = [
         {"config": "bm25_only", "settings": {"parent": None}},
         {"config": "unrelated", "settings": {"parent": "bm25_only"}},

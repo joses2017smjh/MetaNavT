@@ -818,7 +818,9 @@ def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():
     assert by["good"]["rerank_latency"]["n"] == len(test)
     (delta,) = by["bad"]["deltas"]
     assert delta["reference"] == "good" and delta["ndcg@10"] == {"delta": -1.0, "lo": -1.0, "hi": -1.0}
-    assert set(delta) == {"reference", "ndcg@10", "recall@10", "recall@50"}
+    from app.eval.harness import CI_METRICS
+
+    assert set(delta) == {"reference", *CI_METRICS}  # the harness's interval metrics (B33 added MRR@10 and Recall@5)
 
 
 def test_rerank_arms_block_reads_verdicts_off_the_file():

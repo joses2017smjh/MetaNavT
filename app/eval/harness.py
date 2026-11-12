@@ -985,7 +985,9 @@ def run_bench(
     return blob
 
 
-CI_METRICS = ("ndcg@10", "recall@10", "recall@50")
+# Metrics with a bootstrap interval and paired deltas (B33 added MRR@10 and Recall@5); compare.GATED_METRICS, the
+# regression gate's, is a separate and smaller list.
+CI_METRICS = ("ndcg@10", "recall@10", "recall@50", "mrr@10", "recall@5")
 REFERENCE_CONFIG = "bm25_only"
 
 

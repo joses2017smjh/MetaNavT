@@ -26,7 +26,7 @@ e2e block differ from run to run and are ignored.
 --exact (make bench-check) is the reproduction check: the bench is meant to give
 the same numbers on any machine, so every field of every row (metrics, per-category
 metrics, intervals, deltas, the e2e block, settings, routes) and the header fields
-that define the run (corpus, gold set, bootstrap, mtimes) must equal the baseline,
+that define the run (corpus and gold digests, gold set size, bootstrap, mtimes) must equal the baseline,
 in both directions. Only timings, the timestamp, the command, the machine and the
 commit may differ.
 """
@@ -156,7 +156,7 @@ def baseline_note(baseline: dict, name: str, root: Path) -> str:
 
 
 VOLATILE_ROW_KEYS = frozenset({"latency", "wall_ms"})  # timings: the only row fields allowed to differ
-EXACT_HEADER_KEYS = ("corpus_sha256", "n_gold", "n_files", "bootstrap", "mtimes")
+EXACT_HEADER_KEYS = ("corpus_sha256", "gold_sha256", "n_gold", "n_files", "bootstrap", "mtimes")
 
 
 def _leaf_differences(path: str, a, b, out: list[str]) -> None:
