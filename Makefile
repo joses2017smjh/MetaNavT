@@ -127,6 +127,21 @@ bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json fro
 bench-agent-injection-scores: ## every committed episode's score from the current scoring code -> bench/results/agent_injection_episodes_rescored.jsonl (no model call; the episodes file is not changed)
 	$(PYTHON) -m app.eval.agent_injection --write-scores bench/results/agent_injection_episodes_rescored.jsonl --k 4 --episodes bench/results/agent_injection_episodes.jsonl
 
+.PHONY: bench-companion-live bench-companion-live-rescore
+COMPANION_MODEL ?= qwen2.5:7b
+COMPANION_LOG_DIR ?=
+bench-companion-live: ## research companion, live mode: the Ollama model at OLLAMA_BASE_URL over two served APIs (default stack, databases created on PG_TEST_DSN), every gold question + ten planted-claim questions -> bench/results/companion_live.json; sets the live-run fields of doc/research-agent-validation.json
+	$(PYTHON) -m app.eval.companion_live --model $(COMPANION_MODEL) --out bench/results/companion_live.json --validation doc/research-agent-validation.json $(if $(COMPANION_LOG_DIR),--log-dir $(COMPANION_LOG_DIR))
+
+bench-companion-live-rescore: ## recompute the scores and summary of bench/results/companion_live.json from its stored responses (no model call)
+	$(PYTHON) -m app.eval.companion_live --rescore bench/results/companion_live.json --validation doc/research-agent-validation.json
+
+.PHONY: chat-route-smoke
+CHAT_SMOKE_MODEL ?= qwen2.5:7b
+CHAT_SMOKE_LOG_DIR ?=
+chat-route-smoke: ## POST /api/chat and /api/chat/request with the Ollama model at OLLAMA_BASE_URL on the default stack (hash embedder, code execution off, database created on PG_TEST_DSN), the first gold question of each category -> bench/results/chat_route_smoke.json
+	$(PYTHON) -m app.eval.chat_smoke --model $(CHAT_SMOKE_MODEL) --out bench/results/chat_route_smoke.json $(if $(CHAT_SMOKE_LOG_DIR),--log-dir $(CHAT_SMOKE_LOG_DIR))
+
 bench-agent-injection-v2: ## LLM-in-the-loop injection, the current task set (agent_injection_v2, with the capability control) -> bench/results/agent_injection_v2.json and its episodes (needs Ollama)
 	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v2 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
@@ -150,6 +165,10 @@ sweeps:
 # ---- neural rows (needs .[ml]; downloads bge-small / bge-base / bge-reranker-v2-m3 once) ----
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
+
+.PHONY: bench-rerank-depth
+bench-rerank-depth: ## fixture v1, bge-small + bge-reranker-v2-m3: every fused candidate -> depth 20 -> max_length 512 -> fp16 (the served settings) -> + router and staleness -> staleness before the rerank, each vs its parent (needs .[ml] and CUDA) -> bench/results/rerank_depth.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --rerank-depth --out bench/results/rerank_depth.json
 
 # The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
 BEIR_DATA_DIR ?= bench/external
@@ -198,9 +217,12 @@ demos: matlab-demo demo-data figures gifs
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
 PARITY_OUT ?= bench/results/parity.json
+# The in-memory row's named configuration (app/eval/parity.py IN_MEMORY_CONFIGS): CI's hash one by default; the
+# model-backed one is in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first.
+PARITY_CONFIG ?= in_memory:hybrid+router+staleness
 
-parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
-	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
+parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI against the in-memory row PARITY_CONFIG (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
+	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT) --parity-config '$(PARITY_CONFIG)'
 
 migrate:        ## the deploy step: apply pending schema migrations (PG_CONNECTION_STRING; vector table from PGVECTOR_TABLE, EMBEDDING_DIM, LEXICAL_BACKEND). Until it has run, the API answers 503 and retries.
 	$(PYTHON) -m app.database.migrate

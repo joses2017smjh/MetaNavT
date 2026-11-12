@@ -89,6 +89,14 @@ class BenchConfig:
     generations: str | None = None  # stored LLM-written HyDE hypotheses / contextual prefixes (app/eval/frontier_llm.py) instead of the heuristics
     late_chunking: bool = False  # pool document-level token embeddings per chunk (needs a token-level model)
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
+    # The served reranker's settings (M17): RERANK_DEPTH, RERANKER_PRECISION, RERANKER_MAX_LENGTH. None: every fused
+    # candidate, fp32, the model's own token cap, as every row recorded before M17.
+    rerank_depth: int | None = None
+    rerank_precision: str | None = None  # fp32 | fp16 (CUDA only)
+    rerank_max_length: int | None = None
+    # Staleness Tier 1 on the fused list before the reranker, as the served retriever orders them. False: after the
+    # reranker, as every row recorded before M17 (the two orders agree when every fused candidate is reranked).
+    staleness_before_rerank: bool = False
 
 
 # first_stage:  the HyDE vector is the dense leg's query, before fusion; the reranker (if any) has the last word.
@@ -98,7 +106,7 @@ class BenchConfig:
 HYDE_STAGES = ("first_stage", "after_rerank")
 # Switches added after bench/results/main.json was recorded. A row's settings carry them only when it sets them,
 # so rows that do not use them keep the settings they were recorded with (`make bench-check` compares settings).
-LATER_SETTINGS = ("hyde_stage", "cache", "generations")
+LATER_SETTINGS = ("hyde_stage", "cache", "generations", "rerank_depth", "rerank_precision", "rerank_max_length", "staleness_before_rerank")
 # The cache arm also looks up these paraphrases of gold questions after the gold replay (app/eval/probes.py).
 CACHE_PROBES = "bench/probes/paraphrases.jsonl"
 
@@ -145,6 +153,9 @@ def _retrieve(
     keyword heuristic)."""
     if cfg.hyde and (cfg.hyde_stage not in HYDE_STAGES or (cfg.mode == "dense" and cfg.hyde_stage != "first_stage")):
         raise ValueError(f"{cfg.name}: hyde needs hyde_stage in {HYDE_STAGES} (dense mode: first_stage), got {cfg.hyde_stage!r}")
+    stale_first = cfg.staleness_tier1 and cfg.staleness_before_rerank
+    if stale_first and (cfg.mode != "hybrid" or cfg.decompose or cfg.multi_query or cfg.hyde or cfg.corrective):
+        raise ValueError(f"{cfg.name}: staleness_before_rerank is wired for the plain hybrid retrieval only")
     if cfg.adaptive:
         decision = should_retrieve(query).decision
         _count(fired, f"adaptive_{decision.value}")
@@ -218,7 +229,8 @@ def _retrieve(
             result.hits.sort(key=lambda h: h.score, reverse=True)
             hits = result.hits
         else:
-            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n)
+            prefilter = (lambda pairs: _prefer_current_pairs(pairs, clusters, query)) if stale_first and clusters else None
+            result = index.retrieve(query, timer=timer, k=cfg.retrieve_k, n=cfg.rerank_n, prefilter=prefilter)
             hits = result.hits
 
     if cfg.corrective and hits:
@@ -245,7 +257,7 @@ def _retrieve(
                         hits.append(rh)
                         seen.add(rh.chunk.chunk_id)
 
-    if cfg.staleness_tier1 and clusters:
+    if cfg.staleness_tier1 and clusters and not stale_first:
         hits = prefer_current(hits, clusters, query)
 
     if cfg.hipporag and hippo_triples:
@@ -271,6 +283,12 @@ def _retrieve(
         _count(fired, "graph_hops")
         paths = expand_with_graph(paths, graph, hops=cfg.graph_hops)
     return paths, result if result is not None else hits
+
+
+def _prefer_current_pairs(pairs: list, clusters, query: str) -> list:
+    """Staleness Tier 1 (prefer_current) on (chunk, score) pairs, keeping their order and scores."""
+    kept = prefer_current([RetrievalHit(chunk=c, score=s, rank=i) for i, (c, s) in enumerate(pairs, start=1)], clusters, query)
+    return [(h.chunk, h.score) for h in kept]
 
 
 def _serve_from_cache(cache: SemanticCache, query: str, qid: str, fresh: list[str]) -> tuple[list[str], dict[str, Any]]:
@@ -329,6 +347,21 @@ def _replay_probes(cache: SemanticCache, probes: list, fresh_paths, n_files: int
     }
 
 
+def _rerank_settings(cfg: BenchConfig, model) -> dict[str, Any]:
+    """What a row that sets the served reranker settings records next to the model (nothing for the other rows,
+    whose models block is compared field by field by `make bench-check`): the settings, and what loaded."""
+    if cfg.rerank_depth is None and cfg.rerank_precision is None and cfg.rerank_max_length is None:
+        return {}
+    inner = getattr(model, "model", None)
+    return {
+        "depth": cfg.rerank_depth,
+        "precision": cfg.rerank_precision or "fp32",
+        "max_length": cfg.rerank_max_length,
+        "loaded_dtype": str(getattr(inner, "dtype", None)) if inner is not None else None,
+        "loaded_max_length": getattr(model, "max_length", None) if model is not None else None,
+    }
+
+
 def _generations_path(rel: str) -> Path:
     path = Path(rel)
     return path if path.is_absolute() else project_root() / path
@@ -377,6 +410,29 @@ NEURAL_CONFIGS = [
 
 # Extra paired comparisons that are not parent/child rows (row, other): reported in blob["comparisons"].
 NEURAL_COMPARISONS = [("hybrid+bge-rerank@bge-small", "hybrid+bge-rerank@hash")]
+
+# M17 (B23): the served reranker settings on fixture v1, one change at a time from neural.json's depth-50 row (every
+# fused candidate, fp32, the model's own token cap) to what the API serves on CUDA (RERANK_DEPTH 20,
+# RERANKER_MAX_LENGTH 512, RERANKER_PRECISION fp16), then the router and staleness Tier 1, then Tier 1 moved in front of
+# the reranker as the served retriever orders them: that last row is the in-memory configuration of
+# bench/results/parity_neural.json (app/eval/parity.py). make bench-rerank-depth -> bench/results/rerank_depth.json
+# (each row with on how many questions its list differs from its parent's).
+_RR = dict(mode="hybrid", embedder=BGE_SMALL, reranker=BGE_RERANKER, enable_rerank=True, **_N)
+RERANK_DEPTH_CONFIGS = [
+    BenchConfig(name="hybrid@bge-small", mode="hybrid", embedder=BGE_SMALL, enable_rerank=False, enable_router=False, staleness_tier1=False, **_N),
+    BenchConfig(name="hybrid+bge-rerank@bge-small", enable_router=False, staleness_tier1=False, parent="hybrid@bge-small", **_RR),
+    BenchConfig(name="hybrid+bge-rerank@bge-small/top20", enable_router=False, staleness_tier1=False, rerank_depth=20,
+                parent="hybrid+bge-rerank@bge-small", **_RR),
+    BenchConfig(name="hybrid+bge-rerank@bge-small/fp32-512/top20", enable_router=False, staleness_tier1=False, rerank_depth=20,
+                rerank_max_length=512, parent="hybrid+bge-rerank@bge-small/top20", **_RR),
+    BenchConfig(name="hybrid+bge-rerank@bge-small/fp16-512/top20", enable_router=False, staleness_tier1=False, rerank_depth=20,
+                rerank_max_length=512, rerank_precision="fp16", parent="hybrid+bge-rerank@bge-small/fp32-512/top20", **_RR),
+    BenchConfig(name="hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20", enable_router=True, staleness_tier1=True,
+                rerank_depth=20, rerank_max_length=512, rerank_precision="fp16", parent="hybrid+bge-rerank@bge-small/fp16-512/top20", **_RR),
+    BenchConfig(name="hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first", enable_router=True, staleness_tier1=True,
+                rerank_depth=20, rerank_max_length=512, rerank_precision="fp16", staleness_before_rerank=True,
+                parent="hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20", **_RR),
+]
 # Per-category paired deltas vs parent for the rows whose mechanism targets a category; n is small and said so.
 CATEGORY_DELTAS = {"hybrid+rerank+router": "exact_path", "hybrid+rerank+router+staleness": "staleness",
                    "hybrid+bge-rerank+router@bge-small": "exact_path", "hybrid+bge-rerank+router+staleness@bge-small": "staleness"}
@@ -410,6 +466,9 @@ def run_config(
         contextual=cfg.contextual,
         mtimes=mtimes,
         prefixes=prefixes,
+        rerank_depth=cfg.rerank_depth,
+        rerank_precision=cfg.rerank_precision,
+        rerank_max_length=cfg.rerank_max_length,
     )
     late = None
     if cfg.late_chunking:
@@ -563,13 +622,17 @@ def run_config(
             **model_provenance(cfg.embedder, "embedder"),
             "dim": int(getattr(index.embedder, "dim", 0)),
             "device": model_device(getattr(index.embedder, "_model", None)),
-            "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used, same text both sides
+            # bge-v1.5 recommends a query prefix; the benchmark embeds the bare query. The served HuggingFace embedder
+            # adds LlamaIndex's prefix unless EMBEDDING_QUERY_INSTRUCTION=none (app/settings.py), as the model-backed
+            # parity run sets it.
+            "query_instruction": None,
             **({"library": _sklearn_versions()} if cfg.embedder == "tfidf" else {}),
         },
         "reranker": {
             **model_provenance(cfg.reranker, "reranker"),
             "loaded": payload["reranker_loaded"],
             "device": model_device(rerank_model) if payload["reranker_loaded"] else None,
+            **_rerank_settings(cfg, rerank_model if payload["reranker_loaded"] else None),
         },
     }
     fallback = getattr(index, "reranker_fallback", None)
@@ -755,11 +818,9 @@ def fallback_labels(row: dict[str, Any]) -> list[str]:
     return labels
 
 
-def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[list[str]]]) -> dict[str, Any]:
-    """Per arm: its fallback labels and on how many questions its list differs from the parent's."""
-    names = {row["config"] for row in results}
+def attach_list_changes(results: list[dict[str, Any]], retrieved: dict[str, list[list[str]]]) -> None:
+    """Per row with a parent in the run: on how many questions its ranked file list differs from the parent's."""
     for row in results:
-        row["fallbacks"] = fallback_labels(row)
         parent = (row.get("settings") or {}).get("parent")
         mine, theirs = retrieved.get(row["config"]), retrieved.get(parent or "")
         if not mine or not theirs or len(mine) != len(theirs):
@@ -770,6 +831,14 @@ def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[lis
             "n_top10_differs": sum(1 for a, b in zip(mine, theirs) if a[:10] != b[:10]),
             "n_list_differs": sum(1 for a, b in zip(mine, theirs) if a != b),
         }
+
+
+def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[list[str]]]) -> dict[str, Any]:
+    """Per arm: its fallback labels and on how many questions its list differs from the parent's."""
+    names = {row["config"] for row in results}
+    for row in results:
+        row["fallbacks"] = fallback_labels(row)
+    attach_list_changes(results, retrieved)
     parents = [n for n in (*FRONTIER_PARENTS, *(_neural_name(p) for p in FRONTIER_PARENTS)) if n in names]
     neural = any(n.endswith("@bge-small") for n in names)
     return {
@@ -788,6 +857,7 @@ def run_bench(
     out: Path | None = None,
     device: str = "auto",
     frontier: bool = False,
+    compare_lists: bool = False,
 ) -> dict[str, Any]:
     """Score every config on fixture v1.
 
@@ -796,6 +866,7 @@ def run_bench(
     touch the CI baseline. `frontier` adds what a prototype arm needs next to
     its delta: fallback labels, per-category deltas vs parent for every
     category, and the number of questions whose list differs from the parent's.
+    `compare_lists` adds only that last count (vs_parent) to every row with a parent.
     """
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
@@ -825,7 +896,7 @@ def run_bench(
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier, mtimes="manifest", probes=probes)
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier or compare_lists, mtimes="manifest", probes=probes)
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
@@ -866,6 +937,8 @@ def run_bench(
                           "made_by": "python -m app.eval.probes", "labels": "inherited from the rewritten gold question, not judged"}
     if frontier:
         blob["frontier"] = attach_frontier(results, retrieved_by_config)
+    elif compare_lists:
+        attach_list_changes(results, retrieved_by_config)
     out_dir = root / "bench" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     if out is not None:
@@ -1035,20 +1108,27 @@ def _parse_args(argv: list[str] | None = None):
         action="store_true",
         help="real embedders (bge-small, bge-base) and the real bge-reranker-v2-m3 on fixture v1 (needs .[ml])",
     )
+    p.add_argument(
+        "--rerank-depth",
+        action="store_true",
+        help="the served reranker settings (depth 20, max_length 512, fp16) one at a time on fixture v1 (needs .[ml] and CUDA) -> --out",
+    )
     p.add_argument("--out", type=Path, default=None, help="write only this file (latest.json and the sha file are left alone)")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"], help="recorded in the results header; cpu forces CPU for torch models")
     p.add_argument("--only", default=None, help="comma-separated config names to run (subset of the selected list)")
     p.add_argument("--backend", default="memory", choices=["memory", "api"], help="api: replay the gold set through POST /api/retrieve/ (see app/eval/parity.py)")
     p.add_argument("--url", default="http://localhost:8000", help="API base URL for --backend api")
+    p.add_argument("--parity-config", default=None,
+                   help="--backend api: the named in-memory configuration to compare with (app/eval/parity.py IN_MEMORY_CONFIGS; default the hash one CI runs)")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     if args.backend == "api":
-        from app.eval.parity import markdown_table as parity_table, run as parity_run
+        from app.eval.parity import IN_MEMORY, markdown_table as parity_table, run as parity_run
 
-        blob = parity_run(args.url)
+        blob = parity_run(args.url, in_memory=args.parity_config or IN_MEMORY.name)
         out = args.out or (project_root() / "bench" / "results" / "parity.json")
         out = out if out.is_absolute() else project_root() / out
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -1063,6 +1143,10 @@ def main(argv: list[str] | None = None) -> None:
         configs = frontier_configs(neural=args.neural)
         if args.out is None:  # never the default bench outputs: latest.json belongs to `make bench`
             args.out = Path("bench/results/frontier_neural.json" if args.neural else "bench/results/frontier.json")
+    elif args.rerank_depth:
+        configs = list(RERANK_DEPTH_CONFIGS)
+        if args.out is None:  # never the default bench outputs: latest.json belongs to `make bench`
+            args.out = Path("bench/results/rerank_depth.json")
     elif args.neural:
         configs = list(NEURAL_CONFIGS)
     else:
@@ -1077,7 +1161,7 @@ def main(argv: list[str] | None = None) -> None:
         configs = [replace(c, jury=True) for c in configs]
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    blob = run_bench(configs=configs, out=args.out, device=args.device, frontier=args.frontier)
+    blob = run_bench(configs=configs, out=args.out, device=args.device, frontier=args.frontier, compare_lists=args.rerank_depth)
     print(markdown_table(blob))
     print(f"wrote {blob['output']}")
 

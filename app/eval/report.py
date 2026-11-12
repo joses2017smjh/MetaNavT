@@ -36,6 +36,7 @@ BEIR_FILE = "bench/results/beir_scifact.json"
 BEIR_BM25_FILE = "bench/results/beir_scifact_bm25_ablation.json"
 BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
+PARITY_NEURAL_FILE = "bench/results/parity_neural.json"  # M17 (A19): bge-small + bge-reranker-v2-m3 through the API, one GPU run
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
@@ -44,7 +45,7 @@ SOURCES = {
     "bench-beir": BEIR_FILE,
     "bench-beir-bm25": BEIR_BM25_FILE,
     "bench-beir-fiqa": BEIR_FIQA_FILE,
-    "bench-parity": PARITY_FILE,
+    "bench-parity": f"{PARITY_FILE} and {PARITY_NEURAL_FILE}",
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
     "agent-injection": f"{AGENT_INJECTION_V2_FILE} and {AGENT_INJECTION_FILE}",
@@ -436,41 +437,111 @@ def beir_bm25_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
-def parity_table(blob: dict | None) -> str:
-    if not blob:
-        return f"_{PARITY_FILE} is missing; run `make parity` against a running API._"
-    lines = [
-        f"Same 136 questions, same metrics, same paired bootstrap (`make parity`, results sha {blob.get('git_sha')}). "
-        f"The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
-        f"staleness Tier 1 on, no reranker, hash embeddings. The API row is POST /api/retrieve/ over Postgres + pgvector "
-        f"(one SQL round trip, app/database/sql/hybrid_tsrank.sql).",
-        "",
-        "| row | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | lexical leg | chunker | p50 / p95 ms per query |",
-        "|---|---:|---:|---:|---|---|---:|",
-    ]
-    for row in blob.get("results", []):
-        lat = row.get("latency") or {}
-        e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
-        is_api = row["config"].startswith("api")
-        lex = (row.get("settings") or {}).get("bm25_backend") if is_api else "in-memory Okapi BM25"
-        # The API reports its chunker since it shares the bench's; a file without the field predates that.
-        served = ((blob.get("api_health") or {}).get("indexing") or {}).get("chunker") or "SentenceSplitter(512, 50)"
-        chunker = served if is_api else "app/chunking (structure-aware)"
-        lines.append(
-            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
-            f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"
-        )
+PARITY_NEURAL_CONFIG = "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first"
+PARITY_SETTINGS = ("embedding_model", "query_instruction", "reranker", "rerank_depth", "rerank_precision", "rerank_max_length", "staleness")
+
+
+def _parity_stack(blob: dict) -> str:
+    """The models the API served in this run, from its /health copy. The hash adapter is labelled the fallback it is,
+    "hash embedder", also in files whose /health names it as an embedding model ("hash-256", since M17)."""
+    health = blob.get("api_health") or {}
+    if health.get("embedding_provider") == "hash":
+        embedder = "hash embedder"
+    else:
+        embedder = health.get("embedding_model") or health.get("embed_model")
+    reranker = health.get("reranker") or {}
+    return f"{embedder}, " + (f"{reranker.get('model')}" if reranker.get("loaded") else "no reranker")
+
+
+def _parity_setting(value) -> str:
+    if value == "":
+        return "none"
+    return "—" if value is None else str(value)
+
+
+def _parity_run_text(blob: dict, rel: str) -> str:
+    """One run's paragraph: what the in-memory row is, the gap, the exact_path slice and the two sides' settings."""
+    rows = _rows(blob)
+    mem = next((r for name, r in rows.items() if name.startswith("in_memory")), {})
+    api = rows.get("api:postgres") or {}
+    config = blob.get("in_memory_config")
+    command = "`make parity`" if not config or config == "in_memory:hybrid+router+staleness" else f"`make parity PARITY_CONFIG={config}`"
+    device = (blob.get("device") or {}).get("device_name")
+    parts = [f"**{_parity_stack(blob)}** ({rel}, {command}, results sha {blob.get('git_sha')}"
+             + (f", {device}" if device and (blob.get("device") or {}).get("device") == "cuda" else "") + ")."]
+    if not blob.get("settings"):  # files recorded before the settings were written down: the hash run
+        parts.append("The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
+                     "staleness Tier 1 on, no reranker, hash embeddings.")
     g = blob.get("gap") or blob.get("gate") or {}  # files recorded before the gate was dropped carry "gate"
     d = g.get("paired_delta_api_minus_in_memory") or {}
     if g:
-        lines += [
-            "",
-            f"nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI "
-            f"{_delta(d) if d else '—'} ({_zero_note(d) if d else 'no interval'}). The gap is reported, not gated: "
-            f"the lexical legs differ by design (ts_rank_cd vs BM25); the dense leg is checked for exact agreement "
-            f"by tests/database/test_dense_parity.py. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; "
-            f"the in-memory figure is the search stage only.",
-        ]
+        parts.append(f"nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI {_delta(d) if d else '—'} "
+                     f"({_zero_note(d) if d else 'no interval'}).")
+    exact = next((b for b in api.get("delta_vs_parent_by_category_all") or [] if b.get("category") == "exact_path"), None)
+    if exact:
+        by_mem = (mem.get("retrieval") or {}).get("by_category", {}).get("exact_path", {})
+        by_api = (api.get("retrieval") or {}).get("by_category", {}).get("exact_path", {})
+        parts.append(f"On the {exact['n']} exact_path questions (the router's lexical_path route) nDCG@10 is {by_mem.get('ndcg@10', 0):.3f} "
+                     f"in memory and {by_api.get('ndcg@10', 0):.3f} through the API, paired gap {_delta(exact.get('ndcg@10'))} "
+                     f"({_zero_note(exact.get('ndcg@10'))}; n = {exact['n']}).")
+    # The overall interval can cover zero while a category's does not: name every such category (four decimals, so a
+    # bound near zero shows its side).
+    categories = [b for b in api.get("delta_vs_parent_by_category_all") or [] if b.get("ndcg@10")]
+    outside = [b for b in categories if not b["ndcg@10"]["lo"] <= 0.0 <= b["ndcg@10"]["hi"]]
+    if outside:
+        parts.append("Gold categories whose paired interval excludes zero (API minus in-memory, nDCG@10): "
+                     + "; ".join(f"{b['category']} {_delta4(b['ndcg@10'])} (n = {b['n']})" for b in outside) + ".")
+    elif categories:
+        parts.append("Every gold category's paired interval covers zero.")
+    health = blob.get("api_health") or {}
+    if health.get("embedding_provider") == "huggingface" and health.get("embedding_query_instruction") == "":
+        parts.append("The API ran with EMBEDDING_QUERY_INSTRUCTION=none (the bare query, as the benchmark embeds it), not the served "
+                     "default, which puts LlamaIndex's per-model instruction in front of every query.")
+    settings = blob.get("settings") or {}
+    if settings:
+        shown = "; ".join(f"{key.replace('_', ' ')} {_parity_setting(settings[key]['in_memory'])} / {_parity_setting(settings[key]['api'])}"
+                          for key in PARITY_SETTINGS if key in settings)
+        differ = blob.get("settings_differ") or []
+        parts.append(f"In-memory row `{config}`. Settings, in memory / API: {shown}. Settings that differ: {', '.join(differ) or 'none'}.")
+    return " ".join(parts)
+
+
+def parity_table(blob: dict | None, neural: dict | None = None) -> str:
+    if not blob:
+        return f"_{PARITY_FILE} is missing; run `make parity` against a running API._"
+    runs = [(blob, PARITY_FILE)] + ([(neural, PARITY_NEURAL_FILE)] if neural else [])
+    lines = [
+        "Same 136 questions, same metrics, same paired bootstrap, two runs. Each in-memory row is the bench harness with the "
+        "settings the API served in that run; each API row is POST /api/retrieve/ over Postgres + pgvector "
+        "(one SQL round trip, app/database/sql/hybrid_tsrank.sql).",
+        "",
+        "| run | row | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | lexical leg | chunker | p50 / p95 ms per query |",
+        "|---|---|---:|---:|---:|---|---|---:|",
+    ]
+    for run, _ in runs:
+        for row in run.get("results", []):
+            lat = row.get("latency") or {}
+            e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
+            is_api = row["config"].startswith("api")
+            lex = (row.get("settings") or {}).get("bm25_backend") if is_api else "in-memory Okapi BM25"
+            # The API reports its chunker since it shares the bench's; a file without the field predates that.
+            served = ((run.get("api_health") or {}).get("indexing") or {}).get("chunker") or "SentenceSplitter(512, 50)"
+            chunker = served if is_api else "app/chunking (structure-aware)"
+            lines.append(
+                f"| {_parity_stack(run)} | {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
+                f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"
+            )
+    for run, rel in runs:
+        lines += ["", _parity_run_text(run, rel)]
+    if not neural:
+        lines += ["", f"_{PARITY_NEURAL_FILE} is missing: the model-backed run is `make parity PARITY_CONFIG={PARITY_NEURAL_CONFIG}` against an API "
+                      "serving bge-small-en-v1.5 (EMBEDDING_QUERY_INSTRUCTION=none) and bge-reranker-v2-m3 with the served settings, on a GPU._"]
+    lines += [
+        "",
+        "The gaps are reported, not gated: the lexical legs differ by design (ts_rank_cd vs BM25). The dense leg is checked for exact "
+        "agreement by tests/database/test_dense_parity.py (hash embeddings, in CI). The API's e2e latency is client-measured over HTTP on "
+        "the machine that produced the results file; the in-memory figure is the search stage only.",
+    ]
     return "\n".join(lines)
 
 
@@ -1152,7 +1223,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
         "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),
-        "bench-parity": parity_table(_load(root, PARITY_FILE)),
+        "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_V2_FILE), earlier=_load(root, AGENT_INJECTION_FILE)),
