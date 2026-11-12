@@ -293,6 +293,16 @@ class FilesystemTools:
         self._reviews[plan_id] = canonical(self._describe(plan_id)).decode()
         return self.review_plan(plan_id)
 
+    def _review_or_forget(self, plan_id: str) -> dict:
+        """Register the review of a proposal a propose_* tool has just stored. Building the review is what refuses
+        a proposal (an existing destination, a directory, a folder that is a regular file); the refused proposal
+        is then dropped with it, so none stays in the process."""
+        try:
+            return self._register_review(plan_id)
+        except BaseException:
+            self.forget_plan(plan_id)
+            raise
+
     def registered_review(self, plan_id: str) -> str:
         """The canonical review text registered for a plan: byte for byte what a capability's hash covers."""
         if plan_id not in self._reviews:
@@ -312,8 +322,9 @@ class FilesystemTools:
         self._reviews[plan.plan_id] = review
 
     def forget_plan(self, plan_id: str) -> None:
-        """Drop a move plan and its review from this object."""
-        self.plans.pop(plan_id, None)
+        """Drop a proposal (a move, patch, artifact or visualization) and its review from this object."""
+        for proposals in (self.plans, self.patches, self.artifacts, self.visualizations):
+            proposals.pop(plan_id, None)
         self._reviews.pop(plan_id, None)
 
     def review_plan(self, plan_id: str, **options) -> dict:
@@ -463,12 +474,7 @@ class FilesystemTools:
             session=self._session,
         )
         self.plans[plan.plan_id] = plan
-        try:
-            review = self._register_review(plan.plan_id)
-        except BaseException:
-            # The review refuses the move (an existing destination, a directory): no plan stays for it.
-            self.forget_plan(plan.plan_id)
-            raise
+        review = self._review_or_forget(plan.plan_id)
         return {
             "plan_id": plan.plan_id,
             "src": plan.src,
@@ -501,7 +507,7 @@ class FilesystemTools:
             raise RuntimeError("propose_artifact requires an index")
         prop = ArtifactAgent(self.index).produce(query)
         self.artifacts[prop.plan_id] = prop
-        review = self._register_review(prop.plan_id)
+        review = self._review_or_forget(prop.plan_id)
         return {**prop.as_dict(), "review": review}
 
     @_serialized
@@ -523,7 +529,7 @@ class FilesystemTools:
         plan_id = str(uuid.uuid4())
         patch = FilePatch(path=str(target.relative_to(self.root)), old=old, new=new)
         self.patches[plan_id] = patch
-        review = self._register_review(plan_id)
+        review = self._review_or_forget(plan_id)
         return {
             "plan_id": plan_id,
             "path": patch.path,
@@ -597,7 +603,7 @@ class FilesystemTools:
             chart_type=chart_type,
         )
         self.visualizations[plan.plan_id] = plan
-        review = self._register_review(plan.plan_id)
+        review = self._review_or_forget(plan.plan_id)
         return {**plan.as_dict(), "review": review}
 
     @_serialized
