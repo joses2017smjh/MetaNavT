@@ -86,6 +86,14 @@ def _stored_prefix(prefixes: dict[str, dict], chunk_id: str, raw: str) -> str:
     return entry["text"]
 
 
+def _cuda_available() -> bool:
+    try:
+        import torch
+    except Exception:
+        return False
+    return bool(torch.cuda.is_available())
+
+
 def load_chunks_with_report(
     root: Path, strategy: str = "auto", *, include_path_context: bool = False, contextual: bool = False, mtimes: str = "auto",
     prefixes: dict[str, dict] | None = None,
@@ -168,7 +176,16 @@ def build_index(
     contextual: bool = False,
     mtimes: str = "auto",
     prefixes: dict[str, dict] | None = None,
+    rerank_depth: int | None = None,
+    rerank_precision: str | None = None,
+    rerank_max_length: int | None = None,
 ) -> InMemoryHybridIndex:
+    """rerank_depth / rerank_precision / rerank_max_length: the served reranker's RERANK_DEPTH,
+    RERANKER_PRECISION and RERANKER_MAX_LENGTH for a cross-encoder row (None: every fused
+    candidate, fp32, the model's own token cap, as every row recorded before M17). fp16 needs
+    CUDA: without it the build stops rather than measure fp32 under an fp16 name."""
+    if rerank_precision not in (None, "fp32", "fp16"):
+        raise ValueError(f"rerank_precision must be fp32 or fp16, got {rerank_precision!r}")
     chunks, ingest = load_chunks_with_report(
         root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes,
         prefixes=prefixes,
@@ -204,7 +221,10 @@ def build_index(
         elif reranker == "none":
             rerank_fn = None
         else:
-            rerank_fn = CrossEncoderReranker(model_name=reranker, allow_fallback=True)  # the row is labelled below
+            if rerank_precision == "fp16" and not _cuda_available():
+                raise RuntimeError(f"{reranker} at fp16 needs CUDA (fp16 weights load on CUDA only); a CPU run would measure fp32")
+            rerank_fn = CrossEncoderReranker(model_name=reranker, allow_fallback=True,  # the row is labelled below
+                                             precision=rerank_precision or "fp32", max_length=rerank_max_length)
             reranker_loaded = rerank_fn.model is not None
             reranker_fallback = rerank_fn.fallback  # "overlap" when the model did not load
 
@@ -217,6 +237,7 @@ def build_index(
         rerank_fn=rerank_fn,
         enable_router=enable_router,
         enable_rerank=enable_rerank and rerank_fn is not None,
+        rerank_depth=rerank_depth,
     )
     index.reranker_name = reranker
     index.reranker_loaded = reranker_loaded

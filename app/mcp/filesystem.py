@@ -136,9 +136,12 @@ def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHy
     indexed. The index is a snapshot taken at start: it does not follow later
     writes, including applied moves and patches.
 
-    The shared scanner reads a symlinked file wherever it points. The tools
-    refuse paths through a symlink, so those files are left out here as well;
-    otherwise search and proposals would return text from outside the root.
+    The tools refuse every path through a symlink, so every file reached
+    through one is left out of the index as well; otherwise search and
+    proposals would return text the tools refuse to read. The shared scanner
+    (app/eval/ingest.py) already rejects a link whose real path leaves the
+    root (`outside_root`); a link that stays inside the root is accepted
+    there and left out here. The start-up line counts both.
     """
     from app.eval.index_loader import build_index
     from app.eval.ingest import BENCH_POLICY, scan_directory
@@ -151,10 +154,11 @@ def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHy
             raise
         return None
     kept = [chunk for chunk in index.chunks if _symlink_free(root, chunk.path)]
-    left_out = len({chunk.path for chunk in index.chunks}) - len({chunk.path for chunk in kept})
-    if left_out and not kept:
+    if not kept:
         return None
-    if left_out:
+    outside_root = index.ingest_report["rejected_by_reason"]["outside_root"]  # links out of the root: never indexed
+    dropped = len({chunk.path for chunk in index.chunks}) - len({chunk.path for chunk in kept})  # links inside it
+    if dropped:
         # Same components, rebuilt over the kept chunks only (a fitted embedder is refitted).
         confined = InMemoryHybridIndex(kept, embedder=index.embedder, retrieve_k=index.retrieve_k, rerank_n=index.rerank_n,
                                        rrf_k=index.rrf_k, router=index.router, rerank_fn=index.rerank_fn,
@@ -162,7 +166,7 @@ def build_root_index(root: Path, embedder: str = DEFAULT_EMBEDDER) -> InMemoryHy
         for name in ("reranker_name", "reranker_loaded", "reranker_fallback"):
             setattr(confined, name, getattr(index, name, None))
         index = confined
-    index.symlinked_files_left_out = left_out
+    index.symlinked_files_left_out = outside_root + dropped
     return index
 
 

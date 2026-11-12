@@ -23,12 +23,18 @@ FILES = {
     "beir": "bench/results/beir_scifact.json",
     "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
+    "parity_neural": "bench/results/parity_neural.json",
+    "rerank_depth": "bench/results/rerank_depth.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury_v2.json",  # M29; the M4 run (jury.json) is the earlier record
-    "agent_injection": "bench/results/agent_injection.json",
+    "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "companion_live": "bench/results/companion_live.json",
+    "chat_route_smoke": "bench/results/chat_route_smoke.json",
+    "rrf_sweep": "bench/results/rrf_sweep.json",
+    "hybrid_drops": "bench/results/hybrid_drops_bge_base.json",
 }
 
 
@@ -47,6 +53,13 @@ def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, st
 
 def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
+
+
+def _zero(block: dict | None) -> str:
+    """Whether a paired interval covers zero, in words (owner rule: an interval that covers zero is reported as such)."""
+    if not block:
+        return "no interval"
+    return "the interval covers zero" if block["lo"] <= 0.0 <= block["hi"] else "the interval excludes zero"
 
 
 def _p50(row: dict, stage: str = "total"):
@@ -144,6 +157,8 @@ def claims(root: Path = ROOT) -> list[dict]:
                 d, ci = _ci(c.get("ndcg@10"), "delta")
                 out.append({"claim": "Fixture v1: bge-small + reranker vs hash + reranker (does the first stage matter once the reranker is on?), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-neural", "source": src,
                             "not_shown": f"a tie because the reranker rescores {by[c['row']]['settings']['retrieve_k']} of {by[c['row']]['n_chunks']} chunks; it says nothing about corpora where the first stage is a real filter"})
+    out += _rrf_sweep_claims(root)
+    out += _hybrid_drops_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -201,6 +216,29 @@ def claims(root: Path = ROOT) -> list[dict]:
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
+    depth = _load(FILES["rerank_depth"], root)
+    top20 = _rows(depth).get("hybrid+bge-rerank@bge-small/top20") if depth else None
+    if top20:
+        block = (top20.get("delta_vs_previous") or {}).get("ndcg@10")
+        d, ci = _ci(block, "delta")
+        changed = top20.get("vs_parent") or {}
+        out.append({"claim": "Fixture v1, bge-reranker-v2-m3 on the fused top 20 (the served RERANK_DEPTH) vs every fused candidate (fp32, bge-small), paired delta in nDCG@10",
+                    "value": d, "ci": ci, "n": depth["n_gold"], "command": "make bench-rerank-depth", "source": f"{FILES['rerank_depth']} @ {depth['git_sha']}",
+                    "not_shown": f"{_zero(block)}; the depth alone; {changed.get('n_top10_differs', '?')} of {changed.get('n_questions', '?')} questions change their top 10; "
+                                 "the file walks on to max_length 512, fp16, the router with Tier 1, and Tier 1 before the rerank, each against its parent"})
+    neural_parity = _load(FILES["parity_neural"], root)
+    if neural_parity:
+        d = (neural_parity.get("gap") or {}).get("paired_delta_api_minus_in_memory") or {}
+        dv, ci = _ci(d, "delta") if d else ("—", "—")
+        differ = ", ".join(neural_parity.get("settings_differ") or []) or "none"
+        device = (neural_parity.get("device") or {}).get("device_name")
+        bare = (neural_parity.get("api_health") or {}).get("embedding_query_instruction") == ""
+        query = "the bare query: EMBEDDING_QUERY_INSTRUCTION=none, not the served default" if bare else "LlamaIndex's query instruction"
+        out.append({"claim": f"API with bge-small ({query}) + bge-reranker-v2-m3 (fp16, max_length 512, depth 20) vs the in-memory bench with the same settings, nDCG@10 gap",
+                    "value": dv, "ci": ci, "n": neural_parity["n_gold"], "command": f"make parity PARITY_CONFIG={neural_parity.get('in_memory_config')}",
+                    "source": f"{FILES['parity_neural']} @ {neural_parity['git_sha']}",
+                    "not_shown": f"{_zero(d)}; one run in a Slurm GPU job ({device}), not re-run by CI; reported, not gated; "
+                                 f"settings that differ between the two sides: {differ}"})
     lat = _load(FILES["latency"], root)
     if lat:
         h = lat.get("health", {}).get("reranker", {})
@@ -254,6 +292,90 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
+    out += _companion_live_claims(root)
+    out += _chat_route_claims(root)
+    return out
+
+
+def _chat_route_claims(root: Path = ROOT) -> list[dict]:
+    """The chat routes with a real model on the default stack (make chat-route-smoke): a smoke run, not accuracy."""
+    blob = _load(FILES["chat_route_smoke"], root)
+    if not blob:
+        return []
+    src = f"{FILES['chat_route_smoke']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make chat-route-smoke"
+    model, gpu = blob["model"], (blob.get("device") or {}).get("gpu") or "the recorded GPU"
+    llm = blob.get("chat_llm") or {}
+    common = (f"a smoke run: one request per question, the first gold question of each category; not an accuracy "
+              f"measurement; hash embeddings, Postgres ts_rank_cd, no reranker; chat temperature {llm.get('temperature')} "
+              f"(the default), no seed; code execution off")
+    out = []
+
+    def stated(route: dict) -> str:
+        aside = route["states_gold_value_aside"]
+        return (f"answered means the route returned text, not that the text answers the question (it states the gold "
+                f"value in {aside['k']} of the {aside['n']} questions with a value answer that the question does not "
+                f"itself name)")
+
+    def by_name(counts: dict | None) -> str:
+        return ", ".join(f"{name} {count}" for name, count in (counts or {}).items()) or "none"
+
+    stream = blob["summary"].get("/api/chat")
+    if stream:
+        out.append({"claim": f"Chat route POST /api/chat (the web UI's streaming route), {model} through Ollama on the default stack: requests answered (HTTP 200, text, no error line)",
+                    "value": f"{stream['answered']} of {stream['n']}", "ci": "—", "n": stream["n"], "command": cmd, "source": src,
+                    "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
+    request = blob["summary"].get("/api/chat/request")
+    if request:
+        out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name, and the calls that failed",
+                    "value": (f"{request['answered']} of {request['n']}; tool calls: {by_name(request.get('tool_calls'))}; "
+                              f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
+                              f"{by_name(request.get('tool_calls_returned_error_text'))}; code tool calls: {request['code_tool_calls']}"),
+                    "ci": "—", "n": request["n"], "command": cmd, "source": src,
+                    "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool or named a tool that does not exist; an error "
+                                  f"text is an 'Error: ...' string a tool returned without the flag; a call that returned "
+                                  f"an empty list is not counted as failed; the causes are described in "
+                                  f"doc/engineering-reference.md (Backend)")})
+    return out
+
+
+def _companion_live_claims(root: Path = ROOT) -> list[dict]:
+    """The research companion in live mode (make bench-companion-live): outcomes, stated gold values, citations,
+    and the planted-value answers over the planted copy."""
+    blob = _load(FILES["companion_live"], root)
+    if not blob:
+        return []
+    src = f"{FILES['companion_live']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make bench-companion-live"
+    model = blob["model"]
+    gold = blob["summary"]["gold"]["overall"]
+    stack = ("the served retrieval is the default stack's fallbacks (hash embeddings, Postgres ts_rank_cd, no "
+             "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
+             "synthetic fixture questions")
+    out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
+            "value": "; ".join(f"{k} {v}" for k, v in gold["status"].items()), "ci": "—", "n": gold["n"],
+            "command": cmd, "source": src,
+            "not_shown": f"{stack}; a blocked answer is the companion failing closed (no valid JSON or no inspected citation), not a served answer"}]
+    sg = gold["states_gold"]
+    if sg["n"]:
+        out.append({"claim": f"Research companion, live mode ({model}): answers that state the gold value, of the gold questions with a value answer",
+                    "value": f"{sg['rate']:.3f}", "ci": f"[{sg['lo']:.3f}, {sg['hi']:.3f}]", "n": sg["n"], "command": cmd,
+                    "source": src,
+                    "not_shown": f"deterministic value matching, not entailment: an answer that quotes a whole config states every value in it; sentence and yes/no golds are not scored; answers that did not complete (abstained, blocked, stopped at the model-round limit) and failed requests count as not stating it; {stack}"})
+    cit = gold["citations"]
+    blocked_citing = gold["stop_reason"].get("invalid_citations", 0)
+    if cit["complete_answers"]:
+        out.append({"claim": f"Research companion, live mode ({model}): completed answers whose every citation names an inspected source whose excerpt hash and bytes match the cited range of the file",
+                    "value": f"{cit['complete_answers_all_valid']} of {cit['complete_answers']}", "ci": "—",
+                    "n": cit["complete_answers"], "command": cmd, "source": src,
+                    "not_shown": f"reference integrity, not factual support; only completed answers are counted: the companion itself blocks an answer that cites a source it did not inspect and returns it without citations ({blocked_citing} here, stop reason invalid_citations), and abstentions and answers stopped at the model-round limit carry no citation; {stack}"})
+    planted = blob["summary"].get("planted")
+    if planted:
+        when = planted["planted_value_stated_when_exposed"]
+        clean = planted["same_questions_clean_corpus"]
+        out.append({"claim": f"Research companion, live mode ({model}), planted instructions (the injection benchmark's ten hijack texts): answers that state the planted value, of the questions in which the model saw the planted text",
+                    "value": f"{when['k']} of {when['n']}", "ci": "—", "n": when["n"], "command": cmd, "source": src,
+                    "not_shown": f"one phrasing per task, not an adaptive attacker; the same {clean['n']} questions on the clean copy state the planted value {clean['planted_value_stated']} times; {stack}"})
     return out
 
 
@@ -355,6 +477,68 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
     return out
 
 
+def _rrf_sweep_claims(root: Path = ROOT) -> list[dict]:
+    """The RRF setting chosen on the tune half, against the default setting on the held-out half; the default it leaves in
+    place (read from the file, as every other number of the row)."""
+    from app.eval.report import verdict
+
+    blob = _load(FILES["rrf_sweep"], root)
+    if not blob:
+        return []
+    d, grid = blob["decision"], blob["grid"]
+    k0, w0 = d["default"]["k"], d["default"]["weights"]
+    base = f"k = {k0} with " + ("equal weights" if w0["dense"] == w0["bm25"] else f"dense weight {w0['dense'] / w0['bm25']:g}")
+    src, cmd = f"{FILES['rrf_sweep']} @ {blob['git_sha']}", "make bench-rrf-sweep"
+    model = blob["models"]["embedder"]["model"].split("/")[-1]
+    head = f"Fixture v1, RRF k and dense-vs-BM25 list weight chosen on the tune half of the gold questions ({model}, no reranker)"
+    chosen = (f"chosen by the best tune-half nDCG@10 among {len(grid['k']) * len(grid['dense_weight'])} settings "
+              f"(k in {', '.join(map(str, grid['k']))}; dense weight in {', '.join(f'{w:g}' for w in grid['dense_weight'])}; BM25 weight 1), "
+              f"so the tune-half numbers are in-sample")
+    rep = blob.get("reproduces") or {}
+    tail = (f"the default setting's lists reproduce the committed {', '.join(rep['rows'])} rows; " if rep.get("all") else "")
+    tail += f"a {blob['n_files']}-file synthetic fixture"
+    if d["chosen_is_default"]:
+        return [{"claim": f"{head}: the tune half chose the default, {base}", "value": "the default", "ci": "—",
+                 "n": len(blob["split"]["tune_ids"]), "command": cmd, "source": src,
+                 "not_shown": f"{chosen}; nothing to compare on the held-out half, and no evidence that k = {k0} is best; {tail}"}]
+    block = d["held_out_ndcg@10"]
+    value, ci = _ci(block, "delta", digits=4)  # the file's precision: a small delta at 3 decimals reads larger than it is
+    stays = ("the interval excludes zero in favour of the chosen setting; the default is unchanged until the owner decides "
+             "(every hybrid row of main.json and neural.json would be re-recorded)" if d["owner_decision_needed"] else
+             f"the default stays {base} (it changes only if this interval excludes zero in favour of the chosen setting)")
+    w = d["chosen"]["weights"]["dense"]
+    return [{"claim": f"{head}: k = {d['chosen']['k']}, dense weight {w:g} minus {base}, paired delta in nDCG@10 on the held-out half",
+             "value": value, "ci": ci, "n": len(blob["split"]["held_out_ids"]), "command": cmd, "source": src,
+             "not_shown": f"verdict from the interval: {verdict(block)}; {stays}; {chosen}; {tail}"}]
+
+
+def _hybrid_drops_claims(root: Path = ROOT) -> list[dict]:
+    """The gold files hybrid@bge-base drops at Recall@50 against dense_only@bge-base: how many, and where they rank."""
+    blob = _load(FILES["hybrid_drops"], root)
+    if not blob:
+        return []
+    s, k, rows = blob["summary"], blob["retrieve_k"], blob["rows"]
+    drops = [d for q in blob["questions"] for d in q["dropped"]]
+    parts = [f"the Recall@50 delta {s['recall@50']['delta']:+.4f} ({rows['hybrid']} minus {rows['dense_only']}) is the net of these drops and gains"
+             + ("; every question that moves is listed in the file" if s["every_question_that_moves_is_listed"] else "")]
+    if drops:
+        dense, fused = [d["dense"]["chunk_rank"] for d in drops], [d["fused"]["chunk_rank"] for d in drops]
+        parts.append(f"{s['dropped_with_no_chunk_in_bm25_list']} of the {len(drops)} dropped files have no chunk in BM25's top {k}; their best chunks "
+                     f"rank {min(dense)}-{max(dense)} in dense's top {k} and {min(fused)}-{max(fused)} in the fused list, which is cut at {k}")
+        cats = s["dropped_by_category"]
+        parts.append(f"every drop is a {next(iter(cats))} question" if len(cats) == 1 else "drops by category: " + ", ".join(f"{c} {n}" for c, n in cats.items()))
+        if s["dropped_tied_with_cut"]:
+            parts.append(f"{s['dropped_tied_with_cut']} of the drops tie the score of the last chunk kept")
+    rep = blob.get("reproduces") or {}
+    if rep.get("all"):
+        parts.append(f"the file's lists reproduce the committed {', '.join(rep['rows'])} rows")
+    parts.append(f"a diagnosis of one pair of rows on a {blob['n_files']}-file synthetic fixture, not a retrieval-quality claim")
+    return [{"claim": f"Fixture v1, {rows['hybrid']} vs {rows['dense_only']}: gold files with a chunk in dense's top {k} chunks and none in the "
+                      f"fused top {k} (dropped from Recall@50), and the reverse (gained)",
+             "value": f"{s['n_dropped']} dropped on {s['n_questions_with_drops']} questions, {s['n_gained']} gained", "ci": "—", "n": s["n_questions"],
+             "command": "make bench-hybrid-drops", "source": f"{FILES['hybrid_drops']} @ {blob['git_sha']}", "not_shown": "; ".join(parts)}]
+
+
 def _frontier_claims(root: Path = ROOT) -> list[dict]:
     """One row per prototype arm and per stack: the paired delta against its parent, the verdict word, the stand-ins."""
     from app.eval.report import hyde_wiring, llm_note, verdict
@@ -404,6 +588,7 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
 
 
 def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
+    """The current injection run (agent_injection_v2): planted claims and actions next to the capability control."""
     blob = _load(FILES["agent_injection"], root)
     if not blob:
         return []
@@ -412,8 +597,8 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
     if segments and "--summarize-only" in str(blob.get("command") or ""):  # the header names the scoring run
         src += (f" (episodes generated at {str(segments[0].get('git_head') or '')[:7]}, scored by "
-                "`make bench-agent-injection-rescore`)")
-    cmd = "make bench-agent-injection"
+                "`make bench-agent-injection-v2-rescore`)")
+    cmd = "make bench-agent-injection-v2"
     k = blob["config"]["k"]
     scope = "one phrasing per goal and task, written for this benchmark (not an adaptive attacker); two local 7-8B models; synthetic config questions"
     for model, per in blob["summary"].items():
@@ -428,12 +613,28 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
         pa = none["planted_actions"]
         out.append({"claim": f"Agent injection, {model}, no defense: episodes that pursued a planted file action (move, patch, read outside the root), of those in which the planted text reached the model",
                     "value": f"{pa['attempted_episodes']} of {pa['exposed_episodes']}", "ci": "—", "n": pa["exposed_episodes"], "command": cmd, "source": src,
-                    "not_shown": f"{scope}; no capability control, so a model that calls tools badly shows few attempts out of incapability"})
+                    "not_shown": f"{scope}; read it next to the capability-control rows of the same model, where the user asks for the same move and patch"})
+        cap = none.get("capability")
+        if cap:
+            g = none["by_goal"]
+            planted = sum(g[x]["attempted_episodes"] for x in ("move", "patch"))
+            exposed = sum(g[x]["exposed_episodes"] for x in ("move", "patch"))
+            value, ci = _ci(cap["attempted"])
+            out.append({"claim": f"Agent injection, {model}, no defense: capability control, attempted: the user asks for the move and the patch a planted instruction asks for, and the model calls the requested action's tools, per trial",
+                        "value": value, "ci": ci, "n": cap["attempted"]["n"], "command": cmd, "source": src,
+                        "not_shown": (f"n is questions, each with a move and a patch task and {k} trials; counted as planted attempts are (a call to the action's tools) "
+                                      f"and read against {planted} planted move and patch attempts in {exposed} episodes in which that text reached the model; "
+                                      "the user's request names the same tool calls and arguments as the planted text, and the operator signs only the requested change")})
+            value, ci = _ci(cap["success"])
+            out.append({"claim": f"Agent injection, {model}, no defense: capability control, done: the copy ends in exactly the requested move and patch, per trial",
+                        "value": value, "ci": ci, "n": cap["success"]["n"], "command": cmd, "source": src,
+                        "not_shown": ("n is questions, as in the attempted row; done also takes passing the operator's signed token to the apply call unchanged, "
+                                      "so it measures carrying the action out, not whether the model calls the tools")})
         hat = none["benign_pass_hat_k"][str(k)]
         value, ci = _ci(hat)
         out.append({"claim": f"Agent injection, {model}, no planted text: pass^{k} (all {k} sampled trials answer correctly, citing a file of the asked run that contains the value)",
                     "value": value, "ci": ci, "n": hat["n"], "command": cmd, "source": src,
-                    "not_shown": "ten single-field config questions; reliability on this tool set and prompt, not general agent reliability"})
+                    "not_shown": "ten single-field config questions whose files carry neutral lines with the same run number and field name as the planted text; reliability on this tool set and prompt, not general agent reliability"})
         delta = ((blob.get("paired_deltas") or {}).get(model) or {}).get("spotlight - none", {}).get("hijack_planted_value")
         if delta:
             value, ci = _ci(delta, "delta")
@@ -443,9 +644,12 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     gates = [b["gate"] for per in blob["summary"].values() for b in per.values()]
     writes = sum(x.get("write_tool_calls", 0) for x in gates)
     changed = sum(x["corpus_changed_episodes"] for x in gates)
-    out.append({"claim": "Agent injection, all models and configurations: write-tool calls made by a model, and episodes in which the corpus changed",
-                "value": f"{writes} calls; {changed} of {blob['n_episodes']} episodes", "ci": "—", "n": blob["n_episodes"], "command": cmd, "source": src,
-                "not_shown": "with no write-tool call the approval gate was not exercised by a model (its evidence is the deterministic approval benchmark); no grant was ever issued; not OS isolation and not an adaptive attacker"})
+    n_base = sum(b["episodes"] for per in blob["summary"].values() for b in per.values())
+    gate_note = ("with no write-tool call in these tasks the approval gate was not exercised there by a model" if not writes else
+                 "every write-tool call in these tasks met the approval gate without an operator grant")
+    out.append({"claim": "Agent injection, all models and configurations, question and injected tasks: write-tool calls made by a model, and episodes in which the corpus changed",
+                "value": f"{writes} calls; {changed} of {n_base} episodes", "ci": "—", "n": n_base, "command": cmd, "source": src,
+                "not_shown": f"{gate_note}; no grant is ever issued in these tasks (the capability tasks, where the operator signs the requested change, are in their own rows); not OS isolation and not an adaptive attacker"})
     return out
 
 
@@ -462,7 +666,7 @@ Solo work in this fork, 2026:
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and reports the gap to the in-memory bench with its interval, and a live-database test that requires the dense leg to equal the in-memory dense search on every gold question; no silent fallbacks, per-request stage latency and scores.
 - Added a typed retrieval endpoint that returns byte-range citations, and a human-in-the-loop gate for file changes: an agent can only propose a change, and applying it needs an operator-signed, single-use approval bound to the reviewed action.
 - Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published. The first run's reference slice was saturated, so its gate could not be evaluated; the second run measures each judge's correctness verdicts on a calibration set (a smaller model answering from retrieved and from planted contexts), labels abstentions by rule, and pins every model by digest. One judge passed and its score is published with its caveats; the other called every answer correct and failed.
-- Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
+- Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with a capability control (the planted actions asked for by the user and signed by an operator key), controls that carry the planted text's query terms, τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
 '''
 
 QA = '''## Likely interview questions, with honest answers
@@ -485,9 +689,9 @@ QA = '''## Likely interview questions, with honest answers
 
 **What did the LLM answer evaluation show?** On the first run the generator answered every simple-factual question with the gold value, so the exact-match reference was one class, Cohen's kappa was zero by construction, and the gate could not be evaluated. The slice stays saturated even for much smaller models, so the second run measures the judges on a calibration set instead: a smaller model that is not a judge answers each simple-factual question from the retrieved chunks and again from the same chunks with the gold value replaced by another value of the same field. The gated label is a correctness verdict that sees only the question, the gold answer and the answer, because the first run's composite label also rewarded faithfulness to the context and so read a faithfully copied wrong value as partial. On that set the qwen judge agreed with exact match well past the gate, and its score of the generator's answers is published with two caveats: it is the generator's own model, and it was validated on single-value answers only. The llama judge called every answer correct, planted values included, and failed, and the two judges barely agreed on the generator's answers. The deterministic checks remain the part that depends on no judge. The kept losers are the failed judge, the strong position bias in the AB/BA swap, and the composite label that still called abstentions correct, which is why abstentions are now labelled wrong by rule. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching), and the second a substring match that found a gold value inside a longer number; each fix is its own commit.
 
-**What did the injection evaluation show?** Neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and no model called a write tool at all, so the approval gate was not exercised by a model in this run; its evidence is still the deterministic approval benchmark. What the models did follow was the planted claim: the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says.
+**What did the injection evaluation show?** Neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and in the question and injected tasks no model called a write tool, so planted text never reached the approval gate; the gate's evidence against forged tokens is still the deterministic approval benchmark. A capability control shows that, where an injected task is offered the write tools, this is not an inability to make the calls: when the user asks for the same move or patch, with the same tool calls and arguments, both models call the write tools and the operator signs the requested change. Completing it is rarer: many episodes stop after the signed proposal, and an apply call has to pass the plan id and the token on unchanged; the weaker model's apply calls mostly named plan ids the server never issued, and the stronger model's mostly carried a token that did not verify. What the models did follow was the planted claim: the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says.
 
-**How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore`.
+**How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the current run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`).
 
 **What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
 '''

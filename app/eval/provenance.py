@@ -20,7 +20,9 @@ carries a host name, a user name or an absolute path:
   hashed (a hash of a guessable cluster node name would not hide it). The
   platform, Python version, CPU count and device name describe the machine.
 - scrub() applies the same rules to any other value a writer records, such as
-  a service's /health block or a path field.
+  a service's /health block or a path field. scrub_names() replaces only the
+  user and host names, for text that must otherwise stay as written (the
+  injection harness's tool results, where a path is corpus text or a model's).
 """
 
 from __future__ import annotations
@@ -213,6 +215,18 @@ def scrub(value: Any, *, root: Path | None = None) -> Any:
         return {k: scrub(v, root=root) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [scrub(v, root=root) for v in value]
+    return value
+
+
+def scrub_names(value: Any) -> Any:
+    """`value` with every user name and host name replaced, in strings at any depth, and paths left as written:
+    for text that must stay as a program or a model saw it apart from those names (scrub() rewrites every path)."""
+    if isinstance(value, str):
+        return _scrub_names(value)
+    if isinstance(value, dict):
+        return {k: scrub_names(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [scrub_names(v) for v in value]
     return value
 
 

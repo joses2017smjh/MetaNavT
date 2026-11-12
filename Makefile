@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-v2 bench-jury-v2-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-v2 bench-jury-v2-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic bench-agent-injection-v2 bench-agent-injection-v2-rescore migrate migrate-check
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -115,15 +115,44 @@ LISTWISE_MODEL ?=
 bench-rerank-arms: ## distilled students vs the cross-encoder they imitate (needs .[ml]; the LightGBM student needs .[distill], else it is recorded as not evaluated); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.rerank_arms $(if $(LISTWISE_MODEL),--listwise-model $(LISTWISE_MODEL)) --out bench/results/rerank_arms.json
 
+.PHONY: bench-rrf-sweep
+bench-rrf-sweep: ## RRF k x dense-vs-BM25 weight chosen on the tune half of the gold questions (bge-small), then scored against k=60 on the held-out half (needs .[ml]; never changes the default) -> bench/results/rrf_sweep.json
+	$(PYTHON) -m app.eval.rrf_sweep --out bench/results/rrf_sweep.json
+
+.PHONY: bench-hybrid-drops
+bench-hybrid-drops: ## per question, the gold files hybrid@bge-base drops (and gains) at Recall@50 against dense_only@bge-base, with their dense, BM25 and fused ranks (needs .[ml]) -> bench/results/hybrid_drops_bge_base.json
+	$(PYTHON) -m app.eval.hybrid_drops --out bench/results/hybrid_drops_bge_base.json
+
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
-bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)
-	$(PYTHON) -m app.eval.agent_injection --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
+bench-agent-injection: ## LLM-in-the-loop injection, the first run's task set (agent_injection_v1, kept as recorded): real models choose MCP tool calls over planted text (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v1 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
 
 bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json from the committed episodes (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
 
 bench-agent-injection-scores: ## every committed episode's score from the current scoring code -> bench/results/agent_injection_episodes_rescored.jsonl (no model call; the episodes file is not changed)
 	$(PYTHON) -m app.eval.agent_injection --write-scores bench/results/agent_injection_episodes_rescored.jsonl --k 4 --episodes bench/results/agent_injection_episodes.jsonl
+
+.PHONY: bench-companion-live bench-companion-live-rescore
+COMPANION_MODEL ?= qwen2.5:7b
+COMPANION_LOG_DIR ?=
+bench-companion-live: ## research companion, live mode: the Ollama model at OLLAMA_BASE_URL over two served APIs (default stack, databases created on PG_TEST_DSN), every gold question + ten planted-claim questions -> bench/results/companion_live.json; sets the live-run fields of doc/research-agent-validation.json
+	$(PYTHON) -m app.eval.companion_live --model $(COMPANION_MODEL) --out bench/results/companion_live.json --validation doc/research-agent-validation.json $(if $(COMPANION_LOG_DIR),--log-dir $(COMPANION_LOG_DIR))
+
+bench-companion-live-rescore: ## recompute the scores and summary of bench/results/companion_live.json from its stored responses (no model call)
+	$(PYTHON) -m app.eval.companion_live --rescore bench/results/companion_live.json --validation doc/research-agent-validation.json
+
+.PHONY: chat-route-smoke
+CHAT_SMOKE_MODEL ?= qwen2.5:7b
+CHAT_SMOKE_LOG_DIR ?=
+chat-route-smoke: ## POST /api/chat and /api/chat/request with the Ollama model at OLLAMA_BASE_URL on the default stack (hash embedder, code execution off, database created on PG_TEST_DSN), the first gold question of each category -> bench/results/chat_route_smoke.json
+	$(PYTHON) -m app.eval.chat_smoke --model $(CHAT_SMOKE_MODEL) --out bench/results/chat_route_smoke.json $(if $(CHAT_SMOKE_LOG_DIR),--log-dir $(CHAT_SMOKE_LOG_DIR))
+
+bench-agent-injection-v2: ## LLM-in-the-loop injection, the current task set (agent_injection_v2, with the capability control) -> bench/results/agent_injection_v2.json and its episodes (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v2 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl
+
+bench-agent-injection-v2-rescore: ## rebuild the current run's scores and summary from its committed episodes -> bench/results/agent_injection_v2_rescore.json, not tracked, to compare with agent_injection_v2.json (no model call)
+	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2_rescore.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
@@ -142,6 +171,10 @@ sweeps:
 # ---- neural rows (needs .[ml]; downloads bge-small / bge-base / bge-reranker-v2-m3 once) ----
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
+
+.PHONY: bench-rerank-depth
+bench-rerank-depth: ## fixture v1, bge-small + bge-reranker-v2-m3: every fused candidate -> depth 20 -> max_length 512 -> fp16 (the served settings) -> + router and staleness -> staleness before the rerank, each vs its parent (needs .[ml] and CUDA) -> bench/results/rerank_depth.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --rerank-depth --out bench/results/rerank_depth.json
 
 # The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
 BEIR_DATA_DIR ?= bench/external
@@ -184,9 +217,18 @@ demos: matlab-demo demo-data figures gifs
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
 PARITY_OUT ?= bench/results/parity.json
+# The in-memory row's named configuration (app/eval/parity.py IN_MEMORY_CONFIGS): CI's hash one by default; the
+# model-backed one is in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first.
+PARITY_CONFIG ?= in_memory:hybrid+router+staleness
 
-parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
-	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
+parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI against the in-memory row PARITY_CONFIG (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
+	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT) --parity-config '$(PARITY_CONFIG)'
+
+migrate:        ## the deploy step: apply pending schema migrations (PG_CONNECTION_STRING; vector table from PGVECTOR_TABLE, EMBEDDING_DIM, LEXICAL_BACKEND). Until it has run, the API answers 503 and retries.
+	$(PYTHON) -m app.database.migrate
+
+migrate-check:  ## list pending schema migrations, exit 1 if any (applies nothing)
+	$(PYTHON) -m app.database.migrate --check
 
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
 	$(PYTHON) -m app.engine.ingest_runs

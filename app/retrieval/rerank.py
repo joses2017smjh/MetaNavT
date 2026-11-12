@@ -252,9 +252,14 @@ class CrossEncoderReranker:
     build_index records reranker_fallback, bge_reranker returns loaded=False.
     """
 
-    def __init__(self, model=None, model_name: str = "BAAI/bge-reranker-v2-m3", *, allow_fallback: bool = False):
-        self.model = model if model is not None else get_cross_encoder(model_name)
+    def __init__(self, model=None, model_name: str = "BAAI/bge-reranker-v2-m3", *, allow_fallback: bool = False,
+                 precision: str = "fp32", max_length: int | None = None):
+        """precision / max_length: as get_cross_encoder loads the weights (the served RERANKER_PRECISION /
+        RERANKER_MAX_LENGTH); fp32 and the model's own token cap by default."""
+        self.model = model if model is not None else get_cross_encoder(model_name, precision=precision, max_length=max_length)
         self.model_name = model_name
+        self.precision = precision
+        self.max_length = max_length
         self.allow_fallback = allow_fallback
         self.fallback = "overlap" if self.model is None and allow_fallback else None
 

@@ -1,0 +1,42 @@
+{
+  "benchmark": "agent_injection_v2",
+  "reconstructed": false,
+  "segments": [
+    {
+      "started_utc": "2026-11-11T11:10:21.852543+00:00",
+      "finished_utc": "2026-11-11T17:11:44.297787+00:00",
+      "episodes_before": 0,
+      "git_head": "b867e30f0f0c9320454b68c5e820ec7e9c04099e",
+      "working_tree_dirty": false,
+      "module_sha256": "c8aa6e4e8c6480ac464324c527e029e374221bfbe46e23f7c8ab1ce747653f4e",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v2 --models qwen2.5:7b,llama3.1:8b --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          },
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 21682.4,
+      "episodes_after": 1680
+    }
+  ]
+}

@@ -41,6 +41,9 @@ bench/results/*.json
 !bench/results/parity.json
 !bench/results/parity_shared_chunker.json
 !bench/results/parity_shared_chunker_restart.json
+# the model-backed parity run (make parity PARITY_CONFIG=..., a GPU job) and the served reranker settings on the fixture (make bench-rerank-depth)
+!bench/results/parity_neural.json
+!bench/results/rerank_depth.json
 !bench/results/ingest_runs.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json
@@ -63,12 +66,23 @@ bench/external/
 !bench/results/agent_injection.json
 !bench/results/agent_injection_episodes.meta.json
 !bench/results/agent_injection_episodes_rescored.meta.json
+# the current injection run (make bench-agent-injection-v2): capability control and controls with neutral lines
+!bench/results/agent_injection_v2.json
+!bench/results/agent_injection_v2_episodes.meta.json
 # prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
 !bench/results/frontier.json
 !bench/results/frontier_neural.json
 # the LLM-written HyDE hypotheses and chunk prefixes the real-model frontier reads (make frontier-generations)
 !bench/results/frontier_generations.json
 !bench/results/rerank_arms.json
+# the research companion's live-mode run (make bench-companion-live): every stored response is in the file
+!bench/results/companion_live.json
+# the chat routes with a real model (make chat-route-smoke)
+!bench/results/chat_route_smoke.json
+# RRF k and the dense-vs-BM25 weight chosen on half the gold questions, scored on the other half (make bench-rrf-sweep)
+!bench/results/rrf_sweep.json
+# per question, the gold files hybrid@bge-base drops at Recall@50 against dense_only@bge-base (make bench-hybrid-drops)
+!bench/results/hybrid_drops_bge_base.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

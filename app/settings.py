@@ -16,6 +16,44 @@ def embedding_device(model=None) -> Optional[str]:
     return model_device(getattr(model, "_model", None)) or model_device(model)
 
 
+def query_instruction_setting() -> str | None:
+    """EMBEDDING_QUERY_INSTRUCTION: the text the HuggingFace embedder puts in front of every query it embeds.
+
+    unset or "default"  LlamaIndex's per-model instruction (for BAAI/bge-*-en-v1.5: "Represent this question for
+                        searching relevant passages: "), what the served path has always used: returns None
+    "none"              no instruction, the bare query, as every committed model-backed benchmark row embeds it
+                        (app.retrieval.embedders.SentenceTransformerEmbedder): returns ""
+    any other text      that text, verbatim
+    Documents are embedded as before (no instruction for BGE models).
+    """
+    raw = os.getenv("EMBEDDING_QUERY_INSTRUCTION")
+    if raw is None or raw.strip().lower() in {"", "default"}:
+        return None
+    return "" if raw.strip().lower() == "none" else raw
+
+
+def set_query_instruction(embed_model, text: str) -> None:
+    """Make a HuggingFaceEmbedding put `text` in front of every query ("" = the bare query).
+
+    llama-index-embeddings-huggingface hands the instruction to sentence-transformers as the "query"
+    prompt, and its constructor reads an empty query_instruction as "use the per-model default"
+    (`query_instruction or get_query_instruct_for_model_name(...)`), so the prompt is set on the loaded
+    model. A version that keeps no such prompt is an error, not a silent no-op.
+    """
+    prompts = getattr(getattr(embed_model, "_model", None), "prompts", None)
+    if not isinstance(prompts, dict):
+        raise RuntimeError("EMBEDDING_QUERY_INSTRUCTION is set, but this embedder keeps no sentence-transformers query prompt to set")
+    prompts["query"] = text
+
+
+def query_instruction(embed_model) -> Optional[str]:
+    """The text `embed_model` puts in front of a query ("" = none), or None when it does not say."""
+    if type(embed_model).__name__ == "HashEmbedding":
+        return ""
+    prompts = getattr(getattr(embed_model, "_model", None), "prompts", None)
+    return prompts.get("query", "") if isinstance(prompts, dict) else None
+
+
 def init_embed_model() -> None:
     """Pick the embedding backend from EMBEDDING_PROVIDER.
 
@@ -23,7 +61,8 @@ def init_embed_model() -> None:
                    the CI / docker-compose default, labelled as a fallback)
     huggingface -> llama_index.embeddings.huggingface.HuggingFaceEmbedding of
                    EMBEDDING_MODEL (needs the `ml` extra; this is the default when
-                   the variable is unset, matching the pre-M0 behaviour)
+                   the variable is unset, matching the pre-M0 behaviour), with the
+                   query instruction EMBEDDING_QUERY_INSTRUCTION selects
     """
     provider = os.getenv("EMBEDDING_PROVIDER", "huggingface").strip().lower()
     if provider == "hash":
@@ -48,10 +87,14 @@ def init_embed_model() -> None:
         import torch
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA embedding requested but torch.cuda.is_available() is false")
-    Settings.embed_model = HuggingFaceEmbedding(
+    embed_model = HuggingFaceEmbedding(
         model_name=os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"),
         **({"device": device} if device else {}),
     )
+    instruction = query_instruction_setting()
+    if instruction is not None:
+        set_query_instruction(embed_model, instruction)
+    Settings.embed_model = embed_model
     actual = embedding_device()
     if required and not str(actual or "").startswith(required):
         raise RuntimeError(f"required embedding device {required}; loaded weights on {actual!r}")

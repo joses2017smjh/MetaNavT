@@ -21,13 +21,25 @@ class FakeDb:
     def __init__(self):
         self.ledger: dict[int, str] = {}  # committed rows of schema_migrations: version -> checksum
         self.log: list[str] = []
+        self.modes: list[tuple[str, bool]] = []  # (statement, autocommit) for every statement
         self.locked = False
+        self.busy_tries = 0  # how many lock attempts find the lock held by another process
 
 
 class FakeConn:
     def __init__(self, db):
         self.db = db
         self.uncommitted: dict[int, str] = {}
+        self._autocommit = False
+
+    @property
+    def autocommit(self):
+        return self._autocommit
+
+    @autocommit.setter
+    def autocommit(self, value):
+        assert not self.uncommitted, "autocommit switched inside a transaction"  # psycopg2 refuses it too
+        self._autocommit = value
 
     def cursor(self):
         return FakeCursor(self)
@@ -55,9 +67,17 @@ class FakeCursor:
     def execute(self, sql, params=None):
         db, text = self.conn.db, sql.strip()
         db.log.append(text)
-        if text.startswith("SELECT pg_advisory_lock"):
+        db.modes.append((text, self.conn.autocommit))
+        if text.startswith("SELECT pg_try_advisory_lock"):
             assert not db.locked, "lock taken twice"
-            db.locked = True
+            if db.busy_tries:
+                db.busy_tries -= 1
+                self.rows = [(False,)]
+            else:
+                db.locked = True
+                self.rows = [(True,)]
+        elif text.startswith("SELECT pg_advisory_lock"):
+            raise AssertionError("blocking in pg_advisory_lock holds a snapshot; CREATE INDEX CONCURRENTLY waits for it")
         elif text.startswith("SELECT pg_advisory_unlock"):
             db.locked = False
         elif text.startswith("SELECT version, checksum"):
@@ -70,6 +90,9 @@ class FakeCursor:
 
     def fetchall(self):
         return self.rows
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
 
 
 # ---------------------------------------------------------------- ordering
@@ -146,7 +169,7 @@ def test_apply_is_ordered_locked_and_idempotent(tmp_path):
     assert sorted(db.ledger) == [1, 2] and not db.locked
 
     statements = [s for s in db.log if s not in {"COMMIT", "ROLLBACK"}]
-    assert statements[0].startswith("SELECT pg_advisory_lock")  # nothing runs before the lock
+    assert statements[0].startswith("SELECT pg_try_advisory_lock")  # nothing runs before the lock
     assert statements[-1].startswith("SELECT pg_advisory_unlock")
     assert statements.index("CREATE TABLE a ();") < statements.index("CREATE TABLE b ();")
 
@@ -154,6 +177,21 @@ def test_apply_is_ordered_locked_and_idempotent(tmp_path):
     assert migrate.apply_migrations(FakeConn(db), tmp_path) == []  # a second replica, or a restart
     assert not [s for s in db.log[before:] if s.startswith("CREATE TABLE a") or s.startswith("CREATE TABLE b")]
     assert sorted(db.ledger) == [1, 2] and not db.locked
+
+
+def test_a_busy_lock_is_tried_again_with_no_transaction_open_in_between(tmp_path, monkeypatch):
+    """A waiting deploy step must not sit in a transaction (a snapshot) while another one builds an index
+    CONCURRENTLY: each try is committed before the pause (the live deadlock: tests/database/test_migrations.py)."""
+    _write(tmp_path, ("0001_a.sql", "CREATE TABLE a ();"),)
+    db = FakeDb()
+    db.busy_tries = 3
+    pauses = []
+    monkeypatch.setattr(migrate.time, "sleep", lambda s: pauses.append((s, db.log[-1])))
+    assert migrate.apply_migrations(FakeConn(db), tmp_path) == [1]
+    assert [last for _, last in pauses] == ["COMMIT"] * 3  # every pause starts after a commit
+    assert all(s == migrate.LOCK_POLL_SECONDS for s, _ in pauses)
+    assert [s for s in db.log if "advisory_lock" in s] == ["SELECT pg_try_advisory_lock(%s);"] * 4
+    assert sorted(db.ledger) == [1] and not db.locked
 
 
 def test_apply_stops_at_the_target_then_continues(tmp_path):
@@ -181,3 +219,116 @@ def test_apply_refuses_to_run_when_an_applied_file_changed(tmp_path):
     with pytest.raises(MigrationError, match="edited after it was applied"):
         migrate.apply_migrations(FakeConn(db), tmp_path)
     assert sorted(db.ledger) == [1] and "CREATE TABLE b ();" not in db.log and not db.locked
+
+
+# ---------------------------------------------------------------- no-transaction files (CREATE INDEX CONCURRENTLY)
+
+
+NO_TX = """-- migrate: no-transaction
+-- comment; with a semicolon
+DROP INDEX CONCURRENTLY IF EXISTS i_new;
+CREATE INDEX CONCURRENTLY i_new ON t (a);
+"""
+
+
+def test_a_no_transaction_file_runs_statement_by_statement_in_autocommit(tmp_path):
+    _write(tmp_path, ("0001_a.sql", "CREATE TABLE t (a int);"), ("0002_idx.sql", NO_TX))
+    found = migrate.discover(tmp_path)
+    assert [m.no_transaction for m in found] == [False, True]
+    db = FakeDb()
+    assert migrate.apply_migrations(FakeConn(db), tmp_path) == [1, 2]
+    modes = dict((text.splitlines()[-1], autocommit) for text, autocommit in db.modes)
+    assert modes["CREATE TABLE t (a int);"] is False  # an ordinary file: one transaction with its ledger row
+    assert modes["DROP INDEX CONCURRENTLY IF EXISTS i_new;"] is True  # one statement per execute, no transaction
+    assert modes["CREATE INDEX CONCURRENTLY i_new ON t (a);"] is True
+    ledger_rows = [(i, autocommit) for i, (text, autocommit) in enumerate(db.modes) if text.startswith("INSERT INTO schema_migrations")]
+    assert len(ledger_rows) == 2 and not any(autocommit for _, autocommit in ledger_rows)  # each row in a transaction
+    last_statement = [text for text, _ in db.modes].index("CREATE INDEX CONCURRENTLY i_new ON t (a);")
+    assert last_statement < ledger_rows[1][0]  # the file is recorded after its last statement ran
+    assert sorted(db.ledger) == [1, 2] and not db.locked
+
+
+def test_a_failing_no_transaction_file_is_not_recorded_and_leaves_autocommit_off(tmp_path):
+    _write(tmp_path, ("0001_idx.sql", "-- migrate: no-transaction\nCREATE INDEX CONCURRENTLY i ON t (a);\nBOOM;\n"))
+    db = FakeDb()
+    conn = FakeConn(db)
+    with pytest.raises(RuntimeError, match="BOOM"):
+        migrate.apply_migrations(conn, tmp_path)
+    assert db.ledger == {} and not db.locked and conn.autocommit is False
+
+
+@pytest.mark.parametrize("sql,expected", [
+    ("SELECT 1; SELECT 2;", ["SELECT 1;", "SELECT 2;"]),
+    ("SELECT 'a;b'; SELECT \"x;y\" FROM t;", ["SELECT 'a;b';", 'SELECT "x;y" FROM t;']),
+    ("SELECT 'it''s; here';", ["SELECT 'it''s; here';"]),
+    ("DO $$ BEGIN PERFORM 1; PERFORM 2; END $$;\nSELECT 3;", ["DO $$ BEGIN PERFORM 1; PERFORM 2; END $$;", "SELECT 3;"]),
+    ("DO $body$ BEGIN RAISE NOTICE '$$;'; END $body$;", ["DO $body$ BEGIN RAISE NOTICE '$$;'; END $body$;"]),
+    ("-- a comment; not a statement\nSELECT 1; /* also; not */ SELECT 2;\n-- trailing", ["-- a comment; not a statement\nSELECT 1;", "/* also; not */ SELECT 2;"]),
+])
+def test_split_statements_splits_only_at_statement_ends(sql, expected):
+    assert migrate.split_statements(sql) == expected
+
+
+# ---------------------------------------------------------------- vector-table templates
+
+TABLE = migrate.VectorTable(schema="public", table="llamaindex_embedding", dim=256)
+
+
+def test_render_fills_identifiers_and_the_dimension():
+    sql = "CREATE TABLE {data_table} (e {vector_schema}.vector({dim})); CREATE INDEX \"{table}_x\" ON {data_table} (a); SELECT {data_table_literal}::regclass, {manifest};"
+    assert migrate.render(sql, TABLE, "ext") == (
+        'CREATE TABLE "public"."data_llamaindex_embedding" (e "ext".vector(256)); '
+        'CREATE INDEX "llamaindex_embedding_x" ON "public"."data_llamaindex_embedding" (a); '
+        'SELECT \'"public"."data_llamaindex_embedding"\'::regclass, "public"."ingest_manifest_llamaindex_embedding";'
+    )
+    assert migrate.render("text_fields='{\"text\": {\"tokenizer\": {}}}'", TABLE) == "text_fields='{\"text\": {\"tokenizer\": {}}}'"  # JSON is not a field
+
+
+def test_render_refuses_an_unknown_field_and_a_name_postgres_would_truncate():
+    with pytest.raises(MigrationError, match="unknown template field"):
+        migrate.render("SELECT {nope};", TABLE)
+    long_table = migrate.VectorTable(table="t" * 40, dim=8)
+    with pytest.raises(MigrationError, match="longer than 63 bytes"):
+        migrate.render('CREATE INDEX "{table}_embedding_hnsw_m16_efc64" ON {data_table} (a);', long_table)
+
+
+@pytest.mark.parametrize("schema,table", [("public", "Bad"), ("public", "x; DROP TABLE y"), ("pub lic", "x"), ("public", "")])
+def test_a_table_name_that_is_not_a_plain_lowercase_identifier_is_refused(schema, table):
+    with pytest.raises(MigrationError, match="lowercase"):
+        migrate.VectorTable(schema=schema, table=table)
+
+
+def test_the_committed_vector_templates_render_and_keep_concurrently_out_of_transactions():
+    found = migrate.discover(migrate.VECTOR_DIR)
+    assert [m.version for m in found] == list(range(1, len(found) + 1)) and found
+    for m in found:
+        rendered = migrate.render(m.sql, TABLE)  # every field known, every name short enough
+        for statement in migrate.split_statements(rendered):
+            code = " ".join(line for line in statement.splitlines() if not line.lstrip().startswith("--"))
+            if "CONCURRENTLY" in code:
+                assert m.no_transaction, f"{m.name}: CONCURRENTLY cannot run inside the file's transaction"
+
+
+def test_vector_index_builds_after_the_tables_are_concurrent():
+    for m in migrate.discover(migrate.VECTOR_DIR):
+        if "CREATE TABLE" in m.sql:
+            continue  # an index made with its (new, empty) table needs no concurrent build
+        creates = [s for s in migrate.split_statements(m.sql) if "CREATE INDEX" in s.upper()]
+        assert all("CONCURRENTLY" in s for s in creates), m.name
+
+
+def test_the_committed_paradedb_templates_render_and_never_drop_an_index():
+    found = migrate.discover(migrate.PARADEDB_DIR)
+    assert [m.version for m in found] == list(range(1, len(found) + 1)) and found
+    for m in found:
+        rendered = migrate.render(m.sql, TABLE)
+        assert "DROP INDEX" not in rendered.upper(), m.name  # the BM25 index is built once, never dropped and rebuilt
+        if "CREATE INDEX" in rendered:
+            assert "CREATE INDEX IF NOT EXISTS" in rendered, m.name
+
+
+def test_the_paradedb_sequence_is_needed_only_with_the_paradedb_backend():
+    assert [s for s, _ in migrate.sequences_for(TABLE)] == ["vector"]
+    paradedb = migrate.VectorTable(table="x", dim=8, lexical_backend="paradedb")
+    assert [s for s, _ in migrate.sequences_for(paradedb)] == ["vector", "paradedb"]
+    assert migrate.sequences_for(None) == []

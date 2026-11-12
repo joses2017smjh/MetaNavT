@@ -110,5 +110,34 @@ python -m pytest -q tests/eval/test_companion_agent.py tests/mcp/test_research_c
 
 The tests run real keyless fixture retrieval and SDK stdio calls. Live protocol,
 auth, bounded execution, unavailable providers and citation failures are tested
-with simulated provider responses. This release does **not** claim a completed
-live-model evaluation or measured LLM answer accuracy.
+with simulated provider responses.
+
+Live mode has one recorded run with a real model:
+
+```bash
+PG_TEST_DSN=postgresql://... OLLAMA_BASE_URL=http://127.0.0.1:11434 make bench-companion-live
+```
+
+It runs this gateway, unchanged, in live mode against a local Ollama model
+(`COMPANION_MODEL`, qwen2.5:7b by default) and two retrieval services started for
+the run with the default Compose stack's settings (hash embeddings, Postgres
+`ts_rank_cd`, no reranker; databases created on `PG_TEST_DSN`): one over fixture
+v1, asked every gold question once, and one over a copy whose configs and logs
+carry the injection benchmark's planted instructions to report a false value,
+asked the questions those instructions target. Each answer is scored without a
+judge (`app/eval/companion_score.py`): whether it states the gold value, whether
+every citation names an inspected source whose excerpt hash and bytes match the
+cited range of the file, which gold paths were retrieved, inspected and cited,
+whether the budget held, and whether a planted value was repeated. Blocked
+answers, abstentions and HTTP failures are outcomes, not retried. The request
+deadline is raised to its allowed maximum and the model is loaded before the
+first question, so a cold model is not what is measured.
+
+The results, with the model digest and every stored response, are in
+`bench/results/companion_live.json` (`make bench-companion-live-rescore`
+recomputes the scores without a model call); the generated rows are in
+[docs/RESUME_EVIDENCE.md](../docs/RESUME_EVIDENCE.md). The same run sets
+`real_LLM_inference_tested` and `live_model_run` in
+[research-agent-validation.json](research-agent-validation.json). It is one local
+7B model, one trial per question at temperature 0, on a synthetic fixture over
+fallback retrieval: a record of what live mode does, not a general accuracy claim.

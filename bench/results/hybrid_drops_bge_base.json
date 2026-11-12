@@ -1,0 +1,385 @@
+{
+  "git_sha": "066fcdf",
+  "timestamp": "2026-11-11T23:01:59.627272+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.hybrid_drops --out bench/results/hybrid_drops_bge_base.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA A40",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "mtimes": {
+    "source": "manifest",
+    "file": "bench/corpus/MANIFEST.json",
+    "field": "files[].mtime"
+  },
+  "n_chunks": 71,
+  "models": {
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-base-en-v1.5",
+      "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+      "neural": true,
+      "dim": 768,
+      "device": "cuda:0"
+    }
+  },
+  "rows": {
+    "dense_only": "dense_only@bge-base",
+    "hybrid": "hybrid@bge-base"
+  },
+  "retrieve_k": 50,
+  "fusion": {
+    "k": 60,
+    "weights": {
+      "bm25": 1.0,
+      "dense": 1.0
+    },
+    "lists": "[BM25, dense], each its top retrieve_k chunks; hybrid keeps the top retrieve_k fused chunks (stable sort by RRF score)"
+  },
+  "summary": {
+    "n_questions": 136,
+    "recall@50": {
+      "dense_only": 0.9596,
+      "hybrid": 0.9375,
+      "delta": -0.0221,
+      "note": "means over all questions; delta is hybrid minus dense_only, and only the listed questions move it"
+    },
+    "every_question_that_moves_is_listed": true,
+    "n_questions_affected": 8,
+    "n_questions_with_drops": 7,
+    "n_dropped": 7,
+    "n_gained": 1,
+    "dropped_with_no_chunk_in_bm25_list": 7,
+    "dropped_tied_with_cut": 0,
+    "dropped_by_category": {
+      "simple_factual": 7
+    }
+  },
+  "questions": [
+    {
+      "id": "q032",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 46 use",
+      "relevant": [
+        "configs/run_046.yaml",
+        "slurm/run_046.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00943396,
+        "n_fused": 53
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_046.sbatch",
+          "dense": {
+            "file_rank": 41,
+            "chunk_rank": 48
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 51,
+            "rrf": 0.00925926,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q037",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 47 use",
+      "relevant": [
+        "configs/run_047.yaml",
+        "slurm/run_047.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00952381,
+        "n_fused": 53
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_047.sbatch",
+          "dense": {
+            "file_rank": 40,
+            "chunk_rank": 48
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 52,
+            "rrf": 0.00925926,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q047",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 49 use",
+      "relevant": [
+        "configs/run_049.yaml",
+        "slurm/run_049.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00934579,
+        "n_fused": 53
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_049.sbatch",
+          "dense": {
+            "file_rank": 41,
+            "chunk_rank": 49
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 52,
+            "rrf": 0.00917431,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q052",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 50 use",
+      "relevant": [
+        "configs/run_050.yaml",
+        "slurm/run_050.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00934579,
+        "n_fused": 52
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_050.sbatch",
+          "dense": {
+            "file_rank": 40,
+            "chunk_rank": 48
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 51,
+            "rrf": 0.00925926,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q062",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 52 use",
+      "relevant": [
+        "configs/run_052.yaml",
+        "slurm/run_052.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00934579,
+        "n_fused": 53
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_052.sbatch",
+          "dense": {
+            "file_rank": 42,
+            "chunk_rank": 50
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 53,
+            "rrf": 0.00909091,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q067",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 53 use",
+      "relevant": [
+        "configs/run_053.yaml",
+        "slurm/run_053.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00934579,
+        "n_fused": 52
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_053.sbatch",
+          "dense": {
+            "file_rank": 41,
+            "chunk_rank": 49
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 51,
+            "rrf": 0.00917431,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q077",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 55 use",
+      "relevant": [
+        "configs/run_055.yaml",
+        "slurm/run_055.sbatch"
+      ],
+      "recall@50": {
+        "dense_only": 1.0,
+        "hybrid": 0.5
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00934579,
+        "n_fused": 52
+      },
+      "dropped": [
+        {
+          "path": "slurm/run_055.sbatch",
+          "dense": {
+            "file_rank": 41,
+            "chunk_rank": 49
+          },
+          "bm25": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "fused": {
+            "chunk_rank": 51,
+            "rrf": 0.00917431,
+            "kept": false,
+            "tied_with_cut": false
+          }
+        }
+      ],
+      "gained": []
+    },
+    {
+      "id": "q134",
+      "category": "semantic",
+      "question": "what is the 0.0550 number in this corpus",
+      "relevant": [
+        "configs/run_047.yaml",
+        "paper/draft_v2.md"
+      ],
+      "recall@50": {
+        "dense_only": 0.5,
+        "hybrid": 1.0
+      },
+      "cut": {
+        "rank": 50,
+        "rrf": 0.00952381,
+        "n_fused": 55
+      },
+      "dropped": [],
+      "gained": [
+        {
+          "path": "paper/draft_v2.md",
+          "dense": {
+            "file_rank": null,
+            "chunk_rank": null
+          },
+          "bm25": {
+            "file_rank": 1,
+            "chunk_rank": 1
+          },
+          "fused": {
+            "chunk_rank": 2,
+            "rrf": 0.01639344,
+            "kept": true,
+            "tied_with_cut": false
+          }
+        }
+      ]
+    }
+  ],
+  "reproduces": {
+    "file": "bench/results/neural.json",
+    "git_sha": "729308e",
+    "compared": "every field of each row's retrieval block (rounded means, by category)",
+    "rows": {
+      "bm25_only": true,
+      "dense_only@bge-base": true,
+      "hybrid@bge-base": true
+    },
+    "all": true
+  }
+}
