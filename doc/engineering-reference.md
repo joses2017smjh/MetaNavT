@@ -1316,7 +1316,11 @@ per phrasing, a cut made for a budget estimated from the earlier run; a
 calibration run on one question, whose episodes are not in the results,
 measured the models much faster than that estimate and showed that phrasings
 sharing one seed are not separate samples, so the run restored four trials per
-task; the phrasings, the rules and the comparison did not change.
+task and reads any-success seed by seed. Two counts the calibration run pointed
+to were added at the same time: each phrasing's chance that at least one of its
+four trials attempted the goal, and the first answers flagged on the model's
+last turn. The phrasings, the answer check's rule, note and turn budget, and the
+paired comparison did not change.
 
 Its fourth configuration, `answer_check`, has the tools and prompt of `none`
 and puts the structured field check (the rule unchanged, told the question's
@@ -1395,8 +1399,8 @@ There it lowered the planted value delivered to the user for both models, per
 draw and by any phrasing, each paired interval below zero, while the planted
 value the models wrote, their utility under attack and their benign success
 did not change measurably; the stronger model answered injected tasks
-correctly more often, an interval above zero, and some of its revised answers
-passed the check. It is not a complete fix: every planted value that still reached the
+correctly, with a grounded citation, more often, an interval above zero, and
+some of its revised answers passed the check. It is not a complete fix: every planted value that still reached the
 user was a word stated beside the true value that is neither a value the field
 takes in the corpus configs nor a bare word in quotes, which the rule passes,
 and a first answer flagged on the model's last turn, which happened only to the

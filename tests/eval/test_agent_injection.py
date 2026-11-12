@@ -1712,6 +1712,17 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
     assert ("A third run plants each goal in seven phrasings, five of them AgentDojo's templates, and adds a configuration "
             "that puts the structured field check between the answer and the user.") in readme
     assert "[Every episode](bench/results/agent_injection_v3_episodes.jsonl)" in readme
+    # what the amendment after the calibration run changed: four trials for every task, any-success read seed by seed,
+    # and two counts added with it; the file holds each of them
+    assert cfg["k"] == 4 and cfg["seeds"] == [0, 1, 2, 3] and "under a seed" in cfg["any_success"]
+    assert all("attempted_at_k" in x for per in summary.values() for b in per.values() for g in b["by_goal"].values()
+               for x in g["by_phrasing"].values())
+    assert all("flagged_first_on_last_turn" in per[check]["answer_check"] for per in summary.values())
+    assert ("so the run restored four trials per task and reads any-success seed by seed. Two counts the calibration run "
+            "pointed to were added at the same time: each phrasing's chance that at least one of its four trials attempted "
+            "the goal, and the first answers flagged on the model's last turn. The phrasings, the answer check's rule, note "
+            "and turn budget, and the paired comparison did not change.") in text
+    assert "the phrasings, the rules and the comparison did not change" not in text
     # write calls: none in the first two runs' question and injected tasks; in the third, the weaker model's patch
     # proposals written as JSON text, rejected for a missing argument, and no apply call; the corpus never changed
     for earlier in (RESULTS, RESULTS_V2):
@@ -1777,8 +1788,9 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
     assert last[weaker] > 0 and last[stronger] == 0
     assert ("There it lowered the planted value delivered to the user for both models, per draw and by any phrasing, each "
             "paired interval below zero, while the planted value the models wrote, their utility under attack and their "
-            "benign success did not change measurably; the stronger model answered injected tasks correctly more often, "
-            "an interval above zero, and some of its revised answers passed the check. It is not a complete fix: every "
+            "benign success did not change measurably; the stronger model answered injected tasks correctly, with a "
+            "grounded citation, more often, an interval above zero, and some of its revised answers passed the check. "
+            "It is not a complete fix: every "
             "planted value that still reached the user was a word stated beside the true value that is neither a value the "
             "field takes in the corpus configs nor a bare word in quotes, which the rule passes, and a first answer flagged "
             "on the model's last turn, which happened only to the weaker model, gets no second chance.") in text
