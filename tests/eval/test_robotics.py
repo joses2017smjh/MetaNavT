@@ -1,30 +1,185 @@
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
-from app.eval.robotics import confined, evaluate, freeze, group_bootstrap, scalar_questions, verify
+from app.eval.robotics import confined, evaluate, freeze, group_bootstrap, scalar_questions, tracked_blob_mismatches, verify
 
 
-@pytest.fixture
-def snapshot(tmp_path):
+def _summary(i: int) -> bytes:
+    return json.dumps({"success": bool(i % 2), "steps": 100 + i, "verdict": "PASS", "seed": i}).encode()
+
+
+def _source_repo(tmp_path, extra: dict[str, bytes] | None = None, init_args: tuple[str, ...] = ()):
+    """A throwaway source repository: twelve campaigns with one summary.json each, plus `extra` files, committed."""
     repo = tmp_path / "source"
     repo.mkdir()
     def git(*args):
         subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
-    git("init", "-q")
+    git("init", "-q", *init_args)
     git("config", "user.name", "Test fixture")
     git("config", "user.email", "fixture@example.invalid")
     git("remote", "add", "origin", "https://example.invalid/robot.git")
-    for i in range(12):
-        p = repo / "results" / f"campaign-{i}" / "summary.json"
-        p.parent.mkdir(parents=True)
-        p.write_text(json.dumps({"success": bool(i % 2), "steps": 100 + i, "verdict": "PASS", "seed": i}))
+    files = {f"results/campaign-{i}/summary.json": _summary(i) for i in range(12)} | (extra or {})
+    for relative, data in files.items():
+        p = repo / relative
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
     git("add", "results")
     git("commit", "-qm", "fixture")
+    return repo
+
+
+@pytest.fixture
+def snapshot(tmp_path):
     destination = tmp_path / "snapshot"
-    freeze(repo, destination, n_files=12, dev_n=4, test_n=8)
+    freeze(_source_repo(tmp_path), destination, n_files=12, dev_n=4, test_n=8)
     return destination
+
+
+def _frozen_paths(snapshot_dir) -> set[str]:
+    corpus = snapshot_dir / "corpus"
+    return {p.relative_to(corpus).as_posix() for p in corpus.rglob("*") if p.is_file()}
+
+
+def test_freeze_counts_undecodable_duplicate_and_secret_files_by_reason_and_exports_none(tmp_path):
+    rejected = {
+        "results/campaign-1/notes.txt": "café au lait\n".encode("latin-1"),  # not UTF-8
+        "results/campaign-0/summary_copy.json": _summary(0),  # sorts after its twin, so the copy is the one rejected
+        "results/campaign-2/config.yaml": b"run_id: c2\napi_key: abcdefghijklmnop1234\n",
+    }
+    destination = tmp_path / "snapshot"
+    # n_files is the number of eligible files: every accepted file is exported.
+    manifest = freeze(_source_repo(tmp_path, rejected), destination, n_files=12, dev_n=4, test_n=8)
+    assert manifest["rejected"] == {"not_utf8": 1, "duplicate_content": 1, "possible_secret": 1}
+    listed = {row["path"] for row in manifest["files"]}
+    for path in rejected:
+        assert path not in listed
+        assert not (destination / "corpus" / path).exists()
+    assert "results/campaign-0/summary.json" in listed  # the first copy of the duplicated bytes stays
+    assert _frozen_paths(destination) == listed
+    verify(destination)
+
+
+def test_freeze_secret_pattern_misses_other_key_names_short_values_and_json_quoted_keys(tmp_path):
+    """Documented limit: the pattern names api_key, access_token and password with `=` or `:` right after the name,
+    then a value that begins with at least twelve letters, digits, `_` or `-` (its `{12,}`). A secret under another
+    name, a shorter value or one with other punctuation near its start, or a JSON key whose closing quote comes before
+    the colon, is exported."""
+    exported = {
+        "results/campaign-3/env.txt": b"secret_key: abcdefghijklmnop1234\n",
+        "results/campaign-4/creds.json": b'{"api_key": "abcdefghijklmnop1234"}',
+        "results/campaign-5/login.txt": b"password: hunter2\n",
+        "results/campaign-6/db.yaml": b"password: p@ssw0rd-that-is-long-enough\n",
+    }
+    destination = tmp_path / "snapshot"
+    manifest = freeze(_source_repo(tmp_path, exported), destination, n_files=16, dev_n=4, test_n=8)
+    assert manifest["rejected"] == {}
+    assert set(exported) <= {row["path"] for row in manifest["files"]}
+    for path, data in exported.items():
+        assert (destination / "corpus" / path).read_bytes() == data
+
+
+def _git(repo, *args) -> bytes:
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True).stdout
+
+
+def test_freeze_exports_the_committed_bytes_not_the_working_tree_or_the_index(tmp_path):
+    repo = _source_repo(tmp_path)
+    unstaged, staged, deleted = (f"results/campaign-{i}/summary.json" for i in range(3))
+    (repo / unstaged).write_bytes(_summary(100))  # edited, not staged
+    (repo / staged).write_bytes(_summary(101))
+    _git(repo, "add", staged)  # edited and staged, not committed
+    (repo / deleted).unlink()  # gone from the working tree, still in the commit
+    (repo / "results" / "campaign-5" / "untracked.json").write_bytes(b'{"success": true}')
+    destination = tmp_path / "snapshot"
+    manifest = freeze(repo, destination, n_files=12, dev_n=4, test_n=8)
+    assert manifest["source_commit"] == _git(repo, "rev-parse", "HEAD").decode().strip()
+    listed = {row["path"] for row in manifest["files"]}
+    assert {unstaged, staged, deleted} <= listed and "results/campaign-5/untracked.json" not in listed
+    for row in manifest["files"]:
+        assert (destination / "corpus" / row["path"]).read_bytes() == _git(repo, "show", f"HEAD:{row['path']}")
+        assert row["matches_tracked_blob"] is True
+    assert tracked_blob_mismatches(manifest) == {"n_files": 0, "paths": []}
+    verify(destination)
+
+
+def test_freeze_names_files_as_the_tree_does_and_rejects_symlinks_without_following_them(tmp_path):
+    repo = _source_repo(tmp_path, {"results/campaign-7/résumé.json": b'{"status": "ok"}'})
+    (tmp_path / "elsewhere.json").write_bytes(b'{"status": "outside"}')
+    (repo / "results" / "campaign-8" / "inside.json").symlink_to("summary.json")
+    (repo / "results" / "campaign-9" / "outside.json").symlink_to(tmp_path / "elsewhere.json")
+    _git(repo, "add", "results")
+    _git(repo, "commit", "-qm", "links")
+    destination = tmp_path / "snapshot"
+    manifest = freeze(repo, destination, n_files=13, dev_n=4, test_n=8)
+    listed = {row["path"] for row in manifest["files"]}
+    assert manifest["rejected"] == {"type_or_size": 2}  # a symlink is not a regular file; neither target is read
+    assert not {"results/campaign-8/inside.json", "results/campaign-9/outside.json"} & listed
+    assert (destination / "corpus" / "results/campaign-7/résumé.json").read_bytes() == b'{"status": "ok"}'
+    verify(destination)
+
+
+def test_freeze_stops_when_a_blob_does_not_hash_to_its_id(tmp_path, monkeypatch):
+    """The bytes read for a tree entry must be the object the tree names; anything else stops the freeze."""
+    from app.eval import robotics
+
+    real = robotics._read_blobs
+
+    def one_byte_more(root, oids):
+        blobs = real(root, oids)
+        blobs[oids[0]] += b" "
+        return blobs
+
+    monkeypatch.setattr(robotics, "_read_blobs", one_byte_more)
+    destination = tmp_path / "snapshot"
+    with pytest.raises(ValueError, match="does not hash to its id"):
+        freeze(_source_repo(tmp_path), destination, n_files=12, dev_n=4, test_n=8)
+    assert not destination.exists()
+
+
+def test_freeze_reads_a_repository_with_sha256_object_ids(tmp_path):
+    """Blob ids of 64 hex characters are checked with SHA-256, as git computes them in such a repository."""
+    try:
+        repo = _source_repo(tmp_path, init_args=("--object-format=sha256",))
+    except subprocess.CalledProcessError:
+        pytest.skip("this git cannot create a repository with the sha256 object format")
+    destination = tmp_path / "snapshot"
+    manifest = freeze(repo, destination, n_files=12, dev_n=4, test_n=8)
+    assert {len(row["source_git_blob"]) for row in manifest["files"]} == {64}
+    assert manifest["source_commit"] == _git(repo, "rev-parse", "HEAD").decode().strip()
+    assert tracked_blob_mismatches(manifest) == {"n_files": 0, "paths": []}
+    verify(destination)
+
+
+def test_verify_and_evaluate_report_files_that_differ_from_their_tracked_blob(snapshot, tmp_path, monkeypatch, capsys):
+    from app.eval import robotics
+
+    manifest_path = snapshot / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    flagged = manifest["files"][0]["path"]
+    manifest["files"][0]["matches_tracked_blob"] = False  # the flag is not part of the hashed inventory
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    monkeypatch.setattr("sys.argv", ["robotics", "verify", "--snapshot", str(snapshot)])
+    robotics.main()
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["verified"] is True
+    assert printed["tracked_blob_mismatches"] == {"n_files": 1, "paths": [flagged]}
+    result = evaluate(snapshot, tmp_path / "result.json")
+    assert result["tracked_blob_mismatches"] == {"n_files": 1, "paths": [flagged]}
+
+
+COMMITTED_SNAPSHOT = Path(__file__).resolve().parents[2] / "bench" / "robotics" / "2026-10-07"
+
+
+def test_committed_snapshot_reports_the_files_that_differ_from_their_tracked_blob():
+    """Frozen from a working tree, before the freeze read git objects. Kept as it is: a re-freeze is a new version."""
+    manifest, _ = verify(COMMITTED_SNAPSHOT)
+    assert tracked_blob_mismatches(manifest) == {"n_files": 8, "paths": [
+        "docs/CLOTH_SORT.md", "docs/PORTFOLIO.md", "docs/RANDOM_MAZE.md", "docs/REPRODUCIBILITY.md", "docs/STATUS.md",
+        "docs/WEEKEND_CAMPAIGN.md", "docs/github-profile-README.md", "results/ice_placement_probe.txt",
+    ]}
 
 
 def test_utf8_evidence_and_nested_collision():

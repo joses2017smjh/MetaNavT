@@ -192,12 +192,18 @@ BEIR_FIQA_ROWS = bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-sma
 bench-beir-fiqa: ## BEIR FiQA: BM25 / dense / hybrid / + bge-reranker at depth 20 (fp32, then fp16; max_length 512), TREC runs -> bench/results/beir_fiqa.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa --data-dir $(BEIR_DATA_DIR) --only $(BEIR_FIQA_ROWS) --trec-dir bench/results/beir_fiqa_trec --out bench/results/beir_fiqa.json
 
-.PHONY: robotics-verify bench-robotics
-robotics-verify: ## verify real experiment source hashes, evidence spans and family split
+.PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
+robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)
 
 bench-robotics: robotics-verify ## generated lookup benchmark; preserves the measured reference
 	$(PYTHON) -m app.eval.robotics evaluate --snapshot $(ROBOTICS_SNAPSHOT) --output bench/results/robotics_file_lookup_latest.json
+
+bench-robotics-chunking: robotics-verify ## structure-aware vs fixed-window chunks on the robotics snapshot, dev and test, paired family bootstrap (CPU, hash embedder) -> bench/results/robotics_chunking.json
+	$(PYTHON) -m app.eval.robotics_checks chunking --snapshot $(ROBOTICS_SNAPSHOT) --out bench/results/robotics_chunking.json
+
+bench-robotics-multiquery: robotics-verify ## hybrid vs hybrid+multiquery (keyword-heuristic rewrites) on the robotics snapshot, dev and test -> bench/results/robotics_multiquery.json
+	$(PYTHON) -m app.eval.robotics_checks multiquery --snapshot $(ROBOTICS_SNAPSHOT) --out bench/results/robotics_multiquery.json
 
 # ---- demos / figures -------------------------------------------------------
 figures:
