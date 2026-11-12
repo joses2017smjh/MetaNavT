@@ -1016,6 +1016,62 @@ def test_the_answer_check_runs_as_a_fourth_configuration_compared_with_none(tmp_
     assert deltas["benign_success"]["delta"] == 0.0
 
 
+def test_shards_merge_into_one_episodes_file_in_a_fixed_order(tmp_path, monkeypatch):
+    # The GPU jobs run models and questions apart; merging their episodes files gives one file whose rows are in a
+    # fixed order whatever order the shards come in, with every shard's segments and file hash in the sidecar, and the
+    # merge target scores it as a rescore scores a stored file
+    original = ai.run_episode
+    monkeypatch.setattr(ai, "run_episode", lambda chat, env, d, seed, max_turns=6: original(
+        answering(env.task, comply=True, fix=True), env, d, seed, max_turns))
+    shards = []
+    for name, model, question in (("a", "m1", "q011"), ("b", "m2", "q011"), ("c", "m1", "q019")):
+        shards.append(tmp_path / f"{name}_episodes.jsonl")
+        ai.run([model], k=1, workers=2, episodes_path=shards[-1], questions=[question], defenses=("none", ai.ANSWER_CHECK),
+               chat_factory=lambda m: None, log=lambda _: None, benchmark=ai.BENCHMARK_V3)
+    one, two = tmp_path / "one.jsonl", tmp_path / "two.jsonl"
+    n = ai.merge_shards(shards, one, ["m1", "m2"])
+    ai.merge_shards(shards[::-1], two, ["m1", "m2"])
+    assert one.read_bytes() == two.read_bytes()
+    rows = [json.loads(line) for line in one.read_text().splitlines()]
+    per_shard = 2 * (1 + len(ai.GOALS) * len(ai.PHRASINGS))
+    keys = [ai._episode_key(r) for r in rows]
+    assert n == len(rows) == len(set(keys)) == 3 * per_shard
+    rank = {t.task_id: i for i, t in enumerate(ai.build_tasks(benchmark=ai.BENCHMARK_V3))}
+    configs = ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V3]
+    assert keys == sorted(keys, key=lambda x: (["m1", "m2"].index(x[0]), rank[x[2]], configs.index(x[1]), x[3]))
+    meta = json.loads(ai.sidecar(one).read_text())
+    assert meta["benchmark"] == ai.BENCHMARK_V3 and meta["reconstructed"] is False
+    assert [s["shard"] for s in meta["segments"]] == [p.name for p in shards]
+    assert meta["merged"] == {"shards": [{"file": p.name, "episodes_sha256": _sha256(p), "n_episodes": per_shard}
+                                         for p in shards], "order": ai.MERGE_ORDER}
+    with pytest.raises(ValueError, match="is in both"):
+        ai.merge_shards([shards[0], shards[0]], tmp_path / "dup.jsonl", ["m1"])
+    with pytest.raises(ValueError, match="different task sets"):
+        ai.merge_shards([shards[0], EPISODES_V2], tmp_path / "mixed.jsonl", ["m1"])
+    out, merged = tmp_path / "out.json", tmp_path / "merged.jsonl"
+    assert ai.main(["--merge", *map(str, shards), "--models", "m1,m2", "--k", "1", "--out", str(out),
+                    "--episodes", str(merged)]) == 0
+    blob = json.loads(out.read_text())
+    assert merged.read_bytes() == one.read_bytes() and blob["episodes_sha256"] == _sha256(one)
+    assert blob["benchmark"] == ai.BENCHMARK_V3 and blob["n_episodes"] == n and sorted(blob["summary"]) == ["m1", "m2"]
+    assert blob["episodes_generated_by"] == json.loads(ai.sidecar(merged).read_text())
+    with pytest.raises(SystemExit, match="exists"):
+        ai.main(["--merge", *map(str, shards), "--out", str(out), "--episodes", str(merged)])
+
+
+def test_a_merged_run_keeps_one_server_record_only_where_the_shards_agree():
+    a = {"base_url_scheme": "http", "version": "0.34.3", "models": {"m1": {"digest": "x"}},
+         "running": {"m1": {"context_length": 32768, "size_vram": 1}}}
+    b = {"base_url_scheme": "http", "version": "0.34.3", "models": {"m2": {"digest": "y"}},
+         "running": {"m2": {"context_length": 32768, "size_vram": 2}}}
+    assert ai.merged_ollama([a, b, a]) == {"base_url_scheme": "http", "version": "0.34.3",
+                                           "models": {"m1": {"digest": "x"}, "m2": {"digest": "y"}},
+                                           "running": {"m1": a["running"]["m1"], "m2": b["running"]["m2"]}}
+    for other in ({**b, "version": "0.35.0"}, {**a, "models": {"m1": {"digest": "z"}}},
+                  {**a, "running": {"m1": {"context_length": 8192, "size_vram": 1}}}, {"error": "URLError"}):
+        assert ai.merged_ollama([a, other]) == {"per_segment": [a, other]}
+
+
 def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     # The score objects inside the episodes file are the ones written at generation time, by older scoring
     # code; the rescored file next to it must equal rescore() of every stored episode, in file order, and
@@ -1142,6 +1198,32 @@ def test_the_current_runs_rescore_target_leaves_the_committed_file_alone():
     assert out != RESULTS_V2.relative_to(ai.ROOT).as_posix()
     ignore = (ai.ROOT / ".gitignore").read_text().splitlines()
     assert fnmatch.fnmatch(out, "bench/results/*.json") and "bench/results/*.json" in ignore and f"!{out}" not in ignore
+
+
+def test_only_the_v3_run_and_merge_targets_write_its_committed_files():
+    # agent_injection_v3 is generated by one process (make bench-agent-injection-v3) or by shards merged into the same
+    # two paths; shards and the rescore write where git ignores them, so the committed files stay the generating run's
+    makefile = (ai.ROOT / "Makefile").read_text()
+
+    def recipe(target):
+        return makefile.split(f"\n{target}:", 1)[1].split("\n\n", 1)[0]
+
+    def ignored(path):
+        return _git("check-ignore", "-q", "--no-index", path).returncode == 0
+
+    committed = ("--out bench/results/agent_injection_v3.json", "--episodes bench/results/agent_injection_v3_episodes.jsonl")
+    for target in ("bench-agent-injection-v3", "bench-agent-injection-v3-merge"):
+        assert all(x in recipe(target) for x in committed) and "--k 4" in recipe(target)
+    assert "--merge $(sort $(wildcard bench/results/agent_injection_v3_shards/*_episodes.jsonl))" in recipe(
+        "bench-agent-injection-v3-merge")
+    shard, rescore = recipe("bench-agent-injection-v3-shard"), recipe("bench-agent-injection-v3-rescore")
+    assert "--benchmark agent_injection_v3" in shard and "--k 4" in shard and not any(x in shard for x in committed)
+    assert "--summarize-only" in rescore and "--out bench/results/agent_injection_v3_rescore.json" in rescore
+    assert not ignored("bench/results/agent_injection_v3.json") and not ignored("bench/results/agent_injection_v3_episodes.jsonl")
+    assert not ignored("bench/results/agent_injection_v3_episodes.meta.json")
+    assert all(ignored(p) for p in ("bench/results/agent_injection_v3_rescore.json", "bench/results/agent_injection_v3_shards/a.json",
+                                    "bench/results/agent_injection_v3_shards/a_episodes.jsonl",
+                                    "bench/results/agent_injection_v3_shards/a_episodes.meta.json"))
 
 
 def test_the_current_run_has_a_capability_block_per_model_and_configuration():

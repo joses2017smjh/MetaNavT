@@ -1529,7 +1529,10 @@ def task_trials(task: Task, k: int, benchmark: str) -> int:
 def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int = 4, temperature: float = 0.7,
         base_url: str | None = None, workers: int = 8, max_turns: int = 6, episodes_path: Path = DEFAULT_EPISODES,
         resume: bool = False, limit_tasks: int | None = None, chat_factory: Callable[[str], ChatFn] | None = None,
-        log: Callable[[str], None] = print, benchmark: str = BENCHMARK) -> tuple[list[Task], list[dict]]:
+        log: Callable[[str], None] = print, benchmark: str = BENCHMARK,
+        questions: Sequence[str] | None = None) -> tuple[list[Task], list[dict]]:
+    """Generate episodes. `questions` (gold ids) or `limit_tasks` (the first N) keep some questions' tasks: a shard
+    of a run split across processes (merge_shards), or a smoke run."""
     from app.eval.index_loader import mtime_provenance
 
     if resume and sidecar(episodes_path).exists() and episodes_benchmark(episodes_path) != benchmark:
@@ -1542,6 +1545,11 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
     if limit_tasks:
         keep = {gold_id for gold_id, *_ in USER_TASKS[:limit_tasks]}
         tasks = [t for t in tasks if t.gold_id in keep]
+    if questions:
+        missing = set(questions) - {gold_id for gold_id, *_ in USER_TASKS}
+        if missing:
+            raise ValueError(f"no question {sorted(missing)} in USER_TASKS")
+        tasks = [t for t in tasks if t.gold_id in set(questions)]
     factory = chat_factory or (lambda m: OllamaChat(m, base_url, temperature=temperature))
     chats = {m: factory(m) for m in models}
     done: dict[tuple, dict] = {}
@@ -1617,8 +1625,64 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
             env.close()
         segment.update(finished_utc=provenance()["run_at_utc"], wall_s=round(time.time() - started, 1),
                        episodes_after=len(rows))
+        if chat_factory is None:  # the server as the segment leaves it, with the context each loaded model ran with
+            segment["ollama_after"] = _ollama_info(factory_url(base_url), models)
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
     return tasks, rows
+
+
+MERGE_ORDER = "model (--models order), task (build_tasks order), configuration (BENCHMARK_DEFENSES order), trial"
+
+
+def merged_ollama(infos: Sequence[dict | None]) -> dict:
+    """One server record for shard segments that each loaded some of the models: the version they share and each
+    model's digest and running context. When two segments disagree on any of these, the per-segment records instead."""
+    infos = [i for i in infos if i]
+    out: dict[str, Any] = {"version": None, "models": {}, "running": {}}
+    if not infos or len({i.get("version") for i in infos}) != 1 or any("error" in i for i in infos):
+        return {"per_segment": infos}
+    out["version"] = infos[0].get("version")
+    for info in infos:
+        for part in ("models", "running"):
+            for model, value in (info.get(part) or {}).items():
+                if out[part].setdefault(model, value) != value:
+                    return {"per_segment": infos}
+    return {"base_url_scheme": infos[0].get("base_url_scheme"), **out}
+
+
+def merge_shards(shards: Sequence[Path], episodes_path: Path, models: Sequence[str]) -> int:
+    """Write the episodes of several runs of one task set (processes that each ran some models and questions, as
+    separate GPU jobs do) as one episodes file in a fixed order (MERGE_ORDER), whatever order the shards come in or
+    finished their episodes in, with a sidecar that keeps every shard's segments and names each shard file by its
+    sha256. Refuses shards of different task sets and an episode key that two shards hold. Returns the row count."""
+    shards = [Path(p) for p in shards]
+    benchmarks = {episodes_benchmark(p) for p in shards}
+    if len(benchmarks) != 1:
+        raise ValueError(f"the shards come from different task sets: {sorted(benchmarks)}")
+    benchmark = benchmarks.pop()
+    task_rank = {t.task_id: i for i, t in enumerate(build_tasks(benchmark=benchmark))}
+    defense_rank = {d: i for i, d in enumerate(BENCHMARK_DEFENSES[benchmark])}
+    model_rank = {m: i for i, m in enumerate(models)}
+    rows, owner, segments, files = [], {}, [], []
+    for path in shards:
+        meta = json.loads(sidecar(path).read_text())
+        shard_rows = [json.loads(line) for line in path.read_text().splitlines()]
+        for row in shard_rows:
+            key = _episode_key(row)
+            if key in owner:
+                raise ValueError(f"{key} is in both {owner[key]} and {path.name}")
+            owner[key] = path.name
+        rows += shard_rows
+        segments += [{**segment, "shard": path.name} for segment in meta["segments"]]
+        files.append({"file": path.name, "episodes_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                      "n_episodes": len(shard_rows)})
+    rows.sort(key=lambda r: (model_rank.get(r["model"], len(model_rank)), r["model"], task_rank[r["task_id"]],
+                             defense_rank[r["defense"]], r["trial"]))
+    episodes_path.parent.mkdir(parents=True, exist_ok=True)
+    episodes_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+    sidecar(episodes_path).write_text(json.dumps({"benchmark": benchmark, "reconstructed": False, "segments": segments,
+                                                  "merged": {"shards": files, "order": MERGE_ORDER}}, indent=2) + "\n")
+    return len(rows)
 
 
 # The fields a task row of the first run holds; a v1 report keeps exactly these, so rescoring it reproduces the file.
@@ -1755,14 +1819,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--episodes", type=Path, default=DEFAULT_EPISODES)
     p.add_argument("--resume", action="store_true", help="skip episodes already in --episodes")
     p.add_argument("--limit-tasks", type=int, default=None, help="smoke run: only the first N user tasks")
+    p.add_argument("--questions", default=None,
+                   help="comma-separated gold ids: run only these questions' tasks (a shard, or a slice)")
+    p.add_argument("--defenses", default=None, help="comma-separated configurations (default: the task set's own)")
     p.add_argument("--summarize-only", action="store_true", help="rebuild --out from --episodes without a model call")
+    p.add_argument("--merge", type=Path, nargs="+", default=None, metavar="SHARD",
+                   help="write the episodes of these shard runs (episodes files, each with its .meta.json) to "
+                        "--episodes in a fixed order, then score them into --out; no model call")
     p.add_argument("--write-scores", type=Path, default=None, metavar="PATH",
                    help="write every stored episode's current score (key and score, no answer or tool call) to PATH "
                         "and a .meta.json beside it, then exit; no model call, --out is not written")
     args = p.parse_args(argv)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     started, prov = time.time(), provenance()
-    if args.summarize_only or args.write_scores:
+    offline = bool(args.summarize_only or args.write_scores or args.merge)
+    if args.merge:
+        if args.episodes.exists():
+            raise SystemExit(f"{args.episodes} exists; the merge writes it, so move it away")
+        merge_shards(args.merge, args.episodes, models)
+    if offline:
         benchmark = episodes_benchmark(args.episodes)
         if args.benchmark not in (None, benchmark):
             raise SystemExit(f"{args.episodes} was generated as {benchmark}, not {args.benchmark}")
@@ -1773,7 +1848,9 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"{args.episodes} exists; pass --resume to continue it or move it away")
         tasks, rows = run(models, k=args.k, temperature=args.temperature, base_url=args.base_url,
                           workers=args.workers, max_turns=args.max_turns, episodes_path=args.episodes,
-                          resume=args.resume, limit_tasks=args.limit_tasks, benchmark=benchmark)
+                          resume=args.resume, limit_tasks=args.limit_tasks, benchmark=benchmark,
+                          questions=args.questions.split(",") if args.questions else None,
+                          defenses=args.defenses.split(",") if args.defenses else None)
     # Scores always come from the current scoring code, so rows resumed from an
     # earlier process (or an older scoring version) are scored like the rest.
     rows = rescore(tasks, rows)
@@ -1781,19 +1858,25 @@ def main(argv: list[str] | None = None) -> int:
         write_scores(rows, args.write_scores, args.episodes)
         print(f"wrote {args.write_scores} ({len(rows)} episodes) and {sidecar(args.write_scores).name}")
         return 0
-    if args.summarize_only:
+    if args.summarize_only or args.merge:
         seen = {r["model"] for r in rows}
         models = [m for m in models if m in seen] + sorted(seen - set(models))
     blob = report(tasks, rows, models=models, k=args.k, temperature=args.temperature, base_url=args.base_url,
                   wall_s=time.time() - started, episodes_path=args.episodes, max_turns=args.max_turns,
                   benchmark=benchmark, prov=prov)
-    if args.summarize_only:
+    if args.summarize_only or args.merge:
         # device, server and wall time describe the processes that generated the episodes (the
-        # sidecar run() writes), never the environment that rescored them
+        # sidecar run() writes), never the environment that rescored them; a segment's server as it
+        # left it (ollama_after) holds the context length each loaded model ran with
         segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
         blob["device"] = segments[-1].get("device") if segments else None
-        blob["ollama"] = segments[-1].get("ollama") if segments else None
+        blob["ollama"] = (segments[-1].get("ollama_after") or segments[-1].get("ollama")) if segments else None
+        if args.merge:  # shards on different devices or servers are listed per segment, not hidden behind the last
+            devices = [seg.get("device") for seg in segments]
+            blob["device"] = devices[-1] if all(d == devices[-1] for d in devices) else {"per_segment": devices}
+            blob["ollama"] = merged_ollama([seg.get("ollama_after") or seg.get("ollama") for seg in segments])
         walls = [seg.get("wall_s") for seg in segments]
+        # summed over segments: shards that ran at the same time count each job's time
         blob["wall_s"] = round(sum(walls), 1) if walls and all(w is not None for w in walls) else None
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(blob, indent=2, ensure_ascii=False) + "\n")

@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -132,6 +132,21 @@ bench-agent-injection-v2: ## LLM-in-the-loop injection, the current task set (ag
 
 bench-agent-injection-v2-rescore: ## rebuild the current run's scores and summary from its committed episodes -> bench/results/agent_injection_v2_rescore.json, not tracked, to compare with agent_injection_v2.json (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2_rescore.json --episodes bench/results/agent_injection_v2_episodes.jsonl
+
+# agent_injection_v3: every goal in seven phrasings (any-success) and the answer check in the loop as a fourth configuration.
+# One process runs it all; the committed run was split into shards (one GPU job each) and merged.
+SHARD_MODELS ?= $(AGENT_MODELS)
+bench-agent-injection-v3: ## LLM-in-the-loop injection, phrasings scored as any-success and the in-loop answer check (agent_injection_v3), in one process -> bench/results/agent_injection_v3.json and its episodes (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v3 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v3.json --episodes bench/results/agent_injection_v3_episodes.jsonl
+
+bench-agent-injection-v3-shard: ## one shard of agent_injection_v3, SHARD=name SHARD_MODELS=... SHARD_QUESTIONS=q011,... (SHARD_FLAGS=--resume continues one) -> bench/results/agent_injection_v3_shards/, not tracked (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v3 --models $(SHARD_MODELS) $(if $(SHARD_QUESTIONS),--questions $(SHARD_QUESTIONS)) --k 4 --out bench/results/agent_injection_v3_shards/$(SHARD).json --episodes bench/results/agent_injection_v3_shards/$(SHARD)_episodes.jsonl $(SHARD_FLAGS)
+
+bench-agent-injection-v3-merge: ## merge the shards in bench/results/agent_injection_v3_shards/ into agent_injection_v3_episodes.jsonl in a fixed order and score it -> bench/results/agent_injection_v3.json (no model call)
+	$(PYTHON) -m app.eval.agent_injection --merge $(sort $(wildcard bench/results/agent_injection_v3_shards/*_episodes.jsonl)) --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v3.json --episodes bench/results/agent_injection_v3_episodes.jsonl
+
+bench-agent-injection-v3-rescore: ## rebuild agent_injection_v3's scores and summary from its committed episodes -> bench/results/agent_injection_v3_rescore.json, not tracked, to compare with agent_injection_v3.json (no model call)
+	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v3_rescore.json --episodes bench/results/agent_injection_v3_episodes.jsonl
 
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
