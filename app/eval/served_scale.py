@@ -16,11 +16,14 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
 
   files          FiQA as one file per document, <doc_id>.txt, the in-memory rows' text (beir_api.write_corpus)
   index          the deploy step first (python -m app.database.migrate: the vector table, the HNSW index on the
-                 embedding and the GIN index on the stored text_tsv, all on the empty table), timed; then
-                 app/engine/ingest.index_directory into it with the served embedder, the indexes maintained per
-                 insert: seconds (and the embedder's share), rows, rejections by reason; ANALYZE; the indexes read
-                 from pg_indexes; sizes on disk; index_directory again over the unchanged directory (what
-                 INDEX_ON_START=true costs per start)
+                 embedding and the GIN index on the stored text_tsv, all on the empty table), timed; then the
+                 build: app/engine/ingest.index_directory into it with the served embedder and the arguments the
+                 index step passes (index_data_dir), the indexes maintained per insert: seconds (and the
+                 embedder's share), rows, rejections by reason; ANALYZE; the indexes read from pg_indexes; sizes
+                 on disk; index_directory again over the unchanged directory; then the deploy order's index step
+                 itself, `python -m app.engine.ingest` in its own process with the API's settings, over the same
+                 files: it must find every file unchanged under the build's pipeline (its wall seconds are what
+                 a redeploy with no change pays before the API starts)
   startup        the API (uvicorn main:app, INDEX_ON_START unset, both models), seconds from launch to /health
                  ok, and that /health against the build (the manifest the start read, the rows); then what every
                  start reads from the database, timed here in the runner: the migration ledgers, the manifest
@@ -28,7 +31,8 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
                  the rows of chunk text those reads return counted (a start read every chunk back before M20)
   probe          a few hybrid statements and lexical-only statements, timed in this process before the replay
   replay_rerank  every test query through POST /api/retrieve/ with k = 50 and the served defaults (reranker on)
-  load           app/eval/http_load on that API: concurrency 1, 4 and 16, k = 8, failures counted
+  load           app/eval/http_load on that API: concurrency 1, 4 and 16, k = 8, failures counted; the note says
+                 whether the API had served earlier stages of this process or was started for this one
   replay_hybrid  the same replay with RERANKER_MODEL=none: the like-for-like pair of the in-memory hybrid row
   explain        EXPLAIN (ANALYZE, BUFFERS) of the served statement for three queries: which scan each leg uses
   inmemory       app/eval/beir.py's hybrid@bge-small and hybrid+bge-rerank@bge-small/fp16-512/top20 rows,
@@ -78,6 +82,7 @@ PASSES = {
     "api:hybrid": ({"RERANKER_MODEL": "none"}, "hybrid@bge-small"),
 }
 SAME_FORM_SUFFIX = "+served-query-prompt"
+REPLAY_STAGES = {"replay_rerank": "api:hybrid+rerank", "replay_hybrid": "api:hybrid"}  # stage -> the served row it replays
 QUERY_CHECK_N = 16  # queries whose served and in-memory query vectors are compared in the job
 BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"  # make bench-beir-fiqa: the committed in-memory FiQA rows
 STAGES = ("files", "index", "startup", "probe", "replay_rerank", "load", "replay_hybrid", "explain", "inmemory", "hnsw", "variants")
@@ -367,23 +372,30 @@ def query_rows_commit(vsm, statement: str) -> None:
             cur.execute(statement)
 
 
-def index_corpus(vsm, corpus_dir: Path, embed_batch: Callable[[list], list], embedder: str) -> dict:
-    """index_directory over corpus_dir into the migrated table, timed, with the embedder's own share; ANALYZE; the
-    indexes and the sizes; the unchanged re-run."""
-    from app.engine.ingest import index_directory
+def build_index(vsm, corpus_dir: Path, model, *, embed_fn: Callable[[list], list]) -> dict:
+    """index_directory over corpus_dir with the arguments app/engine/ingest.index_data_dir passes (the call of the index
+    step and of a start with INDEX_ON_START; DATA_DIR is corpus_dir in this run): the embedder's label as the manifest
+    records it, INGEST_MAX_REJECTED, the lock wait from the environment. Only embed_fn differs: model's batch call with a timer."""
+    from app.engine.ingest import embedder_label, index_directory, max_rejected_from_env
 
+    return index_directory(vsm, str(corpus_dir), embed_fn=embed_fn, embedder=embedder_label(model), max_rejected=max_rejected_from_env())
+
+
+def index_corpus(vsm, corpus_dir: Path, model) -> dict:
+    """The build (build_index) into the migrated table, timed, with the embedder's own share; ANALYZE; the indexes and the
+    sizes; the unchanged re-run."""
     spent = {"seconds": 0.0, "calls": 0, "texts": 0}
 
     def embed_fn(texts):
         started = time.perf_counter()
-        vectors = embed_batch(texts)
+        vectors = model.get_text_embedding_batch(texts)
         spent["seconds"] += time.perf_counter() - started
         spent["calls"] += 1
         spent["texts"] += len(texts)
         return vectors
 
     started = time.perf_counter()
-    report = index_directory(vsm, str(corpus_dir), embed_fn=embed_fn, embedder=embedder)
+    report = build_index(vsm, corpus_dir, model, embed_fn=embed_fn)
     seconds = time.perf_counter() - started
     embedding = dict(spent)
     started = time.perf_counter()
@@ -393,7 +405,7 @@ def index_corpus(vsm, corpus_dir: Path, embed_batch: Callable[[list], list], emb
     sizes = table_sizes(vsm)
     spent.update(seconds=0.0, calls=0, texts=0)
     started = time.perf_counter()
-    rerun = index_directory(vsm, str(corpus_dir), embed_fn=embed_fn, embedder=embedder)
+    rerun = build_index(vsm, corpus_dir, model, embed_fn=embed_fn)
     rerun_seconds = time.perf_counter() - started
     if rerun["chunks_embedded"] or rerun["files_indexed"]:
         raise RuntimeError(f"the unchanged re-run indexed files: {rerun}")
@@ -411,6 +423,27 @@ def index_corpus(vsm, corpus_dir: Path, embed_batch: Callable[[list], list], emb
         "sizes": sizes,
         "unchanged_rerun": {"seconds": round(rerun_seconds, 3), "files_unchanged": rerun["files_unchanged"], "chunks_embedded": rerun["chunks_embedded"], "embed_calls": spent["calls"]},
     }
+
+
+INDEX_STEP_FIELDS = ("files_seen", "files_indexed", "files_unchanged", "files_removed", "files_rejected", "chunks_embedded", "chunks_deleted", "n_nodes", "pipeline", "lock")
+
+
+def index_step_unchanged(env, build_report: dict, *, log_path: Path) -> dict:
+    """The deploy order's index step (app/eval/service.index_step: `python -m app.engine.ingest` in its own process, with the
+    API's settings) over the files the build just indexed. It must accept the build as current: nothing embedded, every
+    indexed file unchanged, the same rejections, rows and pipeline (chunker version and embedder label); otherwise the
+    API would serve an index that step would not have written, and the run stops here."""
+    from app.eval import service
+
+    report, seconds = service.index_step(env, cwd=ROOT, log_path=log_path)
+    expected = {"chunks_embedded": 0, "files_indexed": 0, "files_unchanged": build_report["files_indexed"], "files_rejected": build_report["files_rejected"],
+                "n_nodes": build_report["n_nodes"], "pipeline": build_report["pipeline"]}
+    found = {key: report.get(key) for key in expected}
+    if found != expected:
+        raise RuntimeError(f"the index step (python -m app.engine.ingest) did not accept the build: {found}, expected {expected}")
+    return {"command": "python -m app.engine.ingest", "seconds": round(seconds, 3), "report": {key: report.get(key) for key in INDEX_STEP_FIELDS},
+            "note": "its own process with the API's settings, after the timed build, over the unchanged files: process start, settings and embedder load, "
+                    "the migration check and the diff against the manifest, as a redeploy with no change runs it before the API"}
 
 
 def not_indexed(corpus: dict, qrels: dict, indexed_paths: set[str]) -> dict:
@@ -466,6 +499,16 @@ def startup_components(vsm) -> dict:
     counted = text_reads(vsm, start_up_reads)
     return {**out, "rows_in_table": vsm.count_nodes(), "text_statements": counted["statements"], "text_rows_read": counted["rows"],
             "note": "timed in the runner, not inside the API; before M20 a start read every chunk's text back (fetch_all_chunks) to build the clusters"}
+
+
+def check_startup_health(health: dict, build: dict) -> None:
+    """The API's /health against the index stage: the manifest it read at start lists every chunk the build wrote, under
+    the build's one pipeline, and the table holds them. A start that served another table or index would fail here."""
+    manifest = ((health.get("indexing") or {}).get("manifest_at_start")) or {}
+    expected = {"files": build["report"]["files_indexed"], "chunks": build["rows"], "pipelines": [build["report"]["pipeline"]]}
+    found = {key: manifest.get(key) for key in expected}
+    if found != expected or health.get("n_nodes") != build["rows"]:
+        raise RuntimeError(f"/health at start does not match the index stage: manifest {found}, n_nodes {health.get('n_nodes')}; expected {expected}")
 
 
 def probe(vsm, queries: list[tuple[str, str]], vectors, k: int = SERVED_K) -> dict:
@@ -567,6 +610,7 @@ class Run:
         self.pg = None
         self.api = None
         self.api_pass: str | None = None
+        self.api_served: list[str] = []  # the stages the running API served in this process, in order
         self._vsm = None
         self._embed_model = None
         self.settings = self.served_settings()
@@ -659,7 +703,7 @@ class Run:
         env = base_environment({**self.settings, **self.pg.env(), **extra})
         self.api = ApiServer(env, cwd=ROOT, log_path=self.scratch / f"api-{row.split(':')[1]}.log").start()
         health, seconds = self.api.wait_ready(timeout=self.args.api_ready_timeout)
-        self.api_pass, self.api_health = row, health
+        self.api_pass, self.api_health, self.api_served = row, health, []
         log(f"API for {row} ready in {seconds:.1f} s: n_nodes {health.get('n_nodes')}, reranker {health.get('reranker', {}).get('loaded')}")
         return self.api, health, seconds, True
 
@@ -668,6 +712,7 @@ class Run:
             self.api.stop()
             self.api = None
             self.api_pass = None
+            self.api_served = []
 
     def close(self) -> None:
         self.stop_api()
@@ -698,19 +743,22 @@ class Run:
                 raise RuntimeError("the corpus written now differs from the one the files stage recorded")
 
     def stage_index(self) -> dict:
+        from app.engine.ingest import embedder_label
         from app.eval.service import base_environment, migrate
 
         model = self.embed_model()
         pg = self.postgres()
+        env = base_environment({**self.settings, **pg.env()})  # what the API reads too (api_for)
         # the deploy step, as on a deployment: the vector table and its indexes are schema migrations, applied before
         # anything is indexed (no start-up runs DDL); on this fresh database they build the indexes on the empty table
-        migrate_seconds = migrate(base_environment({**self.settings, **pg.env()}), cwd=ROOT, log_path=self.scratch / "migrate.log")
+        migrate_seconds = migrate(env, cwd=ROOT, log_path=self.scratch / "migrate.log")
         vsm = self.vsm()
         if vsm.count_nodes():  # an interrupted index stage leaves rows: index_directory would resume, and the timing would be partial
             raise RuntimeError("the database already holds rows; the index stage measures a build from empty: use a fresh --scratch")
-        label = str(getattr(model, "model_name", "") or type(model).__name__)  # what app/engine/bootstrap.py passes
-        blob = {"embedder": label, "server": server_facts(vsm), "migrate_seconds": round(migrate_seconds, 3), "migrations": applied_migrations(vsm),
-                **index_corpus(vsm, self.corpus_dir, model.get_text_embedding_batch, label)}
+        blob = {"embedder": embedder_label(model), "server": server_facts(vsm), "migrate_seconds": round(migrate_seconds, 3), "migrations": applied_migrations(vsm),
+                **index_corpus(vsm, self.corpus_dir, model)}
+        # then the index step the deploy order runs before the API, over the same files, before the snapshot and the restart
+        blob["index_step"] = index_step_unchanged(env, blob["report"], log_path=self.scratch / "index-step.log")
         blob["not_indexed"] = not_indexed(self.corpus, self.qrels, set(vsm.ingest_manifest()))
         if self.args.snapshot:
             self.snapshot()
@@ -732,6 +780,8 @@ class Run:
 
     def stage_startup(self) -> dict:
         _, health, seconds, _ = self.api_for("api:hybrid+rerank")
+        check_startup_health(health, self.done("index"))
+        self.api_served.append("startup")
         components = startup_components(self.vsm())
         log(f"start-up components: {components}")
         return {"api": {"seconds_to_health_ok": round(seconds, 3), "row": "api:hybrid+rerank", "index_on_start": "unset (false)", "health": health},
@@ -757,16 +807,19 @@ class Run:
                 log(f"{row} {i + 1}/{len(self.queries)} {r['id']} status {r['status']} route {r.get('route')} docs {r['n_docs']} e2e {r['e2e_ms']:.0f} ms {r.get('error') or ''}")
 
         rows = replay(lambda text, k: post_retrieve(api.url, text, k, timeout=timeout), self.queries, self.qrels, k=SERVED_K, progress=progress)
+        self.api_served.append(next(stage for stage, served in REPLAY_STAGES.items() if served == row))
         return {"row": row, "api_env": PASSES[row][0], "health": health, "api_started_for_this_stage": started, "api_seconds_to_health_ok": round(seconds, 3) if started else None, "rows": rows}
 
     def stage_load(self) -> dict:
         from app.eval.http_load import run_load
 
-        api, _, _, _ = self.api_for("api:hybrid+rerank")
+        api, _, _, started = self.api_for("api:hybrid+rerank")
+        before = "the API was started for this stage" if started else f"the API had served {', '.join(self.api_served)} in this process, without a restart"
         queries = list(self.queries.items())
         report = asyncio.run(run_load(api.url, queries, concurrency_levels=self.args.load_levels, requests_per_level=self.args.load_requests, warmup_requests=4, timeout=self.args.request_timeout,
                                       require_reranker=not self.hash, require_device=self.args.device if self.args.device == "cuda" else None))
-        report["workload_note"] = f"the first {min(len(queries), self.args.load_requests)} test queries by id, in order, cycled per level; one cold probe and 4 warm-ups excluded; the service had just served the replay"
+        report["workload_note"] = f"the first {min(len(queries), self.args.load_requests)} test queries by id, in order, cycled per level; one cold probe and 4 warm-ups excluded; {before}"
+        self.api_served.append("load")
         return {"report": report}
 
     def stage_explain(self) -> dict:
@@ -875,7 +928,7 @@ class Run:
                 log(f"{stage}: start")
                 started = time.perf_counter()
                 method = getattr(self, f"stage_{stage}", None)
-                blob = method() if method else self.stage_replay("api:hybrid+rerank" if stage == "replay_rerank" else "api:hybrid")
+                blob = method() if method else self.stage_replay(REPLAY_STAGES[stage])
                 blob["stage_seconds"] = round(time.perf_counter() - started, 3)
                 self.save(stage, blob)
                 log(f"{stage}: done in {blob['stage_seconds']:.0f} s")
@@ -941,7 +994,9 @@ def assemble(run: Run) -> dict:
     idx = resample_indices(len(run.queries), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED)
     build = stages["index"]
     blob: dict[str, Any] = {
-        "schema": "served-scale-v2",  # v2: the schema migrations build the table and its indexes before index_directory
+        # v2: the schema migrations build the table and its indexes before index_directory. v3 (M20): the deploy order's index
+        # step runs over the built files (build.index_step), and the start-up reads the manifest, not every chunk (startup.components)
+        "schema": "served-scale-v3",
         "measurement": "BEIR FiQA indexed by the served indexer into Postgres + pgvector and scored through POST /api/retrieve/, paired with the in-memory BEIR rows on the same queries in the same job",
         **run.identity,
         "n_docs": len(run.corpus), "n_queries": len(run.queries), "full_split": run.full, "query_selection": run.selection,
@@ -1048,7 +1103,7 @@ def assemble_hnsw(run: Run) -> dict:
     return scrub(blob)
 
 
-def main(argv: list[str] | None = None) -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data-dir", type=Path, default=ROOT / "bench" / "external")
     p.add_argument("--container", type=Path, required=True, help="Apptainer image with PostgreSQL 16 and pgvector")
@@ -1076,6 +1131,11 @@ def main(argv: list[str] | None = None) -> int:
     unknown = [s for s in args.stages if s not in STAGES]
     if unknown:
         p.error(f"unknown stages {unknown}; known: {', '.join(STAGES)}")
+    return args
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     run = Run(args)
     written = run.run()
     for name, target in (("served", args.out), ("hnsw", args.hnsw_out)):

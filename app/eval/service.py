@@ -5,8 +5,9 @@
         with ApiServer(env, cwd=repo_root, log_path=root / "api.log") as api:
             health, seconds = api.wait_ready()               # uvicorn main:app on 127.0.0.1:<free port>
 
-Used inside a Slurm job (scripts/revamp_http_service.py, app/eval/served_scale.py), where there is no
-Docker. The server's data directory, its socket and its log stay under `root`, a directory the caller
+migrate() and index_step() run the deploy order's two steps before the API (`python -m app.database.migrate`, then
+`python -m app.engine.ingest`). Used inside a Slurm job (scripts/revamp_http_service.py, app/eval/served_scale.py),
+where there is no Docker. The server's data directory, its socket and its log stay under `root`, a directory the caller
 chooses (node-local scratch in a job). Apptainer gets exactly that directory, resolved, as its only
 bind: no path is written into the code. The connection strings name no user: libpq (and asyncpg)
 default to the account that ran initdb, so neither the environment nor a results file needs the
@@ -209,6 +210,20 @@ def migrate(env: Mapping[str, str], *, cwd: Path, log_path: Path | None = None, 
         with Path(log_path).open("a") as log:
             subprocess.run(command, cwd=cwd, env=dict(env), check=True, stdout=log, stderr=subprocess.STDOUT)
     return time.monotonic() - started
+
+
+def index_step(env: Mapping[str, str], *, cwd: Path, log_path: Path, python: str | None = None) -> tuple[dict, float]:
+    """The index step, `python -m app.engine.ingest` (make index), against the database and DATA_DIR `env` names: the deploy
+    order runs it after the schema migrations and before the API, which does not index (INDEX_ON_START unset). Returns
+    (the report it prints as its last line on stdout, its wall seconds); its log (stderr) goes to log_path. Raises
+    CalledProcessError when it exits non-zero (it does on any indexing failure)."""
+    command = [python or sys.executable, "-m", "app.engine.ingest"]
+    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+    started = time.monotonic()
+    with Path(log_path).open("a") as log:
+        result = subprocess.run(command, cwd=cwd, env=dict(env), check=True, stdout=subprocess.PIPE, stderr=log, text=True)
+    seconds = time.monotonic() - started
+    return json.loads(result.stdout.strip().splitlines()[-1]), seconds
 
 
 def base_environment(extra: Mapping[str, str] | None = None) -> dict[str, str]:

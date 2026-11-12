@@ -135,6 +135,33 @@ def test_migrate_runs_the_deploy_step_against_the_given_environment(tmp_path, mo
     assert (tmp_path / "logs" / "migrate.log").exists()
 
 
+def test_index_step_runs_the_index_command_and_returns_its_report(tmp_path, monkeypatch):
+    """The deploy order's index step, `python -m app.engine.ingest`: its report is the last line it prints."""
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        kwargs["stderr"].write("Indexing report: ...\n")
+        return subprocess.CompletedProcess(command, 0, stdout='{"chunks_embedded": 0, "files_unchanged": 3}\n')
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    env = {"PG_CONNECTION_STRING": "postgresql://127.0.0.1:5/x", "DATA_DIR": str(tmp_path)}
+    report, seconds = service.index_step(env, cwd=tmp_path, log_path=tmp_path / "logs" / "index.log")
+    ((command, kwargs),) = calls
+    assert command[1:] == ["-m", "app.engine.ingest"] and kwargs["cwd"] == tmp_path and kwargs["check"] is True and kwargs["env"] == env
+    assert report == {"chunks_embedded": 0, "files_unchanged": 3} and seconds >= 0.0
+    assert "Indexing report" in (tmp_path / "logs" / "index.log").read_text()
+
+
+def test_index_step_raises_when_the_command_fails(tmp_path, monkeypatch):
+    def fake_run(command, **kwargs):
+        raise subprocess.CalledProcessError(1, command)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(subprocess.CalledProcessError):
+        service.index_step({}, cwd=tmp_path, log_path=tmp_path / "index.log")
+
+
 def test_http_service_script_applies_the_migrations_before_the_api_starts(tmp_path, monkeypatch):
     """The deploy step comes first: the API refuses to start while a schema migration is pending."""
     data = tmp_path / "corpus"

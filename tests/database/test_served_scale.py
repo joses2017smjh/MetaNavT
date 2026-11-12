@@ -4,18 +4,21 @@ Needs a live Postgres with pgvector (PG_TEST_DSN); skipped otherwise. The corpus
 the run writes FiQA (one <doc_id>.txt per document, beir_api.write_corpus), indexed through the served
 indexer with the hash embedder into a temporary table the schema migrations created (as the deploy step
 does), and the stages' helpers are run against it: the build, the indexes read from the catalog and the
-sizes, the unchanged re-run, the documents the scanner rejected, what start-up reads (the manifest, no
-chunk text), the probe and the plan facts.
+sizes, the unchanged re-run, the deploy order's index step (`python -m app.engine.ingest`, a child process)
+over the same files, the documents the scanner rejected, what start-up reads (the manifest, no chunk text),
+the probe and the plan facts.
 """
 
 import os
 import types
 import uuid
+from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.skipif(not os.environ.get("PG_TEST_DSN"), reason="PG_TEST_DSN not set")
 
+ROOT = Path(__file__).resolve().parents[2]
 DIM = 64
 LONG = " ".join(f"word{i} returns dividends" for i in range(120))  # well over one 512-character window
 CORPUS = {"1": "index funds and expense ratios", "2": "", "3": "roth ira conversion rules", "4": "roth ira conversion rules", "5": LONG}
@@ -29,6 +32,7 @@ def indexed(tmp_path_factory):
     os.environ.update(PG_CONNECTION_STRING=dsn, PSYCOPG2_CONNECTION_STRING=dsn, PGVECTOR_TABLE="scaletest_" + uuid.uuid4().hex[:8], EMBEDDING_DIM=str(DIM))
     from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
+    from app.engine.embeddings import HashEmbedding
     from app.eval import served_scale
     from app.eval.beir_api import write_corpus
     from app.retrieval.embedders import HashEmbedder
@@ -38,9 +42,9 @@ def indexed(tmp_path_factory):
     vsm = VectorStoreManager(conn_string=dsn)
     with vsm.get_connection() as conn:
         migrate_all(conn, vsm.vector_table)  # the deploy step: the table, the manifest, the GIN and HNSW indexes, on the empty table
-    emb = HashEmbedder(DIM)
-    blob = served_scale.index_corpus(vsm, corpus_dir, lambda texts: emb.encode(texts).tolist(), "hash-64")
-    yield vsm, blob, emb
+    emb = HashEmbedder(DIM)  # the vectors of the app's hash embedding (app/engine/embeddings.HashEmbedding wraps it)
+    blob = served_scale.index_corpus(vsm, corpus_dir, HashEmbedding(DIM))
+    yield vsm, blob, emb, corpus_dir
     with vsm.get_connection() as conn:
         drop_vector_table(conn, vsm.vector_table)
     vsm.close()
@@ -52,12 +56,13 @@ def indexed(tmp_path_factory):
 
 
 def test_build_counts_rejections_and_reads_the_migrated_indexes(indexed):
-    vsm, blob, _ = indexed
+    vsm, blob, _, _ = indexed
     report = blob["report"]
     assert report["files_seen"] == 5 and report["files_indexed"] == 3
     assert report["rejected_by_reason"]["empty"] == 1 and report["rejected_by_reason"]["duplicate_content"] == 1
     assert blob["rows"] == report["chunks_embedded"] > 3  # the long document is split
     assert blob["embedding"]["texts"] == report["chunks_embedded"] and blob["embedding"]["calls"] == 3  # one embed call per file
+    assert report["pipeline"].endswith("|hash-64")  # the label app/engine/ingest.embedder_label gives the app's hash embedding
     ddl, names = blob["indexes_ddl"], blob["index_names"]
     assert "USING hnsw (embedding vector_cosine_ops)" in ddl[names["hnsw"]] and "USING gin (text_tsv)" in ddl[names["text_index"]]
     assert names["hnsw"].endswith("_embedding_hnsw_m16_efc64")  # the migration's name, read from the catalog
@@ -73,7 +78,7 @@ def test_build_counts_rejections_and_reads_the_migrated_indexes(indexed):
 def test_rejected_documents_are_named_with_the_queries_that_judge_them(indexed):
     from app.eval import served_scale
 
-    vsm, _, _ = indexed
+    vsm, _, _, _ = indexed
     missing = served_scale.not_indexed(CORPUS, QRELS, set(vsm.ingest_manifest()))
     assert missing == {"n": 2, "ids": ["2", "4"], "judged": ["2"], "queries": ["q2"]}  # 4.txt repeats 3.txt, which is scanned first
 
@@ -82,7 +87,7 @@ def test_start_up_reads_the_manifest_and_no_chunk_text(indexed):
     """Since M20 a start builds the version clusters from the manifest; before, it read every chunk's text back."""
     from app.eval import served_scale
 
-    vsm, blob, _ = indexed
+    vsm, blob, _, _ = indexed
     parts = served_scale.startup_components(vsm)
     assert parts["text_rows_read"] == 0 and parts["text_statements"] == 0
     assert parts["manifest"]["files"] == blob["report"]["files_indexed"] == 3
@@ -98,7 +103,7 @@ def test_the_text_read_count_sees_a_statement_that_reads_chunk_text(indexed):
 
     from app.eval import served_scale
 
-    vsm, blob, _ = indexed
+    vsm, blob, _, _ = indexed
 
     def read_text(manager):
         with manager.get_connection() as conn:
@@ -113,7 +118,7 @@ def test_the_text_read_count_sees_a_statement_that_reads_chunk_text(indexed):
 def test_probe_and_plan_facts_on_the_served_statement(indexed):
     from app.eval import served_scale
 
-    vsm, blob, emb = indexed
+    vsm, blob, emb, _ = indexed
     queries = [("q1", "index funds"), ("q3", "returns dividends")]
     result = served_scale.probe(vsm, queries, emb.encode([t for _, t in queries]), k=5)
     assert [r["id"] for r in result["queries"]] == ["q1", "q3"]
@@ -128,7 +133,7 @@ def test_probe_and_plan_facts_on_the_served_statement(indexed):
 def test_index_stage_refuses_a_table_that_already_has_rows(indexed, tmp_path, monkeypatch):
     from app.eval import served_scale, service
 
-    vsm, _, _ = indexed
+    vsm, _, _, _ = indexed
     monkeypatch.setattr(service, "migrate", lambda env, **kwargs: 0.0)  # the fixture's migrate_all was the deploy step
 
     class Stub(served_scale.Run):
@@ -146,3 +151,20 @@ def test_index_stage_refuses_a_table_that_already_has_rows(indexed, tmp_path, mo
 
     with pytest.raises(RuntimeError, match="already holds rows"):
         Stub().stage_index()
+
+
+def test_the_deploy_orders_index_step_accepts_the_build(indexed, tmp_path):
+    """`python -m app.engine.ingest`, in its own process with the settings an API of this table reads, finds every file the
+    timed build indexed unchanged under the same pipeline: the build wrote what the deploy order's index step writes."""
+    from app.eval import served_scale
+    from app.eval.service import base_environment
+
+    vsm, blob, _, corpus_dir = indexed
+    env = base_environment({"PG_CONNECTION_STRING": os.environ["PG_CONNECTION_STRING"], "PSYCOPG2_CONNECTION_STRING": vsm.conn_string,
+                            "PGVECTOR_TABLE": os.environ["PGVECTOR_TABLE"], "EMBEDDING_DIM": str(DIM), "EMBEDDING_PROVIDER": "hash",
+                            "MODEL_PROVIDER": "ollama", "RERANKER_MODEL": "none", "DATA_DIR": str(corpus_dir), "PYTHONPATH": str(ROOT)})
+    for name in ("PGVECTOR_SCHEMA", "LEXICAL_BACKEND", "INGEST_SUFFIXES", "INGEST_MAX_FILE_BYTES", "INGEST_MAX_REJECTED"):
+        env.pop(name, None)
+    out = served_scale.index_step_unchanged(env, blob["report"], log_path=tmp_path / "index-step.log")
+    assert out["report"]["files_unchanged"] == 3 and out["report"]["chunks_embedded"] == 0 and out["report"]["pipeline"] == blob["report"]["pipeline"]
+    assert out["seconds"] > 0 and vsm.count_nodes() == blob["rows"]

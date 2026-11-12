@@ -296,3 +296,99 @@ def test_git_dirty_ignores_the_files_the_run_writes(tmp_path):
     assert served_scale.git_dirty(tmp_path) is False
     (tmp_path / "code.py").write_text("x = 2\n")
     assert served_scale.git_dirty(tmp_path) is True
+
+
+BUILD_REPORT = {"files_indexed": 3, "files_rejected": 2, "chunks_embedded": 7, "n_nodes": 7, "pipeline": "app.chunking/auto/v2|hash-64"}
+
+
+def test_the_deploy_orders_index_step_must_accept_the_build(tmp_path, monkeypatch):
+    """After the timed build, `python -m app.engine.ingest` (the step a deployment runs before the API) runs over the same
+    files: it must find nothing to embed under the same pipeline, or the API would serve an index that step would not have written."""
+    from app.eval import service
+
+    answer = {}
+    monkeypatch.setattr(service, "index_step", lambda env, **kwargs: (dict(answer), 12.3456))
+    answer.update(chunks_embedded=0, files_indexed=0, files_unchanged=3, files_rejected=2, n_nodes=7, pipeline=BUILD_REPORT["pipeline"], data_dir="/somewhere")
+    out = served_scale.index_step_unchanged({}, BUILD_REPORT, log_path=tmp_path / "index-step.log")
+    assert out["seconds"] == 12.346 and out["command"] == "python -m app.engine.ingest"
+    assert out["report"]["files_unchanged"] == 3 and out["report"]["chunks_embedded"] == 0
+    for change in ({"chunks_embedded": 2, "files_indexed": 1}, {"pipeline": "app.chunking/auto/v2|hash-32"}, {"files_unchanged": 2}, {"n_nodes": 6}):
+        answer.update(change)
+        with pytest.raises(RuntimeError, match="index step"):
+            served_scale.index_step_unchanged({}, BUILD_REPORT, log_path=tmp_path / "index-step.log")
+        answer.update(chunks_embedded=0, files_indexed=0, files_unchanged=3, n_nodes=7, pipeline=BUILD_REPORT["pipeline"])
+
+
+def test_the_build_passes_the_arguments_the_index_step_passes(tmp_path, monkeypatch):
+    """The timed build calls index_directory as app/engine/ingest.index_data_dir does (the call of the index step and of a
+    start with INDEX_ON_START): the same directory, embedder label and rejection limit; only embed_fn is wrapped by a timer."""
+    from llama_index.core.settings import Settings
+
+    from app.engine import ingest
+    from app.engine.embeddings import HashEmbedding
+
+    calls = []
+    monkeypatch.setattr(ingest, "index_directory", lambda vsm, data_dir, **kwargs: calls.append((data_dir, kwargs)) or {})
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("INGEST_MAX_REJECTED", "7")
+    model = HashEmbedding(8)
+    monkeypatch.setattr(Settings, "_embed_model", model)
+    ingest.index_data_dir(object())
+    served_scale.build_index(object(), tmp_path, model, embed_fn=lambda texts: [])
+    (step_dir, step), (build_dir, build) = calls
+    assert step_dir == build_dir == str(tmp_path)
+
+    def same(kwargs):
+        return {k: v for k, v in kwargs.items() if k != "embed_fn" and v is not None}
+
+    assert same(build) == same(step) == {"embedder": "hash-8", "max_rejected": 7}
+
+
+def test_start_up_health_must_list_what_the_build_wrote():
+    build = {"rows": 7, "report": BUILD_REPORT}
+    health = {"n_nodes": 7, "indexing": {"indexed": False, "manifest_at_start": {"files": 3, "chunks": 7, "pipelines": [BUILD_REPORT["pipeline"]]}}}
+    served_scale.check_startup_health(health, build)
+    for bad in ({"n_nodes": 6}, {"indexing": {"indexed": False, "reason": "INDEX_ON_START not set"}},  # an API from before M20 reports no manifest
+                {"indexing": {"manifest_at_start": {"files": 3, "chunks": 7, "pipelines": ["app.chunking/auto/v2|other"]}}},
+                {"indexing": {"manifest_at_start": {"files": 2, "chunks": 7, "pipelines": [BUILD_REPORT["pipeline"]]}}}):
+        with pytest.raises(RuntimeError, match="does not match the index stage"):
+            served_scale.check_startup_health({**health, **bad}, build)
+
+
+def test_the_load_note_says_whether_the_api_had_just_served_the_replay(tmp_path, monkeypatch):
+    """The note was typed ("the service had just served the replay"); a resumed run that starts the API for the load stage
+    would have carried it too. It now comes from what the running API served in this process."""
+    from app.eval import beir_api, http_load, service
+
+    class Api:
+        url = "http://127.0.0.1:1"
+
+        def __init__(self, env, **kwargs):
+            pass
+
+        def start(self):
+            return self
+
+        def wait_ready(self, timeout):
+            return {"n_nodes": 1, "reranker": {"loaded": False}}, 0.25
+
+        def stop(self):
+            pass
+
+    async def fake_load(url, queries, **kwargs):
+        return {"runs": []}
+
+    monkeypatch.setattr(service, "ApiServer", Api)
+    monkeypatch.setattr(http_load, "run_load", fake_load)
+    monkeypatch.setattr(beir_api, "replay", lambda post, queries, qrels, **kwargs: [])
+    def fake_postgres(self):
+        self.pg = types.SimpleNamespace(env=lambda: {}, stop=lambda: None)
+        return self.pg
+
+    monkeypatch.setattr(served_scale.Run, "postgres", fake_postgres)
+    run = served_scale.Run(served_scale.parse_args(args_for(tmp_path, "--embedder", "hash", "--device", "cpu")))
+    assert run.stage_load()["report"]["workload_note"].endswith("; the API was started for this stage")  # a resumed run
+    run.stop_api()
+    run.stage_replay("api:hybrid+rerank")  # starts the API, as the replay stage of a full run does
+    assert run.stage_load()["report"]["workload_note"].endswith("; the API had served replay_rerank in this process, without a restart")
+    run.close()
