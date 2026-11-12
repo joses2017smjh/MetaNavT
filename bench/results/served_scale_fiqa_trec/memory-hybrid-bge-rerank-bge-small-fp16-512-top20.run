@@ -16999,8 +16999,8 @@
 5331 Q0 24563 49 2 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 5331 Q0 313186 50 1 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 5343 Q0 184365 1 50 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
-5343 Q0 346166 2 49 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
-5343 Q0 118383 3 48 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
+5343 Q0 118383 2 49 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
+5343 Q0 346166 3 48 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 5343 Q0 486729 4 47 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 5343 Q0 70185 5 46 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 5343 Q0 79542 6 45 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
@@ -24083,8 +24083,8 @@
 7221 Q0 487918 33 18 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 7221 Q0 90372 34 17 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 7221 Q0 455891 35 16 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
-7221 Q0 120288 36 15 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
-7221 Q0 559686 37 14 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
+7221 Q0 559686 36 15 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
+7221 Q0 120288 37 14 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 7221 Q0 355871 38 13 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 7221 Q0 578078 39 12 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 7221 Q0 143334 40 11 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
@@ -32060,8 +32060,8 @@
 9871 Q0 294297 10 41 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 9871 Q0 553288 11 40 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 9871 Q0 583903 12 39 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
-9871 Q0 362035 13 38 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
-9871 Q0 360440 14 37 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
+9871 Q0 360440 13 38 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
+9871 Q0 362035 14 37 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 9871 Q0 76562 15 36 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 9871 Q0 56342 16 35 memory-hybrid-bge-rerank-bge-small-fp16-512-top20
 9871 Q0 124479 17 34 memory-hybrid-bge-rerank-bge-small-fp16-512-top20

@@ -1,5 +1,5 @@
 {
- "schema": "pgvector-hnsw-v1",
+ "schema": "pgvector-hnsw-v2",
  "measurement": "pgvector's HNSW index against the exact scan, then halfvec and binary + rescore against float32, on the table the served indexer built from FiQA with bge-small, queried with the served query embedding of every test query",
  "dataset": "BEIR/fiqa",
  "split": "test",
@@ -14,7 +14,7 @@
   "dim": 384,
   "embedder": "BAAI/bge-small-en-v1.5",
   "vectors": "the chunk vectors app/engine/ingest.index_directory wrote (the same run as bench/results/served_scale_fiqa.json)",
-  "bytes": 354353152,
+  "bytes": 418127872,
   "avg_embedding_bytes": 1540.0
  },
  "queries": {
@@ -22,13 +22,14 @@
   "embedding": "the served query embedding (LlamaIndex HuggingFaceEmbedding with its query prompt for bge-small)"
  },
  "index": {
-  "name": "llamaindex_embedding_embedding_hnsw",
-  "ddl": "CREATE INDEX llamaindex_embedding_embedding_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')",
+  "name": "llamaindex_embedding_embedding_hnsw_m16_efc64",
+  "ddl": "CREATE INDEX llamaindex_embedding_embedding_hnsw_m16_efc64 ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')",
   "m": 16,
   "ef_construction": 64,
-  "build_seconds": 65.579,
   "bytes": 239943680,
-  "built_by": "VectorStoreManager.ensure_hnsw (what the API's start-up runs), after every row was inserted"
+  "built_by": "the schema migrations (app/database/migrations/vector/) on the empty table, then index_directory's inserts, row by row: the served build, which the rows below read",
+  "reindex_seconds": 123.448,
+  "reindex_note": "a bulk rebuild (REINDEX) of the same index on the final table, after the variants step's VACUUM; the variants rows read the rebuilt indexes"
  },
  "server": {
   "postgres": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2)",
@@ -60,9 +61,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 179.064,
-    "p95_ms": 196.643,
-    "mean_ms": 179.994
+    "p50_ms": 254.518,
+    "p95_ms": 261.76,
+    "mean_ms": 255.693
    },
    "recall@10": {
     "mean": 1.0
@@ -76,14 +77,14 @@
    "ef_search": 40,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9349,
-    "lo": 0.9259,
-    "hi": 0.9437
+    "mean": 0.9361,
+    "lo": 0.9272,
+    "hi": 0.9454
    },
    "recall@50": {
-    "mean": 0.777,
-    "lo": 0.7719,
-    "hi": 0.7816
+    "mean": 0.7771,
+    "lo": 0.7723,
+    "hi": 0.7815
    },
    "queries_with_full_recall@50": 0,
    "rows_returned": {
@@ -93,11 +94,11 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 2.842,
-    "p95_ms": 3.842,
-    "mean_ms": 2.86
+    "p50_ms": 3.163,
+    "p95_ms": 4.45,
+    "mean_ms": 3.216
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
     "enable_seqscan": "off",
     "hnsw.ef_search": 40,
@@ -109,16 +110,16 @@
    "ef_search": 64,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9606,
-    "lo": 0.9539,
-    "hi": 0.9674
+    "mean": 0.962,
+    "lo": 0.9554,
+    "hi": 0.9685
    },
    "recall@50": {
-    "mean": 0.9117,
-    "lo": 0.9049,
-    "hi": 0.9184
+    "mean": 0.9118,
+    "lo": 0.9052,
+    "hi": 0.9183
    },
-   "queries_with_full_recall@50": 88,
+   "queries_with_full_recall@50": 87,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -126,11 +127,11 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 3.792,
-    "p95_ms": 5.315,
-    "mean_ms": 3.841
+    "p50_ms": 4.251,
+    "p95_ms": 6.033,
+    "mean_ms": 4.317
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
     "enable_seqscan": "off",
     "hnsw.ef_search": 64,
@@ -142,16 +143,16 @@
    "ef_search": 100,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9727,
-    "lo": 0.967,
-    "hi": 0.9784
+    "mean": 0.9745,
+    "lo": 0.9693,
+    "hi": 0.9799
    },
    "recall@50": {
     "mean": 0.9449,
-    "lo": 0.9394,
-    "hi": 0.9499
+    "lo": 0.9396,
+    "hi": 0.9498
    },
-   "queries_with_full_recall@50": 172,
+   "queries_with_full_recall@50": 171,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -159,11 +160,11 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 3.974,
-    "p95_ms": 5.614,
-    "mean_ms": 4.038
+    "p50_ms": 5.396,
+    "p95_ms": 7.866,
+    "mean_ms": 5.524
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
     "enable_seqscan": "off",
     "hnsw.ef_search": 100,
@@ -180,11 +181,11 @@
     "hi": 0.9931
    },
    "recall@50": {
-    "mean": 0.9776,
-    "lo": 0.9748,
-    "hi": 0.9802
+    "mean": 0.9782,
+    "lo": 0.9754,
+    "hi": 0.9809
    },
-   "queries_with_full_recall@50": 349,
+   "queries_with_full_recall@50": 350,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -192,11 +193,11 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 6.153,
-    "p95_ms": 8.667,
-    "mean_ms": 6.247
+    "p50_ms": 8.215,
+    "p95_ms": 12.171,
+    "mean_ms": 8.347
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
     "enable_seqscan": "off",
     "hnsw.ef_search": 200,
@@ -208,16 +209,16 @@
    "ef_search": 400,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9965,
-    "lo": 0.9946,
-    "hi": 0.998
+    "mean": 0.9968,
+    "lo": 0.9951,
+    "hi": 0.9981
    },
    "recall@50": {
-    "mean": 0.9914,
-    "lo": 0.9901,
-    "hi": 0.9927
+    "mean": 0.9919,
+    "lo": 0.9906,
+    "hi": 0.9931
    },
-   "queries_with_full_recall@50": 477,
+   "queries_with_full_recall@50": 484,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -225,11 +226,11 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 10.576,
-    "p95_ms": 16.089,
-    "mean_ms": 10.914
+    "p50_ms": 13.58,
+    "p95_ms": 20.573,
+    "mean_ms": 14.017
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
     "enable_seqscan": "off",
     "hnsw.ef_search": 400,
@@ -241,16 +242,16 @@
    "ef_search": 1000,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9986,
-    "lo": 0.9975,
-    "hi": 0.9994
+    "mean": 0.9989,
+    "lo": 0.998,
+    "hi": 0.9997
    },
    "recall@50": {
-    "mean": 0.998,
-    "lo": 0.9974,
-    "hi": 0.9986
+    "mean": 0.9982,
+    "lo": 0.9976,
+    "hi": 0.9987
    },
-   "queries_with_full_recall@50": 595,
+   "queries_with_full_recall@50": 600,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -258,11 +259,11 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 23.807,
-    "p95_ms": 35.451,
-    "mean_ms": 24.439
+    "p50_ms": 25.289,
+    "p95_ms": 39.114,
+    "mean_ms": 26.478
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
     "enable_seqscan": "off",
     "hnsw.ef_search": 1000,
@@ -276,16 +277,16 @@
     "hnsw.iterative_scan": "strict_order"
    },
    "recall@10": {
-    "mean": 0.9727,
-    "lo": 0.967,
-    "hi": 0.9784
+    "mean": 0.9745,
+    "lo": 0.9693,
+    "hi": 0.9799
    },
    "recall@50": {
     "mean": 0.9449,
-    "lo": 0.9394,
-    "hi": 0.9499
+    "lo": 0.9396,
+    "hi": 0.9498
    },
-   "queries_with_full_recall@50": 172,
+   "queries_with_full_recall@50": 171,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -293,22 +294,22 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 5.022,
-    "p95_ms": 7.449,
-    "mean_ms": 5.1
+    "p50_ms": 5.953,
+    "p95_ms": 8.431,
+    "mean_ms": 6.029
    },
-   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "forced": false,
    "reads": "100 rows from the scan, keeps 50 (app/database/sql/hybrid_tsrank.sql)"
   }
  ],
  "variants": {
-  "what": "VectorStoreManager.ensure_halfvec and ensure_binary on the same table after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); then float32 and halfvec at the same ef_search, and binary candidates rescored by float32 cosine (hnsw.ef_search set to the candidate depth, at most 1000)",
+  "what": "a halfvec and a bit copy of the embedding column with their HNSW indexes (app/retrieval/pgvector_tune.py HALFVEC_SQL, BINARY_SQL; the measurement's own DDL on this task-local table, not a schema migration) after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); then float32 and halfvec at the same ef_search, and binary candidates rescored by float32 cosine (hnsw.ef_search set to the candidate depth, at most 1000)",
   "machine": {
    "device": "cuda",
-   "device_name": "NVIDIA A40",
-   "gpu_memory_gb": 44.5,
-   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "device_name": "NVIDIA GeForce RTX 2080 Ti",
+   "gpu_memory_gb": 10.6,
+   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -316,24 +317,29 @@
   },
   "k": 50,
   "indexes": {
-   "float32": "llamaindex_embedding_embedding_hnsw",
-   "halfvec": "llamaindex_embedding_embedding_half_hnsw",
-   "binary": "llamaindex_embedding_embedding_bit_hnsw"
+   "float32": "llamaindex_embedding_embedding_hnsw_m16_efc64",
+   "halfvec": "data_llamaindex_embedding_embedding_half_hnsw",
+   "binary": "data_llamaindex_embedding_embedding_bit_hnsw"
+  },
+  "indexes_ddl": {
+   "llamaindex_embedding_embedding_hnsw_m16_efc64": "CREATE INDEX llamaindex_embedding_embedding_hnsw_m16_efc64 ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')",
+   "data_llamaindex_embedding_embedding_half_hnsw": "CREATE INDEX data_llamaindex_embedding_embedding_half_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding_half halfvec_cosine_ops) WITH (m='16', ef_construction='64')",
+   "data_llamaindex_embedding_embedding_bit_hnsw": "CREATE INDEX data_llamaindex_embedding_embedding_bit_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding_bit bit_hamming_ops)"
   },
   "build_seconds": {
-   "ensure_halfvec": 352.254,
-   "ensure_binary": 580.354,
-   "vacuum_analyze": 15.271,
-   "reindex_float32": 70.303,
-   "reindex_halfvec": 41.143,
-   "reindex_binary": 20.044
+   "add_halfvec": 464.725,
+   "add_binary": 997.365,
+   "vacuum_analyze": 28.122,
+   "reindex_float32": 123.448,
+   "reindex_halfvec": 78.958,
+   "reindex_binary": 30.499
   },
   "sizes_before": {
    "rows": 117212,
-   "heap_bytes": 159522816,
-   "table_bytes_with_toast": 354353152,
-   "indexes_bytes": 271212544,
-   "total_bytes": 625565696,
+   "heap_bytes": 211337216,
+   "table_bytes_with_toast": 418127872,
+   "indexes_bytes": 274153472,
+   "total_bytes": 692281344,
    "indexes": {
     "data_llamaindex_embedding_path_idx": {
      "method": "btree",
@@ -343,11 +349,11 @@
      "method": "btree",
      "bytes": 2646016
     },
-    "data_llamaindex_embedding_text_tsv_gin": {
+    "data_llamaindex_embedding_text_tsv_english_gin": {
      "method": "gin",
-     "bytes": 23478272
+     "bytes": 26394624
     },
-    "llamaindex_embedding_embedding_hnsw": {
+    "llamaindex_embedding_embedding_hnsw_m16_efc64": {
      "method": "hnsw",
      "bytes": 239943680
     },
@@ -359,54 +365,56 @@
    "avg_column_bytes": {
     "id": 8.0,
     "text": 403.6,
-    "metadata_": 795.4,
+    "metadata_": 795.0,
     "node_id": 41.0,
-    "embedding": 1540.0
+    "embedding": 1540.0,
+    "text_tsv": 454.9
    }
   },
   "sizes_after": {
    "rows": 117212,
-   "heap_bytes": 552140800,
-   "table_bytes_with_toast": 826572800,
-   "indexes_bytes": 489955328,
-   "total_bytes": 1316528128,
+   "heap_bytes": 648077312,
+   "table_bytes_with_toast": 966483968,
+   "indexes_bytes": 493395968,
+   "total_bytes": 1459879936,
    "indexes": {
-    "data_llamaindex_embedding_path_idx": {
-     "method": "btree",
-     "bytes": 5111808
-    },
-    "data_llamaindex_embedding_pkey": {
-     "method": "btree",
-     "bytes": 5283840
-    },
-    "data_llamaindex_embedding_text_tsv_gin": {
-     "method": "gin",
-     "bytes": 56532992
-    },
-    "llamaindex_embedding_embedding_bit_hnsw": {
+    "data_llamaindex_embedding_embedding_bit_hnsw": {
      "method": "hnsw",
      "bytes": 40828928
     },
-    "llamaindex_embedding_embedding_half_hnsw": {
+    "data_llamaindex_embedding_embedding_half_hnsw": {
      "method": "hnsw",
-     "bytes": 137117696
+     "bytes": 137101312
     },
-    "llamaindex_embedding_embedding_hnsw": {
+    "data_llamaindex_embedding_path_idx": {
+     "method": "btree",
+     "bytes": 5120000
+    },
+    "data_llamaindex_embedding_pkey": {
+     "method": "btree",
+     "bytes": 5783552
+    },
+    "data_llamaindex_embedding_text_tsv_english_gin": {
+     "method": "gin",
+     "bytes": 59473920
+    },
+    "llamaindex_embedding_embedding_hnsw_m16_efc64": {
      "method": "hnsw",
      "bytes": 239943680
     },
     "llamaindex_embedding_idx_1": {
      "method": "btree",
-     "bytes": 5111808
+     "bytes": 5120000
     }
    },
    "avg_column_bytes": {
     "id": 8.0,
     "text": 403.6,
-    "metadata_": 792.5,
+    "metadata_": 791.6,
     "node_id": 41.0,
     "embedding": 1540.0,
-    "embedding_half": 776.0,
+    "text_tsv": 454.9,
+    "embedding_half": 775.1,
     "embedding_bit": 53.0
    }
   },
@@ -418,16 +426,16 @@
     "ef_search": 100,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9752,
-     "lo": 0.9699,
-     "hi": 0.9804
+     "mean": 0.9769,
+     "lo": 0.9721,
+     "hi": 0.9813
     },
     "recall@50": {
-     "mean": 0.9453,
-     "lo": 0.9402,
-     "hi": 0.9503
+     "mean": 0.9459,
+     "lo": 0.941,
+     "hi": 0.9507
     },
-    "queries_with_full_recall@50": 174,
+    "queries_with_full_recall@50": 178,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -435,11 +443,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 2.751,
-     "p95_ms": 3.88,
-     "mean_ms": 2.789
+     "p50_ms": 5.593,
+     "p95_ms": 7.971,
+     "mean_ms": 5.682
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 100,
@@ -452,16 +460,16 @@
     "ef_search": 1000,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9986,
-     "lo": 0.9977,
-     "hi": 0.9994
+     "mean": 0.9988,
+     "lo": 0.9978,
+     "hi": 0.9995
     },
     "recall@50": {
      "mean": 0.9979,
      "lo": 0.9973,
-     "hi": 0.9985
+     "hi": 0.9984
     },
-    "queries_with_full_recall@50": 592,
+    "queries_with_full_recall@50": 593,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -469,11 +477,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 15.082,
-     "p95_ms": 21.578,
-     "mean_ms": 15.225
+     "p50_ms": 29.903,
+     "p95_ms": 42.438,
+     "mean_ms": 30.49
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 1000,
@@ -486,16 +494,16 @@
     "ef_search": 100,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9722,
-     "lo": 0.9667,
-     "hi": 0.9776
+     "mean": 0.9769,
+     "lo": 0.9721,
+     "hi": 0.9813
     },
     "recall@50": {
-     "mean": 0.9442,
-     "lo": 0.939,
-     "hi": 0.9491
+     "mean": 0.9459,
+     "lo": 0.9411,
+     "hi": 0.9506
     },
-    "queries_with_full_recall@50": 163,
+    "queries_with_full_recall@50": 168,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -503,11 +511,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 1.71,
-     "p95_ms": 2.246,
-     "mean_ms": 1.733
+     "p50_ms": 4.086,
+     "p95_ms": 5.376,
+     "mean_ms": 4.126
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_half_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_half_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 100,
@@ -520,16 +528,16 @@
     "ef_search": 1000,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9978,
-     "lo": 0.9966,
-     "hi": 0.9989
+     "mean": 0.9974,
+     "lo": 0.996,
+     "hi": 0.9986
     },
     "recall@50": {
-     "mean": 0.9967,
-     "lo": 0.996,
-     "hi": 0.9973
+     "mean": 0.9966,
+     "lo": 0.9959,
+     "hi": 0.9972
     },
-    "queries_with_full_recall@50": 553,
+    "queries_with_full_recall@50": 550,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -537,11 +545,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 7.033,
-     "p95_ms": 9.224,
-     "mean_ms": 7.175
+     "p50_ms": 16.353,
+     "p95_ms": 21.97,
+     "mean_ms": 16.678
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_half_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_half_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 1000,
@@ -555,14 +563,14 @@
     "ef_search": 50,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.6693,
-     "lo": 0.6517,
-     "hi": 0.6864
+     "mean": 0.6736,
+     "lo": 0.6559,
+     "hi": 0.6909
     },
     "recall@50": {
-     "mean": 0.3908,
-     "lo": 0.3809,
-     "hi": 0.4008
+     "mean": 0.3894,
+     "lo": 0.379,
+     "hi": 0.3994
     },
     "queries_with_full_recall@50": 0,
     "rows_returned": {
@@ -572,11 +580,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 1.008,
-     "p95_ms": 1.183,
-     "mean_ms": 1.014
+     "p50_ms": 2.383,
+     "p95_ms": 2.874,
+     "mean_ms": 2.389
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 50,
@@ -590,14 +598,14 @@
     "ef_search": 100,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.7838,
-     "lo": 0.7684,
-     "hi": 0.7985
+     "mean": 0.7875,
+     "lo": 0.7722,
+     "hi": 0.8017
     },
     "recall@50": {
-     "mean": 0.5348,
+     "mean": 0.535,
      "lo": 0.5229,
-     "hi": 0.5463
+     "hi": 0.5466
     },
     "queries_with_full_recall@50": 0,
     "rows_returned": {
@@ -607,11 +615,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 1.617,
-     "p95_ms": 1.847,
-     "mean_ms": 1.608
+     "p50_ms": 3.797,
+     "p95_ms": 4.628,
+     "mean_ms": 3.803
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 100,
@@ -625,14 +633,14 @@
     "ef_search": 200,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.8741,
-     "lo": 0.8623,
-     "hi": 0.8849
+     "mean": 0.8731,
+     "lo": 0.8616,
+     "hi": 0.884
     },
     "recall@50": {
-     "mean": 0.6732,
-     "lo": 0.661,
-     "hi": 0.6848
+     "mean": 0.6727,
+     "lo": 0.6608,
+     "hi": 0.6843
     },
     "queries_with_full_recall@50": 2,
     "rows_returned": {
@@ -642,11 +650,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 2.723,
-     "p95_ms": 3.206,
-     "mean_ms": 2.72
+     "p50_ms": 6.434,
+     "p95_ms": 7.63,
+     "mean_ms": 6.403
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 200,
@@ -660,16 +668,16 @@
     "ef_search": 400,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9323,
-     "lo": 0.9236,
-     "hi": 0.9404
+     "mean": 0.9329,
+     "lo": 0.9244,
+     "hi": 0.9412
     },
     "recall@50": {
-     "mean": 0.7966,
-     "lo": 0.7863,
-     "hi": 0.8065
+     "mean": 0.7972,
+     "lo": 0.7871,
+     "hi": 0.8071
     },
-    "queries_with_full_recall@50": 19,
+    "queries_with_full_recall@50": 21,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -677,11 +685,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 4.975,
-     "p95_ms": 5.864,
-     "mean_ms": 4.987
+     "p50_ms": 11.307,
+     "p95_ms": 13.252,
+     "mean_ms": 11.319
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 400,
@@ -695,16 +703,16 @@
     "ef_search": 1000,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9724,
-     "lo": 0.9673,
-     "hi": 0.9773
+     "mean": 0.9728,
+     "lo": 0.9681,
+     "hi": 0.9776
     },
     "recall@50": {
-     "mean": 0.9113,
-     "lo": 0.9048,
-     "hi": 0.9178
+     "mean": 0.9118,
+     "lo": 0.9055,
+     "hi": 0.9183
     },
-    "queries_with_full_recall@50": 100,
+    "queries_with_full_recall@50": 102,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -712,11 +720,11 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 11.359,
-     "p95_ms": 13.25,
-     "mean_ms": 11.363
+     "p50_ms": 24.841,
+     "p95_ms": 29.137,
+     "mean_ms": 24.914
     },
-    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
      "enable_seqscan": "off",
      "hnsw.ef_search": 1000,
@@ -738,15 +746,15 @@
   "requested": "cuda",
   "python": "3.11.16",
   "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
-  "cpu_count": 64,
+  "cpu_count": 40,
   "torch": "2.5.1+cu121",
   "cuda_available": true,
   "device": "cuda",
-  "device_name": "NVIDIA A40",
+  "device_name": "NVIDIA GeForce RTX 2080 Ti",
   "threads": 8,
   "sentence_transformers": "6.1.0",
-  "gpu_memory_gb": 44.5,
-  "cpu_model": "AMD EPYC 7513 32-Core Processor",
+  "gpu_memory_gb": 10.6,
+  "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
   "allocation": {
    "cpus": "8",
    "memory_mb": "65536"
@@ -768,9 +776,9 @@
  "stage_machines": {
   "files": {
    "device": "cuda",
-   "device_name": "NVIDIA A40",
-   "gpu_memory_gb": 44.5,
-   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "device_name": "NVIDIA GeForce RTX 2080 Ti",
+   "gpu_memory_gb": 10.6,
+   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -778,9 +786,9 @@
   },
   "index": {
    "device": "cuda",
-   "device_name": "NVIDIA A40",
-   "gpu_memory_gb": 44.5,
-   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "device_name": "NVIDIA GeForce RTX 2080 Ti",
+   "gpu_memory_gb": 10.6,
+   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -788,9 +796,9 @@
   },
   "hnsw": {
    "device": "cuda",
-   "device_name": "NVIDIA A40",
-   "gpu_memory_gb": 44.5,
-   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "device_name": "NVIDIA GeForce RTX 2080 Ti",
+   "gpu_memory_gb": 10.6,
+   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -798,9 +806,9 @@
   },
   "variants": {
    "device": "cuda",
-   "device_name": "NVIDIA A40",
-   "gpu_memory_gb": 44.5,
-   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "device_name": "NVIDIA GeForce RTX 2080 Ti",
+   "gpu_memory_gb": 10.6,
+   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -809,19 +817,27 @@
  },
  "one_machine": true,
  "stage_git_sha": {
-  "files": "d075bcc",
-  "index": "d075bcc",
-  "hnsw": "d075bcc",
-  "variants": "d075bcc"
+  "files": "66b0efc",
+  "index": "66b0efc",
+  "hnsw": "66b0efc",
+  "variants": "66b0efc"
  },
- "git_sha": "d075bcc",
+ "git_sha": "068b42c",
  "git_dirty": false,
- "timestamp": "2026-11-12T00:33:26.800685+00:00",
+ "timestamp": "2026-11-12T02:47:31.787954+00:00",
  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.served_scale --data-dir <path>/beir_external --container <path>/pgvector_pg16.sif --scratch <path>/run --state <path>/state --resume",
  "source_sha256": {
-  "app/eval/pgvector_hnsw.py": "4ed5754e5932b2bb54c0b2a4cf24d617085a0a69a6954d914beed777a68694dd",
-  "app/eval/served_scale.py": "a148b12c64ac45c6b1a980b4eeb25ac3633167023d10be227282086816869ed1",
-  "app/database/vector_store_manager.py": "52e940c8d7bf17b8cc6993020292cd6fc7feefc78b07d56496379e457104482c",
-  "app/database/sql/hybrid_tsrank.sql": "149b37e62b7b8411542f49120fa0e11f4030fc5cc7ac6405fa8d062f9d87eb40"
+  "app/eval/pgvector_hnsw.py": "600c01589d8a9c41bb8eda0e1922c025f6753f7d34f3ec7fb7da3a3d75e2998b",
+  "app/eval/served_scale.py": "d421616136c99f934db8316b5d54ce8b41397f19adf05a580f48971097aca8fa",
+  "app/database/vector_store_manager.py": "77282e49be17645ee9d333c870ba4b56320aaf009603d6089b038355ab797bd8",
+  "app/database/sql/hybrid_tsrank.sql": "07808f8b5942831db419ce34b693b3b59e706a46a79f150eadab1956a8024413",
+  "app/retrieval/pgvector_tune.py": "ef63966199768539d31807470a745616f0d333cc2d50559930b8041d33a89b9b",
+  "app/database/migrations/vector/0001_data_table.sql": "638f4017948a2d10e5a7d1d9132cd58d9004065fcf56151714a4ad35d5b940e2",
+  "app/database/migrations/vector/0002_ingest_manifest.sql": "9ffbd0a81ec78caa805d7173041e2ed5dcf6a1968a24e1aaebd0aa800bde8754",
+  "app/database/migrations/vector/0003_path_index.sql": "cfa55cd517852e38841aef81a56b3ca0781f39ba14095e9bd1a563301e5b296c",
+  "app/database/migrations/vector/0004_text_gin.sql": "f7f8a54bf1300a1e82e40a8f5b057a3c0845aa4a7724aa5c5b12e9542787059a",
+  "app/database/migrations/vector/0005_hnsw_m16_efc64.sql": "7fa182772c26625c4fa3bea8541ae83003687310472a78caf863cd5d339e5c4e",
+  "app/database/migrations/vector/0006_text_tsv_column.sql": "7715a54e328f1428d9189f213c0b8cf79bc5f4e24b4c9b589e1956b5bc27cbe5",
+  "app/database/migrations/vector/0007_text_tsv_gin.sql": "f532214e34b4e8b43cee3dedc5cca9c26ebdc0d5cc5d49305ab69f6538ab2c1a"
  }
 }

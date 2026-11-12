@@ -16999,8 +16999,8 @@
 5331 Q0 510875 49 2 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 5331 Q0 396255 50 1 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 5343 Q0 184365 1 50 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
-5343 Q0 346166 2 49 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
-5343 Q0 118383 3 48 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
+5343 Q0 118383 2 49 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
+5343 Q0 346166 3 48 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 5343 Q0 486729 4 47 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 5343 Q0 70185 5 46 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 5343 Q0 79542 6 45 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
@@ -29654,8 +29654,8 @@
 8982 Q0 473658 4 47 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 8982 Q0 472663 5 46 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 8982 Q0 87722 6 45 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
-8982 Q0 370244 7 44 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
-8982 Q0 500486 8 43 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
+8982 Q0 500486 7 44 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
+8982 Q0 370244 8 43 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 8982 Q0 392465 9 42 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 8982 Q0 479420 10 41 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 8982 Q0 367960 11 40 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
@@ -32059,8 +32059,8 @@
 9871 Q0 553288 9 42 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 9871 Q0 357590 10 41 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 9871 Q0 583903 11 40 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
-9871 Q0 362035 12 39 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
-9871 Q0 360440 13 38 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
+9871 Q0 360440 12 39 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
+9871 Q0 362035 13 38 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 9871 Q0 76562 14 37 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 9871 Q0 56342 15 36 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
 9871 Q0 8601 16 35 memory-hybrid-bge-rerank-bge-small-fp16-512-top20-served-query-prompt
