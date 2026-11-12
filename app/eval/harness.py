@@ -880,9 +880,11 @@ def run_bench(
     touch the CI baseline. Each results file gets its per-question sidecar
     (app/eval/per_question.py: <name>.per_query.json), from which every interval
     in it is recomputed exactly. `frontier` adds what a prototype arm needs next to
-    its delta: fallback labels, per-category deltas vs parent for every
-    category, and the number of questions whose list differs from the parent's.
-    `compare_lists` adds only that last count (vs_parent) to every row with a parent.
+    its delta: fallback labels and the number of questions whose list differs
+    from the parent's. `compare_lists` adds only that count (vs_parent) to every
+    row with a parent. Every ladder (default, neural, frontier, rerank depth)
+    gets each row's paired delta vs its parent for every gold category, with the
+    questions whose nDCG@10 rose and fell in each slice (attach_confidence).
     """
     root = root or project_root()
     started = git_state(root)  # before the run writes anything (run_provenance)
@@ -929,7 +931,7 @@ def run_bench(
         categories=[q.category for q in gold],
         comparisons=[pair for pair in NEURAL_COMPARISONS + FRONTIER_COMPARISONS + [(_neural_name(a), _neural_name(b)) for a, b in FRONTIER_COMPARISONS]
                      if set(pair) <= names],
-        all_categories=frontier,
+        all_categories=True,  # every slice of every ladder (D04): the router's aggregation slice, not only its target
     )
 
     sha = git_sha(root)
@@ -1007,9 +1009,12 @@ def attach_confidence(
                         older result files and ad-hoc runs still get a delta.
     delta_vs_parent_by_category: for rows in CATEGORY_DELTAS, the paired delta vs
                         parent restricted to that category, with n and small_n.
-    delta_vs_parent_by_category_all: with all_categories (the frontier run), the
-                        same paired delta for every category, so an arm aimed at one
-                        kind of question shows where it moved.
+    delta_vs_parent_by_category_all: with all_categories (every run_bench ladder,
+                        parity), the same paired delta for every category, so a
+                        mechanism aimed at one kind of question shows where it moved.
+    Each category block also counts the slice's questions whose nDCG@10 rose and
+    fell against the reference (questions_changed): how many questions a slice's
+    delta rests on.
     One index matrix is shared by every config, so all deltas are paired. Missing
     references yield None rather than an error. Returns the bootstrap settings;
     `comparisons` (extra row pairs) are returned under "comparisons".
@@ -1047,6 +1052,9 @@ def attach_confidence(
             return None
         sub_idx = resample_indices(len(sel), n_boot=n_boot, seed=seed)
         out: dict[str, Any] = {"reference": other, "category": category, "n": len(sel), "small_n": len(sel) < SMALL_N}
+        if "ndcg@10" in metrics:
+            moved = [rows_a[i]["ndcg@10"] - rows_b[i]["ndcg@10"] for i in sel]
+            out["questions_changed"] = {"metric": "ndcg@10", "up": sum(1 for d in moved if d > 0), "down": sum(1 for d in moved if d < 0)}
         for metric in metrics:
             a = [rows_a[i][metric] for i in sel]
             b = [rows_b[i][metric] for i in sel]

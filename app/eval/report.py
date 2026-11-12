@@ -204,6 +204,15 @@ def table(blob: dict) -> str:
     return "\n".join(lines)
 
 
+def _questions_changed(block: dict) -> str:
+    """'; nDCG@10 rose on 1 of the 8 questions and fell on 0' from a category block's questions_changed (D04): how many
+    questions the slice's delta rests on. '' for a block recorded without it."""
+    moved = block.get("questions_changed")
+    if not moved:
+        return ""
+    return f"; {moved['metric'].replace('ndcg', 'nDCG')} rose on {moved['up']} of the {block['n']} questions and fell on {moved['down']}"
+
+
 def _category_delta_lines(rows: list[dict]) -> list[str]:
     out = []
     for row in rows:
@@ -213,7 +222,8 @@ def _category_delta_lines(rows: list[dict]) -> list[str]:
         flag = " (small n)" if cd.get("small_n") else ""
         out.append(
             f"- `{row['config']}` vs `{cd['reference']}` on `{cd['category']}`, n = {cd['n']}{flag}: "
-            f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}."
+            f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}"
+            f"{_questions_changed(cd)}."
         )
     return out
 

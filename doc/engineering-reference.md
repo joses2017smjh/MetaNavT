@@ -957,7 +957,12 @@ CI gate. On the fixture the first stage stops mattering once the reranker is
 on, because the reranker rescores 50 of its 71 chunks; the generated sentence
 above states the hash-versus-bge-small paired delta. Router and staleness are
 fixture-specific mechanisms; their gains are reported per category with the
-small n they rest on, and they are not part of the SciFact rows.
+small n they rest on and how many of those questions moved (nDCG@10 rose on how
+many and fell on how many), and they are not part of the SciFact rows. Every
+ladder row, CPU and real-model, also stores its paired delta against its parent
+for every gold category (`delta_vs_parent_by_category_all`, each slice with the
+same counts), so the slices a mechanism is not aimed at, such as the router's
+aggregation questions, have an interval too.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
 uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
