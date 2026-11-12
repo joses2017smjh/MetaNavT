@@ -23,7 +23,7 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 | 1.2b | Real `BAAI/bge-reranker-v2-m3` bench row | code done (`hybrid+bge-rerank` via `make bench-frontier`); **measure on GPU** — CI records `reranker_fallback=overlap` |
 | 1.3 | Structure-aware chunking; late vs contextual | done (algorithms + ablation hooks) |
 | 1.4 | Embedding sweep | harness flag `embedder=hash\|tfidf\|st:<model>` |
-| 1.5 | pgvector halfvec / binary + rescore / HNSW `m`/`ef_search` | partly: in-memory NSW analogue measured (`make sweeps`, hash vectors); the served statement can read the HNSW index start-up creates and sets `ef_search` per statement; halfvec and binary are not in the served path (`ensure_halfvec` / `ensure_binary` have no caller); index recall at scale not measured |
+| 1.5 | pgvector halfvec / binary + rescore / HNSW `m`/`ef_search` | partly: in-memory NSW analogue measured (`make sweeps`, hash vectors); the served statement can read the HNSW index a schema migration builds (`app/database/migrations/vector/`) and sets `ef_search` per statement; halfvec and binary are not in the served path (the uncalled `ensure_halfvec` / `ensure_binary` helpers were removed with the inline DDL); index recall at scale not measured |
 | 1.6 | Rule-based query router | done |
 | 1.7 | Distilled student reranker | done (`make bench-rerank-arms` fits it on the cross-encoder's scores over train questions and scores it on the others) |
 | 2.1 | Retrieval loop: route→plan→search→grade→rewrite→verify | done |
@@ -307,7 +307,7 @@ Original later list that **is** implemented:
 
 | Item | Where |
 |---|---|
-| 1.5 halfvec / binary / HNSW | `app/retrieval/pgvector_tune.py` (in-memory analogue); served: `VectorStoreManager.ensure_hnsw` and `search_settings`; `ensure_halfvec` / `ensure_binary` exist with no caller |
+| 1.5 halfvec / binary / HNSW | `app/retrieval/pgvector_tune.py` (in-memory analogue); served: the HNSW index of `app/database/migrations/vector/` and `VectorStoreManager.search_settings`; no halfvec or binary column |
 | 3.2 GraphRAG | `app/graph/graphrag.py` |
 | 4.1 / 4.3 ColPali + CLIP | `app/multimodal/colpali.py`, `app/multimodal/images.py` |
 | Phase 5 Tier 2 | `app/graph/conflicts.py`, wired into `extractive_answer` |

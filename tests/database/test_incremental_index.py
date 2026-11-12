@@ -2,7 +2,8 @@
 
 Needs a live Postgres with pgvector: set PG_TEST_DSN (the CI parity service, or a
 local instance). Skipped otherwise. Every test indexes a temporary copy of
-fixture v1 (never bench/corpus/files itself) into its own table with the hash
+fixture v1 (never bench/corpus/files itself) into its own table, built by the
+schema migrations as the deploy step builds the served one, with the hash
 embedder, so there are no model downloads.
 """
 
@@ -87,13 +88,15 @@ def run(tmp_path, monkeypatch):
         monkeypatch.delenv(name, raising=False)
     corpus = tmp_path / "files"
     shutil.copytree(FIXTURE, corpus)
+    from app.database.migrate import drop_vector_table, migrate_all
+
     r = Run(dsn, corpus)
     vsm = r.manager()
+    with vsm.get_connection() as conn:
+        migrate_all(conn, vsm.vector_table)  # the data table and the manifest: index_directory runs no DDL
     yield r
     with vsm.get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.data_table}";')
-            cur.execute(f'DROP TABLE IF EXISTS "{vsm.schema_name}"."{vsm.manifest_table}";')
+        drop_vector_table(conn, vsm.vector_table)
     for manager in r.managers:
         manager.close()
 

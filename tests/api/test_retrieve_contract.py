@@ -105,7 +105,6 @@ class _FakeState:
 
 class _FakeVSM:
     hybrid_backend = "ts_rank_cd"
-    last_bm25_backend = None
     pgvector_version = (0, 8, 6)
 
     def count_nodes(self):
@@ -133,8 +132,8 @@ def test_happy_path_is_typed_with_paths_byte_ranges_and_stage_scores(ready_clien
     assert [h["path"] for h in body["hits"]] == ["configs/run_047.yaml", "/abs/logs/run_047.out"]
     first = body["hits"][0]
     assert (first["start_byte"], first["end_byte"], first["rank"]) == (0, 19, 1)
-    assert first["scores"] == {"bm25": 0.9, "dense": 0.8, "rrf": 0.0325, "rerank": None}
-    assert body["hits"][1]["scores"] == {"bm25": None, "dense": None, "rrf": None, "rerank": None}
+    assert first["scores"] == {"bm25": 0.9, "dense": 0.8, "path": None, "rrf": 0.0325, "rerank": None}
+    assert body["hits"][1]["scores"] == {"bm25": None, "dense": None, "path": None, "rrf": None, "rerank": None}
     assert ready_client.app.state.retrieval.retriever.calls == [("current learning rate for run 47", 2)]
 
 
@@ -159,6 +158,76 @@ def test_response_and_health_list_degraded_components_and_the_reranker(ready_cli
     assert h["reranker"]["model"] == "BAAI/bge-reranker-v2-m3" and h["retrieval_mode"] == "sql" and h["n_nodes"] == 61
     # the settings each hybrid statement runs with at the retriever's depth (VectorStoreManager.search_settings)
     assert h["dense_search"] == {"depth": 50, "settings": {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}, "pgvector": "0.8.6"}
+
+
+def test_health_names_the_embedding_model_and_its_query_instruction(ready_client):
+    """M17 (A19): a results file that copies /health says which model embedded the queries, and how."""
+    from app.engine.embeddings import HashEmbedding
+
+    assert ready_client.get("/health").json()["embedding_model"] is None  # no index in the fake state
+    ready_client.app.state.retrieval.index = type("_Index", (), {"_embed_model": HashEmbedding(256)})()
+    h = ready_client.get("/health").json()
+    assert h["embedding_model"] == "hash-256" and h["embedding_query_instruction"] == "" and h["embed_model"] == "HashEmbedding"
+
+
+class _HealthyRetriever(_FakeRetriever):
+    reranker_info = {"configured": False, "loaded": False}
+
+
+def _manager_whose_database_fails(error):
+    """A real VectorStoreManager (its count_nodes and settings code) over a connection whose every statement raises."""
+    from contextlib import contextmanager
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    vsm = VectorStoreManager.__new__(VectorStoreManager)
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+    vsm.lexical_backend, vsm.last_bm25_backend, vsm._pgvector_version = "ts_rank_cd", None, (0, 8, 6)
+
+    class Connection:
+        def cursor(self):
+            class Cursor:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc):
+                    return False
+
+                def execute(self, sql, params=None):
+                    raise error
+
+            return Cursor()
+
+    @contextmanager
+    def get_connection():
+        yield Connection()
+
+    vsm.get_connection = get_connection
+    return vsm
+
+
+def test_health_is_not_ok_with_zero_rows_when_the_database_cannot_be_read(ready_client):
+    """C31: the row count used to read any error as an empty table, so /health answered ok with n_nodes 0."""
+    import psycopg2
+
+    state = ready_client.app.state.retrieval
+    state.retriever = _HealthyRetriever()
+    state.vsm = _manager_whose_database_fails(psycopg2.OperationalError("server closed the connection unexpectedly"))
+    response = ready_client.get("/health")
+    assert response.status_code == 503, response.text
+    body = response.json()
+    assert body["status"] == "unavailable" and body["n_nodes"] is None
+    assert body["degraded"] == [{"component": "database", "error": "OperationalError: server closed the connection unexpectedly"}]
+
+
+def test_health_reads_a_missing_data_table_as_zero_rows(ready_client):
+    import psycopg2.errors
+
+    state = ready_client.app.state.retrieval
+    state.retriever = _HealthyRetriever()
+    state.vsm = _manager_whose_database_fails(psycopg2.errors.UndefinedTable('relation "public.data_t" does not exist'))
+    response = ready_client.get("/health")
+    assert response.status_code == 200 and response.json()["status"] == "ok" and response.json()["n_nodes"] == 0
 
 
 def test_health_refuses_unverified_required_cuda_device(ready_client, monkeypatch):

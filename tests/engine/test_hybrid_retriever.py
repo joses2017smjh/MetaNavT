@@ -11,6 +11,7 @@ import time
 import pytest
 from llama_index.core.schema import NodeWithScore, TextNode
 
+from app.database.vector_store_manager import SearchRows
 from app.engine.retriever import Deadline, HybridRetriever, StageTimeout, reciprocal_rank_fusion
 
 
@@ -95,10 +96,10 @@ def test_counts_and_bm25_limit():
     vsm = _FakeVSM()
     retriever = _retriever(vsm)
 
-    nodes = retriever.retrieve("anything")
+    out = retriever.retrieve_detailed("anything")
 
     assert vsm.calls == [("anything", 50)]
-    assert retriever.last_counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": len(nodes)}
+    assert out.counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": len(out.nodes)}
 
 
 class _ReversingCrossEncoder:
@@ -122,14 +123,15 @@ def test_production_rerank_uses_predict_and_truncates_to_rerank_top_n():
         enable_router=False,
     )
 
-    nodes = retriever.retrieve("anything")
+    out = retriever.retrieve_detailed("anything")
+    nodes = out.nodes
 
     assert len(model.calls) == 1 and len(model.calls[0]) == 3  # every fused node was scored
     assert [n.node.node_id for n in nodes] == [n.node.node_id for n in nodes][:2] and len(nodes) == 2
     fused_order = [p[1] for p in model.calls[0]]
     assert nodes[0].node.get_content() == fused_order[-1]  # highest score = last pair
     assert nodes[0].score == 2.0 and nodes[1].score == 1.0
-    assert retriever.last_counts["returned"] == 2 and retriever.last_counts["fused"] == 3
+    assert out.counts["returned"] == 2 and out.counts["fused"] == 3
 
 
 # ---------------------------------------------------------------- M3: SQL mode, staleness, per-request outcome
@@ -140,19 +142,20 @@ class _FakeSQLVSM:
 
     def __init__(self):
         self.calls = []
-        self.last_bm25_backend = "ts_rank_cd"
+        self.path_queries = []  # the path_query each call sent (None: no path list)
 
-    def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60):
+    def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60, path_query=None):
         self.calls.append((query, query_embedding, k, rrf_k))
+        self.path_queries.append(path_query)
         rows = [
             ("cur", "learning_rate: 3e-4", {"path": "configs/run_047.yaml", "mtime": 2.0, "start_byte": 0, "end_byte": 19}, 0.9, 1, 0.8, 1, 1 / 61 + 1 / 61),
             ("old", "learning_rate: 1e-4", {"path": "configs/archive/run_047_v1.yaml", "mtime": 1.0, "start_byte": 0, "end_byte": 19}, 0.5, 2, None, None, 1 / 62),
             ("log", "run 47 val_rmse 0.055", {"path": "logs/run_047.out", "mtime": 2.0, "_node_content": "{...}"}, None, None, 0.4, 2, 1 / 62),
         ]
-        return [
+        return SearchRows([
             {"node_id": n, "text": t, "metadata": m, "bm25_score": bs, "bm25_rank": br, "dense_score": ds, "dense_rank": dr, "rrf_score": rrf}
             for n, t, m, bs, br, ds, dr, rrf in rows
-        ]
+        ], "ts_rank_cd")
 
 
 def _clusters_for_fake_rows():
@@ -176,10 +179,11 @@ def test_sql_mode_one_round_trip_with_scores_and_staleness():
 
     assert vsm.calls == [("current learning rate for run 47", [0.1, 0.2], 50, 60)]
     assert out.mode == "sql" and out.bm25_backend == "ts_rank_cd"
-    assert out.counts == {"bm25": 2, "vector": 2, "fused": 3, "returned": 2}
+    assert out.counts == {"bm25": 2, "vector": 2, "path": 0, "fused": 3, "returned": 2}
     assert [n.node.node_id for n in out.nodes] == ["cur", "log"]  # superseded archive copy dropped
     assert out.staleness == {"enabled": True, "applied": True, "dropped": 1}
-    assert out.scores["cur"] == {"bm25": 0.9, "dense": 0.8, "rrf": 1 / 61 + 1 / 61, "rerank": None}
+    assert out.scores["cur"] == {"bm25": 0.9, "dense": 0.8, "path": None, "rrf": 1 / 61 + 1 / 61, "rerank": None}
+    assert vsm.path_queries == [None]  # router off: no path list
     assert out.scores["log"]["bm25"] is None and out.scores["log"]["dense"] == 0.4
     assert "_node_content" not in out.nodes[1].node.metadata
     assert set(out.stages_ms) >= {"route", "embed", "hybrid_sql", "staleness", "total"}
@@ -194,7 +198,8 @@ def test_sql_mode_comparative_query_keeps_both_versions_and_lexical_route_skips_
 
     assert out.staleness["dropped"] == 0 and len(out.nodes) == 3
     assert out.route is not None and out.skipped_embed is True and calls == []  # lexical_path: no embedding
-    assert vsm.calls[-1][1] is None  # SQL ran lexical-only
+    assert vsm.calls[-1][1] is None  # SQL ran without a query vector
+    assert vsm.path_queries[-1] == "compare run_047.yaml with configs/archive/run_047_v1.yaml"  # ... and with the path list
 
 
 def test_python_mode_still_reports_scores_and_top_n():
@@ -262,8 +267,6 @@ def test_configured_but_unloaded_reranker_is_listed_as_degraded_on_every_respons
 
 def test_bm25_failure_in_python_mode_is_degraded_not_silent():
     class _FailingVSM:
-        last_bm25_backend = None
-
         def search_bm25(self, query, limit):
             raise ConnectionError("db gone")
 
@@ -359,3 +362,199 @@ def test_a_rerank_past_the_budget_is_named():
     with pytest.raises(StageTimeout) as caught:
         retriever.retrieve_detailed("anything", deadline=deadline)
     assert caught.value.stage == "rerank" and deadline.stage == "rerank"
+
+
+# ---------------------------------------------------------------- M17 (C28): the lexical label is request-local
+
+LABEL_HIT, LABEL_MISS = "learning rate", "qqqq"  # a query with a lexical hit, and one with none
+
+
+class _LabelConnection:
+    """A connection whose statements answer by query text: the hybrid statement returns a lexical row
+    for LABEL_HIT and a dense-only row otherwise; search_bm25's full-text query finds a row for
+    LABEL_HIT only (so LABEL_MISS falls through to ILIKE, which finds nothing)."""
+
+    def cursor(self):
+        return _LabelCursor()
+
+
+class _LabelCursor:
+    def __init__(self):
+        self.rows = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, statement, params=None):
+        text = statement if isinstance(statement, str) else repr(statement)
+        if "WITH params AS" in text:  # the hybrid statement (the settings statement rides along in front of it)
+            hit = "learning" in params["query"]
+            self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5 if hit else None, 1 if hit else None, 0.8, 1, 1 / 61 + (1 / 61 if hit else 0), None, None)]
+        elif "ts_rank_cd" in text:  # search_bm25's full-text query: (query, query, limit)
+            self.rows = [("n1", "learning rate 3e-4", {"path": "a.txt"}, 0.5)] if params[0] == LABEL_HIT else []
+        else:  # ILIKE, the last resort
+            self.rows = []
+
+    def fetchall(self):
+        return self.rows
+
+
+def _label_manager(pause_query: str, paused, resume):
+    """A real VectorStoreManager (no connection pool): its hybrid_search and search_bm25 run over
+    _LabelConnection, and the call for `pause_query` returns only after `resume` is set, so another
+    request can run start to finish between that call and the moment its caller reads the label."""
+    from contextlib import contextmanager
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    class _Pausing(VectorStoreManager):
+        def hybrid_search(self, query, *args, **kwargs):
+            rows = super().hybrid_search(query, *args, **kwargs)
+            if query == pause_query:
+                paused.set()
+                assert resume.wait(10), "the other request never finished"
+            return rows
+
+        def search_bm25(self, query, limit=5):
+            rows = super().search_bm25(query, limit=limit)
+            if query == pause_query:
+                paused.set()
+                assert resume.wait(10), "the other request never finished"
+            return rows
+
+    vsm = _Pausing.__new__(_Pausing)  # no __init__: it would connect
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+    vsm.lexical_backend, vsm._pgvector_version = "ts_rank_cd", (0, 8, 6)
+
+    @contextmanager
+    def get_connection():
+        yield _LabelConnection()
+
+    vsm.get_connection = get_connection
+    return vsm
+
+
+@pytest.mark.parametrize("mode", ["sql", "python"])
+def test_a_concurrent_request_does_not_change_the_lexical_label_of_another(mode):
+    """Request A (a lexical hit) is answered; before A's retriever reads its label, request B (no
+    lexical hit) runs start to finish on the same shared manager. Each response must carry the
+    backend that answered its own query: ts_rank_cd for A, none for B."""
+    import threading
+
+    paused, resume = threading.Event(), threading.Event()
+    vsm = _label_manager(LABEL_HIT, paused, resume)
+    if mode == "sql":
+        retriever = HybridRetriever(None, vsm, reranker=None, enable_router=False, mode="sql", embed_fn=lambda q: [0.1, 0.2])
+    else:
+        retriever = HybridRetriever(_FakeVectorRetriever(), vsm, reranker=None, enable_router=False, mode="python")
+    outcomes = {}
+    a = threading.Thread(target=lambda: outcomes.__setitem__("a", retriever.retrieve_detailed(LABEL_HIT)))
+    a.start()
+    assert paused.wait(10), "request A never reached the database"
+    outcomes["b"] = retriever.retrieve_detailed(LABEL_MISS)  # B runs while A waits between its search and its label
+    resume.set()
+    a.join(10)
+    assert outcomes["b"].bm25_backend == "none"
+    assert outcomes["a"].bm25_backend == "ts_rank_cd", f"request A reports B's label ({mode} mode)"
+
+
+# ---------------------------------------------------------------- M17 (C29): nothing per request is kept on the retriever
+
+LEXICAL_DOWN, LEXICAL_UP = "lexical leg down", "lexical leg up"
+
+
+class _UpOrDownVSM:
+    """search_bm25 raises for LEXICAL_DOWN and answers every other query."""
+
+    def search_bm25(self, query, limit):
+        if query == LEXICAL_DOWN:
+            raise ConnectionError("db gone")
+        return SearchRows([{"node_id": "b", "text": "encoder: dinov2", "score": 3.0, "metadata": {"path": "configs/run_046.yaml"}}], "ts_rank_cd")
+
+
+class _PausingVectorRetriever(_FakeVectorRetriever):
+    """The dense leg, which Python mode runs after the lexical leg: the call for `pause_query`
+    returns only after `resume` is set, so another request can run start to finish meanwhile."""
+
+    def __init__(self, pause_query, paused, resume):
+        self.pause_query, self.paused, self.resume = pause_query, paused, resume
+
+    def retrieve(self, query: str):
+        if query == self.pause_query:
+            self.paused.set()
+            assert self.resume.wait(10), "the other request never finished"
+        return super().retrieve(query)
+
+
+@pytest.mark.parametrize("first, second", [(LEXICAL_DOWN, LEXICAL_UP), (LEXICAL_UP, LEXICAL_DOWN)], ids=["down-then-up", "up-then-down"])
+def test_a_concurrent_request_does_not_cross_the_degraded_list(first, second):
+    """Python fusion mode: request A's lexical leg has run (failed or not) and A waits in its dense leg
+    while request B runs start to finish on the same retriever. A response lists the bm25 component
+    as degraded exactly when its own lexical leg failed."""
+    import threading
+
+    paused, resume = threading.Event(), threading.Event()
+    retriever = HybridRetriever(_PausingVectorRetriever(first, paused, resume), _UpOrDownVSM(), reranker=None, enable_router=False, mode="python")
+    outcomes = {}
+    a = threading.Thread(target=lambda: outcomes.__setitem__("a", retriever.retrieve_detailed(first)))
+    a.start()
+    assert paused.wait(10), "request A never reached its dense leg"
+    outcomes["b"] = retriever.retrieve_detailed(second)  # B runs while A waits between its lexical leg and its outcome
+    resume.set()
+    a.join(10)
+    for name, query in (("a", first), ("b", second)):
+        components = [d["component"] for d in outcomes[name].degraded]
+        assert components == (["bm25"] if query == LEXICAL_DOWN else []), f"request {name.upper()} ({query!r}) reports {outcomes[name].degraded}"
+
+
+@pytest.mark.parametrize("mode", ["sql", "python"])
+def test_a_request_writes_nothing_on_the_shared_retriever(mode):
+    """The API serves every request from one retriever: its fields are the same after requests
+    (a lexical_path route, a failed lexical leg in Python mode, a reranked one) as before them."""
+    if mode == "sql":
+        retriever = HybridRetriever(None, _FakeSQLVSM(), reranker=_ReversingCrossEncoder(), mode="sql", embed_fn=lambda q: [0.1, 0.2],
+                                    clusters=_clusters_for_fake_rows(), rerank_depth=2)
+    else:
+        retriever = HybridRetriever(_FakeVectorRetriever(), _UpOrDownVSM(), reranker=_ReversingCrossEncoder(), mode="python", rerank_depth=2)
+    before = dict(vars(retriever))
+    for query in ("current learning rate for run 47", "open configs/run_047.yaml", LEXICAL_DOWN):
+        retriever.retrieve_detailed(query)
+    assert vars(retriever) == before
+
+
+# ---------------------------------------------------------------- M17 (B14): the path list on the lexical_path route
+
+
+@pytest.mark.parametrize(
+    "query, enable_router, path_query",
+    [
+        ("open configs/run_047.yaml", True, "open configs/run_047.yaml"),  # lexical_path: the statement gets the path list
+        ("current learning rate for run 47", True, None),  # semantic: no path list
+        ("which run has the lowest val_rmse", True, None),  # aggregation_query: no path list
+        ("open configs/run_047.yaml", False, None),  # router off: every query is semantic, as in memory
+    ],
+)
+def test_only_the_lexical_path_route_sends_the_path_list(query, enable_router, path_query):
+    vsm, embedded = _FakeSQLVSM(), []
+    retriever = HybridRetriever(None, vsm, reranker=None, enable_router=enable_router, mode="sql", embed_fn=lambda q: embedded.append(q) or [0.1])
+    out = retriever.retrieve_detailed(query)
+    assert vsm.path_queries == [path_query]
+    assert (embedded == []) == (path_query is not None)  # the path route sends no query vector, as before
+    assert "path" in out.counts
+
+
+def test_the_path_score_is_reported_per_hit():
+    class _PathVSM(_FakeSQLVSM):
+        def hybrid_search(self, query, query_embedding=None, k=50, rrf_k=60, path_query=None):
+            rows = super().hybrid_search(query, query_embedding, k, rrf_k, path_query)
+            for row in rows:
+                named = path_query and row["metadata"]["path"] == "configs/run_047.yaml"
+                row["path_score"], row["path_rank"] = (10.0, 1) if named else (None, None)
+            return rows
+
+    out = HybridRetriever(None, _PathVSM(), reranker=None, mode="sql", embed_fn=lambda q: [0.1]).retrieve_detailed("open configs/run_047.yaml")
+    assert out.counts["path"] == 1
+    assert out.scores["cur"]["path"] == 10.0 and out.scores["log"]["path"] is None

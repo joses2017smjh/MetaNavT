@@ -2,7 +2,7 @@
 
 POST /api/retrieve/  {"query": "...", "k": 8}
   -> route, per-stage latency, counts, and hits with path + byte range +
-     per-stage scores (bm25, dense, rrf, rerank). 422 on a bad body, 503 when
+     per-stage scores (bm25, dense, path, rrf, rerank). 422 on a bad body, 503 when
      the backend is down, 504 when the retrieval runs past its time budget
      (RETRIEVE_TIMEOUT_SECONDS), naming the stage. The index, vector store,
      clusters and retriever are built once in main.py's lifespan; the blocking
@@ -59,6 +59,7 @@ class RetrieveRequest(BaseModel):
 class StageScores(BaseModel):
     bm25: Optional[float] = None
     dense: Optional[float] = None
+    path: Optional[float] = None  # the path list's score (lexical_path route, sql mode)
     rrf: Optional[float] = None
     rerank: Optional[float] = None
 
@@ -161,7 +162,7 @@ async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
                 start_byte=_int(meta.get("start_byte")),
                 end_byte=_int(meta.get("end_byte")),
                 score=float(node.score or 0.0),
-                scores=StageScores(**{k: sc.get(k) for k in ("bm25", "dense", "rrf", "rerank")}),
+                scores=StageScores(**{k: sc.get(k) for k in ("bm25", "dense", "path", "rrf", "rerank")}),
                 text=node.node.get_content()[:800],
             )
         )

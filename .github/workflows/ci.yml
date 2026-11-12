@@ -152,10 +152,12 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install --no-deps -e .
           python -m pip check
-      - name: SQL RRF == Python RRF, dense leg == in-memory dense search (also on a forced HNSW scan), incremental indexing, schema migrations (tests/database, live Postgres)
+      - name: SQL RRF == Python RRF, dense leg == in-memory dense search (also on a forced HNSW scan), incremental indexing, schema migrations, start-up checks (tests/database, live Postgres)
         run: python -m pytest tests/database -q -rs
       - name: Fixture mtimes from the MANIFEST (the served staleness filter reads disk mtimes; a checkout's are arbitrary)
         run: make fixture-mtimes
+      - name: Schema migrations (the deploy step; while one is pending the API answers 503 and retries)
+        run: make migrate
       - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &

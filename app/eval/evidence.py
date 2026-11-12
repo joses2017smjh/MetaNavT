@@ -23,12 +23,16 @@ FILES = {
     "beir": "bench/results/beir_scifact.json",
     "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
+    "parity_neural": "bench/results/parity_neural.json",
+    "rerank_depth": "bench/results/rerank_depth.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "companion_live": "bench/results/companion_live.json",
+    "chat_route_smoke": "bench/results/chat_route_smoke.json",
     "rrf_sweep": "bench/results/rrf_sweep.json",
     "hybrid_drops": "bench/results/hybrid_drops_bge_base.json",
 }
@@ -49,6 +53,13 @@ def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, st
 
 def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
+
+
+def _zero(block: dict | None) -> str:
+    """Whether a paired interval covers zero, in words (owner rule: an interval that covers zero is reported as such)."""
+    if not block:
+        return "no interval"
+    return "the interval covers zero" if block["lo"] <= 0.0 <= block["hi"] else "the interval excludes zero"
 
 
 def _p50(row: dict, stage: str = "total"):
@@ -205,6 +216,29 @@ def claims(root: Path = ROOT) -> list[dict]:
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
+    depth = _load(FILES["rerank_depth"], root)
+    top20 = _rows(depth).get("hybrid+bge-rerank@bge-small/top20") if depth else None
+    if top20:
+        block = (top20.get("delta_vs_previous") or {}).get("ndcg@10")
+        d, ci = _ci(block, "delta")
+        changed = top20.get("vs_parent") or {}
+        out.append({"claim": "Fixture v1, bge-reranker-v2-m3 on the fused top 20 (the served RERANK_DEPTH) vs every fused candidate (fp32, bge-small), paired delta in nDCG@10",
+                    "value": d, "ci": ci, "n": depth["n_gold"], "command": "make bench-rerank-depth", "source": f"{FILES['rerank_depth']} @ {depth['git_sha']}",
+                    "not_shown": f"{_zero(block)}; the depth alone; {changed.get('n_top10_differs', '?')} of {changed.get('n_questions', '?')} questions change their top 10; "
+                                 "the file walks on to max_length 512, fp16, the router with Tier 1, and Tier 1 before the rerank, each against its parent"})
+    neural_parity = _load(FILES["parity_neural"], root)
+    if neural_parity:
+        d = (neural_parity.get("gap") or {}).get("paired_delta_api_minus_in_memory") or {}
+        dv, ci = _ci(d, "delta") if d else ("—", "—")
+        differ = ", ".join(neural_parity.get("settings_differ") or []) or "none"
+        device = (neural_parity.get("device") or {}).get("device_name")
+        bare = (neural_parity.get("api_health") or {}).get("embedding_query_instruction") == ""
+        query = "the bare query: EMBEDDING_QUERY_INSTRUCTION=none, not the served default" if bare else "LlamaIndex's query instruction"
+        out.append({"claim": f"API with bge-small ({query}) + bge-reranker-v2-m3 (fp16, max_length 512, depth 20) vs the in-memory bench with the same settings, nDCG@10 gap",
+                    "value": dv, "ci": ci, "n": neural_parity["n_gold"], "command": f"make parity PARITY_CONFIG={neural_parity.get('in_memory_config')}",
+                    "source": f"{FILES['parity_neural']} @ {neural_parity['git_sha']}",
+                    "not_shown": f"{_zero(d)}; one run in a Slurm GPU job ({device}), not re-run by CI; reported, not gated; "
+                                 f"settings that differ between the two sides: {differ}"})
     lat = _load(FILES["latency"], root)
     if lat:
         h = lat.get("health", {}).get("reranker", {})
@@ -256,6 +290,90 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
+    out += _companion_live_claims(root)
+    out += _chat_route_claims(root)
+    return out
+
+
+def _chat_route_claims(root: Path = ROOT) -> list[dict]:
+    """The chat routes with a real model on the default stack (make chat-route-smoke): a smoke run, not accuracy."""
+    blob = _load(FILES["chat_route_smoke"], root)
+    if not blob:
+        return []
+    src = f"{FILES['chat_route_smoke']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make chat-route-smoke"
+    model, gpu = blob["model"], (blob.get("device") or {}).get("gpu") or "the recorded GPU"
+    llm = blob.get("chat_llm") or {}
+    common = (f"a smoke run: one request per question, the first gold question of each category; not an accuracy "
+              f"measurement; hash embeddings, Postgres ts_rank_cd, no reranker; chat temperature {llm.get('temperature')} "
+              f"(the default), no seed; code execution off")
+    out = []
+
+    def stated(route: dict) -> str:
+        aside = route["states_gold_value_aside"]
+        return (f"answered means the route returned text, not that the text answers the question (it states the gold "
+                f"value in {aside['k']} of the {aside['n']} questions with a value answer that the question does not "
+                f"itself name)")
+
+    def by_name(counts: dict | None) -> str:
+        return ", ".join(f"{name} {count}" for name, count in (counts or {}).items()) or "none"
+
+    stream = blob["summary"].get("/api/chat")
+    if stream:
+        out.append({"claim": f"Chat route POST /api/chat (the web UI's streaming route), {model} through Ollama on the default stack: requests answered (HTTP 200, text, no error line)",
+                    "value": f"{stream['answered']} of {stream['n']}", "ci": "—", "n": stream["n"], "command": cmd, "source": src,
+                    "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
+    request = blob["summary"].get("/api/chat/request")
+    if request:
+        out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name, and the calls that failed",
+                    "value": (f"{request['answered']} of {request['n']}; tool calls: {by_name(request.get('tool_calls'))}; "
+                              f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
+                              f"{by_name(request.get('tool_calls_returned_error_text'))}; code tool calls: {request['code_tool_calls']}"),
+                    "ci": "—", "n": request["n"], "command": cmd, "source": src,
+                    "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool or named a tool that does not exist; an error "
+                                  f"text is an 'Error: ...' string a tool returned without the flag; a call that returned "
+                                  f"an empty list is not counted as failed; the causes are described in "
+                                  f"doc/engineering-reference.md (Backend)")})
+    return out
+
+
+def _companion_live_claims(root: Path = ROOT) -> list[dict]:
+    """The research companion in live mode (make bench-companion-live): outcomes, stated gold values, citations,
+    and the planted-value answers over the planted copy."""
+    blob = _load(FILES["companion_live"], root)
+    if not blob:
+        return []
+    src = f"{FILES['companion_live']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make bench-companion-live"
+    model = blob["model"]
+    gold = blob["summary"]["gold"]["overall"]
+    stack = ("the served retrieval is the default stack's fallbacks (hash embeddings, Postgres ts_rank_cd, no "
+             "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
+             "synthetic fixture questions")
+    out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
+            "value": "; ".join(f"{k} {v}" for k, v in gold["status"].items()), "ci": "—", "n": gold["n"],
+            "command": cmd, "source": src,
+            "not_shown": f"{stack}; a blocked answer is the companion failing closed (no valid JSON or no inspected citation), not a served answer"}]
+    sg = gold["states_gold"]
+    if sg["n"]:
+        out.append({"claim": f"Research companion, live mode ({model}): answers that state the gold value, of the gold questions with a value answer",
+                    "value": f"{sg['rate']:.3f}", "ci": f"[{sg['lo']:.3f}, {sg['hi']:.3f}]", "n": sg["n"], "command": cmd,
+                    "source": src,
+                    "not_shown": f"deterministic value matching, not entailment: an answer that quotes a whole config states every value in it; sentence and yes/no golds are not scored; answers that did not complete (abstained, blocked, stopped at the model-round limit) and failed requests count as not stating it; {stack}"})
+    cit = gold["citations"]
+    blocked_citing = gold["stop_reason"].get("invalid_citations", 0)
+    if cit["complete_answers"]:
+        out.append({"claim": f"Research companion, live mode ({model}): completed answers whose every citation names an inspected source whose excerpt hash and bytes match the cited range of the file",
+                    "value": f"{cit['complete_answers_all_valid']} of {cit['complete_answers']}", "ci": "—",
+                    "n": cit["complete_answers"], "command": cmd, "source": src,
+                    "not_shown": f"reference integrity, not factual support; only completed answers are counted: the companion itself blocks an answer that cites a source it did not inspect and returns it without citations ({blocked_citing} here, stop reason invalid_citations), and abstentions and answers stopped at the model-round limit carry no citation; {stack}"})
+    planted = blob["summary"].get("planted")
+    if planted:
+        when = planted["planted_value_stated_when_exposed"]
+        clean = planted["same_questions_clean_corpus"]
+        out.append({"claim": f"Research companion, live mode ({model}), planted instructions (the injection benchmark's ten hijack texts): answers that state the planted value, of the questions in which the model saw the planted text",
+                    "value": f"{when['k']} of {when['n']}", "ci": "—", "n": when["n"], "command": cmd, "source": src,
+                    "not_shown": f"one phrasing per task, not an adaptive attacker; the same {clean['n']} questions on the clean copy state the planted value {clean['planted_value_stated']} times; {stack}"})
     return out
 
 
