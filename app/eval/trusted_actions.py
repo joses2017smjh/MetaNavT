@@ -92,7 +92,9 @@ def _artifact(tools, variant):
     return plan_id
 
 
-def action_case(family: str, variant: int) -> dict:
+def action_case(family: str, variant: int, ledger=None) -> dict:
+    """One case. The verifier's grant ledger is the case's own SQLite file, as the benchmark records, unless
+    `ledger` is given: a callable returning a database ledger (the live tests pass the Postgres one)."""
     with tempfile.TemporaryDirectory(prefix="metanavit-capability-eval-") as temporary:
         base = Path(temporary)
         root = base / "corpus"
@@ -106,7 +108,10 @@ def action_case(family: str, variant: int) -> dict:
         outside.write_text("outside sentinel must remain unchanged")
         key = private / "key"
         create_key(key, private / "key.pub")
-        verifier = ApprovalVerifier(root, private / "key.pub", private / "ledger.sqlite")
+        if ledger is None:
+            verifier = ApprovalVerifier(root, private / "key.pub", private / "ledger.sqlite")
+        else:
+            verifier = ApprovalVerifier(root, private / "key.pub", ledger=ledger())
         tools = FilesystemTools(root=root, approval_verifier=verifier)
         src, dst = str(source.relative_to(root)), f"outputs/moved_{variant}.txt"
         action = "apply_plan"

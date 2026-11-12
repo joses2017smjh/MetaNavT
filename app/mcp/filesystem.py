@@ -204,6 +204,10 @@ class MovePlan:
     created_at: float
     approved: bool = False
     applied: bool = False
+    # The session of the FilesystemTools object that proposed the move; its review records it. A plan
+    # loaded from elsewhere (load_move_plan) keeps the proposer's session, so this object rebuilds the
+    # same review. Empty: this object's own session.
+    session: str = ""
 
 
 @dataclass
@@ -249,10 +253,18 @@ class FilesystemTools:
             self.approval_verifier.audit(plan_id, action, result, detail if check is None else f"{detail} ({check})")
         self.audit_events.append(event)
 
+    @property
+    def root_identity(self) -> str:
+        """SHA-256 of the root's path, device and inode, as every review records it (read at each call)."""
+        st = self.root.stat()
+        return hashlib.sha256(f"{self.root}:{st.st_dev}:{st.st_ino}".encode()).hexdigest()
+
     def _describe(self, plan_id: str) -> dict:
+        session = self._session
         if plan_id in self.plans:
             p = self.plans[plan_id]
             action, payload, reads, creates = "apply_plan", {"src": p.src, "dst": p.dst}, [p.src], [p.dst]
+            session = p.session or self._session
         elif plan_id in self.patches:
             p = self.patches[plan_id]
             action, payload, reads, creates = "apply_patch", p.as_dict(), [p.path], []
@@ -273,15 +285,37 @@ class FilesystemTools:
         destinations = [fingerprint(self.root, path) for path in creates]
         if any(state["exists"] for state in destinations):
             raise FileExistsError("destination already exists; overwrites require a separate reviewed patch")
-        st = self.root.stat()
-        return {"schema": "metanavit-reviewed-action-v1", "session": self._session,
-                "root_identity": hashlib.sha256(f"{self.root}:{st.st_dev}:{st.st_ino}".encode()).hexdigest(),
+        return {"schema": "metanavit-reviewed-action-v1", "session": session,
+                "root_identity": self.root_identity,
                 "plan_id": plan_id, "action": action, "payload": payload,
                 "sources": states, "destinations": destinations}
 
     def _register_review(self, plan_id: str) -> dict:
         self._reviews[plan_id] = canonical(self._describe(plan_id)).decode()
         return self.review_plan(plan_id)
+
+    def registered_review(self, plan_id: str) -> str:
+        """The canonical review text registered for a plan: byte for byte what a capability's hash covers."""
+        if plan_id not in self._reviews:
+            raise KeyError(f"unknown reviewed plan {plan_id}")
+        return self._reviews[plan_id]
+
+    def load_move_plan(self, plan: MovePlan, review: str) -> None:
+        """Hold a move plan proposed by another FilesystemTools object (another process, or this one before a
+        restart) with the canonical review registered for it there, replacing anything held under its id.
+
+        Nothing in them is trusted: apply_plan rebuilds the review from the plan's src, dst and session and from
+        this root as it is now (its identity, the files' fingerprints), refuses any difference from `review` as
+        stale, and the capability must be signed over exactly `review`. The API's plan store
+        (app/api/routers/plans.py) loads a plan from its table for each decision and drops it after (forget_plan).
+        """
+        self.plans[plan.plan_id] = plan
+        self._reviews[plan.plan_id] = review
+
+    def forget_plan(self, plan_id: str) -> None:
+        """Drop a move plan and its review from this object."""
+        self.plans.pop(plan_id, None)
+        self._reviews.pop(plan_id, None)
 
     def review_plan(self, plan_id: str, **options) -> dict:
         """Read-only host/operator helper, not an approval issuer or MCP tool.
@@ -427,6 +461,7 @@ class FilesystemTools:
             src=str(src_p.relative_to(self.root)),
             dst=str(dst_p.relative_to(self.root)),
             created_at=time.time(),
+            session=self._session,
         )
         self.plans[plan.plan_id] = plan
         review = self._register_review(plan.plan_id)

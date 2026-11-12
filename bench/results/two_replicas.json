@@ -1,0 +1,204 @@
+{
+  "schema": "two-replicas-v1",
+  "git_sha": "9748cd2",
+  "worktree_clean": true,
+  "timestamp": "2026-11-12T04:33:29.425219+00:00",
+  "command": "python -m app.eval.two_replicas --out bench/results/two_replicas.json",
+  "device": {
+    "requested": "cpu",
+    "python": "3.11.16",
+    "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+    "cpu_count": 64,
+    "torch": null,
+    "cuda_available": false,
+    "device": "cpu",
+    "device_name": "cpu",
+    "threads": null,
+    "sentence_transformers": null
+  },
+  "replicas": 2,
+  "postgres": "16.15",
+  "pgvector": "0.8.6",
+  "embedder": "hash-256 (fallback: deterministic hashing, no model)",
+  "corpus": "a copy of fixture v1 (bench/corpus/files) shared by both replicas as DATA_DIR",
+  "approval_ledger": "postgres (METANAVIT_APPROVAL_LEDGER=postgres)",
+  "environment": {
+    "DATA_DIR": "<task-local copy of the corpus>",
+    "DB_NAME": "<task-local database>",
+    "EMBEDDING_DIM": "256",
+    "EMBEDDING_PROVIDER": "hash",
+    "ENABLE_PYTHON_EXEC": "false",
+    "ENABLE_ROUTER": "true",
+    "INDEX_ON_START": "false",
+    "INGEST_MAX_REJECTED": "0",
+    "LANG": "en_US.UTF-8",
+    "LOG_FORMAT": "text",
+    "METANAVIT_API_KEY": "",
+    "METANAVIT_APPROVAL_LEDGER": "postgres",
+    "METANAVIT_APPROVAL_PUBLIC_KEY_FILE": "<path>/operator.pub",
+    "MKL_NUM_THREADS": "1",
+    "MODEL": "qwen2.5:14b",
+    "MODEL_PROVIDER": "ollama",
+    "OLLAMA_BASE_URL": "http://127.0.0.1:9",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "PG_CONNECTION_STRING": "<task-local database>",
+    "PSYCOPG2_CONNECTION_STRING": "<task-local database>",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "RATE_LIMIT_PER_MINUTE": "",
+    "RAYON_NUM_THREADS": "1",
+    "RERANKER_MODEL": "none",
+    "RERANK_TOP_N": "8",
+    "RETRIEVAL_MODE": "sql",
+    "RETRIEVE_K": "50",
+    "TOKENIZERS_PARALLELISM": "false"
+  },
+  "index_step": {
+    "runs": 1,
+    "exit": 0,
+    "files_indexed": 61,
+    "chunks_embedded": 71,
+    "n_nodes": 71
+  },
+  "observations": [
+    {
+      "name": "index_once",
+      "index_step_runs": 1,
+      "health": [
+        200,
+        200
+      ],
+      "indexed_at_start": [
+        false,
+        false
+      ],
+      "rows": [
+        71,
+        71
+      ],
+      "checks": {
+        "index step exited 0": true,
+        "both healthy": true,
+        "neither replica indexed at start": true,
+        "both count the rows the index step wrote": true
+      },
+      "passed": true
+    },
+    {
+      "name": "both_serve_retrieve",
+      "statuses": [
+        200,
+        200
+      ],
+      "hits": [
+        5,
+        5
+      ],
+      "checks": {
+        "both answer 200": true,
+        "hits on both": true,
+        "the same paths in the same order": true
+      },
+      "passed": true
+    },
+    {
+      "name": "plan_shared",
+      "statuses": {
+        "propose_on_a": 201,
+        "list_on_b": 200,
+        "read_on_b": 200
+      },
+      "checks": {
+        "proposed on A (201)": true,
+        "listed on B": true,
+        "read on B with the same review": true,
+        "pending, nothing moved": true
+      },
+      "passed": true
+    },
+    {
+      "name": "refused_without_a_valid_capability",
+      "statuses": {
+        "no capability on A": 403,
+        "no capability on B": 403,
+        "another key's capability on B": 403
+      },
+      "checks": {
+        "every attempt 403": true,
+        "nothing moved": true,
+        "still pending on both": true
+      },
+      "passed": true
+    },
+    {
+      "name": "approved_on_the_other",
+      "statuses": {
+        "approve_on_b": 200
+      },
+      "status_on_a": "applied",
+      "checks": {
+        "approved on B (200, applied)": true,
+        "the file moved": true,
+        "A reports it applied": true
+      },
+      "passed": true
+    },
+    {
+      "name": "replay_after_apply",
+      "statuses": {
+        "replay_on_a": 409
+      },
+      "checks": {
+        "the same capability on A answers 409": true,
+        "moved once": true
+      },
+      "passed": true
+    },
+    {
+      "name": "rejection_shared",
+      "statuses": {
+        "propose_on_a": 201,
+        "reject_on_a": 200,
+        "approve_on_b": 409
+      },
+      "checks": {
+        "rejected on A (200)": true,
+        "B reports it rejected, with its actor and note": true,
+        "an approval on B answers 409": true,
+        "nothing moved": true
+      },
+      "passed": true
+    },
+    {
+      "name": "burnt_grant_refused_elsewhere",
+      "statuses": {
+        "propose_on_b": 201,
+        "approve_on_b_move_fails": 403,
+        "same_capability_on_a": 403,
+        "fresh_capability_on_a": 200
+      },
+      "refused_on_a_by": "ledger",
+      "checks": {
+        "the failed move on B is refused (403)": true,
+        "the same capability on A is refused by the ledger (403)": true,
+        "nothing moved meanwhile": true,
+        "a fresh capability applies on A": true
+      },
+      "passed": true
+    },
+    {
+      "name": "decision_log_shared",
+      "statuses": [
+        200,
+        200
+      ],
+      "entries": 8,
+      "checks": {
+        "both answer 200": true,
+        "the same entries": true
+      },
+      "passed": true
+    }
+  ],
+  "passed": true
+}
