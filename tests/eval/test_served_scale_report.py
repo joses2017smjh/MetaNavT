@@ -87,6 +87,13 @@ def test_served_block_shows_every_row_with_its_pair_and_labels_the_fallback():
     assert "| 16 | 64 | 6 | http_503 6 | 16008.0 / 32008.0 | 1.25 |" in text
 
 
+def test_the_reproduction_names_the_fiqa_recording_it_compared_with():
+    """bench/results/beir_fiqa.json can be re-recorded after the served-scale run (M10b re-recorded it at another commit
+    and GPU, with byte-identical TREC runs): the sentence names the recording the run compared with, not the file."""
+    text = report.served_scale_table(served_blob())
+    assert "The bare-query rows against bench/results/beir_fiqa.json as recorded at results sha 2583576 (GPU Z; same code, " in text
+
+
 def test_served_block_refuses_a_slice_or_a_dry_run_and_names_split_machines():
     slice_blob = served_blob()
     slice_blob["query_selection"] = "first 40 queries by id; slice of 4000 documents"

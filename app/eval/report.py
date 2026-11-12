@@ -609,7 +609,10 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
     if rep.get("status") == "compared":
         bits = [f"{name}: nDCG@10 {r['this_job_ndcg@10']:.4f} here and {r['committed_ndcg@10']:.4f} there, the same ranking for {r['identical_rankings']} of {r['n']} queries "
                 f"(the same first 10 for {r['identical_top10']})" for name, r in rep["rows"].items()]
-        lines += ["", f"The bare-query rows against {rep['file']} (results sha {rep['git_sha']}, {rep['device']}; same code, corpus and document embeddings): " + "; ".join(bits) + "."]
+        # the recording of the FiQA file this run compared with: that file may have been re-recorded since (M10b did, with
+        # byte-identical TREC runs), so the sentence names the recording, not the file as it is now
+        lines += ["", f"The bare-query rows against {rep['file']} as recorded at results sha {rep['git_sha']} ({rep['device']}; same code, corpus and "
+                      "document embeddings): " + "; ".join(bits) + "."]
     else:
         lines += ["", f"The bare-query rows were not compared with {rep.get('file', BEIR_FIQA_FILE)}: {rep.get('reason', 'not recorded')}."]
     docs = blob["served"]["api:hybrid"].get("documents_per_response") or {}
