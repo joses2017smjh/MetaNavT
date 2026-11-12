@@ -140,19 +140,29 @@ def improvements(
 
 def baseline_note(baseline: dict, name: str, root: Path) -> str:
     """The commit the baseline file was recorded at (and whether its tree was dirty), and how many commits HEAD of the
-    checkout at `root` has moved since. CI's checkout is shallow, so there the commit is usually not in the history."""
+    checkout at `root` has moved since. Counted only when HEAD descends from that commit. Otherwise a shallow clone
+    is named as one (CI's eval job fetches the full history), and in a full clone the commit is not in HEAD's history:
+    a squash merge of the branch that recorded the baseline leaves it that way. Nothing more when git cannot say."""
     sha = baseline.get("git_head") or baseline.get("git_sha")
     if not sha:
         return f"baseline: {name} records no commit"
     shown = f"{baseline.get('git_sha') or sha[:7]}{' with uncommitted changes' if baseline.get('working_tree_dirty') is True else ''}"
+
+    def git(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60)
+
     try:
-        run = subprocess.run(["git", "rev-list", "--count", f"{sha}..HEAD"], cwd=root, capture_output=True, text=True, timeout=60)
-    except (OSError, subprocess.SubprocessError):
+        if git("merge-base", "--is-ancestor", sha, "HEAD").returncode == 0:
+            n = int(git("rev-list", "--count", f"{sha}..HEAD").stdout.strip())
+            return f"baseline: {name} recorded at {shown}; HEAD is " + ("that commit" if n == 0 else f"{n} commit{'s' if n != 1 else ''} after it")
+        shallow = git("rev-parse", "--is-shallow-repository")
+    except (OSError, subprocess.SubprocessError, ValueError):
         return f"baseline: {name} recorded at {shown}"
-    if run.returncode != 0:
-        return f"baseline: {name} recorded at {shown}, a commit not in this checkout's history (a shallow clone has only its own)"
-    n = int(run.stdout.strip())
-    return f"baseline: {name} recorded at {shown}; HEAD is " + ("that commit" if n == 0 else f"{n} commit{'s' if n != 1 else ''} after it")
+    if shallow.returncode != 0:  # not a checkout
+        return f"baseline: {name} recorded at {shown}"
+    if shallow.stdout.strip() == "true":
+        return f"baseline: {name} recorded at {shown}, a commit this shallow clone does not have (fetch the full history to count the commits since)"
+    return f"baseline: {name} recorded at {shown}, a commit not in HEAD's history (a squash merge or a rewritten history leaves results naming one)"
 
 
 VOLATILE_ROW_KEYS = frozenset({"latency", "wall_ms"})  # timings: the only row fields allowed to differ

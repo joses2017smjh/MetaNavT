@@ -211,9 +211,9 @@ def test_how_far_head_has_moved_since_the_baseline_commit(tmp_path, monkeypatch)
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    def git(*args):
+    def git(*args, cwd=repo):
         return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *args],
-                              cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+                              cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
 
     git("init", "-q")
     shas = []
@@ -224,8 +224,27 @@ def test_how_far_head_has_moved_since_the_baseline_commit(tmp_path, monkeypatch)
         shas.append(git("rev-parse", "--short", "HEAD"))
     assert baseline_note({"git_sha": shas[0]}, "main.json", repo) == f"baseline: main.json recorded at {shas[0]}; HEAD is 2 commits after it"
     assert baseline_note({"git_sha": shas[2]}, "main.json", repo) == f"baseline: main.json recorded at {shas[2]}; HEAD is that commit"
-    assert baseline_note({"git_sha": "0000000"}, "main.json", repo) == (
-        "baseline: main.json recorded at 0000000, a commit not in this checkout's history (a shallow clone has only its own)")
+    # A full clone (CI's eval job fetches the full history) that lacks the commit, or has it off HEAD's history, as a
+    # squash merge of the branch that recorded the baseline leaves it: not "commits after it", and not a shallow clone.
+    off_history = "a commit not in HEAD's history (a squash merge or a rewritten history leaves results naming one)"
+    assert baseline_note({"git_sha": "0000000"}, "main.json", repo) == f"baseline: main.json recorded at 0000000, {off_history}"
+    git("checkout", "-q", "-b", "side", shas[1])
+    (repo / "g.txt").write_text("side\n")
+    git("add", "g.txt")
+    git("commit", "-q", "-m", "side")
+    side = git("rev-parse", "--short", "HEAD")
+    git("checkout", "-q", "-")
+    assert baseline_note({"git_sha": side}, "main.json", repo) == f"baseline: main.json recorded at {side}, {off_history}"
+    # A shallow clone has only its own commits.
+    shallow = tmp_path / "shallow"
+    subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{repo}", str(shallow)], check=True, capture_output=True)
+    assert git("rev-parse", "--is-shallow-repository", cwd=shallow) == "true"
+    assert baseline_note({"git_sha": shas[0]}, "main.json", shallow) == (
+        f"baseline: main.json recorded at {shas[0]}, a commit this shallow clone does not have (fetch the full history to count the commits since)")
+    assert baseline_note({"git_sha": shas[2]}, "main.json", shallow) == f"baseline: main.json recorded at {shas[2]}; HEAD is that commit"
+    plain = tmp_path / "plain"  # not a checkout: git cannot say
+    plain.mkdir()
+    assert baseline_note({"git_sha": shas[0]}, "main.json", plain) == f"baseline: main.json recorded at {shas[0]}"
     assert baseline_note({}, "main.json", repo) == "baseline: main.json records no commit"
 
 

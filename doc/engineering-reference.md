@@ -309,8 +309,10 @@ The gate fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than
 outside timings, in either direction. The gate is one-sided: a rise above the
 threshold does not fail it but is printed as drift (`main.json` no longer
 describes the code), with the commit `main.json` was recorded at and how many
-commits HEAD has moved since (CI's shallow checkout does not have that commit,
-and says so). The bench gives the same numbers on any
+commits HEAD has moved since (CI's eval job fetches the full history; a shallow
+clone without that commit, or a history that does not contain it, as a squash
+merge of the branch that recorded `main.json` would leave, is named as such).
+The bench gives the same numbers on any
 machine and checkout: the staleness filter and the file graph compare mtimes,
 and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
 (a checkout sets them to the moment it wrote each file); dense scores are
