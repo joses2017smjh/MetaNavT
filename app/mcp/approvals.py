@@ -9,6 +9,12 @@ execute arbitrary code as the operator is outside this boundary. A token
 authorizes exactly one immutable review, which records the session its plan
 was proposed in.
 
+The grant ledger is a SQLite file (METANAVIT_APPROVAL_LEDGER_FILE), single use
+among the processes on one host that share it; with
+METANAVIT_APPROVAL_LEDGER=postgres the API keeps it in its database instead
+(app/mcp/postgres_ledger.py), shared by every replica on it. Whoever can write
+those tables can replay grants, as whoever can replace the file can.
+
 Token: base64url(body) "." base64url(signature), unpadded. The body is the
 canonical JSON of {review_sha256, grant_id, issued_at, expires_at, actor}; the
 signature is the 64-byte Ed25519 signature over those body bytes. Key files are
@@ -165,17 +171,24 @@ class ApprovalVerifier:
     It never loads the private key, so it cannot issue a capability.
     SQLite UNIQUE + BEGIN IMMEDIATE makes replay consumption transactional across
     worker threads/processes using this ledger. Failed mutations burn the grant.
+    `ledger` (instead of `ledger_file`) is a database ledger with the same two
+    calls (consume, audit): app/mcp/postgres_ledger.PostgresLedger.
     """
-    def __init__(self, root: Path, public_key_file: Path, ledger_file: Path):
+    def __init__(self, root: Path, public_key_file: Path, ledger_file: Path | None = None, *, ledger=None):
         root = Path(root).resolve()
-        for path in (Path(public_key_file), Path(ledger_file)):
+        if (ledger_file is None) == (ledger is None):
+            raise ApprovalError("configure exactly one grant ledger: a SQLite file or a database ledger")
+        for path in (Path(public_key_file),) + (() if ledger_file is None else (Path(ledger_file),)):
             resolved = path.resolve()
             if resolved == root or root in resolved.parents:
                 raise ApprovalError("approval public key and ledger must be outside the corpus root")
             if path.is_symlink():
                 raise ApprovalError("approval state must not be a symlink")
         self.public_key = _public_key(Path(public_key_file))
-        self.ledger = Path(ledger_file)
+        self.database_ledger = ledger  # None: the SQLite file below
+        self.ledger = None if ledger_file is None else Path(ledger_file)
+        if self.ledger is None:
+            return
         if not self.ledger.exists():
             fd = os.open(self.ledger, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             os.close(fd)
@@ -212,6 +225,9 @@ class ApprovalVerifier:
                 raise ApprovalError("invalid grant identity", check="grant_identity")
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
             raise ApprovalError("malformed approval capability", check="malformed") from exc
+        if self.database_ledger is not None:
+            self.database_ledger.consume(grant, instant)  # ApprovalError (check "ledger") when already consumed
+            return grant
         try:
             with self._connect() as db:
                 db.execute("BEGIN IMMEDIATE")
@@ -221,11 +237,25 @@ class ApprovalVerifier:
         return grant
 
     def audit(self, plan_id: str, action: str, result: str, detail: str = "") -> None:
+        if self.database_ledger is not None:
+            self.database_ledger.audit(plan_id, action, result, detail)
+            return
         with self._connect() as db:
             db.execute("INSERT INTO audit(timestamp,plan_id,action,result,detail) VALUES (?,?,?,?,?)", (time.time(), plan_id, action, result, detail[:500]))
 
 
-def verifier_from_env(root: Path) -> ApprovalVerifier | None:
+LEDGERS = ("sqlite", "postgres")  # METANAVIT_APPROVAL_LEDGER
+
+
+def verifier_from_env(root: Path, *, database=None) -> ApprovalVerifier | None:
+    """The verifier the environment configures, or None (no approval state: every write is refused).
+
+    METANAVIT_APPROVAL_LEDGER picks the grant ledger: sqlite (unset: the default) is the file
+    METANAVIT_APPROVAL_LEDGER_FILE names; postgres is `database` (the API's vector store manager), so every
+    replica on that database shares one ledger. A process without a database (the stdio MCP servers) refuses
+    postgres rather than fall back to a file, and so does a configuration that names a file as well: with two
+    ledgers one capability could be consumed once in each.
+    """
     if os.getenv("METANAVIT_APPROVAL_KEY_FILE"):
         # Refused even beside the new setting, so a stale shared key is noticed and removed.
         raise ApprovalError("METANAVIT_APPROVAL_KEY_FILE named a shared HMAC key, which is no longer supported: unset "
@@ -233,6 +263,20 @@ def verifier_from_env(root: Path) -> ApprovalVerifier | None:
                             "init` and give servers only the public key through METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
     public = os.getenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
     ledger = os.getenv("METANAVIT_APPROVAL_LEDGER_FILE")
+    kind = (os.getenv("METANAVIT_APPROVAL_LEDGER") or "sqlite").strip().lower()
+    if kind not in LEDGERS:
+        raise ApprovalError("METANAVIT_APPROVAL_LEDGER must be sqlite or postgres")
+    if kind == "postgres":
+        if ledger:
+            raise ApprovalError("METANAVIT_APPROVAL_LEDGER=postgres keeps grants in the database: unset METANAVIT_APPROVAL_LEDGER_FILE")
+        if database is None:
+            raise ApprovalError("METANAVIT_APPROVAL_LEDGER=postgres needs the API's database; the MCP stdio servers keep a "
+                                "SQLite ledger: set METANAVIT_APPROVAL_LEDGER_FILE and unset METANAVIT_APPROVAL_LEDGER")
+        if not public:
+            raise ApprovalError("METANAVIT_APPROVAL_LEDGER=postgres also needs METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
+        from app.mcp.postgres_ledger import PostgresLedger
+
+        return ApprovalVerifier(root, Path(public), ledger=PostgresLedger(database))
     if bool(public) != bool(ledger):
         raise ApprovalError("configure both the approval public key and ledger paths")
     return ApprovalVerifier(root, Path(public), Path(ledger)) if public else None

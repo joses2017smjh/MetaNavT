@@ -39,13 +39,14 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from app.mcp.approvals import review_hash
+from app.mcp.approvals import review_hash, verifier_from_env
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools, MovePlan
 
 plans_router = r = APIRouter()
@@ -379,9 +380,14 @@ class DecisionLog:
 
 def build_plan_store(vsm=None, root: str | None = None) -> PlanStore:
     """The API's plan store over `root` (DATA_DIR): plans and decisions in the database `vsm` connects to (the
-    vector store manager: get_connection() and conn_string), or in this process only when `vsm` is None."""
+    vector store manager: get_connection() and conn_string), or in this process only when `vsm` is None.
+
+    The operator's capabilities are verified as configured (app/mcp/approvals.verifier_from_env); with
+    METANAVIT_APPROVAL_LEDGER=postgres their grants are consumed in this database, the one every replica shares.
+    """
     root = root or os.getenv("DATA_DIR", "data")
-    tools = FilesystemTools(root=root)  # allow_apply stays False: only an operator capability applies
+    verifier = verifier_from_env(Path(root), database=vsm)
+    tools = FilesystemTools(root=root, approval_verifier=verifier)  # allow_apply stays False: only an operator capability applies
     if vsm is None:
         return PlanStore(tools, None)
     return PlanStore(tools, DecisionLog(vsm), PlanTable(vsm))
