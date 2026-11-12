@@ -63,6 +63,86 @@ def test_single_use_is_transactional_across_independent_verifiers(tmp_path):
         assert db.execute("SELECT count(*) FROM grants").fetchone()[0] == 1
 
 
+def test_a_move_plan_proposed_by_one_tools_object_applies_through_another(tmp_path):
+    """D33 / C26: a plan and the review registered for it, carried to another FilesystemTools object (another
+    process: the API's plans table does this), apply there with the capability signed over the first one's review.
+    The review records the session the plan was proposed in, and the other object rebuilds it with that session."""
+    import dataclasses
+
+    tools, key, verifier, plan = _setup(tmp_path)
+    other = FilesystemTools(root=tools.root, approval_verifier=verifier)
+    assert other._session != tools._session and plan["review"]["session"] == tools._session
+    other.load_move_plan(dataclasses.replace(tools.plans[plan["plan_id"]]), tools.registered_review(plan["plan_id"]))
+    token = sign_review(plan["review"], key, actor="operator")
+    assert other.apply_plan(plan["plan_id"], approval_token=token)["status"] == "applied"
+    assert (tools.root / "destination").read_text() == "original"
+    other.forget_plan(plan["plan_id"])
+    assert other.plans == {} and other._reviews == {}
+
+
+def test_a_loaded_move_plan_is_rebuilt_with_its_own_session_not_the_loading_objects(tmp_path):
+    """C26: without the session it was proposed in, the review the other object rebuilds differs: stale, nothing moves."""
+    import dataclasses
+
+    tools, key, verifier, plan = _setup(tmp_path)
+    other = FilesystemTools(root=tools.root, approval_verifier=verifier)
+    other.load_move_plan(dataclasses.replace(tools.plans[plan["plan_id"]], session=""), tools.registered_review(plan["plan_id"]))
+    with pytest.raises(ApprovalError) as refused:
+        other.apply_plan(plan["plan_id"], approval_token=sign_review(plan["review"], key, actor="operator"))
+    assert refused.value.check == "staleness" and (tools.root / "source").exists() and not (tools.root / "destination").exists()
+
+
+# One verifier in a process of its own, on the shared ledger file: it says "ready", waits for "go" on stdin, consumes
+# the capability and prints what happened. The parent starts two and lets both go at once.
+LEDGER_CHILD = r"""
+import json, sys
+from pathlib import Path
+from app.mcp.approvals import ApprovalError, ApprovalVerifier
+args = json.loads(sys.argv[1])
+verifier = ApprovalVerifier(Path(args["root"]), Path(args["public"]), Path(args["ledger"]))
+print("ready", flush=True)
+sys.stdin.readline()
+try:
+    verifier.consume(args["token"], args["review"])
+    print(json.dumps({"outcome": "consumed"}), flush=True)
+except ApprovalError as exc:
+    print(json.dumps({"outcome": "refused", "check": exc.check}), flush=True)
+"""
+
+
+def test_two_processes_on_one_ledger_file_consume_a_capability_exactly_once(tmp_path):
+    """C18: single use across processes, not only across threads: two verifier processes on one SQLite ledger file,
+    released together, five rounds with a fresh capability each. In every round one consumes it and the other is
+    refused by the ledger check; the file holds one grant per round."""
+    import os
+    import subprocess
+    import sys
+
+    tools, key, verifier, plan = _setup(tmp_path)  # the parent creates the ledger file and its tables
+    env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    for _ in range(5):
+        args = json.dumps({"root": str(tools.root), "public": str(key.parent / "key.pub"), "ledger": str(verifier.ledger),
+                           "token": sign_review(plan["review"], key, actor="operator"), "review": plan["review"]})
+        children = [subprocess.Popen([sys.executable, "-c", LEDGER_CHILD, args], cwd=ROOT, env=env, text=True,
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(2)]
+        try:
+            for child in children:
+                assert child.stdout.readline().strip() == "ready", child.stderr.read()
+            for child in children:
+                child.stdin.write("go\n")
+                child.stdin.flush()
+            outcomes = [json.loads(child.stdout.readline()) for child in children]
+            assert all(child.wait(60) == 0 for child in children)
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+        assert sorted(o["outcome"] for o in outcomes) == ["consumed", "refused"], outcomes
+        assert [o["check"] for o in outcomes if o["outcome"] == "refused"] == ["ledger"]
+    with sqlite3.connect(verifier.ledger) as db:
+        assert db.execute("SELECT count(*), count(DISTINCT grant_id) FROM grants").fetchone() == (5, 5)
+
+
 def test_review_copy_does_not_mutate_immutable_manifest_and_audit_excludes_token(tmp_path):
     tools, key, verifier, plan = _setup(tmp_path)
     copied = tools.review_plan(plan["plan_id"])
@@ -529,6 +609,100 @@ def test_the_verifier_refuses_a_private_key_or_an_old_hmac_key(tmp_path, monkeyp
     monkeypatch.setenv("METANAVIT_APPROVAL_KEY_FILE", str(old))
     with pytest.raises(ApprovalError, match="unset METANAVIT_APPROVAL_KEY_FILE.*METANAVIT_APPROVAL_PUBLIC_KEY_FILE"):
         verifier_from_env(root)
+
+
+def test_the_postgres_ledger_is_chosen_by_configuration_and_never_replaced_by_a_file(tmp_path, monkeypatch):
+    """C49: METANAVIT_APPROVAL_LEDGER=postgres keeps grants in the API's database. A process without one (the stdio
+    servers) refuses it instead of falling back to a SQLite file, and so does a configuration that also names a
+    file: two ledgers would let one capability be consumed once in each."""
+    from app.mcp.postgres_ledger import PostgresLedger
+
+    root = tmp_path / "corpus"; root.mkdir()
+    private = tmp_path / "private"; private.mkdir(mode=0o700)
+    create_key(private / "key", private / "key.pub")
+    monkeypatch.delenv("METANAVIT_APPROVAL_KEY_FILE", raising=False)
+    monkeypatch.setenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE", str(private / "key.pub"))
+    monkeypatch.delenv("METANAVIT_APPROVAL_LEDGER_FILE", raising=False)
+    monkeypatch.setenv("METANAVIT_APPROVAL_LEDGER", "postgres")
+    with pytest.raises(ApprovalError, match="METANAVIT_APPROVAL_LEDGER_FILE"):
+        verifier_from_env(root)  # no database: the stdio servers
+    with pytest.raises(ApprovalError):
+        FilesystemTools(root=root)  # what both stdio servers build at start
+    database = object()
+    verifier = verifier_from_env(root, database=database)
+    assert isinstance(verifier.database_ledger, PostgresLedger) and verifier.database_ledger.database is database
+    assert verifier.ledger is None and not list(private.glob("*.sqlite"))  # no file was created
+    monkeypatch.setenv("METANAVIT_APPROVAL_LEDGER_FILE", str(private / "ledger.sqlite"))
+    with pytest.raises(ApprovalError, match="unset METANAVIT_APPROVAL_LEDGER_FILE"):
+        verifier_from_env(root, database=database)
+    monkeypatch.delenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE")
+    monkeypatch.delenv("METANAVIT_APPROVAL_LEDGER_FILE")
+    with pytest.raises(ApprovalError, match="METANAVIT_APPROVAL_PUBLIC_KEY_FILE"):
+        verifier_from_env(root, database=database)
+    monkeypatch.setenv("METANAVIT_APPROVAL_LEDGER", "redis")
+    with pytest.raises(ApprovalError, match="sqlite or postgres"):
+        verifier_from_env(root, database=database)
+    # Unset (or sqlite): the file, as before, also when a database is at hand.
+    monkeypatch.delenv("METANAVIT_APPROVAL_LEDGER")
+    monkeypatch.setenv("METANAVIT_APPROVAL_PUBLIC_KEY_FILE", str(private / "key.pub"))
+    monkeypatch.setenv("METANAVIT_APPROVAL_LEDGER_FILE", str(private / "ledger.sqlite"))
+    on_file = verifier_from_env(root, database=database)
+    assert on_file.database_ledger is None and on_file.ledger == private / "ledger.sqlite"
+    with pytest.raises(ApprovalError):  # exactly one ledger
+        ApprovalVerifier(root, private / "key.pub", private / "ledger.sqlite", ledger=PostgresLedger(database))
+    with pytest.raises(ApprovalError):
+        ApprovalVerifier(root, private / "key.pub")
+
+
+def test_the_postgres_ledger_reads_only_a_unique_violation_as_consumed():
+    """A duplicate grant id (SQLSTATE 23505) is "already consumed"; any other database error is raised as it is,
+    never read as consumed or as granted."""
+    from contextlib import contextmanager
+
+    from app.mcp.postgres_ledger import PostgresLedger
+
+    class Failure(Exception):
+        def __init__(self, pgcode):
+            super().__init__(f"database error {pgcode}")
+            self.pgcode = pgcode
+
+    class Database:
+        def __init__(self, pgcode):
+            self.pgcode, self.rolled_back = pgcode, 0
+
+        @contextmanager
+        def get_connection(self):
+            database = self
+
+            class Cursor:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc):
+                    return False
+
+                def execute(self, statement, params=None):
+                    if database.pgcode:
+                        raise Failure(database.pgcode)
+
+            class Connection:
+                def cursor(self):
+                    return Cursor()
+
+                def rollback(self):
+                    database.rolled_back += 1
+
+            yield Connection()
+
+    grant = {"grant_id": "ab" * 24, "review_sha256": "0" * 64, "actor": "operator"}
+    PostgresLedger(Database(None)).consume(grant, 1.0)  # inserted: consumed now
+    duplicate = Database("23505")
+    with pytest.raises(ApprovalError) as refused:
+        PostgresLedger(duplicate).consume(grant, 1.0)
+    assert refused.value.check == "ledger" and str(refused.value) == "approval already consumed" and duplicate.rolled_back == 1
+    for pgcode in ("08006", "42P01", "40001"):  # connection failure, missing table, serialization failure
+        with pytest.raises(Failure):
+            PostgresLedger(Database(pgcode)).consume(grant, 1.0)
 
 
 def test_operator_cli_creates_a_key_pair_and_signs_a_review_the_server_accepts(tmp_path, capsys):

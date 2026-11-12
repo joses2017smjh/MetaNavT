@@ -22,18 +22,28 @@ install-locked: ## the pinned versions CI and the image use: requirements.txt, t
 # requirements.txt (eval + app) is the one resolution. Every requirements/<profile>.txt is
 # compiled under it as a constraint (-c), so a package has the same version in every file
 # and each CI job / the image installs exactly its own extras, pinned.
+# requirements/ml.txt is resolved with PyTorch's CPU wheel index next to PyPI, so torch is
+# pinned as its CPU build (+cpu) with no CUDA packages; pip-compile writes the index line
+# into the file, so `pip install -r requirements/ml.txt` finds the wheel.
+# The image installs app.txt, ml.txt and otel.txt with --no-deps, so those three are compiled
+# with --allow-unsafe and pin setuptools where it is needed (app.txt, ml.txt): llama-index-core
+# needs a newer one than the base image ships, which pip used to fetch unpinned while it
+# resolved app.txt.
 #   make lock                  upgrade everything to the newest allowed versions
 #   make lock LOCK_UPGRADE=    keep the current pins; only add or drop what pyproject.toml changed
 LOCK_UPGRADE ?= --upgrade
 PIP_COMPILE = $(PYTHON) -m piptools compile --strip-extras
+TORCH_CPU_INDEX = https://download.pytorch.org/whl/cpu
 lock:           ## regenerate requirements.txt and requirements/*.txt from pyproject.toml
 	$(PIP_COMPILE) $(LOCK_UPGRADE) --extra eval --extra app -o requirements.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval -o requirements/eval.txt pyproject.toml
-	$(PIP_COMPILE) -c requirements.txt --extra app -o requirements/app.txt pyproject.toml
+	$(PIP_COMPILE) --allow-unsafe -c requirements.txt --extra app -o requirements/app.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile -o requirements/mobile.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra eval --extra mobile --extra agent -o requirements/agent.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra dev -o requirements/dev.txt pyproject.toml
 	$(PIP_COMPILE) -c requirements.txt --extra distill -o requirements/distill.txt pyproject.toml
+	$(PIP_COMPILE) --allow-unsafe -c requirements.txt --extra ml --extra-index-url $(TORCH_CPU_INDEX) -o requirements/ml.txt pyproject.toml
+	$(PIP_COMPILE) --allow-unsafe -c requirements.txt --extra otel -o requirements/otel.txt pyproject.toml
 
 lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or disagrees with requirements.txt
 	$(PYTHON) scripts/check_lock.py
@@ -245,6 +255,11 @@ ingest-runs:    ## first start, unchanged restart, one edit, one delete on a cop
 INGEST_SCALE_LABEL ?=
 ingest-scale:   ## indexing and start-up time at 1x, 10x and 100x copies of the fixture, hash embedder (PG_TEST_DSN); INGEST_SCALE_LABEL=before|after names the rows it writes, other rows are kept -> bench/results/ingest_scale.json
 	$(PYTHON) -m app.engine.ingest_scale --label $(INGEST_SCALE_LABEL)
+
+.PHONY: two-replicas
+TWO_REPLICAS_OUT ?= bench/results/two_replicas.json
+two-replicas:   ## two API processes on one Postgres (PG_TEST_DSN; a database of its own, dropped after): one index step, both serve retrieve, a plan proposed on one approved on the other, approve without a valid capability 403, a burnt capability refused on the other -> $(TWO_REPLICAS_OUT)
+	$(PYTHON) -m app.eval.two_replicas --out $(TWO_REPLICAS_OUT)
 
 explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN (fixture v1 already indexed) -> doc/sql/hybrid_explain.txt
 	$(PYTHON) scripts/explain_hybrid.py

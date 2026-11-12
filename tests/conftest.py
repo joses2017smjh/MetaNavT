@@ -14,10 +14,12 @@ def operator_grant(tmp_path_factory):
     key = protected / "operator.key"
     create_key(key, protected / "operator.pub")
 
-    def issue(tools, plan_id, **options):
+    def issue(tools, plan, **options):
+        """`plan`: a plan id `tools` holds, or a review exported elsewhere (the "review" of an /api/plans answer)."""
         if tools.approval_verifier is None:  # the verifier gets the public key only
             tools.approval_verifier = ApprovalVerifier(tools.root, protected / "operator.pub", protected / "ledger.sqlite")
-        return sign_review(tools.review_plan(plan_id, **options), key, actor="test-operator")
+        review = plan if isinstance(plan, dict) else tools.review_plan(plan, **options)
+        return sign_review(review, key, actor="test-operator")
     return issue
 
 # Add the project root to sys.path

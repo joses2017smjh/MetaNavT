@@ -53,22 +53,51 @@ def test_tool_calls_come_from_the_request_route_result():
 
     raised = "'FieldInfo' object has no attribute 'replace'"
     caught = "Error: 'dict' object has no attribute 'condition'"
+    missing = "Not found: the index holds no file at that path. list_available_files lists the indexed paths."
     tools = [ToolOutput(content="Run 40 used 0.0001.", tool_name="query_index", raw_input={"input": "lr of run 40"},
                         raw_output="Run 40 used 0.0001."),
              # how the agent workflow records a tool that raised (llama_index.core.agent.workflow.base_agent)
              ToolOutput(content=raised, tool_name="list_available_files", raw_input={}, raw_output=raised, is_error=True),
              # get_file_by_path catches its failure and returns it as text: no error flag
              ToolOutput(content=caught, tool_name="get_file_content",
-                        raw_input={"args": [], "kwargs": {"file_path": "configs/run_047.yaml"}}, raw_output=caught)]
+                        raw_input={"args": [], "kwargs": {"file_path": "configs/run_047.yaml"}}, raw_output=caught),
+             # a path the index does not hold: an answer from a working tool, not a failure
+             ToolOutput(content=missing, tool_name="get_file_content",
+                        raw_input={"args": [], "kwargs": {"file_path": "run_47_config.yaml"}}, raw_output=missing)]
     result = _served_result(tools)
     assert "content" not in result["tools"][0]  # the text travels as blocks
     assert smoke.tool_calls(result) == [
         {"name": "query_index", "arguments": {"input": "lr of run 40"}, "is_error": False, "returned_error_text": False,
-         "output_chars": len("Run 40 used 0.0001.")},
+         "returned_not_found": False, "output_chars": len("Run 40 used 0.0001.")},
         {"name": "list_available_files", "arguments": {}, "is_error": True, "returned_error_text": False,
-         "output_chars": len(raised), "error": raised},
+         "returned_not_found": False, "output_chars": len(raised), "error": raised},
         {"name": "get_file_content", "arguments": {"file_path": "configs/run_047.yaml"}, "is_error": False,
-         "returned_error_text": True, "output_chars": len(caught), "error": caught}]
+         "returned_error_text": True, "returned_not_found": False, "output_chars": len(caught), "error": caught},
+        {"name": "get_file_content", "arguments": {"file_path": "run_47_config.yaml"}, "is_error": False,
+         "returned_error_text": False, "returned_not_found": True, "output_chars": len(missing)}]
+
+
+def test_the_runner_reads_the_file_tools_own_reply_texts():
+    # The runner classifies a reply by its first word; the words come from the tool module, which it does not import.
+    from app.engine.tools import index_file_access as files
+
+    assert files.NOT_FOUND.startswith(smoke.NOT_FOUND_PREFIX)
+    assert not files.NOT_FOUND.startswith(smoke.ERROR_TEXT_PREFIX)
+    assert files.LIST_FAILED.startswith(smoke.ERROR_TEXT_PREFIX) and files.READ_FAILED.startswith(smoke.ERROR_TEXT_PREFIX)
+    # the results file records the hash of the code the file tools run
+    assert {"app/engine/tools/index_file_access.py", "app/database/vector_store_manager.py"} <= set(smoke.SOURCES)
+
+
+def test_no_fixture_file_starts_the_way_a_failed_or_not_found_reply_does():
+    # get_file_content returns a file's own text, and the runner reads a reply by how it starts: a fixture file that
+    # started with "Error" or "Not found" would be counted as a failed call or a not-found reply
+    # (doc/engineering-reference.md, Backend, says none does).
+    from pathlib import Path
+
+    fixture = Path(__file__).resolve().parents[2] / "bench" / "corpus" / "files"
+    texts = {p: p.read_bytes().decode("utf-8") for p in fixture.rglob("*") if p.is_file()}
+    assert texts
+    assert not [p for p, t in texts.items() if t.lstrip().startswith((smoke.ERROR_TEXT_PREFIX, smoke.NOT_FOUND_PREFIX))]
 
 
 def test_summary_counts_answers_tools_failed_calls_and_code_tool_calls():
@@ -79,18 +108,21 @@ def test_summary_counts_answers_tools_failed_calls_and_code_tool_calls():
             {"route": "/api/chat/request", "http_status": 200, "answered": True, "ttfb_s": 2.0, "total_s": 2.0,
              "tools": [{"name": "query_index"}, {"name": "execute_code"},
                        {"name": "list_available_files", "is_error": True},
-                       {"name": "get_file_content", "returned_error_text": True}], "gold_value_stated": False}]
+                       {"name": "get_file_content", "returned_error_text": True},
+                       {"name": "get_file_content", "returned_not_found": True}], "gold_value_stated": False}]
     summary = smoke.summarize(rows)
     stream = summary["/api/chat"]
     assert stream["answered"] == 1 and stream["http_status"] == {"200": 1, "500": 1}
     assert stream["states_gold_value_aside"] == {"k": 1, "n": 1, "not_scored": {"the question states the gold value": 1}}
     # tool calls are not visible on the streaming route: no count there, not a zero
     assert stream["tool_calls"] is stream["code_tool_calls"] is stream["tool_calls_raised"] is None
+    assert stream["tool_calls_returned_not_found"] is None
     request = summary["/api/chat/request"]
-    assert request["tool_calls"] == {"execute_code": 1, "get_file_content": 1, "list_available_files": 1, "query_index": 1}
+    assert request["tool_calls"] == {"execute_code": 1, "get_file_content": 2, "list_available_files": 1, "query_index": 1}
     assert request["code_tool_calls"] == 1
     assert request["tool_calls_raised"] == {"list_available_files": 1}
     assert request["tool_calls_returned_error_text"] == {"get_file_content": 1}
+    assert request["tool_calls_returned_not_found"] == {"get_file_content": 1}
 
 
 def test_the_aside_does_not_score_a_gold_value_the_question_states():

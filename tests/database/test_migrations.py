@@ -452,7 +452,7 @@ def _rows(conn, sql):
 def test_a_version_2_database_holding_manifest_rows_upgrades_to_version_3_and_keeps_them(schema, monkeypatch, capsys):
     """The A04 upgrade: a database as fe666cb left it (schema version 2, a vector table PGVectorStore made,
     rows indexed, a manifest ensure_ingest_manifest wrote, the start-up indexes) goes through the deploy step's
-    entry point to version 3 and the vector sequence, and keeps every row; adopted indexes are kept (vector/0006
+    entry point to version 3 (and every later file) and the vector sequence, and keeps every row; adopted indexes are kept (vector/0006
     rewrites the table, which rebuilds their storage in place)."""
     from app.database import migrate
 
@@ -485,9 +485,10 @@ def test_a_version_2_database_holding_manifest_rows_upgrades_to_version_3_and_ke
         assert migrate.main(["--check"]) == 0
         printed = capsys.readouterr().out
         vector_versions = [m.version for m in migrate.discover(migrate.VECTOR_DIR)]
-        assert "database: applied [3]" in printed and f"vector ({schema}.{data}): applied {vector_versions}" in printed
+        database_versions = [m.version for m in migrate.discover()]  # 0003 and every file after it
+        assert f"database: applied {database_versions[2:]}" in printed and f"vector ({schema}.{data}): applied {vector_versions}" in printed
 
-        assert _versions(conn) == [1, 2, 3]
+        assert _versions(conn) == database_versions
         assert _rows(plain, f'SELECT id, node_id, metadata_->>\'path\', text FROM "{schema}"."{data}" ORDER BY id;') == rows_before
         assert _rows(plain, f'SELECT path, content_hash, n_chunks, pipeline, indexed_at FROM "{schema}"."ingest_manifest_{table}" ORDER BY path;') == manifest_before
         ledger = _rows(plain, f'SELECT version, params FROM "{schema}".vector_table_migrations WHERE sequence = \'vector\' AND vector_table = \'{schema}.{data}\' ORDER BY version;')

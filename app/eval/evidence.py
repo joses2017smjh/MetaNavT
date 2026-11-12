@@ -330,15 +330,22 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
                     "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
     request = blob["summary"].get("/api/chat/request")
     if request:
+        # Files recorded before the runner counted "Not found: ..." replies have no such field: nothing is said.
+        counts_not_found = "tool_calls_returned_not_found" in request
+        not_found_value = f"; not found: {by_name(request['tool_calls_returned_not_found'])}" if counts_not_found else ""
+        not_found_note = ("; a 'Not found: ...' reply (get_file_content asked for a path the index does not hold) "
+                          "is not counted as failed" if counts_not_found else "")
+        failed = any((request.get(k) or {}) for k in ("tool_calls_raised", "tool_calls_returned_error_text"))
+        causes = "; the causes are described in doc/engineering-reference.md (Backend)" if failed else ""
         out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name, and the calls that failed",
                     "value": (f"{request['answered']} of {request['n']}; tool calls: {by_name(request.get('tool_calls'))}; "
                               f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
-                              f"{by_name(request.get('tool_calls_returned_error_text'))}; code tool calls: {request['code_tool_calls']}"),
+                              f"{by_name(request.get('tool_calls_returned_error_text'))}{not_found_value}; "
+                              f"code tool calls: {request['code_tool_calls']}"),
                     "ci": "—", "n": request["n"], "command": cmd, "source": src,
                     "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool or named a tool that does not exist; an error "
-                                  f"text is an 'Error: ...' string a tool returned without the flag; a call that returned "
-                                  f"an empty list is not counted as failed; the causes are described in "
-                                  f"doc/engineering-reference.md (Backend)")})
+                                  f"text is an 'Error: ...' string a tool returned without the flag{not_found_note}; a call that returned "
+                                  f"an empty list is not counted as failed{causes}")})
     return out
 
 
