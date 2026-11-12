@@ -65,3 +65,33 @@ def test_beir_published_comparison_prints_the_score_it_subtracts():
     assert sentence in beir_table(blob)
     row = next(c for c in claims() if c["claim"].startswith("BEIR SciFact, our BM25"))
     assert row["value"] == f"{score:.4f}" and f"{vp['published_bm25_ndcg@10']:.4f} ({vp['delta']:+.4f})" in row["not_shown"]
+
+
+def test_router_rows_show_the_slices_where_the_router_loses():
+    """Keep losers visible: next to the router's exact-path line, the generated blocks list every other gold category
+    where its paired nDCG@10 delta is negative, with the interval and how many questions rose and fell, read from
+    delta_vs_parent_by_category_all. With real models that includes the aggregation slice (neural.json)."""
+    from app.eval.report import neural_table, negative_slices, table
+
+    for rel, render_block in (("main.json", table), ("neural.json", neural_table)):
+        blob = json.loads((ROOT / "bench" / "results" / rel).read_text())
+        text = render_block(blob)
+        for row in blob["results"]:
+            if not row.get("delta_vs_parent_by_category"):
+                continue
+            losers = negative_slices(row)
+            assert losers == [b for b in row.get("delta_vs_parent_by_category_all") or []
+                              if b["category"] != row["delta_vs_parent_by_category"]["category"] and b["ndcg@10"]["delta"] < 0]
+            for block in losers:
+                moved = block["questions_changed"]
+                line = next(x for x in text.splitlines() if x.startswith(f"  - `{row['config']}` on `{block['category']}`"))
+                d = block["ndcg@10"]
+                assert f"{d['delta']:+.3f} [{d['lo']:+.3f}, {d['hi']:+.3f}]" in line
+                assert f"rose on {moved['up']} of the {block['n']} questions and fell on {moved['down']}" in line
+            if not losers:
+                assert f"  - `{row['config']}`: no other category has a negative nDCG@10 delta." in text
+    neural = json.loads((ROOT / "bench" / "results" / "neural.json").read_text())
+    router = next(r for r in neural["results"] if r["config"] == "hybrid+bge-rerank+router@bge-small")
+    assert "aggregation" in [b["category"] for b in negative_slices(router)]
+    readme = (ROOT / "README.md").read_text()
+    assert "  - `hybrid+bge-rerank+router@bge-small` on `aggregation`" in readme and "  - `hybrid+rerank+router` on `aggregation`" in readme

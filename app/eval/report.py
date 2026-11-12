@@ -150,6 +150,10 @@ def headline(blob: dict) -> str:
                 f"The router's exact-path gain, nDCG@10 {cat_off['ndcg@10']:.3f} → {cat_on['ndcg@10']:.3f}, "
                 f"rests on n = {int(cat_on['n'])} questions."
             )
+        losers = negative_slices(on)
+        if losers:
+            parts.append(f"Its nDCG@10 delta against the reranked hybrid is negative on the {_and([b['category'] for b in losers])} "
+                         f"slice{'s' if len(losers) > 1 else ''} (intervals in the per-category lines below the table).")
     rand = r_full.get("random_recall@50")
     if rand is not None:
         parts.append(
@@ -213,7 +217,8 @@ def table(blob: dict) -> str:
             lines.append(f"| {cat} | {int(sc['n'])} | {sc['ndcg@10']:.3f} | {sc.get('recall@10', 0):.3f} | {sc['recall@50']:.3f} |")
     cat_lines = _category_delta_lines(rows)
     if cat_lines:
-        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice):", ""] + cat_lines
+        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice); "
+                      "under each, every other category where that delta is negative:", ""] + cat_lines
     if boot:
         lines += [
             "",
@@ -221,6 +226,18 @@ def table(blob: dict) -> str:
             f"{boot.get('rng')}. Results file sha {_sha(blob)}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
         ]
     return "\n".join(lines)
+
+
+def negative_slices(row: dict) -> list[dict]:
+    """Keep losers visible: the gold categories, other than the one the row's mechanism is aimed at, where its paired
+    nDCG@10 delta against its parent is negative (delta_vs_parent_by_category_all), whatever their intervals say."""
+    target = (row.get("delta_vs_parent_by_category") or {}).get("category")
+    return [b for b in row.get("delta_vs_parent_by_category_all") or []
+            if b.get("category") != target and (b.get("ndcg@10") or {}).get("delta", 0.0) < 0]
+
+
+def _and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def _questions_changed(block: dict) -> str:
@@ -244,6 +261,15 @@ def _category_delta_lines(rows: list[dict]) -> list[str]:
             f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}"
             f"{_questions_changed(cd)}."
         )
+        losers = negative_slices(row)
+        for block in losers:
+            out.append(
+                f"  - `{row['config']}` on `{block['category']}`, n = {block['n']}{' (small n)' if block.get('small_n') else ''}, "
+                f"a category it is not aimed at: nDCG@10 {_delta(block.get('ndcg@10'))} ({_zero_note(block.get('ndcg@10'))}), "
+                f"Recall@10 {_delta(block.get('recall@10'))}{_questions_changed(block)}."
+            )
+        if not losers and row.get("delta_vs_parent_by_category_all"):
+            out.append(f"  - `{row['config']}`: no other category has a negative nDCG@10 delta.")
     return out
 
 
@@ -349,7 +375,7 @@ def neural_table(blob: dict | None) -> str:
         lines += ["", " ".join(parts)]
     cat_lines = _category_delta_lines(rows)
     if cat_lines:
-        lines += ["", "Per-category paired deltas vs parent (small n):", ""] + cat_lines
+        lines += ["", "Per-category paired deltas vs parent (small n); under each, every other category where that delta is negative:", ""] + cat_lines
     return "\n".join(lines)
 
 
@@ -572,7 +598,8 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
         f"{report.get('files_rejected')} documents: {_counts(report.get('rejected_by_reason'))}; judged relevant among them: {len((blob.get('not_indexed') or {}).get('judged', []))}), "
         f"then the {n} test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of "
         f"app/eval/beir.py computed in the same job on the same queries; {scale_machine(blob)}; {scale_sha(blob)}. "
-        "Lexical leg: Postgres ts_rank_cd on the served side (a fallback, not BM25), Okapi BM25 in memory. "
+        "Lexical leg: Postgres ts_rank_cd on the served side (not BM25: the default of the explicit LEXICAL_BACKEND setting, never "
+        "chosen automatically), Okapi BM25 in memory. "
         f"Dense-leg query: the served embedder puts {served_form.get('query')!r} before each query (read from the served model); a row named "
         "'+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.",
         "",
@@ -582,7 +609,7 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
     rows_form = form.get("rows") or {}
     for row in SERVED_ROWS:
         s = blob["served"][row]
-        lines.append(f"| {row} | served | ts_rank_cd (fallback) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
+        lines.append(f"| {row} | served | ts_rank_cd (default LEXICAL_BACKEND, not BM25) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
                      f"{_ci(s, 'recall@50', 4)} | {(s.get('requests') or {}).get('failed')} of {s['n_queries']} | {_p50_p95((s.get('latency') or {}).get('e2e'))} (HTTP) |")
         for name in (s["paired_with"], s.get("bare_query_row")):
             if name:

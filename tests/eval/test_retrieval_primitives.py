@@ -99,3 +99,84 @@ def test_router_path_aggregation_semantic():
 
     code = r.route("write a test for the fusion module")
     assert code.route == RouteType.CODE_PRODUCTION
+
+
+def _route_lines() -> dict[str, str]:
+    """The router module docstring's "Routes:" list, route name -> its description (continuation lines joined)."""
+    import app.retrieval.router as router_module
+
+    doc = router_module.__doc__ or ""
+    lines, out, name = doc.split("Routes", 1)[1].splitlines()[1:], {}, None
+    for line in lines:
+        head = line.strip().split(" ", 1)[0]
+        if head in {r.value for r in RouteType}:
+            name, out[head] = head, line.split("—", 1)[1].strip()
+        elif name and line.startswith("   ") and line.strip():
+            out[name] += " " + line.strip()
+        elif not line.strip():
+            name = None
+    return out
+
+
+def test_router_docstring_names_every_route_and_what_it_skips():
+    """B16: the module docstring lists every route and says what the code skips on it (RouteDecision.skip_embed /
+    skip_rerank, which the in-memory index and the served retriever read): "no query embedding" exactly on the routes
+    that skip the embedding, "no reranker" exactly on the routes that skip the reranker, "the full pipeline" on the
+    others. It used to call the aggregation route a "metadata path", which no code has."""
+    from app.retrieval.router import RouteDecision
+
+    described = _route_lines()
+    assert set(described) == {r.value for r in RouteType}
+    for route in RouteType:
+        text, decision = described[route.value], RouteDecision(route, "doc")
+        assert ("no query embedding" in text) == decision.skip_embed(), (route, text)
+        assert ("no reranker" in text) == decision.skip_rerank(), (route, text)
+        assert ("the full pipeline" in text) == (not decision.skip_embed() and not decision.skip_rerank()), (route, text)
+        assert "metadata" not in text
+
+
+def test_hash_embedder_docstring_names_the_ngram_sizes_it_hashes():
+    """B16: a reference encoder built from the n-gram sizes the HashEmbedder docstring names reproduces the class's
+    vectors (the docstring said 3-grams while the loop hashes 3- and 4-grams)."""
+    import hashlib
+    import re
+
+    import numpy as np
+
+    from app.retrieval.embedders import HashEmbedder
+
+    match = re.search(r"character ([\d\- and]+)-grams", HashEmbedder.__doc__ or "")
+    assert match, HashEmbedder.__doc__
+    sizes = [int(n) for n in re.findall(r"\d+", match.group(1))]
+
+    def reference(text: str, dim: int) -> np.ndarray:
+        vec = np.zeros(dim, dtype=np.float64)
+        blob = text.lower()
+        for n in sizes:
+            for j in range(len(blob) - n + 1):
+                digest = hashlib.blake2b(blob[j : j + n].encode("utf-8"), digest_size=8).digest()
+                vec[int.from_bytes(digest[:4], "little") % dim] += 1.0 if digest[4] & 1 else -1.0
+        return vec / max(np.linalg.norm(vec), 1e-12)
+
+    texts = ["abcd", "learning_rate: 3e-4", "configs/run_047.yaml"]
+    emb = HashEmbedder(dim=64)
+    for text, row in zip(texts, emb.encode(texts)):
+        assert np.allclose(row, reference(text, 64), atol=1e-6), (sizes, text)
+
+
+def test_in_memory_index_takes_its_rrf_default_from_fuse():
+    """B16: InMemoryHybridIndex's rrf_k defaults to fuse.RRF_K (the constant the served retriever reads), not a second
+    literal; a value test cannot tell the two apart while both are 60, so this reads the signature's source."""
+    import ast
+    import inspect
+
+    import app.retrieval.hybrid as hybrid
+
+    tree = ast.parse(inspect.getsource(hybrid))
+    init = next(node for cls in tree.body if isinstance(cls, ast.ClassDef) and cls.name == "InMemoryHybridIndex"
+                for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "__init__")
+    names = [a.arg for a in init.args.args]
+    default = init.args.defaults[names.index("rrf_k") - (len(names) - len(init.args.defaults))]
+    assert isinstance(default, ast.Name) and default.id == "RRF_K", ast.dump(default)
+    assert any(isinstance(node, ast.ImportFrom) and node.module == "app.retrieval.fuse" and "RRF_K" in [a.name for a in node.names]
+               for node in tree.body)

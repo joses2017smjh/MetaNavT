@@ -10,47 +10,49 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 
 ## Status
 
+A status says what exists and, for a measured piece, the verdict its row holds: the paired bootstrap interval of nDCG@10 against the named parent is above zero, covers zero or below zero (`tests/eval/test_plan_status.py` checks every verdict below against the results files). The numbers are in the generated tables each row links to: [CPU fixture](README.md#bench-table), [real models](README.md#bench-neural), [prototype arms, CPU](README.md#bench-frontier), [prototype arms, real models](README.md#bench-frontier-neural), [reranker prototypes](README.md#bench-rerank-arms). "Built" without a verdict means no results file scores it.
+
 | Phase | Item | Status |
 |---|---|---|
 | 0.1 | Freeze a corpus, hash manifest | done (demo research tree; swap for capstone dir later) |
-| 0.2 | Gold set ~100+ Q/A, CRAG taxonomy + staleness | done (generated from registry, not LLM-only) |
-| 0.3 | Retrieval scoreboard: Recall@50, nDCG@10, MRR@10 | done |
-| 0.3 | End-to-end RAGAS-style metrics | done (heuristic overlap + optional jury columns) |
+| 0.2 | Gold set (Q/A), CRAG taxonomy + staleness | done: written by `bench/corpus/build.py` from the corpus registry, no LLM; the question count is `n_gold` in the header of `bench/results/main.json` |
+| 0.3 | Retrieval scoreboard: Recall@50, nDCG@10, MRR@10 | done, with paired bootstrap intervals ([CPU fixture](README.md#bench-table)) |
+| 0.3 | End-to-end RAGAS-style metrics | built: heuristic token-overlap columns, labelled and never an LLM result; the LLM judge is row `6` |
 | 0.4 | p50/p95 latency per stage | done |
-| 0.5 | `make bench` / `make bench-compare` | done (`make bench-jury`, `make bench-frontier`) |
-| 1.1 | Hybrid BM25 + dense, RRF k=60 | done |
-| 1.2 | Cross-encoder rerank top-50 → top-8 | done (overlap teacher in CI; bge row labels fallback if the weights are missing) |
-| 1.2b | Real `BAAI/bge-reranker-v2-m3` bench row | code done (`hybrid+bge-rerank` via `make bench-frontier`); **measure on GPU** — CI records `reranker_fallback=overlap` |
-| 1.3 | Structure-aware chunking; late vs contextual | done (algorithms + ablation hooks) |
-| 1.4 | Embedding sweep | harness flag `embedder=hash\|tfidf\|st:<model>` |
-| 1.5 | pgvector halfvec / binary + rescore / HNSW `m`/`ef_search` | partly: in-memory NSW analogue measured (`make sweeps`, hash vectors); the served statement can read the HNSW index a schema migration builds (`app/database/migrations/vector/`) and sets `ef_search` per statement; in Postgres, `make bench-served-scale` measures that index against the exact scan on the served FiQA table (bge-small chunk vectors) at several `ef_search` values and with the served settings, then a halfvec and a binary + rescore copy against float32 on the same task-local table (`bench/results/pgvector_hnsw.json`, `app/eval/pgvector_hnsw.py`); halfvec and binary are not in the served path (the uncalled `ensure_halfvec` / `ensure_binary` helpers were removed with the inline DDL) |
-| 1.6 | Rule-based query router | done |
-| 1.7 | Distilled student reranker | done (`make bench-rerank-arms` fits it on the cross-encoder's scores over train questions and scores it on the others) |
-| 2.1 | Retrieval loop: route→plan→search→grade→rewrite→verify | done |
-| 2.2 | Filesystem MCP tools + stdio server | done |
-| 2.3 | HITL: `propose_move` never executes; `apply_plan` needs approval | done |
-| 2.4 | RL search policy (Search-R1 / GRPO) | env + reward + masked loss + dummy CPU GRPO step done. **Not GPU-trained.** |
-| 3.1 | Deterministic file graph + staleness Tier 1 | done |
-| 3.2 | GraphRAG entities + communities | done (heuristic triples; optional LLM) |
-| 3.3 | Hierarchical summaries | done (extractive) |
-| 3.4 | Graph expansion hops ablation | done (`graph_hops` + `make sweeps`) |
-| 3.5 | HippoRAG PPR boost (aggregation / multi-hop only) | done (`app/graph/hipporag.py`) |
-| 4.1 | ColPali page-image indexing | done (patch grid + MaxSim; hash embedder in CI) |
-| 4.2 | ColBERT-style late interaction | MaxSim implemented; not default path |
-| 4.3 | SigLIP/CLIP image embeddings | done (sentence-transformers if local; pixel-hash fallback) |
-| 4.4 | Cross-modal RRF fusion | done |
-| 5 | Content-hash reindex, citations, fail-loud, compose, tracing spans | done / stubbed |
-| 5 | Staleness Tier 2 conflict classification at query time | done (structural fields + negation pairs; optional LLM) |
-| 6 | LLM-as-judge, AB/BA, self-consistency, jury, κ gate | done (`app/eval/judge.py`, `app/eval/jury.py`; `make bench-jury`) |
-| 7 | RankGPT listwise + honest bge row | done (`app/retrieval/rankgpt.py`) |
-| 8 | Deep Research multi-query + scratchpad + token budget | done (`app/agent/deep_research.py`) |
-| 9 | HippoRAG PPR | done |
-| 10 | Search-R1 / GRPO (CI dummy step) | done (`app/rl/`) |
-| 11 | Research artifacts + code production | done (`app/artifacts/`, MCP HITL) |
+| 0.5 | `make bench` / `make bench-compare` | done (`make bench-check` in CI, `make bench-jury-v2`, `make bench-frontier`) |
+| 1.1 | Hybrid BM25 + dense, RRF (`RRF_K` in `app/retrieval/fuse.py`) | measured: with hash embeddings `hybrid` below zero vs `bm25_only` ([CPU fixture](README.md#bench-table)); with bge-small `hybrid@bge-small` above zero vs `dense_only@bge-small` ([real models](README.md#bench-neural)); served as one Postgres statement ([parity](README.md#bench-parity)) |
+| 1.2 | Cross-encoder rerank | measured: `hybrid+bge-rerank@bge-small` above zero vs `hybrid@bge-small` ([real models](README.md#bench-neural)); the CI row is the overlap reranker, a labelled fallback: `hybrid+rerank` covers zero vs `hybrid` ([CPU fixture](README.md#bench-table)). Served: the cross-encoder reranks the fused top `RERANK_DEPTH` (default 20), the rest keep their RRF order, and the top `RERANK_TOP_N` (default 8) are returned; the depth and precision were chosen from the SciFact sweep ([SciFact](README.md#bench-beir)) |
+| 1.2b | Real `BAAI/bge-reranker-v2-m3` bench row | measured with the weights loaded (`reranker_loaded` true) on a GPU: the `1.2` row, and on SciFact and FiQA ([SciFact](README.md#bench-beir), [FiQA](README.md#bench-beir-fiqa)); a run without the weights still records `reranker_fallback=overlap` |
+| 1.3 | Structure-aware chunking; late vs contextual | evaluated: the structure-aware chunker is not measurably better than a fixed window, `hybrid+fixed-chunks` covers zero vs `hybrid`, `hybrid+fixed-chunks@bge-small` covers zero vs `hybrid@bge-small`; the path-words contextual prefix flips sign, `hybrid+contextual` above zero vs `hybrid` with the hash embedder and `hybrid+contextual@bge-small` below zero vs `hybrid@bge-small` with bge-small (a recorded loss); the LLM-written prefix `hybrid+contextual-llm@bge-small` covers zero vs `hybrid@bge-small`; late chunking (bge-small only) `hybrid+late-chunking@bge-small` covers zero vs `hybrid@bge-small` ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)) |
+| 1.4 | Embedding sweep | measured: model-free TF-IDF `dense_only@tfidf` above zero vs `dense_only` and `hybrid@tfidf` above zero vs `hybrid` ([CPU](README.md#bench-frontier)); `dense_only@bge-small` above zero vs `bm25_only`, `dense_only@bge-base` above zero vs `bm25_only`, `hybrid@bge-base` above zero vs `dense_only@bge-base` ([real models](README.md#bench-neural)); harness flag `embedder=hash\|tfidf\|st:<model>` |
+| 1.5 | pgvector halfvec / binary + rescore / HNSW `m`/`ef_search` | partly: in-memory NSW analogue measured (`make sweeps`, hash vectors); the served statement can read the HNSW index a schema migration builds (`app/database/migrations/vector/`) and sets `ef_search` per statement; in Postgres, `make bench-served-scale` measures that index against the exact scan on the served FiQA table (bge-small chunk vectors) at several `ef_search` values and with the served settings, then a halfvec and a binary + rescore copy against float32 on the same task-local table (`bench/results/pgvector_hnsw.json`, `app/eval/pgvector_hnsw.py`; [generated table](README.md#bench-pgvector-hnsw)); halfvec and binary are not in the served path (the uncalled `ensure_halfvec` / `ensure_binary` helpers were removed with the inline DDL) |
+| 1.6 | Rule-based query router | measured: overall `hybrid+rerank+router` covers zero vs `hybrid+rerank` and `hybrid+bge-rerank+router@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`; the generated tables give its delta on the exact-path slice it is aimed at and on every slice where that delta is negative ([CPU fixture](README.md#bench-table), [real models](README.md#bench-neural)); served |
+| 1.7 | Distilled student reranker | evaluated, a recorded loss on held-out questions: `hybrid+distilled-student@bge-small` below zero vs `hybrid+bge-rerank@bge-small` and below zero vs `hybrid@bge-small`; `hybrid+distilled-student(lightgbm)@bge-small` below zero vs `hybrid+bge-rerank@bge-small` and covers zero vs `hybrid@bge-small` ([reranker prototypes](README.md#bench-rerank-arms)); nothing serves a student |
+| 2.1 | Retrieval loop: route→plan→search→grade→rewrite→verify | built (`app/agent/retrieval_loop.py`); no results file scores its answers |
+| 2.2 | Filesystem MCP tools + stdio server | done (`app/mcp/server_sdk.py` on the official SDK, `app/mcp/server.py`) |
+| 2.3 | HITL: `propose_move` never executes; `apply_plan` needs approval | done: applying needs an operator-signed, single-use Ed25519 capability; the deterministic approval benchmark is `make bench-trusted-actions` ([results](bench/results/trusted_actions_v2.json)) |
+| 2.4 | RL search policy (Search-R1 / GRPO) | built, not evaluated: env + reward + masked loss + a dummy CPU GRPO step; **not GPU-trained** (an open owner decision: evaluate it, or label it a demo) |
+| 3.1 | Deterministic file graph + staleness Tier 1 | measured: `hybrid+rerank+router+staleness` above zero vs `hybrid+rerank+router`, `hybrid+bge-rerank+router+staleness@bge-small` above zero vs `hybrid+bge-rerank+router@bge-small` ([CPU fixture](README.md#bench-table), [real models](README.md#bench-neural)); served |
+| 3.2 | GraphRAG entities + communities | evaluated, a negative result: `hybrid+rerank+graphrag` covers zero vs `hybrid+rerank`, `hybrid+bge-rerank+graphrag@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`; the community step collapses the fixture into one community (table notes) ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); LLM extraction and modularity clustering not evaluated (an open owner decision: a fairer test, or the negative result as it stands) |
+| 3.3 | Hierarchical summaries | built (extractive), not evaluated |
+| 3.4 | Graph expansion hops ablation | evaluated, a recorded loss: `hybrid+hops=1` below zero vs `hybrid`, `hybrid+hops=2` below zero vs `hybrid`, `hybrid+hops=1@bge-small` below zero vs `hybrid@bge-small`, `hybrid+hops=2@bge-small` below zero vs `hybrid@bge-small` ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); the default stays at no hops |
+| 3.5 | HippoRAG PPR boost (the router's aggregation route only) | evaluated: `hybrid+hipporag` above zero vs `hybrid` with the hash embedder, `hybrid+hipporag@bge-small` covers zero vs `hybrid@bge-small`: no measured gain once the embedder is real ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)) |
+| 4.1 | ColPali page-image indexing | built (patch grid + MaxSim; hash embedder in CI), not evaluated: the gold set has no image or PDF question |
+| 4.2 | ColBERT-style late interaction | built (MaxSim), not evaluated and not on the default path (an open owner decision: evaluate it, or label it a demo) |
+| 4.3 | SigLIP/CLIP image embeddings | built (sentence-transformers if local; pixel-hash fallback), not evaluated |
+| 4.4 | Cross-modal RRF fusion | built, not evaluated |
+| 5 | Content-hash reindex, citations, fail-loud, compose, tracing spans | done: the index step diffs every file's SHA-256 against the ingest manifest and embeds only new or changed files (`app/engine/ingest.py`); citations are byte ranges; empty or uncited answers fail loud; Compose runs the migrations, the index step and the API; spans through `app/observability.py` (OpenTelemetry with the `otel` extra). An open owner decision: the older content hash of `IndexManager` (`indexed_files.content_hash`, `hashes_for`) has no caller on the served path; delete it or keep it |
+| 5 | Staleness Tier 2 conflict classification at query time | built (structural fields + negation pairs; optional LLM), not evaluated: no benchmark row |
+| 6 | LLM-as-judge, AB/BA, self-consistency, jury, κ gate | measured: `make bench-jury-v2` (`app/eval/llm_eval.py`, `app/eval/jury.py`); which judge passes the kappa gate on the calibration set, and what that validates, is in the [generated table](README.md#bench-jury) |
+| 7 | RankGPT listwise + honest bge row | evaluated: listwise reranking by an LLM, `hybrid+listwise(qwen2.5:7b)@bge-small` above zero vs `hybrid@bge-small` and below zero vs `hybrid+bge-rerank@bge-small` ([reranker prototypes](README.md#bench-rerank-arms)); the frontier arm with the token-overlap fallback, `hybrid+rankgpt` covers zero vs `hybrid` and `hybrid+rankgpt@bge-small` below zero vs `hybrid@bge-small` ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); the bge row is row `1.2b` |
+| 8 | Deep Research multi-query + scratchpad + token budget | built (`app/agent/deep_research.py`); its multi-query step is evaluated, `hybrid+multiquery` above zero vs `hybrid`, `hybrid+multiquery@bge-small` above zero vs `hybrid@bge-small`, with keyword rules written for this fixture ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); the loop's answers are not evaluated |
+| 9 | HippoRAG PPR | evaluated: row `3.5` |
+| 10 | Search-R1 / GRPO (CI dummy step) | built, not trained or evaluated: row `2.4` (`app/rl/`) |
+| 11 | Research artifacts + code production | built (`app/artifacts/`, MCP HITL), not evaluated: no quality measurement of the generated artifacts (an open owner decision: evaluate it, or label it a demo) |
 | 12 | Generated hard-case demos + negative controls | done (`bench/demo/manifest.json`, `app/eval/demo_export.py`) |
-| 13 | Spreadsheet aggregation + approval-gated MATLAB visualization | done (`app/artifacts/visualization.py`) |
-| 14 | HyDE, Query Decomposition, Corrective RAG | done (`app/retrieval/hyde.py`, `app/agent/decompose.py`, `app/agent/corrective.py`) |
-| 15 | Adaptive Retrieval, Semantic Cache, Citation Verification | done (`app/retrieval/adaptive.py`, `app/retrieval/cache.py`, `app/agent/citation_verify.py`) |
+| 13 | Spreadsheet aggregation + approval-gated MATLAB visualization | built (`app/artifacts/visualization.py`): the aggregation and the plot are a demo on one frozen CSV (`make matlab-demo`), not evaluated; the approval checkpoint in front of the plot script is one of the approval benchmark's families (row `2.3`) |
+| 14 | HyDE, Query Decomposition, Corrective RAG | evaluated. HyDE in the first stage: `hybrid+hyde` below zero vs `hybrid`, `dense_only+hyde` below zero vs `dense_only`, `hybrid+hyde+rerank` covers zero vs `hybrid+rerank`; with bge-small `hybrid+hyde@bge-small` below zero vs `hybrid@bge-small`, `dense_only+hyde@bge-small` below zero vs `dense_only@bge-small`, `hybrid+hyde+bge-rerank@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`; with a hypothesis written by an LLM `hybrid+hyde-llm@bge-small` below zero vs `hybrid@bge-small`, `hybrid+hyde-llm+bge-rerank@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`. HyDE after the reranker (the older wiring): `hybrid+rerank+hyde` below zero vs `hybrid+rerank`, `hybrid+bge-rerank+hyde@bge-small` below zero vs `hybrid+bge-rerank@bge-small`. Decomposition: `hybrid+rerank+decompose` covers zero vs `hybrid+rerank`, `hybrid+bge-rerank+decompose@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`. Corrective retrieval: `hybrid+rerank+corrective` covers zero vs `hybrid+rerank`, `hybrid+bge-rerank+corrective@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`; with HyDE after the reranker `hybrid+rerank+hyde+corrective` below zero vs `hybrid+rerank`, `hybrid+bge-rerank+hyde+corrective@bge-small` below zero vs `hybrid+bge-rerank@bge-small` ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)) |
+| 15 | Adaptive Retrieval, Semantic Cache, Citation Verification | adaptive retrieval evaluated as a no-harm check only (it never skips a gold question): `hybrid+rerank+adaptive` covers zero vs `hybrid+rerank`, `hybrid+bge-rerank+adaptive@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`; the semantic cache, replayed over the gold set as a false-hit test, a recorded loss: `hybrid+rerank+cache` below zero vs `hybrid+rerank`, `hybrid+bge-rerank+cache@bge-small` below zero vs `hybrid+bge-rerank@bge-small` (paraphrase probes in the table notes) ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); citation verification built (`app/agent/citation_verify.py`): `make bench-jury-v2` applies its value check to the generated answers as one of its deterministic checks ([jury table](README.md#bench-jury)), which measures the answers, not the checker |
 
 ---
 
@@ -111,9 +113,7 @@ First measured row (hash dense + in-memory BM25, 136 questions, 61-file frozen t
 
 > Superseded (2026-09-23). This draft led with Recall@50, which on a 61-file corpus mostly measures list length, and credited the router with an exact-path gain (0.596 → 0.938) that compared against plain RRF; the router's own ablation is the reranked hybrid → router row on n = 8. The current numbers, with 95% confidence intervals, are the generated headline in README.md (`make bench-table`, from `bench/results/main.json`); the resume bullets will be written from that file in docs/RESUME_EVIDENCE.md.
 
-After routing + distillation:
-
-> Distilled rerank scores into a lightweight student, recovering __% of reranking's nDCG@10 gain at __x lower p95; query-side routing cut latency on exact-match queries with no recall regression on semantic ones.
+After routing + distillation: no bullet. The template that stood here (a student "recovering a share of reranking's gain" and routing "with no recall regression") is dropped: both distilled students are below the cross-encoder on held-out questions (status row `1.7`), and the router's per-category deltas include slices where it is lower (status row `1.6`).
 
 After the agent loop + MCP:
 
@@ -129,15 +129,15 @@ After pgvector / GraphRAG / multimodal:
 
 ---
 
-## Remaining GPU work (code is in; numbers are not)
+## Remaining GPU work
 
-`make bench` is unchanged and LLM-free. What still needs a machine with weights:
+`make bench` is unchanged and LLM-free. What needed a machine with weights, and where it stands:
 
-1. **Measured `bge-reranker-v2-m3` row.** `make bench-frontier` already emits `hybrid+bge-rerank`. If the weights are not on disk, the payload sets `reranker_fallback=overlap`. Do not claim a cross-encoder gain until `reranker_loaded` is true. Set `BGE_ALLOW_DOWNLOAD=1` only when you intend to pull from Hugging Face.
+1. **Measured `bge-reranker-v2-m3` row: measured** (status rows `1.2` and `1.2b`; `make bench-neural`, `reranker_loaded` true in `bench/results/neural.json`). A run without the weights still sets `reranker_fallback=overlap`, and no cross-encoder gain is claimed from such a row. Set `BGE_ALLOW_DOWNLOAD=1` only when you intend to pull from Hugging Face.
 
 2. **GPU Search-R1 / GRPO training.** `app/rl/` has the env, the reward, retrieved-token masking, group-relative advantages, and a numpy dummy step for CI. veRL + Qwen2.5-3B is still a training run, not a unit test. PPO remains the fallback if GRPO collapses.
 
-3. **README jury numbers.** `make bench-jury` writes extra columns. Print them on the README only if `jury.kappa_simple_factual.readme_ok` is true (κ ≥ 0.6).
+3. **README jury numbers: measured** (status row `6`). `make bench-jury-v2` writes `bench/results/jury_v2.json`; a judge's score is printed on the README only when its kappa on the calibration set reaches the gate (`kappa_gate` in the file; `readme_ok` per judge under `summary.kappa`).
 
 ---
 
@@ -175,6 +175,8 @@ Voting is for **evaluation and optional answer selection**, not for replacing BM
 
 If bge-m3 also loses to RRF on *this* corpus, keep that number. File search is token-heavy; a cross-encoder is not guaranteed.
 
+**Outcome.** The cross-encoder row is measured and beats plain hybrid (status row `1.2`); the listwise row (status row `7`) and both distilled students (status row `1.7`) are below the cross-encoder, so no student replaces it. The served reranker does not use the depth planned above: it reranks the fused top `RERANK_DEPTH` (default 20), the served default in `app/engine/retriever.py`, chosen from the SciFact depth and precision sweep ([SciFact](README.md#bench-beir)).
+
 ### Phase 8 — Deep Research loop (industry shape)
 
 OpenAI / Gemini / Perplexity Deep Research and Zeta Alpha’s agentic RAG write-up (2026): planner → sub-queries → hybrid retrieve → scratchpad → critic → cited report. We already have route / grade / rewrite / MCP. Missing pieces:
@@ -188,7 +190,7 @@ This is the production path. RL is only if the prompted loop plateaus on multi-h
 
 ### Phase 9 — associative graph memory (not more hops)
 
-Our hop ablation already failed ranking: hops=1 Recall@50 0.938 → 0.986, nDCG@10 0.495 → 0.446. Blind expansion is the wrong next step.
+Our hop ablation already failed ranking: more Recall@50, lower nDCG@10 (status row `3.4`: both hop settings below zero against plain hybrid). Blind expansion is the wrong next step.
 
 **Research:** HippoRAG 2 (Gutiérrez et al., ICML 2025) — triples + Personalized PageRank; LightRAG (Guo et al. 2025) local/global; Microsoft GraphRAG community reports. We already extract `run:47 —uses_encoder→ dinov2`. Wire PPR over that graph for multi-hop / aggregation only (router already knows those queries). Leave simple_factual at hops=0.
 
@@ -289,7 +291,7 @@ All three are wired into `_retrieve()` in the bench harness with boolean flags. 
 | 15.2 | **Semantic Query Cache**: LRU cache with cosine-similarity lookup (threshold 0.92), TTL eviction, optional JSON persistence | Gptcache (Zilliz 2023); production pattern |
 | 15.3 | **Citation Verification**: post-generation gate extracts claims, verifies values and paths against evidence, flags hallucinations, rejects answers below a verification ratio threshold | FActScore (Min et al. 2023); SAFE (Wei et al. 2024) |
 
-Adaptive retrieval is neutral on the gold set (every gold question needs retrieval). Citation verification is a generation-time safety gate, not a retrieval metric. The semantic cache is a latency optimization.
+Adaptive retrieval is neutral on the gold set (every gold question needs retrieval). Citation verification is a generation-time safety gate, not a retrieval metric. The semantic cache is meant as a latency optimization; replayed over the gold set it serves other questions' lists, a recorded loss (status row `15`).
 
 ### Out of scope unless the gold set grows
 

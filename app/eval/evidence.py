@@ -129,8 +129,12 @@ def claims(root: Path = ROOT) -> list[dict]:
                 order = "; Recall@10 on the slice is unchanged, so the gain is ordering only" if r10 and r10.get("delta") == 0 and r10.get("lo") == 0 and r10.get("hi") == 0 else ""
                 moved = rc.get("questions_changed")  # D04: how many of the slice's questions the delta rests on
                 rests = f" (nDCG@10 rose on {moved['up']} of them and fell on {moved['down']})" if moved else ""
+                from app.eval.report import negative_slices  # keep losers visible: the categories the router loses on
+
+                lost = "; ".join(f"{b['category']} {' '.join(_ci(b['ndcg@10'], 'delta'))} (n = {b['n']})" for b in negative_slices(router))
+                losers = f"; on categories it is not aimed at its nDCG@10 delta is negative: {lost}" if lost else ""
                 out.append({"claim": f"Fixture v1: router on its own category ({rc['category']}) over the reranked hybrid, paired delta in nDCG@10", "value": d, "ci": ci, "n": rc["n"], "command": "make bench", "source": src,
-                            "not_shown": f"n = {rc['n']}{rests} and {zero}; hash embeddings and the overlap reranker{order}; the earlier README figure 0.596 -> 0.938 compared against plain RRF and overstated the router"})
+                            "not_shown": f"n = {rc['n']}{rests} and {zero}{losers}; hash embeddings and the overlap reranker{order}; the earlier README figure 0.596 -> 0.938 compared against plain RRF and overstated the router"})
             out.append({"claim": "Fixture v1: Recall@50 of the full CI pipeline", "value": f"{full['retrieval']['recall@50']:.3f}", "ci": _ci(full['ci']['recall@50'])[1], "n": n, "command": "make bench", "source": src,
                         "not_shown": f"a random list with the same number of unique files ({full['retrieval'].get('mean_unique_paths@50', 0):.0f} of {main['n_files']}) scores {full['retrieval'].get('random_recall@50', 0):.3f}; the metric mostly measures list length"})
     neural = _load(FILES["neural"], root)
@@ -363,7 +367,7 @@ def _companion_live_claims(root: Path = ROOT) -> list[dict]:
     cmd = "make bench-companion-live"
     model = blob["model"]
     gold = blob["summary"]["gold"]["overall"]
-    stack = ("the served retrieval is the default stack's fallbacks (hash embeddings, Postgres ts_rank_cd, no "
+    stack = ("the served retrieval is the default stack's stand-ins (hash embeddings, Postgres ts_rank_cd instead of BM25, no "
              "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
              "synthetic fixture questions")
     out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
@@ -485,7 +489,7 @@ def _served_scale_claims(root: Path = ROOT) -> list[dict]:
         rejected, judged = blob["build"]["report"].get("files_rejected"), len((blob.get("not_indexed") or {}).get("judged", []))
         out.append({"claim": f"BEIR FiQA ({blob['n_docs']} documents) through the served API (Postgres + pgvector, bge-small + bge-reranker-v2-m3): nDCG@10 at the document level",
                     "value": v, "ci": ci, "n": n, "command": cmd, "source": src,
-                    "not_shown": f"one run on {where}; the lexical leg is Postgres ts_rank_cd (a fallback, not BM25); a document ranks at its best chunk; "
+                    "not_shown": f"one run on {where}; the lexical leg is Postgres ts_rank_cd (the default LEXICAL_BACKEND, not BM25); a document ranks at its best chunk; "
                                  f"{rejected} of the {blob['n_docs']} documents were rejected by the served scanner and never indexed ({judged} of them judged relevant); "
                                  f"{failed} failed requests scored zero; the in-memory rows of the same job and the differences between the sides are in the results file"})
         for row in SERVED_ROWS:
@@ -827,7 +831,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the current run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`).
 
-**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
+**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the fixture's chunks today), ParadeDB BM25 in the production path if that backend is kept (an open decision), with its gap reported by the same parity job, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
 '''
 
 
