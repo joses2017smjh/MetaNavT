@@ -224,13 +224,16 @@ def test_a_move_whose_audit_event_cannot_be_written_after_it_ran_is_answered_as_
 
 
 def test_a_failed_start_tells_the_client_an_approval_error_and_only_the_class_of_anything_else(client):
+    """...and the id the failed attempt was logged under (main.py stores both; C47)."""
     client.app.state.plans = None
     client.app.state.startup_error = 'OperationalError: connection to server at "db.internal.example", port 5432 failed'
+    client.app.state.startup_error_id = "0123456789abcdef"
     resp = client.get("/api/plans/")
-    assert resp.status_code == 503 and resp.json()["detail"] == "plans unavailable: OperationalError (the server log has the reason)"
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "plans unavailable: OperationalError (the server log has the reason, id 0123456789abcdef)"
     client.app.state.startup_error = "ApprovalError: configure both the approval public key and ledger paths"
     assert client.get("/api/plans/").json()["detail"] == "plans unavailable: ApprovalError: configure both the approval public key and ledger paths"
-    client.app.state.startup_error = None
+    client.app.state.startup_error = client.app.state.startup_error_id = None
 
 
 def test_no_plan_is_kept_in_the_tools_between_requests(client, corpus, operator_grant):

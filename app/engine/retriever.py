@@ -20,7 +20,7 @@ from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 from app.engine.budget import Deadline, StageTimeout
 from app.eval.latency import StageTimer
 from app.graph.staleness import prefer_current
-from app.observability import span
+from app.observability import report_failure, span
 from app.retrieval.fuse import RRF_K, rrf_score_map
 from app.retrieval.router import QueryRouter, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
@@ -335,8 +335,9 @@ class HybridRetriever(BaseRetriever):
                 nodes.append(NodeWithScore(node=node, score=float(r["score"])))
             return nodes, getattr(raw_results, "lexical_backend", None), []
         except Exception as e:  # noqa: BLE001 - recorded on the outcome, never silent
-            logger.warning(f"BM25 retrieval failed; this request is degraded to vector-only: {e}")
-            return [], None, [{"component": "bm25", "error": f"{type(e).__name__}: {e}"}]
+            # The entry reaches clients (/api/retrieve's degraded list): the class and the log id, never the text.
+            _, error = report_failure(logger, "BM25 retrieval (this request is degraded to vector-only)", e, level=logging.WARNING)
+            return [], None, [{"component": "bm25", "error": error}]
 
     def _rerank(self, query_str: str, nodes: List[NodeWithScore], n: Optional[int] = None):
         """Rerank the fused top-`rerank_depth` with the cross-encoder; the rest keep RRF order.
@@ -352,9 +353,9 @@ class HybridRetriever(BaseRetriever):
             from app.retrieval.rerank import cross_encoder_scores
 
             scores = cross_encoder_scores(self._reranker, [(query_str, h.node.get_content()) for h in head])
-        except Exception as e:  # noqa: BLE001 - surfaced as degraded
-            logger.warning(f"Reranking failed for this request; serving RRF order: {e}")
-            return nodes[:n], f"{type(e).__name__}: {e}"
+        except Exception as e:  # noqa: BLE001 - surfaced as degraded (the class and the log id; the text is logged)
+            _, error = report_failure(logger, "Reranking (this request is served in RRF order)", e, level=logging.WARNING)
+            return nodes[:n], error
         scored = sorted(zip(head, scores), key=lambda x: x[1], reverse=True)
         reranked = [NodeWithScore(node=node.node, score=float(score)) for node, score in scored]
         return (reranked + tail)[:n], None
@@ -424,7 +425,8 @@ def load_reranker(settings: Optional[dict] = None):
         if model is None:
             error = "not loadable: sentence-transformers missing, or weights not cached and BGE_ALLOW_DOWNLOAD unset"
     except Exception as e:  # noqa: BLE001 - reported, not swallowed
-        error = f"{type(e).__name__}: {e}"
+        # info["error"] is served by /health and /api/retrieve: the class and the id it is logged under, once, here.
+        _, error = report_failure(logger, f"Loading the reranker {name}", e)
     info.update(loaded=model is not None, revision=hf_revision(name), device=model_device(model) if model else None, error=error)
     if model is not None:
         inner = getattr(model, "model", None)
