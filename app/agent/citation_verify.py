@@ -242,7 +242,7 @@ def _extract_values(text: str) -> list[str]:
     values.extend(re.findall(r"\b(?:dinov2|resnet\d+|clip|vit\w*)\b", text, re.I))
     for m in re.finditer(r"(\d+)\s*(?:epochs?|iterations?|steps?|pairs?)", text, re.I):
         values.append(m.group(1))
-    return list(set(values))
+    return list(dict.fromkeys(values))  # deduplicated in extraction order; a set's order follows the hash seed
 
 
 def _has_factual_assertion(text: str) -> bool:

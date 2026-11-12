@@ -77,6 +77,49 @@ def pointwise_prompts(question: str, answer: str, contexts: Sequence[str], gold:
     }
 
 
+NO_ANSWER = "NOT IN SOURCES"  # the generator's abstention (app/agent/generate.py NOT_IN_SOURCES)
+
+
+def correctness_prompt(question: str, answer: str, gold: str) -> str:
+    """Is the answer the gold answer? The judge sees no retrieved context, so a wrong value copied faithfully
+    from a retrieved chunk is still wrong; the pointwise prompts above mix that faithfulness into their label."""
+    return (
+        f"Question: {question}\nGold answer: {gold}\nAnswer: {answer}\n"
+        "Does the answer give the gold answer? Judge only that, and accept another wording or number format "
+        "(7e-6 is 0.000007); ignore style, length and sources.\n"
+        "correct: the answer gives the gold answer.\n"
+        "partial: the gold answer has several parts and the answer gives some of them.\n"
+        f"wrong: the answer gives something else, or no answer ({NO_ANSWER} gives no answer).\n"
+        'Reply JSON {"label": "correct" | "partial" | "wrong"}.'
+    )
+
+
+_VERDICT_WORDS = {"correct": "correct", "partial": "partial", "wrong": "wrong", "incorrect": "wrong"}
+
+
+def parse_verdict(raw: str) -> tuple[str, bool]:
+    """(label, parsed) from a correctness reply: the label of the JSON object, else a `label: x` pair, else a reply
+    that is nothing but one label word. Anything else (prose such as "not correct", an empty reply) is unparsed and
+    reads as partial; callers count it, so it is never silent."""
+    text = (raw or "").strip()
+    m = re.search(r"\{.*?\}", text, re.S)
+    if m:
+        try:
+            blob = json.loads(m.group(0))
+        except ValueError:
+            blob = None
+        label = _VERDICT_WORDS.get(str(blob.get("label", "")).strip().lower()) if isinstance(blob, dict) else None
+        if label:
+            return label, True
+    m = re.search(r"label['\"]?\s*[:=]\s*['\"]?(correct|partial|wrong|incorrect)\b", text, re.I)
+    if m:
+        return _VERDICT_WORDS[m.group(1).lower()], True
+    bare = re.sub(r"[^a-z]", "", text.lower())
+    if bare in _VERDICT_WORDS:
+        return _VERDICT_WORDS[bare], True
+    return "partial", False
+
+
 @dataclass
 class PointwiseVerdict:
     faithfulness: float
@@ -172,6 +215,12 @@ class LlmJudge:
             raw=raw,
         )
 
+    def judge_correctness(self, question: str, answer: str, gold: str) -> dict:
+        """The correctness verdict (correctness_prompt): label, whether the reply could be read, the reply itself."""
+        raw = self._ask(correctness_prompt(question, answer, gold), temperature=0.0)
+        label, parsed = parse_verdict(raw)
+        return {"label": label, "parsed": parsed, "raw": raw}
+
 
 def pairwise_ab_ba(
     complete: JudgeFn,
@@ -243,28 +292,84 @@ def self_consistency_vote(
 _NUM_RE = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
 
 
-def _numbers(text: str) -> set[float]:
+def _standalone(text: str, start: int, end: int) -> bool:
+    """The number at text[start:end] is not part of a word or a longer number (the 2 in dinov2, the 50 in resnet50)."""
+    before, after, after2 = text[start - 1:start], text[end:end + 1], text[end + 1:end + 2]
+    if before and (before.isalnum() or before in "_."):
+        return False
+    if after and (after.isalnum() or after == "_"):
+        return False
+    return not (after == "." and after2.isdigit())
+
+
+def _numbers(text: str, *, bounded: bool = False) -> set[float]:
     out = set()
-    for m in _NUM_RE.findall(text or ""):
+    for m in _NUM_RE.finditer(text or ""):
+        if bounded and not _standalone(text, m.start(), m.end()):
+            continue
         try:
-            out.add(float(m))
+            out.add(float(m.group(0)))
         except ValueError:
             continue
     return out
 
 
-def exact_match_label(answer: str, gold: str) -> str:
+def _bounded_pattern(value: str) -> str:
+    head = r"(?<![\w.])" if re.match(r"\w", value) else ""
+    tail = r"(?!\w|\.\d)" if re.match(r"\w", value[-1]) else ""
+    return head + re.escape(value) + tail
+
+
+def contains_bounded(text: str, value: str) -> bool:
+    """`value` occurs in `text` and is not part of a longer number or word at an end where it starts or ends with
+    a letter or digit: "2" is not in "run 42" or "2.5", "0.053" is not in "0.0533", "oak" is not in "oaks"."""
+    value = value.strip()
+    return bool(value) and re.search(_bounded_pattern(value), text) is not None
+
+
+def single_number(value: str) -> float | None:
+    """The number `value` is, when the whole string is one number ("1e-04", "0.0555", "3"), else None."""
+    found = _NUM_RE.findall(value or "")
+    return float(found[0]) if len(found) == 1 and value.strip() == found[0] else None
+
+
+def replace_bounded(text: str, value: str, new: str) -> tuple[str, int]:
+    """`text` with every occurrence of `value` that contains_bounded finds (any case) replaced by `new`, and, when
+    `value` is one number, every standalone number equal to it (0.0001 for 1e-04); with the count of replacements."""
+    value = value.strip()
+    if not value:
+        return text, 0
+    target = single_number(value)
+    if target is not None:
+        count = 0
+
+        def swap(m: re.Match) -> str:
+            nonlocal count
+            if _standalone(text, m.start(), m.end()) and abs(float(m.group(0)) - target) <= 1e-9 * max(1.0, abs(target)):
+                count += 1
+                return new
+            return m.group(0)
+
+        return _NUM_RE.sub(swap, text), count
+    return re.subn(_bounded_pattern(value), lambda m: new, text, flags=re.I)
+
+
+def exact_match_label(answer: str, gold: str, *, bounded: bool = False) -> str:
     """correct: the gold string is in the answer, or the gold is a number and the answer
     states the same number in any format (1e-04 == 0.0001); partial: token overlap;
-    wrong: none. This is the deterministic label the judges are measured against."""
+    wrong: none. This is the deterministic label the judges are measured against.
+    bounded=True (the answer evaluation's reference since M29) counts the gold string, and a
+    number in the answer, only where it is not part of a longer number or word
+    (contains_bounded, _standalone); plain containment finds gold "8" in "runs 45, 46, 47, 48"
+    and the number comparison finds 2 in "dinov2"."""
     if not gold.strip():
         return "partial"
     a, g = answer.lower(), gold.lower()
-    if g in a or a.strip() == g.strip():
+    if (contains_bounded(a, g) if bounded else g in a) or a.strip() == g.strip():
         return "correct"
     gold_nums = _numbers(gold)
     if gold_nums and len(_NUM_RE.findall(gold)) == 1 and gold.strip() == _NUM_RE.findall(gold)[0]:
-        if any(abs(x - y) <= 1e-9 * max(1.0, abs(y)) for y in gold_nums for x in _numbers(answer)):
+        if any(abs(x - y) <= 1e-9 * max(1.0, abs(y)) for y in gold_nums for x in _numbers(answer, bounded=bounded)):
             return "correct"
     if set(tokenize(gold)) & set(tokenize(answer)):
         return "partial"

@@ -1124,25 +1124,67 @@ is missing.
 
 ## Does the judge agree with the gold labels?
 
-`make bench-jury` generates a cited answer for every gold question with a local
-model through Ollama, from the top 8 chunks of the best measured retrieval
-configuration, then runs three deterministic checks before any judge is asked:
-the cited path is in the retrieved set, every number or config value in the
-answer appears inside the cited bytes (not merely somewhere in the evidence),
-and exact match against the gold answer on the simple-factual slice. An answer
-that carries no valid `[path:start-end]` citation fails loudly and is excluded
-from judging. Two different judge models label each answer pointwise, and a
-position-swapped (AB/BA) pairwise comparison against the extractive answer
-measures their order bias. Judge scores are published only if a judge's
-Cohen's kappa against the exact-match labels reaches the gate; otherwise the
-table says so and the scores stay in the results file. If the reference is a
-single class (every simple-factual answer matched, as on the first run) kappa
-is 0 by construction and the gate is reported as not evaluable, which also
-keeps it closed. `make bench-jury-rescore` recomputes the deterministic checks
+`make bench-jury-v2` (results in `jury_v2.json`; the first run, `make bench-jury`,
+is kept in `jury.json`) generates a cited answer for every gold question with a
+local model through Ollama, from the top 8 chunks of the best measured retrieval
+configuration (a run refuses to start when the configured reranker falls
+back), then runs the deterministic checks before any judge is asked: the cited
+path is in the retrieved set, every number or config value in the answer
+appears inside the cited bytes (not merely somewhere in the evidence), and
+exact match against the gold answer on the simple-factual slice. Exact match
+counts the gold string only where it is not part of a longer number or word,
+or the same number written in another format; plain containment had found the
+gold `8` inside `48`. An answer that carries no valid `[path:start-end]`
+citation fails loudly and is excluded from judging.
+
+Each judge model then gives three things per answer. The gated label is a
+correctness verdict: the judge sees the question, the gold answer and the
+answer, and no retrieved context, and replies correct, partial or wrong. An
+answer that is `NOT IN SOURCES` and nothing else, to a question that has a gold
+answer, is labelled wrong by rule without asking a judge (the abstention
+rubric; both judges of the first run had called such answers correct). The
+first run's composite label (the mean of faithfulness, relevancy and
+groundedness scores) is kept as a labelled column and never gated: a wrong
+value copied faithfully from a retrieved chunk would score high on two of the
+three and read as partial, disagreeing with an exact-match "wrong" (an argument
+from the prompts, not a measurement: the calibration answers get only the
+correctness verdict). A position-swapped (AB/BA) pairwise comparison against the
+extractive answer measures order bias. Every reply is stored, and empty or
+unreadable replies are counted per judge, because a failed call would
+otherwise read as partial or as a tie.
+
+Cohen's kappa is computed between each judge's correctness verdicts and the
+exact-match labels of the reference answers it labelled, paired per answer,
+with a bootstrap interval over those answers; rule-labelled abstentions are
+left out of kappa and counted, since they would agree with the reference by
+construction. The run's own simple-factual answers would be the reference, but
+the slice is saturated for the generator (exact match labels every one of its
+answers correct), so `make bench-jury-v2` adds a calibration set and makes it
+the reference: a smaller model that is neither judge answers each
+simple-factual question twice, once from the retrieved chunks and once from the
+same chunks with every standalone occurrence of the gold value replaced in
+memory by another gold value of the same question template (the fixture is not
+touched). The planted answers give the reference its wrong class. Calibration
+answers get the correctness verdict only, cited or not, and stay out of every
+deterministic-check rate; the run's own answers are judged as before, and a
+judge that passes the gate on the calibration set has its correctness score of
+those answers published. A pass shows that the judge compares a single-value
+answer with the gold, not that it judges every kind of answer correctly.
+A judge's correctness score is published only if its kappa reaches the gate;
+otherwise the table says so and the scores stay in the results file. If the
+reference is a single class (every simple-factual answer matched, as on the
+first run) kappa is 0 by construction and the gate is reported as not
+evaluable, which also keeps it closed. `make bench-jury-v2-rescore` (and
+`make bench-jury-rescore` for the first run) recomputes the deterministic checks
 and the summary of the committed file from its stored answers without a model
-call, re-running retrieval and refusing if the retrieved paths differ; the file
-and the block name both the sha that generated the answers and the sha that
-rescored them.
+call, re-running retrieval and the planting and refusing if the retrieved
+paths, the planted values or their counts differ or the abstention rule would
+label other rows; the file and the block name both the sha that generated the
+answers and the sha that rescored them. The first run's stored retrieval no
+longer matches today's, so its rescore refuses. The results header pins the generator and each judge by the
+manifest digest Ollama reports for its tag (`revision`), next to the server
+version, and a model run refuses to start when a tag has no digest; files
+recorded before that (`jury.json`) name the Ollama models by tag only.
 
 [Current generated bench-jury evidence](../README.md#bench-jury).
 
@@ -1717,7 +1759,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **The CI table's rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`; it is within noise of plain RRF (see the [ablation table](#the-number)). The real reranker is measured in the [real-models tables](#real-models-and-a-corpus-where-k50-means-something), which are committed artifacts rather than CI output. Until M2 the cross-encoder was called through the wrong API (`compute_score` instead of sentence-transformers' `predict`). In the bench, the weights were never cached, so `get_cross_encoder()` returned nothing and the row fell back to overlap for lack of weights; the first run with weights present raised. In the production retriever the same call was inside a broad `except`, so reranking silently returned the RRF order. No earlier "bge-rerank" number in this repository's history was a cross-encoder result; `reranker_loaded` in the results file is the check.
 
-**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ vs the exact-match labels on simple_factual must reach 0.6 before a judge score is printed. Retrieval metrics stay BEIR-style and LLM-free.
+**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ between a judge's correctness verdicts and the exact-match labels of the calibration set must reach 0.6 before that judge's score is printed. The calibration set's wrong answers are planted same-field values, so a judge that passes is validated on single-value answers only. Retrieval metrics stay BEIR-style and LLM-free.
 
 **The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in a question or injected task, so planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls in a question or injected task was a write tool, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
@@ -1727,12 +1769,11 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 Status: M0 to M5 are merged. Open items, in priority order:
 
-1. **Kappa reference with variance.** The generator matched gold on all simple-factual questions, so the judge gate is not evaluable. This needs a harder slice as fixture v2; v1 stays frozen.
+1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers, and the judge that passed is the generator's own model. Multi-part, paraphrased and computed answers need human labels or a fixture v2 slice (v1 stays frozen), and a judge from another model family would remove the self-preference caveat.
 2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
-3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
-4. **ParadeDB BM25 in the production path**, gated by the same parity job.
-5. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
-6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+3. **ParadeDB BM25 in the production path**, gated by the same parity job.
+4. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
+5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 
