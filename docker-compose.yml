@@ -62,6 +62,11 @@ services:
     # (python -m app.engine.ingest: diff DATA_DIR against the manifest, embed only what changed;
     # stopped after 900 s, and a failure stops the container), then the server.
     command: ["sh", "-c", "python -m app.database.migrate && timeout 900 python -m app.engine.ingest && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
+    volumes:
+      # POST /api/chat/upload saves under DATA_DIR/uploads and indexes the file with the rest of DATA_DIR. A volume,
+      # so an upload outlives the container; every container that indexes or serves this table must mount the same
+      # one (a shared volume for more than one replica), or its index run removes the upload's rows as a deleted file's.
+      - metanavit_uploads:/app/bench/corpus/files/uploads
     ports:
       - "8000:8000"
     healthcheck:
@@ -85,3 +90,4 @@ services:
 
 volumes:
   metanavit_pg:
+  metanavit_uploads:

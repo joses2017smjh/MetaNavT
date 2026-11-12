@@ -148,3 +148,14 @@ def test_compose_ci_and_the_env_example_set_no_chunk_size_nothing_reads():
     for name in ("docker-compose.yml", "docker-compose.ml.yml", "docker-compose.gpu.yml", ".github/workflows/ci.yml", ".env.example"):
         text = (ROOT / name).read_text()
         assert "CHUNK_SIZE" not in text and "CHUNK_OVERLAP" not in text, name
+
+
+def test_compose_keeps_uploads_on_a_volume_inside_data_dir():
+    """Uploads are indexed with DATA_DIR, so they live in DATA_DIR/uploads (a link out of DATA_DIR would be rejected as
+    outside_root): a named volume mounted there, in the container that indexes and serves."""
+    compose = _compose()
+    api = compose["services"]["api"]
+    data_dir = api["environment"]["DATA_DIR"]
+    mounts = dict(volume.split(":", 1) for volume in api["volumes"])
+    assert mounts == {"metanavit_uploads": f"/app/{data_dir}/uploads"}  # WORKDIR /app (Dockerfile)
+    assert "metanavit_uploads" in compose["volumes"]

@@ -165,6 +165,7 @@ def index_directory(
     max_rejected: Optional[int] = None,
     embedder: str = "",
     lock_timeout_s: Optional[float] = None,
+    before_scan: Optional[Callable[[], None]] = None,
 ) -> dict:
     """Bring the vector table in line with data_dir and return the run's report.
 
@@ -175,7 +176,9 @@ def index_directory(
     rejected, IngestUnreconciled when the rows per path do not equal the
     manifest's chunk counts after the run's writes, and IngestLockTimeout (nothing
     written) when another run holds the lock longer than lock_timeout_s (None:
-    INGEST_LOCK_TIMEOUT_SECONDS).
+    INGEST_LOCK_TIMEOUT_SECONDS). before_scan runs once the lock is held, before
+    the manifest is read and the directory scanned: the upload route writes its
+    file there, so no run reads it half-written and this run indexes it.
     """
     root = Path(data_dir).resolve()
     if not root.is_dir():
@@ -184,6 +187,8 @@ def index_directory(
     pipeline = f"{CHUNKER_VERSION}|{embedder}"
     lock_timeout_s = ingest_lock_timeout_from_env() if lock_timeout_s is None else (lock_timeout_s or None)
     with vsm.ingest_lock(lock_timeout_s) as lock:
+        if before_scan is not None:
+            before_scan()
         store = vsm.get_vector_store()  # the data table and the manifest are schema migrations (vector/0001, 0002)
         manifest = vsm.ingest_manifest()
         # Rows of unlisted paths are left to delete_unlisted_chunks below; a listed file whose rows do not
@@ -239,10 +244,11 @@ def _chunk_counts(manifest: dict[str, dict]) -> dict[str, int]:
     return {path: row["n_chunks"] for path, row in manifest.items()}
 
 
-def index_data_dir(vsm) -> dict:
+def index_data_dir(vsm, before_scan: Optional[Callable[[], None]] = None) -> dict:
     """Index DATA_DIR with the embedder init_settings() configured (Settings.embed_model): the one call start-up
-    (INDEX_ON_START), the index step and `python -m app.engine.generate` make, so all of them write the same
-    chunks under the same pipeline label and a run after any other one embeds only what changed."""
+    (INDEX_ON_START), the index step, `python -m app.engine.generate` and an upload (app/engine/uploads.py, which
+    writes its file in before_scan) make, so all of them write the same chunks under the same pipeline label and a
+    run after any other one embeds only what changed."""
     from llama_index.core.settings import Settings
 
     return index_directory(
@@ -251,6 +257,7 @@ def index_data_dir(vsm) -> dict:
         embed_fn=Settings.embed_model.get_text_embedding_batch,
         embedder=embedder_label(Settings.embed_model),
         max_rejected=max_rejected_from_env(),
+        before_scan=before_scan,
     )
 
 
