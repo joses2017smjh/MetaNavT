@@ -1,5 +1,5 @@
 {
-  "git_sha": "dfa9a95",
+  "git_sha": "3601901",
   "timestamp": "2026-11-12T01:16:17.619821+00:00",
   "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --rescore bench/results/jury_v2.json",
   "device": {
@@ -242,7 +242,7 @@
       "qwen2.5:7b": {
         "kappa_vs_exact_match_simple_factual": 0.9509,
         "interval": {
-          "lo": 0.9007,
+          "lo": 0.9036,
           "hi": 0.9876
         },
         "n": 160,
@@ -356,15 +356,15 @@
         ],
         "kappa_vs_exact_match_simple_factual": 0.3278,
         "interval": {
-          "lo": 0.2898,
-          "hi": 0.3625
+          "lo": 0.3196,
+          "hi": 0.3333
         },
         "n": 160,
         "readme_ok": false
       }
     },
     "interval": {
-      "method": "percentile bootstrap over the reference questions",
+      "method": "percentile bootstrap over the calibration questions: each resample draws questions with replacement and keeps a drawn question's reference answers together (its retrieved and its planted answer)",
       "rng": "numpy.random.RandomState.randint",
       "seed": 0,
       "n_boot": 2000,
@@ -503,7 +503,7 @@
     "publishable_judges": [
       "qwen2.5:7b"
     ],
-    "verdict": "kappa >= 0.6 for qwen2.5:7b: their correctness scores may be published"
+    "verdict": "kappa >= 0.6 for qwen2.5:7b: its correctness score may be published"
   },
   "rows": [
     {
@@ -21788,9 +21788,9 @@
     "rows_git_sha": "01b70f7",
     "rows_command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --out bench/results/jury_v2.json --generator qwen2.5:7b --judges qwen2.5:7b,llama3.1:8b --calibration-generator qwen2.5:1.5b",
     "rows_timestamp": "2026-11-12T01:16:17.619821+00:00",
-    "checks_git_sha": "dfa9a95",
+    "checks_git_sha": "3601901",
     "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --rescore bench/results/jury_v2.json",
-    "timestamp": "2026-11-12T01:36:25.551284+00:00",
+    "timestamp": "2026-11-12T03:02:16.154504+00:00",
     "what": "deterministic checks and summary recomputed from the stored answers and judge labels; generation, judge labels and pairwise verdicts untouched"
   }
 }

@@ -1168,9 +1168,11 @@ otherwise read as partial or as a tie.
 
 Cohen's kappa is computed between each judge's correctness verdicts and the
 exact-match labels of the reference answers it labelled, paired per answer,
-with a bootstrap interval over those answers; rule-labelled abstentions are
-left out of kappa and counted, since they would agree with the reference by
-construction. The run's own simple-factual answers would be the reference, but
+with a percentile bootstrap interval that resamples the questions: a drawn
+question brings all of its reference answers, so on the calibration set below
+a question's retrieved and planted answers move together; rule-labelled
+abstentions are left out of kappa and counted, since they would agree with the
+reference by construction. The run's own simple-factual answers would be the reference, but
 the slice is saturated for the generator (exact match labels every one of its
 answers correct), so `make bench-jury-v2` adds a calibration set and makes it
 the reference: a smaller model that is neither judge answers each
