@@ -223,10 +223,9 @@ edit, a staged change or a file deleted on disk cannot reach a new snapshot,
 and a symlink is rejected without reading what it points to. Its filters have
 tests: undecodable text, byte duplicates, and a secret pattern that matches
 `api_key`, `access_token` or `password` followed by `=` or `:` and a value
-that begins with at least twelve letters, digits, `_` or `-`. A secret under
-another name, a shorter value or one with other punctuation among its first
-twelve characters, or a JSON key whose closing quote comes before the colon,
-is not caught.
+that begins with a long run of letters, digits, `_` or `-`. A secret under
+another name, a short value or one with other punctuation near its start, or
+a JSON key whose closing quote comes before the colon, is not caught.
 
 Two checks outside fixture v1 run on this snapshot
 (`app/eval/robotics_checks.py`). `make bench-robotics-chunking` compares the

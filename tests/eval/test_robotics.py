@@ -64,15 +64,17 @@ def test_freeze_counts_undecodable_duplicate_and_secret_files_by_reason_and_expo
 
 def test_freeze_secret_pattern_misses_other_key_names_short_values_and_json_quoted_keys(tmp_path):
     """Documented limit: the pattern names api_key, access_token and password with `=` or `:` right after the name,
-    then a value that begins with at least twelve letters, digits, `_` or `-`. A secret under another name, a shorter
-    value, or a JSON key whose closing quote comes before the colon, is exported."""
+    then a value that begins with at least twelve letters, digits, `_` or `-` (its `{12,}`). A secret under another
+    name, a shorter value or one with other punctuation near its start, or a JSON key whose closing quote comes before
+    the colon, is exported."""
     exported = {
         "results/campaign-3/env.txt": b"secret_key: abcdefghijklmnop1234\n",
         "results/campaign-4/creds.json": b'{"api_key": "abcdefghijklmnop1234"}',
         "results/campaign-5/login.txt": b"password: hunter2\n",
+        "results/campaign-6/db.yaml": b"password: p@ssw0rd-that-is-long-enough\n",
     }
     destination = tmp_path / "snapshot"
-    manifest = freeze(_source_repo(tmp_path, exported), destination, n_files=15, dev_n=4, test_n=8)
+    manifest = freeze(_source_repo(tmp_path, exported), destination, n_files=16, dev_n=4, test_n=8)
     assert manifest["rejected"] == {}
     assert set(exported) <= {row["path"] for row in manifest["files"]}
     for path, data in exported.items():
