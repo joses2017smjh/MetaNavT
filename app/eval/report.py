@@ -594,25 +594,46 @@ def _lcpw(counts: dict) -> str:
     return f"{counts['correct']} / {counts['partial']} / {counts['wrong']}"
 
 
+def _calibration_reference(ref: dict, calgen: str | None) -> str:
+    return (
+        f"The run's own simple-factual answers cannot be the reference: exact match labels them {_lcpw(ref['simple_factual_label_counts'])} "
+        f"(correct / partial / wrong). The reference is a calibration set instead: {calgen}, which is not a judge, answers every "
+        f"simple-factual question twice, from the retrieved chunks and from the same chunks with every standalone occurrence of the "
+        f"gold value replaced, in memory, by another gold value of the same question template (the fixture is not touched). Exact "
+        f"match labels the {ref['n']} calibration answers the judges labelled {_lcpw(ref['label_counts'])}: "
+        f"{_lcpw(ref['by_condition']['retrieved'])} from retrieved contexts and {_lcpw(ref['by_condition']['planted'])} from planted ones. "
+        f"{ref['left_out_abstention_only']} calibration answers that are NOT IN SOURCES and nothing else are labelled wrong by rule and "
+        f"left out, and {ref['left_out_not_planted']} planted contexts where nothing was replaced are not part of it. Calibration "
+        "answers are judged cited or not and are in none of the checks above."
+    )
+
+
 def jury_v2_table(blob: dict) -> str:
     """M29: the gate reads each judge's correctness verdict against exact match on a calibration set; judge scores of
-    the run's answers only for a judge that passed."""
+    the run's answers only for a judge that passed. A file without a calibration set (`make bench-jury` since M29)
+    has the run's own simple-factual answers as its reference, and the block says so."""
     s, c = blob["summary"], blob["summary"]["checks"]
     gen, judges = blob["models"]["generator"], [j["model"] for j in blob["models"]["judges"]]
     cal = blob.get("calibration") or {}
     calgen = (cal.get("generator") or {}).get("model")
+    target = "make bench-jury-v2" if cal else "make bench-jury"
+    pool = "calibration" if cal else "reference"
+    unpinned = [m["model"] for m in [gen, *blob["models"]["judges"], *([cal["generator"]] if cal.get("generator") else [])] if not m.get("revision")]
+    pin_note = ("every Ollama model is pinned by its digest in the results file" if not unpinned else
+                f"WARNING: no digest in the results file for {', '.join(dict.fromkeys(unpinned))} (named by tag only)")
     cfg = blob.get("config") or {}
     rr = (blob.get("models") or {}).get("reranker") or {}
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
     rs = blob.get("rescore") or {}
     sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`make bench-jury-v2-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
+                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
     ref = s["reference"]
     gate = blob.get("kappa_gate")
     lines = [
-        f"Generated answers on fixture v1 (`make bench-jury-v2`, {sha_note}): {blob['n_gold']} questions, retrieval `{cfg.get('name')}` "
-        f"({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), judges {', '.join(judges)}, "
-        f"calibration generator {calgen}; every Ollama model is pinned by its digest in the results file; wall {blob.get('wall_s')} s. "
+        f"Generated answers on fixture v1 (`{target}`, {sha_note}): {blob['n_gold']} questions, retrieval `{cfg.get('name')}` "
+        f"({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), judges {', '.join(judges)}"
+        + (f", calibration generator {calgen}" if cal else "")
+        + f"; {pin_note}; wall {blob.get('wall_s')} s. "
         + _model_notes(blob),
         "",
         "Deterministic checks of the run's answers (no model involved):",
@@ -632,17 +653,12 @@ def jury_v2_table(blob: dict) -> str:
         "",
         f"Does the judge agree with the gold labels? The gate compares each judge's correctness verdict (the judge sees the question, "
         f"the gold answer and the answer, and no retrieved context) with the exact-match label, and opens at Cohen's kappa >= {gate}. "
-        f"The run's own simple-factual answers cannot be the reference: exact match labels them {_lcpw(ref['simple_factual_label_counts'])} "
-        f"(correct / partial / wrong). The reference is a calibration set instead: {calgen}, which is not a judge, answers every "
-        f"simple-factual question twice, from the retrieved chunks and from the same chunks with every standalone occurrence of the "
-        f"gold value replaced, in memory, by another gold value of the same question template (the fixture is not touched). Exact "
-        f"match labels the {ref['n']} calibration answers the judges labelled {_lcpw(ref['label_counts'])}: "
-        f"{_lcpw(ref['by_condition']['retrieved'])} from retrieved contexts and {_lcpw(ref['by_condition']['planted'])} from planted ones. "
-        f"{ref['left_out_abstention_only']} calibration answers that are NOT IN SOURCES and nothing else are labelled wrong by rule and "
-        f"left out, and {ref['left_out_not_planted']} planted contexts where nothing was replaced are not part of it. Calibration "
-        "answers are judged cited or not and are in none of the checks above.",
+        + (_calibration_reference(ref, calgen) if cal else
+           f"The reference is the run's own simple-factual answers the judges labelled: exact match labels the {ref['n']} of them "
+           f"{_lcpw(ref['label_counts'])} (correct / partial / wrong), and {ref['left_out_abstention_only']} that are NOT IN SOURCES "
+           "and nothing else are labelled wrong by rule and left out."),
         "",
-        "| judge | kappa vs exact match (calibration set) | 95% interval | n | passes gate | verdicts correct / partial / wrong |",
+        f"| judge | kappa vs exact match ({'calibration set' if cal else 'simple-factual answers'}) | 95% interval | n | passes gate | verdicts correct / partial / wrong |",
         "|---|---:|---|---:|:---:|---|",
     ]
     evaluable = ref.get("gate_evaluable", True)
@@ -656,7 +672,7 @@ def jury_v2_table(blob: dict) -> str:
     for name, k in s["kappa"].items():
         one = [lab for lab, count in (k.get("label_counts") or {}).items() if count and count == k["n"]]
         if name != "jury_majority" and one:
-            lines += ["", f"{name} labelled all {k['n']} calibration answers {one[0]}: its verdicts carry no information about the gold, "
+            lines += ["", f"{name} labelled all {k['n']} {pool} answers {one[0]}: its verdicts carry no information about the gold, "
                       "which is why its kappa is 0."]
     own = [f"{name} {k['simple_factual_answers']['agree']} of {k['simple_factual_answers']['n']}" for name, k in s["kappa"].items()
            if name != "jury_majority" and k.get("simple_factual_answers")]
@@ -669,19 +685,21 @@ def jury_v2_table(blob: dict) -> str:
     composite = s.get("composite") or {}
     called = [f"{name} ({', '.join(k['abstentions_labelled_correct'])})" for name, k in composite.items() if k.get("abstentions_labelled_correct")]
     lines += ["", f"Abstention rubric: an answer that is NOT IN SOURCES and nothing else, to a question that has a gold answer, is labelled "
-              f"wrong without asking a judge ({ab.get('n', 0)} of the run's answers, {len(ab.get('calibration') or [])} calibration answers). "
-              "The first run's composite label (the mean of faithfulness, relevancy and groundedness, with the retrieved context) is "
+              f"wrong without asking a judge ({ab.get('n', 0)} of the run's answers"
+              + (f", {len(ab.get('calibration') or [])} calibration answers). " if cal else "). ")
+              + "The first run's composite label (the mean of faithfulness, relevancy and groundedness, with the retrieved context) is "
               "kept in the results file and never gated, because it reads a wrong value copied faithfully from a chunk as partial; "
               + (f"it still labelled these abstentions correct: {'; '.join(called)}." if called else "it labelled no such abstention correct in this run.")]
     rp = s.get("replies") or {}
     if rp:
         lines += ["", "Judge replies that were empty (a failed call reads as partial or as a tie) or could not be read:", "",
-                  "| judge | pointwise empty | correctness empty / unreadable (run) | correctness empty / unreadable (calibration) | pairwise empty |",
-                  "|---|---:|---:|---:|---:|"]
+                  "| judge | pointwise empty | correctness empty / unreadable (run) | "
+                  + ("correctness empty / unreadable (calibration) | " if cal else "") + "pairwise empty |",
+                  "|---|---:|---:|---:|" + ("---:|" if cal else "")]
         for name, r in rp.items():
             cc = r.get("calibration_correctness") or {"empty": "—", "unparsed": "—", "n": "—"}
             lines.append(f"| {name} | {r['pointwise']['empty']} / {r['pointwise']['n']} | {r['correctness']['empty']} / {r['correctness']['unparsed']} of {r['correctness']['n']} "
-                         f"| {cc['empty']} / {cc['unparsed']} of {cc['n']} | {r['pairwise']['empty']} / {r['pairwise']['n']} |")
+                         + (f"| {cc['empty']} / {cc['unparsed']} of {cc['n']} " if cal else "") + f"| {r['pairwise']['empty']} / {r['pairwise']['n']} |")
     agree = s.get("judge_agreement")
     if agree:
         lines += ["", f"Judge-judge agreement on the run's answers ({agree['judges'][0]} vs {agree['judges'][1]}, correctness verdicts): kappa {agree['kappa']}, n = {agree['n']}."]
@@ -708,8 +726,10 @@ def jury_v2_table(blob: dict) -> str:
     else:
         lines += ["", f"Verdict: {s['verdict']}. Mean judge scores are in the results file but are not printed here."]
     lines += ["", "What the gate shows and what it does not: the reference is an exact-match label, so a negated or hedged answer "
-              "that still quotes the gold value counts as correct and a correct paraphrase does not; and the calibration set's wrong "
-              "class is a planted value of the same field, so a pass shows that a judge compares a single-value answer with the "
+              "that still quotes the gold value counts as correct and a correct paraphrase does not; and "
+              + ("the calibration set's wrong class is a planted value of the same field" if cal else
+                 "the reference answers are single values to templated questions")
+              + ", so a pass shows that a judge compares a single-value answer with the "
               "gold, not that it judges multi-part, paraphrased or computed answers correctly.",
               "",
               f"Earlier record: [{EARLIER_JURY_FILE}]({EARLIER_JURY_FILE}), the first run (generator and first judge qwen2.5:7b, the "

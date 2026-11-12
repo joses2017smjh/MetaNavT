@@ -641,6 +641,25 @@ def test_the_readme_block_renders_the_calibration_gate_and_links_the_earlier_rec
     assert "Judge scores of the run's answers" not in report.jury_table(blob)
 
 
+def test_a_file_without_a_calibration_set_renders_its_own_reference():
+    """`make bench-jury` writes the M29 protocol without a calibration set: the README block and the evidence rows then
+    describe the run's own simple-factual reference, never a calibration set, and name a model with no digest."""
+    from app.eval import evidence, llm_eval, report
+    from app.eval.harness import BenchConfig
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="gen:7b", judge_models=["gen:7b", "other:8b"], limit=5,
+                        complete_fn=_echo_and_exact_judge)
+    assert "protocol" in blob and "calibration" not in blob
+    text = report.jury_table(blob)
+    assert "`make bench-jury`" in text and "| judge | kappa vs exact match (simple-factual answers) |" in text
+    assert "The reference is the run's own simple-factual answers the judges labelled" in text
+    assert "None" not in text and "calibration" not in text and "planted" not in text
+    assert "WARNING: no digest in the results file for gen:7b, other:8b (named by tag only)" in text  # no server was asked for tags
+    rows = evidence._jury_v2_claims(blob, "bench/results/jury.json")
+    assert rows and all(r["command"] == "make bench-jury" for r in rows)
+    assert not [r for r in rows if any(w in r["claim"] + r["not_shown"] for w in ("None", "calibration", "planted"))]
+
+
 def test_the_evidence_rows_publish_a_judge_score_only_after_the_gate():
     from app.eval import evidence, llm_eval
     from app.eval.harness import BenchConfig

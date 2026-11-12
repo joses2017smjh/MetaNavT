@@ -381,13 +381,16 @@ def _companion_live_claims(root: Path = ROOT) -> list[dict]:
 
 def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
     """M29: the run's deterministic checks; each judge's kappa against exact match on the calibration set; a judge's
-    correctness score of the run's answers only when it passed the gate."""
+    correctness score of the run's answers only when it passed the gate. A file without a calibration set (`make
+    bench-jury` since M29) has the run's own simple-factual answers as its reference, and the rows say so."""
     s, c = blob["summary"], blob["summary"]["checks"]
     gen = blob["models"]["generator"]["model"]
     calgen = ((blob.get("calibration") or {}).get("generator") or {}).get("model")
+    cmd = "make bench-jury-v2" if calgen else "make bench-jury"
     rs = blob.get("rescore") or {}
-    src = f"{file} @ {blob['git_sha']}" + (f" (answers generated at {rs['rows_git_sha']}, checks recomputed by `make bench-jury-v2-rescore`)" if rs else "")
-    cmd, gate, ref = "make bench-jury-v2", blob.get("kappa_gate", 0.6), s["reference"]
+    src = f"{file} @ {blob['git_sha']}" + (f" (answers generated at {rs['rows_git_sha']}, checks recomputed by `{cmd}-rescore`)" if rs else "")
+    gate, ref = blob.get("kappa_gate", 0.6), s["reference"]
+    against = "calibration set" if calgen else "simple_factual"
     out = [
         {"claim": f"Generated answers ({gen} via Ollama, fixture v1): answers with no valid citation (failed loud)", "value": f"{c['uncited_answers']['count']} of {c['uncited_answers']['n']}",
          "ci": "—", "n": c["uncited_answers"]["n"], "command": cmd, "source": src, "not_shown": "a deterministic check of the citation contract, not answer quality"},
@@ -401,10 +404,14 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
         {"claim": "Generated answers: exact match vs gold (bounded, numeric-equivalent), simple_factual", "value": f"{c['exact_match_simple_factual']['rate']}", "ci": "—",
          "n": c["exact_match_simple_factual"]["n"], "command": cmd, "source": src,
          "not_shown": "string / numeric match; paraphrased correct answers count as non-matches"
-                      + ("; the slice is saturated for this generator, which is why the kappa gate's reference is a calibration set" if c["exact_match_simple_factual"]["rate"] == 1.0 else "")},
+                      + (("; the slice is saturated for this generator, which is why the kappa gate's reference is a calibration set" if calgen else
+                          "; the slice is saturated for this generator, so it gives the kappa gate a one-class reference")
+                         if c["exact_match_simple_factual"]["rate"] == 1.0 else "")},
     ]
     planted = (f"the reference is {calgen}'s answers to the simple-factual questions from retrieved and from planted contexts (another gold value of the "
-               "same field written over the gold in memory), so a pass shows gold comparison on single-value answers, not general correctness")
+               "same field written over the gold in memory), so a pass shows gold comparison on single-value answers, not general correctness" if calgen else
+               "the reference is the exact-match label of the run's own simple-factual answers, single values to templated questions, so a pass "
+               "shows gold comparison on single-value answers, not general correctness")
     for name, k in s["kappa"].items():
         if name == "jury_majority":
             continue
@@ -413,12 +420,13 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
         else:
             status = f"passes the {gate} gate; its correctness score of the run's answers is published" if k["readme_ok"] else f"below the {gate} gate; this judge's scores are not published"
         ci = f"[{k['interval']['lo']}, {k['interval']['hi']}]" if k.get("interval") else "—"
-        out.append({"claim": f"Judge {name}: Cohen's kappa of its correctness verdicts vs exact-match labels, calibration set", "value": f"{k['kappa_vs_exact_match_simple_factual']}",
-                    "ci": ci, "n": k["n"], "command": cmd, "source": src, "not_shown": f"{status}; {planted}; percentile bootstrap interval over the calibration answers"})
+        out.append({"claim": f"Judge {name}: Cohen's kappa of its correctness verdicts vs exact-match labels, {against}", "value": f"{k['kappa_vs_exact_match_simple_factual']}",
+                    "ci": ci, "n": k["n"], "command": cmd, "source": src,
+                    "not_shown": f"{status}; {planted}; percentile bootstrap interval over the {'calibration' if calgen else 'simple-factual'} answers"})
     jm = s["kappa"].get("jury_majority")
     if jm:
         ci = f"[{jm['interval']['lo']}, {jm['interval']['hi']}]" if jm.get("interval") else "—"
-        out.append({"claim": "Jury majority (two judge models, correctness verdicts): Cohen's kappa vs exact-match labels, calibration set", "value": f"{jm['kappa_vs_exact_match_simple_factual']}",
+        out.append({"claim": f"Jury majority (two judge models, correctness verdicts): Cohen's kappa vs exact-match labels, {against}", "value": f"{jm['kappa_vs_exact_match_simple_factual']}",
                     "ci": ci, "n": jm["n"], "command": cmd, "source": src, "not_shown": f"a tie between the two judges counts as partial; gate {gate}; {planted}"})
     ruled = (s.get("abstention_rule") or {}).get("n", 0)
     for name in s.get("publishable_judges") or []:
