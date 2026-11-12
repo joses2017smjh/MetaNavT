@@ -321,16 +321,18 @@ came from. The MANIFEST lists the corpus files only, so the gold questions are
 pinned apart: `tests/eval/test_gold_digest.py` holds the SHA-256 of the committed
 `bench/gold/questions.jsonl` (checked out byte for byte, `.gitattributes`), and
 the harness, parity and rerank-arms headers record the digest of the file they
-scored (`gold_sha256`). Their `ingest` block is the loader's own report of what
-the run indexed (`load_chunks_with_report`, the accounting the served indexer
+scored (`gold_sha256`). The harness and parity headers also carry an `ingest`
+block, the loader's own report of what the run indexed (`load_chunks_with_report`, the accounting the served indexer
 uses): files seen, indexed and rejected by reason, the chunker and its version,
 and the chunks embedded per chunk strategy (in a parity file, the in-memory
 row's; the API's report is under `api_health.indexing`). The benchmark writers take the code's provenance from one
 helper, `run_provenance` in [app/eval/provenance.py](../app/eval/provenance.py):
 the full commit (`git_head`, next to the short `git_sha` the generated blocks
 quote), whether the working tree had uncommitted changes when the run started
-(`working_tree_dirty`; an untracked file counts, an ignored one does not) and the
-SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
+(`working_tree_dirty`: a change to a tracked file or an untracked file counts, an
+ignored file does not; a tracked results file an earlier run rewrote counts too,
+such as `latest.json` after a previous `make bench`, so a re-record starts from a
+clean checkout) and the SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
 ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation
 and ingest-runs writers record that block, with every `app/` module the process
 imported as the source files. The writers that already recorded a dirty flag
@@ -339,12 +341,16 @@ regressions (trusted actions, evidence consistency, injection), the companion an
 chat-route runs, the robotics checks, and ingest scale and two replicas (whose
 `worktree_clean` leaves untracked files and the file being rewritten out). Not
 converted: the jury writer (`app/eval/llm_eval.py`, a short commit only),
-`app/eval/robotics.py` (code hashes, no flag), `app/eval/http_load.py`, and the
-served-scale and pgvector writers, which record their own `git_dirty`. The
+`app/eval/robotics.py` (code hashes, no flag), `app/eval/http_load.py` and
+`scripts/smoke_retrieve.py` (latency files with no commit), and the served-scale
+and pgvector writers, which record their own `git_dirty`. The
 generated blocks add "with uncommitted changes" to the commit of a file whose
 `working_tree_dirty` or `git_dirty` is true.
-`make bench-check` does not compare these fields, since any code change moves
-them. To accept a change on purpose: `make bench-baseline`, review
+Of the header, `make bench-check` compares `gold_sha256` together with the corpus
+digest, the gold set size, the file count, the bootstrap settings and the mtimes;
+it does not compare the provenance fields, which any code change moves, or the `ingest`
+block (a chunker or schema label can change without a metric moving). To accept
+a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use
@@ -875,7 +881,7 @@ change per row. Losers stay in the table. The table below, the headline in the
 overview and the figures are all rendered from
 [`bench/results/main.json`](../bench/results/main.json) (`make bench-table`,
 `make figures`); `tests/eval/test_readme_numbers.py` fails if they drift.
-Every harness results file has its per-question scores beside it
+The harness writes the per-question scores of each results file beside it
 (`main.json` -> `main.per_query.json`, written by the harness and promoted with
 it by `make bench-baseline`; [app/eval/per_question.py](../app/eval/per_question.py)):
 the gold ids and categories and, per row, one unrounded score per question for
