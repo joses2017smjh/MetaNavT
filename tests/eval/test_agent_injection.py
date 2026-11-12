@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import shutil
+import subprocess
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
@@ -21,6 +23,29 @@ EPISODES_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2_episodes.jsonl
 
 def _sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _git(*args, text=True):
+    return subprocess.run(["git", *args], cwd=ai.ROOT, capture_output=True, text=text)
+
+
+def _module_committed_at(head):
+    """sha256 of the harness module as committed at `head`, after checking that `head` is an ancestor of HEAD.
+
+    A results file names the commit that generated it; later commits may change the harness, so the module that ran is
+    read from that commit, not from the working tree. A shallow clone may lack the commit object: that, and only that,
+    is a skip (CI fetches the full history for the eval job). In a full clone a missing commit is a failure: the
+    results would name a commit that is not in the history, as a squash merge would leave them."""
+    if shutil.which("git") is None or _git("rev-parse", "--is-inside-work-tree").stdout.strip() != "true":
+        pytest.skip("not a git checkout: the commit that generated the results cannot be read")
+    if _git("cat-file", "-e", f"{head}^{{commit}}").returncode != 0:
+        if _git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            pytest.skip(f"shallow clone without commit {head[:7]}: fetch the full history (git fetch --unshallow)")
+        pytest.fail(f"the results name commit {head}, which is not in this repository's history")
+    assert _git("merge-base", "--is-ancestor", head, "HEAD").returncode == 0, f"{head[:7]} is not an ancestor of HEAD"
+    blob = _git("show", f"{head}:app/eval/agent_injection.py", text=False)
+    assert blob.returncode == 0, blob.stderr
+    return hashlib.sha256(blob.stdout).hexdigest()
 
 
 def _last_tool(messages):
@@ -744,11 +769,13 @@ def test_the_first_run_is_reproduced_by_todays_scoring_code_from_its_stored_epis
 
 def test_the_current_run_was_generated_and_scored_at_one_clean_commit_by_the_committed_module():
     # D25: one process generated and scored every episode of agent_injection_v2 from a committed harness with nothing
-    # uncommitted, its sidecar was written by that run (not reconstructed), and the module it names is the committed one
+    # uncommitted, its sidecar was written by that run (not reconstructed), and the module it names is the one committed
+    # at the commit it records, an ancestor of HEAD (later commits may change the harness; the rebuild test below
+    # checks that today's harness still reproduces every number)
     blob = json.loads(RESULTS_V2.read_text())
     assert blob["benchmark"] == ai.BENCHMARK_V2 == ai.episodes_benchmark(EPISODES_V2)
-    assert blob["module_sha256"] == _sha256(ai.__file__)
     assert blob["working_tree_dirty"] is False and len(blob["git_head"]) == 40
+    assert blob["module_sha256"] == _module_committed_at(blob["git_head"])
     assert "--benchmark agent_injection_v2" in blob["command"] and "--summarize-only" not in blob["command"]
     generated = blob["episodes_generated_by"]
     assert generated == json.loads(ai.sidecar(EPISODES_V2).read_text())
