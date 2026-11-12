@@ -150,6 +150,14 @@ def plan_facts(plan: str, *, table: str, hnsw_index: str, text_index: str) -> di
     }
 
 
+def plan_block(explain: dict, index_names: dict, *, table: str) -> dict:
+    """The explain stage's plans with their facts read again, using the index names the index stage found in
+    pg_indexes: the facts depend only on the plan text and those names, whatever names the stage file carries."""
+    names = {"table": table, "hnsw_index": index_names["hnsw"], "text_index": index_names["text_index"]}
+    queries = [{"id": q["id"], "facts": plan_facts("\n".join(q["plan"]), **names), "plan": q["plan"]} for q in explain["queries"]]
+    return {"queries": queries, "settings": explain.get("settings"), "names": names}
+
+
 def elide_vectors(plan: str) -> str:
     """The plan with each vector literal shortened to its length (a query vector is 384 numbers)."""
     return _VECTOR_LITERAL.sub(lambda m: f"'[{m.group(0).count(',') + 1} values]'::{m.group(1)}", plan)
@@ -451,10 +459,12 @@ def migration_files() -> tuple[str, ...]:
 
 
 def git_dirty(root: Path) -> bool | None:
+    """Whether a tracked file differs from the commit, the files this run writes (its results files and TREC runs) aside."""
     import subprocess
 
+    outputs = [f":(exclude){path}" for path in (RESULTS_FILE, HNSW_FILE, TREC_DIR)]
     try:
-        return bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"], cwd=root, stderr=subprocess.DEVNULL).strip())
+        return bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no", "--", ".", *outputs], cwd=root, stderr=subprocess.DEVNULL).strip())
     except Exception:
         return None
 
@@ -736,7 +746,8 @@ class Run:
         router = QueryRouter()
         index = list(self.queries)
         picks = [qid for qid in index if router.route(self.queries[qid]).route.value == "semantic"][: self.args.explain_queries]
-        names = {"table": vsm.data_table, "hnsw_index": f"{vsm.table_name}_embedding_hnsw", "text_index": f"{vsm.data_table}_text_tsv_gin"}
+        catalog = self.done("index")["index_names"]  # read from pg_indexes by the index stage
+        names = {"table": vsm.data_table, "hnsw_index": catalog["hnsw"], "text_index": catalog["text_index"]}
         out = []
         for qid in picks:
             plan = vsm.explain_hybrid(self.queries[qid], list(map(float, vectors[index.index(qid)])), k=SERVED_K)
@@ -939,7 +950,7 @@ def assemble(run: Run) -> dict:
     blob["in_memory_reproduction"] = committed_reproduction(mem_rows, committed, ROOT, corpus_sha256=memory["corpus_sha256"], query_ids=list(run.queries))
     blob["load"] = stages["load"]["report"]
     blob["probe"] = stages["probe"]
-    blob["plan"] = stages["explain"]
+    blob["plan"] = plan_block(stages["explain"], build["index_names"], table=stages["explain"]["names"]["table"])
     hybrid_health = stages["replay_hybrid"]["health"]
     rerank_health = stages["replay_rerank"]["health"]
     blob["differences"] = differences(

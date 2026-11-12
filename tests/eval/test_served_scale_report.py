@@ -186,3 +186,12 @@ def test_a_file_measured_before_the_schema_migrations_is_not_rendered(tmp_path):
         assert "before the served schema moved to migrations" in text and "not the benchmark" in text and "0.3123" not in text
     write_results(tmp_path, old_served, old_hnsw)
     assert evidence._served_scale_claims(tmp_path) == []
+
+
+def test_a_reassembled_file_names_where_its_stages_were_measured():
+    blob, hnsw = served_blob(), hnsw_blob()
+    assert "results sha abc1234" in report.served_scale_table(blob)
+    for b in (blob, hnsw):
+        b["stage_git_sha"] = {"index": "def5678", "replay_hybrid": "def5678"}
+    assert "stages measured at def5678, file assembled at abc1234" in report.served_scale_table(blob)
+    assert "stages measured at def5678, file assembled at abc1234" in report.pgvector_hnsw_table(hnsw)

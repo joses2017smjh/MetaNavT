@@ -259,3 +259,39 @@ def test_the_results_files_are_not_ignored_by_git():
     for rel in (served_scale.RESULTS_FILE, served_scale.HNSW_FILE, served_scale.TREC_DIR + "/api-hybrid.run"):
         ignored = subprocess.run(["git", "check-ignore", "-q", rel], cwd=ROOT).returncode
         assert ignored == 1, f"{rel} is ignored by .gitignore"
+
+
+def test_the_plan_block_reads_the_stored_plans_with_the_catalog_names():
+    """The facts come from the plan text and the index names the index stage read from pg_indexes, whatever names
+    the explain stage recorded (a stage file once carried the pre-migration names, and every fact came out False)."""
+    plan = (ROOT / "doc/sql/hybrid_explain_synthetic_10k.txt").read_text()
+    stage = {"queries": [{"id": "q1", "facts": {"dense_uses_hnsw": False}, "plan": plan.splitlines()}], "settings": {"hnsw.ef_search": 100},
+             "names": {"table": "data_explain_synthetic", "hnsw_index": "explain_synthetic_embedding_hnsw", "text_index": "data_explain_synthetic_text_tsv_gin"}}
+    catalog = {"hnsw": "explain_synthetic_embedding_hnsw_m16_efc64", "text_index": "data_explain_synthetic_text_tsv_english_gin"}
+    block = served_scale.plan_block(stage, catalog, table="data_explain_synthetic")
+    facts = block["queries"][0]["facts"]
+    assert facts["dense_uses_hnsw"] is True and facts["lexical_uses_gin"] is True and facts["final_join_scan"] == "Seq Scan"
+    assert block["names"] == {"table": "data_explain_synthetic", "hnsw_index": catalog["hnsw"], "text_index": catalog["text_index"]}
+    assert block["settings"] == {"hnsw.ef_search": 100} and block["queries"][0]["plan"] == plan.splitlines()
+
+
+def test_git_dirty_ignores_the_files_the_run_writes(tmp_path):
+    import subprocess
+
+    def git(*args):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    trec = tmp_path / served_scale.TREC_DIR
+    trec.mkdir(parents=True)
+    (trec / "api-hybrid.run").write_text("old\n")
+    (tmp_path / served_scale.RESULTS_FILE).write_text("{}\n")
+    (tmp_path / "code.py").write_text("x = 1\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "init")
+    assert served_scale.git_dirty(tmp_path) is False
+    (trec / "api-hybrid.run").write_text("new\n")  # the run rewrites its own committed outputs
+    (tmp_path / served_scale.RESULTS_FILE).write_text('{"new": 1}\n')
+    assert served_scale.git_dirty(tmp_path) is False
+    (tmp_path / "code.py").write_text("x = 2\n")
+    assert served_scale.git_dirty(tmp_path) is True

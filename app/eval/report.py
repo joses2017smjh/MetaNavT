@@ -471,6 +471,14 @@ def scale_machine(blob: dict) -> str:
     return f"{hw.get('device_name', '?')} with {hw.get('cpu_model', '?')}"
 
 
+def scale_sha(blob: dict) -> str:
+    """'results sha X', or, for a file assembled again from recorded stages, where the stages ran and where it was assembled."""
+    stages = sorted(set((blob.get("stage_git_sha") or {}).values()) - {None})
+    if not stages or stages == [blob.get("git_sha")]:
+        return f"results sha {blob.get('git_sha')}"
+    return f"stages measured at {', '.join(stages)}, file assembled at {blob.get('git_sha')}"
+
+
 def _mib(n) -> str:
     return "—" if n is None else f"{n / 2**20:.1f} MiB"
 
@@ -517,7 +525,7 @@ def served_scale_table(blob: dict | None) -> str:
         f"app/engine/ingest.index_directory into {server.get('postgres')} + pgvector {server.get('pgvector')} with bge-small ({build['rows']} chunks; the scanner rejected "
         f"{report.get('files_rejected')} documents: {_counts(report.get('rejected_by_reason'))}; judged relevant among them: {len((blob.get('not_indexed') or {}).get('judged', []))}), "
         f"then the {n} test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of "
-        f"app/eval/beir.py computed in the same job on the same queries; {scale_machine(blob)}; results sha {blob.get('git_sha')}. "
+        f"app/eval/beir.py computed in the same job on the same queries; {scale_machine(blob)}; {scale_sha(blob)}. "
         "Lexical leg: Postgres ts_rank_cd on the served side (a fallback, not BM25), Okapi BM25 in memory. "
         f"Dense-leg query: the served embedder puts {served_form.get('query')!r} before each query (read from the served model); a row named "
         "'+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.",
@@ -608,7 +616,7 @@ def pgvector_hnsw_table(blob: dict | None) -> str:
         f"{table['dim']} dimensions ({table['embedder']}), queried with the served query embedding of the {blob['queries']['n']} test queries, k = {blob['k']}; "
         f"the served index (m {index['m']}, ef_construction {index['ef_construction']}, {_mib(index['bytes'])}) as a deployment builds it: the schema migrations create it on the "
         f"empty table and index_directory's inserts grow it row by row; a REINDEX of it on the final table took {index['reindex_seconds']} s; {server.get('postgres')}, "
-        f"pgvector {server.get('pgvector')}; {scale_machine(blob)}; results sha {blob['git_sha']}. Recall: {blob['recall_definition']}. Latency: {blob['latency_definition']}.",
+        f"pgvector {server.get('pgvector')}; {scale_machine(blob)}; {scale_sha(blob)}. Recall: {blob['recall_definition']}. Latency: {blob['latency_definition']}.",
         "",
         "| configuration | hnsw.ef_search | Recall@10 [95% CI] | Recall@50 [95% CI] | queries with all 50 | p50 / p95 ms | plan |",
         "|---|---:|---:|---:|---:|---:|---|",
