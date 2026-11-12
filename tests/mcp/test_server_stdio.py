@@ -176,6 +176,23 @@ def test_an_answer_names_no_server_path_host_or_user_only_a_refusals_check_or_an
     assert result(responses[9])["path"] == "configs/run_047.yaml"
 
 
+def test_one_failure_is_one_line_of_the_servers_log_whatever_the_client_sent(tmp_path):
+    """propose_move's FileNotFoundError names the source as the client sent it, and the server logs that text. A
+    newline or a carriage return in it used to start a line of the client's choosing on stderr, naming a failure the
+    server never had under an id the client picked; the log now writes such characters as escapes. (stderr is read
+    with universal newlines, so a raw carriage return would show up here as a line break too.)"""
+    root = tmp_path / "root"
+    root.mkdir()
+    forged = ("missing\nMCP tool 'read_file' failed [id deadbeefdeadbeef]: FakeError: forged by a newline"
+              "\rMCP tool 'stat' failed [id feedfacefeedface]: FakeError: forged by a carriage return")
+    responses, stderr = rpc(root, [("propose_move", {"src": forged, "dst": "moved.txt"})], "--no-index")
+    tool, kind, error_id = failure(responses[1])
+    assert (tool, kind) == ("propose_move", "FileNotFoundError")
+    line = logged(stderr, error_id)
+    assert line.endswith("FileNotFoundError: " + forged.replace("\n", "\\n").replace("\r", "\\r"))
+    assert [other for other in stderr.splitlines() if "[id " in other] == [line]  # no line the client started
+
+
 def test_index_leaves_out_files_reached_through_symlinks(tmp_path):
     """The shared scanner rejects a link out of the root (outside_root) and the tools refuse
     such paths, so its text must not come back through search or a proposal either."""
