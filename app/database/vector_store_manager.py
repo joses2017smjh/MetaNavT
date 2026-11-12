@@ -7,9 +7,11 @@ Provides connection pooling and vector store management through a singleton patt
 Features:
     - Vector store initialization and management
     - Connection pooling via parent DatabaseManager
-    - pgvector extension handling
     - Both sync (psycopg2) and async (asyncpg) support
-    - Automatic table creation and dimension handling
+    - Dimension detection; no DDL: the data table, the ingest manifest, their indexes, the
+      vector extension and (LEXICAL_BACKEND=paradedb) pg_search and the BM25 index come from
+      the schema migrations (app/database/migrate.py, `make migrate`), which
+      check_migrations() requires before the API starts
 
 Configuration (via environment variables):
     PGVECTOR_SCHEMA: Schema name for vector tables (default: "public")
@@ -33,14 +35,13 @@ from llama_index.vector_stores.postgres import PGVectorStore
 from urllib.parse import urlparse
 from psycopg2 import sql
 from dotenv import load_dotenv
-from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 import unicodedata
-import uuid
 import time
 import psycopg2
 import psycopg2.errors
 
 from .db_base_manager import DatabaseManager
+from .migrate import VectorTable, require_current
 
 load_dotenv()
 logger = logging.getLogger("uvicorn")
@@ -155,86 +156,57 @@ class VectorStoreManager(DatabaseManager):
             logger.info(f"Using vector dimension from environment: {self.embed_dim}")
         
         self.vector_store = None
-        
-        # Ensure required extensions exist (pg_search only for the ParadeDB backend)
-        self._ensure_vector_extension()
-        if self.lexical_backend == "paradedb":
-            self._ensure_pg_search_extension()
-        
-        # PGVectorStore creates data_<table_name> itself on first use (see get_vector_store).
-        
-    def _ensure_vector_extension(self) -> None:
-        """Create pgvector extension if it doesn't exist."""
+        # No DDL here or anywhere in this class: the vector extension, data_<table_name> (in the
+        # shape PGVectorStore gives it), the ingest manifest, the GIN / HNSW / path indexes and,
+        # with LEXICAL_BACKEND=paradedb, pg_search and its BM25 index all come from the schema
+        # migrations (app/database/migrations/vector/ and paradedb/), applied by the deploy step.
+
+    @property
+    def vector_table(self) -> VectorTable:
+        """This manager's table as the schema migrations name it (app/database/migrate.py)."""
+        return VectorTable(schema=self.schema_name, table=self.table_name, dim=int(self.embed_dim), lexical_backend=self.lexical_backend)
+
+    def check_migrations(self) -> None:
+        """Raise MigrationsPending unless every migration this table and backend need is applied. Reads only."""
+        with self.get_connection() as conn:
+            require_current(conn, self.vector_table)
+
+    def probe_data_table(self) -> None:
+        """Check, writing nothing, that the data table exists with self.embed_dim dimensions and that
+        this role may SELECT, INSERT and DELETE on it; RuntimeError with the reason otherwise.
+
+        When the table already existed as this manager was built, self.embed_dim is the table's own
+        dimension (_detect_vector_dimensions, which EMBEDDING_DIM does not override), so the dimension
+        check only bites for a table created afterwards, e.g. by the deploy step during start-up retries.
+        """
+        qualified = f'"{self.schema_name}"."{self.data_table}"'
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                try:
-                    logger.info("Ensuring 'vector' extension exists...")
-                    cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-                    logger.info("'vector' extension check complete.")
-                except Exception as e:
-                    logger.error(f"Error creating vector extension: {e}")
-                    # Rollback might not be needed if autocommit is true, but good practice
-                    conn.rollback()
-                    raise
-
-    def _ensure_pg_search_extension(self):
-        """Ensure the pg_search extension exists."""
-        logger.info("Ensuring 'pg_search' extension (in 'paradedb' schema) exists...")
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Check for and create schema if it doesn't exist
-                    cur.execute("CREATE SCHEMA IF NOT EXISTS paradedb;")
-                    
-                    # Check if pg_search is already installed
-                    cur.execute("""
-                        SELECT 1 FROM pg_extension WHERE extname = 'pg_search';
-                    """)
-                    if cur.fetchone() is None:
-                        # Try to create it
-                        try:
-                            cur.execute("CREATE EXTENSION IF NOT EXISTS pg_search;")
-                        except Exception as e:
-                            logger.warning(f"Could not create pg_search extension: {e}")
-                    
-                    # The BM25 index is created in get_vector_store(), once the data table exists.
-            logger.info("'pg_search' extension check complete (expected in 'paradedb' schema).")
-        except Exception as e:
-            logger.warning(f"Unable to verify pg_search extension: {e}")
-        
-    def _create_bm25_index(self, conn):
-        """Create or recreate BM25 index for text column."""
-        logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
-        try:
-            with conn.cursor() as cur:
-                # Drop existing index if it exists to force refresh
-                index_name = f"{self.table_name}_bm25_idx_on_text"
-                cur.execute(f"DROP INDEX IF EXISTS {index_name};")
-                
-                # Create BM25 index with proper ParadeDB syntax based on docs
-                sql_stmt = f"""
-                CREATE INDEX IF NOT EXISTS {index_name} ON {self.schema_name}.{self.data_table}
-                USING bm25 (node_id, text)
-                WITH (
-                    key_field='node_id',
-                    text_fields='{{
-                        "text": {{"tokenizer": {{"type": "default", "stemmer": "English"}}}}
-                    }}'
-                );
-                """
-                logger.info(f"Creating BM25 index '{index_name}' using ParadeDB documentation syntax")
-                logger.debug(f"Executing SQL:\n{sql_stmt}\n")
-                cur.execute(sql_stmt)
-                
-                # Analyze the table to refresh statistics
-                cur.execute(f"ANALYZE {self.schema_name}.{self.data_table};")
-                
-                logger.info("BM25 index created successfully")
-            logger.info("BM25 index creation/verification successful")
-            return True
-        except Exception as e:
-            logger.warning(f"Error creating BM25 index: {e}")
-            return False
+                cur.execute("SELECT to_regclass(%s) IS NOT NULL;", (qualified,))
+                if not cur.fetchone()[0]:
+                    raise RuntimeError(
+                        f"data table {self.schema_name}.{self.data_table} does not exist: "
+                        "apply the schema migrations (python -m app.database.migrate)"
+                    )
+                cur.execute(
+                    "SELECT a.atttypmod, has_table_privilege(a.attrelid, 'SELECT'), "
+                    "has_table_privilege(a.attrelid, 'INSERT'), has_table_privilege(a.attrelid, 'DELETE') "
+                    "FROM pg_attribute a WHERE a.attrelid = %s::regclass AND a.attname = 'embedding' AND NOT a.attisdropped;",
+                    (qualified,),
+                )
+                row = cur.fetchone()
+        if row is None:
+            raise RuntimeError(f"data table {self.schema_name}.{self.data_table} has no embedding column")
+        dim, may_select, may_insert, may_delete = row
+        if int(dim) != int(self.embed_dim):
+            raise RuntimeError(
+                f"data table {self.schema_name}.{self.data_table} stores {dim}-dimensional embeddings, "
+                f"this process uses {self.embed_dim} (EMBEDDING_DIM)"
+            )
+        missing = [name for name, granted in (("SELECT", may_select), ("INSERT", may_insert), ("DELETE", may_delete)) if not granted]
+        if missing:
+            raise RuntimeError(f"this database role lacks {', '.join(missing)} on {self.schema_name}.{self.data_table}")
+        logger.info(f"Probe: {self.schema_name}.{self.data_table} readable and writable, {dim} dimensions (read-only check)")
 
     def get_vector_store(self) -> PGVectorStore:
         """Get or create PGVectorStore instance."""
@@ -264,73 +236,26 @@ class VectorStoreManager(DatabaseManager):
                 logger.info(f"DatabaseManager's pool is configured for database: '{parsed_main_conn.path.lstrip('/')}' (derived from PG_CONNECTION_STRING)")
 
 
-            logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.data_table}' (PGVectorStore creates data_<table> on first use)...")
-            self.vector_store = PGVectorStore(
+            logger.info(f"Attempting to initialize PGVectorStore for table '{self.schema_name}.{self.data_table}' (created by the schema migrations)...")
+            store = PGVectorStore(
                 connection_string=psycopg2_conn_str,
                 async_connection_string=asyncpg_conn_str,
                 schema_name=self.schema_name,
                 table_name=self.table_name,
                 embed_dim=self.embed_dim,
+                perform_setup=False,  # no CREATE SCHEMA / EXTENSION / TABLE from LlamaIndex: vector/0001 owns them
             )
             logger.info(f"PGVectorStore Python object initialized for table '{self.schema_name}.{self.data_table}'")
 
-            # Probe (Optional but good for sanity check - can be simplified now)
-            dummy_node_id_for_probe = f"test_node_{uuid.uuid4()}"
-            try:
-                logger.info(f"Probe: Attempting to ADD dummy node '{dummy_node_id_for_probe}' to pre-created table...")
-                logger.info(f"Using embedding dimension: {self.embed_dim}")
-                
-                # Create a zero vector with the CORRECT dimension
-                zero_embedding = [0.0] * self.embed_dim
-                
-                # PGVectorStore.delete() removes rows by ref_doc_id (stored as doc_id in
-                # metadata_), so the probe node must declare itself as its own source or
-                # the delete below is a no-op and the dummy row stays retrievable.
-                dummy_node = TextNode(
-                    id_=dummy_node_id_for_probe,
-                    text="dummy_text_content_for_probe_in_precreated_table",
-                    embedding=zero_embedding,  # This will now have the correct dimensions
-                    metadata={"text": "dummy_metadata_text_for_probe_in_precreated_table"},
-                    relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=dummy_node_id_for_probe)},
-                )
-                self.vector_store.add([dummy_node])
-                logger.info(f"Probe: Successfully EXECUTED add for dummy node '{dummy_node_id_for_probe}'.")
-                # Now, try to delete it immediately using PGVectorStore to ensure it can write and delete
-                self.vector_store.delete(ref_doc_id=dummy_node_id_for_probe)
-                logger.info(f"Probe: Successfully deleted dummy node '{dummy_node_id_for_probe}' using PGVectorStore.")
-            except Exception as e:
-                logger.error(f"Probe FAILED during PGVectorStore.add/delete on pre-created table: {e}", exc_info=True)
-                # Provide more helpful error for dimension mismatch
-                if "expected" in str(e) and "dimensions" in str(e):
-                    actual_dim = None
-                    try:
-                        # Try to extract the expected dimension from the error message
-                        import re
-                        match = re.search(r'expected (\d+) dimensions', str(e))
-                        if match:
-                            actual_dim = int(match.group(1))
-                            logger.error(f"DIMENSION MISMATCH ERROR: Database expects {actual_dim} dimensions, but code is using {self.embed_dim}")
-                            logger.error(f"To fix: Set EMBEDDING_DIM={actual_dim} in your environment variables")
-                    except:
-                        pass
-                
-                raise RuntimeError(
-                    f"PGVectorStore failed .add/delete on data table '{self.schema_name}.{self.data_table}'."
-                ) from e
-
-            # ParadeDB BM25 index: only for LEXICAL_BACKEND=paradedb. Attempted, not required.
-            if self.lexical_backend == "paradedb":
-                logger.info(f"Proceeding to ensure BM25 index exists for {self.schema_name}.{self.data_table}...")
-                try:
-                    with self.get_connection() as conn:
-                        bm25_created = self._create_bm25_index(conn)
-                    if bm25_created:
-                        logger.info("BM25 index creation/verification successful")
-                    else:
-                        logger.warning("BM25 index creation failed, but continuing anyway")
-                except Exception as e:
-                    logger.warning(f"BM25 index creation failed: {e}", exc_info=True)
-                    logger.warning("Continuing without BM25 search capability")
+            # Read-only probe: the table the migrations built is there, with the embedding dimension
+            # this manager uses (see probe_data_table), and this role may read, insert and delete its rows. It used to add a
+            # zero-vector test_node_* row to the shared table and delete it again on every start,
+            # which every concurrent reader could see in between. A failed probe keeps no store,
+            # so the next call (a start-up retry) probes again.
+            self.probe_data_table()
+            self.vector_store = store
+            # The ParadeDB BM25 index (LEXICAL_BACKEND=paradedb only) is migrations/paradedb/0002,
+            # built once; it used to be dropped and built again here at every start.
 
         return self.vector_store
 
@@ -413,9 +338,9 @@ class VectorStoreManager(DatabaseManager):
         try:
             # More powerful full-text search as fallback
             fallback_sql = sql.SQL("""
-                SELECT node_id, text, metadata_, ts_rank_cd(to_tsvector('english', text), plainto_tsquery('english', %s)) AS score
+                SELECT node_id, text, metadata_, ts_rank_cd(text_tsv, plainto_tsquery('english', %s)) AS score
                 FROM {table}
-                WHERE to_tsvector('english', text) @@ plainto_tsquery('english', %s)
+                WHERE text_tsv @@ plainto_tsquery('english', %s)
                 ORDER BY score DESC
                 LIMIT %s;
             """).format(table=sql.Identifier(self.schema_name, self.data_table))
@@ -637,22 +562,6 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute(settings + "EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), {**params, **settings_params})
                 return "\n".join(r[0] for r in cur.fetchall())
 
-    def ensure_text_index(self) -> bool:
-        """GIN index on to_tsvector('english', text): the expression the lexical CTE filters on."""
-        index_name = f"{self.data_table}_text_tsv_gin"
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f'CREATE INDEX IF NOT EXISTS "{index_name}" ON "{self.schema_name}"."{self.data_table}" '
-                        f"USING GIN (to_tsvector('english', text));"
-                    )
-                conn.commit()
-            return True
-        except Exception as e:
-            logger.warning(f"ensure_text_index failed: {e}")
-            return False
-
     def fetch_all_chunks(self) -> list[dict]:
         """node_id, text, metadata for every row (staleness clusters at startup)."""
         with self.get_connection() as conn:
@@ -670,15 +579,19 @@ class VectorStoreManager(DatabaseManager):
         ]
 
     def count_nodes(self) -> int:
-        """Number of rows in the data table (0 when it does not exist yet)."""
+        """Number of rows in the data table; 0 only when the table does not exist (UndefinedTable).
+
+        Any other error (the database unreachable, a missing privilege) is raised. It used to read
+        as an empty table, so /health answered ok with n_nodes 0 while the database was down.
+        """
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(sql.SQL("SELECT count(*) FROM {table};").format(
                         table=sql.Identifier(self.schema_name, self.data_table)))
                     return int(cur.fetchone()[0])
-        except Exception as e:
-            logger.info(f"count_nodes: data table not readable yet ({e.__class__.__name__})")
+        except psycopg2.errors.UndefinedTable:
+            logger.info(f"count_nodes: {self.schema_name}.{self.data_table} does not exist")
             return 0
 
     # ------------------------------------------------------------------ ingest manifest (incremental indexing)
@@ -687,7 +600,8 @@ class VectorStoreManager(DatabaseManager):
     # source of truth for the diff app/engine/ingest.py runs on every start. A file's
     # manifest row is written only after its chunks are in the data table, and is
     # deleted in the same transaction as those chunks, so the manifest never lists a
-    # file whose rows are missing.
+    # file whose rows are missing. The table and the path index the per-file delete reads
+    # are schema migrations (migrations/vector/0002 and 0003), not created here.
 
     @property
     def manifest_table(self) -> str:
@@ -718,19 +632,6 @@ class VectorStoreManager(DatabaseManager):
         finally:
             conn.close()
 
-    def ensure_ingest_manifest(self) -> None:
-        """Create the manifest table and the path index the per-file delete uses. Call under ingest_lock."""
-        with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql.SQL(
-                    "CREATE TABLE IF NOT EXISTS {manifest} ("
-                    "path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, n_chunks INTEGER NOT NULL, "
-                    "pipeline TEXT NOT NULL DEFAULT '', indexed_at TIMESTAMPTZ NOT NULL DEFAULT now());"
-                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)))
-                cur.execute(sql.SQL("CREATE INDEX IF NOT EXISTS {index} ON {table} ((metadata_->>'path'));").format(
-                    index=sql.Identifier(f"{self.data_table}_path_idx"),
-                    table=sql.Identifier(self.schema_name, self.data_table)))
-
     def ingest_manifest(self) -> dict[str, dict]:
         """{path: {"content_hash", "n_chunks", "pipeline"}} for every file the manifest lists."""
         with self.get_connection() as conn:
@@ -758,6 +659,15 @@ class VectorStoreManager(DatabaseManager):
                     "ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash, "
                     "n_chunks = EXCLUDED.n_chunks, pipeline = EXCLUDED.pipeline, indexed_at = now();"
                 ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)), (path, content_hash, int(n_chunks), pipeline))
+
+    def rows_per_path(self) -> dict[str, int]:
+        """{path: chunk rows} for every row that carries a path, what the manifest's n_chunks must equal."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "SELECT metadata_->>'path', count(*) FROM {table} WHERE metadata_->>'path' IS NOT NULL GROUP BY 1;"
+                ).format(table=sql.Identifier(self.schema_name, self.data_table)))
+                return {r[0]: int(r[1]) for r in cur.fetchall()}
 
     def delete_unlisted_chunks(self) -> int:
         """Delete chunks whose path the manifest does not list (an interrupted run, or rows from before the manifest)."""
@@ -813,81 +723,6 @@ class VectorStoreManager(DatabaseManager):
         except Exception as e:
             logger.warning(f"Error detecting vector dimensions: {e}")
             return None
-
-    def ensure_hnsw(self, m: int = 16, ef_construction: int = 64) -> bool:
-        """Create an HNSW index on the embedding column. No-op if pgvector lacks HNSW."""
-        index_name = f"{self.table_name}_embedding_hnsw"
-        stmt = f"""
-            CREATE INDEX IF NOT EXISTS {index_name}
-            ON {self.schema_name}.{self.data_table}
-            USING hnsw (embedding vector_cosine_ops)
-            WITH (m = {int(m)}, ef_construction = {int(ef_construction)});
-        """
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(stmt)
-                conn.commit()
-            logger.info(f"HNSW index {index_name} ready (m={m}, ef_construction={ef_construction})")
-            return True
-        except Exception as e:
-            logger.warning(f"HNSW index not created: {e}")
-            return False
-
-    def ensure_halfvec(self) -> bool:
-        """2x storage cut. Requires pgvector with halfvec."""
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f"""
-                        ALTER TABLE {self.schema_name}.{self.data_table}
-                        ADD COLUMN IF NOT EXISTS embedding_half halfvec({self.embed_dim});
-                        """
-                    )
-                    cur.execute(
-                        f"""
-                        UPDATE {self.schema_name}.{self.data_table}
-                        SET embedding_half = embedding::halfvec
-                        WHERE embedding_half IS NULL AND embedding IS NOT NULL;
-                        """
-                    )
-                conn.commit()
-            return True
-        except Exception as e:
-            logger.warning(f"halfvec column not created: {e}")
-            return False
-
-    def ensure_binary(self) -> bool:
-        """1-bit/dim storage + Hamming index. Rescore with float cosine at query time."""
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f"""
-                        ALTER TABLE {self.schema_name}.{self.data_table}
-                        ADD COLUMN IF NOT EXISTS embedding_bit bit({self.embed_dim});
-                        """
-                    )
-                    cur.execute(
-                        f"""
-                        UPDATE {self.schema_name}.{self.data_table}
-                        SET embedding_bit = binary_quantize(embedding)::bit({self.embed_dim})
-                        WHERE embedding_bit IS NULL AND embedding IS NOT NULL;
-                        """
-                    )
-                    cur.execute(
-                        f"""
-                        CREATE INDEX IF NOT EXISTS {self.table_name}_embedding_bit_hnsw
-                        ON {self.schema_name}.{self.data_table}
-                        USING hnsw (embedding_bit bit_hamming_ops);
-                        """
-                    )
-                conn.commit()
-            return True
-        except Exception as e:
-            logger.warning(f"binary quantization column not created: {e}")
-            return False
 
 
 # Global instance - Consider if singleton is truly needed or if explicit instantiation is better

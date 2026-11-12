@@ -399,9 +399,12 @@ def test_bm25_vs_vector():
     """Compare BM25 and vector search results side by side."""
     vector_store_manager = get_vector_store_manager()
     
-    # Force recreate BM25 index to ensure it's fresh - properly using with statement
+    # The BM25 index is a schema migration (migrations/paradedb/, LEXICAL_BACKEND=paradedb); it is
+    # built once and kept up to date by pg_search, never dropped and rebuilt.
+    from app.database.migrate import migrate_all
+
     with vector_store_manager.get_connection() as conn:
-        vector_store_manager._create_bm25_index(conn)
+        migrate_all(conn, vector_store_manager.vector_table)
     
     # Add test documents first
     test_query, added_nodes = insert_test_documents()

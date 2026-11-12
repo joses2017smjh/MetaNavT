@@ -170,6 +170,66 @@ def test_health_names_the_embedding_model_and_its_query_instruction(ready_client
     assert h["embedding_model"] == "hash-256" and h["embedding_query_instruction"] == "" and h["embed_model"] == "HashEmbedding"
 
 
+class _HealthyRetriever(_FakeRetriever):
+    reranker_info = {"configured": False, "loaded": False}
+
+
+def _manager_whose_database_fails(error):
+    """A real VectorStoreManager (its count_nodes and settings code) over a connection whose every statement raises."""
+    from contextlib import contextmanager
+
+    from app.database.vector_store_manager import VectorStoreManager
+
+    vsm = VectorStoreManager.__new__(VectorStoreManager)
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+    vsm.lexical_backend, vsm.last_bm25_backend, vsm._pgvector_version = "ts_rank_cd", None, (0, 8, 6)
+
+    class Connection:
+        def cursor(self):
+            class Cursor:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc):
+                    return False
+
+                def execute(self, sql, params=None):
+                    raise error
+
+            return Cursor()
+
+    @contextmanager
+    def get_connection():
+        yield Connection()
+
+    vsm.get_connection = get_connection
+    return vsm
+
+
+def test_health_is_not_ok_with_zero_rows_when_the_database_cannot_be_read(ready_client):
+    """C31: the row count used to read any error as an empty table, so /health answered ok with n_nodes 0."""
+    import psycopg2
+
+    state = ready_client.app.state.retrieval
+    state.retriever = _HealthyRetriever()
+    state.vsm = _manager_whose_database_fails(psycopg2.OperationalError("server closed the connection unexpectedly"))
+    response = ready_client.get("/health")
+    assert response.status_code == 503, response.text
+    body = response.json()
+    assert body["status"] == "unavailable" and body["n_nodes"] is None
+    assert body["degraded"] == [{"component": "database", "error": "OperationalError: server closed the connection unexpectedly"}]
+
+
+def test_health_reads_a_missing_data_table_as_zero_rows(ready_client):
+    import psycopg2.errors
+
+    state = ready_client.app.state.retrieval
+    state.retriever = _HealthyRetriever()
+    state.vsm = _manager_whose_database_fails(psycopg2.errors.UndefinedTable('relation "public.data_t" does not exist'))
+    response = ready_client.get("/health")
+    assert response.status_code == 200 and response.json()["status"] == "ok" and response.json()["n_nodes"] == 0
+
+
 def test_health_refuses_unverified_required_cuda_device(ready_client, monkeypatch):
     monkeypatch.setenv("RETRIEVAL_REQUIRE_DEVICE", "cuda")
     response = ready_client.get("/health")

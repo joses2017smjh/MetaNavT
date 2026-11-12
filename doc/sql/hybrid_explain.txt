@@ -1,6 +1,6 @@
 -- EXPLAIN (ANALYZE, BUFFERS) of app/database/sql/hybrid_tsrank.sql
--- generated 2026-11-11T23:09:26.403562+00:00 at git be02413 by scripts/explain_hybrid.py
--- statement sha256 10113dd92821b8db6e736a7a1e809f107f32e1975e1946c1e4ebc96e6badd449 (the file as planned, committed or not)
+-- generated 2026-11-12T00:52:10.553729+00:00 at git 065c55e by scripts/explain_hybrid.py
+-- statement sha256 9916005fe69dcb3f9f7c306564d470b8a5b862f026b55a62fe51d5d5257e9034 (the file as planned, committed or not)
 -- PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
 -- pgvector 0.8.6; lexical backend ts_rank_cd; table public.data_llamaindex_embedding (71 rows, fixture v1); ANALYZE before EXPLAIN
 -- query: 'current learning rate for run 47', k=50, rrf_k=60, hash embedder dim 256
@@ -8,95 +8,87 @@
 -- indexes:
 --   data_llamaindex_embedding_path_idx: CREATE INDEX data_llamaindex_embedding_path_idx ON public.data_llamaindex_embedding USING btree (((metadata_ ->> 'path'::text)))
 --   data_llamaindex_embedding_pkey: CREATE UNIQUE INDEX data_llamaindex_embedding_pkey ON public.data_llamaindex_embedding USING btree (id)
---   data_llamaindex_embedding_text_tsv_gin: CREATE INDEX data_llamaindex_embedding_text_tsv_gin ON public.data_llamaindex_embedding USING gin (to_tsvector('english'::regconfig, (text)::text))
---   llamaindex_embedding_embedding_hnsw: CREATE INDEX llamaindex_embedding_embedding_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')
+--   data_llamaindex_embedding_text_tsv_english_gin: CREATE INDEX data_llamaindex_embedding_text_tsv_english_gin ON public.data_llamaindex_embedding USING gin (text_tsv)
+--   llamaindex_embedding_embedding_hnsw_m16_efc64: CREATE INDEX llamaindex_embedding_embedding_hnsw_m16_efc64 ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')
 --   llamaindex_embedding_idx_1: CREATE INDEX llamaindex_embedding_idx_1 ON public.data_llamaindex_embedding USING btree (((metadata_ ->> 'ref_doc_id'::text)))
-Limit  (cost=64.50..64.54 rows=18 width=1098) (actual time=4.084..4.096 rows=50 loops=1)
-  Buffers: shared hit=205
+Limit  (cost=73.03..73.07 rows=18 width=1098) (actual time=2.140..2.151 rows=50 loops=1)
+  Buffers: shared hit=216
   CTE lexical_params
     ->  Result  (cost=0.00..0.01 rows=1 width=32) (actual time=0.001..0.001 rows=1 loops=1)
-  ->  Sort  (cost=64.49..64.53 rows=18 width=1098) (actual time=4.083..4.091 rows=50 loops=1)
+  ->  Sort  (cost=73.02..73.06 rows=18 width=1098) (actual time=2.139..2.146 rows=50 loops=1)
         Sort Key: (((COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric) + COALESCE((1.0 / (60.0 + ((row_number() OVER (?)))::numeric)), '0'::numeric)) + COALESCE((1.0 / (60.0 + (pa.path_rank)::numeric)), '0'::numeric))) DESC, (COALESCE(s.node_id, t_2.node_id, pa.node_id))
         Sort Method: quicksort  Memory: 138kB
-        Buffers: shared hit=205
-        ->  Hash Join  (cost=50.11..64.11 rows=18 width=1098) (actual time=3.856..3.956 rows=60 loops=1)
+        Buffers: shared hit=216
+        ->  Hash Join  (cost=56.63..72.64 rows=18 width=1098) (actual time=1.899..2.005 rows=60 loops=1)
               Hash Cond: ((t.node_id)::text = (COALESCE(s.node_id, t_2.node_id, pa.node_id))::text)
-              Buffers: shared hit=202
-              ->  Seq Scan on data_llamaindex_embedding t  (cost=0.00..12.71 rows=71 width=1035) (actual time=0.007..0.018 rows=71 loops=1)
-                    Buffers: shared hit=12
-              ->  Hash  (cost=49.48..49.48 rows=50 width=163) (actual time=3.804..3.809 rows=60 loops=1)
+              Buffers: shared hit=213
+              ->  Seq Scan on data_llamaindex_embedding t  (cost=0.00..14.71 rows=71 width=1035) (actual time=0.016..0.027 rows=71 loops=1)
+                    Buffers: shared hit=14
+              ->  Hash  (cost=56.01..56.01 rows=50 width=163) (actual time=1.853..1.856 rows=60 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 17kB
-                    Buffers: shared hit=190
-                    ->  Hash Full Join  (cost=48.09..49.48 rows=50 width=163) (actual time=3.728..3.787 rows=60 loops=1)
+                    Buffers: shared hit=199
+                    ->  Hash Full Join  (cost=54.61..56.01 rows=50 width=163) (actual time=1.777..1.834 rows=60 loops=1)
                           Hash Cond: ((COALESCE(s.node_id, t_2.node_id))::text = (pa.node_id)::text)
-                          Buffers: shared hit=190
-                          ->  Hash Full Join  (cost=32.63..33.82 rows=50 width=110) (actual time=3.675..3.717 rows=60 loops=1)
+                          Buffers: shared hit=199
+                          ->  Hash Full Join  (cost=37.15..38.35 rows=50 width=110) (actual time=1.741..1.782 rows=60 loops=1)
                                 Hash Cond: ((s.node_id)::text = (t_2.node_id)::text)
-                                Buffers: shared hit=187
-                                ->  WindowAgg  (cost=19.49..20.49 rows=50 width=57) (actual time=0.334..0.354 rows=50 loops=1)
-                                      Buffers: shared hit=161
-                                      ->  Sort  (cost=19.49..19.61 rows=50 width=49) (actual time=0.332..0.336 rows=50 loops=1)
+                                Buffers: shared hit=199
+                                ->  WindowAgg  (cost=21.49..22.49 rows=50 width=57) (actual time=0.355..0.375 rows=50 loops=1)
+                                      Buffers: shared hit=182
+                                      ->  Sort  (cost=21.49..21.61 rows=50 width=49) (actual time=0.350..0.354 rows=50 loops=1)
                                             Sort Key: s.dense_score DESC, s.node_id
                                             Sort Method: quicksort  Memory: 28kB
-                                            Buffers: shared hit=161
-                                            ->  Subquery Scan on s  (cost=15.09..18.08 rows=50 width=49) (actual time=0.292..0.315 rows=50 loops=1)
-                                                  Buffers: shared hit=158
-                                                  ->  Limit  (cost=15.09..17.58 rows=50 width=57) (actual time=0.291..0.308 rows=50 loops=1)
-                                                        Buffers: shared hit=158
-                                                        ->  Incremental Sort  (cost=15.09..18.62 rows=71 width=57) (actual time=0.291..0.303 rows=50 loops=1)
+                                            Buffers: shared hit=182
+                                            ->  Subquery Scan on s  (cost=17.09..20.08 rows=50 width=49) (actual time=0.311..0.334 rows=50 loops=1)
+                                                  Buffers: shared hit=179
+                                                  ->  Limit  (cost=17.09..19.58 rows=50 width=57) (actual time=0.310..0.327 rows=50 loops=1)
+                                                        Buffers: shared hit=179
+                                                        ->  Incremental Sort  (cost=17.09..20.62 rows=71 width=57) (actual time=0.310..0.323 rows=50 loops=1)
                                                               Sort Key: nearest.distance, nearest.node_id
                                                               Presorted Key: nearest.distance
                                                               Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 29kB  Peak Memory: 29kB
-                                                              Buffers: shared hit=158
-                                                              ->  Subquery Scan on nearest  (cost=15.07..15.43 rows=71 width=57) (actual time=0.272..0.286 rows=51 loops=1)
-                                                                    Buffers: shared hit=158
-                                                                    ->  Limit  (cost=15.07..15.25 rows=71 width=49) (actual time=0.271..0.278 rows=51 loops=1)
-                                                                          Buffers: shared hit=158
-                                                                          ->  Sort  (cost=15.07..15.25 rows=71 width=49) (actual time=0.271..0.274 rows=51 loops=1)
+                                                              Buffers: shared hit=179
+                                                              ->  Subquery Scan on nearest  (cost=17.07..17.43 rows=71 width=57) (actual time=0.291..0.305 rows=51 loops=1)
+                                                                    Buffers: shared hit=179
+                                                                    ->  Limit  (cost=17.07..17.25 rows=71 width=49) (actual time=0.290..0.297 rows=51 loops=1)
+                                                                          Buffers: shared hit=179
+                                                                          ->  Sort  (cost=17.07..17.25 rows=71 width=49) (actual time=0.290..0.293 rows=51 loops=1)
                                                                                 Sort Key: ((t_1.embedding <=> '[0,0,0,0,0,0,0.13245323,0,0,0,0,0.13245323,0.13245323,0,0.13245323,0,0,0,0,0,0,0,0,0,0,0,-0.26490647,0,0,0,0.13245323,0,0.13245323,0,0,0,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0,0,0.26490647,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0.13245323,0,-0.13245323,0,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,-0.13245323,0,-0.13245323,0,0.13245323,0,0,-0.13245323,0.13245323,0,0,-0.13245323,0.13245323,-0.13245323,0,0,0.13245323,0,0.13245323,0,-0.13245323,0,0,0,0.13245323,0,0,0,0,0,0,0.13245323,-0.13245323,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.13245323,0,0,0,0,0,-0.13245323,0,0,0,-0.13245323,0.13245323,0,0,0.13245323,0,0,0,0,0,-0.13245323,0,0.13245323,0,0,0,0,0,-0.13245323,0,0,0,0,0,0,0.13245323,0,0,0,-0.13245323,0,0,0,0,0,0,-0.13245323,0,0.13245323,0,0,0,0,0,0,0,0.13245323,0,0,0.13245323,0.13245323,0,0,0,0,0,0,-0.13245323,0,0,0,0.13245323,0,0,0,0,0,0,0,0,0,-0.13245323,0,0,0,0,-0.13245323,0,0,0.13245323,-0.13245323,0,0,0]'::vector))
                                                                                 Sort Method: quicksort  Memory: 34kB
-                                                                                Buffers: shared hit=158
-                                                                                ->  Seq Scan on data_llamaindex_embedding t_1  (cost=0.00..12.89 rows=71 width=49) (actual time=0.063..0.250 rows=71 loops=1)
-                                                                                      Buffers: shared hit=158
-                                ->  Hash  (cost=13.13..13.13 rows=1 width=53) (actual time=3.326..3.327 rows=50 loops=1)
+                                                                                Buffers: shared hit=179
+                                                                                ->  Seq Scan on data_llamaindex_embedding t_1  (cost=0.00..14.89 rows=71 width=49) (actual time=0.058..0.270 rows=71 loops=1)
+                                                                                      Buffers: shared hit=179
+                                ->  Hash  (cost=15.65..15.65 rows=1 width=53) (actual time=1.363..1.364 rows=50 loops=1)
                                       Buckets: 1024  Batches: 1  Memory Usage: 13kB
-                                      Buffers: shared hit=26
-                                      ->  WindowAgg  (cost=13.10..13.13 rows=1 width=53) (actual time=3.295..3.315 rows=50 loops=1)
-                                            Buffers: shared hit=26
-                                            ->  Limit  (cost=13.10..13.11 rows=1 width=45) (actual time=3.289..3.295 rows=50 loops=1)
-                                                  Buffers: shared hit=26
-                                                  ->  Sort  (cost=13.10..13.11 rows=1 width=45) (actual time=3.289..3.292 rows=50 loops=1)
-                                                        Sort Key: (ts_rank_cd(to_tsvector('english'::regconfig, (t_2.text)::text), p.tsq)) DESC, t_2.node_id
+                                      Buffers: shared hit=17
+                                      ->  WindowAgg  (cost=15.63..15.65 rows=1 width=53) (actual time=1.332..1.352 rows=50 loops=1)
+                                            Buffers: shared hit=17
+                                            ->  Limit  (cost=15.63..15.63 rows=1 width=45) (actual time=1.329..1.335 rows=50 loops=1)
+                                                  Buffers: shared hit=17
+                                                  ->  Sort  (cost=15.63..15.63 rows=1 width=45) (actual time=1.329..1.332 rows=50 loops=1)
+                                                        Sort Key: (ts_rank_cd(t_2.text_tsv, p.tsq)) DESC, t_2.node_id
                                                         Sort Method: quicksort  Memory: 29kB
-                                                        Buffers: shared hit=26
-                                                        ->  Nested Loop  (cost=8.55..13.09 rows=1 width=45) (actual time=0.323..3.232 rows=68 loops=1)
-                                                              Buffers: shared hit=23
-                                                              ->  CTE Scan on lexical_params p  (cost=0.00..0.02 rows=1 width=32) (actual time=0.003..0.003 rows=1 loops=1)
-                                                              ->  Bitmap Heap Scan on data_llamaindex_embedding t_2  (cost=8.55..12.81 rows=1 width=228) (actual time=0.046..0.067 rows=68 loops=1)
-                                                                    Recheck Cond: (to_tsvector('english'::regconfig, (text)::text) @@ p.tsq)
-                                                                    Heap Blocks: exact=12
-                                                                    Buffers: shared hit=23
-                                                                    ->  Bitmap Index Scan on data_llamaindex_embedding_text_tsv_gin  (cost=0.00..8.55 rows=1 width=0) (actual time=0.040..0.040 rows=68 loops=1)
-                                                                          Index Cond: (to_tsvector('english'::regconfig, (text)::text) @@ p.tsq)
-                                                                          Buffers: shared hit=11
-                          ->  Hash  (cost=15.45..15.45 rows=1 width=53) (actual time=0.034..0.035 rows=0 loops=1)
+                                                        Buffers: shared hit=17
+                                                        ->  Nested Loop  (cost=0.00..15.62 rows=1 width=45) (actual time=0.260..1.272 rows=68 loops=1)
+                                                              Join Filter: (t_2.text_tsv @@ p.tsq)
+                                                              Rows Removed by Join Filter: 3
+                                                              Buffers: shared hit=14
+                                                              ->  CTE Scan on lexical_params p  (cost=0.00..0.02 rows=1 width=32) (actual time=0.002..0.003 rows=1 loops=1)
+                                                              ->  Seq Scan on data_llamaindex_embedding t_2  (cost=0.00..14.71 rows=71 width=376) (actual time=0.007..0.022 rows=71 loops=1)
+                                                                    Buffers: shared hit=14
+                          ->  Hash  (cost=17.45..17.45 rows=1 width=53) (actual time=0.015..0.016 rows=0 loops=1)
                                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
-                                Buffers: shared hit=3
-                                ->  Subquery Scan on pa  (cost=15.42..15.45 rows=1 width=53) (actual time=0.033..0.034 rows=0 loops=1)
-                                      Buffers: shared hit=3
-                                      ->  WindowAgg  (cost=15.42..15.44 rows=1 width=53) (actual time=0.033..0.034 rows=0 loops=1)
-                                            Buffers: shared hit=3
-                                            ->  Limit  (cost=15.42..15.42 rows=1 width=45) (actual time=0.032..0.032 rows=0 loops=1)
-                                                  Buffers: shared hit=3
-                                                  ->  Sort  (cost=15.42..15.42 rows=1 width=45) (actual time=0.031..0.032 rows=0 loops=1)
+                                ->  Subquery Scan on pa  (cost=17.42..17.45 rows=1 width=53) (actual time=0.015..0.015 rows=0 loops=1)
+                                      ->  WindowAgg  (cost=17.42..17.44 rows=1 width=53) (actual time=0.014..0.015 rows=0 loops=1)
+                                            ->  Limit  (cost=17.42..17.42 rows=1 width=45) (actual time=0.013..0.013 rows=0 loops=1)
+                                                  ->  Sort  (cost=17.42..17.42 rows=1 width=45) (actual time=0.012..0.013 rows=0 loops=1)
                                                         Sort Key: (((CASE WHEN ((lower(regexp_replace(COALESCE((t_3.metadata_ ->> 'path'::text), ''::text), '^.*/'::text, ''::text)) <> ''::text) AND NULL::boolean) THEN 5 ELSE 0 END + CASE WHEN ((lower(COALESCE((t_3.metadata_ ->> 'path'::text), ''::text)) <> ''::text) AND NULL::boolean) THEN 3 ELSE 0 END) + CASE WHEN ((regexp_replace(lower(regexp_replace(COALESCE((t_3.metadata_ ->> 'path'::text), ''::text), '^.*/'::text, ''::text)), '(.)\.[^.]+$'::text, '\1'::text) <> ''::text) AND NULL::boolean) THEN 2 ELSE 0 END)) DESC, t_3.node_id
                                                         Sort Method: quicksort  Memory: 25kB
-                                                        Buffers: shared hit=3
-                                                        ->  Result  (cost=0.00..15.41 rows=1 width=45) (actual time=0.001..0.001 rows=0 loops=1)
+                                                        ->  Result  (cost=0.00..17.41 rows=1 width=45) (actual time=0.001..0.001 rows=0 loops=1)
                                                               One-Time Filter: false
-                                                              ->  Seq Scan on data_llamaindex_embedding t_3  (cost=0.00..15.37 rows=1 width=848) (never executed)
+                                                              ->  Seq Scan on data_llamaindex_embedding t_3  (cost=0.00..17.37 rows=1 width=848) (never executed)
                                                                     Filter: (((CASE WHEN ((lower(regexp_replace(COALESCE((metadata_ ->> 'path'::text), ''::text), '^.*/'::text, ''::text)) <> ''::text) AND NULL::boolean) THEN 5 ELSE 0 END + CASE WHEN ((lower(COALESCE((metadata_ ->> 'path'::text), ''::text)) <> ''::text) AND NULL::boolean) THEN 3 ELSE 0 END) + CASE WHEN ((regexp_replace(lower(regexp_replace(COALESCE((metadata_ ->> 'path'::text), ''::text), '^.*/'::text, ''::text)), '(.)\.[^.]+$'::text, '\1'::text) <> ''::text) AND NULL::boolean) THEN 2 ELSE 0 END) > 0)
 Planning:
-  Buffers: shared hit=308
-Planning Time: 1.507 ms
-Execution Time: 4.376 ms
+  Buffers: shared hit=332
+Planning Time: 4.295 ms
+Execution Time: 2.420 ms

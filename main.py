@@ -29,9 +29,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import asyncio
 import logging
 import os
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import uvicorn
 from app.api.routers import api_router
@@ -51,29 +52,95 @@ logger = logging.getLogger("uvicorn")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Build the model settings and the retrieval singletons once, off the event loop.
+    """Build the model settings and the retrieval singletons off the event loop.
 
-    A failure (database down, bad DATA_DIR) is recorded in app.state.startup_error:
-    the process stays up so /health can report it and the logs are readable, and
-    /api/retrieve answers 503 until it is fixed.
+    The first attempt runs before the server accepts requests. A failure (database down
+    or still starting, a migration not applied yet, bad DATA_DIR) is recorded in
+    app.state.startup_error and retried in the background with capped exponential backoff
+    (app.engine.bootstrap.startup_retry_policy): the process stays up, /health answers 503
+    with the error and the attempt count and /api/retrieve 503, until an attempt succeeds;
+    then /health turns 200 without a restart. It used to keep the first error for the life
+    of the process.
     """
-    from app.engine.bootstrap import build_retrieval_state
+    from app.engine.bootstrap import retry_delays, startup_retry_policy
 
     app.state.retrieval = None
     app.state.startup_error = None
     app.state.plans = None
+    app.state.startup = {"attempts": 0, "retrying": False, "retry_delay_s": None}
+    policy = startup_retry_policy()
+    built: dict = {}  # what this lifespan's attempts have built; app.state is only written, never read back
+    retry = None
+    if not await _start_attempt(app, built):
+        delays = retry_delays(policy.initial_s, policy.max_s)
+        delay = _next_retry(app, policy, delays)
+        if delay is not None:
+            retry = asyncio.create_task(_retry_start(app, built, policy, delays, delay))
     try:
-        init_settings()
-        app.state.retrieval = await run_in_threadpool(build_retrieval_state)
-        logger.info(f"Retrieval ready: {app.state.retrieval.indexing}")
-        from app.api.routers.plans import build_plan_store
+        yield
+    finally:
+        if retry is not None:  # the wait between attempts is where the cancellation lands
+            retry.cancel()
+            with suppress(asyncio.CancelledError):
+                await retry
 
-        app.state.plans = await run_in_threadpool(build_plan_store, app.state.retrieval.vsm, DATA_DIR)
-        logger.info(f"Plan store ready over {DATA_DIR} (decisions logged to Postgres)")
-    except Exception as exc:  # noqa: BLE001 - surfaced by /health
+
+async def _start_attempt(app: FastAPI, built: dict) -> bool:
+    """One start-up attempt: whatever is not built yet, in order. True when everything is.
+
+    Each step that succeeded is kept and not run again: the model settings, the retrieval
+    state (served as soon as it exists, as before retries existed), then the plan store.
+    """
+    from app.api.routers.plans import build_plan_store
+    from app.engine.bootstrap import build_retrieval_state
+
+    app.state.startup["attempts"] += 1
+    attempt = app.state.startup["attempts"]
+    try:
+        if not built.get("settings"):
+            init_settings()
+            built["settings"] = True
+        if built.get("retrieval") is None:
+            built["retrieval"] = await run_in_threadpool(build_retrieval_state)
+            app.state.retrieval = built["retrieval"]
+            logger.info(f"Retrieval ready: {built['retrieval'].indexing}")
+        if built.get("plans") is None:
+            built["plans"] = await run_in_threadpool(build_plan_store, built["retrieval"].vsm, DATA_DIR)
+            app.state.plans = built["plans"]
+            logger.info(f"Plan store ready over {DATA_DIR} (decisions logged to Postgres)")
+    except Exception as exc:  # noqa: BLE001 - surfaced by /health, then retried
         app.state.startup_error = f"{type(exc).__name__}: {exc}"
-        logger.error(f"Retrieval backend failed to start: {app.state.startup_error}", exc_info=True)
-    yield
+        if attempt == 1:
+            logger.error(f"Retrieval backend failed to start: {app.state.startup_error}", exc_info=True)
+        else:
+            logger.warning(f"Start-up attempt {attempt} failed: {app.state.startup_error}")
+        return False
+    app.state.startup_error = None
+    if attempt > 1:
+        logger.info(f"Start-up succeeded on attempt {attempt}")
+    return True
+
+
+def _next_retry(app: FastAPI, policy, delays) -> float | None:
+    """The wait before the next attempt, recorded for /health; None once policy.attempts (when set) are used."""
+    if policy.attempts and app.state.startup["attempts"] >= policy.attempts:
+        app.state.startup.update(retrying=False, retry_delay_s=None)
+        logger.error(f"Start-up gave up after {app.state.startup['attempts']} attempt(s) (STARTUP_RETRY_ATTEMPTS)")
+        return None
+    delay = next(delays)
+    app.state.startup.update(retrying=True, retry_delay_s=delay)
+    logger.info(f"Retrying start-up in {delay:g} s")
+    return delay
+
+
+async def _retry_start(app: FastAPI, built: dict, policy, delays, delay: float | None) -> None:
+    """Wait, attempt again, until an attempt succeeds or _next_retry gives up."""
+    while delay is not None:
+        await asyncio.sleep(delay)
+        if await _start_attempt(app, built):
+            app.state.startup.update(retrying=False, retry_delay_s=None)
+            return
+        delay = _next_retry(app, policy, delays)
 
 
 # Initialize FastAPI app
@@ -84,16 +151,24 @@ app = FastAPI(lifespan=lifespan)
 async def health():
     """200 with index stats once retrieval is ready; 503 with the startup error otherwise.
 
+    Also 503 (status "unavailable", n_nodes null, a "database" entry in degraded) when the
+    data table cannot be read: a database error is never reported as an empty index.
     Never behind the API key (orchestrator probes must reach it). Both answers say
     whether authentication and the request budget are on (app/api/security.py).
     """
     state = getattr(app.state, "retrieval", None)
+    # Start-up attempts so far, and whether (and after what wait) another one is coming.
+    startup = dict(getattr(app.state, "startup", None) or {})
     if state is None:
         return JSONResponse(
             status_code=503,
-            content={"status": "unavailable", "error": getattr(app.state, "startup_error", None), **security_status()},
+            content={"status": "unavailable", "error": getattr(app.state, "startup_error", None), "startup": startup, **security_status()},
         )
-    n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    database_error = None
+    try:
+        n_nodes = await run_in_threadpool(state.vsm.count_nodes)
+    except Exception as exc:  # noqa: BLE001 - the data table cannot be read: never report it as 0 rows
+        n_nodes, database_error = None, f"{type(exc).__name__}: {exc}"
     dense_search = await run_in_threadpool(_dense_search_status, state)
     reranker = getattr(state.retriever, "reranker_info", None) or {}
     from app.settings import embedding_device
@@ -112,10 +187,12 @@ async def health():
             if not str(actual or "").startswith(required):
                 device_errors.append({"component": component, "error": f"required device {required}, loaded weights on {actual!r}"})
     degraded.extend(device_errors)
+    if database_error:
+        degraded.append({"component": "database", "error": database_error})
     from app.settings import query_instruction
 
     payload = {
-        "status": "ok" if not degraded else "degraded",
+        "status": "unavailable" if database_error else "ok" if not degraded else "degraded",
         "n_nodes": n_nodes,
         "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "huggingface"),
         "embed_model": type(state.index._embed_model).__name__ if getattr(state.index, "_embed_model", None) else None,
@@ -132,10 +209,11 @@ async def health():
         "reranker": reranker,
         "degraded": degraded,
         "indexing": state.indexing,
+        "startup": startup,
         "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
         **security_status(),
     }
-    return JSONResponse(status_code=503, content=payload) if device_errors else payload
+    return JSONResponse(status_code=503, content=payload) if device_errors or database_error else payload
 
 
 def _dense_search_status(state) -> dict:

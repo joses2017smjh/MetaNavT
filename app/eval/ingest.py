@@ -10,11 +10,21 @@ Both call file_chunks(), so a chunk boundary the benchmark measures is the
 boundary the API serves.
 
 The accounting follows the robotics snapshot freeze (app/eval/robotics.py):
-walk one sorted listing, pass every file through explicit gates, count every
-rejection by reason, and identify content by the SHA-256 of its raw bytes.
-A file is never dropped without being counted:
+walk one sorted listing, confine every path to the root before reading it,
+pass every file through explicit gates, count every rejection by reason, and
+identify content by the SHA-256 of its raw bytes. A file is never dropped
+without being counted:
 
   files_seen == files_indexed + files_unchanged + files_rejected
+
+Confinement: a file whose real path (every symlink resolved) is not under the
+root, or is under a directory the scan skips (.git and the caches), is
+rejected as `outside_root` before its size or bytes are read, so a symbolic
+link to a file elsewhere on the machine never reaches a chunk, an embedding or
+a search result. A symbolic link that stays inside the scanned tree is read
+like any other file. The walk does not descend into symlinked directories. A
+hard link is not caught: it has no other path to resolve, so a hard link
+inside the root to a file elsewhere is read like a regular file.
 
 `files_removed` counts paths the manifest listed that are no longer accepted
 (deleted on disk, or now rejected); their rows are deleted.
@@ -32,11 +42,17 @@ from app.eval.reindex import files_to_reindex, files_to_remove
 from app.retrieval.hybrid import chunk_id_for
 
 SKIP_NAMES = {".git", "__pycache__", ".pytest_cache"}
-REPORT_SCHEMA = "ingest-report-v1"
+REPORT_SCHEMA = "ingest-report-v2"  # v2: the outside_root reason; the served report's reconciliation block
 CHUNKER = "app/chunking (structure-aware)"
-CHUNKER_VERSION = "app.chunking/auto/v1"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
+CHUNKER_VERSION = "app.chunking/auto/v2"  # bump when chunk boundaries, texts or ids change: every file is then re-indexed
+# v2: Python module-level code between and after definitions is chunked and a definition starts at its first
+# decorator; long JSON values and Python chunks are re-cut with the window; CSV records come from the csv module;
+# Markdown headings inside fenced code and the YAML header follow the rules in app/chunking/structure.py; every
+# rule ends a line only at \r\n, \r or \n (str.splitlines also split at a form feed, U+2028 and other separators).
+
 # Gate order is the order of this tuple; a file is counted under the first gate it fails.
-REJECT_REASONS = ("unsupported_type", "too_large", "undecodable", "empty", "duplicate_content")
+# outside_root comes first: a file outside the root is rejected before its size or bytes are read.
+REJECT_REASONS = ("outside_root", "unsupported_type", "too_large", "undecodable", "empty", "duplicate_content")
 REJECTED_SAMPLE = 20  # paths listed in a report; the counts always cover every file
 
 # Suffixes the served path indexes: the ones chunk_text routes by structure, plus
@@ -118,6 +134,21 @@ class IngestRejected(RuntimeError):
         )
 
 
+class IngestUnreconciled(RuntimeError):
+    """After a run's writes, the rows per path still differ from the manifest's chunk counts.
+
+    Raised instead of returning the report: a run whose own output does not
+    verify is not reported as a success. The next run re-indexes those files.
+    """
+
+    def __init__(self, mismatches: list[dict], report: dict):
+        self.mismatches = mismatches
+        self.report = report
+        super().__init__(
+            f"{len(mismatches)} files have a row count that differs from the manifest's chunk count: {mismatches[:REJECTED_SAMPLE]}"
+        )
+
+
 def iter_corpus_files(root: Path) -> list[Path]:
     files = []
     for path in sorted(root.rglob("*")):
@@ -129,21 +160,43 @@ def iter_corpus_files(root: Path) -> list[Path]:
     return files
 
 
+def confined_real_path(real_root: Path, path: Path) -> Path | None:
+    """`path` with every symlink resolved when that stays inside the scanned tree, else None.
+
+    The second layer of the robotics freeze's check (app/eval/robotics.py
+    confined()); the first, no absolute path and no "..", holds by construction
+    for a path the listing yielded. `real_root` is the root already resolved,
+    so a root reached through a symlinked prefix is not mistaken for an escape.
+    """
+    try:
+        rel = path.resolve().relative_to(real_root)
+    except (OSError, RuntimeError, ValueError):  # outside the root, or a symlink loop
+        return None
+    if any(part in SKIP_NAMES for part in rel.parts):  # e.g. a link to .git/config
+        return None
+    return real_root / rel
+
+
 def scan_directory(root: Path, policy: IngestPolicy = BENCH_POLICY) -> Scan:
     """Read every file under root once and sort it into accepted or rejected-with-a-reason."""
     root = Path(root)
+    real_root = root.resolve()
     scan = Scan()
     seen_hashes: set[str] = set()
     for path in iter_corpus_files(root):
         rel = str(path.relative_to(root)).replace("\\", "/")
-        st = path.stat()
+        real = confined_real_path(real_root, path)
+        if real is None:  # before its size or bytes are read
+            scan.rejected.append({"path": rel, "reason": "outside_root"})
+            continue
+        st = real.stat()  # stat and read the resolved path: a link retargeted after the check is not followed
         if policy.suffixes is not None and path.suffix.lower() not in policy.suffixes:
             scan.rejected.append({"path": rel, "reason": "unsupported_type"})
             continue
         if policy.max_bytes is not None and st.st_size > policy.max_bytes:
             scan.rejected.append({"path": rel, "reason": "too_large"})
             continue
-        data = path.read_bytes()
+        data = real.read_bytes()
         try:
             # Preserve physical CRLF bytes as well as Unicode for citations.
             text = data.decode("utf-8")
@@ -215,6 +268,20 @@ def ingest_report(scan: Scan, plan: IngestPlan, *, max_rejected: int | None = No
         "rejected_sample": scan.rejected[:REJECTED_SAMPLE],
         "max_rejected": max_rejected,
     }
+
+
+def row_mismatches(listed: Mapping[str, int], rows: Mapping[str, int]) -> list[dict]:
+    """Paths whose row count differs from the chunk count the manifest lists, in path order.
+
+    `listed` maps each manifest path to its n_chunks, `rows` each path to the
+    chunk rows the table holds for it; a path missing on one side counts as 0
+    there. The served indexer checks this before and after every run.
+    """
+    return [
+        {"path": path, "manifest_chunks": listed.get(path, 0), "rows": rows.get(path, 0)}
+        for path in sorted(set(listed) | set(rows))
+        if listed.get(path, 0) != rows.get(path, 0)
+    ]
 
 
 def enforce_rejection_limit(report: dict) -> None:

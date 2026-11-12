@@ -91,6 +91,7 @@ def main() -> int:
             else:
                 raise RuntimeError("task-local PostgreSQL not ready")
             subprocess.run([*invocation, "/usr/lib/postgresql/16/bin/createdb", "-h", "127.0.0.1", "-p", str(pg_port), "metanavit"], check=True)
+            subprocess.run([sys.executable, "-m", "app.database.migrate"], cwd=root, env=env, check=True)  # the deploy step: the API refuses pending migrations
             api = subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(api_port)], cwd=root, env=env, stdout=api_log, stderr=subprocess.STDOUT)
             url = f"http://127.0.0.1:{api_port}"
             health = wait_health(url, api)
