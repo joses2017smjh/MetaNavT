@@ -1,0 +1,827 @@
+{
+ "schema": "pgvector-hnsw-v1",
+ "measurement": "pgvector's HNSW index against the exact scan, then halfvec and binary + rescore against float32, on the table the served indexer built from FiQA with bge-small, queried with the served query embedding of every test query",
+ "dataset": "BEIR/fiqa",
+ "split": "test",
+ "files_sha256": {
+  "corpus.jsonl": "ff593e4df9933955dc3af83be0c3fa28ac7465f627e08c2e53593e734d506517",
+  "queries.jsonl": "eede1e61d4a0188940239b53ebc2da91f577a6a34679c812d1eb9090c29877bc",
+  "qrels/test.tsv": "6adc2a640dcdd22bb8b3858f89107adef2a7c3db20a63550dfa7a0f71e379e44"
+ },
+ "query_selection": "full split",
+ "table": {
+  "rows": 117212,
+  "dim": 384,
+  "embedder": "BAAI/bge-small-en-v1.5",
+  "vectors": "the chunk vectors app/engine/ingest.index_directory wrote (the same run as bench/results/served_scale_fiqa.json)",
+  "bytes": 354353152,
+  "avg_embedding_bytes": 1540.0
+ },
+ "queries": {
+  "n": 648,
+  "embedding": "the served query embedding (LlamaIndex HuggingFaceEmbedding with its query prompt for bge-small)"
+ },
+ "index": {
+  "name": "llamaindex_embedding_embedding_hnsw",
+  "ddl": "CREATE INDEX llamaindex_embedding_embedding_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='64')",
+  "m": 16,
+  "ef_construction": 64,
+  "build_seconds": 65.579,
+  "bytes": 239943680,
+  "built_by": "VectorStoreManager.ensure_hnsw (what the API's start-up runs), after every row was inserted"
+ },
+ "server": {
+  "postgres": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2)",
+  "pgvector": "0.8.6",
+  "settings": {
+   "shared_buffers": "128MB",
+   "maintenance_work_mem": "64MB",
+   "work_mem": "4MB",
+   "effective_cache_size": "4GB",
+   "max_parallel_maintenance_workers": "2",
+   "max_parallel_workers_per_gather": "2",
+   "jit": "on",
+   "synchronous_commit": "on",
+   "random_page_cost": "4"
+  },
+  "settings_note": "the image's defaults; nothing tuned"
+ },
+ "k": 50,
+ "tie_eps": 1e-06,
+ "recall_definition": "a returned row counts when its float32 distance is at most the exact k-th distance plus tie_eps; Recall@10 reads the first 10 rows of the same k-row list",
+ "latency_definition": "client wall time of each statement (execute and fetch) on one connection, after an untimed pass of the exact scan and of the widest index scan",
+ "rows": [
+  {
+   "config": "exact",
+   "plan_node": "Parallel Seq Scan",
+   "settings": {
+    "enable_indexscan": "off",
+    "enable_bitmapscan": "off"
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 179.064,
+    "p95_ms": 196.643,
+    "mean_ms": 179.994
+   },
+   "recall@10": {
+    "mean": 1.0
+   },
+   "recall@50": {
+    "mean": 1.0
+   }
+  },
+  {
+   "config": "hnsw ef_search=40",
+   "ef_search": 40,
+   "iterative_scan": "off",
+   "recall@10": {
+    "mean": 0.9349,
+    "lo": 0.9259,
+    "hi": 0.9437
+   },
+   "recall@50": {
+    "mean": 0.777,
+    "lo": 0.7719,
+    "hi": 0.7816
+   },
+   "queries_with_full_recall@50": 0,
+   "rows_returned": {
+    "mean": 40.01,
+    "min": 40,
+    "queries_under_k": 648
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 2.842,
+    "p95_ms": 3.842,
+    "mean_ms": 2.86
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "settings": {
+    "enable_seqscan": "off",
+    "hnsw.ef_search": 40,
+    "hnsw.iterative_scan": "off"
+   }
+  },
+  {
+   "config": "hnsw ef_search=64",
+   "ef_search": 64,
+   "iterative_scan": "off",
+   "recall@10": {
+    "mean": 0.9606,
+    "lo": 0.9539,
+    "hi": 0.9674
+   },
+   "recall@50": {
+    "mean": 0.9117,
+    "lo": 0.9049,
+    "hi": 0.9184
+   },
+   "queries_with_full_recall@50": 88,
+   "rows_returned": {
+    "mean": 50.0,
+    "min": 50,
+    "queries_under_k": 0
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 3.792,
+    "p95_ms": 5.315,
+    "mean_ms": 3.841
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "settings": {
+    "enable_seqscan": "off",
+    "hnsw.ef_search": 64,
+    "hnsw.iterative_scan": "off"
+   }
+  },
+  {
+   "config": "hnsw ef_search=100",
+   "ef_search": 100,
+   "iterative_scan": "off",
+   "recall@10": {
+    "mean": 0.9727,
+    "lo": 0.967,
+    "hi": 0.9784
+   },
+   "recall@50": {
+    "mean": 0.9449,
+    "lo": 0.9394,
+    "hi": 0.9499
+   },
+   "queries_with_full_recall@50": 172,
+   "rows_returned": {
+    "mean": 50.0,
+    "min": 50,
+    "queries_under_k": 0
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 3.974,
+    "p95_ms": 5.614,
+    "mean_ms": 4.038
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "settings": {
+    "enable_seqscan": "off",
+    "hnsw.ef_search": 100,
+    "hnsw.iterative_scan": "off"
+   }
+  },
+  {
+   "config": "hnsw ef_search=200",
+   "ef_search": 200,
+   "iterative_scan": "off",
+   "recall@10": {
+    "mean": 0.9897,
+    "lo": 0.986,
+    "hi": 0.9931
+   },
+   "recall@50": {
+    "mean": 0.9776,
+    "lo": 0.9748,
+    "hi": 0.9802
+   },
+   "queries_with_full_recall@50": 349,
+   "rows_returned": {
+    "mean": 50.0,
+    "min": 50,
+    "queries_under_k": 0
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 6.153,
+    "p95_ms": 8.667,
+    "mean_ms": 6.247
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "settings": {
+    "enable_seqscan": "off",
+    "hnsw.ef_search": 200,
+    "hnsw.iterative_scan": "off"
+   }
+  },
+  {
+   "config": "hnsw ef_search=400",
+   "ef_search": 400,
+   "iterative_scan": "off",
+   "recall@10": {
+    "mean": 0.9965,
+    "lo": 0.9946,
+    "hi": 0.998
+   },
+   "recall@50": {
+    "mean": 0.9914,
+    "lo": 0.9901,
+    "hi": 0.9927
+   },
+   "queries_with_full_recall@50": 477,
+   "rows_returned": {
+    "mean": 50.0,
+    "min": 50,
+    "queries_under_k": 0
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 10.576,
+    "p95_ms": 16.089,
+    "mean_ms": 10.914
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "settings": {
+    "enable_seqscan": "off",
+    "hnsw.ef_search": 400,
+    "hnsw.iterative_scan": "off"
+   }
+  },
+  {
+   "config": "hnsw ef_search=1000",
+   "ef_search": 1000,
+   "iterative_scan": "off",
+   "recall@10": {
+    "mean": 0.9986,
+    "lo": 0.9975,
+    "hi": 0.9994
+   },
+   "recall@50": {
+    "mean": 0.998,
+    "lo": 0.9974,
+    "hi": 0.9986
+   },
+   "queries_with_full_recall@50": 595,
+   "rows_returned": {
+    "mean": 50.0,
+    "min": 50,
+    "queries_under_k": 0
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 23.807,
+    "p95_ms": 35.451,
+    "mean_ms": 24.439
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "settings": {
+    "enable_seqscan": "off",
+    "hnsw.ef_search": 1000,
+    "hnsw.iterative_scan": "off"
+   }
+  },
+  {
+   "config": "served dense CTE",
+   "settings": {
+    "hnsw.ef_search": 100,
+    "hnsw.iterative_scan": "strict_order"
+   },
+   "recall@10": {
+    "mean": 0.9727,
+    "lo": 0.967,
+    "hi": 0.9784
+   },
+   "recall@50": {
+    "mean": 0.9449,
+    "lo": 0.9394,
+    "hi": 0.9499
+   },
+   "queries_with_full_recall@50": 172,
+   "rows_returned": {
+    "mean": 50.0,
+    "min": 50,
+    "queries_under_k": 0
+   },
+   "latency": {
+    "n": 648,
+    "p50_ms": 5.022,
+    "p95_ms": 7.449,
+    "mean_ms": 5.1
+   },
+   "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+   "forced": false,
+   "reads": "100 rows from the scan, keeps 50 (app/database/sql/hybrid_tsrank.sql)"
+  }
+ ],
+ "variants": {
+  "what": "VectorStoreManager.ensure_halfvec and ensure_binary on the same table after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); then float32 and halfvec at the same ef_search, and binary candidates rescored by float32 cosine (hnsw.ef_search set to the candidate depth, at most 1000)",
+  "machine": {
+   "device": "cuda",
+   "device_name": "NVIDIA A40",
+   "gpu_memory_gb": 44.5,
+   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "allocation": {
+    "cpus": "8",
+    "memory_mb": "65536"
+   }
+  },
+  "k": 50,
+  "indexes": {
+   "float32": "llamaindex_embedding_embedding_hnsw",
+   "halfvec": "llamaindex_embedding_embedding_half_hnsw",
+   "binary": "llamaindex_embedding_embedding_bit_hnsw"
+  },
+  "build_seconds": {
+   "ensure_halfvec": 352.254,
+   "ensure_binary": 580.354,
+   "vacuum_analyze": 15.271,
+   "reindex_float32": 70.303,
+   "reindex_halfvec": 41.143,
+   "reindex_binary": 20.044
+  },
+  "sizes_before": {
+   "rows": 117212,
+   "heap_bytes": 159522816,
+   "table_bytes_with_toast": 354353152,
+   "indexes_bytes": 271212544,
+   "total_bytes": 625565696,
+   "indexes": {
+    "data_llamaindex_embedding_path_idx": {
+     "method": "btree",
+     "bytes": 2572288
+    },
+    "data_llamaindex_embedding_pkey": {
+     "method": "btree",
+     "bytes": 2646016
+    },
+    "data_llamaindex_embedding_text_tsv_gin": {
+     "method": "gin",
+     "bytes": 23478272
+    },
+    "llamaindex_embedding_embedding_hnsw": {
+     "method": "hnsw",
+     "bytes": 239943680
+    },
+    "llamaindex_embedding_idx_1": {
+     "method": "btree",
+     "bytes": 2572288
+    }
+   },
+   "avg_column_bytes": {
+    "id": 8.0,
+    "text": 403.6,
+    "metadata_": 795.4,
+    "node_id": 41.0,
+    "embedding": 1540.0
+   }
+  },
+  "sizes_after": {
+   "rows": 117212,
+   "heap_bytes": 552140800,
+   "table_bytes_with_toast": 826572800,
+   "indexes_bytes": 489955328,
+   "total_bytes": 1316528128,
+   "indexes": {
+    "data_llamaindex_embedding_path_idx": {
+     "method": "btree",
+     "bytes": 5111808
+    },
+    "data_llamaindex_embedding_pkey": {
+     "method": "btree",
+     "bytes": 5283840
+    },
+    "data_llamaindex_embedding_text_tsv_gin": {
+     "method": "gin",
+     "bytes": 56532992
+    },
+    "llamaindex_embedding_embedding_bit_hnsw": {
+     "method": "hnsw",
+     "bytes": 40828928
+    },
+    "llamaindex_embedding_embedding_half_hnsw": {
+     "method": "hnsw",
+     "bytes": 137117696
+    },
+    "llamaindex_embedding_embedding_hnsw": {
+     "method": "hnsw",
+     "bytes": 239943680
+    },
+    "llamaindex_embedding_idx_1": {
+     "method": "btree",
+     "bytes": 5111808
+    }
+   },
+   "avg_column_bytes": {
+    "id": 8.0,
+    "text": 403.6,
+    "metadata_": 792.5,
+    "node_id": 41.0,
+    "embedding": 1540.0,
+    "embedding_half": 776.0,
+    "embedding_bit": 53.0
+   }
+  },
+  "exact_unchanged": true,
+  "rows": [
+   {
+    "config": "float32 ef_search=100",
+    "variant": "float32",
+    "ef_search": 100,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.9752,
+     "lo": 0.9699,
+     "hi": 0.9804
+    },
+    "recall@50": {
+     "mean": 0.9453,
+     "lo": 0.9402,
+     "hi": 0.9503
+    },
+    "queries_with_full_recall@50": 174,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 2.751,
+     "p95_ms": 3.88,
+     "mean_ms": 2.789
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 100,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "float32 ef_search=1000",
+    "variant": "float32",
+    "ef_search": 1000,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.9986,
+     "lo": 0.9977,
+     "hi": 0.9994
+    },
+    "recall@50": {
+     "mean": 0.9979,
+     "lo": 0.9973,
+     "hi": 0.9985
+    },
+    "queries_with_full_recall@50": 592,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 15.082,
+     "p95_ms": 21.578,
+     "mean_ms": 15.225
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 1000,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "halfvec ef_search=100",
+    "variant": "halfvec",
+    "ef_search": 100,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.9722,
+     "lo": 0.9667,
+     "hi": 0.9776
+    },
+    "recall@50": {
+     "mean": 0.9442,
+     "lo": 0.939,
+     "hi": 0.9491
+    },
+    "queries_with_full_recall@50": 163,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 1.71,
+     "p95_ms": 2.246,
+     "mean_ms": 1.733
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_half_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 100,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "halfvec ef_search=1000",
+    "variant": "halfvec",
+    "ef_search": 1000,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.9978,
+     "lo": 0.9966,
+     "hi": 0.9989
+    },
+    "recall@50": {
+     "mean": 0.9967,
+     "lo": 0.996,
+     "hi": 0.9973
+    },
+    "queries_with_full_recall@50": 553,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 7.033,
+     "p95_ms": 9.224,
+     "mean_ms": 7.175
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_half_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 1000,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "binary+rescore candidates=50",
+    "variant": "binary+rescore",
+    "candidates": 50,
+    "ef_search": 50,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.6693,
+     "lo": 0.6517,
+     "hi": 0.6864
+    },
+    "recall@50": {
+     "mean": 0.3908,
+     "lo": 0.3809,
+     "hi": 0.4008
+    },
+    "queries_with_full_recall@50": 0,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 1.008,
+     "p95_ms": 1.183,
+     "mean_ms": 1.014
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 50,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "binary+rescore candidates=100",
+    "variant": "binary+rescore",
+    "candidates": 100,
+    "ef_search": 100,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.7838,
+     "lo": 0.7684,
+     "hi": 0.7985
+    },
+    "recall@50": {
+     "mean": 0.5348,
+     "lo": 0.5229,
+     "hi": 0.5463
+    },
+    "queries_with_full_recall@50": 0,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 1.617,
+     "p95_ms": 1.847,
+     "mean_ms": 1.608
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 100,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "binary+rescore candidates=200",
+    "variant": "binary+rescore",
+    "candidates": 200,
+    "ef_search": 200,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.8741,
+     "lo": 0.8623,
+     "hi": 0.8849
+    },
+    "recall@50": {
+     "mean": 0.6732,
+     "lo": 0.661,
+     "hi": 0.6848
+    },
+    "queries_with_full_recall@50": 2,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 2.723,
+     "p95_ms": 3.206,
+     "mean_ms": 2.72
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 200,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "binary+rescore candidates=400",
+    "variant": "binary+rescore",
+    "candidates": 400,
+    "ef_search": 400,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.9323,
+     "lo": 0.9236,
+     "hi": 0.9404
+    },
+    "recall@50": {
+     "mean": 0.7966,
+     "lo": 0.7863,
+     "hi": 0.8065
+    },
+    "queries_with_full_recall@50": 19,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 4.975,
+     "p95_ms": 5.864,
+     "mean_ms": 4.987
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 400,
+     "hnsw.iterative_scan": "off"
+    }
+   },
+   {
+    "config": "binary+rescore candidates=1000",
+    "variant": "binary+rescore",
+    "candidates": 1000,
+    "ef_search": 1000,
+    "iterative_scan": "off",
+    "recall@10": {
+     "mean": 0.9724,
+     "lo": 0.9673,
+     "hi": 0.9773
+    },
+    "recall@50": {
+     "mean": 0.9113,
+     "lo": 0.9048,
+     "hi": 0.9178
+    },
+    "queries_with_full_recall@50": 100,
+    "rows_returned": {
+     "mean": 50.0,
+     "min": 50,
+     "queries_under_k": 0
+    },
+    "latency": {
+     "n": 648,
+     "p50_ms": 11.359,
+     "p95_ms": 13.25,
+     "mean_ms": 11.363
+    },
+    "plan_node": "Index Scan using llamaindex_embedding_embedding_bit_hnsw",
+    "settings": {
+     "enable_seqscan": "off",
+     "hnsw.ef_search": 1000,
+     "hnsw.iterative_scan": "off"
+    }
+   }
+  ],
+  "served": "the served statement reads only the float32 column (app/database/sql/hybrid_tsrank.sql)"
+ },
+ "bootstrap": {
+  "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+  "rng": "numpy.random.RandomState.randint",
+  "seed": 0,
+  "n_boot": 2000,
+  "n_queries": 648,
+  "level": 0.95
+ },
+ "hardware": {
+  "requested": "cuda",
+  "python": "3.11.16",
+  "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+  "cpu_count": 64,
+  "torch": "2.5.1+cu121",
+  "cuda_available": true,
+  "device": "cuda",
+  "device_name": "NVIDIA A40",
+  "threads": 8,
+  "sentence_transformers": "6.1.0",
+  "gpu_memory_gb": 44.5,
+  "cpu_model": "AMD EPYC 7513 32-Core Processor",
+  "allocation": {
+   "cpus": "8",
+   "memory_mb": "65536"
+  },
+  "packages": {
+   "llama-index-core": "0.12.52.post1",
+   "llama-index-embeddings-huggingface": "0.8.0",
+   "llama-index-vector-stores-postgres": "0.5.5",
+   "sentence-transformers": "6.1.0",
+   "transformers": "5.17.0",
+   "torch": "2.5.1+cu121",
+   "psycopg2-binary": "2.9.13",
+   "numpy": "2.4.6",
+   "fastapi": "0.141.1",
+   "uvicorn": "0.53.0"
+  },
+  "storage": "corpus files and the Postgres data directory on node-local disk (the run's scratch directory)"
+ },
+ "stage_machines": {
+  "files": {
+   "device": "cuda",
+   "device_name": "NVIDIA A40",
+   "gpu_memory_gb": 44.5,
+   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "allocation": {
+    "cpus": "8",
+    "memory_mb": "65536"
+   }
+  },
+  "index": {
+   "device": "cuda",
+   "device_name": "NVIDIA A40",
+   "gpu_memory_gb": 44.5,
+   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "allocation": {
+    "cpus": "8",
+    "memory_mb": "65536"
+   }
+  },
+  "hnsw": {
+   "device": "cuda",
+   "device_name": "NVIDIA A40",
+   "gpu_memory_gb": 44.5,
+   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "allocation": {
+    "cpus": "8",
+    "memory_mb": "65536"
+   }
+  },
+  "variants": {
+   "device": "cuda",
+   "device_name": "NVIDIA A40",
+   "gpu_memory_gb": 44.5,
+   "cpu_model": "AMD EPYC 7513 32-Core Processor",
+   "allocation": {
+    "cpus": "8",
+    "memory_mb": "65536"
+   }
+  }
+ },
+ "one_machine": true,
+ "stage_git_sha": {
+  "files": "d075bcc",
+  "index": "d075bcc",
+  "hnsw": "d075bcc",
+  "variants": "d075bcc"
+ },
+ "git_sha": "d075bcc",
+ "git_dirty": false,
+ "timestamp": "2026-11-12T00:33:26.800685+00:00",
+ "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.served_scale --data-dir <path>/beir_external --container <path>/pgvector_pg16.sif --scratch <path>/run --state <path>/state --resume",
+ "source_sha256": {
+  "app/eval/pgvector_hnsw.py": "4ed5754e5932b2bb54c0b2a4cf24d617085a0a69a6954d914beed777a68694dd",
+  "app/eval/served_scale.py": "a148b12c64ac45c6b1a980b4eeb25ac3633167023d10be227282086816869ed1",
+  "app/database/vector_store_manager.py": "52e940c8d7bf17b8cc6993020292cd6fc7feefc78b07d56496379e457104482c",
+  "app/database/sql/hybrid_tsrank.sql": "149b37e62b7b8411542f49120fa0e11f4030fc5cc7ac6405fa8d062f9d87eb40"
+ }
+}
