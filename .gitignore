@@ -82,6 +82,12 @@ bench/external/
 !bench/results/agent_injection_v3.json
 !bench/results/agent_injection_v3_episodes.meta.json
 bench/results/agent_injection_v3_shards/
+# the adaptive attacker on the held-out questions (make bench-agent-injection-adaptive, or its shards merged by
+# make bench-agent-injection-adaptive-merge); shards and the tuning runs on the training questions stay untracked
+!bench/results/agent_injection_adaptive.json
+!bench/results/agent_injection_adaptive_episodes.meta.json
+bench/results/agent_injection_adaptive_shards/
+bench/results/agent_injection_adaptive_tune/
 # prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
 !bench/results/frontier.json
 !bench/results/frontier_neural.json
