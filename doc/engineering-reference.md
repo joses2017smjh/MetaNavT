@@ -695,10 +695,11 @@ re-run, the cluster read-back and the API's start with and without
 [bench/results/ingest_scale.json](../bench/results/ingest_scale.json). Its
 `before` rows were recorded at the commit that added the command, before
 indexing left the API's start and the clusters stopped reading chunk text; its
-`after` rows at the commit after both. The timings are wall seconds on one
-shared machine, taken hours apart, and leave out Python's imports and the HTTP
-server; the counts beside them (files, rows, chunks embedded, and the rows of
-chunk text each step read, counted on the client) are what a re-run reproduces,
+`after` rows at a later commit, after both. The timings are wall seconds on one
+shared machine, taken at different times (each row records its own timestamp),
+and leave out Python's imports and the HTTP server; the counts beside them
+(files, rows, chunks embedded, and the rows of chunk text each step read,
+counted on the client) are what a re-run reproduces,
 and [tests/eval/test_ingest_scale.py](../tests/eval/test_ingest_scale.py)
 checks that both sets of rows measured the same corpus.
 
