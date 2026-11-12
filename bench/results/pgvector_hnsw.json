@@ -28,7 +28,7 @@
   "ef_construction": 64,
   "bytes": 239943680,
   "built_by": "the schema migrations (app/database/migrations/vector/) on the empty table, then index_directory's inserts, row by row: the served build, which the rows below read",
-  "reindex_seconds": 123.448,
+  "reindex_seconds": 95.25,
   "reindex_note": "a bulk rebuild (REINDEX) of the same index on the final table, after the variants step's VACUUM; the variants rows read the rebuilt indexes"
  },
  "server": {
@@ -61,9 +61,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 254.518,
-    "p95_ms": 261.76,
-    "mean_ms": 255.693
+    "p50_ms": 239.367,
+    "p95_ms": 265.895,
+    "mean_ms": 238.462
    },
    "recall@10": {
     "mean": 1.0
@@ -77,14 +77,14 @@
    "ef_search": 40,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9361,
-    "lo": 0.9272,
-    "hi": 0.9454
+    "mean": 0.9332,
+    "lo": 0.9241,
+    "hi": 0.9426
    },
    "recall@50": {
-    "mean": 0.7771,
-    "lo": 0.7723,
-    "hi": 0.7815
+    "mean": 0.7761,
+    "lo": 0.771,
+    "hi": 0.7809
    },
    "queries_with_full_recall@50": 0,
    "rows_returned": {
@@ -94,9 +94,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 3.163,
-    "p95_ms": 4.45,
-    "mean_ms": 3.216
+    "p50_ms": 2.94,
+    "p95_ms": 4.233,
+    "mean_ms": 2.98
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
@@ -110,16 +110,16 @@
    "ef_search": 64,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.962,
-    "lo": 0.9554,
-    "hi": 0.9685
+    "mean": 0.9608,
+    "lo": 0.9539,
+    "hi": 0.9674
    },
    "recall@50": {
-    "mean": 0.9118,
-    "lo": 0.9052,
-    "hi": 0.9183
+    "mean": 0.9119,
+    "lo": 0.9053,
+    "hi": 0.9182
    },
-   "queries_with_full_recall@50": 87,
+   "queries_with_full_recall@50": 88,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -127,9 +127,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 4.251,
-    "p95_ms": 6.033,
-    "mean_ms": 4.317
+    "p50_ms": 4.065,
+    "p95_ms": 5.74,
+    "mean_ms": 4.196
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
@@ -143,16 +143,16 @@
    "ef_search": 100,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9745,
-    "lo": 0.9693,
-    "hi": 0.9799
+    "mean": 0.9731,
+    "lo": 0.9677,
+    "hi": 0.9785
    },
    "recall@50": {
-    "mean": 0.9449,
-    "lo": 0.9396,
-    "hi": 0.9498
+    "mean": 0.9444,
+    "lo": 0.9389,
+    "hi": 0.9493
    },
-   "queries_with_full_recall@50": 171,
+   "queries_with_full_recall@50": 168,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -160,9 +160,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 5.396,
-    "p95_ms": 7.866,
-    "mean_ms": 5.524
+    "p50_ms": 5.214,
+    "p95_ms": 7.651,
+    "mean_ms": 5.346
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
@@ -176,16 +176,16 @@
    "ef_search": 200,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9897,
-    "lo": 0.986,
-    "hi": 0.9931
+    "mean": 0.9889,
+    "lo": 0.985,
+    "hi": 0.9924
    },
    "recall@50": {
-    "mean": 0.9782,
-    "lo": 0.9754,
-    "hi": 0.9809
+    "mean": 0.9777,
+    "lo": 0.9749,
+    "hi": 0.9805
    },
-   "queries_with_full_recall@50": 350,
+   "queries_with_full_recall@50": 349,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -193,9 +193,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 8.215,
-    "p95_ms": 12.171,
-    "mean_ms": 8.347
+    "p50_ms": 8.269,
+    "p95_ms": 12.391,
+    "mean_ms": 8.541
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
@@ -209,16 +209,16 @@
    "ef_search": 400,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9968,
-    "lo": 0.9951,
-    "hi": 0.9981
+    "mean": 0.9969,
+    "lo": 0.9954,
+    "hi": 0.9983
    },
    "recall@50": {
-    "mean": 0.9919,
-    "lo": 0.9906,
-    "hi": 0.9931
+    "mean": 0.9917,
+    "lo": 0.9903,
+    "hi": 0.9929
    },
-   "queries_with_full_recall@50": 484,
+   "queries_with_full_recall@50": 482,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -226,9 +226,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 13.58,
-    "p95_ms": 20.573,
-    "mean_ms": 14.017
+    "p50_ms": 13.866,
+    "p95_ms": 20.473,
+    "mean_ms": 14.058
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
@@ -242,16 +242,16 @@
    "ef_search": 1000,
    "iterative_scan": "off",
    "recall@10": {
-    "mean": 0.9989,
-    "lo": 0.998,
+    "mean": 0.9991,
+    "lo": 0.9983,
     "hi": 0.9997
    },
    "recall@50": {
-    "mean": 0.9982,
+    "mean": 0.9981,
     "lo": 0.9976,
     "hi": 0.9987
    },
-   "queries_with_full_recall@50": 600,
+   "queries_with_full_recall@50": 598,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -259,9 +259,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 25.289,
-    "p95_ms": 39.114,
-    "mean_ms": 26.478
+    "p50_ms": 29.012,
+    "p95_ms": 44.074,
+    "mean_ms": 29.787
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "settings": {
@@ -277,16 +277,16 @@
     "hnsw.iterative_scan": "strict_order"
    },
    "recall@10": {
-    "mean": 0.9745,
-    "lo": 0.9693,
-    "hi": 0.9799
+    "mean": 0.9731,
+    "lo": 0.9677,
+    "hi": 0.9785
    },
    "recall@50": {
-    "mean": 0.9449,
-    "lo": 0.9396,
-    "hi": 0.9498
+    "mean": 0.9444,
+    "lo": 0.9389,
+    "hi": 0.9493
    },
-   "queries_with_full_recall@50": 171,
+   "queries_with_full_recall@50": 168,
    "rows_returned": {
     "mean": 50.0,
     "min": 50,
@@ -294,9 +294,9 @@
    },
    "latency": {
     "n": 648,
-    "p50_ms": 5.953,
-    "p95_ms": 8.431,
-    "mean_ms": 6.029
+    "p50_ms": 6.082,
+    "p95_ms": 8.888,
+    "mean_ms": 6.243
    },
    "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
    "forced": false,
@@ -307,9 +307,9 @@
   "what": "a halfvec and a bit copy of the embedding column with their HNSW indexes (app/retrieval/pgvector_tune.py HALFVEC_SQL, BINARY_SQL; the measurement's own DDL on this task-local table, not a schema migration) after the rows above were measured; VACUUM (ANALYZE), then each HNSW index rebuilt (REINDEX); then float32 and halfvec at the same ef_search, and binary candidates rescored by float32 cosine (hnsw.ef_search set to the candidate depth, at most 1000)",
   "machine": {
    "device": "cuda",
-   "device_name": "NVIDIA GeForce RTX 2080 Ti",
-   "gpu_memory_gb": 10.6,
-   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+   "device_name": "Quadro RTX 8000",
+   "gpu_memory_gb": 44.3,
+   "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -327,19 +327,19 @@
    "data_llamaindex_embedding_embedding_bit_hnsw": "CREATE INDEX data_llamaindex_embedding_embedding_bit_hnsw ON public.data_llamaindex_embedding USING hnsw (embedding_bit bit_hamming_ops)"
   },
   "build_seconds": {
-   "add_halfvec": 464.725,
-   "add_binary": 997.365,
-   "vacuum_analyze": 28.122,
-   "reindex_float32": 123.448,
-   "reindex_halfvec": 78.958,
-   "reindex_binary": 30.499
+   "add_halfvec": 444.403,
+   "add_binary": 894.639,
+   "vacuum_analyze": 18.036,
+   "reindex_float32": 95.25,
+   "reindex_halfvec": 64.708,
+   "reindex_binary": 22.867
   },
   "sizes_before": {
    "rows": 117212,
-   "heap_bytes": 211337216,
+   "heap_bytes": 211361792,
    "table_bytes_with_toast": 418127872,
-   "indexes_bytes": 274153472,
-   "total_bytes": 692281344,
+   "indexes_bytes": 273014784,
+   "total_bytes": 691142656,
    "indexes": {
     "data_llamaindex_embedding_path_idx": {
      "method": "btree",
@@ -351,7 +351,7 @@
     },
     "data_llamaindex_embedding_text_tsv_english_gin": {
      "method": "gin",
-     "bytes": 26394624
+     "bytes": 25255936
     },
     "llamaindex_embedding_embedding_hnsw_m16_efc64": {
      "method": "hnsw",
@@ -373,14 +373,14 @@
   },
   "sizes_after": {
    "rows": 117212,
-   "heap_bytes": 648077312,
-   "table_bytes_with_toast": 966483968,
-   "indexes_bytes": 493395968,
-   "total_bytes": 1459879936,
+   "heap_bytes": 648208384,
+   "table_bytes_with_toast": 966590464,
+   "indexes_bytes": 492879872,
+   "total_bytes": 1459470336,
    "indexes": {
     "data_llamaindex_embedding_embedding_bit_hnsw": {
      "method": "hnsw",
-     "bytes": 40828928
+     "bytes": 40845312
     },
     "data_llamaindex_embedding_embedding_half_hnsw": {
      "method": "hnsw",
@@ -392,15 +392,15 @@
     },
     "data_llamaindex_embedding_pkey": {
      "method": "btree",
-     "bytes": 5783552
+     "bytes": 5734400
     },
     "data_llamaindex_embedding_text_tsv_english_gin": {
      "method": "gin",
-     "bytes": 59473920
+     "bytes": 58998784
     },
     "llamaindex_embedding_embedding_hnsw_m16_efc64": {
      "method": "hnsw",
-     "bytes": 239943680
+     "bytes": 239935488
     },
     "llamaindex_embedding_idx_1": {
      "method": "btree",
@@ -426,16 +426,16 @@
     "ef_search": 100,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9769,
-     "lo": 0.9721,
-     "hi": 0.9813
+     "mean": 0.9758,
+     "lo": 0.9704,
+     "hi": 0.981
     },
     "recall@50": {
-     "mean": 0.9459,
-     "lo": 0.941,
-     "hi": 0.9507
+     "mean": 0.9445,
+     "lo": 0.9392,
+     "hi": 0.9497
     },
-    "queries_with_full_recall@50": 178,
+    "queries_with_full_recall@50": 172,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -443,9 +443,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 5.593,
-     "p95_ms": 7.971,
-     "mean_ms": 5.682
+     "p50_ms": 4.948,
+     "p95_ms": 6.93,
+     "mean_ms": 4.998
     },
     "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
     "settings": {
@@ -460,16 +460,16 @@
     "ef_search": 1000,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9988,
-     "lo": 0.9978,
-     "hi": 0.9995
+     "mean": 0.9989,
+     "lo": 0.9981,
+     "hi": 0.9997
     },
     "recall@50": {
      "mean": 0.9979,
-     "lo": 0.9973,
+     "lo": 0.9974,
      "hi": 0.9984
     },
-    "queries_with_full_recall@50": 593,
+    "queries_with_full_recall@50": 587,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -477,9 +477,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 29.903,
-     "p95_ms": 42.438,
-     "mean_ms": 30.49
+     "p50_ms": 26.978,
+     "p95_ms": 39.015,
+     "mean_ms": 27.617
     },
     "plan_node": "Index Scan using llamaindex_embedding_embedding_hnsw_m16_efc64",
     "settings": {
@@ -494,16 +494,16 @@
     "ef_search": 100,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9769,
-     "lo": 0.9721,
-     "hi": 0.9813
+     "mean": 0.9745,
+     "lo": 0.969,
+     "hi": 0.9798
     },
     "recall@50": {
-     "mean": 0.9459,
-     "lo": 0.9411,
-     "hi": 0.9506
+     "mean": 0.9444,
+     "lo": 0.9392,
+     "hi": 0.9494
     },
-    "queries_with_full_recall@50": 168,
+    "queries_with_full_recall@50": 166,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -511,9 +511,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 4.086,
-     "p95_ms": 5.376,
-     "mean_ms": 4.126
+     "p50_ms": 3.408,
+     "p95_ms": 4.489,
+     "mean_ms": 3.428
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_half_hnsw",
     "settings": {
@@ -528,16 +528,16 @@
     "ef_search": 1000,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9974,
-     "lo": 0.996,
-     "hi": 0.9986
+     "mean": 0.9978,
+     "lo": 0.9966,
+     "hi": 0.9989
     },
     "recall@50": {
-     "mean": 0.9966,
-     "lo": 0.9959,
-     "hi": 0.9972
+     "mean": 0.9965,
+     "lo": 0.9958,
+     "hi": 0.997
     },
-    "queries_with_full_recall@50": 550,
+    "queries_with_full_recall@50": 542,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -545,9 +545,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 16.353,
-     "p95_ms": 21.97,
-     "mean_ms": 16.678
+     "p50_ms": 13.367,
+     "p95_ms": 17.968,
+     "mean_ms": 13.689
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_half_hnsw",
     "settings": {
@@ -563,14 +563,14 @@
     "ef_search": 50,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.6736,
-     "lo": 0.6559,
-     "hi": 0.6909
+     "mean": 0.6682,
+     "lo": 0.6498,
+     "hi": 0.6861
     },
     "recall@50": {
-     "mean": 0.3894,
-     "lo": 0.379,
-     "hi": 0.3994
+     "mean": 0.3905,
+     "lo": 0.3803,
+     "hi": 0.4008
     },
     "queries_with_full_recall@50": 0,
     "rows_returned": {
@@ -580,9 +580,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 2.383,
-     "p95_ms": 2.874,
-     "mean_ms": 2.389
+     "p50_ms": 1.798,
+     "p95_ms": 2.073,
+     "mean_ms": 1.792
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
@@ -598,14 +598,14 @@
     "ef_search": 100,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.7875,
-     "lo": 0.7722,
-     "hi": 0.8017
+     "mean": 0.7801,
+     "lo": 0.7647,
+     "hi": 0.7952
     },
     "recall@50": {
-     "mean": 0.535,
-     "lo": 0.5229,
-     "hi": 0.5466
+     "mean": 0.5341,
+     "lo": 0.5223,
+     "hi": 0.5455
     },
     "queries_with_full_recall@50": 0,
     "rows_returned": {
@@ -615,9 +615,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 3.797,
-     "p95_ms": 4.628,
-     "mean_ms": 3.803
+     "p50_ms": 2.854,
+     "p95_ms": 3.263,
+     "mean_ms": 2.84
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
@@ -633,16 +633,16 @@
     "ef_search": 200,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.8731,
-     "lo": 0.8616,
-     "hi": 0.884
+     "mean": 0.8716,
+     "lo": 0.8597,
+     "hi": 0.8829
     },
     "recall@50": {
-     "mean": 0.6727,
-     "lo": 0.6608,
-     "hi": 0.6843
+     "mean": 0.6736,
+     "lo": 0.6621,
+     "hi": 0.685
     },
-    "queries_with_full_recall@50": 2,
+    "queries_with_full_recall@50": 3,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -650,9 +650,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 6.434,
-     "p95_ms": 7.63,
-     "mean_ms": 6.403
+     "p50_ms": 4.919,
+     "p95_ms": 5.772,
+     "mean_ms": 4.893
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
@@ -668,16 +668,16 @@
     "ef_search": 400,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9329,
-     "lo": 0.9244,
-     "hi": 0.9412
+     "mean": 0.933,
+     "lo": 0.9245,
+     "hi": 0.941
     },
     "recall@50": {
-     "mean": 0.7972,
-     "lo": 0.7871,
+     "mean": 0.797,
+     "lo": 0.7867,
      "hi": 0.8071
     },
-    "queries_with_full_recall@50": 21,
+    "queries_with_full_recall@50": 24,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -685,9 +685,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 11.307,
-     "p95_ms": 13.252,
-     "mean_ms": 11.319
+     "p50_ms": 8.9,
+     "p95_ms": 10.392,
+     "mean_ms": 8.919
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
@@ -703,16 +703,16 @@
     "ef_search": 1000,
     "iterative_scan": "off",
     "recall@10": {
-     "mean": 0.9728,
-     "lo": 0.9681,
-     "hi": 0.9776
+     "mean": 0.9738,
+     "lo": 0.9687,
+     "hi": 0.9787
     },
     "recall@50": {
-     "mean": 0.9118,
+     "mean": 0.9119,
      "lo": 0.9055,
-     "hi": 0.9183
+     "hi": 0.9184
     },
-    "queries_with_full_recall@50": 102,
+    "queries_with_full_recall@50": 99,
     "rows_returned": {
      "mean": 50.0,
      "min": 50,
@@ -720,9 +720,9 @@
     },
     "latency": {
      "n": 648,
-     "p50_ms": 24.841,
-     "p95_ms": 29.137,
-     "mean_ms": 24.914
+     "p50_ms": 20.569,
+     "p95_ms": 23.592,
+     "mean_ms": 20.53
     },
     "plan_node": "Index Scan using data_llamaindex_embedding_embedding_bit_hnsw",
     "settings": {
@@ -750,11 +750,11 @@
   "torch": "2.5.1+cu121",
   "cuda_available": true,
   "device": "cuda",
-  "device_name": "NVIDIA GeForce RTX 2080 Ti",
+  "device_name": "Quadro RTX 8000",
   "threads": 8,
   "sentence_transformers": "6.1.0",
-  "gpu_memory_gb": 10.6,
-  "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+  "gpu_memory_gb": 44.3,
+  "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
   "allocation": {
    "cpus": "8",
    "memory_mb": "65536"
@@ -776,9 +776,9 @@
  "stage_machines": {
   "files": {
    "device": "cuda",
-   "device_name": "NVIDIA GeForce RTX 2080 Ti",
-   "gpu_memory_gb": 10.6,
-   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+   "device_name": "Quadro RTX 8000",
+   "gpu_memory_gb": 44.3,
+   "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -786,9 +786,9 @@
   },
   "index": {
    "device": "cuda",
-   "device_name": "NVIDIA GeForce RTX 2080 Ti",
-   "gpu_memory_gb": 10.6,
-   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+   "device_name": "Quadro RTX 8000",
+   "gpu_memory_gb": 44.3,
+   "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -796,9 +796,9 @@
   },
   "hnsw": {
    "device": "cuda",
-   "device_name": "NVIDIA GeForce RTX 2080 Ti",
-   "gpu_memory_gb": 10.6,
-   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+   "device_name": "Quadro RTX 8000",
+   "gpu_memory_gb": 44.3,
+   "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -806,9 +806,9 @@
   },
   "variants": {
    "device": "cuda",
-   "device_name": "NVIDIA GeForce RTX 2080 Ti",
-   "gpu_memory_gb": 10.6,
-   "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+   "device_name": "Quadro RTX 8000",
+   "gpu_memory_gb": 44.3,
+   "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
    "allocation": {
     "cpus": "8",
     "memory_mb": "65536"
@@ -817,20 +817,20 @@
  },
  "one_machine": true,
  "stage_git_sha": {
-  "files": "66b0efc",
-  "index": "66b0efc",
-  "hnsw": "66b0efc",
-  "variants": "66b0efc"
+  "files": "6ff210f",
+  "index": "6ff210f",
+  "hnsw": "6ff210f",
+  "variants": "6ff210f"
  },
- "git_sha": "068b42c",
+ "git_sha": "6ff210f",
  "git_dirty": false,
- "timestamp": "2026-11-12T02:47:31.787954+00:00",
+ "timestamp": "2026-11-12T06:17:23.498927+00:00",
  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.served_scale --data-dir <path>/beir_external --container <path>/pgvector_pg16.sif --scratch <path>/run --state <path>/state --resume",
  "source_sha256": {
-  "app/eval/pgvector_hnsw.py": "600c01589d8a9c41bb8eda0e1922c025f6753f7d34f3ec7fb7da3a3d75e2998b",
-  "app/eval/served_scale.py": "d421616136c99f934db8316b5d54ce8b41397f19adf05a580f48971097aca8fa",
-  "app/database/vector_store_manager.py": "77282e49be17645ee9d333c870ba4b56320aaf009603d6089b038355ab797bd8",
-  "app/database/sql/hybrid_tsrank.sql": "07808f8b5942831db419ce34b693b3b59e706a46a79f150eadab1956a8024413",
+  "app/eval/pgvector_hnsw.py": "aae2004c597dc4487e8e3e996c6626464459f4f1f0c224aad73221d70eef0b74",
+  "app/eval/served_scale.py": "114476223fc3bb76e67f518795cd908fbfe1fce3768689c27f54d6719ad0f36a",
+  "app/database/vector_store_manager.py": "da8c06077d77171c3a85f498bc0137ce319da4d8cc4b4768dd9a9c0048707ae1",
+  "app/database/sql/hybrid_tsrank.sql": "9916005fe69dcb3f9f7c306564d470b8a5b862f026b55a62fe51d5d5257e9034",
   "app/retrieval/pgvector_tune.py": "ef63966199768539d31807470a745616f0d333cc2d50559930b8041d33a89b9b",
   "app/database/migrations/vector/0001_data_table.sql": "638f4017948a2d10e5a7d1d9132cd58d9004065fcf56151714a4ad35d5b940e2",
   "app/database/migrations/vector/0002_ingest_manifest.sql": "9ffbd0a81ec78caa805d7173041e2ed5dcf6a1968a24e1aaebd0aa800bde8754",
@@ -838,6 +838,7 @@
   "app/database/migrations/vector/0004_text_gin.sql": "f7f8a54bf1300a1e82e40a8f5b057a3c0845aa4a7724aa5c5b12e9542787059a",
   "app/database/migrations/vector/0005_hnsw_m16_efc64.sql": "7fa182772c26625c4fa3bea8541ae83003687310472a78caf863cd5d339e5c4e",
   "app/database/migrations/vector/0006_text_tsv_column.sql": "7715a54e328f1428d9189f213c0b8cf79bc5f4e24b4c9b589e1956b5bc27cbe5",
-  "app/database/migrations/vector/0007_text_tsv_gin.sql": "f532214e34b4e8b43cee3dedc5cca9c26ebdc0d5cc5d49305ab69f6538ab2c1a"
+  "app/database/migrations/vector/0007_text_tsv_gin.sql": "f532214e34b4e8b43cee3dedc5cca9c26ebdc0d5cc5d49305ab69f6538ab2c1a",
+  "app/database/migrations/vector/0008_manifest_staleness.sql": "9c78c847d1ee679abe803e2268cc8d709bc3ff4af785fa574dda41d8852e841a"
  }
 }
