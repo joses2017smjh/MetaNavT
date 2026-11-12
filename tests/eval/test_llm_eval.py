@@ -794,6 +794,11 @@ def test_both_answers_of_a_question_move_together(monkeypatch):
         times = {q: {counts[f"{x}{i}"] for i, x in enumerate(questions) if x == q} for q in "abc"}
         assert all(len(t) == 1 for t in times.values()), times  # a drawn question brings every one of its answers
         assert sum(t.pop() for t in times.values()) == 3  # three questions drawn per resample
+    drawn.clear()
+    singles = ["b", "a", "c"]  # one answer per question, first appearance not in sorted order
+    llm_eval.kappa_interval([("correct", q) for q in singles], singles)
+    # questions are numbered in order of first appearance, so the draws are the per-answer ones (sorted order is not)
+    assert drawn == [[singles[i] for i in row] for row in np.random.RandomState(0).randint(0, 3, (2000, 3))]
     monkeypatch.undo()
     cal = _calibration_set()
     pairs = [(r["checks"]["exact_match_label"], r["correctness"]["j"]["label"]) for r in cal]
