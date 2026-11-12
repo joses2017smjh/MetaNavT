@@ -11,7 +11,6 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 from llama_index.core.tools import FunctionTool, BaseTool
 
-from app.engine.index import get_index
 from app.database.vector_store import get_vector_store_manager
 from app.engine.tools import create_tool_callback
 
@@ -19,9 +18,16 @@ logger = logging.getLogger(__name__)
 
 # The most paths one list_available_files call returns (the LIMIT 100 of the team's query).
 MAX_LISTED_FILES = 100
-# What the model gets when the manifest cannot be read; the reason (it can name the host,
-# the port or the table) goes to the API's log only.
+# The longest text one get_file_content call returns; the rest is cut with a note. The tool used
+# to return one chunk at most, and the index step accepts files up to 1 MiB (INGEST_MAX_FILE_BYTES).
+MAX_CONTENT_CHARS = 20_000
+# What the model gets when the index cannot be read; the reason (it can name the host, the port
+# or the table) goes to the API's log only.
 LIST_FAILED = "Error: the list of indexed files could not be read."
+READ_FAILED = "Error: the file could not be read from the index."
+# A path the index holds no chunk of, or none given: an answer, not a failure. The path itself is
+# not repeated back.
+NOT_FOUND = "Not found: the index holds no file at that path. list_available_files lists the indexed paths."
 
 class ListFileSchema(BaseModel):
     pattern: str = Field(
@@ -34,47 +40,70 @@ class GetFileSchema(BaseModel):
         description="Path to the file that should be retrieved from the index"
     )
 
-def get_file_by_path(
-    file_path: str = Field(
-        description="Path to the file that should be retrieved from the index"
-    )
-) -> str:
+def file_text(chunks: List[Dict[str, Any]]) -> str:
+    """
+    A file's text rebuilt from its stored chunks ({"text", "start_byte", "end_byte",
+    "verbatim"} each, in any order), as VectorStoreManager.chunks_of_path returns them.
+
+    The byte ranges are UTF-8 offsets into the file (app/eval/ingest.file_chunks). A chunk
+    that is not verbatim was stored with context in front of its source slice (a CSV row
+    behind the header line, a block of a split YAML file behind the header block;
+    app/chunking/structure.py), so its slice is the last end_byte - start_byte bytes of
+    its text. Overlapping windows (the fixed window, a re-cut long section) are not
+    repeated. Whitespace-only stretches the chunker left out are not stored: where one
+    was, a line break is added if the text before it does not end a line.
+    """
+    out = bytearray()
+    covered = 0
+    for chunk in sorted(chunks, key=lambda c: (c["start_byte"], c["end_byte"])):
+        data = chunk["text"].encode("utf-8")
+        start, end = chunk["start_byte"], chunk["end_byte"]
+        if not chunk["verbatim"] and 0 <= end - start <= len(data):
+            data = data[len(data) - (end - start):]
+        if out and start > covered and out[-1:] not in (b"\n", b"\r"):
+            out += b"\n"
+        out += data[max(0, covered - start):]
+        covered = max(covered, end)
+    return out.decode("utf-8", errors="replace")
+
+
+def get_file_by_path(file_path: str = "") -> str:
     """
     Get file content from the index based on file path.
-    
-    This tool searches the document index for a document with the specified file path
-    in its metadata and returns the content.
-    
+
+    The file is looked up by the path the ingest manifest and list_available_files give
+    (relative to DATA_DIR, e.g. configs/run_047.yaml) with a parameterized query on the
+    chunk rows (VectorStoreManager.chunks_of_path), and its text is rebuilt from all of
+    its chunks (file_text). This used to pass a plain dict as metadata filters to a query
+    engine, which raised on every call (the error came back as text), compared the
+    absolute file_path the rows carry, and returned one chunk after an LLM synthesis
+    call. The vector store's own MetadataFilters are not used: the installed
+    PGVectorStore formats a filter value into the SQL text, and this value is whatever
+    path the model sends.
+
     Args:
-        file_path: Path of the file to retrieve
-        
+        file_path: Path of the file to retrieve. A plain "" default, not a pydantic
+            Field: the agent passes only the arguments the model gave.
+
     Returns:
-        Content of the file as a string
+        Content of the file as a string (cut after MAX_CONTENT_CHARS characters, with a
+        note), NOT_FOUND when no chunk carries that path or none is given, READ_FAILED
+        when the index cannot be read.
     """
-    # Get the index
-    index = get_index()
-    if not index:
-        return "Error: Document index not available"
-    
-    # Query for documents with matching file_path in metadata
-    query_engine = index.as_query_engine(
-        filters={"file_path": {"$eq": file_path}},
-        similarity_top_k=1
-    )
-    
-    # Get the document
+    path = file_path.strip() if isinstance(file_path, str) else ""
+    if not path:
+        return NOT_FOUND
     try:
-        response = query_engine.query("")  # Empty query to just get the document
-        
-        if not response.source_nodes:
-            return f"Error: No document found with path {file_path}"
-        
-        # Return the content of the first matching document
-        return response.source_nodes[0].get_content()
-        
-    except Exception as e:
-        logger.error(f"Error retrieving file from index: {str(e)}")
-        return f"Error: {str(e)}"
+        chunks = get_vector_store_manager().chunks_of_path(path)
+    except Exception as exc:  # noqa: BLE001 - the workflow would hand str(exc) to the model
+        logger.error(f"get_file_content: the file's chunks could not be read: {type(exc).__name__}: {exc}")
+        return READ_FAILED
+    if not chunks:
+        return NOT_FOUND
+    text = file_text(chunks)
+    if len(text) > MAX_CONTENT_CHARS:
+        return text[:MAX_CONTENT_CHARS] + f"\n[truncated: {len(text) - MAX_CONTENT_CHARS} more characters]"
+    return text
 
 def list_available_files(pattern: str = "*") -> Union[List[str], str]:
     """

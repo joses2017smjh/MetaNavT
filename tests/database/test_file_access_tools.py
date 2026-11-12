@@ -86,3 +86,27 @@ def test_a_pattern_filters_the_listed_files(served):
     assert _call("list_available_files", pattern="*.py").raw_output == [p for p in listing if p.endswith(".py")]
     assert _call("list_available_files", pattern="configs/run_047.yaml").raw_output == ["configs/run_047.yaml"]
     assert _call("list_available_files", pattern="nothing/*").raw_output == []
+
+
+def test_get_file_content_returns_every_fixture_file_by_its_relative_path(served):
+    corpus, listing, _ = served
+    for path in listing:  # the paths list_available_files gives, as the model would pass them on
+        out = _call("get_file_content", file_path=path)
+        assert not out.is_error
+        assert out.raw_output == (corpus / path).read_bytes().decode("utf-8"), path
+
+
+def test_a_path_the_index_does_not_hold_is_not_found_and_is_matched_literally(served):
+    from app.database.vector_store import get_vector_store_manager
+    from app.engine.tools.index_file_access import NOT_FOUND
+
+    corpus, _, _ = served
+    rows = get_vector_store_manager().count_nodes()
+    for path in ("configs/missing.yaml", "../configs/run_047.yaml", "/etc/passwd",
+                 str(corpus / "configs" / "run_047.yaml"),  # the absolute form the rows also carry (file_path)
+                 "x' OR '1'='1", "configs/run_047.yaml' OR 'a'='a",  # with the store's filter builder, all rows
+                 "configs/run_047.yaml'; DELETE FROM data_x; --", ""):
+        out = _call("get_file_content", file_path=path)
+        assert not out.is_error and out.raw_output == NOT_FOUND, path
+    assert _call("get_file_content").raw_output == NOT_FOUND  # no argument at all
+    assert get_vector_store_manager().count_nodes() == rows

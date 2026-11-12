@@ -701,6 +701,20 @@ class VectorStoreManager(DatabaseManager):
                 rows = cur.fetchall()
         return [{"path": r[0], "content_hash": r[1], "mtime": r[2], "member_node_id": r[3]} for r in sorted(rows, key=lambda r: r[0])]
 
+    def chunks_of_path(self, path: str) -> list[dict]:
+        """The chunk rows of one indexed file, by the path the manifest lists (relative to DATA_DIR), in byte order:
+        {"text", "start_byte", "end_byte", "verbatim"} each (verbatim: the text is the source slice itself, see
+        app/engine/ingest.build_nodes). The path is a query parameter, compared with the expression the path index
+        (vector/0003) covers; [] when no row carries it."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL(
+                    "SELECT text, (metadata_->>'start_byte')::bigint, (metadata_->>'end_byte')::bigint, "
+                    "metadata_->>'text_is_verbatim' FROM {table} WHERE metadata_->>'path' = %s ORDER BY 2, 3, node_id;"
+                ).format(table=sql.Identifier(self.schema_name, self.data_table)), (path,))
+                rows = cur.fetchall()
+        return [{"text": r[0], "start_byte": int(r[1]), "end_byte": int(r[2]), "verbatim": r[3] != "false"} for r in rows]
+
     def rows_per_path(self) -> dict[str, int]:
         """{path: chunk rows} for every row that carries a path, what the manifest's n_chunks must equal."""
         with self.get_connection() as conn:
