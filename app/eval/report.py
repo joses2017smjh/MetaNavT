@@ -632,8 +632,8 @@ def startup_before_after(blob: dict, earlier: dict | None) -> str | None:
                 "The two runs ran on different machines, so the seconds are not a speed comparison; the row counts do not depend on the machine.")
     return (f"Start-up before and after M20 (a start builds the version clusters from the manifest instead of reading every chunk back): the earlier run, "
             f"[{SERVED_SCALE_PRE_M20_FILE}]({SERVED_SCALE_PRE_M20_FILE}) ({scale_sha(earlier)}; {m0}), read all {c0['rows_read']} chunks ({c0['text_bytes_read']} bytes of "
-            f"chunk text) at every start: build_clusters {c0['build_clusters_seconds']} s in the runner, of which reading the rows back (fetch_all_chunks, timed separately) "
-            f"{c0['fetch_all_chunks_seconds']} s; launch to /health ok {then['api']['seconds_to_health_ok']} s. This run ({scale_sha(blob)}; {m1}) read {c1['text_rows_read']} rows "
+            f"chunk text) at every start: build_clusters {c0['build_clusters_seconds']} s in the runner, reading the rows back included (that read alone, "
+            f"fetch_all_chunks in a call of its own, {c0['fetch_all_chunks_seconds']} s); launch to /health ok {then['api']['seconds_to_health_ok']} s. This run ({scale_sha(blob)}; {m1}) read {c1['text_rows_read']} rows "
             f"of chunk text: build_clusters {c1['build_clusters_seconds']} s from the {c1['manifest']['files']} manifest rows; launch to /health ok "
             f"{now['api']['seconds_to_health_ok']} s. {machines} Nothing else of the earlier file is rendered here: this run measured everything again.")
 

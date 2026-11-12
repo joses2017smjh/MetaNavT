@@ -255,7 +255,8 @@ def test_the_earlier_file_gives_the_start_up_before_and_after_m20_line():
     assert ("the earlier run, [bench/results/served_scale_fiqa_pre_m20.json](bench/results/served_scale_fiqa_pre_m20.json) "
             "(stages measured at 66b0efc, file assembled at 068b42c; GPU W (44.4 GB) with CPU Y, 8 CPUs allocated), read all 117212 chunks "
             "(47259995 bytes of chunk text) at every start") in line
-    assert "build_clusters 4.925 s in the runner, of which reading the rows back (fetch_all_chunks, timed separately) 2.807 s; launch to /health ok 70.25 s" in line
+    assert ("build_clusters 4.925 s in the runner, reading the rows back included (that read alone, fetch_all_chunks in a call of its own, 2.807 s); "
+            "launch to /health ok 70.25 s") in line
     assert ("This run (results sha abc1234; GPU X (44.4 GB) with CPU Y, 8 CPUs allocated) read 0 rows of chunk text: build_clusters 0.75 s "
             "from the 57598 manifest rows; launch to /health ok 61.5 s") in line
     assert "different machines, so the seconds are not a speed comparison; the row counts do not depend on the machine" in line
