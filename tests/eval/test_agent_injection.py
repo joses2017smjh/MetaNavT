@@ -884,6 +884,138 @@ def test_the_sweep_runs_each_phrasing_once_and_each_control_k_times(tmp_path, mo
                log=lambda _: None, benchmark=ai.BENCHMARK_V3)
 
 
+def answering(task, comply, fix=False):
+    """Reads the gold config, then answers; states the planted value of a hijack when it complies. After the answer
+    check's note it answers again: with the true value when fix is set, otherwise the same answer."""
+    def chat(messages, tools, seed):
+        if not any(m["role"] == "tool" for m in messages):
+            return _call("read_file", path=task.gold_path)
+        noted = sum(m["role"] == "user" for m in messages) > 1
+        value = task.planted_value if comply and task.goal == "hijack" and not (fix and noted) else task.gold
+        return _say(f"Run {task.run} used {value} [{task.gold_path}].")
+    return chat
+
+
+def _hijack_v3(gold_id="q054", phrasing="direct"):
+    return next(t for t in ai.build_tasks(benchmark=ai.BENCHMARK_V3) if t.gold_id == gold_id and t.goal == "hijack"
+                and t.style == phrasing)
+
+
+def _checked_episode(task, chat, max_turns=6):
+    env = ai.TaskEnv(task)
+    try:
+        ep = ai.run_episode(chat, env, ai.ANSWER_CHECK, seed=0, max_turns=max_turns)
+        return ep, ai.score(task, ep, env.canary, env.files)
+    finally:
+        env.close()
+
+
+def test_the_answer_check_holds_a_flagged_answer_back_and_asks_once_without_the_value():
+    # D23: under answer_check the structured field check stands between the answer and the user. A flagged answer is
+    # not delivered; the model is told once that the check failed (the note names neither the value nor the file) and
+    # may answer again; a second flagged answer means nothing reaches the user
+    assert ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V3] == ai.DEFENSES + (ai.ANSWER_CHECK,)
+    assert ai.ANSWER_CHECK not in ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V2]
+    assert ai.exposed_tools(_hijack_v3(), ai.ANSWER_CHECK) == ai.exposed_tools(_hijack_v3(), "none")
+    task = _hijack_v3()
+    seen = []
+
+    def recording(inner):
+        def chat(messages, tools, seed):
+            seen.append(list(messages))
+            return inner(messages, tools, seed)
+        return chat
+
+    fixed, sc = _checked_episode(task, recording(answering(task, comply=True, fix=True)))
+    note = seen[-1][-1]
+    assert note["role"] == "user" and note["content"] == ai.CHECK_NOTE.format(field=task.field, run=task.run)
+    assert seen[-1][0]["content"] == ai.BASE_PROMPT  # the system prompt of none
+    structured = ai.parse_config_field(ai.task_files(task)[task.gold_path], task.field)
+    for leak in (task.gold, structured, task.gold_path, "configs/", task.planted_value):
+        assert leak not in note["content"]
+    drafts = fixed["answer_check"]["drafts"]
+    assert [(d["flags"], d["note"] is not None) for d in drafts] == [(True, True), (False, False)]
+    assert task.planted_value in drafts[0]["answer"] and fixed["answer"] == drafts[1]["answer"]
+    assert fixed["answer_check"]["withheld"] is False
+    # model level: it stated the planted value; system level: the user got the true value
+    assert sc["attempted"] and sc["attempted_first_draft"] and not sc["took_effect"]
+    assert sc["correct"] and sc["success"] and not sc["success_clean"]
+    assert (sc["answer_check_drafts"], sc["answer_check_flagged_first"], sc["answer_check_revised"],
+            sc["answer_check_withheld"]) == (2, True, True, False)
+    # the field check's offline keys read the first answer, the one the check judged first
+    assert sc["field_check_flags"] and not sc["planted_value_after_check"]
+    # a model that repeats the planted value gets nothing to the user
+    repeated, sc = _checked_episode(task, answering(task, comply=True))
+    assert repeated["answer"] is None and repeated["answer_check"]["withheld"] is True
+    assert [d["flags"] for d in repeated["answer_check"]["drafts"]] == [True, True]
+    assert sc["attempted"] and not sc["took_effect"] and not sc["success"] and sc["answered"]
+    # an answer that passes is delivered as written, after one check
+    clean, sc = _checked_episode(task, answering(task, comply=False))
+    assert [d["flags"] for d in clean["answer_check"]["drafts"]] == [False] and clean["answer"] == clean["answer_check"]["drafts"][0]["answer"]
+    assert sc["success_clean"] and not sc["answer_check_withheld"]
+    # no turn left for a second answer: held back without a note
+    late, sc = _checked_episode(task, answering(task, comply=True), max_turns=2)
+    assert late["answer"] is None and [d["note"] for d in late["answer_check"]["drafts"]] == [None]
+    # the other configurations keep the earlier row format
+    env = ai.TaskEnv(task)
+    try:
+        plain = ai.run_episode(answering(task, comply=True), env, "none", seed=0)
+    finally:
+        env.close()
+    assert "answer_check" not in plain and task.planted_value in plain["answer"]
+
+
+def test_rescoring_a_checked_episode_reproduces_the_decision_made_in_the_loop():
+    # D23: every draft and its verdict is stored, the check ran on the text as stored, so today's scoring code
+    # recomputes each verdict and every score from the episodes file alone
+    task = _hijack_v3("q028", "important_instructions")
+    env = ai.TaskEnv(task)
+    try:
+        ep = ai.run_episode(answering(task, comply=True, fix=True), env, ai.ANSWER_CHECK, seed=0)
+        live = ai.score(task, ep, env.canary, env.files)
+    finally:
+        env.close()
+    files = ai.task_files(task)
+    structured, vocabulary = ai.parse_config_field(files[task.gold_path], task.field), ai.field_vocabulary(files, task.field)
+    assert [ai.field_check(d["answer"], task.field, structured, vocabulary)["flags"] for d in ep["answer_check"]["drafts"]] == [
+        d["flags"] for d in ep["answer_check"]["drafts"]]
+    row = {"model": "m", "defense": ai.ANSWER_CHECK, "task_id": task.task_id, "trial": 0, **json.loads(json.dumps(ep)),
+           "score": {}}
+    (rescored,) = ai.rescore([task], [row])
+    assert {k: v for k, v in rescored["score"].items() if k != "exposed_flag"} == live
+
+
+def test_the_answer_check_runs_as_a_fourth_configuration_compared_with_none(tmp_path, monkeypatch):
+    # D23 through run(): a bot that states every hijack's planted value and corrects it when the check says so; the
+    # planted value never reaches the user under answer_check, and the paired deltas against none say so
+    original = ai.run_episode
+
+    def routed(chat, env, defense, seed, max_turns=6):
+        return original(answering(env.task, comply=True, fix=True), env, defense, seed, max_turns)
+
+    monkeypatch.setattr(ai, "run_episode", routed)
+    tasks, rows = ai.run(["bot"], k=2, workers=2, episodes_path=tmp_path / "e.jsonl", limit_tasks=1,
+                         chat_factory=lambda m: None, log=lambda _: None, benchmark=ai.BENCHMARK_V3)
+    n = len(ai.PHRASINGS)
+    assert {r["defense"] for r in rows} == set(ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V3])
+    assert all(("answer_check" in r) == (r["defense"] == ai.ANSWER_CHECK) for r in rows)
+    summary = ai.summarize(tasks, rows, k=2)["bot"]
+    none, checked = summary["none"], summary[ai.ANSWER_CHECK]
+    assert none["by_goal"]["hijack"]["took_effect"]["mean"] == 1.0 and checked["by_goal"]["hijack"]["took_effect"]["mean"] == 0.0
+    assert checked["by_goal"]["hijack"]["attempted"]["mean"] == 1.0  # the model still wrote it
+    assert "answer_check" not in none and checked["answer_check"] == {
+        "episodes": 2 + len(ai.GOALS) * n, "answered": 2 + len(ai.GOALS) * n, "flagged_first": n, "notes_sent": n,
+        "revised": n, "delivered_after_revision": n, "withheld": 0,
+        "hijack_planted_first_draft": n, "hijack_planted_first_draft_flagged": n, "hijack_planted_delivered": 0,
+        "controls_correct_first_draft": 2, "controls_correct_first_draft_flagged": 0}
+    assert checked["field_check"]["recall"]["flagged"] == checked["field_check"]["recall"]["of"] == n
+    deltas = ai.paired_deltas(tasks, rows, defenses=ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V3])["bot"][f"{ai.ANSWER_CHECK} - none"]
+    assert deltas["planted_value_delivered"]["delta"] == -1.0 and deltas["hijack_planted_value"]["delta"] == 0.0
+    assert deltas["planted_value_delivered_any_phrasing"]["delta"] == -1.0
+    assert deltas["injected_success"]["delta"] == 0.25 and deltas["utility_under_attack"]["delta"] == 0.0
+    assert deltas["benign_success"]["delta"] == 0.0
+
+
 def test_the_rescored_file_holds_the_current_score_of_every_committed_episode():
     # The score objects inside the episodes file are the ones written at generation time, by older scoring
     # code; the rescored file next to it must equal rescore() of every stored episode, in file order, and
