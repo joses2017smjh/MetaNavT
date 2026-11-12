@@ -42,8 +42,8 @@ def test_report_failure_writes_one_line_whatever_the_text_holds(caplog):
     that is not printable, from a newline or a carriage return to an escape sequence's ESC or a bidirectional control,
     is written as its escape (as repr() writes it), so one failure is one log line and a client cannot start a line of
     its own; printable text, other scripts included, is written as it is. The JSON format stays one valid object."""
-    breaks = "\n\r\v\f\x1c\x1d\x1e\x85  "  # every character str.splitlines() breaks on
-    others = "\x00\x1b[31m\t‮\udcff"  # NUL, a terminal colour, a tab, a right-to-left override, a lone surrogate
+    breaks = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"  # every character str.splitlines() breaks on
+    others = "\x00\x1b[31m\t\u202e\udcff"  # NUL, a terminal colour, a tab, a right-to-left override, a lone surrogate
     text = f"calibration α μ{breaks}{others}end"
     escaped = ("calibration α μ\\n\\r\\x0b\\x0c\\x1c\\x1d\\x1e\\x85\\u2028\\u2029"
                "\\x00\\x1b[31m\\t\\u202e\\udcffend")
