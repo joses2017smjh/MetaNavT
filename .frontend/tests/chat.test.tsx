@@ -1,5 +1,6 @@
 // organize-imports-ignore: "./dom" must stay the first import (it sets up the browser globals the others read)
 import "./dom";
+import ApiKeyField from "@/app/components/api-key-field";
 import ChatSection from "@/app/components/chat-section";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import assert from "node:assert/strict";
@@ -88,5 +89,31 @@ describe("chat section", () => {
     render(<ChatSection />);
     await screen.findByText("What is in the corpus?");
     assert.equal(calls[0].headers.has("X-API-Key"), false);
+  });
+
+  it("asks for the starter questions again once a key is entered", async () => {
+    const calls = mockApi((call) =>
+      call.headers.get("X-API-Key") === KEY
+        ? json({ starterQuestions: ["What is in the corpus?"] })
+        : json({ detail: "missing or invalid API key" }, 401),
+    );
+    render(
+      <>
+        <ApiKeyField />
+        <ChatSection />
+      </>,
+    );
+    await waitFor(() => assert.equal(calls.length, 1));
+    assert.equal(screen.queryByText("What is in the corpus?"), null);
+
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: KEY },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Use key" }));
+    await screen.findByText("What is in the corpus?");
+    assert.deepEqual(
+      calls.map((call) => `${call.path} ${call.headers.get("X-API-Key")}`),
+      ["/api/chat/config null", `/api/chat/config ${KEY}`],
+    );
   });
 });
