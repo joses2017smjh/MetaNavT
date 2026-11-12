@@ -129,8 +129,12 @@ def claims(root: Path = ROOT) -> list[dict]:
                 order = "; Recall@10 on the slice is unchanged, so the gain is ordering only" if r10 and r10.get("delta") == 0 and r10.get("lo") == 0 and r10.get("hi") == 0 else ""
                 moved = rc.get("questions_changed")  # D04: how many of the slice's questions the delta rests on
                 rests = f" (nDCG@10 rose on {moved['up']} of them and fell on {moved['down']})" if moved else ""
+                from app.eval.report import negative_slices  # keep losers visible: the categories the router loses on
+
+                lost = "; ".join(f"{b['category']} {' '.join(_ci(b['ndcg@10'], 'delta'))} (n = {b['n']})" for b in negative_slices(router))
+                losers = f"; on categories it is not aimed at its nDCG@10 delta is negative: {lost}" if lost else ""
                 out.append({"claim": f"Fixture v1: router on its own category ({rc['category']}) over the reranked hybrid, paired delta in nDCG@10", "value": d, "ci": ci, "n": rc["n"], "command": "make bench", "source": src,
-                            "not_shown": f"n = {rc['n']}{rests} and {zero}; hash embeddings and the overlap reranker{order}; the earlier README figure 0.596 -> 0.938 compared against plain RRF and overstated the router"})
+                            "not_shown": f"n = {rc['n']}{rests} and {zero}{losers}; hash embeddings and the overlap reranker{order}; the earlier README figure 0.596 -> 0.938 compared against plain RRF and overstated the router"})
             out.append({"claim": "Fixture v1: Recall@50 of the full CI pipeline", "value": f"{full['retrieval']['recall@50']:.3f}", "ci": _ci(full['ci']['recall@50'])[1], "n": n, "command": "make bench", "source": src,
                         "not_shown": f"a random list with the same number of unique files ({full['retrieval'].get('mean_unique_paths@50', 0):.0f} of {main['n_files']}) scores {full['retrieval'].get('random_recall@50', 0):.3f}; the metric mostly measures list length"})
     neural = _load(FILES["neural"], root)

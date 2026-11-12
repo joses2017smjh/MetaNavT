@@ -150,6 +150,10 @@ def headline(blob: dict) -> str:
                 f"The router's exact-path gain, nDCG@10 {cat_off['ndcg@10']:.3f} → {cat_on['ndcg@10']:.3f}, "
                 f"rests on n = {int(cat_on['n'])} questions."
             )
+        losers = negative_slices(on)
+        if losers:
+            parts.append(f"Its nDCG@10 delta against the reranked hybrid is negative on the {_and([b['category'] for b in losers])} "
+                         f"slice{'s' if len(losers) > 1 else ''} (intervals in the per-category lines below the table).")
     rand = r_full.get("random_recall@50")
     if rand is not None:
         parts.append(
@@ -213,7 +217,8 @@ def table(blob: dict) -> str:
             lines.append(f"| {cat} | {int(sc['n'])} | {sc['ndcg@10']:.3f} | {sc.get('recall@10', 0):.3f} | {sc['recall@50']:.3f} |")
     cat_lines = _category_delta_lines(rows)
     if cat_lines:
-        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice):", ""] + cat_lines
+        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice); "
+                      "under each, every other category where that delta is negative:", ""] + cat_lines
     if boot:
         lines += [
             "",
@@ -221,6 +226,18 @@ def table(blob: dict) -> str:
             f"{boot.get('rng')}. Results file sha {_sha(blob)}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
         ]
     return "\n".join(lines)
+
+
+def negative_slices(row: dict) -> list[dict]:
+    """Keep losers visible: the gold categories, other than the one the row's mechanism is aimed at, where its paired
+    nDCG@10 delta against its parent is negative (delta_vs_parent_by_category_all), whatever their intervals say."""
+    target = (row.get("delta_vs_parent_by_category") or {}).get("category")
+    return [b for b in row.get("delta_vs_parent_by_category_all") or []
+            if b.get("category") != target and (b.get("ndcg@10") or {}).get("delta", 0.0) < 0]
+
+
+def _and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def _questions_changed(block: dict) -> str:
@@ -244,6 +261,15 @@ def _category_delta_lines(rows: list[dict]) -> list[str]:
             f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}"
             f"{_questions_changed(cd)}."
         )
+        losers = negative_slices(row)
+        for block in losers:
+            out.append(
+                f"  - `{row['config']}` on `{block['category']}`, n = {block['n']}{' (small n)' if block.get('small_n') else ''}, "
+                f"a category it is not aimed at: nDCG@10 {_delta(block.get('ndcg@10'))} ({_zero_note(block.get('ndcg@10'))}), "
+                f"Recall@10 {_delta(block.get('recall@10'))}{_questions_changed(block)}."
+            )
+        if not losers and row.get("delta_vs_parent_by_category_all"):
+            out.append(f"  - `{row['config']}`: no other category has a negative nDCG@10 delta.")
     return out
 
 
@@ -349,7 +375,7 @@ def neural_table(blob: dict | None) -> str:
         lines += ["", " ".join(parts)]
     cat_lines = _category_delta_lines(rows)
     if cat_lines:
-        lines += ["", "Per-category paired deltas vs parent (small n):", ""] + cat_lines
+        lines += ["", "Per-category paired deltas vs parent (small n); under each, every other category where that delta is negative:", ""] + cat_lines
     return "\n".join(lines)
 
 
