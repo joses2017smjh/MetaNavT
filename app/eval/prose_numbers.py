@@ -23,10 +23,10 @@ are not results, each with its reason).
 A phrase that no longer occurs in the document is an error, so the list cannot go stale. So a number typed into the
 prose is either cited, and then checked, or classified on purpose.
 
-Not checked: fenced code blocks (their numbers are code and commands) and generated blocks
-(<!-- name:start ... --> ... <!-- name:end -->, which `make bench-table-check` checks). This module checks only the
-documents in NOT_RESULTS (the engineering reference); README.md's numbers are generated blocks, and PLAN.md's status
-column has its own test (tests/eval/test_plan_status.py).
+Not checked: numbers spelled out in words ("nine", "Forty"), fenced code blocks (their numbers are code and
+commands) and generated blocks (<!-- name:start ... --> ... <!-- name:end -->, which `make bench-table-check`
+checks). The documents checked are the keys of NOT_RESULTS: the engineering reference and the README's prose outside
+its generated blocks. PLAN.md's status column has its own test (tests/eval/test_plan_status.py).
 
     python -m app.eval.prose_numbers          # exit 1 and list the problems if a number is wrong or unclassified
 """
@@ -42,6 +42,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC = "doc/engineering-reference.md"
+README = "README.md"
 
 CITATION = re.compile(r"<!--\s*num:(?P<body>.*?)-->")
 # A number standing on its own: not glued on the left to a letter, digit or one of . @ # : + - = _ (so nDCG@10, fp16,
@@ -102,6 +103,14 @@ NOT_RESULTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("pgvector 0.8 or later", "a library version"),
         ("Phase 10", "a section number of PLAN.md"),
     ),
+    README: (
+        ("independent 2026 work", "a year"),
+        ("October 14, 2026", "the date the evidence table was checked"),
+        ("October 7", "the day of the October evaluation, which names its results directory"),
+        ("Python **3.11 or 3.12**", "the Python versions a clean clone supports"),
+        ("results sha 2583576", "a commit id"),
+        ("GeForce RTX 2080 Ti", "a GPU's name"),
+    ),
 }
 
 
@@ -117,9 +126,10 @@ class Token:
 class Problem:
     line: int
     message: str
+    doc: str = DOC
 
     def __str__(self) -> str:
-        return f"{DOC}:{self.line}: {self.message}"
+        return f"{self.doc}:{self.line}: {self.message}"
 
 
 def _blank(text: str, pattern: str) -> str:
@@ -279,10 +289,11 @@ def _classified_by_rule(line: str, token: Token) -> str | None:
     return None
 
 
-def check(text: str, root: Path = ROOT, not_results: tuple[tuple[str, str], ...] | None = None) -> list[Problem]:
+def check(text: str, root: Path = ROOT, not_results: tuple[tuple[str, str], ...] | None = None, doc: str = DOC) -> list[Problem]:
     """Every problem with the numbers of one document's prose: a cited number that differs from its source, a
-    citation that does not resolve, a number neither cited nor classified, a NOT_RESULTS phrase that no longer occurs."""
-    phrases = NOT_RESULTS.get(DOC, ()) if not_results is None else not_results
+    citation that does not resolve, a number neither cited nor classified, a NOT_RESULTS phrase that no longer occurs.
+    `doc` names the document (its NOT_RESULTS list, and the name the problems print)."""
+    phrases = NOT_RESULTS.get(doc, ()) if not_results is None else not_results
     problems: list[Problem] = []
     cache: dict = {}
     used_phrases: set[str] = set()
@@ -330,20 +341,25 @@ def check(text: str, root: Path = ROOT, not_results: tuple[tuple[str, str], ...]
     for phrase, _ in phrases:
         if phrase not in used_phrases:
             problems.append(Problem(0, f"NOT_RESULTS phrase no longer classifies a number of the prose: {phrase!r}"))
+    for problem in problems:
+        problem.doc = doc
     return problems
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.parse_args(argv)
-    problems = check((ROOT / DOC).read_text(encoding="utf-8"))
-    for problem in problems:
-        print(problem)
-    if problems:
-        print(f"{len(problems)} problem(s) with the numbers of {DOC}", file=sys.stderr)
-        return 1
-    print(f"every number in the prose of {DOC} is cited and matches its source, or is classified as not a result")
-    return 0
+    failed = 0
+    for doc in NOT_RESULTS:
+        problems = check((ROOT / doc).read_text(encoding="utf-8"), doc=doc)
+        for problem in problems:
+            print(problem)
+        if problems:
+            print(f"{len(problems)} problem(s) with the numbers of {doc}", file=sys.stderr)
+            failed += 1
+        else:
+            print(f"every number in the prose of {doc} is cited and matches its source, or is classified as not a result")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

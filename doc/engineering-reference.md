@@ -4,7 +4,7 @@
 
 This reference retains the detailed feature walkthrough, experiments, setup options, and team attribution from the project README. Generated benchmark tables remain in the [README evidence appendix](../README.md#generated-benchmark-evidence), where the existing generator and tests keep them synchronized. Demo illustrations, deterministic fixtures, model-backed runs, and prototypes have different scopes; read each section’s labels.
 
-Every number in this reference's prose is either cited, by an HTML comment beside it that names the results file (a JSON pointer) or the source line it comes from, or listed in `app/eval/prose_numbers.py` as not a result (a version, a year, a run id, an HTTP status). `make doc-numbers-check` (and `tests/eval/test_prose_numbers.py`, in CI) fails when a cited number differs from its source or a number is neither cited nor listed. Numbers inside code blocks are not checked, and the README's numbers are its generated blocks (`make bench-table-check`).
+Every number written in digits in this reference's prose is either cited, by an HTML comment beside it that names the results file (a JSON pointer) or the source line it comes from, or listed in `app/eval/prose_numbers.py` as not a result (a version, a year, a run id, an HTTP status). `make doc-numbers-check` (and `tests/eval/test_prose_numbers.py`, in CI) fails when a cited number differs from its source or a number is neither cited nor listed; the README's prose outside its generated blocks is checked the same way, and the generated blocks by `make bench-table-check`. Not checked: numbers spelled out in words and numbers inside code blocks.
 
 # MetaNaviT
 
@@ -521,8 +521,8 @@ flowchart LR
   Q[query] --> R[route]
   R --> P[plan]
   P --> S[hybrid search]
-  R -.->|path lookup and BM25, no rerank| S
-  R -.->|count / min / max, no rerank| S
+  R -. path lookup and BM25, no rerank .-> S
+  R -. count / min / max, no rerank .-> S
   S --> G[grade]
   G -->|enough| C[cite + answer]
   G -->|weak| W[rewrite]

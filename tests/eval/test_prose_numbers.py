@@ -155,3 +155,31 @@ def test_a_drifted_value_in_a_cited_results_file_fails(tmp_path):
     (tmp_path / rel).write_text(json.dumps(blob))
     problems = [p.message for p in pn.check(text, tmp_path)]
     assert problems and all("differs from its source" in p and "attack_cases" in p for p in problems)
+
+
+def test_the_readme_prose_numbers_match_their_sources():
+    """The README's prose outside its generated blocks (the evidence table, the fixture size) is checked the same way."""
+    problems = pn.check((ROOT / pn.README).read_text(encoding="utf-8"), doc=pn.README)
+    assert problems == [], "\n".join(map(str, problems))
+    assert set(pn.NOT_RESULTS) == {pn.DOC, pn.README}
+
+
+def test_a_drifted_number_in_the_readme_fails():
+    text = (ROOT / pn.README).read_text(encoding="utf-8")
+    assert "**5,633" not in text and "5,633 nodes" in text, "the README no longer states the node count this test edits"
+    problems = pn.check(text.replace("5,633 nodes", "5,634 nodes", 1), doc=pn.README)
+    assert problems and all(p.doc == pn.README for p in problems) and any("differs from its source" in p.message for p in problems)
+
+
+def test_every_cited_file_is_tracked_by_git():
+    """A citation into an ignored or untracked file passes here and fails on a fresh clone (CI)."""
+    import subprocess
+
+    if not (ROOT / ".git").exists():
+        import pytest
+
+        pytest.skip("not a git checkout")
+    cited = sorted(_cited_files(_reference()) | _cited_files((ROOT / pn.README).read_text(encoding="utf-8")))
+    tracked = subprocess.run(["git", "-c", "pack.threads=1", "-C", str(ROOT), "ls-files", "--", *cited],
+                             capture_output=True, text=True, check=True).stdout.split()
+    assert sorted(tracked) == cited, sorted(set(cited) - set(tracked))

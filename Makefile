@@ -100,7 +100,7 @@ evidence-check: ## exit 1 if docs/RESUME_EVIDENCE.md drifted from the results fi
 	$(PYTHON) -m app.eval.evidence --check
 
 .PHONY: doc-numbers-check
-doc-numbers-check: ## exit 1 if a number in the prose of doc/engineering-reference.md differs from the file it cites, or is neither cited nor classified
+doc-numbers-check: ## exit 1 if a number in the prose of doc/engineering-reference.md or README.md (outside generated blocks) differs from the file it cites, or is neither cited nor classified
 	$(PYTHON) -m app.eval.prose_numbers
 
 bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml]); rewrites bench/results/jury.json, the M4 record, with today's protocol

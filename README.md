@@ -30,7 +30,7 @@ Research directories contain near-duplicate configurations, archived results, an
 
 [![Illustrated lexical and dense candidate lists combined through reciprocal rank fusion](doc/gifs/hybrid.gif)](doc/engineering-reference.md#hybrid-search)
 
-*Illustrated ranking flow. The displayed Recall@50 comes from the 61-file fixture, where retrieving most files makes coverage easy; it is not a claim about external-domain ranking quality.*
+*Illustrated ranking flow. The displayed Recall@50 comes from the 61-file<!-- num: bench/results/main.json#/n_files --> fixture, where retrieving most files makes coverage easy; it is not a claim about external-domain ranking quality.*
 
 ### Keep archived evidence from becoming the answer
 
@@ -44,10 +44,10 @@ Research directories contain near-duplicate configurations, archived results, an
 
 | Evaluation | Published finding | Scope |
 | --- | --- | --- |
-| NFCorpus | Hybrid nDCG@10 **0.3637**, versus **0.3207** for BM25 | 323 official test queries; the added reranker reduced the hybrid score. [Results](bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) |
-| FiQA | Dense nDCG@10 **0.3848**, versus **0.3645** for hybrid | 648 test queries; hybrid is not the best choice on every corpus. [Results](bench/results/revamp_20261007/beir_fiqa_gpu.json) |
-| Robotics-file lookup | Path context increased source-file Recall@10 **0.058 → 0.671** | 240 generated test questions with disjoint experiment families; this measures file retrieval, not answer correctness. [Results](bench/results/robotics_file_lookup_revalidated_2026-10-07.json) |
-| Neural HTTP service | Client p95 **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16** | H100, 600 files, 5,633 nodes; 16 requests per level, all 48 measured requests succeeded. A short workload, not a capacity claim. [Results](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json) |
+| NFCorpus | Hybrid nDCG@10 **0.3637**, versus **0.3207** for BM25 | 323 official test queries; the added reranker reduced the hybrid score.<!-- num: bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json#/results/[config=hybrid@bge-small]/retrieval/ndcg@10; #/results/[config=bm25]/retrieval/ndcg@10; #/n_queries --> [Results](bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) |
+| FiQA | Dense nDCG@10 **0.3848**, versus **0.3645** for hybrid | 648 test queries; hybrid is not the best choice on every corpus.<!-- num: bench/results/revamp_20261007/beir_fiqa_gpu.json#/results/[config=dense@bge-small]/retrieval/ndcg@10; #/results/[config=hybrid@bge-small]/retrieval/ndcg@10; #/n_queries --> [Results](bench/results/revamp_20261007/beir_fiqa_gpu.json) |
+| Robotics-file lookup | Path context increased source-file Recall@10 **0.058 → 0.671** | 240 generated test questions with disjoint experiment families; this measures file retrieval, not answer correctness.<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/test/bm25_body/recall@10/mean; #/summary/test/bm25_path_context/recall@10/mean; #/labels/test --> [Results](bench/results/robotics_file_lookup_revalidated_2026-10-07.json) |
+| Neural HTTP service | Client p95 **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16** <!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/runs/[concurrency=1]/e2e_all_attempts/p95_ms; #/runs/[concurrency=4]/e2e_all_attempts/p95_ms; #/runs/[concurrency=16]/e2e_all_attempts/p95_ms; #/workload/concurrency_levels/0; #/workload/concurrency_levels/1; #/workload/concurrency_levels/2 --> | H100, 600 files, 5,633 nodes; 16 requests per level, all 48 measured requests succeeded.<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/deployment/data_files; #/health/n_nodes; #/workload/requests_per_level; #/measured_attempts/succeeded --> A short workload, not a capacity claim. [Results](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json) |
 
 The small frozen fixture uses **hash embeddings and overlap reranking**. Its full pipeline does not establish an overall ranking improvement over BM25. Model-backed retrieval, generated answers, and mobile fixture replays have different dependencies and evidence. [Full generated measurements](#generated-benchmark-evidence) · [HTTP load studies](doc/engineering-reference.md#measured-neural-http-service).
 
@@ -117,7 +117,7 @@ python3 scripts/smoke_retrieve.py --require-bm25
 docker compose down
 ```
 
-The default stack indexes the committed 61-file fixture. Responses disclose the lexical backend (PostgreSQL `ts_rank_cd`, the default of the `LEXICAL_BACKEND` setting, not BM25), the hash embedder, and the absent neural reranker. This is a retrieval API demo; generated chat additionally needs Ollama, and the default image does not build the Next.js interface. [Full application, real models, and deployment options](doc/engineering-reference.md#run-it).
+The default stack indexes the committed 61-file<!-- num: bench/results/main.json#/n_files --> fixture. Responses disclose the lexical backend (PostgreSQL `ts_rank_cd`, the default of the `LEXICAL_BACKEND` setting, not BM25), the hash embedder, and the absent neural reranker. This is a retrieval API demo; generated chat additionally needs Ollama, and the default image does not build the Next.js interface. [Full application, real models, and deployment options](doc/engineering-reference.md#run-it).
 
 <a id="android-and-ios-companion-backend"></a>
 
