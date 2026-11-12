@@ -951,7 +951,13 @@ changes, with the capped fp32 row added. The nine rows it shares with the
 earlier recording keep every metric, interval and the published-score
 difference; what changed is the timing columns (per-query latency and build
 time), the GPU, and the fp16 row's paired delta, which is now against fp32 at
-the same cap.
+the same cap. Both this file and the FiQA file were then recorded once more, each
+from a fresh clone of a clean commit, so that their headers carry the full
+commit, the clean-tree flag and the hashes of the code that ran: no metric,
+interval, paired delta or TREC run changed. Their document embeddings came from
+the on-disk cache the earlier runs wrote (SciFact's on the GPU the previous file
+named, FiQA's on the October run's), and the queries and the reranker ran on the
+GPU the new files name.
 
 [Current generated bench-beir evidence](../README.md#bench-beir) ·
 [BM25 settings one at a time](../README.md#bench-beir-bm25).
