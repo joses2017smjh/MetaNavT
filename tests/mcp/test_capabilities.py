@@ -146,6 +146,25 @@ def test_a_refused_patch_artifact_or_visualization_proposal_leaves_nothing_in_th
     assert other.artifacts == other.visualizations == other._reviews == {}
 
 
+@pytest.mark.parametrize("tool", ["apply_plan", "apply_patch", "apply_artifact", "apply_visualization"])
+def test_every_apply_tool_answers_an_unknown_plan_alike(tmp_path, tool):
+    """Without a capability (no token, or no verifier to check one) an apply_* call is refused by the
+    capability_required check before its plan is looked up, so an unknown plan id is answered as a known one is, and
+    the audit trail names the check. apply_visualization used to look its plan up first and raise KeyError. With a
+    verifier and a token, an unknown plan is a KeyError for all four."""
+    tools, key, _verifier, plan = _setup(tmp_path)
+    token = sign_review(plan["review"], key, actor="operator")  # valid, for another plan
+    for gate, arguments in ((tools, {"plan_id": "unknown"}),
+                            (FilesystemTools(root=tools.root), {"plan_id": "unknown", "approval_token": token})):
+        with pytest.raises(ApprovalRequired) as refused:
+            gate.call(tool, arguments)
+        assert refusal_check(refused.value) == "capability_required"
+        assert gate.audit_events[-1]["action"] == tool and gate.audit_events[-1]["check"] == "capability_required"
+    with pytest.raises(KeyError):
+        tools.call(tool, {"plan_id": "unknown", "approval_token": token})
+    assert tools.audit_events[-1]["detail"] == "KeyError" and tools.audit_events[-1]["check"] is None
+
+
 # One verifier in a process of its own, on the shared ledger file: it says "ready", waits for "go" on stdin, consumes
 # the capability and prints what happened. The parent starts two and lets both go at once.
 LEDGER_CHILD = r"""

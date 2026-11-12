@@ -150,7 +150,8 @@ def test_an_answer_names_no_server_path_host_or_user_only_a_refusals_check_or_an
              ("read_file", {"path": "link.txt"}),                      # 6 refused by the symlink check
              ("apply_plan", {"plan_id": "p", "approved": True}),       # 7 refused: a caller's approval flag
              ("apply_plan", {"plan_id": "p", "approval_token": "x"}),  # 8 refused: no verifier, so no capability counts
-             ("read_file", {"path": "configs/run_047.yaml"})]          # 9 answered
+             ("read_file", {"path": "configs/run_047.yaml"}),          # 9 answered
+             ("apply_visualization", {"plan_id": "p"})]                # 10 refused as 8, before the plan is looked up
     responses, stderr = rpc(root, calls, "--no-index", code=FAILING_STAT)
 
     answers = json.dumps(responses)
@@ -170,6 +171,7 @@ def test_an_answer_names_no_server_path_host_or_user_only_a_refusals_check_or_an
                                         + REFUSAL_CHECKS["approval_argument"])
     assert error_text(responses[8]) == ("Error executing tool apply_plan: refused by the capability_required check: "
                                         + REFUSAL_CHECKS["capability_required"])
+    assert error_text(responses[10]) == error_text(responses[8]).replace("apply_plan", "apply_visualization")
     assert stderr.count("[id ") == 5  # a refusal is answered, not logged as a failure
     assert result(responses[9])["path"] == "configs/run_047.yaml"
 

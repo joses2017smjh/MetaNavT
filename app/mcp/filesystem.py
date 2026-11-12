@@ -359,9 +359,14 @@ class FilesystemTools:
             raise ValueError("this action has no review options")
         return review
 
-    def _authorize(self, plan_id: str, action: str, approval_token: str | None, **options) -> dict:
+    def _require_capability(self, plan_id: str, approval_token: str | None) -> None:
+        """The first check of every apply_* call, before its plan is looked up: no token, or no verifier to check
+        one, is refused by the capability_required check, whether the plan exists or not."""
         if self.approval_verifier is None or not approval_token:
             raise ApprovalRequired(plan_id)
+
+    def _authorize(self, plan_id: str, action: str, approval_token: str | None, **options) -> dict:
+        self._require_capability(plan_id, approval_token)
         review = self.review_plan(plan_id, **options)
         if review["action"] != action:
             raise ApprovalError("capability action mismatch", check="action_mismatch")
@@ -618,6 +623,7 @@ class FilesystemTools:
     ) -> dict:
         from app.artifacts.visualization import execute_matlab
 
+        self._require_capability(plan_id, approval_token)  # as in the other apply_* tools, before the lookup
         plan = self.visualizations.get(plan_id)
         if plan is None:
             raise KeyError(f"unknown visualization {plan_id}")
