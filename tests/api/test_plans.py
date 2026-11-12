@@ -167,6 +167,56 @@ def test_an_approval_whose_ledger_cannot_be_written_is_503_and_moves_nothing(cli
     assert client.app.state.plans.log.rows[-1]["result"] == "failed: RuntimeError"
 
 
+class _ResultNotLogged(_MemoryLog):
+    """A decision log that takes the intent, then cannot take the result: its database went down in between."""
+
+    def update(self, record):
+        raise RuntimeError('relation "plan_decisions" on db.internal.example:5432 (role metanavit_user) is not reachable')
+
+
+def test_a_saved_decision_whose_result_cannot_be_logged_is_answered_with_the_decision(client, corpus, operator_grant, caplog):
+    """The plan's status is saved before the decision log gets the attempt's result. When only that last write fails,
+    the answer is the decision as GET reports it (it was a bare 500 for a plan already decided), and the cause goes
+    to the server log only."""
+    store = PlanStore(FilesystemTools(root=corpus), _ResultNotLogged())
+    client.app.state.plans = store
+    kept = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "configs/archive/run_047.yaml"}).json()
+    rejected = client.post(f"/api/plans/{kept['plan_id']}/reject", json={"actor": "jose"})
+    assert (rejected.status_code, rejected.json()["status"]) == (200, "rejected")
+    moved = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "archive/run_047.yaml"}).json()
+    token = operator_grant(store.tools, moved["review"])
+    approved = client.post(f"/api/plans/{moved['plan_id']}/approve", json={"approval_token": token})
+    assert (approved.status_code, approved.json()["status"]) == (200, "applied")
+    assert (corpus / "archive" / "run_047.yaml").exists() and client.get(f"/api/plans/{moved['plan_id']}").json()["status"] == "applied"
+    # A 200 carries the review (hashes, device and inode numbers), so the needles are the error's own words.
+    assert not [needle for resp in (rejected, approved) for needle in ('relation "plan_decisions"', "db.internal.example", "metanavit_user")
+                if needle in resp.text]
+    assert [row["result"] for row in store.log.rows] == ["pending", "pending"]  # the intents; neither result reached the log
+    assert "plan_decisions" in caplog.text  # the server log has the cause
+
+
+def test_a_move_whose_audit_event_cannot_be_written_after_it_ran_is_answered_as_applied(client, corpus, operator_grant, caplog):
+    """The grant is consumed and the file moved when the audit event after the move fails: the answer, the plan and
+    the decision log say applied, and the cause goes to the server log only."""
+    store = client.app.state.plans
+    plan = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "configs/archive/run_047.yaml"}).json()
+    token = operator_grant(store.tools, plan["review"])
+    verifier = store.tools.approval_verifier
+    real_audit = verifier.audit
+
+    def audit(plan_id, action, result, detail=""):
+        if result == "applied":  # the event written after the move
+            raise RuntimeError("could not write approval_audit on db.internal.example:5432 as metanavit_user")
+        return real_audit(plan_id, action, result, detail)
+
+    verifier.audit = audit
+    resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": token})
+    assert (resp.status_code, resp.json()["status"]) == (200, "applied")
+    assert (corpus / "configs" / "archive" / "run_047.yaml").exists() and store.log.rows[-1]["result"] == "applied"
+    assert not [needle for needle in ("approval_audit", "db.internal.example", "metanavit_user") if needle in resp.text]
+    assert "approval_audit" in caplog.text
+
+
 def test_a_failed_start_tells_the_client_an_approval_error_and_only_the_class_of_anything_else(client):
     client.app.state.plans = None
     client.app.state.startup_error = 'OperationalError: connection to server at "db.internal.example", port 5432 failed'

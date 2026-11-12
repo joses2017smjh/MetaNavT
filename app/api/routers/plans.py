@@ -28,7 +28,9 @@ are decided one after the other.
 
 A database failure answers 503 with a fixed text; its cause (which can name tables, hosts and ports) goes
 to the server log only, and an operating system error's text (file names) is replaced by a fixed one in
-the answer and in the decision log (told()). build_plan_store(None), without a database (the API tests),
+the answer and in the decision log (told()). A record that fails to be written after the fact (the audit
+event of a move that has run, the decision log's copy of the result of a saved decision) is logged and the
+answer is the decision. build_plan_store(None), without a database (the API tests),
 keeps the rows in a MemoryPlans object instead of the table.
 """
 
@@ -312,7 +314,11 @@ class PlanStore:
             logger.error(f"plan store: deciding plan {plan_id} failed: {type(exc).__name__}: {exc}")
             raise HTTPException(status_code=503, detail=STORE_UNAVAILABLE) from exc
         if self.log is not None:
-            self.log.update(record)
+            try:
+                self.log.update(record)
+            except Exception as exc:  # noqa: BLE001 - the decision is saved; only the log's copy of its result is missing
+                logger.error(f"decision log: the result of {action} on plan {plan_id} ({record['result']}) was not "
+                             f"written; its intent row reads pending: {type(exc).__name__}: {exc}")
         return self.view(plan_id)
 
     def _apply(self, row: PlanRow, approval_token: str | None, record: dict[str, Any]) -> str:
