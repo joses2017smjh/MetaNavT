@@ -4,8 +4,13 @@ Hybrid Retriever with RRF Fusion and Cross-Encoder Reranking
 Combines BM25 (sparse) and vector (dense) retrieval using Reciprocal Rank
 Fusion, then reranks results with a cross-encoder model.
 
-Retrieve wide (top-50) and cheap, then rerank to top-8. Optional rule-based
-query router skips embed+rerank for exact path lookups.
+Retrieve wide and cheap: the dense and lexical lists hold RETRIEVE_K (default 50)
+candidates each. A configured cross-encoder then reranks only the fused top
+RERANK_DEPTH (default 20); the rest of the fused list keeps its RRF order, and
+the first RERANK_TOP_N (default 8), or as many as the caller asks for, are
+returned. The optional rule-based query router skips the query embedding and the
+reranker on exact path lookups (lexical_path) and the reranker on aggregation
+questions (aggregation_query).
 """
 
 import os
