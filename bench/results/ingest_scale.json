@@ -1,0 +1,495 @@
+{
+  "schema": "ingest-scale-v1",
+  "embedder": "hash-256 (fallback: deterministic hashing, no model)",
+  "fixture_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "corpus": "copy 0 of bench/corpus/files as it is, copies 1..n-1 with one line added to each file; mtimes from the MANIFEST plus the copy number",
+  "timings": "seconds on the machine in each row's device block, median of the row's samples; index_first is one run",
+  "rows": [
+    {
+      "label": "before",
+      "git_sha": "5c3b192",
+      "worktree_clean": true,
+      "timestamp": "2026-11-12T00:54:11.725144+00:00",
+      "command": "python -m app.engine.ingest_scale --label before",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.16",
+        "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 64,
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "size": "1x",
+      "copies": 1,
+      "corpus": {
+        "files": 61,
+        "bytes": 12764,
+        "sha256": "bcc4c07bf550c0f357728ce18929dbbefda7fd2ed38e56d0af2a023b6c7bf6d4"
+      },
+      "postgres": "16.15",
+      "pgvector": "0.8.6",
+      "files_seen": 61,
+      "files_rejected": 0,
+      "rows": 71,
+      "index_first": {
+        "seconds": 0.4512,
+        "files_indexed": 61,
+        "chunks_embedded": 71
+      },
+      "index_unchanged": {
+        "seconds": 0.0223,
+        "samples": [
+          0.0219,
+          0.0223,
+          0.023
+        ],
+        "files_unchanged": 61,
+        "chunks_embedded": 0,
+        "text_rows_read": 0
+      },
+      "clusters": {
+        "seconds": 0.0027,
+        "samples": [
+          0.0028,
+          0.0027,
+          0.0022
+        ],
+        "clusters": 4,
+        "members": 8,
+        "text_rows_read": 71,
+        "text_statements": 1
+      },
+      "startup_index_on_start": {
+        "seconds": 0.0556,
+        "samples": [
+          0.2378,
+          0.0556,
+          0.0504
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 71,
+        "text_statements": 1
+      },
+      "startup_no_index": {
+        "seconds": 0.0307,
+        "samples": [
+          0.0307,
+          0.0296,
+          0.0312
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 71,
+        "text_statements": 1
+      }
+    },
+    {
+      "label": "before",
+      "git_sha": "5c3b192",
+      "worktree_clean": true,
+      "timestamp": "2026-11-12T00:54:18.832234+00:00",
+      "command": "python -m app.engine.ingest_scale --label before",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.16",
+        "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 64,
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "size": "10x",
+      "copies": 10,
+      "corpus": {
+        "files": 610,
+        "bytes": 132401,
+        "sha256": "980e1fdc075424100278c4280084b45e8af5831efe5159103e99a942be004447"
+      },
+      "postgres": "16.15",
+      "pgvector": "0.8.6",
+      "files_seen": 610,
+      "files_rejected": 0,
+      "rows": 719,
+      "index_first": {
+        "seconds": 4.4706,
+        "files_indexed": 610,
+        "chunks_embedded": 719
+      },
+      "index_unchanged": {
+        "seconds": 0.1647,
+        "samples": [
+          0.1457,
+          0.3024,
+          0.1647
+        ],
+        "files_unchanged": 610,
+        "chunks_embedded": 0,
+        "text_rows_read": 0
+      },
+      "clusters": {
+        "seconds": 0.0215,
+        "samples": [
+          0.024,
+          0.0215,
+          0.0215
+        ],
+        "clusters": 57,
+        "members": 610,
+        "text_rows_read": 719,
+        "text_statements": 1
+      },
+      "startup_index_on_start": {
+        "seconds": 0.201,
+        "samples": [
+          0.1936,
+          0.201,
+          0.221
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 719,
+        "text_statements": 1
+      },
+      "startup_no_index": {
+        "seconds": 0.0714,
+        "samples": [
+          0.0845,
+          0.0714,
+          0.0621
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 719,
+        "text_statements": 1
+      }
+    },
+    {
+      "label": "before",
+      "git_sha": "5c3b192",
+      "worktree_clean": true,
+      "timestamp": "2026-11-12T00:55:24.272961+00:00",
+      "command": "python -m app.engine.ingest_scale --label before",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.16",
+        "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 64,
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "size": "100x",
+      "copies": 100,
+      "corpus": {
+        "files": 6100,
+        "bytes": 1334261,
+        "sha256": "97e2f5f16bf4f8d5d6f579ae8a6f54f1f01cbc6d7e28fa57e64399b95cdb8706"
+      },
+      "postgres": "16.15",
+      "pgvector": "0.8.6",
+      "files_seen": 6100,
+      "files_rejected": 0,
+      "rows": 7199,
+      "index_first": {
+        "seconds": 46.3398,
+        "files_indexed": 6100,
+        "chunks_embedded": 7199
+      },
+      "index_unchanged": {
+        "seconds": 1.5392,
+        "samples": [
+          1.5874,
+          1.3707,
+          1.5392
+        ],
+        "files_unchanged": 6100,
+        "chunks_embedded": 0,
+        "text_rows_read": 0
+      },
+      "clusters": {
+        "seconds": 0.3456,
+        "samples": [
+          0.3456,
+          0.249,
+          0.3538
+        ],
+        "clusters": 57,
+        "members": 6100,
+        "text_rows_read": 7199,
+        "text_statements": 1
+      },
+      "startup_index_on_start": {
+        "seconds": 1.7787,
+        "samples": [
+          1.7471,
+          1.7787,
+          1.8381
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 7199,
+        "text_statements": 1
+      },
+      "startup_no_index": {
+        "seconds": 0.2839,
+        "samples": [
+          0.2797,
+          0.416,
+          0.2839
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 7199,
+        "text_statements": 1
+      }
+    },
+    {
+      "label": "after",
+      "git_sha": "3f64dca",
+      "worktree_clean": true,
+      "timestamp": "2026-11-12T01:51:25.571496+00:00",
+      "command": "python -m app.engine.ingest_scale --label after",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.16",
+        "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 64,
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "size": "1x",
+      "copies": 1,
+      "corpus": {
+        "files": 61,
+        "bytes": 12764,
+        "sha256": "bcc4c07bf550c0f357728ce18929dbbefda7fd2ed38e56d0af2a023b6c7bf6d4"
+      },
+      "postgres": "16.15",
+      "pgvector": "0.8.6",
+      "files_seen": 61,
+      "files_rejected": 0,
+      "rows": 71,
+      "index_first": {
+        "seconds": 0.4999,
+        "files_indexed": 61,
+        "chunks_embedded": 71
+      },
+      "index_unchanged": {
+        "seconds": 0.0218,
+        "samples": [
+          0.0232,
+          0.0218,
+          0.0211
+        ],
+        "files_unchanged": 61,
+        "chunks_embedded": 0,
+        "text_rows_read": 0
+      },
+      "clusters": {
+        "seconds": 0.0009,
+        "samples": [
+          0.0016,
+          0.0009,
+          0.0008
+        ],
+        "clusters": 4,
+        "members": 8,
+        "text_rows_read": 0,
+        "text_statements": 0
+      },
+      "startup_index_on_start": {
+        "seconds": 0.0597,
+        "samples": [
+          0.2232,
+          0.0597,
+          0.0571
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 0,
+        "text_statements": 0
+      },
+      "startup_no_index": {
+        "seconds": 0.0309,
+        "samples": [
+          0.0331,
+          0.0309,
+          0.0307
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 0,
+        "text_statements": 0
+      }
+    },
+    {
+      "label": "after",
+      "git_sha": "3f64dca",
+      "worktree_clean": true,
+      "timestamp": "2026-11-12T01:51:32.480996+00:00",
+      "command": "python -m app.engine.ingest_scale --label after",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.16",
+        "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 64,
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "size": "10x",
+      "copies": 10,
+      "corpus": {
+        "files": 610,
+        "bytes": 132401,
+        "sha256": "980e1fdc075424100278c4280084b45e8af5831efe5159103e99a942be004447"
+      },
+      "postgres": "16.15",
+      "pgvector": "0.8.6",
+      "files_seen": 610,
+      "files_rejected": 0,
+      "rows": 719,
+      "index_first": {
+        "seconds": 4.6249,
+        "files_indexed": 610,
+        "chunks_embedded": 719
+      },
+      "index_unchanged": {
+        "seconds": 0.1417,
+        "samples": [
+          0.1417,
+          0.2564,
+          0.1157
+        ],
+        "files_unchanged": 610,
+        "chunks_embedded": 0,
+        "text_rows_read": 0
+      },
+      "clusters": {
+        "seconds": 0.0074,
+        "samples": [
+          0.008,
+          0.0073,
+          0.0074
+        ],
+        "clusters": 57,
+        "members": 610,
+        "text_rows_read": 0,
+        "text_statements": 0
+      },
+      "startup_index_on_start": {
+        "seconds": 0.1829,
+        "samples": [
+          0.1849,
+          0.1799,
+          0.1829
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 0,
+        "text_statements": 0
+      },
+      "startup_no_index": {
+        "seconds": 0.0406,
+        "samples": [
+          0.0417,
+          0.0406,
+          0.0385
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 0,
+        "text_statements": 0
+      }
+    },
+    {
+      "label": "after",
+      "git_sha": "3f64dca",
+      "worktree_clean": true,
+      "timestamp": "2026-11-12T01:52:36.298043+00:00",
+      "command": "python -m app.engine.ingest_scale --label after",
+      "device": {
+        "requested": "cpu",
+        "python": "3.11.16",
+        "platform": "Linux-4.18.0-553.166.1.el8_10.x86_64-x86_64-with-glibc2.28",
+        "cpu_count": 64,
+        "torch": null,
+        "cuda_available": false,
+        "device": "cpu",
+        "device_name": "cpu",
+        "threads": null,
+        "sentence_transformers": null
+      },
+      "size": "100x",
+      "copies": 100,
+      "corpus": {
+        "files": 6100,
+        "bytes": 1334261,
+        "sha256": "97e2f5f16bf4f8d5d6f579ae8a6f54f1f01cbc6d7e28fa57e64399b95cdb8706"
+      },
+      "postgres": "16.15",
+      "pgvector": "0.8.6",
+      "files_seen": 6100,
+      "files_rejected": 0,
+      "rows": 7199,
+      "index_first": {
+        "seconds": 47.8611,
+        "files_indexed": 6100,
+        "chunks_embedded": 7199
+      },
+      "index_unchanged": {
+        "seconds": 1.4171,
+        "samples": [
+          1.5728,
+          1.2001,
+          1.4171
+        ],
+        "files_unchanged": 6100,
+        "chunks_embedded": 0,
+        "text_rows_read": 0
+      },
+      "clusters": {
+        "seconds": 0.0781,
+        "samples": [
+          0.0779,
+          0.1472,
+          0.0781
+        ],
+        "clusters": 57,
+        "members": 6100,
+        "text_rows_read": 0,
+        "text_statements": 0
+      },
+      "startup_index_on_start": {
+        "seconds": 1.503,
+        "samples": [
+          1.503,
+          1.5332,
+          1.4188
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 0,
+        "text_statements": 0
+      },
+      "startup_no_index": {
+        "seconds": 0.1062,
+        "samples": [
+          0.1047,
+          0.1884,
+          0.1062
+        ],
+        "chunks_embedded": 0,
+        "text_rows_read": 0,
+        "text_statements": 0
+      }
+    }
+  ]
+}

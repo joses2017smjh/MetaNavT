@@ -1,7 +1,7 @@
 """Content-hash diff for incremental reindex: which files to embed again, which to drop.
 
 Called by app/eval/ingest.plan_ingest, which the served indexer (app/engine/ingest.py) runs
-on every API start with INDEX_ON_START.
+in every indexing run: the index step, and an API start with INDEX_ON_START.
 """
 
 from __future__ import annotations

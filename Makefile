@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-v2 bench-jury-v2-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic bench-agent-injection-v2 bench-agent-injection-v2-rescore migrate migrate-check bench-served-scale
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-v2 bench-jury-v2-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic bench-agent-injection-v2 bench-agent-injection-v2-rescore migrate migrate-check bench-served-scale ingest-scale index
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -236,8 +236,15 @@ migrate:        ## the deploy step: apply pending schema migrations (PG_CONNECTI
 migrate-check:  ## list pending schema migrations, exit 1 if any (applies nothing)
 	$(PYTHON) -m app.database.migrate --check
 
+index:          ## the index step, after migrate and before the API: DATA_DIR into pgvector, only new and changed files embedded (PG_CONNECTION_STRING, DATA_DIR, the embedder settings); prints the report, exit 1 on failure
+	$(PYTHON) -m app.engine.ingest
+
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
 	$(PYTHON) -m app.engine.ingest_runs
+
+INGEST_SCALE_LABEL ?=
+ingest-scale:   ## indexing and start-up time at 1x, 10x and 100x copies of the fixture, hash embedder (PG_TEST_DSN); INGEST_SCALE_LABEL=before|after names the rows it writes, other rows are kept -> bench/results/ingest_scale.json
+	$(PYTHON) -m app.engine.ingest_scale --label $(INGEST_SCALE_LABEL)
 
 explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN (fixture v1 already indexed) -> doc/sql/hybrid_explain.txt
 	$(PYTHON) scripts/explain_hybrid.py

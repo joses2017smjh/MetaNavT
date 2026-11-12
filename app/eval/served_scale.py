@@ -22,8 +22,10 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
                  from pg_indexes; sizes on disk; index_directory again over the unchanged directory (what
                  INDEX_ON_START=true costs per start)
   startup        the API (uvicorn main:app, INDEX_ON_START unset, both models), seconds from launch to /health
-                 ok; then what every start reads, timed here in the runner: every chunk back (fetch_all_chunks)
-                 and the version clusters (bootstrap.build_clusters)
+                 ok, and that /health against the build (the manifest the start read, the rows); then what every
+                 start reads from the database, timed here in the runner: the migration ledgers, the manifest
+                 summary and the version clusters, which bootstrap.build_clusters makes from the manifest, with
+                 the rows of chunk text those reads return counted (a start read every chunk back before M20)
   probe          a few hybrid statements and lexical-only statements, timed in this process before the replay
   replay_rerank  every test query through POST /api/retrieve/ with k = 50 and the served defaults (reranker on)
   load           app/eval/http_load on that API: concurrency 1, 4 and 16, k = 8, failures counted
@@ -420,20 +422,50 @@ def not_indexed(corpus: dict, qrels: dict, indexed_paths: set[str]) -> dict:
     return {"n": len(missing), "ids": missing, "judged": judged, "queries": sorted(q for q, docs in qrels.items() if set(docs) & set(judged))}
 
 
-def startup_components(vsm) -> dict:
-    """What every API start reads with staleness on (the default): all chunks back, then the version clusters."""
+def start_up_reads(vsm) -> dict:
+    """What app/engine/bootstrap.build_retrieval_state reads from the database once the deploy step and the index step
+    have run, with INDEX_ON_START unset and staleness on (the defaults), each read timed: the migration ledgers
+    (check_migrations), the manifest summary /health reports, and the version clusters, which build_clusters makes
+    from the manifest (VectorStoreManager.cluster_records, then staleness.cluster_versions) since M20."""
     from app.engine.bootstrap import build_clusters
 
+    out: dict[str, Any] = {}
     started = time.perf_counter()
-    rows = vsm.fetch_all_chunks()
-    fetch = time.perf_counter() - started
-    text_bytes = sum(len((r["text"] or "").encode("utf-8")) for r in rows)
-    del rows
+    vsm.check_migrations()
+    out["check_migrations_seconds"] = round(time.perf_counter() - started, 3)
+    started = time.perf_counter()
+    out["manifest"] = vsm.manifest_summary()
+    out["manifest_summary_seconds"] = round(time.perf_counter() - started, 3)
     started = time.perf_counter()
     clusters = build_clusters(vsm)
-    total = time.perf_counter() - started
-    return {"fetch_all_chunks_seconds": round(fetch, 3), "build_clusters_seconds": round(total, 3), "rows_read": vsm.count_nodes(), "text_bytes_read": text_bytes,
-            "clusters": len(clusters), "note": "build_clusters = fetch_all_chunks again + cluster_versions; both timed in the runner, not inside the API"}
+    out["build_clusters_seconds"] = round(time.perf_counter() - started, 3)
+    out["clusters"], out["cluster_members"] = len(clusters), sum(len(c.members) for c in clusters.values())
+    return out
+
+
+def text_reads(vsm, step: Callable[[Any], object]) -> dict:
+    """{"statements", "rows"}: the statements selecting the chunk text of vsm's table that step(manager) sends, and the rows
+    they return, counted on the client by app/engine/ingest_scale.count_text_reads. The manager is opened inside the
+    count, as a new process would open its own: a pooled connection opened before it would go unseen."""
+    from app.database.vector_store_manager import VectorStoreManager
+    from app.engine.ingest_scale import count_text_reads
+
+    with count_text_reads(vsm.data_table) as counted:
+        fresh = VectorStoreManager(conn_string=vsm.conn_string)
+        try:
+            step(fresh)
+        finally:
+            fresh.close()
+    return dict(counted)
+
+
+def startup_components(vsm) -> dict:
+    """What every API start reads from the database (start_up_reads), timed in the runner on its open pool, and the rows of
+    chunk text those reads return, counted in one more untimed pass (text_reads)."""
+    out = start_up_reads(vsm)
+    counted = text_reads(vsm, start_up_reads)
+    return {**out, "rows_in_table": vsm.count_nodes(), "text_statements": counted["statements"], "text_rows_read": counted["rows"],
+            "note": "timed in the runner, not inside the API; before M20 a start read every chunk's text back (fetch_all_chunks) to build the clusters"}
 
 
 def probe(vsm, queries: list[tuple[str, str]], vectors, k: int = SERVED_K) -> dict:

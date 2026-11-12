@@ -40,7 +40,9 @@ For every gold question, on fixture v1:
    labels of the reference answers it labelled: the calibration set when the
    run has a --calibration-generator (CALIBRATION_CONDITIONS), else the
    simple_factual answers; rule-labelled abstentions are left out and counted.
-   Labels are paired per answer, with a bootstrap interval over those answers.
+   Labels are paired per answer; the bootstrap interval resamples questions, so
+   on the calibration set a question's retrieved and planted answers move
+   together (a simple_factual question has one answer).
    A judge's correctness score may be published only when kappa >= KAPPA_GATE
    (0.6); the results file says so either way (readme_ok). If the reference is
    a single class (every answer matched, or none did) kappa is 0 by
@@ -452,12 +454,24 @@ def _majority(labels: Sequence[str]) -> str:
     return "partial" if len(top) > 1 and top[0][1] == top[1][1] else top[0][0]
 
 
-def kappa_interval(pairs: Sequence[tuple[str, str]], n_boot: int = DEFAULT_N_BOOT, seed: int = DEFAULT_SEED) -> dict[str, float] | None:
-    """Percentile bootstrap interval of Cohen's kappa over the questions (information: the gate reads the point value)."""
-    if len(pairs) < 2:
+def kappa_interval(pairs: Sequence[tuple[str, str]], questions: Sequence[str], n_boot: int = DEFAULT_N_BOOT,
+                   seed: int = DEFAULT_SEED) -> dict[str, float] | None:
+    """Percentile bootstrap interval of Cohen's kappa that resamples questions (information: the gate reads the point
+    value). `questions[i]` is the question of pairs[i]; a drawn question brings every one of its pairs, so a calibration
+    question's retrieved and planted answers move together. Questions are numbered in order of first appearance, so
+    with one pair per question the draws are those of a per-pair bootstrap. None with fewer than two questions."""
+    if len(questions) != len(pairs):
+        raise ValueError(f"{len(pairs)} label pairs but {len(questions)} question ids")
+    groups: dict[str, list[int]] = {}
+    for i, q in enumerate(questions):
+        groups.setdefault(q, []).append(i)
+    if len(groups) < 2:
         return None
-    ref, lab = [a for a, _ in pairs], [b for _, b in pairs]
-    ks = [cohens_kappa([ref[i] for i in row], [lab[i] for i in row]) for row in resample_indices(len(pairs), n_boot, seed)]
+    members = list(groups.values())
+    ks = []
+    for row in resample_indices(len(members), n_boot, seed):
+        drawn = [i for g in row for i in members[g]]
+        ks.append(cohens_kappa([pairs[i][0] for i in drawn], [pairs[i][1] for i in drawn]))
     lo, hi = np.percentile(ks, [2.5, 97.5])
     return {"lo": round(float(lo), 4), "hi": round(float(hi), 4)}
 
@@ -513,12 +527,13 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
         reference["simple_factual_label_counts"] = _counts([r["checks"]["exact_match_label"] for r in sys_rows])  # the run's own
     kappa: dict[str, Any] = {}
     for name in judge_models:
-        pairs = [(r["checks"]["exact_match_label"], r["correctness"][name]["label"]) for r in ref_rows if name in r.get("correctness", {})]
+        labelled = [r for r in ref_rows if name in r.get("correctness", {})]
+        pairs = [(r["checks"]["exact_match_label"], r["correctness"][name]["label"]) for r in labelled]
         k = cohens_kappa([a for a, _ in pairs], [b for _, b in pairs])
         every = [r["correctness"][name]["label"] for r in judged if name in r.get("correctness", {})]
         kappa[name] = {
             "kappa_vs_exact_match_simple_factual": round(k, 4),
-            "interval": kappa_interval(pairs),
+            "interval": kappa_interval(pairs, [r["id"] for r in labelled]),
             "n": len(pairs),
             "readme_ok": reference["gate_evaluable"] and bool(pairs) and k >= KAPPA_GATE,
             "label_counts": _counts([b for _, b in pairs]),
@@ -531,14 +546,15 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
             own = [(r["checks"]["exact_match_label"], r["correctness"][name]["label"]) for r in sys_rows if name in r.get("correctness", {})]
             kappa[name]["simple_factual_answers"] = {"agree": sum(1 for a, b in own if a == b), "n": len(own),
                                                      "confusion_reference_by_judge": _confusion(own)}
-    maj = []
+    maj, maj_ids = [], []
     for r in ref_rows:
         labs = [r["correctness"][m]["label"] for m in judge_models if m in r.get("correctness", {})]
         if labs:
             maj.append((r["checks"]["exact_match_label"], _majority(labs)))
+            maj_ids.append(r["id"])
     k_j = cohens_kappa([a for a, _ in maj], [b for _, b in maj])
     kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4),
-                              "interval": kappa_interval(maj), "n": len(maj),
+                              "interval": kappa_interval(maj, maj_ids), "n": len(maj),
                               "readme_ok": reference["gate_evaluable"] and bool(maj) and k_j >= KAPPA_GATE}
     # The M4 label (mean of faithfulness, relevancy and groundedness), kept as a labelled column: never gated or
     # published, because a wrong value copied faithfully from a retrieved chunk scores about 1, 1, 0 -> partial.
@@ -597,7 +613,8 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
                    f"{'one class' if single_class else 'empty'} ({counts} of {len(ref_labels)}), so Cohen's kappa is 0 by construction "
                    f"for any judge with variance and 1 for a judge that never varies; judge scores stay off the README")
     elif publishable:
-        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: their correctness scores may be published"
+        scores = "its correctness score" if len(publishable) == 1 else "their correctness scores"
+        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: {scores} may be published"
     else:
         verdict = (f"no judge reached kappa >= {KAPPA_GATE} vs exact-match labels on the "
                    f"{'calibration set' if calibration is not None else 'simple_factual answers'}; judge scores stay off the README")
@@ -609,8 +626,10 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
         "gated_label": GATED_LABEL,
         "reference": reference,
         "kappa": kappa,
-        "interval": {"method": "percentile bootstrap over the reference questions", "rng": RNG_NAME, "seed": DEFAULT_SEED,
-                     "n_boot": DEFAULT_N_BOOT, "level": 0.95, "gate_reads": "the point estimate"},
+        "interval": {"method": (f"percentile bootstrap over the {'calibration' if calibration is not None else 'simple-factual'} questions: "
+                                "each resample draws questions with replacement and keeps a drawn question's reference answers together"
+                                + (" (its retrieved and its planted answer)" if calibration is not None else "")),
+                     "rng": RNG_NAME, "seed": DEFAULT_SEED, "n_boot": DEFAULT_N_BOOT, "level": 0.95, "gate_reads": "the point estimate"},
         "composite": composite,
         "abstention_rule": abstentions,
         "replies": replies,

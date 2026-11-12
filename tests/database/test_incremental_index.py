@@ -207,10 +207,10 @@ def test_an_interrupted_run_never_leaves_the_manifest_ahead_of_the_rows(run):
     vsm = run.managers[0]
     real_record, state = vsm.record_file, {"armed": True}
 
-    def record_once_fails(*args):
+    def record_once_fails(*args, **kwargs):
         if state.pop("armed", False):
             raise RuntimeError("killed before the manifest write")
-        return real_record(*args)
+        return real_record(*args, **kwargs)
 
     vsm.record_file = record_once_fails
     with pytest.raises(RuntimeError, match="killed before the manifest write"):
@@ -302,8 +302,8 @@ def test_a_run_whose_rows_do_not_match_its_manifest_fails_and_the_next_run_repai
     vsm = run.managers[0]
     real_record = vsm.record_file
 
-    def record_one_chunk_too_many(path, content_hash, n_chunks, pipeline=""):
-        return real_record(path, content_hash, n_chunks + 1, pipeline)
+    def record_one_chunk_too_many(path, content_hash, n_chunks, pipeline="", **staleness):
+        return real_record(path, content_hash, n_chunks + 1, pipeline, **staleness)
 
     with (run.corpus / EDITED).open("a") as handle:
         handle.write("note: edited\n")

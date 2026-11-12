@@ -4,8 +4,8 @@ Needs a live Postgres with pgvector (PG_TEST_DSN); skipped otherwise. The corpus
 the run writes FiQA (one <doc_id>.txt per document, beir_api.write_corpus), indexed through the served
 indexer with the hash embedder into a temporary table the schema migrations created (as the deploy step
 does), and the stages' helpers are run against it: the build, the indexes read from the catalog and the
-sizes, the unchanged re-run, the documents the scanner rejected, what start-up reads, the probe and the
-plan facts.
+sizes, the unchanged re-run, the documents the scanner rejected, what start-up reads (the manifest, no
+chunk text), the probe and the plan facts.
 """
 
 import os
@@ -78,13 +78,36 @@ def test_rejected_documents_are_named_with_the_queries_that_judge_them(indexed):
     assert missing == {"n": 2, "ids": ["2", "4"], "judged": ["2"], "queries": ["q2"]}  # 4.txt repeats 3.txt, which is scanned first
 
 
-def test_start_up_reads_every_chunk_and_finds_no_version_cluster(indexed):
+def test_start_up_reads_the_manifest_and_no_chunk_text(indexed):
+    """Since M20 a start builds the version clusters from the manifest; before, it read every chunk's text back."""
     from app.eval import served_scale
 
     vsm, blob, _ = indexed
     parts = served_scale.startup_components(vsm)
-    assert parts["rows_read"] == blob["rows"] and parts["clusters"] == 0
-    assert parts["text_bytes_read"] > len(LONG)  # overlapping windows read the long document more than once
+    assert parts["text_rows_read"] == 0 and parts["text_statements"] == 0
+    assert parts["manifest"]["files"] == blob["report"]["files_indexed"] == 3
+    assert parts["manifest"]["chunks"] == blob["rows"] == parts["rows_in_table"]
+    assert parts["manifest"]["pipelines"] == [blob["report"]["pipeline"]]
+    assert parts["clusters"] == 0 and parts["cluster_members"] == 0  # 1.txt, 3.txt and 5.txt are not versions of one file
+    assert all(parts[k] >= 0 for k in ("check_migrations_seconds", "manifest_summary_seconds", "build_clusters_seconds"))
+
+
+def test_the_text_read_count_sees_a_statement_that_reads_chunk_text(indexed):
+    """The zero above is not vacuous: the same count, on a manager of its own, sees a statement that selects the text."""
+    from psycopg2 import sql
+
+    from app.eval import served_scale
+
+    vsm, blob, _ = indexed
+
+    def read_text(manager):
+        with manager.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT node_id, text FROM {table};").format(table=sql.Identifier(manager.schema_name, manager.data_table)))
+                cur.fetchall()
+
+    assert served_scale.text_reads(vsm, read_text) == {"statements": 1, "rows": blob["rows"]}
+    assert served_scale.text_reads(vsm, served_scale.start_up_reads) == {"statements": 0, "rows": 0}
 
 
 def test_probe_and_plan_facts_on_the_served_statement(indexed):

@@ -419,6 +419,7 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
                "same field written over the gold in memory), so a pass shows gold comparison on single-value answers, not general correctness" if calgen else
                "the reference is the exact-match label of the run's own simple-factual answers, single values to templated questions, so a pass "
                "shows gold comparison on single-value answers, not general correctness")
+    method = (s.get("interval") or {}).get("method") or "percentile bootstrap interval"  # what the file says it resampled
     for name, k in s["kappa"].items():
         if name == "jury_majority":
             continue
@@ -429,12 +430,12 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
         ci = f"[{k['interval']['lo']}, {k['interval']['hi']}]" if k.get("interval") else "—"
         out.append({"claim": f"Judge {name}: Cohen's kappa of its correctness verdicts vs exact-match labels, {against}", "value": f"{k['kappa_vs_exact_match_simple_factual']}",
                     "ci": ci, "n": k["n"], "command": cmd, "source": src,
-                    "not_shown": f"{status}; {planted}; percentile bootstrap interval over the {'calibration' if calgen else 'simple-factual'} answers"})
+                    "not_shown": f"{status}; {planted}; {method}"})
     jm = s["kappa"].get("jury_majority")
     if jm:
         ci = f"[{jm['interval']['lo']}, {jm['interval']['hi']}]" if jm.get("interval") else "—"
         out.append({"claim": f"Jury majority (two judge models, correctness verdicts): Cohen's kappa vs exact-match labels, {against}", "value": f"{jm['kappa_vs_exact_match_simple_factual']}",
-                    "ci": ci, "n": jm["n"], "command": cmd, "source": src, "not_shown": f"a tie between the two judges counts as partial; gate {gate}; {planted}"})
+                    "ci": ci, "n": jm["n"], "command": cmd, "source": src, "not_shown": f"a tie between the two judges counts as partial; gate {gate}; {planted}; {method}"})
     ruled = (s.get("abstention_rule") or {}).get("n", 0)
     for name in s.get("publishable_judges") or []:
         k = s["kappa"][name]
