@@ -18,12 +18,17 @@ to both chat routes, one request at a time, after the model is loaded:
                           stream), so the time to the first byte and the total time are both recorded. Tool calls
                           are not in the stream; the source nodes it sends are counted.
   POST /api/chat/request  the non-streaming route: the answer, the source nodes and the tool calls (name,
-                          arguments, error flag).
+                          arguments, the size of the text the model got back, and whether the call failed: the
+                          error flag of a call that raised, or a returned text that starts with "Error", which is
+                          how app/engine/tools/index_file_access.get_file_by_path reports a failure it catches;
+                          a failed call keeps the first 200 characters of that text).
 
 Answered means HTTP 200, no error line (3:) and non-empty text. Whether the answer states the gold value
 (app/eval/companion_score.states_value) is recorded as an aside: this is a smoke run of a route, not an accuracy
-measurement. The chat LLM's settings are read back from app/settings.init_ollama under the API's environment
-(temperature, request timeout), not typed here; the run does not change them.
+measurement. A question whose text itself states a part of its gold value (open configs/run_047.yaml) is not
+scored for the aside: an answer that repeats the question cannot be told from one that answers it. The chat
+LLM's settings are read back from app/settings.init_ollama under the API's environment (temperature, request
+timeout), not typed here; the run does not change them.
 """
 
 from __future__ import annotations
@@ -51,6 +56,8 @@ BENCHMARK = "chat_route_smoke_v1"
 DEFAULT_OUT = Path("bench/results/chat_route_smoke.json")
 ROUTES = ("/api/chat", "/api/chat/request")
 CODE_TOOLS = ("execute_code", "python_exec")
+ERROR_TEXT_PREFIX = "Error"  # app/engine/tools/index_file_access.get_file_by_path: a caught failure is returned as text
+ERROR_CHARS = 200
 QUESTION_RULE = "the first gold question of each category of bench/gold/questions.jsonl, in file order"
 SOURCES = ("app/eval/chat_smoke.py", "app/eval/served_stack.py", "app/api/routers/chat.py", "app/engine/engine.py",
            "app/engine/agents/file_access_agent.py", "app/engine/agents/multi_agent_workflow.py", "app/settings.py",
@@ -92,16 +99,45 @@ def _source_nodes(data: Sequence[Any]) -> int:
                if isinstance(item, dict) and item.get("type") == "sources")
 
 
+def tool_output_text(tool: Mapping[str, Any]) -> str:
+    """The text the model got back from a tool. llama-index serializes a ToolOutput's text as text blocks; content
+    is a property and is not in the JSON (it is read only when there are no blocks)."""
+    blocks = tool.get("blocks")
+    if isinstance(blocks, list):
+        return "".join(str(b.get("text") or "") for b in blocks if isinstance(b, dict))
+    return str(tool.get("content") or "")
+
+
 def tool_calls(result: Mapping[str, Any]) -> list[dict]:
-    """The tool calls /api/chat/request returns (llama-index ToolOutput objects): name, arguments, error flag."""
+    """The tool calls /api/chat/request returns (llama-index ToolOutput objects): name, arguments, output size, and
+    whether the call raised (is_error) or returned a text that starts with "Error" (returned_error_text); a failed
+    call keeps the start of its text."""
     out = []
     for tool in result.get("tools") or []:
         if not isinstance(tool, dict):
             continue
         raw = tool.get("raw_input") or {}
-        out.append({"name": tool.get("tool_name"), "arguments": raw.get("kwargs", raw) if isinstance(raw, dict) else raw,
-                    "is_error": bool(tool.get("is_error")), "output_chars": len(str(tool.get("content") or ""))})
+        text = tool_output_text(tool)
+        is_error = bool(tool.get("is_error"))
+        error_text = not is_error and text.lstrip().startswith(ERROR_TEXT_PREFIX)
+        call = {"name": tool.get("tool_name"), "arguments": raw.get("kwargs", raw) if isinstance(raw, dict) else raw,
+                "is_error": is_error, "returned_error_text": error_text, "output_chars": len(text)}
+        if is_error or error_text:
+            call["error"] = text[:ERROR_CHARS]
+        out.append(call)
     return out
+
+
+def gold_value_stated(row: Mapping[str, Any], gold: Mapping[str, Any]) -> tuple[bool | None, str | None]:
+    """The aside: (does an answered row state every part of the gold value, why it is not scored)."""
+    parts = cs.gold_parts(gold["answer"])
+    if parts is None:
+        return None, "the gold answer is a sentence or yes/no"
+    if any(cs.states_value(gold["question"], part) for part in parts):
+        return None, "the question states the gold value"
+    if not row.get("answered"):
+        return False, None
+    return cs.answer_score(row.get("answer"), gold["answer"], [])["label"] == "correct", None
 
 
 def ask(client, url: str, route: str, question: Mapping[str, Any]) -> dict:
@@ -206,7 +242,13 @@ def summarize(rows: Sequence[Mapping[str, Any]]) -> dict:
     for route in ROUTES:
         mine = [r for r in rows if r["route"] == route]
         scored = [r for r in mine if r.get("gold_value_stated") is not None]
-        names = [t["name"] for r in mine for t in (r.get("tools") or [])]
+        calls = [t for r in mine for t in (r.get("tools") or [])]
+        names = [t["name"] for t in calls]
+        visible = route == "/api/chat/request"  # the streaming route does not show its tool calls
+
+        def by_name(flag: str) -> dict | None:
+            return dict(sorted(Counter(t["name"] for t in calls if t.get(flag)).items())) if visible else None
+
         out[route] = {
             "n": len(mine),
             "http_status": dict(sorted(Counter(str(r.get("http_status")) for r in mine).items())),
@@ -215,11 +257,14 @@ def summarize(rows: Sequence[Mapping[str, Any]]) -> dict:
                        "max": max((r["ttfb_s"] for r in mine if r.get("ttfb_s") is not None), default=None)},
             "total_s": {"p50": _median([r.get("total_s") for r in mine]),
                         "max": max((r["total_s"] for r in mine if r.get("total_s") is not None), default=None)},
-            "tool_calls": dict(sorted(Counter(names).items())) if route == "/api/chat/request" else None,
-            "questions_with_a_tool_call": (sum(1 for r in mine if r.get("tools")) if route == "/api/chat/request"
-                                           else None),
-            "code_tool_calls": sum(n in CODE_TOOLS for n in names),
-            "states_gold_value_aside": {"k": sum(bool(r["gold_value_stated"]) for r in scored), "n": len(scored)},
+            "tool_calls": dict(sorted(Counter(names).items())) if visible else None,
+            "tool_calls_raised": by_name("is_error"),
+            "tool_calls_returned_error_text": by_name("returned_error_text"),
+            "questions_with_a_tool_call": sum(1 for r in mine if r.get("tools")) if visible else None,
+            "code_tool_calls": sum(n in CODE_TOOLS for n in names) if visible else None,
+            "states_gold_value_aside": {"k": sum(bool(r["gold_value_stated"]) for r in scored), "n": len(scored),
+                                        "not_scored": dict(sorted(Counter(r["gold_value_not_scored"] for r in mine
+                                                                          if r.get("gold_value_not_scored")).items()))},
         }
     return out
 
@@ -248,10 +293,7 @@ def run(*, model: str, ollama_url: str, pg_dsn: str, limit: int | None, log_dir:
                 for question in chosen:
                     for route in ROUTES:
                         row = ask(client, api.url, route, question)
-                        parts = cs.gold_parts(gold[question["id"]]["answer"])
-                        row["gold_value_stated"] = (cs.answer_score(row["answer"], gold[question["id"]]["answer"], [])["label"] == "correct"
-                                                    if parts is not None and row.get("answered") else
-                                                    (False if parts is not None else None))
+                        row["gold_value_stated"], row["gold_value_not_scored"] = gold_value_stated(row, gold[question["id"]])
                         rows.append(publishable(row, local))
                         print(f"{question['id']} {route}: HTTP {row['http_status']} answered={row['answered']} "
                               f"in {row['total_s']} s", flush=True)
@@ -302,7 +344,8 @@ def main(argv: list[str] | None = None) -> int:
     args.out.write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
     for route, s in report["summary"].items():
         print(f"{route}: answered {s['answered']} of {s['n']}, total p50 {s['total_s']['p50']} s, "
-              f"tools {s['tool_calls']}, code tool calls {s['code_tool_calls']}")
+              f"tools {s['tool_calls']}, raised {s['tool_calls_raised']}, returned an error text "
+              f"{s['tool_calls_returned_error_text']}, code tool calls {s['code_tool_calls']}")
     print(f"wrote {args.out}")
     if any(s["code_tool_calls"] for s in report["summary"].values()):
         print("a code tool was called although code execution is off")

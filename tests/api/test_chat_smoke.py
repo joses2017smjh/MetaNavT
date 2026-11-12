@@ -30,29 +30,77 @@ def test_the_vercel_stream_is_split_into_text_data_and_errors():
     assert smoke._source_nodes(stream["data"]) == 2
 
 
+def _served_result(tools):
+    """The JSON POST /api/chat/request sends for these llama-index ToolOutputs: the route's own Result model
+    through FastAPI, so the test sees the serialized fields (text blocks), not the Python object."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from llama_index.core.llms import MessageRole
+
+    from app.api.routers.models import Message, Result
+
+    app = FastAPI()
+
+    @app.post("/request")
+    async def request() -> Result:
+        return Result(result=Message(role=MessageRole.ASSISTANT, content="x"), nodes=[], tools=tools)
+
+    return TestClient(app).post("/request").json()
+
+
 def test_tool_calls_come_from_the_request_route_result():
-    result = {"result": {"role": "assistant", "content": "x"}, "nodes": [],
-              "tools": [{"tool_name": "query_index", "raw_input": {"args": [], "kwargs": {"input": "lr of run 40"}},
-                         "content": "abc", "is_error": False},
-                        {"tool_name": "get_file_content", "raw_input": {"kwargs": {"path": "x"}}, "content": "",
-                         "is_error": True}]}
+    from llama_index.core.tools.types import ToolOutput
+
+    raised = "'FieldInfo' object has no attribute 'replace'"
+    caught = "Error: 'dict' object has no attribute 'condition'"
+    tools = [ToolOutput(content="Run 40 used 0.0001.", tool_name="query_index", raw_input={"input": "lr of run 40"},
+                        raw_output="Run 40 used 0.0001."),
+             # how the agent workflow records a tool that raised (llama_index.core.agent.workflow.base_agent)
+             ToolOutput(content=raised, tool_name="list_available_files", raw_input={}, raw_output=raised, is_error=True),
+             # get_file_by_path catches its failure and returns it as text: no error flag
+             ToolOutput(content=caught, tool_name="get_file_content",
+                        raw_input={"args": [], "kwargs": {"file_path": "configs/run_047.yaml"}}, raw_output=caught)]
+    result = _served_result(tools)
+    assert "content" not in result["tools"][0]  # the text travels as blocks
     assert smoke.tool_calls(result) == [
-        {"name": "query_index", "arguments": {"input": "lr of run 40"}, "is_error": False, "output_chars": 3},
-        {"name": "get_file_content", "arguments": {"path": "x"}, "is_error": True, "output_chars": 0}]
+        {"name": "query_index", "arguments": {"input": "lr of run 40"}, "is_error": False, "returned_error_text": False,
+         "output_chars": len("Run 40 used 0.0001.")},
+        {"name": "list_available_files", "arguments": {}, "is_error": True, "returned_error_text": False,
+         "output_chars": len(raised), "error": raised},
+        {"name": "get_file_content", "arguments": {"file_path": "configs/run_047.yaml"}, "is_error": False,
+         "returned_error_text": True, "output_chars": len(caught), "error": caught}]
 
 
-def test_summary_counts_answers_tools_and_code_tool_calls():
+def test_summary_counts_answers_tools_failed_calls_and_code_tool_calls():
     rows = [{"route": "/api/chat", "http_status": 200, "answered": True, "ttfb_s": 3.0, "total_s": 4.0, "tools": None,
              "gold_value_stated": True},
             {"route": "/api/chat", "http_status": 500, "answered": False, "ttfb_s": 1.0, "total_s": 1.0, "tools": None,
-             "gold_value_stated": None},
+             "gold_value_stated": None, "gold_value_not_scored": "the question states the gold value"},
             {"route": "/api/chat/request", "http_status": 200, "answered": True, "ttfb_s": 2.0, "total_s": 2.0,
-             "tools": [{"name": "query_index"}, {"name": "execute_code"}], "gold_value_stated": False}]
+             "tools": [{"name": "query_index"}, {"name": "execute_code"},
+                       {"name": "list_available_files", "is_error": True},
+                       {"name": "get_file_content", "returned_error_text": True}], "gold_value_stated": False}]
     summary = smoke.summarize(rows)
-    assert summary["/api/chat"]["answered"] == 1 and summary["/api/chat"]["http_status"] == {"200": 1, "500": 1}
-    assert summary["/api/chat"]["states_gold_value_aside"] == {"k": 1, "n": 1}
+    stream = summary["/api/chat"]
+    assert stream["answered"] == 1 and stream["http_status"] == {"200": 1, "500": 1}
+    assert stream["states_gold_value_aside"] == {"k": 1, "n": 1, "not_scored": {"the question states the gold value": 1}}
+    # tool calls are not visible on the streaming route: no count there, not a zero
+    assert stream["tool_calls"] is stream["code_tool_calls"] is stream["tool_calls_raised"] is None
     request = summary["/api/chat/request"]
-    assert request["tool_calls"] == {"execute_code": 1, "query_index": 1} and request["code_tool_calls"] == 1
+    assert request["tool_calls"] == {"execute_code": 1, "get_file_content": 1, "list_available_files": 1, "query_index": 1}
+    assert request["code_tool_calls"] == 1
+    assert request["tool_calls_raised"] == {"list_available_files": 1}
+    assert request["tool_calls_returned_error_text"] == {"get_file_content": 1}
+
+
+def test_the_aside_does_not_score_a_gold_value_the_question_states():
+    gold = {"question": "open configs/run_047.yaml", "answer": "file configs/run_047.yaml"}
+    row = {"answered": True, "answer": "There was an error retrieving configs/run_047.yaml."}
+    assert smoke.gold_value_stated(row, gold) == (None, "the question states the gold value")
+    lr = {"question": "what learning rate did run 40 use", "answer": "1e-04"}
+    assert smoke.gold_value_stated({"answered": True, "answer": "Run 40 used 0.0001."}, lr) == (True, None)
+    assert smoke.gold_value_stated({"answered": False, "answer": ""}, lr) == (False, None)
+    assert smoke.gold_value_stated({"answered": True, "answer": "yes"}, {"question": "q", "answer": "yes"})[0] is None
 
 
 def test_chat_llm_settings_are_read_back_and_nothing_leaks_into_the_process(monkeypatch):

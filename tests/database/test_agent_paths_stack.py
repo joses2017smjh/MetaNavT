@@ -182,6 +182,11 @@ def test_chat_route_smoke_run_end_to_end(tmp_path):
     assert [(r["id"], r["route"]) for r in rows] == [(q, route) for q in ("q001", "q081") for route in smoke.ROUTES]
     assert all(r["http_status"] == 200 and r["answered"] and r["total_s"] >= r["ttfb_s"] for r in rows)
     assert all([t["name"] for t in r["tools"]] == ["query_index"] for r in rows if r["route"] == "/api/chat/request")
+    # the size of the text the model got back, read from the route's JSON (text blocks), and no failure flagged
+    calls = [t for r in rows if r["route"] == "/api/chat/request" for t in r["tools"]]
+    assert all(t["output_chars"] > 0 and not t["is_error"] and not t["returned_error_text"] for t in calls), calls
+    assert report["summary"]["/api/chat/request"]["tool_calls_raised"] == {}
+    assert report["summary"]["/api/chat"]["code_tool_calls"] is None  # tool calls are not visible on that route
     assert all(r["source_nodes"] >= 1 for r in rows)
     # code execution off: the model is offered the file-access agent's tools only (no code tool, no handoff)
     offered = {t["function"]["name"] for body in chat_requests for t in body.get("tools") or []}
