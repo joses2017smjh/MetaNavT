@@ -6,7 +6,8 @@ capabilities cannot mint one from what it loads. The host keeps the private
 key, the public key and the SQLite ledger outside every agent-readable root.
 Anyone able to read the private key, replace the public key or the ledger, or
 execute arbitrary code as the operator is outside this boundary. A token
-authorizes exactly one immutable review in one session.
+authorizes exactly one immutable review, which records the session its plan
+was proposed in.
 
 Token: base64url(body) "." base64url(signature), unpadded. The body is the
 canonical JSON of {review_sha256, grant_id, issued_at, expires_at, actor}; the

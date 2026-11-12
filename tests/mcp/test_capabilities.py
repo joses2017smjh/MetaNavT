@@ -63,6 +63,35 @@ def test_single_use_is_transactional_across_independent_verifiers(tmp_path):
         assert db.execute("SELECT count(*) FROM grants").fetchone()[0] == 1
 
 
+def test_a_move_plan_proposed_by_one_tools_object_applies_through_another(tmp_path):
+    """D33 / C26: a plan and the review registered for it, carried to another FilesystemTools object (another
+    process: the API's plans table does this), apply there with the capability signed over the first one's review.
+    The review records the session the plan was proposed in, and the other object rebuilds it with that session."""
+    import dataclasses
+
+    tools, key, verifier, plan = _setup(tmp_path)
+    other = FilesystemTools(root=tools.root, approval_verifier=verifier)
+    assert other._session != tools._session and plan["review"]["session"] == tools._session
+    other.load_move_plan(dataclasses.replace(tools.plans[plan["plan_id"]]), tools.registered_review(plan["plan_id"]))
+    token = sign_review(plan["review"], key, actor="operator")
+    assert other.apply_plan(plan["plan_id"], approval_token=token)["status"] == "applied"
+    assert (tools.root / "destination").read_text() == "original"
+    other.forget_plan(plan["plan_id"])
+    assert other.plans == {} and other._reviews == {}
+
+
+def test_a_loaded_move_plan_is_rebuilt_with_its_own_session_not_the_loading_objects(tmp_path):
+    """C26: without the session it was proposed in, the review the other object rebuilds differs: stale, nothing moves."""
+    import dataclasses
+
+    tools, key, verifier, plan = _setup(tmp_path)
+    other = FilesystemTools(root=tools.root, approval_verifier=verifier)
+    other.load_move_plan(dataclasses.replace(tools.plans[plan["plan_id"]], session=""), tools.registered_review(plan["plan_id"]))
+    with pytest.raises(ApprovalError) as refused:
+        other.apply_plan(plan["plan_id"], approval_token=sign_review(plan["review"], key, actor="operator"))
+    assert refused.value.check == "staleness" and (tools.root / "source").exists() and not (tools.root / "destination").exists()
+
+
 def test_review_copy_does_not_mutate_immutable_manifest_and_audit_excludes_token(tmp_path):
     tools, key, verifier, plan = _setup(tmp_path)
     copied = tools.review_plan(plan["plan_id"])
