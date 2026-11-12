@@ -315,11 +315,14 @@ def test_the_deploy_orders_index_step_must_accept_the_build(tmp_path, monkeypatc
     out = served_scale.index_step_unchanged({}, BUILD_REPORT, log_path=tmp_path / "index-step.log")
     assert out["seconds"] == 12.346 and out["command"] == "python -m app.engine.ingest"
     assert out["report"]["files_unchanged"] == 3 and out["report"]["chunks_embedded"] == 0
-    for change in ({"chunks_embedded": 2, "files_indexed": 1}, {"pipeline": "app.chunking/auto/v2|hash-32"}, {"files_unchanged": 2}, {"n_nodes": 6}):
-        answer.update(change)
+    accepted = dict(answer)
+    # each field on its own: chunks embedded, a file indexed anew, another pipeline, a file not found unchanged, another
+    # rejection count, other rows
+    for change in ({"chunks_embedded": 2}, {"files_indexed": 1}, {"pipeline": "app.chunking/auto/v2|hash-32"}, {"files_unchanged": 2}, {"files_rejected": 1}, {"n_nodes": 6}):
+        answer.clear()
+        answer.update(accepted, **change)
         with pytest.raises(RuntimeError, match="index step"):
             served_scale.index_step_unchanged({}, BUILD_REPORT, log_path=tmp_path / "index-step.log")
-        answer.update(chunks_embedded=0, files_indexed=0, files_unchanged=3, n_nodes=7, pipeline=BUILD_REPORT["pipeline"])
 
 
 def test_the_build_passes_the_arguments_the_index_step_passes(tmp_path, monkeypatch):
@@ -353,7 +356,8 @@ def test_start_up_health_must_list_what_the_build_wrote():
     served_scale.check_startup_health(health, build)
     for bad in ({"n_nodes": 6}, {"indexing": {"indexed": False, "reason": "INDEX_ON_START not set"}},  # an API from before M20 reports no manifest
                 {"indexing": {"manifest_at_start": {"files": 3, "chunks": 7, "pipelines": ["app.chunking/auto/v2|other"]}}},
-                {"indexing": {"manifest_at_start": {"files": 2, "chunks": 7, "pipelines": [BUILD_REPORT["pipeline"]]}}}):
+                {"indexing": {"manifest_at_start": {"files": 2, "chunks": 7, "pipelines": [BUILD_REPORT["pipeline"]]}}},
+                {"indexing": {"manifest_at_start": {"files": 3, "chunks": 6, "pipelines": [BUILD_REPORT["pipeline"]]}}}):
         with pytest.raises(RuntimeError, match="does not match the index stage"):
             served_scale.check_startup_health({**health, **bad}, build)
 

@@ -118,6 +118,43 @@ def test_the_text_read_count_sees_a_statement_that_reads_chunk_text(indexed):
     assert served_scale.text_reads(vsm, served_scale.start_up_reads) == {"statements": 0, "rows": 0}
 
 
+def test_the_startup_stage_reports_the_text_a_start_would_read(indexed, monkeypatch):
+    """startup_components' zero is the count's, not a constant: were a start to read the chunk text back (as before M20),
+    the stage would report the statement and every row."""
+    from psycopg2 import sql
+
+    from app.eval import served_scale
+
+    vsm, blob, _, _ = indexed
+    real = served_scale.start_up_reads
+
+    def reads_the_text_too(manager):
+        out = real(manager)
+        with manager.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT node_id, text FROM {table};").format(table=sql.Identifier(manager.schema_name, manager.data_table)))
+                cur.fetchall()
+        return out
+
+    monkeypatch.setattr(served_scale, "start_up_reads", reads_the_text_too)
+    parts = served_scale.startup_components(vsm)
+    assert parts["text_statements"] == 1 and parts["text_rows_read"] == blob["rows"]
+
+
+def test_start_up_reads_build_the_version_clusters_as_a_start_does(indexed, monkeypatch):
+    """The timed build_clusters is bootstrap's own, called on the manager (the fixture has no version cluster, so its
+    count alone could not tell a skipped call)."""
+    from app.engine import bootstrap
+    from app.eval import served_scale
+
+    vsm, _, _, _ = indexed
+    calls = []
+    real = bootstrap.build_clusters
+    monkeypatch.setattr(bootstrap, "build_clusters", lambda manager: calls.append(manager) or real(manager))
+    out = served_scale.start_up_reads(vsm)
+    assert calls == [vsm] and out["clusters"] == 0 and out["build_clusters_seconds"] >= 0
+
+
 def test_probe_and_plan_facts_on_the_served_statement(indexed):
     from app.eval import served_scale
 
