@@ -778,7 +778,8 @@ served system should). In the hash run the API row scores above the in-memory
 row and the paired interval excludes zero: sharing the chunker removed one
 difference and did not make the rows agree. In the model-backed run the API row
 scores below the in-memory row and the interval covers zero; its per-category
-gaps (on the API row) are not all of one sign.
+gaps (on the API row) are not all of one sign. For each run the block names every
+gold category whose paired interval excludes zero.
 
 What is checked exactly is the dense leg:
 [tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)

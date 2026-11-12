@@ -483,6 +483,15 @@ def _parity_run_text(blob: dict, rel: str) -> str:
         parts.append(f"On the {exact['n']} exact_path questions (the router's lexical_path route) nDCG@10 is {by_mem.get('ndcg@10', 0):.3f} "
                      f"in memory and {by_api.get('ndcg@10', 0):.3f} through the API, paired gap {_delta(exact.get('ndcg@10'))} "
                      f"({_zero_note(exact.get('ndcg@10'))}; n = {exact['n']}).")
+    # The overall interval can cover zero while a category's does not: name every such category (four decimals, so a
+    # bound near zero shows its side).
+    categories = [b for b in api.get("delta_vs_parent_by_category_all") or [] if b.get("ndcg@10")]
+    outside = [b for b in categories if not b["ndcg@10"]["lo"] <= 0.0 <= b["ndcg@10"]["hi"]]
+    if outside:
+        parts.append("Gold categories whose paired interval excludes zero (API minus in-memory, nDCG@10): "
+                     + "; ".join(f"{b['category']} {_delta4(b['ndcg@10'])} (n = {b['n']})" for b in outside) + ".")
+    elif categories:
+        parts.append("Every gold category's paired interval covers zero.")
     health = blob.get("api_health") or {}
     if health.get("embedding_provider") == "huggingface" and health.get("embedding_query_instruction") == "":
         parts.append("The API ran with EMBEDDING_QUERY_INSTRUCTION=none (the bare query, as the benchmark embeds it), not the served "

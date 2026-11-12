@@ -140,3 +140,21 @@ def test_a_hash_run_that_names_its_embedding_model_is_still_labelled_the_hash_em
     served = {**health, "embedding_provider": "huggingface", "embed_model": "HuggingFaceEmbedding", "embedding_model": "BAAI/bge-small-en-v1.5"}
     assert _parity_stack({"api_health": served}) == "BAAI/bge-small-en-v1.5, no reranker"
 
+
+def test_the_readme_block_names_every_category_whose_interval_excludes_zero():
+    """An overall interval that covers zero can hide a category whose interval does not (a loser kept in view): each
+    run's paragraph names, from the file, every gold category whose paired interval excludes zero, and only those."""
+    import json
+
+    from app.eval.report import PARITY_FILE, _parity_run_text
+
+    blob = json.loads((ROOT / PARITY_FILE).read_text())
+    blocks = blob["results"][1]["delta_vs_parent_by_category_all"]
+    for block in blocks:
+        block["ndcg@10"] = {"delta": 0.01, "lo": -0.01, "hi": 0.03}
+    assert "Every gold category's paired interval covers zero." in _parity_run_text(blob, PARITY_FILE)
+    simple = next(b for b in blocks if b["category"] == "simple_factual")
+    simple["ndcg@10"] = {"delta": -0.0448, "lo": -0.0726, "hi": -0.0188}
+    text = _parity_run_text(blob, PARITY_FILE)
+    assert f"Gold categories whose paired interval excludes zero (API minus in-memory, nDCG@10): simple_factual -0.0448 [-0.0726, -0.0188] (n = {simple['n']})." in text
+    assert "covers zero." not in text.split("Gold categories whose")[1].split("(n = ")[0]
