@@ -41,7 +41,8 @@ For every gold question, on fixture v1:
    run has a --calibration-generator (CALIBRATION_CONDITIONS), else the
    simple_factual answers; rule-labelled abstentions are left out and counted.
    Labels are paired per answer; the bootstrap interval resamples questions, so
-   a question's answers (its retrieved and its planted answer) move together.
+   on the calibration set a question's retrieved and planted answers move
+   together (a simple_factual question has one answer).
    A judge's correctness score may be published only when kappa >= KAPPA_GATE
    (0.6); the results file says so either way (readme_ok). If the reference is
    a single class (every answer matched, or none did) kappa is 0 by
