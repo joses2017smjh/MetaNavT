@@ -695,10 +695,12 @@ def jury_v2_table(blob: dict) -> str:
             lines.append(f"| {name} | {p_['p_llm_better_mean']} | {p_['position_gap_mean']} | {p_['position_flips']} / {p_['n']} | {p_['n']} |")
     pub = s.get("publishable_judges") or []
     if pub:
+        ruled = (s.get("abstention_rule") or {}).get("n", 0)
         lines += ["", "Judge scores of the run's answers (published because the judge passed the gate; correct 1, partial 0.5, wrong 0):", "",
-                  "| judge | mean correctness over the judged answers | n |", "|---|---:|---:|"]
+                  "| judge | mean correctness over the judged answers | n | of which labelled wrong by the abstention rule, not the judge |",
+                  "|---|---:|---:|---:|"]
         for name in pub:
-            lines.append(f"| {name} | {s['kappa'][name]['mean_correctness_all']} | {s['kappa'][name]['n_all']} |")
+            lines.append(f"| {name} | {s['kappa'][name]['mean_correctness_all']} | {s['kappa'][name]['n_all']} | {ruled} |")
         if gen["model"] in pub:
             lines += ["", f"{gen['model']} scores answers its own weights generated (self-preference risk), and the gate validated it on "
                       "single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers."]

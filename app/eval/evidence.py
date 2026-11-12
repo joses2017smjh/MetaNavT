@@ -420,13 +420,14 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
         ci = f"[{jm['interval']['lo']}, {jm['interval']['hi']}]" if jm.get("interval") else "—"
         out.append({"claim": "Jury majority (two judge models, correctness verdicts): Cohen's kappa vs exact-match labels, calibration set", "value": f"{jm['kappa_vs_exact_match_simple_factual']}",
                     "ci": ci, "n": jm["n"], "command": cmd, "source": src, "not_shown": f"a tie between the two judges counts as partial; gate {gate}; {planted}"})
+    ruled = (s.get("abstention_rule") or {}).get("n", 0)
     for name in s.get("publishable_judges") or []:
         k = s["kappa"][name]
         self_pref = "; the judge is also the generator, so its score of these answers carries self-preference risk" if name == gen else ""
         out.append({"claim": f"Judge {name} (passed the gate): mean correctness of the run's answers (correct 1, partial 0.5, wrong 0)", "value": f"{k['mean_correctness_all']}",
                     "ci": "—", "n": k["n_all"], "command": cmd, "source": src,
-                    "not_shown": f"an LLM judge validated only on single-value answers; the run's answers also include multi-part, comparative, aggregate and "
-                                 f"path answers it was not validated on{self_pref}"})
+                    "not_shown": f"{ruled} of the {k['n_all']} labels come from the abstention rule (wrong), not from the judge; an LLM judge validated only on "
+                                 f"single-value answers; the run's answers also include multi-part, comparative, aggregate and path answers it was not validated on{self_pref}"})
     ja = s.get("judge_agreement")
     if ja:
         out.append({"claim": f"Judge-judge agreement ({ja['judges'][0]} vs {ja['judges'][1]}): Cohen's kappa of correctness verdicts on the run's answers", "value": f"{ja['kappa']}",

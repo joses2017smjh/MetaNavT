@@ -358,9 +358,9 @@ Position bias, AB/BA swap (LLM answer vs the extractive answer, same judge, both
 
 Judge scores of the run's answers (published because the judge passed the gate; correct 1, partial 0.5, wrong 0):
 
-| judge | mean correctness over the judged answers | n |
-|---|---:|---:|
-| qwen2.5:7b | 0.8881 | 134 |
+| judge | mean correctness over the judged answers | n | of which labelled wrong by the abstention rule, not the judge |
+|---|---:|---:|---:|
+| qwen2.5:7b | 0.8881 | 134 | 7 |
 
 qwen2.5:7b scores answers its own weights generated (self-preference risk), and the gate validated it on single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers.
 

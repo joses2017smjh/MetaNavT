@@ -568,6 +568,7 @@ def test_the_readme_block_renders_the_calibration_gate_and_links_the_earlier_rec
     assert "| gen:7b | 1.0 | [1.0, 1.0] | 10 | yes | 5 / 0 / 5 |" in text and "Judge scores of the run's answers" in text
     assert "[bench/results/jury.json](bench/results/jury.json)" in text and "`make bench-jury-rescore` refuses" in text
     assert "gen:7b scores answers its own weights generated (self-preference risk)" in text and "labelled all" not in text
+    assert "| gen:7b | 1.0 | 5 | 0 |" in text  # the score row says how many labels the abstention rule set
     blob["summary"]["kappa"]["other:8b"]["label_counts"] = {"correct": 10, "partial": 0, "wrong": 0}  # a judge with one verdict
     assert "other:8b labelled all 10 calibration answers correct" in report.jury_table(blob)
     blob["summary"]["publishable_judges"] = []
@@ -585,6 +586,7 @@ def test_the_evidence_rows_publish_a_judge_score_only_after_the_gate():
     assert all(r["command"] == "make bench-jury-v2" and r["source"].startswith("bench/results/jury_v2.json @ ") and r["not_shown"] for r in rows)
     scores = [r for r in rows if "mean correctness" in r["claim"]]
     assert [r["claim"].split(" (")[0] for r in scores] == ["Judge gen:7b", "Judge other:8b"] and "self-preference" in scores[0]["not_shown"]
+    assert scores[0]["not_shown"].startswith("0 of the 5 labels come from the abstention rule")
     kappas = [r for r in rows if "Cohen's kappa of its correctness verdicts" in r["claim"]]
     assert [r["ci"] for r in kappas] == ["[1.0, 1.0]", "[1.0, 1.0]"] and all("planted" in r["not_shown"] for r in kappas)
     blob["summary"]["publishable_judges"] = []
