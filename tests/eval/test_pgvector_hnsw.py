@@ -10,7 +10,9 @@ def test_recall_counts_rows_tied_at_the_exact_cut():
     assert hnsw.recall_at([("a", 0.1), ("b", 0.2), ("d", 0.3)], exact, 3) == 1.0  # d ties c at the cut
     assert hnsw.recall_at([("a", 0.1), ("e", 0.4), ("x", 0.5)], exact, 3) == pytest.approx(1 / 3)
     assert hnsw.recall_at([("a", 0.1)], exact, 3) == pytest.approx(1 / 3)  # a short list cannot hold more
-    assert hnsw.recall_at([("b", 0.2), ("a", 0.1), ("c", 0.3), ("e", 0.4)], exact, 3) == 1.0  # only the first k rows count
+    assert hnsw.recall_at([("b", 0.2), ("a", 0.1), ("c", 0.3), ("e", 0.4)], exact, 3) == 1.0  # the order inside the first k rows does not matter
+    # only the first k rows count: a neighbour past them does not (Recall@10 reads the first 10 rows of the k = 50 list)
+    assert hnsw.recall_at([("x", 0.5), ("a", 0.1), ("b", 0.2), ("c", 0.3)], exact, 3) == pytest.approx(2 / 3)
     with pytest.raises(ValueError):
         hnsw.recall_at([], exact[:2], 3)
 
