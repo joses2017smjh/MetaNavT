@@ -28,8 +28,8 @@ question pays the load. The request deadline is AGENT_TIMEOUT_SECONDS' largest a
 lower) so that a cold model is not what is measured; the per-upstream-call cap of companion_api is unchanged.
 Both are recorded. An HTTP failure (503, 504) or a blocked answer is a result and is not retried.
 
-Fallbacks, to be named wherever these numbers appear: hash embeddings, Postgres ts_rank_cd for the lexical
-leg, no reranker; one local 7-8B model; synthetic fixture questions.
+Stand-ins, to be named wherever these numbers appear: hash embeddings, Postgres ts_rank_cd for the lexical
+leg (the default LEXICAL_BACKEND, not BM25), no reranker; one local 7-8B model; synthetic fixture questions.
 """
 
 from __future__ import annotations

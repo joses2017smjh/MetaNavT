@@ -572,7 +572,8 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
         f"{report.get('files_rejected')} documents: {_counts(report.get('rejected_by_reason'))}; judged relevant among them: {len((blob.get('not_indexed') or {}).get('judged', []))}), "
         f"then the {n} test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of "
         f"app/eval/beir.py computed in the same job on the same queries; {scale_machine(blob)}; {scale_sha(blob)}. "
-        "Lexical leg: Postgres ts_rank_cd on the served side (a fallback, not BM25), Okapi BM25 in memory. "
+        "Lexical leg: Postgres ts_rank_cd on the served side (not BM25: the default of the explicit LEXICAL_BACKEND setting, never "
+        "chosen automatically), Okapi BM25 in memory. "
         f"Dense-leg query: the served embedder puts {served_form.get('query')!r} before each query (read from the served model); a row named "
         "'+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.",
         "",
@@ -582,7 +583,7 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
     rows_form = form.get("rows") or {}
     for row in SERVED_ROWS:
         s = blob["served"][row]
-        lines.append(f"| {row} | served | ts_rank_cd (fallback) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
+        lines.append(f"| {row} | served | ts_rank_cd (default LEXICAL_BACKEND, not BM25) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
                      f"{_ci(s, 'recall@50', 4)} | {(s.get('requests') or {}).get('failed')} of {s['n_queries']} | {_p50_p95((s.get('latency') or {}).get('e2e'))} (HTTP) |")
         for name in (s["paired_with"], s.get("bare_query_row")):
             if name:

@@ -363,7 +363,7 @@ def _companion_live_claims(root: Path = ROOT) -> list[dict]:
     cmd = "make bench-companion-live"
     model = blob["model"]
     gold = blob["summary"]["gold"]["overall"]
-    stack = ("the served retrieval is the default stack's fallbacks (hash embeddings, Postgres ts_rank_cd, no "
+    stack = ("the served retrieval is the default stack's stand-ins (hash embeddings, Postgres ts_rank_cd instead of BM25, no "
              "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
              "synthetic fixture questions")
     out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
@@ -485,7 +485,7 @@ def _served_scale_claims(root: Path = ROOT) -> list[dict]:
         rejected, judged = blob["build"]["report"].get("files_rejected"), len((blob.get("not_indexed") or {}).get("judged", []))
         out.append({"claim": f"BEIR FiQA ({blob['n_docs']} documents) through the served API (Postgres + pgvector, bge-small + bge-reranker-v2-m3): nDCG@10 at the document level",
                     "value": v, "ci": ci, "n": n, "command": cmd, "source": src,
-                    "not_shown": f"one run on {where}; the lexical leg is Postgres ts_rank_cd (a fallback, not BM25); a document ranks at its best chunk; "
+                    "not_shown": f"one run on {where}; the lexical leg is Postgres ts_rank_cd (the default LEXICAL_BACKEND, not BM25); a document ranks at its best chunk; "
                                  f"{rejected} of the {blob['n_docs']} documents were rejected by the served scanner and never indexed ({judged} of them judged relevant); "
                                  f"{failed} failed requests scored zero; the in-memory rows of the same job and the differences between the sides are in the results file"})
         for row in SERVED_ROWS:
@@ -827,7 +827,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the current run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`).
 
-**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
+**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the fixture's chunks today), ParadeDB BM25 in the production path if that backend is kept (an open decision), with its gap reported by the same parity job, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
 '''
 
 

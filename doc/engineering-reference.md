@@ -2052,11 +2052,11 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What's next
 
-Status: M0 to M5 are merged. Open items, in priority order:
+Open items, in priority order (the second is done and keeps its place):
 
 1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers, and the judge that passed is the generator's own model. Multi-part, paraphrased and computed answers need human labels or a fixture v2 slice (v1 stays frozen), and a judge from another model family would remove the self-preference caveat.
-2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
-3. **ParadeDB BM25 in the production path**, gated by the same parity job.
+2. **Per-slice changed-query counts: done.** Every per-category delta of a ladder row records how many of the slice's questions rose and fell (`questions_changed`), and the generated tables print it next to the interval.
+3. **ParadeDB BM25 in the production path**, if that backend is kept (an open decision): no test or results file has run its statement yet. A parity run with it would report its gap next to the `ts_rank_cd` row; the parity job reports that gap with its interval and fails only on a broken API or a fixture that differs from its MANIFEST.
 4. **Injection evaluation, next steps:** an attacker that rewrites the planted text against each defense (the third run's phrasings are a fixed set), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
 5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 

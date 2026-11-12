@@ -107,3 +107,28 @@ def test_hybrid_drops_row_reads_its_counts_and_ranks_from_the_file():
     if fused:  # a recording with no drops has no rank range to state
         assert f"{min(fused)}-{max(fused)} in the fused list, which is cut at {blob['retrieve_k']}" in row["not_shown"]
     assert f"Recall@50 delta {s['recall@50']['delta']:+.4f}" in row["not_shown"] and "not a retrieval-quality claim" in row["not_shown"]
+
+
+DOCS = ("README.md", "docs/RESUME_EVIDENCE.md", "doc/engineering-reference.md")
+
+
+def test_the_docs_say_the_parity_gap_is_reported_not_gated():
+    """Since #10 the parity job reports the API-minus-in-memory gap with its interval and fails only when the API is
+    broken or the fixture on disk differs from its MANIFEST: no doc may call it a gate on that gap."""
+    for rel in DOCS:
+        text = (ROOT / rel).read_text().lower()
+        for phrase in ("parity gate", "gated by the same parity job", "gated by the parity job"):
+            assert phrase not in text, (rel, phrase)
+
+
+def test_ts_rank_cd_is_labelled_the_default_lexical_backend_not_a_fallback():
+    """M11 made the lexical backend an explicit setting (LEXICAL_BACKEND) whose default is ts_rank_cd; nothing falls
+    back to it. Every doc still labels it as not BM25 wherever its numbers appear (owner rule 3), without calling it a
+    fallback."""
+    for rel in DOCS:
+        for line in (ROOT / rel).read_text().splitlines():
+            if "ts_rank_cd" in line:
+                assert not ("ts_rank_cd (fallback)" in line or "a fallback, not BM25" in line
+                            or "lexical fallback" in line or "default stack's fallbacks" in line), (rel, line[:160])
+    served = [line for line in (ROOT / "README.md").read_text().splitlines() if line.startswith("| api:")]
+    assert served and all("ts_rank_cd (default LEXICAL_BACKEND, not BM25)" in line for line in served)
