@@ -1,6 +1,11 @@
 # tests/test_file.py
 
+import sys
 from unittest.mock import MagicMock
+
+import app.database.vector_store  # noqa: F401 - imported at collection, before conftest swaps in the module mocks
+import app.engine.loaders  # noqa: F401
+from app.engine import ingest
 from app.engine.generate import get_doc_store, run_pipeline, generate_datasource
 
 
@@ -59,35 +64,42 @@ def test_run_pipeline_success(mocker):
     )
 
 
-def test_generate_datasource_success(mocker):
-    # Arrange
-    # Mock init_settings to prevent Ollama import error
-    mocker.patch('app.engine.generate.init_settings')
-    
-    # Create mock documents with proper metadata dictionaries
-    mock_doc1 = MagicMock()
-    mock_doc2 = MagicMock()
-    mock_doc1.metadata = {}
-    mock_doc2.metadata = {}
-    mock_docs = [mock_doc1, mock_doc2]
-    
-    # Set up all the mocks
-    mock_get_documents = mocker.patch('app.engine.generate.get_documents', return_value=mock_docs)
-    mock_get_doc_store = mocker.patch('app.engine.generate.get_doc_store')
-    mock_get_vector_store = mocker.patch('app.engine.generate.get_vector_store')
-    mock_run_pipeline = mocker.patch('app.engine.generate.run_pipeline')
-    mock_persist_storage = mocker.patch('app.engine.generate.persist_storage')
-    
-    # Act
-    generate_datasource()
-    
-    # Assert
-    mock_get_documents.assert_called_once()
-    mock_get_doc_store.assert_called_once()
-    mock_get_vector_store.assert_called_once()
-    mock_run_pipeline.assert_called_once()
-    mock_persist_storage.assert_called_once()
-    
-    # Verify metadata was set correctly
-    assert mock_doc1.metadata["private"] == "false"
-    assert mock_doc2.metadata["private"] == "false"
+def test_generate_datasource_delegates_to_index_directory(mocker, monkeypatch, tmp_path):
+    """The CLI is the index step: DATA_DIR through app/engine/ingest.index_directory (the benchmark's chunker,
+    the manifest, the lock), with the configured embedder. The crawler and the SentenceSplitter pipeline,
+    which wrote a second copy of every chunk on a second run, are not called."""
+    settings = sys.modules["llama_index.core.settings"].Settings  # this suite's stand-in (tests/conftest.py)
+    settings.embed_model.model_name = "hash-8"
+    init_settings = mocker.patch("app.settings.init_settings")
+    vsm = MagicMock()
+    mocker.patch("app.database.vector_store.get_vector_store_manager", return_value=vsm)
+    index_directory = mocker.patch.object(ingest, "index_directory", return_value={"files_indexed": 2, "chunks_embedded": 3})
+    for name in ("IngestionPipeline", "SentenceSplitter", "get_doc_store", "run_pipeline", "persist_storage"):
+        mocker.patch(f"app.engine.generate.{name}", side_effect=AssertionError(f"{name} is not the served path"))
+    crawler = mocker.patch("app.engine.loaders.get_documents", side_effect=AssertionError("the crawler is not the served path"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("INGEST_MAX_REJECTED", "0")
+
+    report = generate_datasource()
+
+    assert report == {"files_indexed": 2, "chunks_embedded": 3}
+    init_settings.assert_called_once()
+    vsm.check_migrations.assert_called_once()  # the deploy step comes first
+    index_directory.assert_called_once()
+    (manager, data_dir), kwargs = index_directory.call_args
+    assert (manager, data_dir, kwargs["embedder"], kwargs["max_rejected"]) == (vsm, str(tmp_path), "hash-8", 0)
+    assert kwargs["embed_fn"] is settings.embed_model.get_text_embedding_batch
+    crawler.assert_not_called()
+
+
+def test_python_m_app_engine_generate_runs_the_index_step(mocker):
+    """`python -m app.engine.generate` (scripts/run.sh generate) has the index step's output and exit status."""
+    import runpy
+
+    import pytest
+
+    step = mocker.patch("app.engine.ingest.main", return_value=0)
+    with pytest.raises(SystemExit) as exited:
+        runpy.run_module("app.engine.generate", run_name="__main__")
+    assert exited.value.code == 0
+    step.assert_called_once_with()

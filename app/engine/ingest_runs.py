@@ -7,8 +7,9 @@
   edit_one_file      one file edited: only its chunks are embedded again
   delete_one_file    one file deleted: its rows are removed
 
-Each run is app/engine/ingest.index_directory, the function the API calls on
-start, against a live Postgres and a table of its own, built by the schema
+Each run is app/engine/ingest.index_directory, the function every indexing run
+calls (the index step, python -m app.engine.ingest, and an API start with
+INDEX_ON_START), against a live Postgres and a table of its own, built by the schema
 migrations (the deploy step's migrate_all) and dropped at the end. The frozen fixture is copied first; bench/corpus/files is never written.
 Vectors come from the hash embedder (a fallback: deterministic, no model), so
 the file records what was indexed, not retrieval quality.

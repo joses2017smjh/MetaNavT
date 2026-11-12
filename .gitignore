@@ -45,6 +45,7 @@ bench/results/*.json
 !bench/results/parity_neural.json
 !bench/results/rerank_depth.json
 !bench/results/ingest_runs.json
+!bench/results/ingest_scale.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json
 !bench/results/jury_v2.json

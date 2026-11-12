@@ -3,7 +3,7 @@
 make bench-companion-live and make chat-route-smoke start `uvicorn main:app` over task-local fixture copies and
 databases of their own (app/eval/served_stack.py) and talk to Ollama over HTTP. This runs the same code with
 --limit, against FakeOllama: a loopback HTTP server that answers /api/chat from a script, enough for the
-companion's adapter and for llama-index's Ollama client. It checks the plumbing (the APIs start and index, the
+companion's adapter and for llama-index's Ollama client. It checks the plumbing (the index step and the APIs' start, the
 retrieve path form, the byte ranges the scorer checks, the databases are dropped), not any model.
 
 Needs PG_TEST_DSN (a server where the test may create and drop databases). Skipped otherwise.

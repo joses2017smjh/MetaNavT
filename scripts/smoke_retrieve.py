@@ -31,6 +31,16 @@ def _post(url: str, payload: dict):
         return resp.status, json.loads(resp.read().decode())
 
 
+def manifest_rows(indexing: dict):
+    """The rows the ingest manifest accounted for when the API started: the start's own indexing report
+    (INDEX_ON_START), else the chunks the manifest listed (manifest_at_start: the index step ran before the API).
+    None when /health carries neither. Right after a start the table holds exactly these rows; an upload or an
+    index run beside a running API changes the table afterwards, so compare only just after a start."""
+    if "n_nodes" in indexing:
+        return indexing.get("n_nodes")
+    return (indexing.get("manifest_at_start") or {}).get("chunks")
+
+
 def wait_for_health(base: str, timeout: float) -> dict:
     deadline = time.time() + timeout
     last = None
@@ -89,9 +99,9 @@ def main() -> int:
             problems.append(f"reranker not loaded: {rr.get('error')}")
         if health.get("degraded") or body.get("degraded"):
             problems.append(f"degraded components: {health.get('degraded') or body.get('degraded')}")
-    indexing = health.get("indexing") or {}
-    if "n_nodes" in indexing and health.get("n_nodes") != indexing.get("n_nodes"):
-        problems.append(f"table has {health.get('n_nodes')} rows but the ingest manifest accounts for {indexing.get('n_nodes')} (stray rows?)")
+    accounted = manifest_rows(health.get("indexing") or {})
+    if accounted is not None and health.get("n_nodes") != accounted:
+        problems.append(f"table has {health.get('n_nodes')} rows but the ingest manifest accounts for {accounted} (stray rows?)")
     if problems:
         print("SMOKE FAILED:", "; ".join(problems))
         return 1

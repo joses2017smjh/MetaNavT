@@ -1,7 +1,12 @@
 """Incremental, accountable indexing of DATA_DIR into pgvector (the served path).
 
-build_retrieval_state() calls index_directory() on every API start when
-INDEX_ON_START is set. One run, under a Postgres advisory lock:
+    python -m app.engine.ingest            (make index)   the index step: index DATA_DIR, print the report
+
+The index step runs before the API in Compose and CI (after the schema migrations), so the API
+does not index while it starts. index_data_dir() is the one call every indexing path makes: this
+command, `python -m app.engine.generate` (scripts/run.sh generate) and build_retrieval_state()
+when INDEX_ON_START is set (a single-process setup). One run, under a Postgres advisory lock that
+another indexing process waits for at most INGEST_LOCK_TIMEOUT_SECONDS:
 
   1. reconcile: count the rows per path and compare them with the manifest
      table (one row per indexed file: path, content hash, chunk count, chunker
@@ -13,7 +18,8 @@ INDEX_ON_START is set. One run, under a Postgres advisory lock:
   4. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
   5. delete the rows of removed files; for each new or changed file embed its
      chunks, delete its old rows by path, insert the new ones, then list it in
-     the manifest;
+     the manifest with what the staleness clusters need from it (its mtime and
+     the node id of its last chunk), so start-up never reads chunk text back;
   6. delete chunks whose path the manifest does not list;
   7. verify: the rows per path must now equal the manifest's chunk counts, or
      the run raises IngestUnreconciled instead of reporting success.
@@ -26,10 +32,11 @@ repeats the unfinished files and leaves one set of rows.
 The report (counts of files seen, indexed, unchanged, removed and rejected by
 reason, and the reconciliation) is returned, logged, and served by /health
 under "indexing". "Failed" is not a counted category: a failure (the embedder
-or the database raising, the rejection limit, a verification mismatch) aborts
-the run with an exception. main.py's lifespan records it and retries the start
-in the background: the process stays up, /health answers 503 with the error and
-/api/retrieve answers 503 until a later attempt succeeds. A file the run had
+or the database raising, the rejection limit, a verification mismatch, the
+lock wait running out) aborts the run with an exception: the index step exits
+with status 1, and an API start that indexes (INDEX_ON_START) records it and
+retries the start in the background: the process stays up, /health answers 503
+with the error and /api/retrieve answers 503 until a later attempt succeeds. A file the run had
 not reached keeps its previous rows and manifest entry, and so does the file in
 flight when the embedder raises (its old rows are deleted only after its chunks
 are embedded). When the database raises after that file's old rows were
@@ -42,7 +49,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
+import sys
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -84,6 +93,26 @@ def max_rejected_from_env() -> Optional[int]:
     """INGEST_MAX_REJECTED: fail the run when more files than this are rejected. Unset = count only."""
     raw = os.getenv("INGEST_MAX_REJECTED", "").strip()
     return int(raw) if raw else None
+
+
+# How long an indexing run waits for another one to finish before it gives up (IngestLockTimeout).
+DEFAULT_INGEST_LOCK_TIMEOUT_SECONDS = 600.0
+
+
+def ingest_lock_timeout_from_env() -> Optional[float]:
+    """INGEST_LOCK_TIMEOUT_SECONDS: unset or invalid = the default above; 0 = wait without a limit (None)."""
+    try:
+        value = float(os.getenv("INGEST_LOCK_TIMEOUT_SECONDS", "").strip())
+    except ValueError:
+        return DEFAULT_INGEST_LOCK_TIMEOUT_SECONDS
+    if not math.isfinite(value) or value < 0:
+        return DEFAULT_INGEST_LOCK_TIMEOUT_SECONDS
+    return value or None
+
+
+def embedder_label(embed_model) -> str:
+    """How the manifest names an embedder (its model_name, else its class): a file indexed under another label is re-embedded."""
+    return str(getattr(embed_model, "model_name", "") or type(embed_model).__name__)
 
 
 def node_id_for(path: str, start_byte: int, end_byte: int) -> str:
@@ -135,6 +164,8 @@ def index_directory(
     policy: Optional[IngestPolicy] = None,
     max_rejected: Optional[int] = None,
     embedder: str = "",
+    lock_timeout_s: Optional[float] = None,
+    before_scan: Optional[Callable[[], None]] = None,
 ) -> dict:
     """Bring the vector table in line with data_dir and return the run's report.
 
@@ -142,15 +173,22 @@ def index_directory(
     A file indexed by another chunker version or embedder counts as changed, and
     so does a listed file whose rows no longer equal its manifest chunk count.
     Raises IngestRejected (nothing written) when more than max_rejected files are
-    rejected, and IngestUnreconciled when the rows per path do not equal the
-    manifest's chunk counts after the run's writes.
+    rejected, IngestUnreconciled when the rows per path do not equal the
+    manifest's chunk counts after the run's writes, and IngestLockTimeout (nothing
+    written) when another run holds the lock longer than lock_timeout_s (None:
+    INGEST_LOCK_TIMEOUT_SECONDS). before_scan runs once the lock is held, before
+    the manifest is read and the directory scanned: the upload route writes its
+    file there, so no run reads it half-written and this run indexes it.
     """
     root = Path(data_dir).resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"DATA_DIR {data_dir!r} is not a directory")
     policy = policy or policy_from_env()
     pipeline = f"{CHUNKER_VERSION}|{embedder}"
-    with vsm.ingest_lock() as lock:
+    lock_timeout_s = ingest_lock_timeout_from_env() if lock_timeout_s is None else (lock_timeout_s or None)
+    with vsm.ingest_lock(lock_timeout_s) as lock:
+        if before_scan is not None:
+            before_scan()
         store = vsm.get_vector_store()  # the data table and the manifest are schema migrations (vector/0001, 0002)
         manifest = vsm.ingest_manifest()
         # Rows of unlisted paths are left to delete_unlisted_chunks below; a listed file whose rows do not
@@ -174,7 +212,8 @@ def index_directory(
                 node.embedding = list(vector)
             chunks_deleted += vsm.forget_file(path)  # after embedding: an embedder failure leaves the old rows in place
             store.add(nodes)
-            vsm.record_file(path, source.sha256, len(nodes), pipeline)
+            # with the file's staleness record: its mtime and the member id a version cluster names (its last chunk)
+            vsm.record_file(path, source.sha256, len(nodes), pipeline, mtime=source.mtime, member_node_id=nodes[-1].node_id)
             chunks_embedded += len(nodes)
         unlisted = vsm.delete_unlisted_chunks()
         listed = vsm.ingest_manifest()
@@ -203,3 +242,62 @@ def index_directory(
 
 def _chunk_counts(manifest: dict[str, dict]) -> dict[str, int]:
     return {path: row["n_chunks"] for path, row in manifest.items()}
+
+
+def index_data_dir(vsm, before_scan: Optional[Callable[[], None]] = None) -> dict:
+    """Index DATA_DIR with the embedder init_settings() configured (Settings.embed_model): the one call start-up
+    (INDEX_ON_START), the index step, `python -m app.engine.generate` and an upload (app/engine/uploads.py, which
+    writes its file in before_scan) make, so all of them write the same chunks under the same pipeline label and a
+    run after any other one embeds only what changed."""
+    from llama_index.core.settings import Settings
+
+    return index_directory(
+        vsm,
+        os.getenv("DATA_DIR", "data"),
+        embed_fn=Settings.embed_model.get_text_embedding_batch,
+        embedder=embedder_label(Settings.embed_model),
+        max_rejected=max_rejected_from_env(),
+        before_scan=before_scan,
+    )
+
+
+def run_index_step() -> dict:
+    """The index step as a process runs it: settings and embedder from the environment (as the API reads them),
+    the schema migrations required (MigrationsPending otherwise), then index_data_dir. Returns the report."""
+    from app.database.vector_store import get_vector_store_manager
+    from app.settings import init_settings
+
+    init_settings()
+    vsm = get_vector_store_manager()
+    try:
+        vsm.check_migrations()  # the deploy step (python -m app.database.migrate) comes first
+        return index_data_dir(vsm)
+    finally:
+        vsm.close()
+        get_vector_store_manager.cache_clear()
+
+
+def main(argv: Optional[list] = None) -> int:
+    """`python -m app.engine.ingest`: exit 0 and the report as one JSON line on stdout, or exit 1 and the error on stderr."""
+    import argparse
+
+    from dotenv import load_dotenv
+
+    argparse.ArgumentParser(
+        description="Index DATA_DIR into the pgvector table (the index step; run it after python -m app.database.migrate). "
+        "Configuration as the API reads it: PG_CONNECTION_STRING, DATA_DIR, MODEL_PROVIDER and the embedder settings, "
+        "INGEST_MAX_REJECTED, INGEST_SUFFIXES, INGEST_MAX_FILE_BYTES, INGEST_LOCK_TIMEOUT_SECONDS."
+    ).parse_args(argv)
+    load_dotenv()  # .env as the API reads it (main.py): variables already set win over the file
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
+    try:
+        report = run_index_step()
+    except Exception as exc:  # noqa: BLE001 - every failure is the step's exit status and one line saying why
+        print(f"indexing failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(report, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
