@@ -27,14 +27,14 @@ The report (counts of files seen, indexed, unchanged, removed and rejected by
 reason, and the reconciliation) is returned, logged, and served by /health
 under "indexing". "Failed" is not a counted category: a failure (the embedder
 or the database raising, the rejection limit, a verification mismatch) aborts
-the run with an exception. main.py's lifespan records it: the process stays up,
-/health answers 503 with the error and /api/retrieve answers 503 until a later
-start succeeds. A file the run had not reached keeps its previous rows and
-manifest entry, and so does the file in flight when the embedder raises (its
-old rows are deleted only after its chunks are embedded). When the database
-raises after that file's old rows were deleted, the file is no longer listed
-in the manifest, and may have no rows, until the next run indexes it again as
-new.
+the run with an exception. main.py's lifespan records it and retries the start
+in the background: the process stays up, /health answers 503 with the error and
+/api/retrieve answers 503 until a later attempt succeeds. A file the run had
+not reached keeps its previous rows and manifest entry, and so does the file in
+flight when the embedder raises (its old rows are deleted only after its chunks
+are embedded). When the database raises after that file's old rows were
+deleted, the file is no longer listed in the manifest, and may have no rows,
+until the next run indexes it again as new.
 """
 
 from __future__ import annotations

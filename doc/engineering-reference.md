@@ -586,12 +586,12 @@ start together serialise on the lock; the second finds nothing to do.
 database raising, the rejection limit, a verification mismatch) aborts the run
 with an exception instead of being counted in a report. The API process stays
 up with the error recorded: `GET /health` answers 503 with it and
-`/api/retrieve` answers 503 until a later start succeeds. A file the run had
+`/api/retrieve` answers 503 until a later start-up attempt succeeds (they are retried in the background, without a restart: Start-up and `/health`, below). A file the run had
 not reached keeps its previous rows and manifest entry, and so does the file in
 flight when the embedder raises (its old rows are deleted only after its chunks
 are embedded). When the database raises after that file's old rows were
 deleted, the file is no longer listed in the manifest, and may have no rows,
-until the next start indexes it again as new. A file is counted only as
+until the next run indexes it again as new. A file is counted only as
 indexed, unchanged or rejected with a reason.
 
 What checks this: [tests/database/test_incremental_index.py](../tests/database/test_incremental_index.py)
