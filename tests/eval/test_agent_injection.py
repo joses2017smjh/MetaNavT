@@ -1468,6 +1468,10 @@ def test_the_v3_table_reads_how_the_shards_overlapped_and_counts_the_write_tool_
             "at most 2 running at once)") in text
     blob["episodes_generated_by"]["segments"] = [segment("a", "00", "01"), segment("b", "01", "02")]
     assert "at most 1 running at once" in agent_injection_v3_table(blob)
+    # one job starting the second the other finishes is not two at once: a finish counts first on a tie
+    tied = [segment("a", "00", "01"), {**segment("b", "01", "02"), "started_utc": "2026-01-01T01:00:00+00:00"}]
+    blob["episodes_generated_by"]["segments"] = tied
+    assert tied[0]["finished_utc"] == tied[1]["started_utc"] and "at most 1 running at once" in agent_injection_v3_table(blob)
 
 
 def test_the_v3_evidence_rows_read_any_success_and_the_answer_check_deltas_from_the_results_file(tmp_path, monkeypatch):
