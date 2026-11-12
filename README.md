@@ -55,6 +55,8 @@ The generated-answer study is separate from retrieval ranking. Its judge-validit
 
 The prompt-injection study is separate again: two local models choose MCP file-tool calls over corpus copies whose answering files carry planted instructions. Neither model pursued a planted file action, and no model called a write tool, so the approval gate was not exercised by a model. The stronger model stated the planted value in nearly every hijack episode in every configuration. One phrasing per goal and task, not an adaptive attacker. [Protocol and limits](doc/engineering-reference.md#does-the-agent-follow-instructions-planted-in-files) · [Generated table](#agent-injection) · [Every episode](bench/results/agent_injection_episodes.jsonl).
 
+The deep-research loop (`app/agent/deep_research.py`: query rewrites, multi-query search, relevance grading, a token-budgeted scratchpad and a cited extractive answer) is a demo that has not been evaluated: no results file scores its answers. Only its multi-query retrieval step has measured rows: the prototype-arm tables below, on the fixture its keyword rewrite rules were written for, and a check on the robotics file-lookup questions, where those rules almost never fire, so it does not exercise them. [Robotics check](bench/results/robotics_multiquery.json) · [Protocol](doc/engineering-reference.md#real-robotics-experiment-lookup).
+
 ## How it works
 
 ```mermaid

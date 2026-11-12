@@ -240,6 +240,20 @@ was scored; nothing was tuned on either split. The questions name each
 experiment by the words of its path, so an interval that covers zero does not
 show that the two chunkers find answers equally well.
 
+[Chunking results](../bench/results/robotics_chunking.json): on both splits the
+paired interval of nDCG@10, fixed window minus structure-aware chunker, is
+above zero. It is a recorded loss of the structure-aware chunker on generated
+file lookup with the hash embedder, not a measurement of answer quality, and
+the check does not show which difference between the chunkers decides it (the
+structure-aware chunker keeps a JSON file of up to its maximum chunk size as
+one chunk; the fixed window cuts it into short windows that each carry the
+path context). [Multi-query results](../bench/results/robotics_multiquery.json):
+the development split's verdict is "rules did not fire". On the test split the
+rules fire only through a false trigger (the rule that looks for `lr` matches
+inside the word `fullroute`), which changes no question's score. The paired
+interval is zero because multi-query was not exercised, not because it has no
+effect.
+
 Opt in to the same search-only context with
 `build_index(..., include_path_context=True)`. The existing fixture remains the
 regression baseline. Human-reviewed temporal, multi-artifact and unanswerable
@@ -1092,10 +1106,10 @@ each LLM-written arm against the heuristic arm it replaces.
 
 | arm | what it changes | CPU stand-ins | real models | what the intervals support |
 |---|---|---|---|---|
-| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. |
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. On the robotics file-lookup questions ([check](../bench/results/robotics_multiquery.json)) the rules almost never fire, and where they do it is a false trigger, so that check does not exercise multi-query. |
 | HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
 | Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
-| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. On the robotics snapshot, whose files are longer than one window, the fixed window is above the structure-aware chunker on both splits ([check](../bench/results/robotics_chunking.json); hash embedder, generated file-lookup questions). |
 | Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. The LLM-written prefix is the next row. |
 | LLM-written contextual prefixes (`hybrid+contextual-llm`) | prepends the situating description qwen2.5:7b wrote for each chunk (`app/chunking/contextual.py` prompt, stored) | not evaluated (real models only) | covers zero | Evaluated with bge-small: no measured effect against plain hybrid, and above zero against the path-words prefix in the direct comparison. The loss of `hybrid+contextual` belongs to the path-words prefix, not to contextual prefixes in general; an LLM-written prefix is still not a measured gain. |
 | Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
@@ -1184,6 +1198,14 @@ benchmark. It is kept out of the benchmark tables on purpose. Modules:
 `app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`. The
 two graph demos below replay hand-picked cases; the category-level result for
 both mechanisms is the table above.
+
+The deep-research loop (`app/agent/deep_research.py`, `DeepResearchAgent`:
+query rewrites, multi-query search, relevance grading, a token-budgeted
+scratchpad and a cited extractive answer) is a demo that has not been
+evaluated either: it has tests and drives the deep-research demo trace
+(`app/eval/demo_export.py`), and no results file scores its answers. Its multi-query retrieval step is the
+`hybrid+multiquery` arm above and the robotics check under
+[Real robotics experiment lookup](#real-robotics-experiment-lookup).
 
 ### GraphRAG community summaries and HippoRAG PPR
 
