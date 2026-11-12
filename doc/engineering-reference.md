@@ -889,8 +889,10 @@ in-memory configuration.
 error (`/health` 503 with the reason) unless `RERANKER_REQUIRED=false`, in
 which case `/health` reports `degraded` and every response lists the missing
 component. A reranker call that fails at request time serves that request in
-RRF order and says so in `degraded`; the lexical leg failing in Python mode
-does the same. `/health` reports the reranker's model, revision, device,
+RRF order and says so in `degraded`; in Python mode a lexical call that raises
+does the same, but the database manager's `search_bm25` catches its own database
+errors and answers with no rows and a `null` `bm25_backend`, which `degraded`
+does not list. `/health` reports the reranker's model, revision, device,
 precision, `max_length` and depth. `tests/engine/test_hybrid_retriever.py`
 fails if a configured reranker could fall back without a trace. The benchmark's
 in-memory `CrossEncoderReranker` (`app/retrieval/rerank.py`) follows the same
