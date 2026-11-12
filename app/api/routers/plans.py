@@ -19,14 +19,16 @@ SHA-256), the session it was proposed in, the identity of the root it was propos
 (when, by whom, the note). An approval loads the row into this process's FilesystemTools and runs its
 gate unchanged: the review is rebuilt from the row's move and session and from the files as this process
 sees them, must equal the stored review, and the capability must be signed over it. Plans are read under
-the root identity of this process's DATA_DIR (its path, device and inode), and a review also binds each
-file's device and inode, so replicas share plans when they see DATA_DIR at the same path on the same
-filesystem; another view of the files refuses a plan as stale. A decision holds its row's lock until the
+the root identity of this process's DATA_DIR (its path, device and inode), so replicas share plans when
+they see DATA_DIR at the same path on the same filesystem; a replica that sees it under another path or
+device lists none of them and answers 404. A review also binds each file's device and inode, so a file
+replaced since the review is refused as stale. A decision holds its row's lock until the
 new status is saved, so an approval and a rejection of one plan, or two approvals, sent to two replicas
 are decided one after the other.
 
 A database failure answers 503 with a fixed text; its cause (which can name tables, hosts and ports) goes
-to the server log only. Without a database (build_plan_store(None)) the plans live in this process only.
+to the server log only, and an operating system error's text (file names) is replaced by a fixed one
+(told()). Without a database (build_plan_store(None)) the plans live in this process only.
 """
 
 from __future__ import annotations
@@ -46,8 +48,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from app.mcp.approvals import review_hash, verifier_from_env
-from app.mcp.filesystem import ApprovalRequired, FilesystemTools, MovePlan
+from app.mcp.approvals import REFUSAL_CHECKS, review_hash, verifier_from_env
+from app.mcp.filesystem import ApprovalRequired, FilesystemTools, MovePlan, refusal_check
 
 plans_router = r = APIRouter()
 logger = logging.getLogger("uvicorn")
@@ -59,6 +61,17 @@ MAX_LISTED_PLANS = 500  # GET /api/plans answers with at most this many plans, t
 STORE_UNAVAILABLE = "plan store unavailable"
 LOG_UNAVAILABLE = "decision log unavailable, action refused"
 NOT_RECORDED = "the approval could not be recorded; nothing was applied"
+
+
+def told(exc: BaseException, fallback: str | None) -> str | None:
+    """What a client is told of a refused or failed file action. A text this repository wrote (an exception raised
+    without an errno: a check's error, "reviewed source is missing") goes as it is. An operating system error's text
+    names files (absolute paths among them) and calls, and does not: the fixed description of the check that refused
+    it (REFUSAL_CHECKS) when there is one, else `fallback`. The decision log keeps the full text."""
+    if getattr(exc, "errno", None) is None:
+        return str(exc)
+    check = refusal_check(exc)
+    return REFUSAL_CHECKS[check] if check else fallback
 
 
 class PlanCreate(BaseModel):
@@ -243,11 +256,11 @@ class PlanStore:
         try:
             proposal = self.tools.propose_move(src, dst)
         except FileNotFoundError as exc:
-            raise HTTPException(status_code=404, detail=f"source not found: {exc}") from exc
+            raise HTTPException(status_code=404, detail=f"source not found: {told(exc, src)}") from exc
         except FileExistsError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=told(exc, "the destination already exists")) from exc
         except PermissionError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(status_code=400, detail=told(exc, "the path was refused")) from exc
         plan_id = proposal["plan_id"]
         try:
             proposed = self.tools.plans[plan_id]
@@ -308,13 +321,14 @@ class PlanStore:
             return self.tools.apply_plan(row.plan_id, approval_token=approval_token).get("status", "applied")
         except (ApprovalRequired, PermissionError) as exc:
             self._result(record, f"refused: {exc}")
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
+            raise HTTPException(status_code=403, detail=told(exc, "the file system refused the move")) from exc
         except FileExistsError as exc:
             self._result(record, f"refused: {exc}")
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=told(exc, "the destination already exists")) from exc
         except OSError as exc:
             self._result(record, f"failed: {exc}")
-            raise HTTPException(status_code=500, detail=f"move failed: {exc}") from exc
+            text = told(exc, None)
+            raise HTTPException(status_code=500, detail=f"move failed: {text}" if text else "move failed") from exc
         except Exception as exc:  # noqa: BLE001 - not a refusal: the grant ledger's or the audit trail's database
             if plan.applied:  # the move ran; only the audit event written after it failed
                 logger.error(f"plan {row.plan_id} applied, but its audit event was not written: {type(exc).__name__}: {exc}")

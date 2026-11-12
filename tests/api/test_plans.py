@@ -185,3 +185,31 @@ def test_no_plan_is_kept_in_the_tools_between_requests(client, corpus, operator_
     token = operator_grant(store.tools, plan["review"])
     assert client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": token}).json()["status"] == "applied"
     assert store.tools.plans == {} and store.tools._reviews == {}
+
+
+def test_an_operating_system_errors_text_never_reaches_the_client(client, corpus, operator_grant, monkeypatch):
+    """A refusal this repository words (a check's error, "reviewed source is missing") is sent as it is; an
+    operating system error's text names files, here an absolute path, and is not: the client gets a fixed text."""
+    import errno
+
+    from app.mcp import filesystem
+
+    store = client.app.state.plans
+    plan = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "configs/archive/run_047.yaml"}).json()
+    secret = str(corpus / "configs" / "secret_name.yaml")
+    cases = [(PermissionError(errno.EACCES, "Permission denied", secret), 403, "the file system refused the move"),
+             (FileExistsError(errno.EEXIST, "File exists", secret), 409, "the destination already exists"),
+             (OSError(errno.ENOSPC, "No space left on device", secret), 500, "move failed")]
+    for error, status, detail in cases:
+        def failing_move(*args, _error=error, **kwargs):
+            raise _error
+
+        monkeypatch.setattr(filesystem, "move_file", failing_move)
+        token = operator_grant(store.tools, plan["review"])  # each failed move burns its capability
+        resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": token})
+        assert (resp.status_code, resp.json()["detail"]) == (status, detail)
+        assert "Errno" not in resp.text and "secret_name" not in resp.text and str(corpus) not in resp.text
+    monkeypatch.undo()
+    (corpus / "configs" / "run_047.yaml").unlink()  # a refusal worded here is sent as it is
+    resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": operator_grant(store.tools, plan["review"])})
+    assert (resp.status_code, resp.json()["detail"]) == (500, "move failed: reviewed source is missing")
