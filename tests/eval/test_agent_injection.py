@@ -1085,6 +1085,32 @@ def test_shards_merge_into_one_episodes_file_in_a_fixed_order(tmp_path, monkeypa
         ai.main(["--merge", *map(str, shards), "--out", str(out), "--episodes", str(merged)])
 
 
+def test_a_rescore_of_merged_shards_reports_their_servers_as_the_merge_did(tmp_path, monkeypatch):
+    # `make bench-agent-injection-v3-rescore` rebuilds a merged run from its stored episodes: the device and server
+    # blocks describe every shard's process, as the merge wrote them, not the last shard's alone
+    original = ai.run_episode
+    monkeypatch.setattr(ai, "run_episode", lambda chat, env, d, seed, max_turns=6: original(
+        answering(env.task, comply=True), env, d, seed, max_turns))
+    shards = []
+    for name, model in (("a", "m1"), ("b", "m2")):
+        shards.append(tmp_path / f"{name}_episodes.jsonl")
+        ai.run([model], k=1, workers=2, episodes_path=shards[-1], questions=["q011"], defenses=("none",),
+               chat_factory=lambda m: None, log=lambda _: None, benchmark=ai.BENCHMARK_V3)
+        meta = json.loads(ai.sidecar(shards[-1]).read_text())  # what a GPU job's server reports when its segment ends
+        meta["segments"][-1].update(device={"gpu": "A40"}, ollama_after={
+            "base_url_scheme": "http", "version": "9.9.9", "models": {model: {"digest": model * 8}},
+            "running": {model: {"context_length": 32768, "size_vram": 1}}})
+        ai.sidecar(shards[-1]).write_text(json.dumps(meta))
+    merged, out, again = tmp_path / "merged.jsonl", tmp_path / "out.json", tmp_path / "again.json"
+    assert ai.main(["--merge", *map(str, shards), "--models", "m1,m2", "--k", "1", "--out", str(out),
+                    "--episodes", str(merged)]) == 0
+    assert ai.main(["--summarize-only", "--models", "m1,m2", "--k", "1", "--out", str(again), "--episodes", str(merged)]) == 0
+    first, second = json.loads(out.read_text()), json.loads(again.read_text())
+    assert sorted(first["ollama"]["models"]) == sorted(first["ollama"]["running"]) == ["m1", "m2"]
+    assert first["device"] == {"gpu": "A40"} and first["wall_s"] is not None
+    assert (second["ollama"], second["device"], second["wall_s"]) == (first["ollama"], first["device"], first["wall_s"])
+
+
 def test_a_merged_run_keeps_one_server_record_only_where_the_shards_agree():
     a = {"base_url_scheme": "http", "version": "0.34.3", "models": {"m1": {"digest": "x"}},
          "running": {"m1": {"context_length": 32768, "size_vram": 1}}}
@@ -1249,6 +1275,10 @@ def test_the_v3_run_was_generated_and_scored_at_one_clean_commit_by_the_committe
     ollama = blob["ollama"]
     assert ollama["version"] and all(ollama["models"][m]["digest"] and ollama["running"][m]["context_length"]
                                      for m in cfg["models"])
+    # the server, device and wall time are the jobs' own, read from their segments (a rescore reads them the same way)
+    assert ollama == ai.merged_ollama([seg.get("ollama_after") or seg.get("ollama") for seg in segments])
+    assert all(seg["device"] == blob["device"] for seg in segments) and blob["device"]["gpu"]
+    assert blob["wall_s"] == round(sum(seg["wall_s"] for seg in segments), 1)
     # every episode of the design once, the trial index as seed, in the merge's fixed order
     every = len(ai.build_tasks(benchmark=ai.BENCHMARK_V3)) * len(cfg["defenses"]) * len(cfg["models"]) * cfg["k"]
     keys = [ai._episode_key(r) for r in rows]

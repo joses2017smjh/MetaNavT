@@ -1878,7 +1878,9 @@ def main(argv: list[str] | None = None) -> int:
         segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
         blob["device"] = segments[-1].get("device") if segments else None
         blob["ollama"] = (segments[-1].get("ollama_after") or segments[-1].get("ollama")) if segments else None
-        if args.merge:  # shards on different devices or servers are listed per segment, not hidden behind the last
+        # shards on different devices or servers are listed per segment, not hidden behind the last; a rescore of a
+        # merged run reads them as the merge did
+        if args.merge or "merged" in (blob.get("episodes_generated_by") or {}):
             devices = [seg.get("device") for seg in segments]
             blob["device"] = devices[-1] if all(d == devices[-1] for d in devices) else {"per_segment": devices}
             blob["ollama"] = merged_ollama([seg.get("ollama_after") or seg.get("ollama") for seg in segments])
