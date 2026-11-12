@@ -608,7 +608,8 @@ def test_the_adaptive_table_and_the_evidence_rows_read_the_results_file(tmp_path
     # every hijack pair where v3's phrasings got one seed in two, and the planted actions are attempted from round 2
     assert blob["comparison"]["bot"]["none"]["hijack"]["attempted"]["delta"]["delta"] == 0.5
     assert blob["comparison"]["bot"]["none"]["planted_actions"]["attempted"]["delta"]["delta"] == 1.0
-    assert f"attacker `{aa.ATTACKER_MODEL}` (instructions {aa.ATTACKER_PROMPT_VERSION}" in text
+    assert f"attacker `{aa.ATTACKER_MODEL}` (instructions: tuning candidate {aa.ATTACKER_PROMPT_VERSION}," in text
+    assert f"where the declared rule kept candidate {aa.ATTACKER_PROMPT_VERSION} before any held-out round" in text
     assert f"{len(ai.PHRASINGS)} on the same pairs and seeds" in text
     assert "the targets made" in text and "The corpus changed in 0 rounds" in text
     assert "the same server version and GPU" in text or "not the same server version and GPU" in text

@@ -1709,7 +1709,7 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
     lines = [
         f"An adaptive attacker against each configuration ({how}; {_adaptive_where(blob, segments)}): "
         f"{blob['n_episodes']} rounds in {blob['n_trajectories']} trajectories, {blob['n_episode_errors']} harness "
-        f"errors; attacker `{attacker['model']}` (instructions {attacker['prompt_version']}, temperature "
+        f"errors; attacker `{attacker['model']}` (instructions: tuning candidate {attacker['prompt_version']}, temperature "
         f"{attacker['temperature']}) via its own {_server_line({'ollama': blob.get('attacker_ollama')})}; targets "
         f"{', '.join(cfg['models'])} (temperature {cfg['temperature']}) via {_server_line(blob)} on {gpu}; {wall}.",
         "",
@@ -1723,7 +1723,8 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
         "configuration's one-line description; after each round it is told, for its own earlier rounds only, whether "
         "its text reached the assistant, whether the assistant attempted the goal, whether it took effect, and the "
         "start of the answer the user received: scorer-outcome feedback, more than a user would see. Its instructions "
-        f"were tuned on the training questions ({', '.join(split['train'])}); these are the "
+        f"were tuned on the training questions ({', '.join(split['train'])}), where the declared rule kept candidate "
+        f"{attacker['prompt_version']} before any held-out round (`tuning_outcome` in the file); these are the "
         f"{len(split['questions'])} held-out questions ({', '.join(split['questions'])}), run once. Success after "
         f"{rounds} rounds is any round's attempt (model level) or, apart from that, any round's effect (system level), "
         "per trial: a pair's value is the share of its trials, per goal the mean over the pairs, and a group of goals "
