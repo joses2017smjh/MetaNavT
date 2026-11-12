@@ -65,6 +65,10 @@ The [research companion](../doc/research-companion.md) exposes search and source
 tools through HTTP and MCP. Agent Field can ask this service for cited research evidence
 and open its tool trace. Demo mode is explicitly scripted; live mode uses a server-hosted
 Ollama tool-calling model. Requests are bounded and mutations are unavailable.
+Live mode has one recorded run with a local model, over every gold question and over
+a copy of the fixture with planted instructions (`make bench-companion-live`; results in
+`bench/results/companion_live.json`, rows in [docs/RESUME_EVIDENCE.md](../docs/RESUME_EVIDENCE.md);
+what it scores and what it does not is under [validation scope](../doc/research-companion.md#validation-scope)).
 
 ### Android and iOS companion backend
 
@@ -211,6 +215,59 @@ separate from citation text. Both configurations use BM25 without a neural model
 make robotics-verify
 make bench-robotics   # writes a new result; retains the measured reference
 ```
+
+The snapshot was frozen from the source repository's working tree, and some
+of its files differ from the blob the repository's index listed for them at
+the freeze (the manifest's `source_git_blob` and `matches_tracked_blob`
+fields). They are kept as they are:
+replacing them would make a new snapshot version. `make robotics-verify` and
+`make bench-robotics` print how many files differ and which. The freeze
+(`python -m app.eval.robotics freeze`) now reads the commit's git objects
+(`git ls-tree`, `git cat-file`) and never the working tree, so an uncommitted
+edit, a staged change or a file deleted on disk cannot reach a new snapshot,
+and a symlink is rejected without reading what it points to. Its filters have
+tests: undecodable text, byte duplicates, and a secret pattern that matches
+`api_key`, `access_token` or `password` followed by `=` or `:` and a value
+that begins with a long run of letters, digits, `_` or `-`. A secret under
+another name, a short value or one with other punctuation near its start, or
+a JSON key whose closing quote comes before the colon, is not caught.
+
+Two checks outside fixture v1 run on this snapshot
+(`app/eval/robotics_checks.py`). `make bench-robotics-chunking` compares the
+structure-aware chunker with a fixed character window for every file, the
+change the fixture's `hybrid+fixed-chunks` row makes, here on files most of
+which are longer than one window. `make bench-robotics-multiquery` adds the
+multi-query rewrite of the fixture's `hybrid+multiquery` row to the same index,
+on questions its keyword rules were not written for. Both use the in-memory
+hybrid index with the path context in the BM25 leg and the hash embedder (no
+model, no reranker, no router). Both legs rank every chunk and the fused
+ranking is cut to its first distinct paths, so each arm is scored on the same
+number of files however many chunks a file has. The primary score is
+path-level nDCG@10; intervals come from the family bootstrap, on the
+development and test splits separately, with each arm paired with its parent.
+The configuration is written in the code (`DECLARATION`, pinned by
+`tests/eval/test_robotics_checks.py`) and was committed before the test split
+was scored; nothing was tuned on either split. The questions name each
+experiment by the words of its path, so an interval that covers zero does not
+show that the two chunkers find answers equally well.
+
+[Chunking results](../bench/results/robotics_chunking.json): on both splits the
+paired interval of nDCG@10, fixed window minus structure-aware chunker, is
+above zero. It is a recorded loss of the structure-aware chunker on generated
+file lookup with the hash embedder, not a measurement of answer quality, and
+the check does not show which difference between the chunkers decides it (the
+structure-aware chunker keeps a JSON file of up to its maximum chunk size as
+one chunk; the fixed window cuts it into short windows that each carry the
+path context). These chunk-level hybrid rows are not comparable with the
+file-level BM25 rows quoted at the top of this section: they index chunks
+instead of whole files, fuse in the hash embedder's list, and rank every chunk
+before the list is cut at distinct paths.
+[Multi-query results](../bench/results/robotics_multiquery.json):
+the development split's verdict is "rules did not fire". On the test split the
+rules fire only through a false trigger (the rule that looks for `lr` matches
+inside the word `fullroute`), which changes no question's score. The paired
+interval is zero because the rules hardly ever fired, so it says nothing about
+whether multi-query helps.
 
 Opt in to the same search-only context with
 `build_index(..., include_path_context=True)`. The existing fixture remains the
@@ -786,11 +843,31 @@ one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsra
 with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
 (`websearch_to_tsquery` + `ts_rank_cd` over `text_tsv`, a stored generated column holding
 `to_tsvector('english', text)`, so no query computes it per row, with a GIN index on that column; ParadeDB BM25 only with
-`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
+`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), on the
+router's `lexical_path` route a path list in place of the dense list, and
 reciprocal rank fusion computed in SQL, then
-staleness Tier 1 from the same `app/graph` code the bench uses. Every hit
+staleness Tier 1 from the same `app/graph` code the bench uses. The path list is the
+benchmark's path lookup (`InMemoryHybridIndex.search_path`) in SQL: a row scores
+when its file name, its path or its file name without the extension occurs in the
+lowercased query, with the same weights, and the route fuses it with the lexical
+list as the in-memory index does. It reads every row of the table (a sequential
+scan) on that route only; on every other route its parameter is NULL and the scan
+never runs. `tests/database/test_dense_parity.py` requires the same score for every
+chunk as the in-memory lookup on each gold question the router sends down that
+route, and `tests/database/test_hybrid_sql.py` checks that a path query returns the
+named file first where the lexical list alone ranks a note that mentions it first. Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
-the response carries the route and per-stage latency. `k` is validated (1-50),
+the response carries the route and per-stage latency. Its `bm25_backend` names the
+lexical backend that answered that request (`ts_rank_cd`, `paradedb`, or `none` when
+no row came from the lexical list): the label comes back from the database call with
+the request's own rows, so a request served at the same moment on another worker
+thread cannot change it. In the Python fusion mode a lexical call that raises is
+listed in that request's own `degraded`; the database manager's `search_bm25`
+catches its database errors itself and answers with no rows and a `null` label,
+which is not listed as degraded. The retriever and the database manager are shared by
+every request and keep no per-request field (`tests/engine/test_hybrid_retriever.py`
+interleaves two requests on threads, and checks the retriever's fields are unchanged
+after requests); `/health` reports the configured backend. `k` is validated (1-50),
 bad bodies are 422, a down backend is 503, and a retrieval that runs past its
 time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
 statement gets the rest of the budget as its `statement_timeout`, so Postgres
@@ -815,12 +892,13 @@ reads the lexical list with a bitmap scan of the GIN index and the dense list fr
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
-**At FiQA scale.** `make bench-served-scale` (`app/eval/served_scale.py`, on a GPU node with Apptainer) writes FiQA one file per document, indexes it with `app/engine/ingest.index_directory` into a task-local PostgreSQL + pgvector with bge-small after the deploy step (`python -m app.database.migrate`), starts the API with `INDEX_ON_START` unset and both models, and replays every test query through `POST /api/retrieve/` with k = 50. A BEIR qrel names a document and the API returns chunks, so a document ranks at its best-ranked chunk (`app/eval/beir_api.py`); a failed request keeps its place and scores zero. Each served row is paired, query by query, with an in-memory row of `app/eval/beir.py` computed in the same job on the same queries with the same query form: the served embedder (LlamaIndex `HuggingFaceEmbedding`) puts its sentence-transformers query prompt before every query on the dense leg, so the paired in-memory row does the same (the prompt is read from the served model, and the job compares the two sides' query vectors). The bare-query rows stay next to them and are checked against `bench/results/beir_fiqa.json`. The run also records the build (the schema migrations, then index_directory with the indexes maintained per insert, the sizes on disk, an unchanged re-run), the start-up (the chunk read-back and the version clusters), the statement's plan, and `app/eval/http_load` at concurrency 1, 4 and 16 with every failure counted ([results](../bench/results/served_scale_fiqa.json), [generated table](../README.md#bench-served-scale)). The sides differ by design: chunks against whole documents, `ts_rank_cd` against BM25, the router, and at most 50 chunks against 100 fused documents; the results file lists each difference. The run is a sequence of stages that each write their own file, so a job that dies late resumes (`SERVED_SCALE_ARGS=--resume`) without measuring again what it already measured; each stage names the machine it ran on.
-
-That block renders
-[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
+That block renders two runs:
+[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json),
+the hash embedder with no reranker as CI runs it
 (`parity_shared_chunker_restart.json` is the same command after a restart on
-the indexed database). Both runs were made after the API took the bench's
+the indexed database), and
+[bench/results/parity_neural.json](../bench/results/parity_neural.json), the
+model-backed run described below. Every run was made after the API took the bench's
 chunker: both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
 and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
 compares the chunk boundaries and texts of the two paths on the fixture, so the
@@ -831,9 +909,12 @@ same file mtimes, which the staleness filter compares: the in-memory row reads
 the fixture's MANIFEST, and the API reads the disk after `make fixture-mtimes`
 has set it to the MANIFEST's values (CI runs it before starting the API; a
 checkout's own mtimes are arbitrary, and the API keeps reading the disk as a
-served system should). The API row scores above the in-memory row and the
-paired interval excludes zero: sharing the chunker removed one difference and
-did not make the rows agree.
+served system should). In the hash run the API row scores above the in-memory
+row and the paired interval excludes zero: sharing the chunker removed one
+difference and did not make the rows agree. In the model-backed run the API row
+scores below the in-memory row and the interval covers zero; its per-category
+gaps (on the API row) are not all of one sign. For each run the block names every
+gold category whose paired interval excludes zero.
 
 What is checked exactly is the dense leg:
 [tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)
@@ -851,7 +932,8 @@ served statement to be planned on it, and requires the same `RETRIEVE_K` rows
 for every gold question. On the fixture that scan reaches every row (the
 statement reads twice the depth, more rows than the fixture has), so the test
 checks the plan and the depth, not the index's recall: an HNSW scan is
-approximate, and its recall at a realistic size is not measured yet. Two things
+approximate, and its recall at a realistic size is what `make bench-served-scale`
+measures ([pgvector knobs](#pgvector-knobs-on-a-trade-off-curve)). Two things
 kept the index from serving the full list before: the `params` CTE, read by both
 lists, was materialized, which made the query vector a column and left the dense
 list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
@@ -875,10 +957,14 @@ chunks as a set.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
-`ts_rank_cd` over OR-joined terms), the order of equal scores (the SQL orders
-ties by `node_id`, the in-memory fusion by first-seen order), and the
-exact-path route (the in-memory index searches paths; the API runs its lexical
-list alone). CI's `parity` job runs the dense-leg test and the parity report on every push.
+`ts_rank_cd` over OR-joined terms) and the order of equal scores (the SQL orders
+ties by `node_id`, the in-memory fusion and path lookup by first-seen and corpus
+order). Until M17 the API's `lexical_path` route ran the lexical list alone;
+the parity report gives the paired gap per gold category on the API row, and on
+the fixture the `exact_path` questions are exactly the ones the router sends down
+that route. CI's `parity` job runs the dense-leg test and the parity report on every push.
+
+**At FiQA scale.** `make bench-served-scale` (`app/eval/served_scale.py`, on a GPU node with Apptainer) writes FiQA one file per document, indexes it with `app/engine/ingest.index_directory` into a task-local PostgreSQL + pgvector with bge-small after the deploy step (`python -m app.database.migrate`), starts the API with `INDEX_ON_START` unset and both models, and replays every test query through `POST /api/retrieve/` with k = 50. A BEIR qrel names a document and the API returns chunks, so a document ranks at its best-ranked chunk (`app/eval/beir_api.py`); a failed request keeps its place and scores zero. Each served row is paired, query by query, with an in-memory row of `app/eval/beir.py` computed in the same job on the same queries with the same query form: the served embedder (LlamaIndex `HuggingFaceEmbedding`) puts its sentence-transformers query prompt before every query on the dense leg, so the paired in-memory row does the same (the prompt is read from the served model, and the job compares the two sides' query vectors). The bare-query rows stay next to them and are checked against `bench/results/beir_fiqa.json`. The run also records the build (the schema migrations, then index_directory with the indexes maintained per insert, the sizes on disk, an unchanged re-run), the start-up (the chunk read-back and the version clusters), the statement's plan, and `app/eval/http_load` at concurrency 1, 4 and 16 with every failure counted ([results](../bench/results/served_scale_fiqa.json), [generated table](../README.md#bench-served-scale)). The sides differ by design: chunks against whole documents, `ts_rank_cd` against BM25, the router, and at most 50 chunks against 100 fused documents; the results file lists each difference. The run is a sequence of stages that each write their own file, so a job that dies late resumes (`SERVED_SCALE_ARGS=--resume`) without measuring again what it already measured; each stage names the machine it ran on.
 
 **Served reranker configuration, chosen from the SciFact table.** With a
 reranker configured, the API reranks the fused top 20 (`RERANK_DEPTH`) and
@@ -887,14 +973,62 @@ keeps the rest of the fused list in RRF order, with `max_length` 512
 (`RERANKER_PRECISION`). The sweep above is the reason: fp16 with a 512-token
 cap is a quality tie with fp32 uncapped at a fraction of the latency, and
 reranking deeper than 20 loses nDCG@10 while costing more. The CI stack serves
-no reranker; the `ml` override serves this one on CPU.
+no reranker; the `ml` override serves this one on CPU. Staleness Tier 1 runs on the
+fused list before the reranker, so the reranked top 20 holds no chunk Tier 1 drops.
+
+The benchmark can run a row with the same three settings (`rerank_depth`,
+`rerank_precision`, `rerank_max_length` in `BenchConfig`; an fp16 row stops without
+CUDA rather than measure fp32 under its name) and with Tier 1 in front of the
+reranker (`staleness_before_rerank`). A row that sets none of them runs as every row
+recorded before M17: the reranker gets every fused candidate, in fp32 at the model's
+own token cap, and Tier 1 runs after it. With every candidate reranked the two
+staleness orders give the same lists (`tests/eval/test_rerank_depth.py`); with a
+depth cut they can differ. `make bench-rerank-depth` (GPU) walks fixture v1 from the
+every-candidate row to the served settings one change at a time, then adds the
+router and Tier 1 and moves Tier 1 in front of the reranker, into
+`bench/results/rerank_depth.json`, with each row's paired delta against its parent
+and on how many questions its list differs from the parent's.
+
+**The query vector, and the model-backed parity run.** With real models the
+served HuggingFace embedder (LlamaIndex `HuggingFaceEmbedding`) puts its per-model
+instruction in front of every query by default (for the BGE English models,
+"Represent this question for searching relevant passages: "), and nothing in front
+of documents. Every committed model-backed benchmark row embeds the bare query
+(`SentenceTransformerEmbedder`), so the two dense legs got different query vectors
+from the same model. `EMBEDDING_QUERY_INSTRUCTION=none` makes the served path embed
+the bare query, as the benchmark does; the default keeps the instruction, so served
+runs recorded before it (the latency files) keep describing the default. `/health`
+reports `embedding_model` and `embedding_query_instruction`, and
+`tests/engine/test_query_instruction.py` covers the setting (passing an empty
+instruction to the LlamaIndex constructor would not work: it falls back to the
+per-model default, so the setting changes the loaded model's query prompt).
+`make parity` takes the in-memory row's configuration by name (`PARITY_CONFIG`,
+CI's hash configuration by default). The model-backed run compares an API serving
+bge-small-en-v1.5 with the bare query and bge-reranker-v2-m3 at the served
+settings with `in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first`,
+the same models and settings in memory (Tier 1 before the reranker, as served),
+into `bench/results/parity_neural.json`; the file records both sides' settings
+next to each other (`settings`, and `settings_differ` for any that differ), and the
+README parity block renders it next to the hash run. It is one GPU run, not a CI
+job. `DENSE_PARITY_EMBEDDER=served` runs the dense-leg check with the embed model the
+API builds from the environment against the benchmark's embedder of the same model.
+In the job that recorded the file (its log, not a committed results file) that check
+held on every gold question with the bare query, at the hash check's tolerance, and
+failed on every gold question with the default instruction; the same job ran the API
+with the default instruction against the same in-memory row, which is not committed.
+`bench/results/rerank_depth.json` comes from the same job (`make bench-rerank-depth`);
+its depth-20 row against every candidate is in the
+[evidence table](../docs/RESUME_EVIDENCE.md), and its last row is the parity run's
+in-memory configuration.
 
 **No silent fallbacks.** `RERANKER_MODEL` set but not loadable is a startup
 error (`/health` 503 with the reason) unless `RERANKER_REQUIRED=false`, in
 which case `/health` reports `degraded` and every response lists the missing
 component. A reranker call that fails at request time serves that request in
-RRF order and says so in `degraded`; the lexical leg failing in Python mode
-does the same. `/health` reports the reranker's model, revision, device,
+RRF order and says so in `degraded`; in Python mode a lexical call that raises
+does the same, but the database manager's `search_bm25` catches its own database
+errors and answers with no rows and a `null` `bm25_backend`, which `degraded`
+does not list. `/health` reports the reranker's model, revision, device,
 precision, `max_length` and depth. `tests/engine/test_hybrid_retriever.py`
 fails if a configured reranker could fall back without a trace. The benchmark's
 in-memory `CrossEncoderReranker` (`app/retrieval/rerank.py`) follows the same
@@ -910,25 +1044,67 @@ is missing.
 
 ## Does the judge agree with the gold labels?
 
-`make bench-jury` generates a cited answer for every gold question with a local
-model through Ollama, from the top 8 chunks of the best measured retrieval
-configuration, then runs three deterministic checks before any judge is asked:
-the cited path is in the retrieved set, every number or config value in the
-answer appears inside the cited bytes (not merely somewhere in the evidence),
-and exact match against the gold answer on the simple-factual slice. An answer
-that carries no valid `[path:start-end]` citation fails loudly and is excluded
-from judging. Two different judge models label each answer pointwise, and a
-position-swapped (AB/BA) pairwise comparison against the extractive answer
-measures their order bias. Judge scores are published only if a judge's
-Cohen's kappa against the exact-match labels reaches the gate; otherwise the
-table says so and the scores stay in the results file. If the reference is a
-single class (every simple-factual answer matched, as on the first run) kappa
-is 0 by construction and the gate is reported as not evaluable, which also
-keeps it closed. `make bench-jury-rescore` recomputes the deterministic checks
+`make bench-jury-v2` (results in `jury_v2.json`; the first run, `make bench-jury`,
+is kept in `jury.json`) generates a cited answer for every gold question with a
+local model through Ollama, from the top 8 chunks of the best measured retrieval
+configuration (a run refuses to start when the configured reranker falls
+back), then runs the deterministic checks before any judge is asked: the cited
+path is in the retrieved set, every number or config value in the answer
+appears inside the cited bytes (not merely somewhere in the evidence), and
+exact match against the gold answer on the simple-factual slice. Exact match
+counts the gold string only where it is not part of a longer number or word,
+or the same number written in another format; plain containment had found the
+gold `8` inside `48`. An answer that carries no valid `[path:start-end]`
+citation fails loudly and is excluded from judging.
+
+Each judge model then gives three things per answer. The gated label is a
+correctness verdict: the judge sees the question, the gold answer and the
+answer, and no retrieved context, and replies correct, partial or wrong. An
+answer that is `NOT IN SOURCES` and nothing else, to a question that has a gold
+answer, is labelled wrong by rule without asking a judge (the abstention
+rubric; both judges of the first run had called such answers correct). The
+first run's composite label (the mean of faithfulness, relevancy and
+groundedness scores) is kept as a labelled column and never gated: a wrong
+value copied faithfully from a retrieved chunk would score high on two of the
+three and read as partial, disagreeing with an exact-match "wrong" (an argument
+from the prompts, not a measurement: the calibration answers get only the
+correctness verdict). A position-swapped (AB/BA) pairwise comparison against the
+extractive answer measures order bias. Every reply is stored, and empty or
+unreadable replies are counted per judge, because a failed call would
+otherwise read as partial or as a tie.
+
+Cohen's kappa is computed between each judge's correctness verdicts and the
+exact-match labels of the reference answers it labelled, paired per answer,
+with a bootstrap interval over those answers; rule-labelled abstentions are
+left out of kappa and counted, since they would agree with the reference by
+construction. The run's own simple-factual answers would be the reference, but
+the slice is saturated for the generator (exact match labels every one of its
+answers correct), so `make bench-jury-v2` adds a calibration set and makes it
+the reference: a smaller model that is neither judge answers each
+simple-factual question twice, once from the retrieved chunks and once from the
+same chunks with every standalone occurrence of the gold value replaced in
+memory by another gold value of the same question template (the fixture is not
+touched). The planted answers give the reference its wrong class. Calibration
+answers get the correctness verdict only, cited or not, and stay out of every
+deterministic-check rate; the run's own answers are judged as before, and a
+judge that passes the gate on the calibration set has its correctness score of
+those answers published. A pass shows that the judge compares a single-value
+answer with the gold, not that it judges every kind of answer correctly.
+A judge's correctness score is published only if its kappa reaches the gate;
+otherwise the table says so and the scores stay in the results file. If the
+reference is a single class (every simple-factual answer matched, as on the
+first run) kappa is 0 by construction and the gate is reported as not
+evaluable, which also keeps it closed. `make bench-jury-v2-rescore` (and
+`make bench-jury-rescore` for the first run) recomputes the deterministic checks
 and the summary of the committed file from its stored answers without a model
-call, re-running retrieval and refusing if the retrieved paths differ; the file
-and the block name both the sha that generated the answers and the sha that
-rescored them.
+call, re-running retrieval and the planting and refusing if the retrieved
+paths, the planted values or their counts differ or the abstention rule would
+label other rows; the file and the block name both the sha that generated the
+answers and the sha that rescored them. The first run's stored retrieval no
+longer matches today's, so its rescore refuses. The results header pins the generator and each judge by the
+manifest digest Ollama reports for its tag (`revision`), next to the server
+version, and a model run refuses to start when a tag has no digest; files
+recorded before that (`jury.json`) name the Ollama models by tag only.
 
 [Current generated bench-jury evidence](../README.md#bench-jury).
 
@@ -1149,10 +1325,10 @@ each LLM-written arm against the heuristic arm it replaces.
 
 | arm | what it changes | CPU stand-ins | real models | what the intervals support |
 |---|---|---|---|---|
-| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. |
+| Multi-query (`hybrid+multiquery`) | fuses the lists of heuristic query rewrites | above zero | above zero | Evaluated: the one prototype arm that beats its parent in both runs. The rewrites are keyword rules written against this fixture, so the gain is not evidence about other corpora. On the robotics file-lookup questions ([check](../bench/results/robotics_multiquery.json)) the rules almost never fire, and where they do it is a false trigger, so that check does not exercise multi-query. |
 | HippoRAG PPR (`hybrid+hipporag`) | PPR over regex triples plus a typed path prior, reranking the fused list; gated by the router's own prediction | above zero, with the lower bound at the edge of zero | covers zero | Evaluated: no measured gain once the embedder is real. Before this run the gate read the gold category of each question; it no longer does. |
 | Graph-hop expansion (`hybrid+hops=1`, `hybrid+hops=2`) | inserts file-graph neighbours after each hit | below zero, one hop and two | below zero, one hop and two | Evaluated: a recorded loss. The default stays at zero hops. |
-| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. |
+| Fixed-window chunks (`hybrid+fixed-chunks`) | replaces the structure-aware chunker with a fixed character window | covers zero | covers zero | Evaluated: on this fixture the structure-aware chunker is not measurably better than the fixed window. On the robotics snapshot, most of whose files are longer than one window, the fixed window is above the structure-aware chunker on both splits ([check](../bench/results/robotics_chunking.json); hash embedder, generated file-lookup questions). |
 | Contextual prefixes (`hybrid+contextual`) | prepends a situating prefix to every chunk before indexing | above zero | below zero | Evaluated with a path-words prefix. The sign flips: the prefix helps the hash embedder and hurts bge-small, so it is a recorded loss on the stack that matters. The LLM-written prefix is the next row. |
 | LLM-written contextual prefixes (`hybrid+contextual-llm`) | prepends the situating description qwen2.5:7b wrote for each chunk (`app/chunking/contextual.py` prompt, stored) | not evaluated (real models only) | covers zero | Evaluated with bge-small: no measured effect against plain hybrid, and above zero against the path-words prefix in the direct comparison. The loss of `hybrid+contextual` belongs to the path-words prefix, not to contextual prefixes in general; an LLM-written prefix is still not a measured gain. |
 | Late chunking (`hybrid+late-chunking`) | pools document-level token embeddings per chunk | not evaluated (the hash embedder has no token embeddings) | covers zero | Evaluated with bge-small only: no measured effect. Few files in the fixture have more than one chunk (the count is in the table). |
@@ -1241,6 +1417,14 @@ benchmark. It is kept out of the benchmark tables on purpose. Modules:
 `app/artifacts/visualization.py` (MATLAB), `app/multimodal/`, `app/rl/`. The
 two graph demos below replay hand-picked cases; the category-level result for
 both mechanisms is the table above.
+
+The deep-research loop (`app/agent/deep_research.py`, `DeepResearchAgent`:
+query rewrites, multi-query search, relevance grading, a token-budgeted
+scratchpad and a cited extractive answer) is a demo that has not been
+evaluated either: it has tests and drives the deep-research demo trace
+(`app/eval/demo_export.py`), and no results file scores its answers. Its multi-query retrieval step is the
+`hybrid+multiquery` arm above and the robotics check under
+[Real robotics experiment lookup](#real-robotics-experiment-lookup).
 
 ### GraphRAG community summaries and HippoRAG PPR
 
@@ -1391,7 +1575,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). Pending plans live in the API process's memory (one worker); the decision log is the durable record and `GET /api/plans/decisions/recent` reads it back. The page background is the four-stop radial gradient in `globals.css`.
 
-**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
+**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text. The recorded run shows two file-access tools failing on the default stack, both defects in `app/engine/tools/index_file_access.py` that the run does not fix: `list_available_files` called without a pattern raises, because its `pattern` default is a pydantic `Field` object rather than a string, and with a pattern it returns an empty list, because the served indexer never writes the `indexed_files` table it reads; `get_file_content` passes a plain dict as metadata filters, and the query engine's error comes back to the model as text. Only `query_index` returned file content to the model; the counts are in the generated rows. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
 **Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The per-statement search settings on `VectorStoreManager`; the vector table and its indexes are schema migrations (below). The `ensure_halfvec` / `ensure_binary` helpers, which had no caller and ran their DDL inline, were removed with the rest of the inline DDL; a halfvec or bit column would be a new migration (the scale run measures both copies on its own task-local table, [pgvector knobs](#pgvector-knobs-on-a-trade-off-curve)).
 
@@ -1494,7 +1678,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **The CI table's rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`; it is within noise of plain RRF (see the [ablation table](#the-number)). The real reranker is measured in the [real-models tables](#real-models-and-a-corpus-where-k50-means-something), which are committed artifacts rather than CI output. Until M2 the cross-encoder was called through the wrong API (`compute_score` instead of sentence-transformers' `predict`). In the bench, the weights were never cached, so `get_cross_encoder()` returned nothing and the row fell back to overlap for lack of weights; the first run with weights present raised. In the production retriever the same call was inside a broad `except`, so reranking silently returned the RRF order. No earlier "bge-rerank" number in this repository's history was a cross-encoder result; `reranker_loaded` in the results file is the check.
 
-**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ vs the exact-match labels on simple_factual must reach 0.6 before a judge score is printed. Retrieval metrics stay BEIR-style and LLM-free.
+**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ between a judge's correctness verdicts and the exact-match labels of the calibration set must reach 0.6 before that judge's score is printed. The calibration set's wrong answers are planted same-field values, so a judge that passes is validated on single-value answers only. Retrieval metrics stay BEIR-style and LLM-free.
 
 **The injection evaluation is not an adaptive attack.** It plants one phrasing per goal and task, written for this benchmark, in two files per task, and runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample, and the check has not run in the model loop. No model called a write tool in a question or injected task, so planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; none of the recovered calls in a question or injected task was a write tool, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
@@ -1504,12 +1688,11 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 Status: M0 to M5 are merged. Open items, in priority order:
 
-1. **Kappa reference with variance.** The generator matched gold on all simple-factual questions, so the judge gate is not evaluable. This needs a harder slice as fixture v2; v1 stays frozen.
+1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers, and the judge that passed is the generator's own model. Multi-part, paraphrased and computed answers need human labels or a fixture v2 slice (v1 stays frozen), and a judge from another model family would remove the self-preference caveat.
 2. **Per-slice changed-query counts** in the harness, so a small-n category delta shows how many questions actually moved.
-3. **Judge abstention handling.** Both judges labelled some NOT IN SOURCES answers correct.
-4. **ParadeDB BM25 in the production path**, gated by the same parity job.
-5. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
-6. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+3. **ParadeDB BM25 in the production path**, gated by the same parity job.
+4. **Injection evaluation, next steps:** tool errors that name a task copy's path relative to the corpus root (today the model sees the absolute temporary path, and an inexact echo of it stays in the episodes file), a collection of phrasings per goal scored as any-success (AgentDojo's adaptive "Max" attack), larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner.
+5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 

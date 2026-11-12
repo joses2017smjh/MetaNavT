@@ -1,0 +1,1467 @@
+{
+  "git_sha": "2ca5fa1",
+  "timestamp": "2026-11-11T23:35:05.791608+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.harness --rerank-depth --out bench/results/rerank_depth.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "mtimes": {
+    "source": "manifest",
+    "file": "bench/corpus/MANIFEST.json",
+    "field": "files[].mtime"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 136,
+    "level": 0.95
+  },
+  "results": [
+    {
+      "config": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": false,
+        "reranker": "overlap",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.6956,
+        "recall@5": 0.7395,
+        "recall@10": 0.8201,
+        "recall@50": 0.9375,
+        "mrr@10": 0.7049,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.7712,
+            "recall@10": 0.8875,
+            "recall@50": 0.9,
+            "mrr@10": 0.7898,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.5988,
+            "recall@10": 0.9,
+            "recall@50": 1.0,
+            "mrr@10": 0.4948,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6239,
+            "recall@10": 0.6667,
+            "recall@50": 1.0,
+            "mrr@10": 0.7054,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.5667,
+            "recall@10": 0.6496,
+            "recall@50": 1.0,
+            "mrr@10": 0.5601,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.5675,
+            "recall@10": 0.625,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7117,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6458,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.3542,
+            "recall@10": 0.5,
+            "recall@50": 1.0,
+            "mrr@10": 0.3095,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7311,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.06,
+          "p95_ms": 0.11,
+          "mean_ms": 0.07
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 7.58,
+          "p95_ms": 8.03,
+          "mean_ms": 7.64
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        }
+      },
+      "wall_ms": 1069.44,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "overlap",
+      "reranker_loaded": false,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "overlap",
+          "revision": null,
+          "neural": false,
+          "loaded": false,
+          "device": null
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6956,
+          "lo": 0.6456,
+          "hi": 0.7451
+        },
+        "recall@10": {
+          "mean": 0.8201,
+          "lo": 0.7676,
+          "hi": 0.8721
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": null,
+      "delta_vs_parent_by_category": null
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid@bge-small"
+      },
+      "retrieval": {
+        "ndcg@10": 0.8119,
+        "recall@5": 0.8316,
+        "recall@10": 0.8789,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8292,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8926,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9604,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6394,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.5021,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6198,
+            "recall@10": 0.7708,
+            "recall@50": 1.0,
+            "mrr@10": 0.6146,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.6897,
+            "recall@10": 0.6863,
+            "recall@50": 1.0,
+            "mrr@10": 0.6417,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6469,
+            "recall@10": 0.8125,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6146,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7685,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.7366,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6458,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8053,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.08,
+          "p95_ms": 0.13,
+          "mean_ms": 0.09
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 8.65,
+          "p95_ms": 8.94,
+          "mean_ms": 8.7
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 308.19,
+          "p95_ms": 337.87,
+          "mean_ms": 312.42
+        }
+      },
+      "wall_ms": 43721.39,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0"
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8119,
+          "lo": 0.7653,
+          "hi": 0.856
+        },
+        "recall@10": {
+          "mean": 0.8789,
+          "lo": 0.8351,
+          "hi": 0.921
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.1164,
+          "lo": 0.0764,
+          "hi": 0.1602
+        },
+        "recall@10": {
+          "delta": 0.0588,
+          "lo": 0.0222,
+          "hi": 0.098
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "vs_parent": {
+        "parent": "hybrid@bge-small",
+        "n_questions": 136,
+        "n_top10_differs": 136,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/top20",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+bge-rerank@bge-small",
+        "rerank_depth": 20
+      },
+      "retrieval": {
+        "ndcg@10": 0.8068,
+        "recall@5": 0.8224,
+        "recall@10": 0.8634,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8283,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8926,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9604,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6394,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.5021,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.5603,
+            "recall@10": 0.6458,
+            "recall@50": 1.0,
+            "mrr@10": 0.5729,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.7387,
+            "recall@10": 0.7257,
+            "recall@50": 1.0,
+            "mrr@10": 0.6833,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.611,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6188,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7685,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6775,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.6167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8129,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.15,
+          "p95_ms": 0.2,
+          "mean_ms": 0.15
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 8.66,
+          "p95_ms": 9.0,
+          "mean_ms": 8.7
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 131.71,
+          "p95_ms": 153.68,
+          "mean_ms": 135.12
+        }
+      },
+      "wall_ms": 19613.63,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "depth": 20,
+          "precision": "fp32",
+          "max_length": null,
+          "loaded_dtype": "torch.float32",
+          "loaded_max_length": 8192
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8068,
+          "lo": 0.7601,
+          "hi": 0.8529
+        },
+        "recall@10": {
+          "mean": 0.8634,
+          "lo": 0.8172,
+          "hi": 0.9084
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank@bge-small",
+        "ndcg@10": {
+          "delta": -0.0051,
+          "lo": -0.0219,
+          "hi": 0.0107
+        },
+        "recall@10": {
+          "delta": -0.0155,
+          "lo": -0.0375,
+          "hi": 0.0025
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "vs_parent": {
+        "parent": "hybrid+bge-rerank@bge-small",
+        "n_questions": 136,
+        "n_top10_differs": 116,
+        "n_list_differs": 136
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+bge-rerank@bge-small/top20",
+        "rerank_depth": 20,
+        "rerank_max_length": 512
+      },
+      "retrieval": {
+        "ndcg@10": 0.8068,
+        "recall@5": 0.8224,
+        "recall@10": 0.8634,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8283,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8926,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9604,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6394,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.5021,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.5603,
+            "recall@10": 0.6458,
+            "recall@50": 1.0,
+            "mrr@10": 0.5729,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.7387,
+            "recall@10": 0.7257,
+            "recall@50": 1.0,
+            "mrr@10": 0.6833,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.611,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6188,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7685,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6775,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.6167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8129,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.15,
+          "p95_ms": 0.2,
+          "mean_ms": 0.15
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 8.66,
+          "p95_ms": 8.96,
+          "mean_ms": 8.71
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 132.28,
+          "p95_ms": 153.36,
+          "mean_ms": 135.58
+        }
+      },
+      "wall_ms": 19678.22,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "depth": 20,
+          "precision": "fp32",
+          "max_length": 512,
+          "loaded_dtype": "torch.float32",
+          "loaded_max_length": 512
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8068,
+          "lo": 0.7601,
+          "hi": 0.8529
+        },
+        "recall@10": {
+          "mean": 0.8634,
+          "lo": 0.8172,
+          "hi": 0.9084
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank@bge-small/top20",
+        "ndcg@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "vs_parent": {
+        "parent": "hybrid+bge-rerank@bge-small/top20",
+        "n_questions": 136,
+        "n_top10_differs": 0,
+        "n_list_differs": 0
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": false,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": false,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "rerank_depth": 20,
+        "rerank_precision": "fp16",
+        "rerank_max_length": 512
+      },
+      "retrieval": {
+        "ndcg@10": 0.8068,
+        "recall@5": 0.8224,
+        "recall@10": 0.8634,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8283,
+        "mean_unique_paths@50": 43.99,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8926,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9604,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6394,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.5021,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.5603,
+            "recall@10": 0.6458,
+            "recall@50": 1.0,
+            "mrr@10": 0.5729,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.7387,
+            "recall@10": 0.7257,
+            "recall@50": 1.0,
+            "mrr@10": 0.6833,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.611,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6188,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.7685,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.6775,
+            "recall@10": 0.875,
+            "recall@50": 1.0,
+            "mrr@10": 0.6167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8129,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.082,
+        "random_recall@10": 0.1639,
+        "random_recall@50": 0.7212
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.0,
+          "p95_ms": 0.01,
+          "mean_ms": 0.0
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.13,
+          "p95_ms": 0.17,
+          "mean_ms": 0.13
+        },
+        "embed": {
+          "n": 136,
+          "p50_ms": 8.26,
+          "p95_ms": 8.66,
+          "mean_ms": 8.31
+        },
+        "vector_search": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 136,
+          "p50_ms": 31.81,
+          "p95_ms": 38.53,
+          "mean_ms": 32.97
+        }
+      },
+      "wall_ms": 5661.96,
+      "routes": {
+        "semantic": 136
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "depth": 20,
+          "precision": "fp16",
+          "max_length": 512,
+          "loaded_dtype": "torch.float16",
+          "loaded_max_length": 512
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8068,
+          "lo": 0.7601,
+          "hi": 0.8529
+        },
+        "recall@10": {
+          "mean": 0.8634,
+          "lo": 0.8172,
+          "hi": 0.9084
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@10": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "vs_parent": {
+        "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "n_questions": 136,
+        "n_top10_differs": 10,
+        "n_list_differs": 22
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20",
+      "settings": {
+        "name": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": true,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "rerank_depth": 20,
+        "rerank_precision": "fp16",
+        "rerank_max_length": 512
+      },
+      "retrieval": {
+        "ndcg@10": 0.824,
+        "recall@5": 0.8262,
+        "recall@10": 0.8729,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8496,
+        "mean_unique_paths@50": 38.1,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8921,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9563,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6941,
+            "recall@10": 0.95,
+            "recall@50": 1.0,
+            "mrr@10": 0.5104,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6591,
+            "recall@10": 0.75,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.584,
+            "recall@10": 0.6621,
+            "recall@50": 1.0,
+            "mrr@10": 0.5792,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.639,
+            "recall@10": 0.6875,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.818,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8129,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.6245
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.07,
+          "p95_ms": 0.12,
+          "mean_ms": 0.08
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 8.22,
+          "p95_ms": 8.58,
+          "mean_ms": 8.2
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 95,
+          "p50_ms": 31.78,
+          "p95_ms": 38.46,
+          "mean_ms": 32.95
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 0.31,
+          "p95_ms": 0.35,
+          "mean_ms": 0.32
+        }
+      },
+      "wall_ms": 4240.5,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "depth": 20,
+          "precision": "fp16",
+          "max_length": 512,
+          "loaded_dtype": "torch.float16",
+          "loaded_max_length": 512
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.824,
+          "lo": 0.7806,
+          "hi": 0.8653
+        },
+        "recall@10": {
+          "mean": 0.8729,
+          "lo": 0.8276,
+          "hi": 0.915
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "ndcg@10": {
+          "delta": 0.0173,
+          "lo": -0.0067,
+          "hi": 0.0441
+        },
+        "recall@10": {
+          "delta": 0.0095,
+          "lo": -0.0084,
+          "hi": 0.0324
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "vs_parent": {
+        "parent": "hybrid+bge-rerank@bge-small/fp16-512/top20",
+        "n_questions": 136,
+        "n_top10_differs": 93,
+        "n_list_differs": 135
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+      "settings": {
+        "name": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": true,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20",
+        "rerank_depth": 20,
+        "rerank_precision": "fp16",
+        "rerank_max_length": 512,
+        "staleness_before_rerank": true
+      },
+      "retrieval": {
+        "ndcg@10": 0.8242,
+        "recall@5": 0.8275,
+        "recall@10": 0.8712,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8496,
+        "mean_unique_paths@50": 38.1,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8921,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9563,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6691,
+            "recall@10": 0.9,
+            "recall@50": 1.0,
+            "mrr@10": 0.5104,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6388,
+            "recall@10": 0.7083,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.584,
+            "recall@10": 0.6621,
+            "recall@50": 1.0,
+            "mrr@10": 0.5792,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6873,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.818,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8129,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.6245
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.07,
+          "p95_ms": 0.09,
+          "mean_ms": 0.06
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.07,
+          "p95_ms": 0.11,
+          "mean_ms": 0.07
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 8.16,
+          "p95_ms": 8.55,
+          "mean_ms": 8.17
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 95,
+          "p50_ms": 31.19,
+          "p95_ms": 37.83,
+          "mean_ms": 31.95
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 0.31,
+          "p95_ms": 0.42,
+          "mean_ms": 0.33
+        }
+      },
+      "wall_ms": 4144.49,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "depth": 20,
+          "precision": "fp16",
+          "max_length": 512,
+          "loaded_dtype": "torch.float16",
+          "loaded_max_length": 512
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8242,
+          "lo": 0.7803,
+          "hi": 0.8658
+        },
+        "recall@10": {
+          "mean": 0.8712,
+          "lo": 0.8269,
+          "hi": 0.914
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20",
+        "ndcg@10": {
+          "delta": 0.0002,
+          "lo": -0.0056,
+          "hi": 0.0085
+        },
+        "recall@10": {
+          "delta": -0.0017,
+          "lo": -0.0113,
+          "hi": 0.0098
+        },
+        "recall@50": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "vs_parent": {
+        "parent": "hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20",
+        "n_questions": 136,
+        "n_top10_differs": 38,
+        "n_list_differs": 79
+      }
+    }
+  ]
+}

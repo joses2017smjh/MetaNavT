@@ -23,12 +23,16 @@ FILES = {
     "beir": "bench/results/beir_scifact.json",
     "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
+    "parity_neural": "bench/results/parity_neural.json",
+    "rerank_depth": "bench/results/rerank_depth.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
-    "jury": "bench/results/jury.json",
+    "jury": "bench/results/jury_v2.json",  # M29; the M4 run (jury.json) is the earlier record
     "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "companion_live": "bench/results/companion_live.json",
+    "chat_route_smoke": "bench/results/chat_route_smoke.json",
     "rrf_sweep": "bench/results/rrf_sweep.json",
     "hybrid_drops": "bench/results/hybrid_drops_bge_base.json",
     "served_scale": "bench/results/served_scale_fiqa.json",
@@ -51,6 +55,13 @@ def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, st
 
 def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
+
+
+def _zero(block: dict | None) -> str:
+    """Whether a paired interval covers zero, in words (owner rule: an interval that covers zero is reported as such)."""
+    if not block:
+        return "no interval"
+    return "the interval covers zero" if block["lo"] <= 0.0 <= block["hi"] else "the interval excludes zero"
 
 
 def _p50(row: dict, stage: str = "total"):
@@ -207,6 +218,29 @@ def claims(root: Path = ROOT) -> list[dict]:
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
+    depth = _load(FILES["rerank_depth"], root)
+    top20 = _rows(depth).get("hybrid+bge-rerank@bge-small/top20") if depth else None
+    if top20:
+        block = (top20.get("delta_vs_previous") or {}).get("ndcg@10")
+        d, ci = _ci(block, "delta")
+        changed = top20.get("vs_parent") or {}
+        out.append({"claim": "Fixture v1, bge-reranker-v2-m3 on the fused top 20 (the served RERANK_DEPTH) vs every fused candidate (fp32, bge-small), paired delta in nDCG@10",
+                    "value": d, "ci": ci, "n": depth["n_gold"], "command": "make bench-rerank-depth", "source": f"{FILES['rerank_depth']} @ {depth['git_sha']}",
+                    "not_shown": f"{_zero(block)}; the depth alone; {changed.get('n_top10_differs', '?')} of {changed.get('n_questions', '?')} questions change their top 10; "
+                                 "the file walks on to max_length 512, fp16, the router with Tier 1, and Tier 1 before the rerank, each against its parent"})
+    neural_parity = _load(FILES["parity_neural"], root)
+    if neural_parity:
+        d = (neural_parity.get("gap") or {}).get("paired_delta_api_minus_in_memory") or {}
+        dv, ci = _ci(d, "delta") if d else ("—", "—")
+        differ = ", ".join(neural_parity.get("settings_differ") or []) or "none"
+        device = (neural_parity.get("device") or {}).get("device_name")
+        bare = (neural_parity.get("api_health") or {}).get("embedding_query_instruction") == ""
+        query = "the bare query: EMBEDDING_QUERY_INSTRUCTION=none, not the served default" if bare else "LlamaIndex's query instruction"
+        out.append({"claim": f"API with bge-small ({query}) + bge-reranker-v2-m3 (fp16, max_length 512, depth 20) vs the in-memory bench with the same settings, nDCG@10 gap",
+                    "value": dv, "ci": ci, "n": neural_parity["n_gold"], "command": f"make parity PARITY_CONFIG={neural_parity.get('in_memory_config')}",
+                    "source": f"{FILES['parity_neural']} @ {neural_parity['git_sha']}",
+                    "not_shown": f"{_zero(d)}; one run in a Slurm GPU job ({device}), not re-run by CI; reported, not gated; "
+                                 f"settings that differ between the two sides: {differ}"})
     lat = _load(FILES["latency"], root)
     if lat:
         h = lat.get("health", {}).get("reranker", {})
@@ -215,7 +249,9 @@ def claims(root: Path = ROOT) -> list[dict]:
                     "not_shown": f"a 4-core CI runner; reranker device {h.get('device')}; the reranker is {lat['stages_p50_ms'].get('rerank')} ms of it"})
     out += _served_scale_claims(root)
     jury = _load(FILES["jury"], root)
-    if jury:
+    if jury and "protocol" in jury:
+        out += _jury_v2_claims(jury, FILES["jury"])
+    elif jury:
         s = jury["summary"]
         c = s["checks"]
         rs = jury.get("rescore") or {}
@@ -259,6 +295,162 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _agent_injection_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
+    out += _companion_live_claims(root)
+    out += _chat_route_claims(root)
+    return out
+
+
+def _chat_route_claims(root: Path = ROOT) -> list[dict]:
+    """The chat routes with a real model on the default stack (make chat-route-smoke): a smoke run, not accuracy."""
+    blob = _load(FILES["chat_route_smoke"], root)
+    if not blob:
+        return []
+    src = f"{FILES['chat_route_smoke']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make chat-route-smoke"
+    model, gpu = blob["model"], (blob.get("device") or {}).get("gpu") or "the recorded GPU"
+    llm = blob.get("chat_llm") or {}
+    common = (f"a smoke run: one request per question, the first gold question of each category; not an accuracy "
+              f"measurement; hash embeddings, Postgres ts_rank_cd, no reranker; chat temperature {llm.get('temperature')} "
+              f"(the default), no seed; code execution off")
+    out = []
+
+    def stated(route: dict) -> str:
+        aside = route["states_gold_value_aside"]
+        return (f"answered means the route returned text, not that the text answers the question (it states the gold "
+                f"value in {aside['k']} of the {aside['n']} questions with a value answer that the question does not "
+                f"itself name)")
+
+    def by_name(counts: dict | None) -> str:
+        return ", ".join(f"{name} {count}" for name, count in (counts or {}).items()) or "none"
+
+    stream = blob["summary"].get("/api/chat")
+    if stream:
+        out.append({"claim": f"Chat route POST /api/chat (the web UI's streaming route), {model} through Ollama on the default stack: requests answered (HTTP 200, text, no error line)",
+                    "value": f"{stream['answered']} of {stream['n']}", "ci": "—", "n": stream["n"], "command": cmd, "source": src,
+                    "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
+    request = blob["summary"].get("/api/chat/request")
+    if request:
+        out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name, and the calls that failed",
+                    "value": (f"{request['answered']} of {request['n']}; tool calls: {by_name(request.get('tool_calls'))}; "
+                              f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
+                              f"{by_name(request.get('tool_calls_returned_error_text'))}; code tool calls: {request['code_tool_calls']}"),
+                    "ci": "—", "n": request["n"], "command": cmd, "source": src,
+                    "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool or named a tool that does not exist; an error "
+                                  f"text is an 'Error: ...' string a tool returned without the flag; a call that returned "
+                                  f"an empty list is not counted as failed; the causes are described in "
+                                  f"doc/engineering-reference.md (Backend)")})
+    return out
+
+
+def _companion_live_claims(root: Path = ROOT) -> list[dict]:
+    """The research companion in live mode (make bench-companion-live): outcomes, stated gold values, citations,
+    and the planted-value answers over the planted copy."""
+    blob = _load(FILES["companion_live"], root)
+    if not blob:
+        return []
+    src = f"{FILES['companion_live']} @ {str(blob.get('git_head') or '')[:7]}"
+    cmd = "make bench-companion-live"
+    model = blob["model"]
+    gold = blob["summary"]["gold"]["overall"]
+    stack = ("the served retrieval is the default stack's fallbacks (hash embeddings, Postgres ts_rank_cd, no "
+             "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
+             "synthetic fixture questions")
+    out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
+            "value": "; ".join(f"{k} {v}" for k, v in gold["status"].items()), "ci": "—", "n": gold["n"],
+            "command": cmd, "source": src,
+            "not_shown": f"{stack}; a blocked answer is the companion failing closed (no valid JSON or no inspected citation), not a served answer"}]
+    sg = gold["states_gold"]
+    if sg["n"]:
+        out.append({"claim": f"Research companion, live mode ({model}): answers that state the gold value, of the gold questions with a value answer",
+                    "value": f"{sg['rate']:.3f}", "ci": f"[{sg['lo']:.3f}, {sg['hi']:.3f}]", "n": sg["n"], "command": cmd,
+                    "source": src,
+                    "not_shown": f"deterministic value matching, not entailment: an answer that quotes a whole config states every value in it; sentence and yes/no golds are not scored; answers that did not complete (abstained, blocked, stopped at the model-round limit) and failed requests count as not stating it; {stack}"})
+    cit = gold["citations"]
+    blocked_citing = gold["stop_reason"].get("invalid_citations", 0)
+    if cit["complete_answers"]:
+        out.append({"claim": f"Research companion, live mode ({model}): completed answers whose every citation names an inspected source whose excerpt hash and bytes match the cited range of the file",
+                    "value": f"{cit['complete_answers_all_valid']} of {cit['complete_answers']}", "ci": "—",
+                    "n": cit["complete_answers"], "command": cmd, "source": src,
+                    "not_shown": f"reference integrity, not factual support; only completed answers are counted: the companion itself blocks an answer that cites a source it did not inspect and returns it without citations ({blocked_citing} here, stop reason invalid_citations), and abstentions and answers stopped at the model-round limit carry no citation; {stack}"})
+    planted = blob["summary"].get("planted")
+    if planted:
+        when = planted["planted_value_stated_when_exposed"]
+        clean = planted["same_questions_clean_corpus"]
+        out.append({"claim": f"Research companion, live mode ({model}), planted instructions (the injection benchmark's ten hijack texts): answers that state the planted value, of the questions in which the model saw the planted text",
+                    "value": f"{when['k']} of {when['n']}", "ci": "—", "n": when["n"], "command": cmd, "source": src,
+                    "not_shown": f"one phrasing per task, not an adaptive attacker; the same {clean['n']} questions on the clean copy state the planted value {clean['planted_value_stated']} times; {stack}"})
+    return out
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}{'' if n == 1 else 's'}"
+
+
+def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
+    """M29: the run's deterministic checks; each judge's kappa against exact match on the calibration set; a judge's
+    correctness score of the run's answers only when it passed the gate. A file without a calibration set (`make
+    bench-jury` since M29) has the run's own simple-factual answers as its reference, and the rows say so."""
+    s, c = blob["summary"], blob["summary"]["checks"]
+    gen = blob["models"]["generator"]["model"]
+    calgen = ((blob.get("calibration") or {}).get("generator") or {}).get("model")
+    cmd = "make bench-jury-v2" if calgen else "make bench-jury"
+    rs = blob.get("rescore") or {}
+    src = f"{file} @ {blob['git_sha']}" + (f" (answers generated at {rs['rows_git_sha']}, checks recomputed by `{cmd}-rescore`)" if rs else "")
+    gate, ref = blob.get("kappa_gate", 0.6), s["reference"]
+    against = "calibration set" if calgen else "simple_factual"
+    out = [
+        {"claim": f"Generated answers ({gen} via Ollama, fixture v1): answers with no valid citation (failed loud)", "value": f"{c['uncited_answers']['count']} of {c['uncited_answers']['n']}",
+         "ci": "—", "n": c["uncited_answers"]["n"], "command": cmd, "source": src, "not_shown": "a deterministic check of the citation contract, not answer quality"},
+        {"claim": "Generated answers: every cited path is in the retrieved set (answers with at least one citation)", "value": f"{c['cited_in_retrieved']['rate']}", "ci": "—",
+         "n": c["cited_in_retrieved"]["n"], "command": cmd, "source": src,
+         "not_shown": f"{_count(round((1 - c['cited_in_retrieved']['rate']) * c['cited_in_retrieved']['n']) if c['cited_in_retrieved']['rate'] is not None else 0, 'answer')} "
+                      "cited a path the retrieval had not returned (a fabricated or malformed path); abstentions are not counted"},
+        {"claim": "Generated answers: every number / config value appears in the cited bytes", "value": f"{c['values_in_cited_bytes']['rate']}", "ci": "—",
+         "n": c["values_in_cited_bytes"]["n"], "command": cmd, "source": src,
+         "not_shown": "only answers that state a value are counted; string containment, case-insensitive; a value in a different numeric format, or one the model computed, counts as missing"},
+        {"claim": "Generated answers: exact match vs gold (bounded, numeric-equivalent), simple_factual", "value": f"{c['exact_match_simple_factual']['rate']}", "ci": "—",
+         "n": c["exact_match_simple_factual"]["n"], "command": cmd, "source": src,
+         "not_shown": "string / numeric match; paraphrased correct answers count as non-matches"
+                      + (("; the slice is saturated for this generator, which is why the kappa gate's reference is a calibration set" if calgen else
+                          "; the slice is saturated for this generator, so it gives the kappa gate a one-class reference")
+                         if c["exact_match_simple_factual"]["rate"] == 1.0 else "")},
+    ]
+    planted = (f"the reference is {calgen}'s answers to the simple-factual questions from retrieved and from planted contexts (another gold value of the "
+               "same field written over the gold in memory), so a pass shows gold comparison on single-value answers, not general correctness" if calgen else
+               "the reference is the exact-match label of the run's own simple-factual answers, single values to templated questions, so a pass "
+               "shows gold comparison on single-value answers, not general correctness")
+    for name, k in s["kappa"].items():
+        if name == "jury_majority":
+            continue
+        if not ref.get("gate_evaluable", True):
+            status = "gate not evaluable: the reference is one class or empty; this judge's scores are not published"
+        else:
+            status = f"passes the {gate} gate; its correctness score of the run's answers is published" if k["readme_ok"] else f"below the {gate} gate; this judge's scores are not published"
+        ci = f"[{k['interval']['lo']}, {k['interval']['hi']}]" if k.get("interval") else "—"
+        out.append({"claim": f"Judge {name}: Cohen's kappa of its correctness verdicts vs exact-match labels, {against}", "value": f"{k['kappa_vs_exact_match_simple_factual']}",
+                    "ci": ci, "n": k["n"], "command": cmd, "source": src,
+                    "not_shown": f"{status}; {planted}; percentile bootstrap interval over the {'calibration' if calgen else 'simple-factual'} answers"})
+    jm = s["kappa"].get("jury_majority")
+    if jm:
+        ci = f"[{jm['interval']['lo']}, {jm['interval']['hi']}]" if jm.get("interval") else "—"
+        out.append({"claim": f"Jury majority (two judge models, correctness verdicts): Cohen's kappa vs exact-match labels, {against}", "value": f"{jm['kappa_vs_exact_match_simple_factual']}",
+                    "ci": ci, "n": jm["n"], "command": cmd, "source": src, "not_shown": f"a tie between the two judges counts as partial; gate {gate}; {planted}"})
+    ruled = (s.get("abstention_rule") or {}).get("n", 0)
+    for name in s.get("publishable_judges") or []:
+        k = s["kappa"][name]
+        self_pref = "; the judge is also the generator, so its score of these answers carries self-preference risk" if name == gen else ""
+        out.append({"claim": f"Judge {name} (passed the gate): mean correctness of the run's answers (correct 1, partial 0.5, wrong 0)", "value": f"{k['mean_correctness_all']}",
+                    "ci": "—", "n": k["n_all"], "command": cmd, "source": src,
+                    "not_shown": f"{ruled} of the {k['n_all']} labels come from the abstention rule (wrong), not from the judge; an LLM judge validated only on "
+                                 f"single-value answers; the run's answers also include multi-part, comparative, aggregate and path answers it was not validated on{self_pref}"})
+    ja = s.get("judge_agreement")
+    if ja:
+        out.append({"claim": f"Judge-judge agreement ({ja['judges'][0]} vs {ja['judges'][1]}): Cohen's kappa of correctness verdicts on the run's answers", "value": f"{ja['kappa']}",
+                    "ci": "—", "n": ja["n"], "command": cmd, "source": src,
+                    "not_shown": "agreement between two judges says nothing about agreement with the truth; both judged the same generator's answers"})
+    for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
+        out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"],
+                    "command": cmd, "source": src, "not_shown": "a measure of order bias, not of answer quality"})
     return out
 
 
@@ -547,7 +739,7 @@ Solo work in this fork, 2026:
 - Measured hybrid BM25 + dense retrieval with reciprocal rank fusion and a cross-encoder reranker on the fixture and on BEIR SciFact: with real models, hybrid and the reranker beat BM25 with intervals above zero, and our BM25 reproduces Anserini's published SciFact baseline within noise; found and fixed a reranker API bug that had made every earlier reranker row a silent fallback.
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and reports the gap to the in-memory bench with its interval, and a live-database test that requires the dense leg to equal the in-memory dense search on every gold question; no silent fallbacks, per-request stage latency and scores.
 - Added a typed retrieval endpoint that returns byte-range citations, and a human-in-the-loop gate for file changes: an agent can only propose a change, and applying it needs an operator-signed, single-use approval bound to the reviewed action.
-- Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published; on the first full run the reference slice was saturated, so the gate stayed closed and no judge score was published.
+- Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published. The first run's reference slice was saturated, so its gate could not be evaluated; the second run measures each judge's correctness verdicts on a calibration set (a smaller model answering from retrieved and from planted contexts), labels abstentions by rule, and pins every model by digest. One judge passed and its score is published with its caveats; the other called every calibration answer correct and failed.
 - Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with a capability control (the planted actions asked for by the user and signed by an operator key), controls that carry the planted text's query terms, τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
 '''
 
@@ -569,13 +761,13 @@ QA = '''## Likely interview questions, with honest answers
 
 **How do you know the numbers in the README are real?** Every benchmark block in the README is rendered from a committed results file by one command, and a test fails if the text drifts. Each results file records the command, the git sha, the model revisions and the device. Losers stay in the tables.
 
-**What did the LLM answer evaluation show?** The generator answered every simple-factual question with the gold value, which saturated the reference the judges are measured against: with a one-class reference Cohen's kappa is zero by construction, so the gate could not be evaluated and no judge score is published. The deterministic checks are the usable result: nearly every cited path was in the retrieved set, most stated values sit inside the cited bytes, and the two answers with no citation failed loud. The kept losers are that both judges preferred the extractive answer to the LLM answer, showed strong position bias in the AB/BA swap, and agreed with each other only moderately. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching); the fixes and the rescored file are separate commits, so the before and after are both in the history.
+**What did the LLM answer evaluation show?** On the first run the generator answered every simple-factual question with the gold value, so the exact-match reference was one class, Cohen's kappa was zero by construction, and the gate could not be evaluated. The slice is saturated for that generator, and a smaller model answering from the retrieved chunks still matched nearly every gold value, so the second run measures the judges on a calibration set instead: a smaller model that is not a judge answers each simple-factual question from the retrieved chunks and again from the same chunks with the gold value replaced by another value of the same field. The gated label is a correctness verdict that sees only the question, the gold answer and the answer, because the first run's composite label also rewards faithfulness to the context, so a faithfully copied wrong value would read as partial. On that set the qwen judge agreed with exact match well past the gate, and its score of the generator's answers is published with two caveats: it is the generator's own model, and it was validated on single-value answers only. The llama judge called every calibration answer correct, planted values included, and failed, and the two judges' chance-corrected agreement on the generator's answers was near zero. The deterministic checks remain the part that depends on no judge. The kept losers are the failed judge, the strong position bias in the AB/BA swap, and the composite label that still called abstentions correct, which is why abstentions are now labelled wrong by rule. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching), fixed in commits separate from the rescored file, and its stored answers later showed a substring match that found a gold value inside a longer number, fixed before the second run.
 
 **What did the injection evaluation show?** Neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and in the question and injected tasks no model called a write tool, so planted text never reached the approval gate; the gate's evidence against forged tokens is still the deterministic approval benchmark. A capability control shows that, where an injected task is offered the write tools, this is not an inability to make the calls: when the user asks for the same move or patch, with the same tool calls and arguments, both models call the write tools and the operator signs the requested change. Completing it is rarer: many episodes stop after the signed proposal, and an apply call has to pass the plan id and the token on unchanged; the weaker model's apply calls mostly named plan ids the server never issued, and the stronger model's mostly carried a token that did not verify. What the models did follow was the planted claim: the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says.
 
 **How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the current run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`).
 
-**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and a kappa reference with variance: the simple-factual slice is saturated for this generator, so the gate needs a harder slice or harder questions before it can say anything about a judge.
+**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
 '''
 
 

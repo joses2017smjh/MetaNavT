@@ -24,7 +24,7 @@ FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-b
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
-JURY_FILE = "bench/results/jury.json"
+JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the M4 run, linked from the block
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the current run: capability control, controls with neutral lines
 LATENCY_FILES = {
@@ -38,6 +38,7 @@ BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"
 SERVED_SCALE_FILE = "bench/results/served_scale_fiqa.json"
 PGVECTOR_HNSW_FILE = "bench/results/pgvector_hnsw.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
+PARITY_NEURAL_FILE = "bench/results/parity_neural.json"  # M17 (A19): bge-small + bge-reranker-v2-m3 through the API, one GPU run
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
@@ -48,7 +49,7 @@ SOURCES = {
     "bench-beir-fiqa": BEIR_FIQA_FILE,
     "bench-served-scale": SERVED_SCALE_FILE,
     "bench-pgvector-hnsw": PGVECTOR_HNSW_FILE,
-    "bench-parity": PARITY_FILE,
+    "bench-parity": f"{PARITY_FILE} and {PARITY_NEURAL_FILE}",
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
     "agent-injection": f"{AGENT_INJECTION_V2_FILE} and {AGENT_INJECTION_FILE}",
@@ -640,41 +641,111 @@ def pgvector_hnsw_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
-def parity_table(blob: dict | None) -> str:
-    if not blob:
-        return f"_{PARITY_FILE} is missing; run `make parity` against a running API._"
-    lines = [
-        f"Same 136 questions, same metrics, same paired bootstrap (`make parity`, results sha {blob.get('git_sha')}). "
-        f"The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
-        f"staleness Tier 1 on, no reranker, hash embeddings. The API row is POST /api/retrieve/ over Postgres + pgvector "
-        f"(one SQL round trip, app/database/sql/hybrid_tsrank.sql).",
-        "",
-        "| row | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | lexical leg | chunker | p50 / p95 ms per query |",
-        "|---|---:|---:|---:|---|---|---:|",
-    ]
-    for row in blob.get("results", []):
-        lat = row.get("latency") or {}
-        e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
-        is_api = row["config"].startswith("api")
-        lex = (row.get("settings") or {}).get("bm25_backend") if is_api else "in-memory Okapi BM25"
-        # The API reports its chunker since it shares the bench's; a file without the field predates that.
-        served = ((blob.get("api_health") or {}).get("indexing") or {}).get("chunker") or "SentenceSplitter(512, 50)"
-        chunker = served if is_api else "app/chunking (structure-aware)"
-        lines.append(
-            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
-            f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"
-        )
+PARITY_NEURAL_CONFIG = "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first"
+PARITY_SETTINGS = ("embedding_model", "query_instruction", "reranker", "rerank_depth", "rerank_precision", "rerank_max_length", "staleness")
+
+
+def _parity_stack(blob: dict) -> str:
+    """The models the API served in this run, from its /health copy. The hash adapter is labelled the fallback it is,
+    "hash embedder", also in files whose /health names it as an embedding model ("hash-256", since M17)."""
+    health = blob.get("api_health") or {}
+    if health.get("embedding_provider") == "hash":
+        embedder = "hash embedder"
+    else:
+        embedder = health.get("embedding_model") or health.get("embed_model")
+    reranker = health.get("reranker") or {}
+    return f"{embedder}, " + (f"{reranker.get('model')}" if reranker.get("loaded") else "no reranker")
+
+
+def _parity_setting(value) -> str:
+    if value == "":
+        return "none"
+    return "—" if value is None else str(value)
+
+
+def _parity_run_text(blob: dict, rel: str) -> str:
+    """One run's paragraph: what the in-memory row is, the gap, the exact_path slice and the two sides' settings."""
+    rows = _rows(blob)
+    mem = next((r for name, r in rows.items() if name.startswith("in_memory")), {})
+    api = rows.get("api:postgres") or {}
+    config = blob.get("in_memory_config")
+    command = "`make parity`" if not config or config == "in_memory:hybrid+router+staleness" else f"`make parity PARITY_CONFIG={config}`"
+    device = (blob.get("device") or {}).get("device_name")
+    parts = [f"**{_parity_stack(blob)}** ({rel}, {command}, results sha {blob.get('git_sha')}"
+             + (f", {device}" if device and (blob.get("device") or {}).get("device") == "cuda" else "") + ")."]
+    if not blob.get("settings"):  # files recorded before the settings were written down: the hash run
+        parts.append("The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
+                     "staleness Tier 1 on, no reranker, hash embeddings.")
     g = blob.get("gap") or blob.get("gate") or {}  # files recorded before the gate was dropped carry "gate"
     d = g.get("paired_delta_api_minus_in_memory") or {}
     if g:
-        lines += [
-            "",
-            f"nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI "
-            f"{_delta(d) if d else '—'} ({_zero_note(d) if d else 'no interval'}). The gap is reported, not gated: "
-            f"the lexical legs differ by design (ts_rank_cd vs BM25); the dense leg is checked for exact agreement "
-            f"by tests/database/test_dense_parity.py. The API's e2e latency is client-measured over HTTP on the machine that produced the results file; "
-            f"the in-memory figure is the search stage only.",
-        ]
+        parts.append(f"nDCG@10 gap, API minus in-memory, {g.get('gap', 0):+.4f} with paired 95% CI {_delta(d) if d else '—'} "
+                     f"({_zero_note(d) if d else 'no interval'}).")
+    exact = next((b for b in api.get("delta_vs_parent_by_category_all") or [] if b.get("category") == "exact_path"), None)
+    if exact:
+        by_mem = (mem.get("retrieval") or {}).get("by_category", {}).get("exact_path", {})
+        by_api = (api.get("retrieval") or {}).get("by_category", {}).get("exact_path", {})
+        parts.append(f"On the {exact['n']} exact_path questions (the router's lexical_path route) nDCG@10 is {by_mem.get('ndcg@10', 0):.3f} "
+                     f"in memory and {by_api.get('ndcg@10', 0):.3f} through the API, paired gap {_delta(exact.get('ndcg@10'))} "
+                     f"({_zero_note(exact.get('ndcg@10'))}; n = {exact['n']}).")
+    # The overall interval can cover zero while a category's does not: name every such category (four decimals, so a
+    # bound near zero shows its side).
+    categories = [b for b in api.get("delta_vs_parent_by_category_all") or [] if b.get("ndcg@10")]
+    outside = [b for b in categories if not b["ndcg@10"]["lo"] <= 0.0 <= b["ndcg@10"]["hi"]]
+    if outside:
+        parts.append("Gold categories whose paired interval excludes zero (API minus in-memory, nDCG@10): "
+                     + "; ".join(f"{b['category']} {_delta4(b['ndcg@10'])} (n = {b['n']})" for b in outside) + ".")
+    elif categories:
+        parts.append("Every gold category's paired interval covers zero.")
+    health = blob.get("api_health") or {}
+    if health.get("embedding_provider") == "huggingface" and health.get("embedding_query_instruction") == "":
+        parts.append("The API ran with EMBEDDING_QUERY_INSTRUCTION=none (the bare query, as the benchmark embeds it), not the served "
+                     "default, which puts LlamaIndex's per-model instruction in front of every query.")
+    settings = blob.get("settings") or {}
+    if settings:
+        shown = "; ".join(f"{key.replace('_', ' ')} {_parity_setting(settings[key]['in_memory'])} / {_parity_setting(settings[key]['api'])}"
+                          for key in PARITY_SETTINGS if key in settings)
+        differ = blob.get("settings_differ") or []
+        parts.append(f"In-memory row `{config}`. Settings, in memory / API: {shown}. Settings that differ: {', '.join(differ) or 'none'}.")
+    return " ".join(parts)
+
+
+def parity_table(blob: dict | None, neural: dict | None = None) -> str:
+    if not blob:
+        return f"_{PARITY_FILE} is missing; run `make parity` against a running API._"
+    runs = [(blob, PARITY_FILE)] + ([(neural, PARITY_NEURAL_FILE)] if neural else [])
+    lines = [
+        "Same 136 questions, same metrics, same paired bootstrap, two runs. Each in-memory row is the bench harness with the "
+        "settings the API served in that run; each API row is POST /api/retrieve/ over Postgres + pgvector "
+        "(one SQL round trip, app/database/sql/hybrid_tsrank.sql).",
+        "",
+        "| run | row | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 | lexical leg | chunker | p50 / p95 ms per query |",
+        "|---|---|---:|---:|---:|---|---|---:|",
+    ]
+    for run, _ in runs:
+        for row in run.get("results", []):
+            lat = row.get("latency") or {}
+            e2e = lat.get("e2e") or lat.get("vector_search") or lat.get("bm25") or {}
+            is_api = row["config"].startswith("api")
+            lex = (row.get("settings") or {}).get("bm25_backend") if is_api else "in-memory Okapi BM25"
+            # The API reports its chunker since it shares the bench's; a file without the field predates that.
+            served = ((run.get("api_health") or {}).get("indexing") or {}).get("chunker") or "SentenceSplitter(512, 50)"
+            chunker = served if is_api else "app/chunking (structure-aware)"
+            lines.append(
+                f"| {_parity_stack(run)} | {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {row['retrieval']['recall@50']:.3f} | "
+                f"{lex or '—'} | {chunker} | {e2e.get('p50_ms', '—')} / {e2e.get('p95_ms', '—')} |"
+            )
+    for run, rel in runs:
+        lines += ["", _parity_run_text(run, rel)]
+    if not neural:
+        lines += ["", f"_{PARITY_NEURAL_FILE} is missing: the model-backed run is `make parity PARITY_CONFIG={PARITY_NEURAL_CONFIG}` against an API "
+                      "serving bge-small-en-v1.5 (EMBEDDING_QUERY_INSTRUCTION=none) and bge-reranker-v2-m3 with the served settings, on a GPU._"]
+    lines += [
+        "",
+        "The gaps are reported, not gated: the lexical legs differ by design (ts_rank_cd vs BM25). The dense leg is checked for exact "
+        "agreement by tests/database/test_dense_parity.py (hash embeddings, in CI). The API's e2e latency is client-measured over HTTP on "
+        "the machine that produced the results file; the in-memory figure is the search stage only.",
+    ]
     return "\n".join(lines)
 
 
@@ -706,10 +777,179 @@ def latency_table(root: Path | None) -> str:
     )
 
 
+EARLIER_JURY_FILE = "bench/results/jury.json"  # the M4 run: composite label gated, one-class reference
+
+
+def _model_notes(blob: dict) -> str:
+    """Who judges whom: self-preference when the generator is a judge, a shared family for the calibration generator."""
+    models = blob["models"]
+    gen, judges = models["generator"], models["judges"]
+    notes = []
+    if any(j["model"] == gen["model"] for j in judges):
+        notes.append(f"The generator {gen['model']} is also a judge, so that judge's scores of the run's answers carry self-preference risk.")
+    cal = (blob.get("calibration") or {}).get("generator") or {}
+    kin = [j["model"] for j in judges if cal.get("family") and j.get("family") == cal.get("family")]
+    if kin:
+        notes.append(f"The calibration generator {cal['model']} shares a model family ({cal['family']}) with the judge {', '.join(kin)}.")
+    return " ".join(notes)
+
+
+def _lcpw(counts: dict) -> str:
+    return f"{counts['correct']} / {counts['partial']} / {counts['wrong']}"
+
+
+def _calibration_reference(ref: dict, calgen: str | None) -> str:
+    return (
+        f"The run's own simple-factual answers cannot be the reference: exact match labels them {_lcpw(ref['simple_factual_label_counts'])} "
+        f"(correct / partial / wrong). The reference is a calibration set instead: {calgen}, which is not a judge, answers every "
+        f"simple-factual question twice, from the retrieved chunks and from the same chunks with every standalone occurrence of the "
+        f"gold value replaced, in memory, by another gold value of the same question template (the fixture is not touched). Exact "
+        f"match labels the {ref['n']} calibration answers the judges labelled {_lcpw(ref['label_counts'])}: "
+        f"{_lcpw(ref['by_condition']['retrieved'])} from retrieved contexts and {_lcpw(ref['by_condition']['planted'])} from planted ones. "
+        f"{ref['left_out_abstention_only']} calibration answers that are NOT IN SOURCES and nothing else are labelled wrong by rule and "
+        f"left out, and {ref['left_out_not_planted']} planted contexts where nothing was replaced are not part of it. Calibration "
+        "answers are judged cited or not and are in none of the checks above."
+    )
+
+
+def jury_v2_table(blob: dict) -> str:
+    """M29: the gate reads each judge's correctness verdict against exact match on a calibration set; judge scores of
+    the run's answers only for a judge that passed. A file without a calibration set (`make bench-jury` since M29)
+    has the run's own simple-factual answers as its reference, and the block says so."""
+    s, c = blob["summary"], blob["summary"]["checks"]
+    gen, judges = blob["models"]["generator"], [j["model"] for j in blob["models"]["judges"]]
+    cal = blob.get("calibration") or {}
+    calgen = (cal.get("generator") or {}).get("model")
+    target = "make bench-jury-v2" if cal else "make bench-jury"
+    pool = "calibration" if cal else "reference"
+    unpinned = [m["model"] for m in [gen, *blob["models"]["judges"], *([cal["generator"]] if cal.get("generator") else [])] if not m.get("revision")]
+    pin_note = ("every Ollama model is pinned by its digest in the results file" if not unpinned else
+                f"WARNING: no digest in the results file for {', '.join(dict.fromkeys(unpinned))} (named by tag only)")
+    cfg = blob.get("config") or {}
+    rr = (blob.get("models") or {}).get("reranker") or {}
+    rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
+    rs = blob.get("rescore") or {}
+    sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
+                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
+    ref = s["reference"]
+    gate = blob.get("kappa_gate")
+    lines = [
+        f"Generated answers on fixture v1 (`{target}`, {sha_note}): {blob['n_gold']} questions, retrieval `{cfg.get('name')}` "
+        f"({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), judges {', '.join(judges)}"
+        + (f", calibration generator {calgen}" if cal else "")
+        + f"; {pin_note}; wall {blob.get('wall_s')} s. "
+        + _model_notes(blob),
+        "",
+        "Deterministic checks of the run's answers (no model involved):",
+        "",
+        "| check | result | n |",
+        "|---|---:|---:|",
+        f"| answers with no valid citation (failed loud, excluded from judging) | {c['uncited_answers']['count']} | {c['uncited_answers']['n']} |",
+        f"| abstentions (NOT IN SOURCES) | {c['abstained']['count']} | {c['abstained']['n']} |",
+        f"| ... of which NOT IN SOURCES and nothing else (labelled wrong by rule) | {c['abstention_only']['count']} | {c['abstention_only']['n']} |",
+        f"| every cited path is in the retrieved set (answers with at least one citation) | {c['cited_in_retrieved']['rate']} | {c['cited_in_retrieved']['n']} |",
+        f"| every number / config value appears in the cited bytes (answers that state a value) | {c['values_in_cited_bytes']['rate']} | {c['values_in_cited_bytes']['n']} |",
+        f"| ... appears anywhere in the retrieved evidence (looser) | {c['values_in_any_evidence']['rate']} | {c['values_in_any_evidence']['n']} |",
+        f"| exact match vs gold, simple_factual (the gold not inside a longer number or word; equal numbers in any format) | {c['exact_match_simple_factual']['rate']} | {c['exact_match_simple_factual']['n']} |",
+        "",
+        "Value checks are string containment, case-insensitive; a value written in a different numeric format than the file "
+        "(0.0003 for 3e-4) counts as missing, and a value the model computed (an average) is missing by design.",
+        "",
+        f"Does the judge agree with the gold labels? The gate compares each judge's correctness verdict (the judge sees the question, "
+        f"the gold answer and the answer, and no retrieved context) with the exact-match label, and opens at Cohen's kappa >= {gate}. "
+        + (_calibration_reference(ref, calgen) if cal else
+           f"The reference is the run's own simple-factual answers the judges labelled: exact match labels the {ref['n']} of them "
+           f"{_lcpw(ref['label_counts'])} (correct / partial / wrong), and {ref['left_out_abstention_only']} that are NOT IN SOURCES "
+           "and nothing else are labelled wrong by rule and left out."),
+        "",
+        f"| judge | kappa vs exact match ({'calibration set' if cal else 'simple-factual answers'}) | 95% interval | n | passes gate | verdicts correct / partial / wrong |",
+        "|---|---:|---|---:|:---:|---|",
+    ]
+    evaluable = ref.get("gate_evaluable", True)
+    gate_cell = lambda ok: "yes" if ok else ("no (not evaluable)" if not evaluable else "no")  # noqa: E731
+    interval = lambda k: f"[{k['interval']['lo']}, {k['interval']['hi']}]" if k.get("interval") else "—"  # noqa: E731
+    for name, k in s["kappa"].items():
+        if name == "jury_majority":
+            lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | {interval(k)} | {k['n']} | {gate_cell(k['readme_ok'])} | — |")
+        else:
+            lines.append(f"| {name} | {k['kappa_vs_exact_match_simple_factual']} | {interval(k)} | {k['n']} | {gate_cell(k['readme_ok'])} | {_lcpw(k['label_counts'])} |")
+    for name, k in s["kappa"].items():
+        one = [lab for lab, count in (k.get("label_counts") or {}).items() if count and count == k["n"]]
+        if name != "jury_majority" and one:
+            lines += ["", f"{name} labelled all {k['n']} {pool} answers {one[0]}: its verdicts carry no information about the gold, "
+                      "which is why its kappa is 0."]
+    own = [f"{name} {k['simple_factual_answers']['agree']} of {k['simple_factual_answers']['n']}" for name, k in s["kappa"].items()
+           if name != "jury_majority" and k.get("simple_factual_answers")]
+    if own:
+        lines += ["", f"On the run's own simple-factual answers the correctness verdict equals the exact-match label for {', '.join(own)}."]
+    if ref and not evaluable:
+        lines += ["", f"The gate could not be evaluated on this run: the reference is one class or empty ({_lcpw(ref['label_counts'])}), so Cohen's "
+                  "kappa is 0 by construction for any judge that ever varies and 1 for a judge that never does."]
+    ab = s.get("abstention_rule") or {}
+    composite = s.get("composite") or {}
+    called = [f"{name} ({', '.join(k['abstentions_labelled_correct'])})" for name, k in composite.items() if k.get("abstentions_labelled_correct")]
+    lines += ["", f"Abstention rubric: an answer that is NOT IN SOURCES and nothing else, to a question that has a gold answer, is labelled "
+              f"wrong without asking a judge ({ab.get('n', 0)} of the run's answers"
+              + (f", {len(ab.get('calibration') or [])} calibration answers). " if cal else "). ")
+              + "The first run's composite label (the mean of faithfulness, relevancy and groundedness, with the retrieved context) is "
+              "kept in the results file and never gated, because two of its three parts reward agreement with the retrieved context, "
+              "so a wrong value copied faithfully from a chunk would read as partial; "
+              + (f"it still labelled these abstentions correct: {'; '.join(called)}." if called else "it labelled no such abstention correct in this run.")]
+    rp = s.get("replies") or {}
+    if rp:
+        lines += ["", "Judge replies that were empty (a failed call reads as partial or as a tie) or could not be read:", "",
+                  "| judge | pointwise empty | correctness empty / unreadable (run) | "
+                  + ("correctness empty / unreadable (calibration) | " if cal else "") + "pairwise empty |",
+                  "|---|---:|---:|---:|" + ("---:|" if cal else "")]
+        for name, r in rp.items():
+            cc = r.get("calibration_correctness") or {"empty": "—", "unparsed": "—", "n": "—"}
+            lines.append(f"| {name} | {r['pointwise']['empty']} / {r['pointwise']['n']} | {r['correctness']['empty']} / {r['correctness']['unparsed']} of {r['correctness']['n']} "
+                         + (f"| {cc['empty']} / {cc['unparsed']} of {cc['n']} " if cal else "") + f"| {r['pairwise']['empty']} / {r['pairwise']['n']} |")
+    agree = s.get("judge_agreement")
+    if agree:
+        lines += ["", f"Judge-judge agreement on the run's answers ({agree['judges'][0]} vs {agree['judges'][1]}, correctness verdicts): kappa {agree['kappa']}, n = {agree['n']}."]
+    pw = s.get("pairwise_llm_vs_extractive") or {}
+    if pw:
+        lines += ["", "Position bias, AB/BA swap (LLM answer vs the extractive answer, same judge, both orders). A flip means the judge "
+                  "picked whichever answer was listed first, i.e. it was not comparing content; the mean position gap is the "
+                  "share of the verdict explained by order (0 = none, 1 = all).", "",
+                  "| judge | P(LLM answer better) | mean position gap | order flips | n |", "|---|---:|---:|---:|---:|"]
+        for name, p_ in pw.items():
+            lines.append(f"| {name} | {p_['p_llm_better_mean']} | {p_['position_gap_mean']} | {p_['position_flips']} / {p_['n']} | {p_['n']} |")
+    pub = s.get("publishable_judges") or []
+    if pub:
+        ruled = (s.get("abstention_rule") or {}).get("n", 0)
+        lines += ["", "Judge scores of the run's answers (published because the judge passed the gate; correct 1, partial 0.5, wrong 0):", "",
+                  "| judge | mean correctness over the judged answers | n | of which labelled wrong by the abstention rule, not the judge |",
+                  "|---|---:|---:|---:|"]
+        for name in pub:
+            lines.append(f"| {name} | {s['kappa'][name]['mean_correctness_all']} | {s['kappa'][name]['n_all']} | {ruled} |")
+        if gen["model"] in pub:
+            lines += ["", f"{gen['model']} scores answers its own weights generated (self-preference risk), and the gate validated it on "
+                      "single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers."]
+        lines += ["", f"Verdict: {s['verdict']}."]
+    else:
+        lines += ["", f"Verdict: {s['verdict']}. Mean judge scores are in the results file but are not printed here."]
+    lines += ["", "What the gate shows and what it does not: the reference is an exact-match label, so a negated or hedged answer "
+              "that still quotes the gold value counts as correct and a correct paraphrase does not; and "
+              + ("the calibration set's wrong class is a planted value of the same field" if cal else
+                 "the reference answers are single values to templated questions")
+              + ", so a pass shows that a judge compares a single-value answer with the "
+              "gold, not that it judges multi-part, paraphrased or computed answers correctly.",
+              "",
+              f"Earlier record: [{EARLIER_JURY_FILE}]({EARLIER_JURY_FILE}), the first run (generator and first judge qwen2.5:7b, the "
+              "composite label gated, Ollama models named by tag only). Its reference was one class, so its gate was not evaluable, and "
+              "its stored retrieval no longer matches today's, so `make bench-jury-rescore` refuses to recompute it."]
+    return "\n".join(lines)
+
+
 def jury_table(blob: dict | None) -> str:
-    """M4: deterministic checks always; judge scores only when a judge passed the kappa gate."""
+    """M4: deterministic checks always; judge scores only when a judge passed the kappa gate. A file with a
+    `protocol` block (M29 on) renders with jury_v2_table."""
     if not blob:
-        return f"_{JURY_FILE} is missing; run `make bench-jury` (needs Ollama)._"
+        return f"_{JURY_FILE} is missing; run `make bench-jury-v2` (needs Ollama)._"
+    if "protocol" in blob:
+        return jury_v2_table(blob)
     s = blob["summary"]
     c = s["checks"]
     gen = blob["models"]["generator"]
@@ -1358,7 +1598,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),
         "bench-served-scale": served_scale_table(_load(root, SERVED_SCALE_FILE)),
         "bench-pgvector-hnsw": pgvector_hnsw_table(_load(root, PGVECTOR_HNSW_FILE)),
-        "bench-parity": parity_table(_load(root, PARITY_FILE)),
+        "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_V2_FILE), earlier=_load(root, AGENT_INJECTION_FILE)),
