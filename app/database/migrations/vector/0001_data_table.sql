@@ -5,8 +5,7 @@
 -- extension and PGVectorStore's ref_doc_id index come from.
 -- IF NOT EXISTS throughout: a table PGVectorStore created before migrations existed is
 -- adopted with its rows. The block at the end refuses to adopt one whose embedding column has
--- another dimension than EMBEDDING_DIM ({dim} here). Once a table is adopted or built, nothing
--- compares the two again: the API takes the table's dimension, as it did before migrations.
+-- another dimension than EMBEDDING_DIM ({dim} here); it runs once, when this file is applied.
 -- tests/database/test_migrations.py compares this table with the one PGVectorStore creates.
 
 DO $$
