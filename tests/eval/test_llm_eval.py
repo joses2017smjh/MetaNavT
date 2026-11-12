@@ -602,3 +602,28 @@ def test_claim_values_come_out_in_the_same_order_in_every_process():
     outs = {subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, check=True,
                            env={**os.environ, "PYTHONHASHSEED": str(seed), "PYTHONPATH": str(root)}).stdout for seed in range(1, 7)}
     assert len(outs) == 1, outs
+
+
+def test_the_committed_answer_evaluation_is_evaluable_pinned_and_unedited():
+    """D12 and A43 on bench/results/jury_v2.json: a reference with both classes, each judge's kappa and the gate's
+    verdict from it, no null model revision, and a summary that is what summarize() computes from the stored rows."""
+    from pathlib import Path
+
+    from app.eval.llm_eval import summarize
+
+    blob = json.loads((Path(__file__).resolve().parents[2] / "bench" / "results" / "jury_v2.json").read_text())
+    models = blob["models"]
+    pinned = [models["generator"], *models["judges"], blob["calibration"]["generator"], models["embedder"], models["reranker"]]
+    assert all(m["revision"] for m in pinned) and models["reranker"]["loaded"]
+    judges = [j["model"] for j in models["judges"]]
+    s = blob["summary"]
+    ref = s["reference"]
+    assert ref["source"] == "calibration" and ref["gate_evaluable"] and not ref["single_class"]
+    assert ref["label_counts"]["correct"] > 0 and ref["label_counts"]["partial"] + ref["label_counts"]["wrong"] > 0
+    for name in judges:
+        k = s["kappa"][name]
+        assert k["n"] == ref["n"] and k["readme_ok"] == (k["kappa_vs_exact_match_simple_factual"] >= blob["kappa_gate"])
+    assert s["publishable_judges"] == [name for name in judges if s["kappa"][name]["readme_ok"]]
+    assert summarize(blob["rows"], judges, blob["calibration"]["rows"]) == s
+    planted = [r for r in blob["calibration"]["rows"] if r["condition"] == "planted"]
+    assert planted and all(r["probe"] == bool(r["replacements"]) and r["planted_value"] != r["gold"] for r in planted)
