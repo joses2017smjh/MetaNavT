@@ -985,6 +985,9 @@ def test_the_engineering_reference_on_the_injection_study_holds_for_the_current_
     assert hijack["least_privilege"] > hijack["none"]
     assert "matched on retrieval" not in text.split("**The injection evaluation is not an adaptive attack.**")[0].split(
         "## Does the agent follow instructions planted in files?")[1]
+    # the neutral lines carry the planted text's query terms, which is all the D29 test checks; the limits say so too
+    assert ("the current run's controls carry neutral lines with the same terms in the same files, which matches them on "
+            "those terms, not on every search result.") in text
 
 
 def test_evidence_rows_come_from_the_current_run_that_generated_and_scored_its_episodes():
