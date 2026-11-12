@@ -464,7 +464,12 @@ class FilesystemTools:
             session=self._session,
         )
         self.plans[plan.plan_id] = plan
-        review = self._register_review(plan.plan_id)
+        try:
+            review = self._register_review(plan.plan_id)
+        except BaseException:
+            # The review refuses the move (an existing destination, a directory): no plan stays for it.
+            self.forget_plan(plan.plan_id)
+            raise
         return {
             "plan_id": plan.plan_id,
             "src": plan.src,

@@ -92,6 +92,22 @@ def test_a_loaded_move_plan_is_rebuilt_with_its_own_session_not_the_loading_obje
     assert refused.value.check == "staleness" and (tools.root / "source").exists() and not (tools.root / "destination").exists()
 
 
+def test_a_refused_move_proposal_leaves_no_plan_in_the_process(tmp_path):
+    """propose_move stores the plan, then builds its review, which refuses a move onto an existing file, of a directory
+    or under a regular file. The refused plan goes with it: refused proposals hold no plan and no review (the API's plan
+    store held one per refusal until a restart, and a stdio server for its whole life)."""
+    tools, _key, _verifier, plan = _setup(tmp_path)
+    (tools.root / "existing").write_text("must survive")
+    (tools.root / "folder").mkdir()
+    refused = [("source", "existing", FileExistsError), ("folder", "elsewhere", PermissionError),
+               ("source", "existing/below", PermissionError)] * 3
+    for src, dst, kind in refused:
+        with pytest.raises(kind):
+            tools.propose_move(src, dst)
+    assert set(tools.plans) == set(tools._reviews) == {plan["plan_id"]}  # only _setup's proposal, which was not refused
+    assert (tools.root / "existing").read_text() == "must survive" and (tools.root / "source").read_text() == "original"
+
+
 # One verifier in a process of its own, on the shared ledger file: it says "ready", waits for "go" on stdin, consumes
 # the capability and prints what happened. The parent starts two and lets both go at once.
 LEDGER_CHILD = r"""
