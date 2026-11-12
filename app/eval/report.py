@@ -72,8 +72,10 @@ def _end(name: str) -> str:
 
 def _sha(blob: dict) -> str:
     """The commit a results file was written at, and " with uncommitted changes" when its header says the working tree
-    differed from it (working_tree_dirty, app.eval.provenance.run_provenance); unchanged for a file without the flag."""
-    return f"{blob.get('git_sha')}" + (" with uncommitted changes" if blob.get("working_tree_dirty") is True else "")
+    differed from it (working_tree_dirty, app.eval.provenance.run_provenance; git_dirty in the served-scale files);
+    unchanged for a file without the flag."""
+    dirty = blob.get("working_tree_dirty") is True or blob.get("git_dirty") is True
+    return f"{blob.get('git_sha')}" + (" with uncommitted changes" if dirty else "")
 
 
 def _rows(blob: dict) -> dict[str, dict]:
@@ -490,7 +492,7 @@ def scale_run_problem(blob: dict) -> str | None:
         return (f"a file measured before M20's deploy order ({blob.get('schema')}, {scale_sha(blob)}; a start then read every chunk back to build "
                 "the version clusters, and no index step ran between the build and the API)")
     if blob.get("schema") not in SCALE_SCHEMAS:
-        return (f"a file measured before the served schema moved to migrations ({blob.get('schema')}, results sha {blob.get('git_sha')}): its build, plan and "
+        return (f"a file measured before the served schema moved to migrations ({blob.get('schema')}, results sha {_sha(blob)}): its build, plan and "
                 "latency figures describe a served path this code no longer runs")
     embedder = str((blob.get("table") or {}).get("embedder") or "")
     if blob.get("embedder_note") or embedder.startswith("hash"):
@@ -516,8 +518,8 @@ def scale_sha(blob: dict) -> str:
     """'results sha X', or, for a file assembled again from recorded stages, where the stages ran and where it was assembled."""
     stages = sorted(set((blob.get("stage_git_sha") or {}).values()) - {None})
     if not stages or stages == [blob.get("git_sha")]:
-        return f"results sha {blob.get('git_sha')}"
-    return f"stages measured at {', '.join(stages)}, file assembled at {blob.get('git_sha')}"
+        return f"results sha {_sha(blob)}"
+    return f"stages measured at {', '.join(stages)}, file assembled at {_sha(blob)}"
 
 
 def _mib(n) -> str:

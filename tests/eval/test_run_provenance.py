@@ -228,3 +228,6 @@ def test_the_report_says_when_a_results_file_came_from_an_uncommitted_tree():
     assert f"sha {main['git_sha']} with uncommitted changes" in report.table(main)
     for blob, render in zip((main, neural, frontier, arms, parity, beir), renders):
         assert f"{blob['git_sha']} with uncommitted changes" in render(), render
+    # the served-scale files (M12) record the flag as git_dirty
+    assert report.scale_sha({"git_sha": "abc1234", "git_dirty": False}) == "results sha abc1234"
+    assert report.scale_sha({"git_sha": "abc1234", "git_dirty": True}) == "results sha abc1234 with uncommitted changes"
