@@ -70,7 +70,8 @@ def test_the_baseline_takes_its_sidecar_and_the_committed_sidecars_are_tracked()
     assert "cp bench/results/latest.per_query.json bench/results/main.per_query.json" in makefile
     if shutil.which("git") is None or not (ROOT / ".git").exists():
         pytest.skip("not a git checkout")
-    for name in ("main", "latest", "neural"):  # trackable: not matched by bench/results/*.json once negated
+    for name in ("main", "latest", "neural", "frontier", "frontier_neural", "rerank_depth", "parity_shared_chunker",
+                 "parity_shared_chunker_restart", "parity_neural"):  # every tracked harness file's: trackable once negated
         assert subprocess.run(["git", "check-ignore", "-q", f"bench/results/{name}{SUFFIX}"], cwd=ROOT).returncode == 1, name
     assert subprocess.run(["git", "check-ignore", "-q", f"bench/results/check{SUFFIX}"], cwd=ROOT).returncode == 0
 
