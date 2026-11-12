@@ -614,13 +614,16 @@ names the check that refused an `apply_*` call (`REFUSAL_CHECKS` in
 SDK server also returns that name and a fixed description as a tool error, and
 gives a call without a capability the structured `approval_required` result.
 The JSON-RPC server answers a refusal by one of those checks, a call without a
-capability included, with that same tool error, and any other exception (a path
+capability included, with that same tool error; search or `propose_artifact` on
+a server started without an index with the text written for it (`semantic
+search requires an index`: `SHOWN_IN_FULL` in `app/mcp/server.py`, the rule the
+API applies to its start-up errors), not logged; and any other exception (a path
 outside the root or a proposed move onto an existing file among them) with its
 class and an id: the exception's text, which for an operating system error
-names the root's absolute path, goes to the server's stderr under that id and
-never to the client (`tests/mcp/test_server_stdio.py`). The SDK server answers such an
-exception with `Error executing tool <name>` alone and logs it with its
-traceback.
+names the root's absolute path, goes to the server's stderr under that id, on
+one line, and never to the client (`tests/mcp/test_server_stdio.py`). The SDK
+server answers such an exception, the missing index included, with `Error
+executing tool <name>` alone and logs it with its traceback.
 
 ```bash
 # Run as the trusted operator; choose paths outside the indexed corpus.

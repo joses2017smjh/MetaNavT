@@ -38,6 +38,12 @@ class ApprovalRequired(Exception):
         self.check = check
 
 
+class IndexRequired(RuntimeError):
+    """search_semantic, search_lexical or propose_artifact called without an index (a server started with --no-index,
+    or on a root with nothing to index). Its text is written here and names nothing of the server, so the JSON-RPC
+    server (app/mcp/server.py) answers with it as written (SHOWN_IN_FULL there)."""
+
+
 def refusal_check(exc: BaseException) -> str | None:
     """The gate check that refused a call (a key of REFUSAL_CHECKS), or None when `exc` is not a refusal."""
     check = getattr(exc, "check", None)
@@ -387,7 +393,7 @@ class FilesystemTools:
 
     def search_semantic(self, query: str, k: int = 8, filters: dict | None = None) -> list[dict]:
         if self.index is None:
-            raise RuntimeError("semantic search requires an index")
+            raise IndexRequired("semantic search requires an index")
         result = self.index.retrieve(query, n=k)
         hits = []
         for hit in result.hits[:k]:
@@ -407,7 +413,7 @@ class FilesystemTools:
 
     def search_lexical(self, query: str, k: int = 8) -> list[dict]:
         if self.index is None:
-            raise RuntimeError("lexical search requires an index")
+            raise IndexRequired("lexical search requires an index")
         hits = self.index.search_bm25(query, k=k)
         return [
             {"path": c.path, "chunk_id": c.chunk_id, "score": s, "text": c.text[:500]}
@@ -509,7 +515,7 @@ class FilesystemTools:
         from app.artifacts.pipeline import ArtifactAgent
 
         if self.index is None:
-            raise RuntimeError("propose_artifact requires an index")
+            raise IndexRequired("propose_artifact requires an index")
         prop = ArtifactAgent(self.index).produce(query)
         self.artifacts[prop.plan_id] = prop
         review = self._review_or_forget(prop.plan_id)

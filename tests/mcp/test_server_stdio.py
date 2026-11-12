@@ -33,6 +33,16 @@ FAILING_STAT = (
     "filesystem.FilesystemTools.stat = stat\n"
     "server.main(sys.argv[1:])\n"
 )
+# The same with inspect_spreadsheet raising a RuntimeError with INJECTED_ERROR: a builtin class that this repository
+# also raises with texts of its own.
+FAILING_SPREADSHEET = (
+    "import sys\n"
+    "from app.mcp import filesystem, server\n"
+    "def inspect_spreadsheet(self, path):\n"
+    f"    raise RuntimeError({INJECTED_ERROR!r})\n"
+    "filesystem.FilesystemTools.inspect_spreadsheet = inspect_spreadsheet\n"
+    "server.main(sys.argv[1:])\n"
+)
 # The answer to a call that raised something other than a refusal: the tool, the exception's class and an id.
 FAILURE = re.compile(r"Error executing tool (\S+): (\w+) \(the server log has the reason, id ([0-9a-f]{16})\)")
 
@@ -116,19 +126,50 @@ def test_search_and_propose_artifact_over_jsonrpc_stdio_on_the_fixture(tmp_path)
 
 
 def test_server_starts_without_an_index_on_an_empty_root_or_when_asked(tmp_path):
+    """Without an index, search and propose_artifact are refused with a text written here (SHOWN_IN_FULL), which the
+    client gets as written; it is not logged as a failure."""
     empty = tmp_path / "empty"
     empty.mkdir()
     responses, stderr = rpc(empty, [("list_dir", {"path": "."}), ("search_lexical", {"query": "run_047"})])
     assert result(responses[1]) == []
-    tool, kind, error_id = failure(responses[2])  # the reason is in the server's log, not in the answer
-    assert (tool, kind) == ("search_lexical", "RuntimeError") and "requires an index" in logged(stderr, error_id)
-    assert "no index" in stderr
+    assert error_text(responses[2]) == "Error executing tool search_lexical: lexical search requires an index"
+    assert "no index" in stderr and "[id " not in stderr
 
     corpus = fixture_copy(tmp_path)
-    responses, stderr = rpc(corpus, [("search_semantic", {"query": "run_047"})], "--no-index")
-    tool, kind, error_id = failure(responses[1])
-    assert (tool, kind) == ("search_semantic", "RuntimeError") and "requires an index" in logged(stderr, error_id)
-    assert "no index" in stderr
+    responses, stderr = rpc(corpus, [("search_semantic", {"query": "run_047"}),
+                                     ("propose_artifact", {"query": "write a test for the fusion module"})], "--no-index")
+    assert error_text(responses[1]) == "Error executing tool search_semantic: semantic search requires an index"
+    assert error_text(responses[2]) == "Error executing tool propose_artifact: propose_artifact requires an index"
+    assert "no index" in stderr and "[id " not in stderr
+
+
+def test_a_text_this_repository_writes_for_the_client_is_shown_and_no_other_text_is(tmp_path):
+    """SHOWN_IN_FULL, the rule of the HTTP side (app/api/errors.py): an exception of a class listed there carries a
+    text written in this repository that names nothing of the server and tells the client what is wrong (a search or
+    proposal tool on a server started without an index), so it is shown as written and not logged. No other text is:
+    not an operating system error's (it names the root's absolute path), and not one of a builtin class this
+    repository also raises with texts of its own (a RuntimeError from below the tools can name a host, a user, a
+    path). The rule goes by class, not by words."""
+    from app.mcp.filesystem import IndexRequired
+    from app.mcp.server import tool_error
+
+    root = tmp_path / "root"
+    root.mkdir()
+    responses, stderr = rpc(root, [("search_semantic", {"query": "learning rate"}),   # 1 shown as written
+                                   ("read_file", {"path": "missing.txt"}),           # 2 names the absolute root
+                                   ("inspect_spreadsheet", {"path": "table.csv"})],  # 3 RuntimeError(INJECTED_ERROR)
+                            "--no-index", code=FAILING_SPREADSHEET)
+    assert error_text(responses[1]) == "Error executing tool search_semantic: semantic search requires an index"
+    (_, missing, missing_id), (_, injected, injected_id) = failure(responses[2]), failure(responses[3])
+    assert (missing, injected) == ("FileNotFoundError", "RuntimeError")
+    answers = json.dumps(responses)
+    for needle in (str(tmp_path), str(tmp_path.resolve()), str(root.resolve()), HOST, ADDRESS, USER, PRIVATE):
+        assert needle not in answers, needle
+    assert str(root.resolve() / "missing.txt") in logged(stderr, missing_id)
+    assert INJECTED_ERROR in logged(stderr, injected_id)
+    assert stderr.count("[id ") == 2  # the text shown in full is not logged as a failure
+    assert tool_error("search_semantic", IndexRequired("semantic search requires an index")) == error_text(responses[1])
+    assert FAILURE.fullmatch(tool_error("search_semantic", RuntimeError("semantic search requires an index")))
 
 
 def test_an_answer_names_no_server_path_host_or_user_only_a_refusals_check_or_an_errors_class_and_id(tmp_path):

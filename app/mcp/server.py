@@ -7,15 +7,18 @@ collect_run_artifact, propose_artifact / patch. apply_* requires a separately is
 Search and propose_artifact use an index built over ROOT at start
 (filesystem.build_root_index: hash embedder and overlap reranker unless
 --embedder names another); --no-index, or a root with no indexable file,
-starts without one and those tools refuse.
+starts without one and those tools refuse, saying so.
 
-A call that raises is answered with isError and a text written here, never the
-exception's own text (an operating system error names the root's absolute path,
-and an error from below the tools can name a host or a user): a refusal names
-the check that refused it and the check's fixed description (REFUSAL_CHECKS, the
-text app/mcp/server_sdk.py sends for it), any other exception its class and an
-id. The exception's text goes to stderr under that id
-(app.observability.report_failure); stdout carries only the protocol.
+A call that raises is answered with isError and a text written in this
+repository, never the text of any other exception (an operating system error
+names the root's absolute path, and an error from below the tools can name a
+host or a user): a refusal names the check that refused it and the check's fixed
+description (REFUSAL_CHECKS, the text app/mcp/server_sdk.py sends for it); an
+exception of a class in SHOWN_IN_FULL, whose text is written here for the client
+(IndexRequired: "semantic search requires an index"), is answered with that
+text; any other exception with its class and an id, its text going to stderr
+under that id, on one line (app.observability.report_failure). stdout carries
+only the protocol.
 """
 
 from __future__ import annotations
@@ -28,19 +31,25 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from app.mcp.approvals import REFUSAL_CHECKS
-from app.mcp.filesystem import DEFAULT_EMBEDDER, FilesystemTools, build_root_index, index_summary, refusal_check
+from app.mcp.filesystem import DEFAULT_EMBEDDER, FilesystemTools, IndexRequired, build_root_index, index_summary, refusal_check
 from app.observability import report_failure
 
 # Nothing in this process configures logging, so a WARNING goes to Python's last-resort handler: stderr.
 logger = logging.getLogger("app.mcp.server")
+# The exception classes whose text this repository writes for the client and which name nothing of the server (no
+# path, host, address or user): a search or proposal tool on a server started without an index. Answered as
+# written, the rule app/api/errors.py applies to its SHOWN_IN_FULL; any other exception by its class and an id.
+SHOWN_IN_FULL = (IndexRequired,)
 
 
 def tool_error(name: Any, exc: Exception) -> str:
-    """What the client is told of a tool call that raised: a refusal's check and its fixed description, or the
-    exception's class and the id its text is logged under. Never the exception's text."""
+    """What the client is told of a tool call that raised: a refusal's check and its fixed description, the text of
+    an exception whose class is in SHOWN_IN_FULL, or else the exception's class and the id its text is logged under."""
     check = refusal_check(exc)
     if check is not None:  # anticipated: answered, not logged (apply_* refusals are in the audit trail)
         reason = f"refused by the {check} check: {REFUSAL_CHECKS[check]}"
+    elif type(exc) in SHOWN_IN_FULL:  # the client gets the whole reason, so there is nothing to log
+        reason = str(exc)
     else:
         _, reason = report_failure(logger, f"MCP tool {name!r}", exc, level=logging.WARNING)
     return f"Error executing tool {name}: {reason}"
