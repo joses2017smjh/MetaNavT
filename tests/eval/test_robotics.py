@@ -11,13 +11,13 @@ def _summary(i: int) -> bytes:
     return json.dumps({"success": bool(i % 2), "steps": 100 + i, "verdict": "PASS", "seed": i}).encode()
 
 
-def _source_repo(tmp_path, extra: dict[str, bytes] | None = None):
+def _source_repo(tmp_path, extra: dict[str, bytes] | None = None, init_args: tuple[str, ...] = ()):
     """A throwaway source repository: twelve campaigns with one summary.json each, plus `extra` files, committed."""
     repo = tmp_path / "source"
     repo.mkdir()
     def git(*args):
         subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
-    git("init", "-q")
+    git("init", "-q", *init_args)
     git("config", "user.name", "Test fixture")
     git("config", "user.email", "fixture@example.invalid")
     git("remote", "add", "origin", "https://example.invalid/robot.git")
@@ -62,15 +62,17 @@ def test_freeze_counts_undecodable_duplicate_and_secret_files_by_reason_and_expo
     verify(destination)
 
 
-def test_freeze_secret_pattern_misses_other_key_names_and_json_quoted_keys(tmp_path):
-    """Documented limit: the pattern names api_key, access_token and password with `=` or `:` right after the name.
-    A secret under another name, or a JSON key whose closing quote comes before the colon, is exported."""
+def test_freeze_secret_pattern_misses_other_key_names_short_values_and_json_quoted_keys(tmp_path):
+    """Documented limit: the pattern names api_key, access_token and password with `=` or `:` right after the name,
+    then a value that begins with at least twelve letters, digits, `_` or `-`. A secret under another name, a shorter
+    value, or a JSON key whose closing quote comes before the colon, is exported."""
     exported = {
         "results/campaign-3/env.txt": b"secret_key: abcdefghijklmnop1234\n",
         "results/campaign-4/creds.json": b'{"api_key": "abcdefghijklmnop1234"}',
+        "results/campaign-5/login.txt": b"password: hunter2\n",
     }
     destination = tmp_path / "snapshot"
-    manifest = freeze(_source_repo(tmp_path, exported), destination, n_files=14, dev_n=4, test_n=8)
+    manifest = freeze(_source_repo(tmp_path, exported), destination, n_files=15, dev_n=4, test_n=8)
     assert manifest["rejected"] == {}
     assert set(exported) <= {row["path"] for row in manifest["files"]}
     for path, data in exported.items():
@@ -114,6 +116,38 @@ def test_freeze_names_files_as_the_tree_does_and_rejects_symlinks_without_follow
     assert manifest["rejected"] == {"type_or_size": 2}  # a symlink is not a regular file; neither target is read
     assert not {"results/campaign-8/inside.json", "results/campaign-9/outside.json"} & listed
     assert (destination / "corpus" / "results/campaign-7/résumé.json").read_bytes() == b'{"status": "ok"}'
+    verify(destination)
+
+
+def test_freeze_stops_when_a_blob_does_not_hash_to_its_id(tmp_path, monkeypatch):
+    """The bytes read for a tree entry must be the object the tree names; anything else stops the freeze."""
+    from app.eval import robotics
+
+    real = robotics._read_blobs
+
+    def one_byte_more(root, oids):
+        blobs = real(root, oids)
+        blobs[oids[0]] += b" "
+        return blobs
+
+    monkeypatch.setattr(robotics, "_read_blobs", one_byte_more)
+    destination = tmp_path / "snapshot"
+    with pytest.raises(ValueError, match="does not hash to its id"):
+        freeze(_source_repo(tmp_path), destination, n_files=12, dev_n=4, test_n=8)
+    assert not destination.exists()
+
+
+def test_freeze_reads_a_repository_with_sha256_object_ids(tmp_path):
+    """Blob ids of 64 hex characters are checked with SHA-256, as git computes them in such a repository."""
+    try:
+        repo = _source_repo(tmp_path, init_args=("--object-format=sha256",))
+    except subprocess.CalledProcessError:
+        pytest.skip("this git cannot create a repository with the sha256 object format")
+    destination = tmp_path / "snapshot"
+    manifest = freeze(repo, destination, n_files=12, dev_n=4, test_n=8)
+    assert {len(row["source_git_blob"]) for row in manifest["files"]} == {64}
+    assert manifest["source_commit"] == _git(repo, "rev-parse", "HEAD").decode().strip()
+    assert tracked_blob_mismatches(manifest) == {"n_files": 0, "paths": []}
     verify(destination)
 
 
