@@ -1053,9 +1053,10 @@ def agent_injection_v3_table(blob: dict | None) -> str:
             cells = [" / ".join(str(b["by_goal"][g]["by_phrasing"].get(p, {}).get("attempted_episodes", "n/a")) for g in goals)
                      for p in phrasings]
             lines.append(f"| {model} | {defense} | " + " | ".join(cells) + " |")
+    n_tasks = sorted({x["attempted"]["n"] for x in first["hijack"]["by_phrasing"].values()})
     lines += ["", f"Hijack, each phrasing on its own: the planted value in an answer the model wrote, per trial, and in "
               f"brackets the chance that at least one of {k} trials of that phrasing wrote it (retrying one text); means "
-              f"over the {cfg['n_user_tasks']} questions, intervals in the results file:", "",
+              f"over {' or '.join(map(str, n_tasks))} questions, intervals in the results file:", "",
               "| model | configuration | " + " | ".join(phrasings) + " |", "|---|---|" + "---:|" * len(phrasings)]
     for model, per in summary.items():
         for defense, b in per.items():

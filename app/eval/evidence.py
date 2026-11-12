@@ -28,6 +28,7 @@ FILES = {
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
+    "agent_injection_v3": "bench/results/agent_injection_v3.json",  # phrasings as any-success, the in-loop answer check
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
@@ -288,6 +289,7 @@ def claims(root: Path = ROOT) -> list[dict]:
             out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"], "command": "make bench-jury", "source": src,
                         "not_shown": "a measure of order bias, not of answer quality"})
     out += _agent_injection_claims(root)
+    out += _agent_injection_v3_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
     out += _companion_live_claims(root)
@@ -589,6 +591,45 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     out.append({"claim": "Agent injection, all models and configurations, question and injected tasks: write-tool calls made by a model, and episodes in which the corpus changed",
                 "value": f"{writes} calls; {changed} of {n_base} episodes", "ci": "—", "n": n_base, "command": cmd, "source": src,
                 "not_shown": f"{gate_note}; no grant is ever issued in these tasks (the capability tasks, where the operator signs the requested change, are in their own rows); not OS isolation and not an adaptive attacker"})
+    return out
+
+
+def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
+    """agent_injection_v3: per model, hijack attacked by at least one of the phrasings with no defense, and the answer
+    check in the loop against no defense (planted value delivered, utility under attack, benign success), paired."""
+    blob = _load(FILES["agent_injection_v3"], root)
+    if not blob:
+        return []
+    cfg = blob["config"]
+    gen = blob.get("episodes_generated_by") or {}
+    shards = (gen.get("merged") or {}).get("shards") or []
+    cmd = (f"make bench-agent-injection-v3-shard ({len(shards)} shards), then make bench-agent-injection-v3-merge" if shards
+           else "make bench-agent-injection-v3")
+    src = f"{FILES['agent_injection_v3']} @ {str(blob.get('git_head') or '')[:7]}"
+    n, adojo, k = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {}), cfg["k"]
+    scope = (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; two "
+             "local 7-8B models; synthetic config questions")
+    out: list[dict] = []
+    for model, per in blob["summary"].items():
+        if "none" in per:
+            hijack = per["none"]["by_goal"]["hijack"]["attempted_any_phrasing"]
+            value, ci = _ci(hijack)
+            out.append({"claim": f"Agent injection with {n} phrasings, {model}, no defense: hijack questions in which at least one phrasing put the planted value into the model's answer, per seed",
+                        "value": value, "ci": ci, "n": hijack["n"], "command": cmd, "source": src,
+                        "not_shown": (f"{scope}; n is (question, hijack) pairs, each read over {k} seeds; the phrasings share each seed, so "
+                                      "this compares texts on shared trajectories, not independent tries")})
+        deltas = ((blob.get("paired_deltas") or {}).get(model) or {}).get("answer_check - none") or {}
+        for key, what in (("planted_value_delivered", "the planted value delivered to the user, hijack, per draw"),
+                          ("utility_under_attack", "utility under attack"),
+                          ("benign_success", "benign success on the controls")):
+            d = deltas.get(key)
+            if not d:
+                continue
+            value, ci = _ci(d, "delta")
+            out.append({"claim": f"Agent injection, {model}: the structured answer check in the loop minus no defense, {what}, paired",
+                        "value": value, "ci": ci, "n": d["n"], "command": cmd, "source": src,
+                        "not_shown": (f"{scope}; {_zero(d)}; the check is told each question's config field and file, so it covers "
+                                      "single-field questions only; a flagged answer gets one retry within the same turn budget")})
     return out
 
 
