@@ -515,10 +515,14 @@ def write_from_results(root: Path) -> None:
                         palette[i % 3],
                     )
                 )
+            by_hops = {p["config"]: p["retrieval"] for p in s["graph_hops"]}
+            zero, one = by_hops.get("hybrid+hops=0"), by_hops.get("hybrid+hops=1")
+            note = (f"One hop {zero['recall@50']:.3f} → {one['recall@50']:.3f} recall. nDCG@10 falls "
+                    f"{zero['ndcg@10']:.3f} → {one['ndcg@10']:.3f}. Default stays hops=0." if zero and one else "Default stays hops=0.")
             _bar_chart(
                 out_dir / "hops.svg",
                 "Graph hops  ·  Recall@50",
-                "One hop 0.938 → 0.986 recall. nDCG@10 falls 0.495 → 0.446. Default stays hops=0.",
+                note,  # read from sweeps.json, never typed (it was, and matched the file)
                 hops,
             )
 

@@ -12,7 +12,7 @@ currency. Use evidence_checks for explicit structured fact comparisons.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from typing import Sequence
 
 from app.eval.hashing import content_hash

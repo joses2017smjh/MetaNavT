@@ -74,6 +74,14 @@ def _end(name: str) -> str:
     return f"<!-- {name}:end -->"
 
 
+def _sha(blob: dict) -> str:
+    """The commit a results file was written at, and " with uncommitted changes" when its header says the working tree
+    differed from it (working_tree_dirty, app.eval.provenance.run_provenance; git_dirty in the served-scale files);
+    unchanged for a file without the flag."""
+    dirty = blob.get("working_tree_dirty") is True or blob.get("git_dirty") is True
+    return f"{blob.get('git_sha')}" + (" with uncommitted changes" if dirty else "")
+
+
 def _rows(blob: dict) -> dict[str, dict]:
     return {row["config"]: row for row in blob.get("results", [])}
 
@@ -144,6 +152,10 @@ def headline(blob: dict) -> str:
                 f"The router's exact-path gain, nDCG@10 {cat_off['ndcg@10']:.3f} → {cat_on['ndcg@10']:.3f}, "
                 f"rests on n = {int(cat_on['n'])} questions."
             )
+        losers = negative_slices(on)
+        if losers:
+            parts.append(f"Its nDCG@10 delta against the reranked hybrid is negative on the {_and([b['category'] for b in losers])} "
+                         f"slice{'s' if len(losers) > 1 else ''} (intervals in the per-category lines below the table).")
     rand = r_full.get("random_recall@50")
     if rand is not None:
         parts.append(
@@ -154,21 +166,31 @@ def headline(blob: dict) -> str:
     return " ".join(parts)
 
 
+def _with_new_intervals(rows: list[dict]) -> bool:
+    """Whether a file has the MRR@10 and Recall@5 intervals (B33); a file recorded before keeps its columns."""
+    return any(m in (row.get("ci") or {}) for row in rows for m in ("mrr@10", "recall@5"))
+
+
 def table(blob: dict) -> str:
     rows = list(blob.get("results", []))
     boot = blob.get("bootstrap") or {}
+    wide = _with_new_intervals(rows)
     lines = [
+        "| config | nDCG@10 [95% CI] | Recall@5 [95% CI] | Recall@10 [95% CI] | random list @10 | Recall@50 | random list @50 | unique files in top 50 | MRR@10 [95% CI] |"
+        if wide else
         "| config | nDCG@10 [95% CI] | Recall@10 [95% CI] | random list @10 | Recall@50 | random list @50 | unique files in top 50 | MRR@10 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|" if wide else "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in rows:
         r = row["retrieval"]
         rand50 = r.get("random_recall@50")
         rand10 = r.get("random_recall@10")
         fmt = lambda v: "—" if v is None else f"{v:.3f}"  # noqa: E731
+        recall5 = f" {_ci(row, 'recall@5')} |" if wide else ""
+        mrr = _ci(row, "mrr@10") if wide else f"{r['mrr@10']:.3f}"
         lines.append(
-            f"| {row['config']} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {fmt(rand10)} | {r['recall@50']:.3f} | "
-            f"{fmt(rand50)} | {r.get('mean_unique_paths@50', 0):.1f} | {r['mrr@10']:.3f} |"
+            f"| {row['config']} | {_ci(row, 'ndcg@10')} |{recall5} {_ci(row, 'recall@10')} | {fmt(rand10)} | {r['recall@50']:.3f} | "
+            f"{fmt(rand50)} | {r.get('mean_unique_paths@50', 0):.1f} | {mrr} |"
         )
     lines += [
         "",
@@ -197,14 +219,36 @@ def table(blob: dict) -> str:
             lines.append(f"| {cat} | {int(sc['n'])} | {sc['ndcg@10']:.3f} | {sc.get('recall@10', 0):.3f} | {sc['recall@50']:.3f} |")
     cat_lines = _category_delta_lines(rows)
     if cat_lines:
-        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice):", ""] + cat_lines
+        lines += ["", "Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice); "
+                      "under each, every other category where that delta is negative:", ""] + cat_lines
     if boot:
         lines += [
             "",
             f"Intervals: {boot.get('method')}; {boot.get('n_boot')} resamples, seed {boot.get('seed')}, "
-            f"{boot.get('rng')}. Results file sha {blob.get('git_sha')}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
+            f"{boot.get('rng')}. Results file sha {_sha(blob)}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
         ]
     return "\n".join(lines)
+
+
+def negative_slices(row: dict) -> list[dict]:
+    """Keep losers visible: the gold categories, other than the one the row's mechanism is aimed at, where its paired
+    nDCG@10 delta against its parent is negative (delta_vs_parent_by_category_all), whatever their intervals say."""
+    target = (row.get("delta_vs_parent_by_category") or {}).get("category")
+    return [b for b in row.get("delta_vs_parent_by_category_all") or []
+            if b.get("category") != target and (b.get("ndcg@10") or {}).get("delta", 0.0) < 0]
+
+
+def _and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def _questions_changed(block: dict) -> str:
+    """'; nDCG@10 rose on 1 of the 8 questions and fell on 0' from a category block's questions_changed (D04): how many
+    questions the slice's delta rests on. '' for a block recorded without it."""
+    moved = block.get("questions_changed")
+    if not moved:
+        return ""
+    return f"; {moved['metric'].replace('ndcg', 'nDCG')} rose on {moved['up']} of the {block['n']} questions and fell on {moved['down']}"
 
 
 def _category_delta_lines(rows: list[dict]) -> list[str]:
@@ -216,8 +260,18 @@ def _category_delta_lines(rows: list[dict]) -> list[str]:
         flag = " (small n)" if cd.get("small_n") else ""
         out.append(
             f"- `{row['config']}` vs `{cd['reference']}` on `{cd['category']}`, n = {cd['n']}{flag}: "
-            f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}."
+            f"nDCG@10 {_delta(cd.get('ndcg@10'))} ({_zero_note(cd.get('ndcg@10'))}), Recall@10 {_delta(cd.get('recall@10'))}"
+            f"{_questions_changed(cd)}."
         )
+        losers = negative_slices(row)
+        for block in losers:
+            out.append(
+                f"  - `{row['config']}` on `{block['category']}`, n = {block['n']}{' (small n)' if block.get('small_n') else ''}, "
+                f"a category it is not aimed at: nDCG@10 {_delta(block.get('ndcg@10'))} ({_zero_note(block.get('ndcg@10'))}), "
+                f"Recall@10 {_delta(block.get('recall@10'))}{_questions_changed(block)}."
+            )
+        if not losers and row.get("delta_vs_parent_by_category_all"):
+            out.append(f"  - `{row['config']}`: no other category has a negative nDCG@10 delta.")
     return out
 
 
@@ -273,18 +327,25 @@ def neural_table(blob: dict | None) -> str:
     rows = list(blob.get("results", []))
     by = _rows(blob)
     lines = [
-        f"Fixture v1 with real models (`make bench-neural`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Fixture v1 with real models (`make bench-neural`, {_device(blob)}; results sha {_sha(blob)}). "
         f"Each row names its parent (one change away); the paired delta is against that parent. "
         f"Wall time is the whole row after a warm-up query.",
         "",
+    ]
+    wide = _with_new_intervals(rows)  # MRR@10 and Recall@5 intervals (B33), for a file recorded with them
+    lines += [
+        "| config | parent | models (revision) | nDCG@10 [95% CI] | Recall@5 [95% CI] | Recall@10 [95% CI] | MRR@10 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25_only | beats BM25? | wall s |"
+        if wide else
         "| config | parent | models (revision) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25_only | beats BM25? | wall s |",
-        "|---|---|---|---:|---:|---:|---:|:---:|---:|",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|:---:|---:|" if wide else "|---|---|---|---:|---:|---:|---:|:---:|---:|",
     ]
     for row in rows:
         dp = (row.get("delta_vs_previous") or {}).get("ndcg@10")
         db = (row.get("delta_vs_bm25_only") or {}).get("ndcg@10")
+        cells = (f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@5')} | {_ci(row, 'recall@10')} | {_ci(row, 'mrr@10')}" if wide
+                 else f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')}")
         lines.append(
-            f"| {row['config']} | {_parent_of(row)} | {_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+            f"| {row['config']} | {_parent_of(row)} | {_models(row)} | {cells} | "
             f"{_delta(dp)} | {_delta(db)} | {_beats(db)} | {row.get('wall_ms', 0) / 1000:.1f} |"
         )
     parts = []
@@ -316,7 +377,7 @@ def neural_table(blob: dict | None) -> str:
         lines += ["", " ".join(parts)]
     cat_lines = _category_delta_lines(rows)
     if cat_lines:
-        lines += ["", "Per-category paired deltas vs parent (small n):", ""] + cat_lines
+        lines += ["", "Per-category paired deltas vs parent (small n); under each, every other category where that delta is negative:", ""] + cat_lines
     return "\n".join(lines)
 
 
@@ -372,7 +433,7 @@ def beir_table(blob: dict | None, file: str = BEIR_FILE, command: str = "make be
                 reference += "."
     lines = [
         f"BEIR {dataset} test split (`{command}`): {blob.get('n_docs')} documents ({blob.get('document_text', 'title + text')}), "
-        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {blob.get('git_sha')}. {reference} Each row names its parent; per-query p50/p95 exclude "
+        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {_sha(blob)}. {reference} Each row names its parent; per-query p50/p95 exclude "
         f"build (index, document embeddings, model load: the build column) and one warm-up query.",
         "",
         "| config | parent | models (revision) | reranker precision / max_length / depth | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25 | beats BM25? | p50 / p95 ms | build s |",
@@ -416,7 +477,7 @@ def beir_bm25_table(blob: dict | None) -> str:
     boot = blob.get("bootstrap") or {}
     lines = [
         f"BM25 on BEIR SciFact, one setting at a time (`make bench-beir-bm25-ablation`; {(blob.get('device') or {}).get('device', '?')}, "
-        f"no model; results sha {blob.get('git_sha')}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
+        f"no model; results sha {_sha(blob)}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
         "`bm25@default-tokenizer` (also in the table above) changes the analyzer, k1 and b at once; `bm25@default-analyzer` "
         "changes the analyzer alone and `bm25@k1-1.5-b-0.75` changes k1 and b alone. Every delta is paired against bm25 "
         f"({boot.get('n_boot')} bootstrap resamples of the queries, seed {boot.get('seed')}), printed to the four decimals "
@@ -461,7 +522,7 @@ def scale_run_problem(blob: dict) -> str | None:
         return (f"a file measured before M20's deploy order ({blob.get('schema')}, {scale_sha(blob)}; a start then read every chunk back to build "
                 "the version clusters, and no index step ran between the build and the API)")
     if blob.get("schema") not in SCALE_SCHEMAS:
-        return (f"a file measured before the served schema moved to migrations ({blob.get('schema')}, results sha {blob.get('git_sha')}): its build, plan and "
+        return (f"a file measured before the served schema moved to migrations ({blob.get('schema')}, results sha {_sha(blob)}): its build, plan and "
                 "latency figures describe a served path this code no longer runs")
     embedder = str((blob.get("table") or {}).get("embedder") or "")
     if blob.get("embedder_note") or embedder.startswith("hash"):
@@ -487,8 +548,8 @@ def scale_sha(blob: dict) -> str:
     """'results sha X', or, for a file assembled again from recorded stages, where the stages ran and where it was assembled."""
     stages = sorted(set((blob.get("stage_git_sha") or {}).values()) - {None})
     if not stages or stages == [blob.get("git_sha")]:
-        return f"results sha {blob.get('git_sha')}"
-    return f"stages measured at {', '.join(stages)}, file assembled at {blob.get('git_sha')}"
+        return f"results sha {_sha(blob)}"
+    return f"stages measured at {', '.join(stages)}, file assembled at {_sha(blob)}"
 
 
 def _mib(n) -> str:
@@ -539,7 +600,8 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
         f"{report.get('files_rejected')} documents: {_counts(report.get('rejected_by_reason'))}; judged relevant among them: {len((blob.get('not_indexed') or {}).get('judged', []))}), "
         f"then the {n} test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of "
         f"app/eval/beir.py computed in the same job on the same queries; {scale_machine(blob)}; {scale_sha(blob)}. "
-        "Lexical leg: Postgres ts_rank_cd on the served side (a fallback, not BM25), Okapi BM25 in memory. "
+        "Lexical leg: Postgres ts_rank_cd on the served side (not BM25: the default of the explicit LEXICAL_BACKEND setting, never "
+        "chosen automatically), Okapi BM25 in memory. "
         f"Dense-leg query: the served embedder puts {served_form.get('query')!r} before each query (read from the served model); a row named "
         "'+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.",
         "",
@@ -549,7 +611,7 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
     rows_form = form.get("rows") or {}
     for row in SERVED_ROWS:
         s = blob["served"][row]
-        lines.append(f"| {row} | served | ts_rank_cd (fallback) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
+        lines.append(f"| {row} | served | ts_rank_cd (default LEXICAL_BACKEND, not BM25) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
                      f"{_ci(s, 'recall@50', 4)} | {(s.get('requests') or {}).get('failed')} of {s['n_queries']} | {_p50_p95((s.get('latency') or {}).get('e2e'))} (HTTP) |")
         for name in (s["paired_with"], s.get("bare_query_row")):
             if name:
@@ -578,7 +640,10 @@ def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
     if rep.get("status") == "compared":
         bits = [f"{name}: nDCG@10 {r['this_job_ndcg@10']:.4f} here and {r['committed_ndcg@10']:.4f} there, the same ranking for {r['identical_rankings']} of {r['n']} queries "
                 f"(the same first 10 for {r['identical_top10']})" for name, r in rep["rows"].items()]
-        lines += ["", f"The bare-query rows against {rep['file']} (results sha {rep['git_sha']}, {rep['device']}; same code, corpus and document embeddings): " + "; ".join(bits) + "."]
+        # the recording of the FiQA file this run compared with: that file may have been re-recorded since (M10b did, with
+        # byte-identical TREC runs), so the sentence names the recording, not the file as it is now
+        lines += ["", f"The bare-query rows against {rep['file']} as recorded at results sha {rep['git_sha']} ({rep['device']}; same code, corpus and "
+                      "document embeddings): " + "; ".join(bits) + "."]
     else:
         lines += ["", f"The bare-query rows were not compared with {rep.get('file', BEIR_FIQA_FILE)}: {rep.get('reason', 'not recorded')}."]
     docs = blob["served"]["api:hybrid"].get("documents_per_response") or {}
@@ -738,7 +803,7 @@ def _parity_run_text(blob: dict, rel: str) -> str:
     config = blob.get("in_memory_config")
     command = "`make parity`" if not config or config == "in_memory:hybrid+router+staleness" else f"`make parity PARITY_CONFIG={config}`"
     device = (blob.get("device") or {}).get("device_name")
-    parts = [f"**{_parity_stack(blob)}** ({rel}, {command}, results sha {blob.get('git_sha')}"
+    parts = [f"**{_parity_stack(blob)}** ({rel}, {command}, results sha {_sha(blob)}"
              + (f", {device}" if device and (blob.get("device") or {}).get("device") == "cuda" else "") + ")."]
     if not blob.get("settings"):  # files recorded before the settings were written down: the hash run
         parts.append("The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
@@ -897,7 +962,7 @@ def jury_v2_table(blob: dict) -> str:
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
     rs = blob.get("rescore") or {}
     sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
+                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {_sha(blob)}")
     ref = s["reference"]
     gate = blob.get("kappa_gate")
     lines = [
@@ -1026,7 +1091,7 @@ def jury_table(blob: dict | None) -> str:
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
     rs = blob.get("rescore") or {}
     sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`make bench-jury-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
+                f"`make bench-jury-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {_sha(blob)}")
     lines = [
         f"Generated answers on fixture v1 (`make bench-jury`, {sha_note}): {blob['n_gold']} questions, "
         f"retrieval `{cfg.get('name')}` ({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "
@@ -1868,7 +1933,7 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
     parents, arms = meta.get("parents") or [], meta.get("arms") or []
     n = blob.get("n_gold")
     lines = [
-        f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {_sha(blob)}). "
         f"Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off "
         f"the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "
         f"\"Fired\" counts the questions (of {n}) on which the arm's mechanism triggered; \"top 10 differs\" counts the questions "
@@ -1985,7 +2050,7 @@ def rerank_arms_table(blob: dict | None) -> str:
     cand = blob["candidates"]
     split = blob["split"]
     lines = [
-        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {_sha(blob)}). "
         f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. A student is fitted on the cross-encoder's "
         f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
         f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",

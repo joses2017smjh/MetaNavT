@@ -39,9 +39,18 @@ from llama_index.core.settings import Settings
 
 from app.settings import get_multi_modal_llm
 from app.engine.retriever import create_hybrid_retriever
+from app.retrieval.fuse import RRF_K
 from app.database.vector_store import get_vector_store_manager
 
 logger = logging.getLogger(__name__)
+
+# The query_index tool's default description: the chat model reads it to decide when to call the tool. It states the
+# served defaults (app/engine/retriever.py; tests/engine/test_served_reranker_docs.py keeps them equal).
+QUERY_INDEX_DESCRIPTION = (
+    f"Hybrid BM25 + dense retrieval with RRF (k={RRF_K}), optional query router, and, when a reranker is "
+    "configured, cross-encoder rerank of the fused top RERANK_DEPTH (default 20) candidates; returns the top "
+    "RERANK_TOP_N (default 8)."
+)
 
 def create_query_engine(index, **kwargs) -> BaseQueryEngine:
     """
@@ -87,10 +96,7 @@ def get_query_engine_tool(
     if name is None:
         name = "query_index"
     if description is None:
-        description = (
-            "Hybrid BM25 + dense retrieval with RRF (k=60), optional query "
-            "router, and cross-encoder rerank of the fused top-50 down to top-8."
-        )
+        description = QUERY_INDEX_DESCRIPTION
 
     try:
         vsm = get_vector_store_manager()

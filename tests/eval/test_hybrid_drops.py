@@ -1,6 +1,7 @@
 """B17: per question, the gold files hybrid drops (or gains) against dense alone, with the ranks that explain it."""
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -64,6 +65,7 @@ def test_the_engineering_reference_describes_the_recorded_drops():
     blob = json.loads((ROOT / "bench" / "results" / "hybrid_drops_bge_base.json").read_text())
     text = (ROOT / "doc" / "engineering-reference.md").read_text()
     para = next(p for p in text.split("\n\n") if p.startswith("**Why `hybrid@bge-base` has a lower Recall@50"))
+    para = re.sub(r"<!--.*?-->", "", para)  # the prose as it renders: without the number citations (D36)
     s, k = blob["summary"], blob["retrieve_k"]
     assert "its lists reproduce both committed rows exactly" in para and blob["reproduces"]["all"] is True
     assert "every question whose Recall@50 moves is listed" in para and s["every_question_that_moves_is_listed"] is True

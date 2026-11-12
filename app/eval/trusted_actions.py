@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import base64
 from collections import Counter
-from dataclasses import asdict
 import hashlib
 import hmac
 import json

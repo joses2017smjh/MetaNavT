@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from app.retrieval.embedders import HashEmbedder, cosine_scores, l2_normalize
+from app.retrieval.embedders import HashEmbedder, cosine_scores
 
 _clip_model = None
 

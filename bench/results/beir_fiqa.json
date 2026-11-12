@@ -10,7 +10,7 @@
     "qrels/test.tsv": "6adc2a640dcdd22bb8b3858f89107adef2a7c3db20a63550dfa7a0f71e379e44"
   },
   "corpus_sha256": "f66ef26f25dae42254b1494d4672e6b0118709ee62cee13b763d99d25066356a",
-  "runner_sha256": "b7e2e1961d6afef2d1875e81722beedcab9fe5f883fedec216d250099e630687",
+  "runner_sha256": "ea12884edfe8e8a69fe8bc2f578ef3fea05a79b6ffe0f0c4ac1ed8f2cb4314ef",
   "n_docs": 57638,
   "n_queries": 648,
   "full_split_queries": 648,
@@ -19,8 +19,27 @@
   "published": null,
   "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
   "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
-  "git_sha": "2583576",
-  "timestamp": "2026-11-11T09:50:47.168916+00:00",
+  "git_sha": "32972cf",
+  "git_head": "32972cf188ccfe08c99490c90b50c3b621090189",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "ea12884edfe8e8a69fe8bc2f578ef3fea05a79b6ffe0f0c4ac1ed8f2cb4314ef",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/provenance.py": "9a43cbd5461f5ad6962280ec94d2f23517096f808e536d58e324732d18318607",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "8eddee17823fb08d3821a285d96912fdac1933384bc7e1ed33f846f56f2d1198",
+    "app/retrieval/embedders.py": "ee8e89cf8177d013677361ba2bcb299339013aef9b28f8552a42f8a6907822f6",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "3e32b273ec8da98b2272f5dd1dceeb1307a1899cc21d349ac9374e37d2e2028b",
+    "app/retrieval/rerank.py": "ddb83a19893a2ff6a4f9988c78d1ea75c4182046f3bb5c8b4b8bed9a86fd3812",
+    "app/retrieval/router.py": "29ff7565a3e1d375f512697ba09f5ea1e6a1689a5db83cb3adc7a70ec4bfaf4e",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-12T16:31:25.910316+00:00",
   "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --dataset fiqa --data-dir <path>/beir_external --only bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20,hybrid+bge-rerank@bge-small/fp16-512/top20 --trec-dir bench/results/beir_fiqa_trec --out bench/results/beir_fiqa.json",
   "device": {
     "requested": "auto",
@@ -30,7 +49,7 @@
     "torch": "2.5.1+cu121",
     "cuda_available": true,
     "device": "cuda",
-    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "device_name": "Quadro RTX 8000",
     "threads": 1,
     "sentence_transformers": "6.1.0"
   },
@@ -72,22 +91,22 @@
       "latency": {
         "bm25": {
           "n": 648,
-          "p50_ms": 23.06,
-          "p95_ms": 50.22,
-          "mean_ms": 25.23
+          "p50_ms": 18.62,
+          "p95_ms": 41.18,
+          "mean_ms": 20.34
         },
         "total": {
           "n": 648,
-          "p50_ms": 23.07,
-          "p95_ms": 50.24,
-          "mean_ms": 25.25
+          "p50_ms": 18.64,
+          "p95_ms": 41.2,
+          "mean_ms": 20.35
         }
       },
       "build_ms": {
-        "bm25_index_ms": 155245.76,
-        "total_ms": 155245.76
+        "bm25_index_ms": 114679.86,
+        "total_ms": 114679.86
       },
-      "wall_ms": 16395.91,
+      "wall_ms": 13219.91,
       "models": {},
       "metric_cross_check": {
         "status": "passed",
@@ -157,29 +176,29 @@
       "latency": {
         "embed": {
           "n": 648,
-          "p50_ms": 13.46,
-          "p95_ms": 13.9,
-          "mean_ms": 13.58
+          "p50_ms": 8.8,
+          "p95_ms": 9.22,
+          "mean_ms": 8.84
         },
         "dense": {
           "n": 648,
-          "p50_ms": 21.5,
-          "p95_ms": 22.21,
-          "mean_ms": 21.6
+          "p50_ms": 21.82,
+          "p95_ms": 22.03,
+          "mean_ms": 21.87
         },
         "total": {
           "n": 648,
-          "p50_ms": 35.17,
-          "p95_ms": 36.01,
-          "mean_ms": 35.22
+          "p50_ms": 30.67,
+          "p95_ms": 31.18,
+          "mean_ms": 30.73
         }
       },
       "build_ms": {
-        "embedder_load_ms": 26271.27,
-        "doc_embeddings_ms": 333.17,
-        "total_ms": 26604.44
+        "embedder_load_ms": 16642.83,
+        "doc_embeddings_ms": 270.09,
+        "total_ms": 16912.92
       },
-      "wall_ms": 22878.84,
+      "wall_ms": 19953.73,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -293,33 +312,33 @@
       "latency": {
         "bm25": {
           "n": 648,
-          "p50_ms": 26.63,
-          "p95_ms": 55.36,
-          "mean_ms": 28.66
+          "p50_ms": 22.25,
+          "p95_ms": 46.67,
+          "mean_ms": 23.86
         },
         "embed": {
           "n": 648,
-          "p50_ms": 13.46,
-          "p95_ms": 13.99,
-          "mean_ms": 13.58
+          "p50_ms": 9.2,
+          "p95_ms": 9.6,
+          "mean_ms": 9.22
         },
         "dense": {
           "n": 648,
-          "p50_ms": 21.73,
-          "p95_ms": 22.27,
-          "mean_ms": 21.77
+          "p50_ms": 22.01,
+          "p95_ms": 22.24,
+          "mean_ms": 22.04
         },
         "fuse": {
           "n": 648,
-          "p50_ms": 0.14,
-          "p95_ms": 0.15,
-          "mean_ms": 0.14
+          "p50_ms": 0.11,
+          "p95_ms": 0.12,
+          "mean_ms": 0.11
         },
         "total": {
           "n": 648,
-          "p50_ms": 62.15,
-          "p95_ms": 91.63,
-          "mean_ms": 64.2
+          "p50_ms": 53.74,
+          "p95_ms": 78.49,
+          "mean_ms": 55.26
         }
       },
       "build_ms": {
@@ -328,7 +347,7 @@
         "doc_embeddings_ms": 0.0,
         "total_ms": 0.01
       },
-      "wall_ms": 41650.01,
+      "wall_ms": 35839.83,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -442,49 +461,49 @@
       "latency": {
         "bm25": {
           "n": 648,
-          "p50_ms": 28.41,
-          "p95_ms": 58.71,
-          "mean_ms": 30.7
+          "p50_ms": 25.41,
+          "p95_ms": 51.22,
+          "mean_ms": 26.81
         },
         "embed": {
           "n": 648,
-          "p50_ms": 13.75,
-          "p95_ms": 14.53,
-          "mean_ms": 13.77
+          "p50_ms": 9.34,
+          "p95_ms": 9.93,
+          "mean_ms": 9.38
         },
         "dense": {
           "n": 648,
-          "p50_ms": 21.9,
-          "p95_ms": 22.82,
-          "mean_ms": 22.04
+          "p50_ms": 22.0,
+          "p95_ms": 22.52,
+          "mean_ms": 22.08
         },
         "fuse": {
           "n": 648,
-          "p50_ms": 0.15,
-          "p95_ms": 0.16,
-          "mean_ms": 0.15
+          "p50_ms": 0.11,
+          "p95_ms": 0.12,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 648,
-          "p50_ms": 682.3,
-          "p95_ms": 697.23,
-          "mean_ms": 677.1
+          "p50_ms": 627.27,
+          "p95_ms": 639.39,
+          "mean_ms": 625.19
         },
         "total": {
           "n": 648,
-          "p50_ms": 745.54,
-          "p95_ms": 784.5,
-          "mean_ms": 743.84
+          "p50_ms": 684.43,
+          "p95_ms": 715.44,
+          "mean_ms": 683.63
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.0,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 12398.87,
-        "total_ms": 12398.87
+        "reranker_load_ms": 4019.84,
+        "total_ms": 4019.84
       },
-      "wall_ms": 482269.2,
+      "wall_ms": 443269.65,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -610,49 +629,49 @@
       "latency": {
         "bm25": {
           "n": 648,
-          "p50_ms": 29.16,
-          "p95_ms": 59.06,
-          "mean_ms": 31.06
+          "p50_ms": 26.07,
+          "p95_ms": 53.97,
+          "mean_ms": 28.26
         },
         "embed": {
           "n": 648,
-          "p50_ms": 13.6,
-          "p95_ms": 14.71,
-          "mean_ms": 13.97
+          "p50_ms": 9.17,
+          "p95_ms": 9.6,
+          "mean_ms": 9.28
         },
         "dense": {
           "n": 648,
-          "p50_ms": 21.86,
-          "p95_ms": 22.74,
-          "mean_ms": 22.01
+          "p50_ms": 21.97,
+          "p95_ms": 22.15,
+          "mean_ms": 22.02
         },
         "fuse": {
           "n": 648,
-          "p50_ms": 0.15,
-          "p95_ms": 0.16,
-          "mean_ms": 0.15
+          "p50_ms": 0.11,
+          "p95_ms": 0.13,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 648,
-          "p50_ms": 205.69,
-          "p95_ms": 216.39,
-          "mean_ms": 205.87
+          "p50_ms": 148.87,
+          "p95_ms": 155.86,
+          "mean_ms": 148.96
         },
         "total": {
           "n": 648,
-          "p50_ms": 271.92,
-          "p95_ms": 306.44,
-          "mean_ms": 273.14
+          "p50_ms": 207.34,
+          "p95_ms": 238.1,
+          "mean_ms": 208.68
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.0,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 3767.33,
-        "total_ms": 3767.33
+        "reranker_load_ms": 3258.94,
+        "total_ms": 3258.94
       },
-      "wall_ms": 177251.53,
+      "wall_ms": 135443.18,
       "models": {
         "embedder": {
           "role": "embedder",

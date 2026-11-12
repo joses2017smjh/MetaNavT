@@ -12,9 +12,9 @@ The utilities here support various benchmark test categories including:
 """
 import logging
 import json
-from typing import List, Dict, Any
+from typing import List, Dict
 from deepeval.test_case import ToolCall
-from app.engine.tools import get_tool_call_registry, clear_tool_calls
+from app.engine.tools import clear_tool_calls
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()

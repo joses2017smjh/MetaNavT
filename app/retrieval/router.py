@@ -1,11 +1,16 @@
-"""Rule-based query router.
+"""Rule-based query router: regular expressions, no model; the first rule that matches picks the route.
 
-Routes:
-  lexical_path        — looks like a filename/path; skip embed+rerank
-  aggregation_query   — count/min/max/which-run questions; metadata path
-  research_artifact   — Paper2Code / ACM bundle / reproduce a run
-  code_production     — implement / test / patch; still hybrid retrieve
-  semantic            — default hybrid+rerank
+Routes (RouteDecision.skip_embed / skip_rerank tell the retrievers what to leave out):
+  lexical_path        — a path- or file-name-like token: no query embedding, no reranker; the
+                        in-memory index and the served SQL statement fuse a path lookup (file
+                        name, path, stem in the query) with the lexical list
+  aggregation_query   — count / min / max / which-run / compare wording: the hybrid lists (BM25
+                        and dense, fused with RRF), no reranker; the HippoRAG arm's PPR rerank
+                        runs only on this route
+  research_artifact   — Paper2Code / ACM bundle / reproduce a run: the full pipeline; the
+                        artifact pipeline (app/artifacts) also reads the route
+  code_production     — implement / test / patch: the full pipeline
+  semantic            — everything else: the full pipeline (hybrid lists, RRF, reranker)
 """
 
 from __future__ import annotations

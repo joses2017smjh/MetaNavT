@@ -12,9 +12,7 @@ import json
 import asyncio
 from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
-import csv 
-from datetime import datetime
+from typing import List, Any
 
 from deepeval.metrics import AnswerRelevancyMetric, GEval, TaskCompletionMetric
 from deepeval.test_case import LLMTestCase, ToolCall, LLMTestCaseParams

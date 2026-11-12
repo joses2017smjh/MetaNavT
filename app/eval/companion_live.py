@@ -28,8 +28,8 @@ question pays the load. The request deadline is AGENT_TIMEOUT_SECONDS' largest a
 lower) so that a cold model is not what is measured; the per-upstream-call cap of companion_api is unchanged.
 Both are recorded. An HTTP failure (503, 504) or a blocked answer is a result and is not retried.
 
-Fallbacks, to be named wherever these numbers appear: hash embeddings, Postgres ts_rank_cd for the lexical
-leg, no reranker; one local 7-8B model; synthetic fixture questions.
+Stand-ins, to be named wherever these numbers appear: hash embeddings, Postgres ts_rank_cd for the lexical
+leg (the default LEXICAL_BACKEND, not BM25), no reranker; one local 7-8B model; synthetic fixture questions.
 """
 
 from __future__ import annotations
@@ -54,6 +54,7 @@ from app.eval import companion_score as cs
 from app.eval import served_stack
 from app.eval.agent_injection import TICKET, build_tasks
 from app.eval.provenance import _scrub_names, sanitize_command, scrub  # names only: see publishable()
+from app.eval.provenance import run_provenance as code_provenance
 
 ROOT = Path(__file__).resolve().parents[2]
 BENCHMARK = "companion_live_v1"
@@ -248,14 +249,9 @@ def recorded_command(argv: Sequence[str] | None = None) -> str:
 
 
 def run_provenance(sources: Sequence[str] = SOURCES) -> dict:
-    try:
-        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
-    except (OSError, subprocess.SubprocessError):
-        head, dirty = None, None
-    return {"run_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "git_head": head,
-            "working_tree_dirty": dirty,
-            "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sources}}
+    """When, the full commit, whether the tree had uncommitted changes, and the sha256 of `sources` (app.eval.provenance)."""
+    return {"run_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            **code_provenance(root=ROOT, sources=sources)}
 
 
 def _api_block(api: served_stack.ServedAPI, corpus: str, data_dir: Path, preflight: dict) -> dict:

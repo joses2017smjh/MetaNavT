@@ -28,17 +28,16 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-import hashlib
 import inspect
 import json
 from pathlib import Path
-import subprocess
 
 from app.agent.deep_research import expand_queries, multi_query_retrieve
 from app.chunking.structure import fixed_size_chunks
 from app.eval.index_loader import build_index
 from app.eval.ingest import CHUNKER_VERSION
 from app.eval.metrics import score_query
+from app.eval import provenance
 from app.eval.provenance import REPO_ROOT, command_line, device_info, git_sha, sanitize_path
 from app.eval.robotics import group_bootstrap, sha256, tracked_blob_mismatches, verify
 
@@ -99,14 +98,11 @@ CODE_PATHS = (
 
 
 def _code_sha256() -> dict[str, str]:
-    return {p: hashlib.sha256((REPO_ROOT / p).read_bytes()).hexdigest() for p in CODE_PATHS}
+    return provenance.source_hashes(CODE_PATHS, root=REPO_ROOT)
 
 
 def _working_tree_dirty() -> bool | None:
-    try:
-        return bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True).strip())
-    except (OSError, subprocess.SubprocessError):
-        return None
+    return provenance.working_tree_dirty(REPO_ROOT)
 
 
 def build_snapshot_index(snapshot: Path, strategy: str, manifest: dict):

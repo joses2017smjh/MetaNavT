@@ -63,11 +63,13 @@ def served_blob():
     }
 
 
-def test_served_block_shows_every_row_with_its_pair_and_labels_the_fallback():
+def test_served_block_shows_every_row_with_its_pair_and_labels_the_lexical_backend():
     text = report.served_scale_table(served_blob())
     assert "57638 documents" in text and "117000 chunks" in text and "rejected 40 documents: empty 38, duplicate_content 2" in text
     assert "judged relevant among them: 1" in text and "GPU X (44.4 GB) with CPU Y, 8 CPUs allocated" in text and "results sha abc1234" in text
-    assert "Postgres ts_rank_cd on the served side (a fallback, not BM25)" in text and "| api:hybrid+rerank | served | ts_rank_cd (fallback) | prompt + query | 0.3123 [0.2923, 0.3323]" in text
+    assert "Postgres ts_rank_cd on the served side (not BM25: the default of the explicit LEXICAL_BACKEND setting, never chosen automatically)" in text
+    assert "| api:hybrid+rerank | served | ts_rank_cd (default LEXICAL_BACKEND, not BM25) | prompt + query | 0.3123 [0.2923, 0.3323]" in text
+    assert "fallback" not in text.split("Dense-leg query")[0]  # M11: an explicit setting's default, not a fallback
     for name in (RERANK, RERANK + SAME_FORM_SUFFIX, HYBRID, HYBRID + SAME_FORM_SUFFIX):  # every in-memory row stays in the table
         assert f"| {name} | in memory | Okapi BM25 |" in text
     assert f"| {HYBRID} | in memory | Okapi BM25 | query |" in text and f"| {HYBRID + SAME_FORM_SUFFIX} | in memory | Okapi BM25 | prompt + query |" in text
@@ -85,6 +87,13 @@ def test_served_block_shows_every_row_with_its_pair_and_labels_the_fallback():
     assert "the migration ledgers 0.025 s, the manifest summary 0.0625 s and the version clusters built from the manifest 0.75 s (57598 manifest rows; 0 clusters); 0 rows of chunk text read" in text
     assert "fetch_all_chunks" not in text and "what INDEX_ON_START=true adds to a start" not in text
     assert "| 16 | 64 | 6 | http_503 6 | 16008.0 / 32008.0 | 1.25 |" in text
+
+
+def test_the_reproduction_names_the_fiqa_recording_it_compared_with():
+    """bench/results/beir_fiqa.json can be re-recorded after the served-scale run (M10b re-recorded it at another commit
+    and GPU, with byte-identical TREC runs): the sentence names the recording the run compared with, not the file."""
+    text = report.served_scale_table(served_blob())
+    assert "The bare-query rows against bench/results/beir_fiqa.json as recorded at results sha 2583576 (GPU Z; same code, " in text
 
 
 def test_served_block_refuses_a_slice_or_a_dry_run_and_names_split_machines():
@@ -172,7 +181,7 @@ def test_evidence_rows_come_from_the_full_run_files(tmp_path):
     rows = evidence._served_scale_claims(tmp_path)
     claims = {r["claim"]: r for r in rows}
     head = next(r for r in rows if r["claim"].startswith("BEIR FiQA (57638 documents) through the served API"))
-    assert (head["value"], head["ci"], head["n"]) == ("0.3123", "[0.2923, 0.3323]", 4) and "ts_rank_cd (a fallback, not BM25)" in head["not_shown"]
+    assert (head["value"], head["ci"], head["n"]) == ("0.3123", "[0.2923, 0.3323]", 4) and "ts_rank_cd (the default LEXICAL_BACKEND, not BM25)" in head["not_shown"]
     assert "40 of the 57638 documents were rejected by the served scanner and never indexed (1 of them judged relevant)" in head["not_shown"]
     assert head["source"] == "bench/results/served_scale_fiqa.json @ abc1234" and head["command"] == "make bench-served-scale"
     pair = claims[f"FiQA: served `api:hybrid` minus in-memory `{HYBRID + SAME_FORM_SUFFIX}` (same query form, same job), paired delta in nDCG@10"]

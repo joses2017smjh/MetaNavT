@@ -44,7 +44,7 @@ from app.eval.gold import GoldQuestion, load_gold
 from app.eval.harness import BGE_RERANKER, BGE_SMALL, CI_METRICS, git_sha, project_root
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.metrics import aggregate_retrieval
-from app.eval.provenance import command_line, device_info, model_device, model_provenance, scrub
+from app.eval.provenance import command_line, device_info, git_state, model_device, model_provenance, run_provenance, scrub, sha256_file
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.distill import LIGHTGBM_PARAMS, LIGHTGBM_ROUNDS, DistilledReranker, triples_from_pairs
 from app.retrieval.rankgpt import PARSE_STATUSES, PASSAGE_CHARS, RankGPTReranker, listwise_prompt
@@ -185,8 +185,10 @@ def score_rows(orders: dict[str, list[list[str]]], gold: list[GoldQuestion], ids
 def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_url: str = "http://127.0.0.1:11434", window: int = 20,
         retrieve_k: int = 50, device: str = "auto", complete: Callable[[str], str | None] | None = None) -> dict[str, Any]:
     root = root or project_root()
+    started = git_state(root)  # before anything is written (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
-    gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
+    gold_path = root / "bench" / "gold" / "questions.jsonl"
+    gold = load_gold(gold_path)
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
     mismatches = verify_manifest(files_root, manifest)
     if mismatches:
@@ -262,10 +264,12 @@ def run(root: Path | None = None, *, listwise_model: str | None = None, ollama_u
 
     return {
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(device),
         "corpus_sha256": manifest["aggregate_sha256"],
+        "gold_sha256": sha256_file(gold_path),
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
         "mtimes": mtime_provenance(files_root, "manifest", base=root),

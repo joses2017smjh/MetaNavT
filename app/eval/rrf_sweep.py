@@ -41,7 +41,7 @@ from app.eval.gold import GoldQuestion, load_gold
 from app.eval.harness import BGE_BASE, BGE_SMALL, git_sha, project_root
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.metrics import RetrievalScores, aggregate_retrieval
-from app.eval.provenance import command_line, device_info, model_device, model_provenance
+from app.eval.provenance import command_line, device_info, git_state, model_device, model_provenance, run_provenance
 from app.eval.report import verdict
 from app.eval.rerank_arms import score_rows, split_questions
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, paired_delta_ci, resample_indices, settings as bootstrap_settings
@@ -138,6 +138,7 @@ def _metrics(s: RetrievalScores) -> dict[str, float]:
 
 def run(root: Path | None = None, *, embedder: str = BGE_SMALL, retrieve_k: int = 50, device: str = "auto") -> dict[str, Any]:
     root = root or project_root()
+    started = git_state(root)  # before anything is written (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
@@ -192,6 +193,7 @@ def run(root: Path | None = None, *, embedder: str = BGE_SMALL, retrieve_k: int 
               "hybrid": scored(gold, default, every, n_files).as_dict()}
     return {
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(device),

@@ -1,7 +1,5 @@
 """End-to-end smoke of the bench index over a tiny frozen tree."""
 
-from pathlib import Path
-
 from app.eval.index_loader import build_index, load_chunks
 from app.eval.metrics import recall_at_k
 

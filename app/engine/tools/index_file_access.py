@@ -7,7 +7,7 @@ rather than directly from the file system.
 
 import fnmatch
 import logging
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Dict, Any, Union
 from pydantic import BaseModel, Field
 from llama_index.core.tools import FunctionTool, BaseTool
 
@@ -95,7 +95,7 @@ def get_file_by_path(file_path: str = "") -> str:
         return NOT_FOUND
     try:
         chunks = get_vector_store_manager().chunks_of_path(path)
-    except Exception as exc:  # noqa: BLE001 - the workflow would hand str(exc) to the model
+    except Exception as exc:  # noqa: BLE001 - READ_FAILED says what failed; raised, the workflow would give the model only the class and a request id
         logger.error(f"get_file_content: the file's chunks could not be read: {type(exc).__name__}: {exc}")
         return READ_FAILED
     if not chunks:
@@ -134,7 +134,7 @@ def list_available_files(pattern: str = "*") -> Union[List[str], str]:
         # The API's cached manager (query_index reads through the same one), resolved per call:
         # building the tools needs no database.
         indexed = get_vector_store_manager().ingest_manifest()
-    except Exception as exc:  # noqa: BLE001 - the workflow would hand str(exc) to the model
+    except Exception as exc:  # noqa: BLE001 - LIST_FAILED says what failed; raised, the workflow would give the model only the class and a request id
         logger.error(f"list_available_files: the ingest manifest could not be read: {type(exc).__name__}: {exc}")
         return LIST_FAILED
     file_paths = sorted(path for path in indexed if fnmatch.fnmatchcase(path, pattern))

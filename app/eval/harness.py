@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import time
 from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
@@ -20,11 +19,14 @@ from app.eval.frontier_llm import GENERATIONS_FILE, context_prefixes, header as 
 from app.eval.gold import GoldQuestion, load_gold
 from app.eval.hashing import content_hash
 from app.eval.index_loader import build_index, mtime_provenance
+from app.eval.ingest import CHUNKER_VERSION
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
+from app.eval import per_question
 from app.eval.probes import load_probes
-from app.eval.provenance import command_line, device_info, model_device, model_provenance
+# git_sha is also imported from this module by rerank_arms, sweeps, rrf_sweep, hybrid_drops, demo_export and frontier_llm.
+from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sha256_file
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
     answer_relevancy,
@@ -42,18 +44,6 @@ from app.retrieval.cache import SemanticCache
 from app.retrieval.distill import bench_log_triples, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
-
-
-def git_sha(cwd: Path) -> str:
-    try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=cwd,
-            stderr=subprocess.DEVNULL,
-        )
-        return out.decode().strip()
-    except Exception:
-        return "nogit"
 
 
 def project_root() -> Path:
@@ -574,6 +564,7 @@ def run_config(
     if cfg.e2e:
         payload["e2e"] = aggregate_e2e(e2e_rows).as_dict()
     payload["_per_query_scores"] = retrieval.per_query  # gold order; used for the bootstrap, then dropped
+    payload["_ingest"] = index.ingest_report  # what the loader indexed: the header's ingest block (ingest_header), then dropped
     if keep_retrieved:
         payload["_retrieved"] = [row["retrieved"] for row in per_query]  # gold order; compared with the parent, then dropped
     if fired:
@@ -849,6 +840,29 @@ def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[lis
     }
 
 
+# The loader's ingest report fields a results header keeps (app/eval/ingest.py ingest_report); an in-memory build
+# has no previous run, so its unchanged / removed / changed counts are always zero and are left out.
+INGEST_FIELDS = ("schema", "chunker", "files_seen", "files_indexed", "files_rejected", "rejected_by_reason", "rejected_sample")
+
+
+def ingest_header(reports: list[tuple[str, dict]]) -> dict:
+    """What a run indexed, from the ingest report of each row's index ((chunk strategy, report) pairs): the scan's
+    counts, which every row shares (one fixture, one scan rule), and the chunks embedded per chunk strategy."""
+    if not reports:
+        return {}
+    first = reports[0][1]
+    block: dict[str, Any] = {k: first[k] for k in INGEST_FIELDS}
+    block["chunker_version"] = CHUNKER_VERSION  # the structure-aware ("auto") chunker's label
+    chunks: dict[str, int] = {}
+    for strategy, report in reports:
+        if any(report[k] != first[k] for k in INGEST_FIELDS):
+            raise RuntimeError(f"rows indexed different files: {[(k, report[k], first[k]) for k in INGEST_FIELDS if report[k] != first[k]]}")
+        if chunks.setdefault(strategy, report["chunks_embedded"]) != report["chunks_embedded"]:
+            raise RuntimeError(f"two {strategy} rows embedded {chunks[strategy]} and {report['chunks_embedded']} chunks")
+    block["chunks_embedded"] = chunks
+    return block
+
+
 def run_bench(
     *,
     root: Path | None = None,
@@ -863,12 +877,17 @@ def run_bench(
 
     Without `out`, results go to bench/results/<sha>.json and latest.json (the
     default bench). With `out`, only that file is written, so neural runs never
-    touch the CI baseline. `frontier` adds what a prototype arm needs next to
-    its delta: fallback labels, per-category deltas vs parent for every
-    category, and the number of questions whose list differs from the parent's.
-    `compare_lists` adds only that last count (vs_parent) to every row with a parent.
+    touch the CI baseline. Each results file gets its per-question sidecar
+    (app/eval/per_question.py: <name>.per_query.json), from which every interval
+    in it is recomputed exactly. `frontier` adds what a prototype arm needs next to
+    its delta: fallback labels and the number of questions whose list differs
+    from the parent's. `compare_lists` adds only that count (vs_parent) to every
+    row with a parent. Every ladder (default, neural, frontier, rerank depth)
+    gets each row's paired delta vs its parent for every gold category, with the
+    questions whose nDCG@10 rose and fell in each slice (attach_confidence).
     """
     root = root or project_root()
+    started = git_state(root)  # before the run writes anything (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold_path = root / "bench" / "gold" / "questions.jsonl"
     manifest_path = root / "bench" / "corpus" / "MANIFEST.json"
@@ -893,10 +912,12 @@ def run_bench(
 
     results = []
     all_triples = []
+    ingest_reports: list[tuple[str, dict]] = []
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
         row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier or compare_lists, mtimes="manifest", probes=probes)
+        ingest_reports.append((cfg.chunk_strategy, row.pop("_ingest")))
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
@@ -910,19 +931,22 @@ def run_bench(
         categories=[q.category for q in gold],
         comparisons=[pair for pair in NEURAL_COMPARISONS + FRONTIER_COMPARISONS + [(_neural_name(a), _neural_name(b)) for a, b in FRONTIER_COMPARISONS]
                      if set(pair) <= names],
-        all_categories=frontier,
+        all_categories=True,  # every slice of every ladder (D04): the router's aggregation slice, not only its target
     )
 
     sha = git_sha(root)
     blob = {
         "git_sha": sha,
+        **run_provenance(root=root, started=started),  # full commit, dirty tree, sha256 of the modules that ran
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(device),
         "corpus_sha256": manifest["aggregate_sha256"],
+        "gold_sha256": sha256_file(gold_path),  # the MANIFEST lists corpus files only
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
         "mtimes": mtimes,  # what the staleness filter and the file graph compared
+        "ingest": ingest_header(ingest_reports),  # files seen, indexed, rejected by reason; chunks embedded per strategy
         "bootstrap": boot,
         "results": results,
     }
@@ -939,25 +963,31 @@ def run_bench(
         blob["frontier"] = attach_frontier(results, retrieved_by_config)
     elif compare_lists:
         attach_list_changes(results, retrieved_by_config)
+    sidecar = per_question.build(blob, scores_by_config, [q.id for q in gold], [q.category for q in gold], CI_METRICS)
     out_dir = root / "bench" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     if out is not None:
         out = out if out.is_absolute() else root / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
+        per_question.write(per_question.sidecar_path(out), sidecar)
         blob["output"] = str(out)
         return blob
     out_path = out_dir / f"{sha}.json"
     out_path.write_text(json.dumps(blob, indent=2) + "\n")
     latest = out_dir / "latest.json"
     latest.write_text(json.dumps(blob, indent=2) + "\n")
+    for path in (out_path, latest):
+        per_question.write(per_question.sidecar_path(path), sidecar)
     if all_triples:
         write_triples(out_dir / f"{sha}.triples.jsonl", all_triples)
     blob["output"] = str(out_path)
     return blob
 
 
-CI_METRICS = ("ndcg@10", "recall@10", "recall@50")
+# Metrics with a bootstrap interval and paired deltas (B33 added MRR@10 and Recall@5); compare.GATED_METRICS, the
+# regression gate's, is a separate and smaller list.
+CI_METRICS = ("ndcg@10", "recall@10", "recall@50", "mrr@10", "recall@5")
 REFERENCE_CONFIG = "bm25_only"
 
 
@@ -971,8 +1001,9 @@ def attach_confidence(
     categories: list[str] | None = None,
     comparisons: list[tuple[str, str]] | None = None,
     all_categories: bool = False,
+    metrics: tuple[str, ...] = CI_METRICS,
 ) -> dict:
-    """Add per-config 95% CIs and paired deltas in place.
+    """Add per-config 95% CIs and paired deltas in place, for each of `metrics`.
 
     delta_vs_bm25_only: every row against the bm25_only row.
     delta_vs_previous:  against the row's explicit `parent` (settings.parent); a row
@@ -980,9 +1011,12 @@ def attach_confidence(
                         older result files and ad-hoc runs still get a delta.
     delta_vs_parent_by_category: for rows in CATEGORY_DELTAS, the paired delta vs
                         parent restricted to that category, with n and small_n.
-    delta_vs_parent_by_category_all: with all_categories (the frontier run), the
-                        same paired delta for every category, so an arm aimed at one
-                        kind of question shows where it moved.
+    delta_vs_parent_by_category_all: with all_categories (every run_bench ladder,
+                        parity), the same paired delta for every category, so a
+                        mechanism aimed at one kind of question shows where it moved.
+    Each category block also counts the slice's questions whose nDCG@10 rose and
+    fell against the reference (questions_changed): how many questions a slice's
+    delta rests on.
     One index matrix is shared by every config, so all deltas are paired. Missing
     references yield None rather than an error. Returns the bootstrap settings;
     `comparisons` (extra row pairs) are returned under "comparisons".
@@ -1001,7 +1035,7 @@ def attach_confidence(
         if other is None or other == name:
             return None
         out: dict[str, Any] = {"reference": other}
-        for metric in CI_METRICS:
+        for metric in metrics:
             a, b = column(name, metric), column(other, metric)
             if a is None or b is None:
                 return None
@@ -1020,7 +1054,10 @@ def attach_confidence(
             return None
         sub_idx = resample_indices(len(sel), n_boot=n_boot, seed=seed)
         out: dict[str, Any] = {"reference": other, "category": category, "n": len(sel), "small_n": len(sel) < SMALL_N}
-        for metric in CI_METRICS:
+        if "ndcg@10" in metrics:
+            moved = [rows_a[i]["ndcg@10"] - rows_b[i]["ndcg@10"] for i in sel]
+            out["questions_changed"] = {"metric": "ndcg@10", "up": sum(1 for d in moved if d > 0), "down": sum(1 for d in moved if d < 0)}
+        for metric in metrics:
             a = [rows_a[i][metric] for i in sel]
             b = [rows_b[i][metric] for i in sel]
             d, lo, hi = paired_delta_ci(a, b, sub_idx)
@@ -1032,7 +1069,7 @@ def attach_confidence(
     for i, row in enumerate(results):
         name = row["config"]
         ci: dict[str, Any] = {}
-        for metric in CI_METRICS:
+        for metric in metrics:
             values = column(name, metric)
             if values is None:
                 continue
@@ -1126,16 +1163,18 @@ def _parse_args(argv: list[str] | None = None):
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     if args.backend == "api":
-        from app.eval.parity import IN_MEMORY, markdown_table as parity_table, run as parity_run
+        from app.eval.parity import DEFAULT_OUT, IN_MEMORY, markdown_table as parity_table, run as parity_run
 
         blob = parity_run(args.url, in_memory=args.parity_config or IN_MEMORY.name)
-        out = args.out or (project_root() / "bench" / "results" / "parity.json")
+        sidecar = blob.pop("_sidecar")
+        out = args.out or (project_root() / DEFAULT_OUT)  # untracked; a committed parity file is named with --out
         out = out if out.is_absolute() else project_root() / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
+        per_question.write(per_question.sidecar_path(out), sidecar)
         print(parity_table(blob))
         print(f"wrote {out}")
-        if not blob["api_ok"]:  # a broken API, not the size of the gap
+        if not blob["api_ok"]:  # a broken API, not the size of the gap (the table above lists the problems)
             raise SystemExit(1)
         return
     jury = args.jury or os.environ.get("JUDGE", "").strip().lower() in {"1", "true", "yes"}

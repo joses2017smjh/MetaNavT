@@ -37,7 +37,7 @@ from app.eval.gold import GoldQuestion, load_gold
 from app.eval.harness import BGE_BASE, git_sha, project_root
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.metrics import recall_at_k
-from app.eval.provenance import command_line, device_info, model_device, model_provenance
+from app.eval.provenance import command_line, device_info, git_state, model_device, model_provenance, run_provenance
 from app.eval.rrf_sweep import embedder_tag, fused_ranking, leg_lists, reproduces, scored
 from app.retrieval.fuse import RRF_K
 
@@ -91,6 +91,7 @@ def diff_question(q: GoldQuestion, bm25_ids: Sequence[str], dense_ids: Sequence[
 
 def run(root: Path | None = None, *, embedder: str = BGE_BASE, retrieve_k: int = 50, device: str = "auto") -> dict[str, Any]:
     root = root or project_root()
+    started = git_state(root)  # before anything is written (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
@@ -126,6 +127,7 @@ def run(root: Path | None = None, *, embedder: str = BGE_BASE, retrieve_k: int =
     }
     return {
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(device),

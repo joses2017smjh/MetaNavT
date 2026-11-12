@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from app.multimodal.late_interaction import maxsim
-from app.retrieval.embedders import HashEmbedder, l2_normalize
+from app.retrieval.embedders import HashEmbedder
 
 
 @dataclass
@@ -94,7 +94,7 @@ def search_pages(query: str, pages: list[PageIndex], k: int = 5) -> list[tuple[P
 def render_text_page(text: str, size: tuple[int, int] = (256, 320)) -> np.ndarray:
     """Fallback page image when poppler/pdf2image is not installed."""
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw
 
         img = Image.new("RGB", (size[1], size[0]), (194, 213, 255))
         draw = ImageDraw.Draw(img)

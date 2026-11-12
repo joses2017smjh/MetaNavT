@@ -226,3 +226,33 @@ def test_file_chunks_addresses_bytes_and_keeps_the_searched_text():
     assert (header.start_byte, header.end_byte, row.start_byte, row.end_byte) == (0, 15, 15, len(text.encode("utf-8")))
     assert row.text == "ablation,rmse\r\nλ_on,0.0542\r\n" and row.raw == "λ_on,0.0542\r\n"  # header prepended for search only
     assert text.encode("utf-8")[row.start_byte:row.end_byte].decode("utf-8") == row.raw
+
+
+def test_the_bench_and_parity_headers_carry_the_ingest_report_of_what_they_indexed(tmp_path, monkeypatch):
+    """A03a: what the benchmark indexed (files seen, indexed, rejected by reason, chunks embedded, the chunker) is in
+    every harness and parity results header, from the loader's own report (load_chunks_with_report)."""
+    from dataclasses import replace
+
+    from app.eval import parity
+    from app.eval.harness import DEFAULT_CONFIGS, FRONTIER_CONFIGS, run_bench
+    from app.eval.ingest import CHUNKER_VERSION
+
+    chunks, report = load_chunks_with_report(FIXTURE, mtimes="manifest")
+    fixed, _ = load_chunks_with_report(FIXTURE, "fixed", mtimes="manifest")
+    fixed_row = next(c for c in FRONTIER_CONFIGS if c.chunk_strategy == "fixed")
+    blob = run_bench(configs=[replace(DEFAULT_CONFIGS[1]), replace(fixed_row)], out=tmp_path / "x.json")
+    ingest = blob["ingest"]
+    assert (ingest["files_seen"], ingest["files_indexed"], ingest["files_rejected"]) == (61, 61, 0)
+    assert {k: ingest[k] for k in ("schema", "chunker", "files_seen", "files_indexed", "files_rejected", "rejected_by_reason")} == {
+        k: report[k] for k in ("schema", "chunker", "files_seen", "files_indexed", "files_rejected", "rejected_by_reason")}
+    assert ingest["rejected_sample"] == [] and set(ingest["rejected_by_reason"].values()) == {0}
+    assert ingest["chunker_version"] == CHUNKER_VERSION
+    assert ingest["chunks_embedded"] == {"auto": len(chunks), "fixed": len(fixed)} and len(fixed) != len(chunks)
+    assert all("_ingest" not in row for row in blob["results"])  # the rows themselves are unchanged
+    assert json.loads((tmp_path / "x.json").read_text())["ingest"] == ingest
+
+    monkeypatch.setattr(parity, "wait_for_health", lambda url: {"status": "ok"})
+    monkeypatch.setattr(parity, "post_retrieve", lambda url, query, k=50, timeout=60.0: {"route": "semantic", "hits": [{"path": "README.md"}]})
+    run = parity.run("http://127.0.0.1:9", root=ROOT)  # the in-memory row is the real hash configuration CI runs
+    assert run["ingest"] == {**ingest, "chunks_embedded": {"auto": len(chunks)}}
+    assert "_ingest" not in run["results"][0]

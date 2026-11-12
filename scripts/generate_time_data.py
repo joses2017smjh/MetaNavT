@@ -10,11 +10,10 @@ Usage:
 """
 
 import os
-import json
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 import shutil
 
 # Configure logging

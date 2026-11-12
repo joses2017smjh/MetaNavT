@@ -13,7 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, Sequence
 
-from app.graph.file_graph import RUN_ID_RE, extract_run_id
+from app.graph.file_graph import extract_run_id
 from app.retrieval.types import Chunk, RetrievalHit
 
 ENCODER_RE = re.compile(r"\b(dinov2|resnet50|clip|vit-b/?\d*)\b", re.IGNORECASE)

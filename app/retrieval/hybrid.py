@@ -12,7 +12,7 @@ import numpy as np
 from app.eval.latency import StageTimer
 from app.retrieval.bm25 import BM25Index
 from app.retrieval.embedders import Embedder, HashEmbedder
-from app.retrieval.fuse import rrf_score_map
+from app.retrieval.fuse import RRF_K, rrf_score_map
 from app.retrieval.router import QueryRouter, RouteDecision, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
 
@@ -88,7 +88,7 @@ class InMemoryHybridIndex:
         embedder: Embedder | None = None,
         retrieve_k: int = 50,
         rerank_n: int = 8,
-        rrf_k: int = 60,
+        rrf_k: int = RRF_K,
         router: QueryRouter | None = None,
         rerank_fn: RerankFn | None = None,
         enable_router: bool = True,

@@ -5,17 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import numpy as np
-
 from app.eval.harness import BenchConfig, git_sha, project_root, run_config
 from app.eval.gold import load_gold
 from app.eval.index_loader import build_index
+from app.eval.provenance import git_state, run_provenance
 from app.graph.graphrag import build_graphrag, answer_global
 from app.retrieval.pgvector_tune import compare_storage, sweep_ef_search
 
 
 def run_sweeps(root: Path | None = None) -> dict:
     root = root or project_root()
+    started = git_state(root)  # before anything is written (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     index = build_index(files_root, embedder_name="hash", enable_rerank=False, enable_router=False)
@@ -44,6 +44,7 @@ def run_sweeps(root: Path | None = None) -> dict:
     global_q = "what is in this corpus"
     blob = {
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),
         "hnsw": hnsw,
         "storage": storage,
         "graph_hops": [

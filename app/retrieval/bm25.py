@@ -28,7 +28,7 @@ import heapq
 import math
 import re
 from collections import Counter, defaultdict
-from typing import Iterable, Sequence
+from typing import Sequence
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_./-]+")
 ALNUM_RE = re.compile(r"[a-z0-9]+")

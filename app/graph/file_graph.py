@@ -6,7 +6,6 @@ for the frozen corpus and can be persisted to Postgres later.
 
 from __future__ import annotations
 
-import hashlib
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field

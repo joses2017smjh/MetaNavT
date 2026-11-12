@@ -30,6 +30,17 @@ bench/results/*.triples.jsonl
 bench/results/*.json
 !bench/results/latest.json
 !bench/results/main.json
+# per-question sidecars (app/eval/per_question.py) of the tracked harness results files; a file recorded before the
+# sidecar existed gets one when it is re-recorded
+!bench/results/latest.per_query.json
+!bench/results/main.per_query.json
+!bench/results/neural.per_query.json
+!bench/results/frontier.per_query.json
+!bench/results/frontier_neural.per_query.json
+!bench/results/rerank_depth.per_query.json
+!bench/results/parity_shared_chunker.per_query.json
+!bench/results/parity_shared_chunker_restart.per_query.json
+!bench/results/parity_neural.per_query.json
 !bench/results/sweeps.json
 !bench/results/520699a.json
 # neural / external results are committed artifacts (see their headers for the command)

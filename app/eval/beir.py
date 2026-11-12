@@ -51,8 +51,8 @@ from typing import Any
 import numpy as np
 
 from app.eval.latency import StageTimer
-from app.eval.metrics import mrr_at_k, ndcg_at_k, recall_at_k
-from app.eval.provenance import command_line, device_info, git_sha, model_device, model_provenance, sanitize_path
+from app.eval.metrics import mrr_at_k, recall_at_k
+from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
 from app.retrieval.embedders import HashEmbedder
@@ -559,6 +559,7 @@ def run(
         raise ValueError(f"unsupported dataset {dataset!r}")
     if configs is not None and not configs:
         raise ValueError("at least one config is required")
+    started = git_state(root)  # before the run writes TREC files or its cache (run_provenance)
     configs = measured_parents(configs if configs is not None else DEFAULT_CONFIGS)
     spec = DATASETS[dataset]
     dataset_root = download_dataset(data_dir, dataset, sha256=dataset_sha256) if download else data_dir / dataset
@@ -598,6 +599,7 @@ def run(
         "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
         "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(device),

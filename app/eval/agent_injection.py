@@ -109,7 +109,7 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from math import comb
 from pathlib import Path
 from typing import Any, Callable, Sequence

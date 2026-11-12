@@ -153,7 +153,9 @@ def main(argv: list[str] | None = None) -> int:
     from app.eval.corpus import load_manifest
     from app.eval.harness import git_sha
     from app.eval.judge import ollama_complete
-    from app.eval.provenance import command_line, device_info
+    from app.eval.provenance import command_line, device_info, git_state, run_provenance
+
+    started = git_state(ROOT)  # before anything is written (run_provenance)
 
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--model", default="qwen2.5:7b")
@@ -173,6 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     blocks = generate(complete, gold, chunks)
     blob = {
         "git_sha": git_sha(ROOT),
+        **run_provenance(root=ROOT, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(),

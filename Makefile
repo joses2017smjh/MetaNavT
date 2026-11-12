@@ -49,7 +49,7 @@ lock-check:     ## exit 1 if a pinned file no longer satisfies pyproject.toml or
 	$(PYTHON) scripts/check_lock.py
 
 # ---- lint ------------------------------------------------------------------
-lint:           ## ruff, narrow defect-only rule set from pyproject.toml (needs requirements/dev.txt)
+lint:           ## ruff, narrow rule set from pyproject.toml: defects and unused imports (needs requirements/dev.txt)
 	$(PYTHON) -m ruff check .
 
 # ---- tests -----------------------------------------------------------------
@@ -68,15 +68,21 @@ bench:          ## frozen fixture v1 -> bench/results/<git-sha>.json and latest.
 bench-compare:  ## report latest.json vs the committed baseline main.json
 	$(PYTHON) -m app.eval.compare
 
-bench-gate:     ## same, but exit 1 if nDCG@10 or Recall@50 drops more than the threshold
+bench-gate:     ## same, but exit 1 if nDCG@10, Recall@10 or Recall@50 drops more than the threshold
 	$(PYTHON) -m app.eval.compare --fail-on-regression
 
 bench-check:    ## run the CPU bench into bench/results/check.json; exit 1 unless every field of every row equals main.json (timings excepted)
 	$(PYTHON) -m app.eval.harness --out bench/results/check.json
 	$(PYTHON) -m app.eval.compare --exact --current bench/results/check.json
 
-bench-baseline: ## promote latest.json to main.json (review `make bench-compare` first)
+bench-baseline: ## promote latest.json and its per-question sidecar to main.json (review `make bench-compare` first)
 	cp bench/results/latest.json bench/results/main.json
+	cp bench/results/latest.per_query.json bench/results/main.per_query.json
+
+.PHONY: bench-intervals
+RESULTS ?= bench/results/main.json
+bench-intervals: ## recompute every interval, paired delta and mean of a harness results file (RESULTS) from its per-question sidecar; exit 1 unless all equal the file
+	$(PYTHON) -m app.eval.per_question $(RESULTS)
 
 bench-table:    ## render the README benchmark blocks from bench/results/main.json
 	$(PYTHON) -m app.eval.report
@@ -92,6 +98,10 @@ evidence:       ## render docs/RESUME_EVIDENCE.md from the committed results fil
 
 evidence-check: ## exit 1 if docs/RESUME_EVIDENCE.md drifted from the results files
 	$(PYTHON) -m app.eval.evidence --check
+
+.PHONY: doc-numbers-check
+doc-numbers-check: ## exit 1 if a number in the prose of doc/engineering-reference.md or README.md (outside generated blocks) differs from the file it cites, or is neither cited nor classified
+	$(PYTHON) -m app.eval.prose_numbers
 
 bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml]); rewrites bench/results/jury.json, the M4 record, with today's protocol
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out bench/results/jury.json
@@ -267,7 +277,8 @@ demos: matlab-demo demo-data figures gifs
 
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
-PARITY_OUT ?= bench/results/parity.json
+# Untracked by default; a committed parity file is written by naming it (PARITY_OUT=bench/results/parity_shared_chunker.json).
+PARITY_OUT ?= bench/results/parity_latest.json
 # The in-memory row's named configuration (app/eval/parity.py IN_MEMORY_CONFIGS): CI's hash one by default; the
 # model-backed one is in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first.
 PARITY_CONFIG ?= in_memory:hybrid+router+staleness

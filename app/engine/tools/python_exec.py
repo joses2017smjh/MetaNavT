@@ -34,7 +34,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path  
-from typing import Dict, Any, List, Optional  
+from typing import Dict, Any, Optional  
 from llama_index.core.tools import FunctionTool
 from app.api.security import API_KEY_ENV, API_KEYS_FILE_ENV, authentication_enabled
 from app.engine.tools import create_tool_callback

@@ -6,12 +6,19 @@
 
 Gate: for every config in the baseline, each metric in GATED_METRICS (nDCG@10,
 Recall@10, Recall@50) must not be lower than the baseline by more than
---threshold. The default threshold is 0.002: the bench is deterministic (hash
-embeddings, overlap reranker, fixed corpus) and reproduced to four decimals on
-Python 3.11 / numpy 1.26 and 3.12 / numpy 2.5, so a drop of 0.002 is a real
-change, not rounding noise. A gated metric missing from the baseline (older
-result files) is skipped with a note. Improvements never fail the gate; promote
-them with `make bench-baseline`.
+--threshold (default 0.002). The bench is deterministic (hash embeddings,
+overlap reranker, fixed corpus, MANIFEST mtimes, a defined dense order):
+`make bench-check` requires every field of every row to equal main.json, and CI
+runs it on Python 3.11 and 3.12 with the numpy requirements/eval.txt pins. So
+the threshold is not an allowance for noise: any drop is a change in what the
+code retrieves, and the gate lets a drop up to the threshold through (bench-check
+does not). A gated metric missing from the baseline (older result files) is
+skipped with a note.
+
+The gate is one-sided: a rise never fails it. A gated metric that rose more than
+the threshold is reported as drift (the baseline no longer describes the code),
+next to the commit the baseline was recorded at and how far HEAD has moved since;
+review it with `make bench-compare` and promote it with `make bench-baseline`.
 
 Only the retrieval metrics are compared. Timestamps, latencies and the heuristic
 e2e block differ from run to run and are ignored.
@@ -19,7 +26,7 @@ e2e block differ from run to run and are ignored.
 --exact (make bench-check) is the reproduction check: the bench is meant to give
 the same numbers on any machine, so every field of every row (metrics, per-category
 metrics, intervals, deltas, the e2e block, settings, routes) and the header fields
-that define the run (corpus, gold set, bootstrap, mtimes) must equal the baseline,
+that define the run (corpus and gold digests, gold set size, bootstrap, mtimes) must equal the baseline,
 in both directions. Only timings, the timestamp, the command, the machine and the
 commit may differ.
 """
@@ -28,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 
 REPORTED_METRICS = ("ndcg@10", "recall@10", "recall@50", "mrr@10")
@@ -109,8 +117,56 @@ def regressions(
     return problems
 
 
+def improvements(
+    current: dict,
+    baseline: dict,
+    threshold: float = DEFAULT_THRESHOLD,
+    metrics=GATED_METRICS,
+) -> list[str]:
+    """Upward drift: every gated metric of a config in both files that rose more than `threshold` above the baseline.
+    Reported, never a failure (the gate is one-sided); it means the baseline no longer describes the code."""
+    cur_map = _by_config(current)
+    out: list[str] = []
+    for name, base_row in _by_config(baseline).items():
+        cur_row = cur_map.get(name)
+        if cur_row is None:
+            continue
+        for metric in metrics:
+            b, c = base_row["retrieval"].get(metric), cur_row["retrieval"].get(metric)
+            if b is not None and c is not None and c - b > threshold + 1e-9:
+                out.append(f"{name}: {metric} rose {b:.4f} -> {c:.4f} (delta {c - b:+.4f}, threshold {threshold})")
+    return out
+
+
+def baseline_note(baseline: dict, name: str, root: Path) -> str:
+    """The commit the baseline file was recorded at (and whether its tree was dirty), and how many commits HEAD of the
+    checkout at `root` has moved since. Counted only when HEAD descends from that commit. Otherwise a shallow clone
+    is named as one (CI's eval job fetches the full history), and in a full clone the commit is not in HEAD's history:
+    a squash merge of the branch that recorded the baseline leaves it that way. Nothing more when git cannot say."""
+    sha = baseline.get("git_head") or baseline.get("git_sha")
+    if not sha:
+        return f"baseline: {name} records no commit"
+    shown = f"{baseline.get('git_sha') or sha[:7]}{' with uncommitted changes' if baseline.get('working_tree_dirty') is True else ''}"
+
+    def git(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60)
+
+    try:
+        if git("merge-base", "--is-ancestor", sha, "HEAD").returncode == 0:
+            n = int(git("rev-list", "--count", f"{sha}..HEAD").stdout.strip())
+            return f"baseline: {name} recorded at {shown}; HEAD is " + ("that commit" if n == 0 else f"{n} commit{'s' if n != 1 else ''} after it")
+        shallow = git("rev-parse", "--is-shallow-repository")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return f"baseline: {name} recorded at {shown}"
+    if shallow.returncode != 0:  # not a checkout
+        return f"baseline: {name} recorded at {shown}"
+    if shallow.stdout.strip() == "true":
+        return f"baseline: {name} recorded at {shown}, a commit this shallow clone does not have (fetch the full history to count the commits since)"
+    return f"baseline: {name} recorded at {shown}, a commit not in HEAD's history (a squash merge or a rewritten history leaves results naming one)"
+
+
 VOLATILE_ROW_KEYS = frozenset({"latency", "wall_ms"})  # timings: the only row fields allowed to differ
-EXACT_HEADER_KEYS = ("corpus_sha256", "n_gold", "n_files", "bootstrap", "mtimes")
+EXACT_HEADER_KEYS = ("corpus_sha256", "gold_sha256", "n_gold", "n_files", "bootstrap", "mtimes")
 
 
 def _leaf_differences(path: str, a, b, out: list[str]) -> None:
@@ -191,11 +247,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"note: {line}")
     if not problems:
         print(f"\ngate: OK ({', '.join(GATED_METRICS)} within {args.threshold} of baseline for {len(_by_config(baseline))} configs)")
-        return 0
-    print("\ngate: REGRESSION" if args.fail_on_regression else "\ngate: regression (report only)")
-    for line in problems:
-        print(f"  - {line}")
-    return 1 if args.fail_on_regression else 0
+    else:
+        print("\ngate: REGRESSION" if args.fail_on_regression else "\ngate: regression (report only)")
+        for line in problems:
+            print(f"  - {line}")
+    print(baseline_note(baseline, args.baseline.name, root))
+    risen = improvements(current, baseline, threshold=args.threshold)
+    if not risen:
+        print(f"drift: none (no gated metric rose more than {args.threshold} above the baseline)")
+    else:
+        print(f"drift: {len(risen)} gated metric{'s' if len(risen) != 1 else ''} rose more than {args.threshold} above the baseline, "
+              "which no longer describes the code (a rise never fails the gate; review with `make bench-compare`, "
+              "promote with `make bench-baseline`):")
+        for line in risen:
+            print(f"  - {line}")
+    return 1 if problems and args.fail_on_regression else 0
 
 
 if __name__ == "__main__":
