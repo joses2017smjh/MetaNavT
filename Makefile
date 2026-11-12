@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-v2 bench-jury-v2-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic bench-agent-injection-v2 bench-agent-injection-v2-rescore migrate migrate-check
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -83,11 +83,17 @@ evidence:       ## render docs/RESUME_EVIDENCE.md from the committed results fil
 evidence-check: ## exit 1 if docs/RESUME_EVIDENCE.md drifted from the results files
 	$(PYTHON) -m app.eval.evidence --check
 
-bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml])
+bench-jury:     ## M4: LLM cited answers + deterministic checks + two-model jury with AB/BA swaps (needs Ollama + .[ml]); rewrites bench/results/jury.json, the M4 record, with today's protocol
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out bench/results/jury.json
 
 bench-jury-rescore: ## recompute the deterministic checks + summary of bench/results/jury.json from its stored answers (no model call)
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore bench/results/jury.json
+
+bench-jury-v2:  ## M29: qwen2.5:7b answers + a calibration set from qwen2.5:1.5b (retrieved and planted contexts) as the kappa gate's reference, judges qwen2.5:7b + llama3.1:8b (needs Ollama + .[ml]) -> bench/results/jury_v2.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out bench/results/jury_v2.json --generator qwen2.5:7b --judges qwen2.5:7b,llama3.1:8b --calibration-generator qwen2.5:1.5b
+
+bench-jury-v2-rescore: ## recompute the deterministic checks + summary of bench/results/jury_v2.json, calibration set included, from its stored answers (no model call)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore bench/results/jury_v2.json
 
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury

@@ -47,6 +47,7 @@ bench/results/*.json
 !bench/results/ingest_runs.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json
+!bench/results/jury_v2.json
 !bench/results/robotics_file_lookup_2026-10-07.json
 !bench/results/robotics_file_lookup_revalidated_2026-10-07.json
 !bench/results/robotics_chunking.json

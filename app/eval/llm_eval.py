@@ -1,12 +1,14 @@
-"""M4: LLM answer evaluation with a validity gate (make bench-jury).
+"""LLM answer evaluation with a validity gate (M4; reference and gate revised in M29).
 
     python -m app.eval.llm_eval --out bench/results/jury.json \
         [--generator qwen2.5:7b] [--judges qwen2.5:7b,llama3.1:8b] [--limit N] \
+        [--calibration-generator qwen2.5:1.5b] \
         [--embedder st:BAAI/bge-small-en-v1.5 --reranker BAAI/bge-reranker-v2-m3]
 
 For every gold question, on fixture v1:
 1. Retrieve with the chosen configuration (default: the full pipeline with real
-   models, the best row of bench-neural) and keep the top 8 chunks.
+   models, the best row of bench-neural) and keep the top 8 chunks. A run
+   refuses to start when the configured reranker falls back.
 2. Generate a cited answer with a local model through Ollama
    (app/agent/generate.py). An answer with no valid citation is a failure
    ("uncited"), counted and excluded from judging; a NOT IN SOURCES reply is an
@@ -17,19 +19,39 @@ For every gold question, on fixture v1:
    - values_in_cited_bytes: every number / config value in the answer appears
      inside the cited chunks (app/agent/citation_verify.py, cited_only=True;
      string containment, case-insensitive, numeric formats not normalised)
-   - exact_match: the gold answer string is in the answer (simple_factual only)
-4. Jury: one LlmJudge per judge model (pointwise faithfulness / relevancy /
-   groundedness -> label), plus the heuristic judge kept as a labelled column;
-   pairwise AB/BA position swap per judge between the LLM answer and the
-   extractive answer, so position bias is measured (position_gap).
-5. Cohen's kappa between each judge's labels and the exact-match labels on
-   simple_factual (n = 80). Judge scores may be published only when kappa >=
-   KAPPA_GATE (0.6); the results file says so either way (readme_ok). If the
-   exact-match reference is a single class (every answer matched, or none did)
-   kappa is 0 by construction for any judge with variance and 1 for a judge
-   that never varies, so the gate is marked not evaluable and stays closed.
+   - exact_match: the gold answer is in the answer and not part of a longer
+     number or word, or the answer states the same number in another format
+     (simple_factual only; exact_match_label(bounded=True))
+   - abstention_only: the answer is NOT IN SOURCES and nothing else
+4. Jury, one judge model at a time:
+   - correctness verdict (the gated label): question, gold answer and answer,
+     no retrieved context (judge.correctness_prompt). The abstention rubric
+     labels a pure abstention to a question with a gold answer wrong without
+     asking the judge.
+   - composite label, kept as a labelled column from M4: pointwise
+     faithfulness / relevancy / groundedness -> label. Never gated: a wrong
+     value copied faithfully from a retrieved chunk would score about 1, 1, 0,
+     which reads as partial.
+   - pairwise AB/BA position swap between the LLM answer and the extractive
+     answer, so position bias is measured (position_gap).
+   The heuristic judge is kept as a labelled composite column. Every reply is
+   stored; empty and unreadable replies are counted per judge.
+5. Cohen's kappa between each judge's correctness verdicts and the exact-match
+   labels of the reference answers it labelled: the calibration set when the
+   run has a --calibration-generator (CALIBRATION_CONDITIONS), else the
+   simple_factual answers; rule-labelled abstentions are left out and counted.
+   Labels are paired per answer, with a bootstrap interval over those answers.
+   A judge's correctness score may be published only when kappa >= KAPPA_GATE
+   (0.6); the results file says so either way (readme_ok). If the reference is
+   a single class (every answer matched, or none did) kappa is 0 by
+   construction for any judge with variance and 1 for a judge that never
+   varies, so the gate is marked not evaluable and stays closed.
 
 Heuristic columns are labelled "heuristic" and stay out of README tables.
+
+The header pins every Ollama model by the manifest digest the server's
+/api/tags reports for its tag (`revision`), with the server version; a model
+run refuses to start when a tag has no digest.
 
     python -m app.eval.llm_eval --rescore bench/results/jury.json
 
@@ -44,23 +66,49 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import time
+from collections import Counter
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
+import numpy as np
+
 from app.agent.citation_verify import extract_claims, verify_claims
-from app.agent.generate import OllamaGenerator, cited_answer, ollama_available
+from app.agent.generate import NOT_IN_SOURCES, OllamaGenerator, cited_answer, strip_citations
 from app.agent.retrieval_loop import extractive_answer
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
 from app.eval.harness import BGE_RERANKER, BGE_SMALL, BenchConfig, _retrieve, bench_settings, project_root
 from app.eval.index_loader import build_index
-from app.eval.judge import HeuristicJudge, LlmJudge, exact_match_label, label_to_score, ollama_complete, pairwise_ab_ba
+from app.eval.judge import (
+    LABELS,
+    HeuristicJudge,
+    LlmJudge,
+    correctness_prompt,
+    exact_match_label,
+    label_to_score,
+    ollama_complete,
+    pairwise_ab_ba,
+    replace_bounded,
+    single_number,
+)
 from app.eval.jury import KAPPA_GATE, DEFAULT_JUDGE_MODELS, cohens_kappa
 from app.eval.latency import StageTimer
-from app.eval.provenance import command_line, device_info, git_sha, model_provenance, scrub
+from app.eval.provenance import (
+    command_line,
+    device_info,
+    git_sha,
+    model_provenance,
+    ollama_model_provenance,
+    ollama_tag_entry,
+    ollama_tags,
+    ollama_version,
+    scrub,
+)
+from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, RNG_NAME, resample_indices
 from app.graph.staleness import cluster_versions
 from app.retrieval.types import RetrievalHit
 
@@ -76,6 +124,21 @@ DEFAULT_CONFIG = BenchConfig(
     e2e=False,
 )
 TOP_N = 8
+# The label the gate reads, and the rule that labels a pure abstention without asking a judge.
+GATED_LABEL = "correctness verdict (app/eval/judge.py correctness_prompt: question, gold, answer; no retrieved context)"
+REFERENCE_LABELS = "exact_match_label, bounded (the gold may not sit inside a longer number or word)"
+ABSTENTION_RULE = (f"an answer that is {NOT_IN_SOURCES} and nothing else, to a question with a gold answer, is wrong "
+                   "by rule: no judge is asked, and the row is left out of kappa")
+
+
+def abstention_only(answer: str) -> bool:
+    """The answer (citations stripped) says NOT IN SOURCES and nothing else."""
+    return NOT_IN_SOURCES in answer and not re.search(r"[A-Za-z0-9]", answer.replace(NOT_IN_SOURCES, " "))
+
+
+def rule_label(checks: dict[str, Any], gold: str) -> str | None:
+    """The abstention rubric: "wrong" for a pure abstention to a question that has a gold answer, else None (ask)."""
+    return "wrong" if checks.get("abstention_only") and str(gold or "").strip() else None
 
 
 def deterministic_checks(question: GoldQuestion, text: str, hits: Sequence[RetrievalHit]) -> dict[str, Any]:
@@ -87,6 +150,7 @@ def deterministic_checks(question: GoldQuestion, text: str, hits: Sequence[Retri
     checks = {
         "uncited": info["uncited"],
         "abstained": info["abstained"],
+        "abstention_only": info["abstained"] and abstention_only(info["answer"]),
         "cited_in_retrieved": (not info["unknown_citations"]) if info["citations"] else None,
         "n_citations": len(info["citations"]),
         "unknown_citations": info["unknown_citations"],
@@ -97,7 +161,7 @@ def deterministic_checks(question: GoldQuestion, text: str, hits: Sequence[Retri
         "verification_ratio_cited": round(strict.verification_ratio, 4),
     }
     if question.category == "simple_factual":
-        checks["exact_match_label"] = exact_match_label(info["answer"], question.answer)
+        checks["exact_match_label"] = exact_match_label(info["answer"], question.answer, bounded=True)
         checks["exact_match"] = checks["exact_match_label"] == "correct"
     return checks
 
@@ -105,7 +169,89 @@ def deterministic_checks(question: GoldQuestion, text: str, hits: Sequence[Retri
 def judge_pointwise(judge, question: GoldQuestion, answer: str, contexts: Sequence[str]) -> dict[str, Any]:
     t0 = time.perf_counter()
     verdict = judge.judge_answer(question.question, answer, contexts, question.answer)
-    return {**verdict.as_dict(), "seconds": round(time.perf_counter() - t0, 3)}
+    out = {**verdict.as_dict(), "seconds": round(time.perf_counter() - t0, 3)}
+    if isinstance(judge, LlmJudge):
+        out["raw"] = verdict.raw  # the three replies, so an empty or unreadable one is visible
+    return out
+
+
+def judge_correctness(judge: LlmJudge, question: GoldQuestion, answer: str) -> dict[str, Any]:
+    """The gated label from the judge (run() applies the abstention rule first, without a model call)."""
+    t0 = time.perf_counter()
+    verdict = judge.judge_correctness(question.question, answer, question.answer)
+    return {**verdict, "by": "judge", "seconds": round(time.perf_counter() - t0, 3)}
+
+
+def _recording(complete):
+    """`complete` that also keeps every reply, in call order."""
+    replies: list[str] = []
+
+    def call(prompt: str) -> str:
+        reply = complete(prompt) or ""
+        replies.append(reply)
+        return reply
+
+    return call, replies
+
+
+# ---- the calibration set: the gate's reference when the run has a calibration generator (M29) -----------------
+# The simple-factual slice is saturated for the generator (bench/results/jury_v2.json), so the reference
+# gets its second class from planted contexts: the same questions answered from the same chunks with the gold value
+# replaced, in memory, by another value of the same field. A judge that passes shows it compares a single-value
+# answer with the gold; the planted value says nothing about the corpus.
+CALIBRATION_CONDITIONS = {
+    "retrieved": "the top 8 chunks as retrieved",
+    "planted": ("the same chunks with every standalone occurrence of the gold value (numeric equivalents included) "
+                "replaced, in memory, by another gold value of the same question template"),
+}
+PLANTED_VALUE_RULE = ("the other gold values of the question's template (its text with digits replaced), distinct by "
+                      "value, sorted (numbers by value, words alphabetically): the next one after the gold, wrapping around")
+
+
+def question_template(question: str) -> str:
+    return re.sub(r"\d+", "N", question)
+
+
+def _value_key(value: str) -> tuple:
+    number = single_number(value)
+    return (0, number, "") if number is not None else (1, 0.0, value.strip().lower())
+
+
+def planted_values(gold: Sequence[GoldQuestion]) -> dict[str, str | None]:
+    """For each simple-factual question, another value of its field (PLANTED_VALUE_RULE); None when its template
+    has one value only."""
+    by_template: dict[str, dict[tuple, str]] = {}
+    for q in gold:
+        if q.category == "simple_factual":
+            by_template.setdefault(question_template(q.question), {}).setdefault(_value_key(q.answer), q.answer.strip())
+    out: dict[str, str | None] = {}
+    for q in gold:
+        if q.category != "simple_factual":
+            continue
+        values = by_template[question_template(q.question)]
+        keys = sorted(values)
+        out[q.id] = values[keys[(keys.index(_value_key(q.answer)) + 1) % len(keys)]] if len(keys) > 1 else None
+    return out
+
+
+def plant(hits: Sequence[RetrievalHit], gold_value: str, planted: str) -> tuple[list[RetrievalHit], int]:
+    """Copies of `hits` with the gold value replaced by `planted` in each chunk's text (judge.replace_bounded), and
+    the number of replacements. Paths and byte ranges, so the citation tags, stay those of the retrieved chunks."""
+    out, total = [], 0
+    for hit in hits:
+        text, n = replace_bounded(hit.chunk.text, gold_value, planted)
+        total += n
+        out.append(replace(hit, chunk=replace(hit.chunk, text=text)))
+    return out, total
+
+
+def calibration_checks(question: GoldQuestion, text: str, hits: Sequence[RetrievalHit]) -> dict[str, Any]:
+    """The exact-match label and the abstention flags. Whether the answer cites is kept for the record and does not
+    decide whether a judge is asked: the correctness verdict sees neither the context nor the citations."""
+    info = cited_answer(text, hits)
+    label = exact_match_label(info["answer"], question.answer, bounded=True)
+    return {"uncited": info["uncited"], "abstained": info["abstained"], "abstention_only": info["abstained"] and abstention_only(info["answer"]),
+            "n_citations": len(info["citations"]), "exact_match_label": label, "exact_match": label == "correct"}
 
 
 def run(
@@ -117,14 +263,17 @@ def run(
     limit: int | None = None,
     base_url: str | None = None,
     complete_fn=None,
+    calibration_generator: str | None = None,
 ) -> dict[str, Any]:
-    """Score generated answers. `complete_fn` (prompt -> text) replaces Ollama for tests."""
+    """Score generated answers. `complete_fn` (prompt -> text) replaces Ollama for tests. With a
+    `calibration_generator`, the gate's reference is the calibration set (CALIBRATION_CONDITIONS) it answers."""
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
     if verify_manifest(files_root, manifest):
         raise RuntimeError("corpus drift")
+    planted = planted_values(gold)  # from the whole gold set, so a --limit run plants the same values
     if limit:
         gold = gold[:limit]
 
@@ -138,18 +287,28 @@ def run(
         reranker=config.reranker,
         chunk_strategy=config.chunk_strategy,
     )
+    if getattr(index, "reranker_fallback", None):  # answers would be generated from a different retrieval than the config names
+        raise SystemExit(f"the configured reranker {config.reranker} did not load (fallback {index.reranker_fallback}); refusing to record answers")
     clusters = cluster_versions(index.chunks) if config.staleness_tier1 else {}
 
+    ollama_models = list(dict.fromkeys([generator_model, *judge_models, *([calibration_generator] if calibration_generator else [])]))
+    cal_generator = OllamaGenerator(model=calibration_generator, base_url=base_url) if calibration_generator else None
     if complete_fn is not None:
         generator = OllamaGenerator(model=generator_model, base_url=base_url)
         generator.complete = complete_fn  # type: ignore[method-assign]
+        if cal_generator is not None:
+            cal_generator.complete = complete_fn  # type: ignore[method-assign]
         judges = [(name, LlmJudge(complete=complete_fn, name=name)) for name in judge_models]
         pair_fns = {name: complete_fn for name in judge_models}
+        tags = ollama_tags(base_url) if base_url else {}  # a test may point base_url at a fake /api/tags
     else:
-        available = ollama_available(base_url)
-        missing = [m for m in {generator_model, *judge_models} if m not in available]
+        tags = ollama_tags(base_url)
+        missing = [m for m in ollama_models if not ollama_tag_entry(m, tags)]
         if missing:
-            raise SystemExit(f"Ollama models not available: {missing}; have {available}")
+            raise SystemExit(f"Ollama models not available: {missing}; have {sorted(tags)}")
+        undigested = [m for m in ollama_models if not ollama_tag_entry(m, tags).get("digest")]
+        if undigested:  # the results would name these weights by tag only
+            raise SystemExit(f"Ollama lists no digest for {undigested}; refusing to record weights by tag alone")
         generator = OllamaGenerator(model=generator_model, base_url=base_url)
         judges = [(name, LlmJudge(model=name, name=name)) for name in judge_models]
         pair_fns = {name: (lambda prompt, _m=name: ollama_complete(prompt, model=_m) or "") for name in judge_models}
@@ -160,9 +319,12 @@ def run(
     t_start = time.perf_counter()
     # Pass 1: retrieve + generate every answer (one model resident), then deterministic checks.
     work: list[tuple[GoldQuestion, dict[str, Any], list[str], str, str]] = []
+    sf_hits: dict[str, list[RetrievalHit]] = {}
     for q in gold:
         paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None)
         hits = list(payload.hits[:TOP_N]) if hasattr(payload, "hits") else list(payload[:TOP_N])
+        if q.category == "simple_factual":
+            sf_hits[q.id] = hits
         contexts = [h.chunk.text for h in hits]
         with timer.stage("generate"):
             text = generator(q.question, hits)
@@ -178,6 +340,7 @@ def run(
             "generation": gen_meta,
             "checks": checks,
             "judges": {},
+            "correctness": {},
             "pairwise_llm_vs_extractive": {},
         }
         rows.append(row)
@@ -187,19 +350,55 @@ def run(
         judged_text = cited_answer(text, hits)["answer"]
         row["judges"]["heuristic"] = judge_pointwise(heuristic, q, judged_text, contexts)
         work.append((q, row, contexts, judged_text, extractive_answer(q.question, hits)))
-    # Pass 2: one judge model at a time over every answer (pointwise, then AB/BA), so a
+    # Pass 1b: the calibration set, each simple-factual question from the retrieved and from the planted context.
+    calibration: list[dict[str, Any]] = []
+    for q in gold if cal_generator is not None else []:
+        if q.category != "simple_factual":
+            continue
+        for condition in CALIBRATION_CONDITIONS:
+            context, value, count = sf_hits[q.id], None, None
+            if condition == "planted":
+                value = planted[q.id]
+                context, count = plant(context, q.answer, value) if value else (context, 0)
+            with timer.stage("generate:calibration"):
+                text = cal_generator(q.question, context)
+            calibration.append({
+                "id": q.id, "condition": condition, "question": q.question, "gold": q.answer, "planted_value": value,
+                "replacements": count, "probe": condition == "retrieved" or bool(count), "answer": text,
+                "generation": cal_generator.last_meta.__dict__ if cal_generator.last_meta else {},
+                "checks": calibration_checks(q, text, context), "correctness": {},
+            })
+    by_id = {q.id: q for q in gold}
+    # Pass 2: one judge model at a time over every answer (pointwise, correctness, then AB/BA), so a
     # model is loaded once rather than swapped per question.
     for name, judge in judges:
         for q, row, contexts, judged_text, extractive in work:
             with timer.stage(f"judge:{name}"):
                 row["judges"][name] = judge_pointwise(judge, q, judged_text, contexts)
         for q, row, contexts, judged_text, extractive in work:
+            ruled = rule_label(row["checks"], q.answer)
+            if ruled:  # the abstention rubric: no model call
+                row["correctness"][name] = {"label": ruled, "by": "rule"}
+                continue
+            with timer.stage(f"correctness:{name}"):
+                row["correctness"][name] = judge_correctness(judge, q, judged_text)
+        for q, row, contexts, judged_text, extractive in work:
             with timer.stage(f"pairwise:{name}"):
-                row["pairwise_llm_vs_extractive"][name] = pairwise_ab_ba(pair_fns[name], q.question, judged_text, extractive)
+                complete, replies = _recording(pair_fns[name])
+                row["pairwise_llm_vs_extractive"][name] = pairwise_ab_ba(complete, q.question, judged_text, extractive) | {"raw": replies}
+        for row in calibration:
+            if not row["probe"]:  # a planted context where nothing was replaced: not part of the reference
+                continue
+            ruled = rule_label(row["checks"], row["gold"])
+            if ruled:
+                row["correctness"][name] = {"label": ruled, "by": "rule"}
+                continue
+            with timer.stage(f"calibration:{name}"):
+                row["correctness"][name] = judge_correctness(judge, by_id[row["id"]], strip_citations(row["answer"]))
 
     wall_s = round(time.perf_counter() - t_start, 1)
-    summary = summarize(rows, judge_models)
-    return {
+    summary = summarize(rows, judge_models, calibration if cal_generator is not None else None)
+    blob = {
         "git_sha": git_sha(root),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
@@ -208,20 +407,73 @@ def run(
         "n_gold": len(gold),
         "config": bench_settings(config),
         "models": {
-            "generator": model_provenance(generator_model, "generator") | {"backend": "ollama", "temperature": 0.0, "seed": 0},
-            "judges": [model_provenance(m, "judge") | {"backend": "ollama"} for m in judge_models],
+            "generator": ollama_model_provenance(generator_model, "generator", tags) | {"temperature": 0.0, "seed": 0},
+            "judges": [ollama_model_provenance(m, "judge", tags) for m in judge_models],
             "embedder": model_provenance(config.embedder, "embedder"),
             "reranker": model_provenance(config.reranker, "reranker") | {"loaded": bool(getattr(index, "reranker_loaded", False))},
         },
+        "ollama": {"version": ollama_version(base_url) if tags else None},
         "kappa_gate": KAPPA_GATE,
+        "protocol": {
+            "gated_label": GATED_LABEL,
+            "correctness_prompt": correctness_prompt("{question}", "{answer}", "{gold}"),
+            "reference": REFERENCE_LABELS,
+            "abstention_rule": ABSTENTION_RULE,
+        },
         "latency": timer.summary(),
         "wall_s": wall_s,
         "summary": summary,
         "rows": rows,
     }
+    if cal_generator is not None:
+        blob["calibration"] = {
+            "what": ("the gate's reference: the simple-factual questions answered by a generator that is not a judge, from "
+                     "the retrieved and from a planted context; correctness verdicts only, cited or not; left out of every "
+                     "deterministic-check rate"),
+            "generator": ollama_model_provenance(calibration_generator, "calibration generator", tags) | {"temperature": 0.0, "seed": 0},
+            "conditions": CALIBRATION_CONDITIONS,
+            "planted_value_rule": PLANTED_VALUE_RULE,
+            "rows": calibration,
+        }
+    return blob
 
 
-def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[str, Any]:
+def _counts(labels: Sequence[str]) -> dict[str, int]:
+    return {lab: list(labels).count(lab) for lab in LABELS}
+
+
+def _confusion(pairs: Sequence[tuple[str, str]]) -> dict[str, dict[str, int]]:
+    """Rows: the reference label; columns: the judge's label."""
+    return {ref: {lab: sum(1 for a, b in pairs if a == ref and b == lab) for lab in LABELS} for ref in LABELS}
+
+
+def _majority(labels: Sequence[str]) -> str:
+    top = Counter(labels).most_common()
+    return "partial" if len(top) > 1 and top[0][1] == top[1][1] else top[0][0]
+
+
+def kappa_interval(pairs: Sequence[tuple[str, str]], n_boot: int = DEFAULT_N_BOOT, seed: int = DEFAULT_SEED) -> dict[str, float] | None:
+    """Percentile bootstrap interval of Cohen's kappa over the questions (information: the gate reads the point value)."""
+    if len(pairs) < 2:
+        return None
+    ref, lab = [a for a, _ in pairs], [b for _, b in pairs]
+    ks = [cohens_kappa([ref[i] for i in row], [lab[i] for i in row]) for row in resample_indices(len(pairs), n_boot, seed)]
+    lo, hi = np.percentile(ks, [2.5, 97.5])
+    return {"lo": round(float(lo), 4), "hi": round(float(hi), 4)}
+
+
+def _ruled(row: dict[str, Any]) -> bool:
+    return rule_label(row["checks"], row.get("gold", "")) is not None
+
+
+def _health(verdicts: Sequence[dict[str, Any]]) -> dict[str, int]:
+    return {"n": len(verdicts), "empty": sum(1 for v in verdicts if not (v.get("raw") or "").strip()),
+            "unparsed": sum(1 for v in verdicts if not v.get("parsed"))}
+
+
+def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibration: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """`rows`: the run's answers. `calibration`: the calibration rows when the run has them; they are then the gate's
+    reference, and the system's simple-factual answers are reported next to it."""
     n = len(rows)
     judged = [r for r in rows if not r.get("failed")]
     sf = [r for r in judged if r["category"] == "simple_factual"]
@@ -233,50 +485,88 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
     checks = {
         "uncited_answers": {"count": sum(1 for r in rows if r.get("failed") == "uncited_answer"), "n": n},
         "abstained": {"count": sum(1 for r in rows if r["checks"].get("abstained")), "n": n},
+        "abstention_only": {"count": sum(1 for r in rows if r["checks"].get("abstention_only")), "n": n},
         "cited_in_retrieved": rate(judged, "cited_in_retrieved"),
         "values_in_cited_bytes": rate([r for r in judged if r["checks"].get("n_values")], "values_in_cited_bytes"),
         "values_in_any_evidence": rate([r for r in judged if r["checks"].get("n_values")], "values_in_any_evidence"),
         "exact_match_simple_factual": rate(sf, "exact_match"),
     }
-    gold_labels = [r["checks"]["exact_match_label"] for r in sf]
-    ref_counts = {lab: gold_labels.count(lab) for lab in ("correct", "partial", "wrong")}
+    # The reference: exact-match labels of the answers a judge labelled: the calibration set when there is one, else
+    # the simple-factual answers. A pure abstention is labelled wrong by rule for every judge, so it would agree with
+    # the reference by construction: it is left out and counted.
+    pool = [r for r in calibration if r.get("probe")] if calibration is not None else sf
+    ref_rows = [r for r in pool if not _ruled(r)]
+    sys_rows = [r for r in sf if not _ruled(r)]
+    ref_labels = [r["checks"]["exact_match_label"] for r in ref_rows]
+    ref_counts = _counts(ref_labels)
     # A one-class reference makes kappa meaningless: 0 for any judge with variance, 1 for a
     # judge that never varies (cohens_kappa's pe == 1 branch). The gate cannot be evaluated.
-    single_class = bool(gold_labels) and len(set(gold_labels)) == 1
-    reference = {"labels": "exact_match_label on simple_factual", "n": len(gold_labels), "label_counts": ref_counts,
-                 "single_class": single_class, "gate_evaluable": bool(gold_labels) and not single_class}
+    single_class = bool(ref_labels) and len(set(ref_labels)) == 1
+    reference = {"labels": REFERENCE_LABELS, "source": "calibration" if calibration is not None else "simple_factual",
+                 "n": len(ref_labels), "label_counts": ref_counts, "single_class": single_class,
+                 "gate_evaluable": bool(ref_labels) and not single_class, "left_out_abstention_only": len(pool) - len(ref_rows),
+                 "label_counts_with_abstentions": _counts([r["checks"]["exact_match_label"] for r in pool])}
+    if calibration is not None:
+        reference["by_condition"] = {cond: _counts([r["checks"]["exact_match_label"] for r in ref_rows if r["condition"] == cond])
+                                     for cond in CALIBRATION_CONDITIONS}
+        reference["left_out_not_planted"] = sum(1 for r in calibration if not r.get("probe"))
+        reference["simple_factual_label_counts"] = _counts([r["checks"]["exact_match_label"] for r in sys_rows])  # the run's own
     kappa: dict[str, Any] = {}
-    members = ["heuristic", *judge_models]
-    for name in members:
-        labels = [r["judges"][name]["label"] for r in sf if name in r["judges"]]
-        k = cohens_kappa(gold_labels[: len(labels)], labels)
-        scores = [label_to_score(r["judges"][name]["label"]) for r in judged if name in r["judges"]]
+    for name in judge_models:
+        pairs = [(r["checks"]["exact_match_label"], r["correctness"][name]["label"]) for r in ref_rows if name in r.get("correctness", {})]
+        k = cohens_kappa([a for a, _ in pairs], [b for _, b in pairs])
+        every = [r["correctness"][name]["label"] for r in judged if name in r.get("correctness", {})]
         kappa[name] = {
             "kappa_vs_exact_match_simple_factual": round(k, 4),
-            "n": len(labels),
-            "readme_ok": reference["gate_evaluable"] and k >= KAPPA_GATE,
+            "interval": kappa_interval(pairs),
+            "n": len(pairs),
+            "readme_ok": reference["gate_evaluable"] and bool(pairs) and k >= KAPPA_GATE,
+            "label_counts": _counts([b for _, b in pairs]),
+            "confusion_reference_by_judge": _confusion(pairs),
+            "mean_correctness_all": round(sum(label_to_score(lab) for lab in every) / len(every), 4) if every else None,
+            "n_all": len(every),
+            "heuristic": False,
+        }
+        if calibration is not None:  # the run's own simple-factual answers, next to the calibration reference
+            own = [(r["checks"]["exact_match_label"], r["correctness"][name]["label"]) for r in sys_rows if name in r.get("correctness", {})]
+            kappa[name]["simple_factual_answers"] = {"agree": sum(1 for a, b in own if a == b), "n": len(own),
+                                                     "confusion_reference_by_judge": _confusion(own)}
+    maj = []
+    for r in ref_rows:
+        labs = [r["correctness"][m]["label"] for m in judge_models if m in r.get("correctness", {})]
+        if labs:
+            maj.append((r["checks"]["exact_match_label"], _majority(labs)))
+    k_j = cohens_kappa([a for a, _ in maj], [b for _, b in maj])
+    kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4),
+                              "interval": kappa_interval(maj), "n": len(maj),
+                              "readme_ok": reference["gate_evaluable"] and bool(maj) and k_j >= KAPPA_GATE}
+    # The M4 label (mean of faithfulness, relevancy and groundedness), kept as a labelled column: never gated or
+    # published, because a wrong value copied faithfully from a retrieved chunk scores about 1, 1, 0 -> partial.
+    composite: dict[str, Any] = {}
+    for name in ["heuristic", *judge_models]:  # against the run's own simple-factual answers: the composite needs the context
+        pairs = [(r["checks"]["exact_match_label"], r["judges"][name]["label"]) for r in sys_rows if name in r["judges"]]
+        scores = [label_to_score(r["judges"][name]["label"]) for r in judged if name in r["judges"]]
+        composite[name] = {
+            "kappa_vs_exact_match_simple_factual": round(cohens_kappa([a for a, _ in pairs], [b for _, b in pairs]), 4),
+            "n": len(pairs),
+            "label_counts": _counts([b for _, b in pairs]),
             "mean_score_all": round(sum(scores) / len(scores), 4) if scores else None,
-            "label_counts": {lab: labels.count(lab) for lab in ("correct", "partial", "wrong")},
+            "abstentions_labelled_correct": [r["id"] for r in judged if r["checks"].get("abstention_only")
+                                             and (r["judges"].get(name) or {}).get("label") == "correct"],
             "heuristic": name == "heuristic",
         }
-    # jury majority over the LLM judges only (heuristic stays a labelled column)
-    maj = []
-    for r in sf:
-        labs = [r["judges"][m]["label"] for m in judge_models if m in r["judges"]]
-        if not labs:
-            continue
-        counts = {lab: labs.count(lab) for lab in set(labs)}
-        top = sorted(counts.items(), key=lambda kv: -kv[1])
-        maj.append("partial" if len(top) > 1 and top[0][1] == top[1][1] else top[0][0])
-    k_j = cohens_kappa(gold_labels[: len(maj)], maj)
-    kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4), "n": len(maj),
-                              "readme_ok": reference["gate_evaluable"] and k_j >= KAPPA_GATE}
+    ruled = [r for r in judged if _ruled(r)]
+    abstentions = {"rule": ABSTENTION_RULE, "label": "wrong", "n": len(ruled), "ids": [r["id"] for r in ruled]}
+    if calibration is not None:
+        abstentions["calibration"] = [f"{r['id']}:{r['condition']}" for r in calibration if r.get("probe") and _ruled(r)]
     agreement = None
     if len(judge_models) >= 2:
         a, b = judge_models[0], judge_models[1]
-        pairs = [(r["judges"][a]["label"], r["judges"][b]["label"]) for r in judged if a in r["judges"] and b in r["judges"]]
-        if pairs:
-            agreement = {"judges": [a, b], "kappa": round(cohens_kappa([p[0] for p in pairs], [p[1] for p in pairs]), 4), "n": len(pairs)}
+        asked = [r for r in judged if (r.get("correctness", {}).get(a) or {}).get("by") == "judge"
+                 and (r.get("correctness", {}).get(b) or {}).get("by") == "judge"]
+        if asked:
+            la, lb = [r["correctness"][a]["label"] for r in asked], [r["correctness"][b]["label"] for r in asked]
+            agreement = {"judges": [a, b], "labels": "correctness verdicts", "kappa": round(cohens_kappa(la, lb), 4), "n": len(asked)}
     pairwise = {}
     for name in judge_models:
         ps = [r["pairwise_llm_vs_extractive"][name] for r in judged if name in r["pairwise_llm_vs_extractive"]]
@@ -287,23 +577,43 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str]) -> dict[s
                 "position_flips": sum(1 for p in ps if p["p_a_ab"] != p["p_a_ba"]),
                 "n": len(ps),
             }
+    replies = {}
+    for name in judge_models:
+        point = [txt for r in judged for txt in ((r["judges"].get(name) or {}).get("raw") or {}).values()]
+        asked = [r["correctness"][name] for r in judged if (r.get("correctness", {}).get(name) or {}).get("by") == "judge"]
+        pair = [txt for r in judged for txt in ((r["pairwise_llm_vs_extractive"].get(name) or {}).get("raw") or [])]
+        replies[name] = {
+            "pointwise": {"n": len(point), "empty": sum(1 for txt in point if not (txt or "").strip())},
+            "correctness": _health(asked),
+            "pairwise": {"n": len(pair), "empty": sum(1 for txt in pair if not (txt or "").strip())},
+        }
+        if calibration is not None:
+            replies[name]["calibration_correctness"] = _health([r["correctness"][name] for r in calibration
+                                                                if (r["correctness"].get(name) or {}).get("by") == "judge"])
     publishable = [m for m in judge_models if kappa[m]["readme_ok"]]
     if not reference["gate_evaluable"]:
         counts = ", ".join(f"{v} {k}" for k, v in ref_counts.items())
-        verdict = (f"gate not evaluable: the exact-match reference on simple_factual is one class ({counts} of {len(gold_labels)}), "
-                   f"so Cohen's kappa is 0 by construction for any judge with variance and 1 for a judge that never varies; "
-                   f"judge scores stay off the README")
+        verdict = (f"gate not evaluable: the exact-match reference on the judge-labelled {'calibration' if calibration is not None else 'simple_factual'} answers is "
+                   f"{'one class' if single_class else 'empty'} ({counts} of {len(ref_labels)}), so Cohen's kappa is 0 by construction "
+                   f"for any judge with variance and 1 for a judge that never varies; judge scores stay off the README")
     elif publishable:
-        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: their scores may be published"
+        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: their correctness scores may be published"
     else:
-        verdict = f"no judge reached kappa >= {KAPPA_GATE} vs exact-match labels on simple_factual; judge scores stay off the README"
+        verdict = (f"no judge reached kappa >= {KAPPA_GATE} vs exact-match labels on the "
+                   f"{'calibration set' if calibration is not None else 'simple_factual answers'}; judge scores stay off the README")
     return {
         "n": n,
         "n_judged": len(judged),
         "n_simple_factual": len(sf),
         "checks": checks,
+        "gated_label": GATED_LABEL,
         "reference": reference,
         "kappa": kappa,
+        "interval": {"method": "percentile bootstrap over the reference questions", "rng": RNG_NAME, "seed": DEFAULT_SEED,
+                     "n_boot": DEFAULT_N_BOOT, "level": 0.95, "gate_reads": "the point estimate"},
+        "composite": composite,
+        "abstention_rule": abstentions,
+        "replies": replies,
         "judge_agreement": agreement,
         "pairwise_llm_vs_extractive": pairwise,
         "publishable_judges": publishable,
@@ -344,10 +654,12 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     clusters = cluster_versions(index.chunks) if config.staleness_tier1 else {}
     mismatched: list[str] = []
     new_checks: dict[str, dict[str, Any]] = {}
+    hits_by_id: dict[str, list[RetrievalHit]] = {}
     for row in blob["rows"]:
         q = gold[row["id"]]
         paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None)
         hits = list(payload.hits[:TOP_N]) if hasattr(payload, "hits") else list(payload[:TOP_N])
+        hits_by_id[row["id"]] = hits
         if paths[:TOP_N] != row["retrieved_paths"]:
             mismatched.append(row["id"])
             continue
@@ -355,13 +667,33 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
         old = row["checks"]
         if checks["uncited"] != old["uncited"] or checks["abstained"] != old["abstained"]:
             raise SystemExit(f"{row['id']}: the judged set would change (uncited/abstained); re-run make bench-jury")
+        if "abstention_only" in old and checks["abstention_only"] != old["abstention_only"]:  # files from M29 on
+            raise SystemExit(f"{row['id']}: the rows the abstention rule labels would change; re-run the answer evaluation")
         new_checks[row["id"]] = checks
     if mismatched:
         raise SystemExit(f"retrieval differs from the stored paths for {mismatched}; re-run make bench-jury")
     for row in blob["rows"]:
         row["checks"] = new_checks[row["id"]]
+    calibration = (blob.get("calibration") or {}).get("rows")
+    if calibration is not None:  # the same contexts again: retrieved as checked above, planted with the same values
+        planted = planted_values(list(gold.values()))
+        cal_checks = []
+        for row in calibration:
+            q, context = gold[row["id"]], hits_by_id[row["id"]]
+            if row["condition"] == "planted":
+                if planted[q.id] != row["planted_value"]:
+                    raise SystemExit(f"{row['id']}: the planted value would be {planted[q.id]}, not {row['planted_value']}; re-run the answer evaluation")
+                context, count = plant(context, q.answer, row["planted_value"]) if row["planted_value"] else (context, 0)
+                if count != row["replacements"]:
+                    raise SystemExit(f"{row['id']}: {count} replacements now, {row['replacements']} in the file; re-run the answer evaluation")
+            checks = calibration_checks(q, row["answer"], context)
+            if checks["abstention_only"] != row["checks"]["abstention_only"]:
+                raise SystemExit(f"{row['id']} ({row['condition']}): the rows the abstention rule labels would change; re-run the answer evaluation")
+            cal_checks.append(checks)
+        for row, checks in zip(calibration, cal_checks):
+            row["checks"] = checks
     judge_models = [j["model"] for j in blob["models"]["judges"]]
-    blob["summary"] = summarize(blob["rows"], judge_models)
+    blob["summary"] = summarize(blob["rows"], judge_models, calibration)
     prior = blob.get("rescore") or {}
     blob["rescore"] = {
         "rows_git_sha": prior.get("rows_git_sha") or blob["git_sha"],
@@ -393,21 +725,36 @@ def markdown_table(blob: dict) -> str:
     lines.append(f"| abstained (NOT IN SOURCES) | {c['abstained']['count']} | {c['abstained']['n']} |")
     for key in ("cited_in_retrieved", "values_in_cited_bytes", "values_in_any_evidence", "exact_match_simple_factual"):
         lines.append(f"| {key} | {c[key]['rate']} | {c[key]['n']} |")
-    lines += ["", "| judge | kappa vs exact-match (simple_factual) | n | readme_ok | mean score (all) | labels c/p/w |", "|---|---:|---:|:---:|---:|---|"]
+    lines.append(f"| abstention only (labelled wrong by rule, no judge) | {c['abstention_only']['count']} | {c['abstention_only']['n']} |")
+    ref = s["reference"]
+    lines += ["", f"Reference ({ref['source']}): {ref['labels']}; n {ref['n']}, labels c/p/w {ref['label_counts']['correct']}/{ref['label_counts']['partial']}/"
+              f"{ref['label_counts']['wrong']}, {ref['left_out_abstention_only']} abstentions left out"
+              + (f", by condition {ref['by_condition']}, {ref['left_out_not_planted']} planted contexts with nothing replaced" if "by_condition" in ref else "")
+              + ".", "",
+              "| judge (correctness verdict) | kappa vs exact-match (simple_factual) | interval | n | readme_ok | mean correctness (all) | labels c/p/w |",
+              "|---|---:|---|---:|:---:|---:|---|"]
     for name, k in s["kappa"].items():
+        ci = k["interval"] or {}
         if name == "jury_majority":
-            lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {k['readme_ok']} | — | — |")
+            lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | [{ci.get('lo')}, {ci.get('hi')}] | {k['n']} | {k['readme_ok']} | — | — |")
         else:
             lc = k["label_counts"]
-            lines.append(f"| {name}{' (heuristic)' if k['heuristic'] else ''} | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {k['readme_ok']} | {k['mean_score_all']} | {lc['correct']}/{lc['partial']}/{lc['wrong']} |")
+            lines.append(f"| {name} | {k['kappa_vs_exact_match_simple_factual']} | [{ci.get('lo')}, {ci.get('hi')}] | {k['n']} | {k['readme_ok']} | {k['mean_correctness_all']} | {lc['correct']}/{lc['partial']}/{lc['wrong']} |")
+    lines += ["", "| judge (composite label, never gated) | kappa vs exact-match | n | mean score (all) | abstentions labelled correct |", "|---|---:|---:|---:|---|"]
+    for name, k in s["composite"].items():
+        lines.append(f"| {name}{' (heuristic)' if k['heuristic'] else ''} | {k['kappa_vs_exact_match_simple_factual']} | {k['n']} | {k['mean_score_all']} | {', '.join(k['abstentions_labelled_correct']) or '-'} |")
+    for name, r in s["replies"].items():
+        cal = r.get("calibration_correctness")
+        lines.append(f"Replies, {name}: pointwise empty {r['pointwise']['empty']}/{r['pointwise']['n']}, correctness empty {r['correctness']['empty']} "
+                     f"unparsed {r['correctness']['unparsed']}/{r['correctness']['n']}, pairwise empty {r['pairwise']['empty']}/{r['pairwise']['n']}"
+                     + (f", calibration empty {cal['empty']} unparsed {cal['unparsed']}/{cal['n']}" if cal else "") + ".")
     if s.get("judge_agreement"):
         a = s["judge_agreement"]
         lines.append(f"\nJudge-judge agreement ({a['judges'][0]} vs {a['judges'][1]}): kappa {a['kappa']}, n {a['n']}.")
     for name, p in s["pairwise_llm_vs_extractive"].items():
         lines.append(f"Pairwise AB/BA, {name}: P(LLM answer better than extractive) {p['p_llm_better_mean']}, position gap {p['position_gap_mean']}, flips {p['position_flips']}/{p['n']}.")
-    ref = s.get("reference") or {}
-    if ref and not ref.get("gate_evaluable", True):
-        lines.append(f"\nReference is one class ({ref['label_counts']}): the kappa gate is not evaluable on this run.")
+    if not ref.get("gate_evaluable", True):
+        lines.append(f"\nReference is one class or empty ({ref['label_counts']}): the kappa gate is not evaluable on this run.")
     lines.append(f"\nVerdict: {s['verdict']}")
     return "\n".join(lines)
 
@@ -418,6 +765,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=root / "bench" / "results" / "jury.json")
     p.add_argument("--generator", default=os.environ.get("GENERATOR_MODEL", "qwen2.5:7b"))
     p.add_argument("--judges", default=os.environ.get("JUDGE_MODELS", ",".join(DEFAULT_JUDGE_MODELS)))
+    p.add_argument("--calibration-generator", default=None, metavar="MODEL",
+                   help="answer the simple-factual questions again with MODEL from the retrieved and from a planted context; "
+                        "those answers become the gate's reference (the calibration set)")
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--embedder", default=DEFAULT_CONFIG.embedder)
     p.add_argument("--reranker", default=DEFAULT_CONFIG.reranker)
@@ -444,7 +794,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{'' if args.no_router else '+router'}{'' if args.no_staleness else '+staleness'}@{args.embedder.split(':')[-1].split('/')[-1]}",
     )
     judges = [m.strip() for m in args.judges.split(",") if m.strip()]
-    blob = run(root=root, config=config, generator_model=args.generator, judge_models=judges, limit=args.limit)
+    blob = run(root=root, config=config, generator_model=args.generator, judge_models=judges, limit=args.limit,
+               calibration_generator=args.calibration_generator)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2) + "\n")

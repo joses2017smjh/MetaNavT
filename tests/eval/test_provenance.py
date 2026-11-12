@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 import app.eval.provenance as prov
-from app.eval.provenance import (REPO_ROOT, command_line, device_info, hf_revision, model_provenance, sanitize_command,
-                                 sanitize_path, scrub, scrub_names)
+from app.eval.provenance import (REPO_ROOT, command_line, device_info, hf_revision, model_provenance, ollama_model_provenance,
+                                 sanitize_command, sanitize_path, scrub, scrub_names)
 
 
 def test_hf_revision_reads_refs_main_from_the_cache(tmp_path, monkeypatch):
@@ -23,6 +23,18 @@ def test_model_provenance_labels_non_neural_backends():
     assert model_provenance("hash", "embedder") == {"role": "embedder", "model": "hash", "revision": None, "neural": False}
     p = model_provenance("st:BAAI/bge-small-en-v1.5", "embedder")
     assert p["model"] == "BAAI/bge-small-en-v1.5" and p["neural"] is True and "revision" in p
+
+
+def test_an_ollama_model_is_pinned_by_the_digest_its_tag_resolved_to():
+    """A43: an Ollama tag names weights that can change under it; the manifest digest /api/tags reports pins them."""
+    tags = {"qwen2.5:7b": {"name": "qwen2.5:7b", "digest": "845dbda0ea48", "size": 4683087332,
+                           "details": {"family": "qwen2", "quantization_level": "Q4_K_M", "parameter_size": "7.6B"}},
+            "llama3:latest": {"name": "llama3:latest", "digest": "365c0bd3c000"}}
+    block = ollama_model_provenance("qwen2.5:7b", "judge", tags)
+    assert block == {"role": "judge", "model": "qwen2.5:7b", "revision": "845dbda0ea48", "neural": True, "backend": "ollama",
+                     "family": "qwen2", "quantization": "Q4_K_M", "parameter_size": "7.6B", "size_bytes": 4683087332}
+    assert ollama_model_provenance("llama3", "judge", tags)["revision"] == "365c0bd3c000"  # Ollama reads a bare name as :latest
+    assert ollama_model_provenance("qwen2.5:0.5b", "generator", tags)["revision"] is None  # not on the server: no pin
 
 
 def test_device_info_works_without_cuda():
