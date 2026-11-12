@@ -1389,8 +1389,10 @@ weaker model, gets no second chance. A CaMeL-style quarantined extractor
 planner only the requested field, would make it general.
 
 pass^k shows the second gap: an answer that is right on one sample can be wrong
-on the next. The weaker model never answered all four trials of any control
-question correctly; its failed episodes call tools that do not exist and guess
+on the next. In the first two runs the weaker model never answered all four
+trials of any control question correctly, and in the third its pass^k on the
+controls stays below the stronger model's in every configuration, the two
+intervals apart; its failed episodes call tools that do not exist and guess
 file paths, and the harness recovering its JSON-text tool calls did not close
 that.
 

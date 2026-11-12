@@ -1756,6 +1756,29 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
     assert ("With the check in the loop the planted value reached the user less often for both models, with no measurable "
             "change in utility under attack; the planted values that still got through were stated beside the true "
             "value.") in readme
+    # pass^k: the weaker model never passed all trials of a control in the first two runs; in the third it stays below
+    # the stronger model in every configuration, the intervals apart
+    for earlier in (RESULTS, RESULTS_V2):
+        old = json.loads(earlier.read_text())["summary"]
+        assert all(b["benign_pass_hat_k"]["4"]["mean"] == 0 for b in old[weaker].values())
+    assert all(summary[weaker][d]["benign_pass_hat_k"]["4"]["hi"] < summary[stronger][d]["benign_pass_hat_k"]["4"]["lo"]
+               for d in cfg["defenses"])
+    assert ("In the first two runs the weaker model never answered all four trials of any control question correctly, and "
+            "in the third its pass^k on the controls stays below the stronger model's in every configuration, the two "
+            "intervals apart;") in text
+    # the evidence page's interview answer says the same, run by run
+    from app.eval.evidence import QA
+    answer = next(p for p in QA.split("\n\n") if p.startswith("**What did the injection evaluation show?**"))
+    assert ("In the first two runs neither local model pursued a planted file action (a move, a patch, or a read outside "
+            "the corpus root), and in the question and injected tasks no model called a write tool; in the third, the "
+            "weaker model's only write calls there were patch proposals written as JSON text, which the tool rejected for "
+            "a missing argument. So planted text never reached the approval gate;") in answer
+    assert ("with seven phrasings, at least one of them got the planted value into its answer for every hijack question "
+            "and seed in every configuration.") in answer
+    assert "its pass^k on the controls is zero in the current run;" in answer
+    assert ("Put in the model loop, that check lowered the planted value delivered to the user for both models with no "
+            "measurable change in utility under attack, though planted values stated beside the true value still got "
+            "through.") in answer
 
 
 def test_evidence_rows_come_from_the_current_run_that_generated_and_scored_its_episodes():
