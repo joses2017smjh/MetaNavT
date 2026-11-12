@@ -51,3 +51,28 @@ def test_a_run_replaces_its_own_rows_and_keeps_every_other_row_as_written():
     redone = [{"label": "after", "copies": 1, "seconds": 0.4}, {"label": "after", "copies": 10, "seconds": 0.9}]
     third = merge(second, "after", redone)
     assert third["rows"] == before + redone  # the earlier after row is replaced, the before rows are not
+
+
+def test_the_committed_before_and_after_rows_measured_the_same_corpus_and_after_reads_no_text():
+    """bench/results/ingest_scale.json: the before rows (recorded before C33/C34 changed start-up) and the after rows
+    name their own clean commits, measured the same generated corpus, and differ in the text start-up reads."""
+    import json
+
+    from app.engine.ingest_scale import OUT
+    from app.eval.provenance import scrub
+
+    blob = json.loads(OUT.read_text())
+    assert scrub(blob) == blob  # no absolute path, user or host name
+    rows = {(row["label"], row["copies"]): row for row in blob["rows"]}
+    assert sorted(rows) == [("after", 1), ("after", 10), ("after", 100), ("before", 1), ("before", 10), ("before", 100)]
+    for copies in (1, 10, 100):
+        before, after = rows["before", copies], rows["after", copies]
+        assert before["worktree_clean"] and after["worktree_clean"] and before["git_sha"] != after["git_sha"]
+        assert before["corpus"] == after["corpus"]  # the same files, bytes and digest
+        for key in ("files_seen", "files_rejected", "rows"):
+            assert before[key] == after[key], (copies, key)
+        assert before["index_first"]["chunks_embedded"] == after["index_first"]["chunks_embedded"] == after["rows"]
+        assert before["index_unchanged"]["chunks_embedded"] == after["index_unchanged"]["chunks_embedded"] == 0
+        assert (before["clusters"]["clusters"], before["clusters"]["members"]) == (after["clusters"]["clusters"], after["clusters"]["members"])
+        for step in ("clusters", "startup_index_on_start", "startup_no_index"):
+            assert before[step]["text_rows_read"] == before["rows"] and after[step]["text_rows_read"] == 0, (copies, step)

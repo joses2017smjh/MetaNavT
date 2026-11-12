@@ -634,6 +634,20 @@ order of the steps in `docker-compose.yml` and in CI, which only CI runs;
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
 [bench/results/ingest_runs.json](../bench/results/ingest_runs.json).
+`make ingest-scale` indexes 1, 10 and 100 copies of the fixture (every copy
+after the first with one line added to each file, so none is a duplicate) with
+the hash embedder and records, per size, the first index run, the unchanged
+re-run, the cluster read-back and the API's start with and without
+`INDEX_ON_START`, in
+[bench/results/ingest_scale.json](../bench/results/ingest_scale.json). Its
+`before` rows were recorded at the commit that added the command, before
+indexing left the API's start and the clusters stopped reading chunk text; its
+`after` rows at the commit after both. The timings are wall seconds on one
+shared machine, taken hours apart, and leave out Python's imports and the HTTP
+server; the counts beside them (files, rows, chunks embedded, and the rows of
+chunk text each step read, counted on the client) are what a re-run reproduces,
+and [tests/eval/test_ingest_scale.py](../tests/eval/test_ingest_scale.py)
+checks that both sets of rows measured the same corpus.
 
 Chunking. Both the benchmark loader and the served indexer cut every file
 with `chunk_text` in [app/chunking/structure.py](../app/chunking/structure.py),
