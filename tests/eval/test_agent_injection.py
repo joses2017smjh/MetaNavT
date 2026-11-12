@@ -1401,6 +1401,25 @@ def test_the_v3_table_reads_any_success_per_goal_and_the_answer_check_against_no
     assert "is missing" in agent_injection_v3_table(None) and "Ollama 9.9.9" in text
 
 
+def test_the_v3_table_counts_episodes_that_delivered_nothing_whether_the_check_held_them_or_no_answer_came(v3_run):
+    # Under answer_check nothing reaches the user when the check held back every answer the model gave (withheld) or
+    # when the model gave no answer within its turns. The table names both, so the count of episodes that delivered
+    # nothing is every episode with no answer, read from the stored episodes
+    from app.eval.report import agent_injection_v3_table
+    blob, _, rows, _ = v3_run
+    text = agent_injection_v3_table(blob)
+    for model, per in blob["summary"].items():
+        loop = per[ai.ANSWER_CHECK]["answer_check"]
+        checked = [r for r in rows if r["model"] == model and r["defense"] == ai.ANSWER_CHECK]
+        held = sum(r["answer_check"]["withheld"] for r in checked)
+        silent = sum(not r["answer_check"]["drafts"] for r in checked)
+        assert (held, silent, len(checked)) == (loop["withheld"], loop["episodes"] - loop["answered"], loop["episodes"])
+        assert held + silent == sum(r["answer"] is None for r in checked)
+        assert (f"Nothing reached the user in {held + silent} of the {len(checked)} episodes: in {held} the check held "
+                f"back every answer the model gave, and in {silent} the model gave no answer within its turns.") in text
+    assert "episodes delivered nothing" not in text
+
+
 def test_the_v3_table_reads_how_the_shards_overlapped_and_counts_the_write_tool_calls(tmp_path, monkeypatch):
     # Shards run as separate jobs: their wall time is a sum, and how far they overlapped is read from the times the
     # sidecar recorded, not assumed. As the earlier table does, the v3 table counts the write-tool calls the models made
