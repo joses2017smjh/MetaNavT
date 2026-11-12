@@ -255,9 +255,12 @@ def test_make_target_writes_the_committed_results_file():
 def test_the_results_files_are_not_ignored_by_git():
     import subprocess
 
-    # bench/results/*.json is ignored except for a list of committed artifacts; these two must be on it. --no-index:
-    # git check-ignore never reports a tracked file, and both files are tracked, so without it this could not fail.
-    for rel in (served_scale.RESULTS_FILE, served_scale.HNSW_FILE, served_scale.TREC_DIR + "/api-hybrid.run"):
+    from app.eval.report import SERVED_SCALE_PRE_M20_FILE
+
+    # bench/results/*.json is ignored except for a list of committed artifacts; these must be on it (the earlier run too,
+    # whose start-up the README block renders). --no-index: git check-ignore never reports a tracked file, and the files
+    # are tracked, so without it this could not fail.
+    for rel in (served_scale.RESULTS_FILE, served_scale.HNSW_FILE, served_scale.TREC_DIR + "/api-hybrid.run", SERVED_SCALE_PRE_M20_FILE):
         ignored = subprocess.run(["git", "check-ignore", "-q", "--no-index", rel], cwd=ROOT).returncode
         assert ignored == 1, f"{rel} is ignored by .gitignore"
 
