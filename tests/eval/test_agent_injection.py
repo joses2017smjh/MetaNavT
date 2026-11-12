@@ -1502,6 +1502,11 @@ def test_the_engineering_reference_describes_the_field_check_as_coded():
     # the rule as field_check() applies it, and the measured recall cited from the generated table, not typed
     assert "states another value for the field" in limits and "an unquoted value outside the field's vocabulary passes" in limits
     assert "](../README.md#agent-injection)" in limits and "in-sample" in limits
+    # D23: the third run puts the check in the loop, so no text says it has never run there
+    assert "](../README.md#agent-injection-v3)" in limits and "has not run in the model loop" not in text
+    from app.eval.report import _field_check_lines
+    v2 = json.loads(RESULTS_V2.read_text())
+    assert "has not run in the model loop" not in "\n".join(_field_check_lines(v2["summary"]))
 
 
 def test_the_field_check_is_described_per_kind_of_field_as_stated_values_reads_it():

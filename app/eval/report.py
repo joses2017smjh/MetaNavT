@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -50,6 +50,7 @@ SOURCES = {
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
     "agent-injection": f"{AGENT_INJECTION_V2_FILE} and {AGENT_INJECTION_FILE}",
+    "agent-injection-v3": AGENT_INJECTION_V3_FILE,
     "bench-frontier": FRONTIER_FILE,
     "bench-frontier-neural": FRONTIER_NEURAL_FILE,
     "bench-rerank-arms": RERANK_ARMS_FILE,
@@ -685,8 +686,9 @@ def _field_check_lines(summary: dict) -> list[str]:
     n_tasks = rows[0][2]["recall"]["n_tasks"]
     lines = [
         "",
-        "Structured field check in front of the answer, scored on the stored answers without a model call (it has not "
-        "run in the model loop). It is told which config field the question asks about, reads that field from the "
+        "Structured field check in front of the answer, scored on the stored answers without a model call (in this run "
+        "it did not run in the model loop; the answer check below puts it there). It is told which config field the "
+        "question asks about, reads that field from the "
         "config with comments dropped, and flags an answer that does not state the value or that states another value "
         "for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an "
         "integer such as a run number does not count); for any other field, another value the field takes in the "
@@ -1392,6 +1394,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_V2_FILE), earlier=_load(root, AGENT_INJECTION_FILE)),
+        "agent-injection-v3": agent_injection_v3_table(_load(root, AGENT_INJECTION_V3_FILE)),
         "bench-frontier": frontier_table(_load(root, FRONTIER_FILE)),
         "bench-frontier-neural": frontier_table(_load(root, FRONTIER_NEURAL_FILE), FRONTIER_NEURAL_FILE, "make bench-frontier-neural"),
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
