@@ -1,8 +1,5 @@
-import pytest
-from unittest.mock import patch, mock_open, MagicMock, call
+from unittest.mock import mock_open, MagicMock
 from pathlib import Path
-import io
-import os
 from app.engine.tools.python_exec import PythonExecTool, get_tools
 
 # filepath: app/engine/tools/test_python_exec.py

@@ -2,7 +2,6 @@
 TaskFlow utils file
 """
 from models import Task
-from datetime import datetime
 
 # Function to create a task
 def create_task(data):

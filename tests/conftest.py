@@ -8,7 +8,6 @@ import pytest
 @pytest.fixture
 def operator_grant(tmp_path_factory):
     """Explicit trusted operator fixture; never a production approval fallback."""
-    from pathlib import Path
     from app.mcp.approvals import ApprovalVerifier, create_key, sign_review
     protected = tmp_path_factory.mktemp("operator-private")
     key = protected / "operator.key"

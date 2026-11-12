@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 
 import pytest
 
-from app.eval.gold import GoldQuestion, load_gold
+from app.eval.gold import load_gold
 from app.eval.harness import project_root
 
 ROOT = project_root()

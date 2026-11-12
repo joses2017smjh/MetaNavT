@@ -51,7 +51,7 @@ from typing import Any
 import numpy as np
 
 from app.eval.latency import StageTimer
-from app.eval.metrics import mrr_at_k, ndcg_at_k, recall_at_k
+from app.eval.metrics import mrr_at_k, recall_at_k
 from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index

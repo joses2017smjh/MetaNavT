@@ -1,7 +1,6 @@
 """Tests for Phase 14-15 cutting-edge retrieval features."""
 
 import numpy as np
-import pytest
 
 from app.retrieval.types import Chunk
 
@@ -76,7 +75,7 @@ class TestCorrectiveRAG:
 
     def test_determine_correction_none_when_correct(self):
         from app.agent.corrective import (
-            classify_chunk, determine_correction, RelevanceLabel,
+            classify_chunk, determine_correction,
         )
         chunks = [
             _make_chunk(f"c{i}", f"learning_rate: 3e-4 config run_047 encoder")
@@ -221,7 +220,7 @@ class TestCitationVerification:
         assert result.pass_threshold
 
     def test_verification_ratio(self):
-        from app.agent.citation_verify import VerificationResult, Claim
+        from app.agent.citation_verify import VerificationResult
         result = VerificationResult(
             claims=[], verified_count=3, total_count=4,
             missing_citations=[], hallucinated_values=[],

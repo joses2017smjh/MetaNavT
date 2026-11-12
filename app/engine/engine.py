@@ -22,11 +22,6 @@ from app.engine.agents.multi_agent_workflow import AgentWorkflow
 from app.engine.tools import clear_tool_calls
 from app.engine.tools.python_exec import python_exec_enabled
 
-from llama_index.core.indices.vector_store import VectorStoreIndex
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.core.chat_engine import ContextChatEngine
-from llama_index.core.settings import Settings
-
 logger = logging.getLogger(__name__)
 
 def get_chat_engine(

@@ -9,7 +9,6 @@ Features:
 - Event handling
 - Error tracking
 """
-import os
 import logging
 from fastapi import APIRouter, BackgroundTasks, Request, status
 from llama_index.core.llms import MessageRole
@@ -25,8 +24,6 @@ from app.api.routers.models import (
 from app.api.routers.vercel_response import VercelStreamResponse
 from app.engine.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
-from fastapi.responses import JSONResponse
-from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 
 # Initialize router - will be mounted in main app

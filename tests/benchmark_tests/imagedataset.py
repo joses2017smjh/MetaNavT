@@ -10,28 +10,24 @@ This script:
 """
 
 import os
-import sys
 import random
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
 import ollama
 from datasets import load_dataset
 from PIL import Image
 from io import BytesIO
 import argparse
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict
 from tqdm import tqdm
 import torch
 
 # DeepEval imports
-from deepeval import evaluate
 from deepeval.metrics import GEval, HallucinationMetric, ContextualRelevancyMetric
 from deepeval.test_case import LLMTestCase, ImageInput
 from deepeval.models import DeepEvalBaseLLM
-from deepeval.utils import plot_single_metric, plot_test_case_results
 
 # Define paths
 DATASET_CACHE_PATH = os.path.join(os.path.dirname(__file__), "cache")

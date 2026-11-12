@@ -1,12 +1,11 @@
 import os
-from typing import Optional, List, Sequence, Any, Union
+from typing import List, Sequence, Any, Union
 from chonkie import SDPMChunker
 from pydantic import BaseModel, Field
 from llama_index.core.schema import Document, BaseNode
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.settings import Settings
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from llama_index.embeddings.ollama import OllamaEmbedding
 import logging
 
