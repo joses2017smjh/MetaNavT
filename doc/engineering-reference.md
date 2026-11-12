@@ -304,7 +304,11 @@ and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
 computed in float64, rounded to 10 decimals and ranked with ties in corpus
 order, so neither the last bit of the CPU's BLAS kernel nor numpy's sort
 implementation decides an order. The results header records where the mtimes
-came from. To accept a change on purpose: `make bench-baseline`, review
+came from. The MANIFEST lists the corpus files only, so the gold questions are
+pinned apart: `tests/eval/test_gold_digest.py` holds the SHA-256 of the committed
+`bench/gold/questions.jsonl` (checked out byte for byte, `.gitattributes`), and
+the harness, parity and rerank-arms headers record the digest of the file they
+scored (`gold_sha256`). To accept a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use

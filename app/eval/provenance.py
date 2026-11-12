@@ -28,6 +28,7 @@ carries a host name, a user name or an absolute path:
 from __future__ import annotations
 
 import getpass
+import hashlib
 import json
 import os
 import platform
@@ -269,6 +270,12 @@ def _module_name(argv0: str) -> str:
         if "app" in parts:
             return ".".join(parts[parts.index("app"):])
     return p.name
+
+
+def sha256_file(path: Path) -> str:
+    """sha256 of a file's bytes as they are on disk: a results header's `gold_sha256` (bench/gold/questions.jsonl, whose
+    committed digest tests/eval/test_gold_digest.py pins; the corpus MANIFEST does not list it)."""
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def git_sha(cwd: Path | None = None) -> str:

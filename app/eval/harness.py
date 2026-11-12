@@ -24,7 +24,7 @@ from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
 from app.eval.probes import load_probes
-from app.eval.provenance import command_line, device_info, model_device, model_provenance
+from app.eval.provenance import command_line, device_info, model_device, model_provenance, sha256_file
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
     answer_relevancy,
@@ -920,6 +920,7 @@ def run_bench(
         "command": command_line(),
         "device": device_info(device),
         "corpus_sha256": manifest["aggregate_sha256"],
+        "gold_sha256": sha256_file(gold_path),  # the MANIFEST lists corpus files only
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
         "mtimes": mtimes,  # what the staleness filter and the file graph compared

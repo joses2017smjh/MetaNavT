@@ -65,7 +65,7 @@ from app.eval.harness import RERANK_DEPTH_CONFIGS, BenchConfig, attach_confidenc
 from app.eval.index_loader import mtime_provenance
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
-from app.eval.provenance import command_line, device_info, git_sha, scrub
+from app.eval.provenance import command_line, device_info, git_sha, scrub, sha256_file
 
 IN_MEMORY = BenchConfig(
     name="in_memory:hybrid+router+staleness",
@@ -200,7 +200,8 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
     cfg = in_memory_config(in_memory)
     root = root or project_root()
     files_root = root / "bench" / "corpus" / "files"
-    gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
+    gold_path = root / "bench" / "gold" / "questions.jsonl"
+    gold = load_gold(gold_path)
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
     # Both rows read bench/corpus/files (the in-memory index here, the API through DATA_DIR) and the header
     # copies the MANIFEST's aggregate, so a copy that differs from the MANIFEST is refused before anything runs.
@@ -236,6 +237,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
         "settings": settings,
         "settings_differ": [key for key, sides in settings.items() if sides["in_memory"] != sides["api"]],
         "corpus_sha256": manifest["aggregate_sha256"],
+        "gold_sha256": sha256_file(gold_path),
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
         # The in-memory row reads the MANIFEST's mtimes; the API (app/engine/ingest.py) reads the disk's, so the

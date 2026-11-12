@@ -756,6 +756,10 @@ def test_rerank_arms_end_to_end_with_stand_ins_records_both_students_and_the_lis
     from app.eval.report import rerank_arms_table
 
     blob = _stand_in_rerank_arms(monkeypatch, tmp_path, _fake_lightgbm(lambda params, dataset, num_boost_round: _FakeBooster(params, dataset, num_boost_round)))
+    from app.eval.harness import project_root
+    from app.eval.provenance import sha256_file
+
+    assert blob["gold_sha256"] == sha256_file(project_root() / "bench" / "gold" / "questions.jsonl")  # A38
     test_rows = {r["config"]: r for r in blob["test_split"]["results"]}
     assert list(test_rows) == [HYBRID, TEACHER, STUDENT, STUDENT_LGBM] and blob["not_evaluated"] == []
     assert test_rows[STUDENT]["student"]["backend"] == "numpy_lstsq" and test_rows[STUDENT_LGBM]["student"]["backend"] == "lightgbm"
