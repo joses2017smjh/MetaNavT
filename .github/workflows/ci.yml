@@ -96,9 +96,9 @@ jobs:
         run: make test-unit
 
   parity:
-    # Postgres + pgvector service, fixture v1 indexed with the hash embedder (the same
-    # chunker as the bench, app/chunking through app/eval/ingest.py), the API
-    # started in the background, then the 136 gold questions replayed through
+    # Postgres + pgvector service, the schema migrations, fixture v1 indexed by the index
+    # step with the hash embedder (the same chunker as the bench, app/chunking through
+    # app/eval/ingest.py), the API started in the background, then the 136 gold questions replayed through
     # POST /api/retrieve/ and scored like the bench. The live-database tests include
     # the exact check: the dense leg equals the in-memory dense search on every gold
     # question, on the planner's own plan and with the HNSW index forced, where the
@@ -130,8 +130,8 @@ jobs:
       EMBEDDING_DIM: "256"
       RERANKER_MODEL: none
       DATA_DIR: bench/corpus/files
-      INDEX_ON_START: "true"
-      INGEST_MAX_REJECTED: "0"   # a fixture file that stops being indexable fails the start
+      INDEX_ON_START: "false"    # the index step below indexes DATA_DIR; the API does not
+      INGEST_MAX_REJECTED: "0"   # a fixture file that stops being indexable fails the index step
       CHUNK_SIZE: "512"
       CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
@@ -155,7 +155,10 @@ jobs:
         run: make fixture-mtimes
       - name: Schema migrations (the deploy step; while one is pending the API answers 503 and retries)
         run: make migrate
-      - name: Start the API (indexes bench/corpus/files; later starts only re-embed changed files)
+      - name: Index bench/corpus/files (the index step; a later run embeds only changed files)
+        timeout-minutes: 10
+        run: make index
+      - name: Start the API (serves the indexed table; it does not index)
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
           python scripts/smoke_retrieve.py --require-bm25
@@ -171,8 +174,9 @@ jobs:
           path: bench/results/parity.json
 
   docker-smoke:
-    # docker compose up --build, wait for /health (indexes bench/corpus/files with the
-    # hash embedder on first start), POST one query, require hits with non-null paths.
+    # docker compose up --build, wait for /health (the api container migrates, then indexes
+    # bench/corpus/files with the hash embedder, then starts the server), POST one query,
+    # require hits with non-null paths.
     name: docker compose smoke
     runs-on: ubuntu-latest
     timeout-minutes: 25

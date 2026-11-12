@@ -1,6 +1,8 @@
 # docker compose up --build   -> Postgres + pgvector, then the API on :8000.
-# First start indexes bench/corpus/files (61 files) with the deterministic hash
-# embedder, so no model download is needed and retrieval works without Ollama.
+# The api container runs three steps in order, as CI's parity job does: the schema
+# migrations, the index step (bench/corpus/files, 61 files, with the deterministic hash
+# embedder, so no model download is needed and retrieval works without Ollama; later
+# starts embed only changed files), then the server, which does not index itself.
 # Only /api/chat needs an Ollama server (OLLAMA_BASE_URL).
 #
 # Nothing here is interpolated from .env on purpose: `cp .env.example .env` (the
@@ -47,8 +49,8 @@ services:
       RERANKER_MODEL: none
       RETRIEVAL_MODE: sql          # one SQL round trip (app/database/sql/); python = the reference path
       DATA_DIR: bench/corpus/files
-      INDEX_ON_START: "true"       # every start: diff DATA_DIR against the manifest, embed only what changed
-      INGEST_MAX_REJECTED: "0"     # a rejected file fails the start (undecodable, empty, too large, ...): /health 503, retried
+      INDEX_ON_START: "false"      # the server does not index: the index step below does, before it starts
+      INGEST_MAX_REJECTED: "0"     # a rejected file (undecodable, empty, too large, ...) fails the index step, which stops the container
       CHUNK_SIZE: "512"
       CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
@@ -58,8 +60,10 @@ services:
       # OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces with --profile otel
       LOG_FORMAT: text
     # The deploy step first (schema migrations: tables, indexes, the vector extension; the
-    # API runs no DDL; while one is pending it answers 503 and retries), then the server.
-    command: ["sh", "-c", "python -m app.database.migrate && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
+    # API runs no DDL; while one is pending it answers 503 and retries), then the index step
+    # (python -m app.engine.ingest: diff DATA_DIR against the manifest, embed only what changed;
+    # stopped after 900 s, and a failure stops the container), then the server.
+    command: ["sh", "-c", "python -m app.database.migrate && timeout 900 python -m app.engine.ingest && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
     ports:
       - "8000:8000"
     healthcheck:

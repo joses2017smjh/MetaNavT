@@ -4,13 +4,14 @@ main.py's lifespan calls build_retrieval_state() off the event loop, and again w
 while it fails (startup_retry_policy below; /health is 503 until it succeeds). It first
 requires every schema migration this configuration needs (the deploy step,
 `python -m app.database.migrate`, applies them; start-up runs no DDL) and raises
-MigrationsPending otherwise. With INDEX_ON_START=true (docker-compose sets it), every start runs
-app/engine/ingest.index_directory under a Postgres advisory lock: DATA_DIR is
-scanned, each file's SHA-256 is compared with the manifest table, and only new
-or changed files are chunked (app/chunking, the benchmark's chunker), embedded
-with Settings.embed_model and written to pgvector; rows of removed files are
-deleted. An unchanged directory embeds nothing, so `docker compose up` does not
-re-embed on every start. The run's report is kept on the state for /health.
+MigrationsPending otherwise. Indexing is a step of its own that runs before the API
+(`python -m app.engine.ingest`, app/engine/ingest.py; Compose and CI run it after the
+migrations), so a start does not index and does not wait for another process that does:
+/health reports what the manifest lists. With INDEX_ON_START=true (a single-process
+setup) the start runs the same index_data_dir call first: DATA_DIR is scanned, each file's
+SHA-256 is compared with the manifest table, and only new or changed files are chunked
+(app/chunking, the benchmark's chunker), embedded with Settings.embed_model and written to
+pgvector; rows of removed files are deleted. That run's report is kept on the state for /health.
 """
 
 from __future__ import annotations
@@ -21,12 +22,11 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
-from llama_index.core.settings import Settings
-
 from app.database.vector_store import get_vector_store_manager
 from app.engine.index import get_index
-from app.engine.ingest import index_directory, max_rejected_from_env
+from app.engine.ingest import index_data_dir
 from app.engine.retriever import HybridRetriever, create_hybrid_retriever
+from app.eval.ingest import CHUNKER
 from app.graph.staleness import cluster_versions
 from app.retrieval.types import Chunk
 
@@ -111,15 +111,11 @@ def build_retrieval_state() -> RetrievalState:
     logger.info(f"Lexical backend: {vsm.hybrid_backend} (LEXICAL_BACKEND)")
     # Then the schema: a pending migration (database, vector table, ParadeDB when selected) fails the start.
     vsm.check_migrations()
-    indexing: dict = {"indexed": False, "reason": "INDEX_ON_START not set"}
     if os.getenv("INDEX_ON_START", "false").strip().lower() in {"1", "true", "yes"}:
-        indexing = index_directory(
-            vsm,
-            os.getenv("DATA_DIR", "data"),
-            embed_fn=Settings.embed_model.get_text_embedding_batch,
-            embedder=str(getattr(Settings.embed_model, "model_name", "") or type(Settings.embed_model).__name__),
-            max_rejected=max_rejected_from_env(),
-        )
+        indexing = index_data_dir(vsm)
+    else:
+        # The index step (python -m app.engine.ingest) indexes DATA_DIR; this start only reports what it listed.
+        indexing = {"indexed": False, "reason": "INDEX_ON_START not set", "chunker": CHUNKER, "manifest": vsm.manifest_summary()}
     # The GIN and HNSW indexes the hybrid statement reads are migrations (vector/0004, 0005), not built here.
     enable_staleness = os.getenv("ENABLE_STALENESS", "true").strip().lower() != "false"
     clusters = build_clusters(vsm) if enable_staleness else {}

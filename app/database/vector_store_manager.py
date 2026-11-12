@@ -58,6 +58,10 @@ WEBSEARCH_OPERATOR_WORDS = frozenset({"or"})
 LEXICAL_BACKENDS = ("ts_rank_cd", "paradedb")
 
 
+class IngestLockTimeout(TimeoutError):
+    """Another process held the ingest lock longer than the wait allows; this run indexed nothing."""
+
+
 def lexical_backend_setting() -> str:
     """LEXICAL_BACKEND, lowercased; unset or empty is ts_rank_cd, an unknown value is a ValueError."""
     value = os.getenv("LEXICAL_BACKEND", "").strip().lower() or "ts_rank_cd"
@@ -583,7 +587,7 @@ class VectorStoreManager(DatabaseManager):
     # ------------------------------------------------------------------ ingest manifest (incremental indexing)
     # One row per indexed file: path, SHA-256 of its bytes, chunk count, and the
     # pipeline (chunker version + embedder) that produced its rows. It is the
-    # source of truth for the diff app/engine/ingest.py runs on every start. A file's
+    # source of truth for the diff app/engine/ingest.py runs in every indexing run. A file's
     # manifest row is written only after its chunks are in the data table, and is
     # deleted in the same transaction as those chunks, so the manifest never lists a
     # file whose rows are missing. The table and the path index the per-file delete reads
@@ -593,17 +597,27 @@ class VectorStoreManager(DatabaseManager):
     def manifest_table(self) -> str:
         return f"ingest_manifest_{self.table_name}"
 
+    @property
+    def ingest_lock_key(self) -> int:
+        """The pg_advisory_lock key of this table's indexing step (a signed 64-bit integer derived from its name)."""
+        name = f"metanavit.ingest:{self.schema_name}.{self.data_table}"
+        return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+
     @contextmanager
-    def ingest_lock(self):
+    def ingest_lock(self, timeout_s: float | None = None):
         """Session-level advisory lock around the diff-and-index step.
 
-        Two replicas that start together serialise here: the second waits, then
-        diffs against the manifest the first one wrote and finds nothing to do.
-        The lock lives on its own connection, so closing it (or the process
-        dying) releases it.
+        Two processes that index together (the index step, an upload, a replica
+        with INDEX_ON_START) serialise here: the second waits, then diffs against
+        the manifest the first one wrote and finds nothing to do. It waits at most
+        timeout_s seconds (None or 0: no limit), then raises IngestLockTimeout
+        having written nothing; the wait used to have no limit, so a stuck holder
+        stopped every other start. The lock lives on its own connection, so
+        closing it (or the process dying) releases it. The waiter blocks inside
+        pg_advisory_lock under lock_timeout, so it shows in pg_locks as an
+        advisory lock not granted yet.
         """
-        name = f"metanavit.ingest:{self.schema_name}.{self.data_table}"
-        key = int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+        key = self.ingest_lock_key
         conn = psycopg2.connect(self.conn_string)
         conn.autocommit = True
         started = time.perf_counter()
@@ -612,11 +626,28 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute("SELECT pg_try_advisory_lock(%s);", (key,))
                 waited = not cur.fetchone()[0]
                 if waited:
-                    logger.info("Another process is indexing; waiting for the ingest lock")
-                    cur.execute("SELECT pg_advisory_lock(%s);", (key,))
+                    logger.info(f"Another process is indexing; waiting {'up to %g s ' % timeout_s if timeout_s else ''}for the ingest lock")
+                    if timeout_s:
+                        cur.execute("SELECT set_config('lock_timeout', %s, false);", (f"{max(1, int(timeout_s * 1000))}ms",))
+                    try:
+                        cur.execute("SELECT pg_advisory_lock(%s);", (key,))
+                    except psycopg2.errors.LockNotAvailable as exc:
+                        raise IngestLockTimeout(
+                            f"another process held the ingest lock of {self.schema_name}.{self.data_table} for more than "
+                            f"{timeout_s:g} s (INGEST_LOCK_TIMEOUT_SECONDS); nothing was indexed"
+                        ) from exc
             yield {"waited": waited, "waited_ms": round((time.perf_counter() - started) * 1000.0, 1)}
         finally:
             conn.close()
+
+    def manifest_summary(self) -> dict:
+        """What the manifest lists, without reading a chunk: {"files", "chunks", "pipelines"} (pipelines sorted)."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT count(*), coalesce(sum(n_chunks), 0), array_agg(DISTINCT pipeline) FROM {manifest};").format(
+                    manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                files, chunks, pipelines = cur.fetchone()
+        return {"files": int(files), "chunks": int(chunks), "pipelines": sorted(p for p in (pipelines or []) if p is not None)}
 
     def ingest_manifest(self) -> dict[str, dict]:
         """{path: {"content_hash", "n_chunks", "pipeline"}} for every file the manifest lists."""

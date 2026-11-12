@@ -542,8 +542,14 @@ One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446*
 
 ### Indexing that does not redo the whole tree
 
-With `INDEX_ON_START`, every API start runs one indexing step
-([app/engine/ingest.py](../app/engine/ingest.py)) under a Postgres advisory lock:
+Indexing is a step of its own, `python -m app.engine.ingest` (`make index`,
+[app/engine/ingest.py](../app/engine/ingest.py)). `docker-compose.yml` and CI's
+parity job run it after the schema migrations and before the API, and the API's
+start does not index: it reads what the manifest lists (`GET /health`, under
+`indexing`), so a start never waits for a process that is indexing. With
+`INDEX_ON_START=true` (a single-process setup) every API start runs the same
+step first. The step prints its report and exits 0, or exits 1 and says why.
+One run, under a Postgres advisory lock:
 
 1. **Scan.** Every file under `DATA_DIR` is read once and either accepted or
    rejected with a reason: outside the root, unsupported type, too large,
@@ -579,14 +585,23 @@ With `INDEX_ON_START`, every API start runs one indexing step
 
 The step is idempotent and can be interrupted: because the manifest row is
 written last and old rows are deleted before new ones are inserted, the next
-run repeats the unfinished files and leaves one set of rows. Two replicas that
-start together serialise on the lock; the second finds nothing to do.
+run repeats the unfinished files and leaves one set of rows. Two runs that
+start together serialise on the lock; the second finds nothing to do. A run
+waits for the lock at most `INGEST_LOCK_TIMEOUT_SECONDS` (default in
+`app/engine/ingest.py`; 0 waits without a limit) and then fails with
+`IngestLockTimeout`, having written nothing; the wait used to have no limit, so
+a holder that hung stopped every other start. Compose stops its index step
+after a fixed time as well, and CI's index step has its own time limit.
 
 "Failed" is not a counted category. Every failure (the embedder or the
-database raising, the rejection limit, a verification mismatch) aborts the run
-with an exception instead of being counted in a report. The API process stays
-up with the error recorded: `GET /health` answers 503 with it and
-`/api/retrieve` answers 503 until a later start-up attempt succeeds (they are retried in the background, without a restart: Start-up and `/health`, below). A file the run had
+database raising, the rejection limit, a verification mismatch, the lock wait
+running out) aborts the run with an exception instead of being counted in a
+report. The index step exits 1 with the error, which stops the Compose
+container and fails the CI step before the API starts. An API start that
+indexes (`INDEX_ON_START`) stays up with the error recorded: `GET /health`
+answers 503 with it and `/api/retrieve` answers 503 until a later start-up
+attempt succeeds (they are retried in the background, without a restart:
+Start-up and `/health`, below). A file the run had
 not reached keeps its previous rows and manifest entry, and so does the file in
 flight when the embedder raises (its old rows are deleted only after its chunks
 are embedded). When the database raises after that file's old rows were
@@ -600,6 +615,12 @@ nothing, an edit re-embeds one file, a delete removes its rows, the rejection
 limit, a link out of `DATA_DIR`, rows deleted or added behind the manifest's
 back, a run that does not verify, an interrupted run, a database failure while
 a file is written, two concurrent runs);
+[tests/database/test_index_step.py](../tests/database/test_index_step.py) runs
+the command twice, holds the lock from another process while a run gives up
+after its limit and while the API starts (as Compose configures it, it answers
+`/health`; with `INDEX_ON_START` it answers 503 until the holder is gone), and
+[tests/engine/test_index_step_order.py](../tests/engine/test_index_step_order.py) checks the
+order of the steps in `docker-compose.yml` and in CI, which only CI runs;
 [tests/eval/test_ingest.py](../tests/eval/test_ingest.py) covers the scan, the
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
@@ -639,7 +660,9 @@ the expected spans, and
 fixture v1's chunks as the recorded benchmark cut them.
 
 Limits: a file is identified by its bytes, so a rename is a delete plus an
-insert; files are embedded one at a time inside the startup hook; the type
+insert; files are embedded one at a time by the index step, and an API that
+is already running keeps the staleness clusters it loaded at its start until
+it restarts; the type
 gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
 are counted as rejected, not parsed; a hard link inside `DATA_DIR` has no other
 path to resolve, so the `outside_root` gate reads one to a file elsewhere like
@@ -1390,13 +1413,13 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Schema migrations.** Every Postgres table and index the application uses comes from versioned SQL files applied by a deploy step, `python -m app.database.migrate` (`make migrate`; `--check` lists what is pending and exits 1), which `docker-compose.yml` and CI's parity job run before uvicorn. Apart from creating a missing database (Start-up and `/health`, below), the API runs no DDL: start-up (`build_retrieval_state`), the plan decision log and `IndexManager` only read the ledgers and refuse to run (`MigrationsPending`, which `/health` reports) while a migration is pending; start-up tries again until the deploy step has run (Start-up and `/health`, below). The start-up check of the data table is read-only too (the table exists and the role may select, insert and delete; its embedding dimension is compared only for a table created after the manager was built, because the manager otherwise takes the dimension from the table); it used to add a placeholder row to the shared table and delete it again on every start, visible to concurrent readers (`tests/database/test_startup.py` watches with a row trigger and a reader). `app/database/migrate.py` applies up to three sequences. `app/database/migrations/` holds the application's own tables (`0001_baseline.sql`, then one file per change; ledger `schema_migrations`). `app/database/migrations/vector/` holds the vector table: its schema when it is missing (as `PGVectorStore`'s own setup did), the vector extension and `data_<PGVECTOR_TABLE>` in the shape LlamaIndex's `PGVectorStore` gives it (which the API now builds with `perform_setup=False`), the ingest manifest, the path index, the stored `text_tsv` column (`to_tsvector('english', text)`) with its GIN index, and the HNSW index. The table's schema, name and embedding dimension are configuration, so those files are templates, applied and recorded per table in `vector_table_migrations` (migration `0003`) with the values they were rendered with, including the embedding dimension. `vector/0001` refuses to adopt an existing table whose stored dimension differs from `EMBEDDING_DIM`. Once a table is adopted or built, nothing compares it with `EMBEDDING_DIM` again: `--check` lists nothing, and the API takes the table's dimension, as it did before migrations existed, so a different `EMBEDDING_DIM` surfaces only when the first write or query fails with a dimension error. `app/database/migrations/paradedb/` (the `pg_search` extension and the BM25 index, built once and never dropped; start-up used to drop it and build it again on every start) is applied and required only with `LEXICAL_BACKEND=paradedb`; no image used here has `pg_search`, so those files have never run. Index builds on the vector table run `CREATE INDEX CONCURRENTLY` in files marked `-- migrate: no-transaction`, whose statements the runner sends one at a time outside a transaction (each is safe to run again; an index left invalid by an interrupted build is dropped first). Index names carry their parameters (`<table>_embedding_hnsw_m16_efc64`): changing `m` is a new file that builds the index under its new name and drops the old one, where `IF NOT EXISTS` on a fixed name used to leave an existing index unchanged. The runner records each applied file and its SHA-256, applies each transactional file with its record in one transaction, takes a Postgres advisory lock so two deploy steps run one after the other (the waiting one polls the lock with no transaction open: a session blocked inside `pg_advisory_lock` holds a snapshot, the other one's `CREATE INDEX CONCURRENTLY` waits for it, and the two deadlock), and refuses to run if an applied file was edited or the database is newer than the code. A database made by the code before migrations existed is adopted in place: the files use `IF NOT EXISTS` with the old definitions and names, so rows are untouched and the adopted indexes keep their names and definitions; the old fixed-name HNSW index is replaced by the parameter-named one. Adding the stored `text_tsv` column (`vector/0006`) rewrites the table under an exclusive lock, which rebuilds every index on it, so on a large table the upgrade belongs in a maintenance window. `tests/database/test_migrations.py` (CI parity job, live Postgres) upgrades a version-2 database holding vector rows and manifest rows written by the old code through the command's entry point and checks every row; it also compares a migrated table with one `PGVectorStore` creates, shows a migration that changes `m` rebuilds the index, runs start-up under an event trigger that records any DDL (none), and starts two deploy steps together (both succeed). There are no down-migrations.
 
-**Start-up and `/health`.** `/health` answers 200 with the index statistics once retrieval is ready and 503 otherwise. A start-up attempt that fails (the database down or still starting, a migration the deploy step has not applied yet) is retried in the background without a restart, waiting `STARTUP_RETRY_SECONDS` and then twice as long each time up to `STARTUP_RETRY_MAX_SECONDS`, for at most `STARTUP_RETRY_ATTEMPTS` attempts (unset or 0: no limit; 1: no retry); the defaults are in `app/engine/bootstrap.py`. Meanwhile `/health` is 503 with the last error and a `startup` block (attempts so far, whether another is coming and after what wait), and `/api/retrieve` is 503; once an attempt succeeds `/health` turns 200. Each attempt redoes only what has not been built: the model settings, the retrieval state, the plan store. A process used to keep its first error until it was restarted, and nothing restarts the Compose service. The first attempt still runs before the server accepts requests, so a start that succeeds is unchanged (`tests/api/test_startup_retry.py`; `tests/database/test_startup.py` starts the API before the deploy step and sees `/health` go from 503 to 200 once it has run). Its row count (`n_nodes`, `VectorStoreManager.count_nodes`) reads only a missing data table as 0 rows; any other database error makes `/health` answer 503 with `status: unavailable`, `n_nodes: null` and a `database` entry under `degraded`, where it used to answer `ok` with 0 rows while the database was unreachable (`tests/engine/test_vector_store_sql.py`, `tests/api/test_retrieve_contract.py`). `DatabaseManager` (the API's managers and the deploy step) creates the database named by `DB_NAME` when it is missing. That branch had never worked: since psycopg2 2.9 a `with connection` block runs its statements in a transaction even in autocommit mode, and `CREATE DATABASE` cannot run inside one; Compose, CI and the local instances create the database themselves, so nothing reached it. It also checked and then created, so two replicas starting together could both find no database and the second `CREATE DATABASE` failed that replica's start. The second creation's error (`UniqueViolation` on `pg_database`'s name index when both are sent at once, `DuplicateDatabase` when one follows the other) is now accepted once the database is seen to exist (`tests/database/test_startup.py` forces both interleavings with a barrier in the admin connection).
+**Start-up and `/health`.** `/health` answers 200 with the index statistics once retrieval is ready and 503 otherwise. A start indexes nothing unless `INDEX_ON_START` is set (the index step does that before it): `indexing` then names the chunker and what the manifest lists (files, chunks, pipelines), and `n_nodes` counts the rows. A start-up attempt that fails (the database down or still starting, a migration the deploy step has not applied yet) is retried in the background without a restart, waiting `STARTUP_RETRY_SECONDS` and then twice as long each time up to `STARTUP_RETRY_MAX_SECONDS`, for at most `STARTUP_RETRY_ATTEMPTS` attempts (unset or 0: no limit; 1: no retry); the defaults are in `app/engine/bootstrap.py`. Meanwhile `/health` is 503 with the last error and a `startup` block (attempts so far, whether another is coming and after what wait), and `/api/retrieve` is 503; once an attempt succeeds `/health` turns 200. Each attempt redoes only what has not been built: the model settings, the retrieval state, the plan store. A process used to keep its first error until it was restarted, and nothing restarts the Compose service. The first attempt still runs before the server accepts requests, so a start that succeeds is unchanged (`tests/api/test_startup_retry.py`; `tests/database/test_startup.py` starts the API before the deploy step and sees `/health` go from 503 to 200 once it has run). Its row count (`n_nodes`, `VectorStoreManager.count_nodes`) reads only a missing data table as 0 rows; any other database error makes `/health` answer 503 with `status: unavailable`, `n_nodes: null` and a `database` entry under `degraded`, where it used to answer `ok` with 0 rows while the database was unreachable (`tests/engine/test_vector_store_sql.py`, `tests/api/test_retrieve_contract.py`). `DatabaseManager` (the API's managers and the deploy step) creates the database named by `DB_NAME` when it is missing. That branch had never worked: since psycopg2 2.9 a `with connection` block runs its statements in a transaction even in autocommit mode, and `CREATE DATABASE` cannot run inside one; Compose, CI and the local instances create the database themselves, so nothing reached it. It also checked and then created, so two replicas starting together could both find no database and the second `CREATE DATABASE` failed that replica's start. The second creation's error (`UniqueViolation` on `pg_database`'s name index when both are sent at once, `DuplicateDatabase` when one follows the other) is now accepted once the database is seen to exist (`tests/database/test_startup.py` forces both interleavings with a barrier in the admin connection).
 
 **API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With `METANAVIT_API_KEY` unset the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With it set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries the key (`X-API-Key`, or `Authorization: Bearer`; compared in constant time), and `/health` stays open for probes. It is one shared key, not user accounts: the `actor` on a plan decision is still whatever the client sends, and the bundled web UI does not send a key, so turning it on suits API clients or a proxy that adds the header. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the API key or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it, and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
 
 **Python execution in chat.** The chat route's Python tool runs code the model writes, so it is off by default: `config/tools.yaml` does not list it, and `get_chat_engine()` builds the code agent only when `ENABLE_PYTHON_EXEC` is set and `METANAVIT_API_KEY` is configured. With the flag but no key the tool stays off and a warning says why; since the bundled web UI sends no key, turning it on suits API clients or a proxy that adds the header. When it is on, each call runs the code in a child process (`app/engine/tools/python_exec_runner.py`), never in the API process: the child starts in a new session with its own environment reduced to `PATH`, `HOME`, locale, `TZ` and `TMPDIR`, plus one-thread settings for the maths libraries (the API key and the connection string are not in it), lowers its own CPU-time, address-space and file-size limits before the code runs (`PYTHON_EXEC_TIMEOUT_SECONDS`, `PYTHON_EXEC_MAX_MEMORY_MB`), and its process group is killed at the time limit and again when the call returns, so a background process left in the group does not outlive the call. The result keeps its fields (output, error, result, figure path). This is a separate process with limits, not OS isolation: the code runs as the API's OS user and can read what that user can read, including the API process's start-up environment under `/proc` and a `.env` file in the working directory, and a process it starts in a session of its own leaves the group and is not killed. `tests/engine/test_python_exec_child.py` covers the default, the key requirement, the other process, the limits and the kill.
 
-**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` on start: a manifest table (a schema migration) holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
+**Indexing.** `app/engine/ingest.py` brings the pgvector table in line with `DATA_DIR` in the index step (`python -m app.engine.ingest`, run before the API; or at the API's start with `INDEX_ON_START`): a manifest table (a schema migration) holds path, content hash and chunk count per indexed file, and only new or changed files are embedded (see "Indexing that does not redo the whole tree"). `app/database/index_manager.py` and the crawling loaders under `app/engine/loaders` are the older design; no run path writes their `indexed_files` table.
 
 **Sandbox.** OverlayFS dry-run for file mutations. MCP `propose_move` is the same idea as a staking interrupt: file mutations require a signed operator capability bound to the immutable plan and source state.
 
@@ -1431,9 +1454,10 @@ Pick the extra for what you want to run:
 | `ml` | torch, sentence-transformers, HF embeddings | real embedders and the bge reranker |
 
 **Retrieval API with Docker.** One command; no Ollama, no model download.
-The `api` service first applies the schema migrations (`python -m app.database.migrate`),
-then starts the server; the first start indexes `bench/corpus/files` (61 files) into pgvector with
-the deterministic hash embedder, and `/health` reports what is loaded.
+The `api` container applies the schema migrations (`python -m app.database.migrate`),
+runs the index step (`python -m app.engine.ingest`: the first start indexes `bench/corpus/files`
+(61 files) into pgvector with the deterministic hash embedder, a later one embeds only changed
+files), then starts the server, and `/health` reports what is loaded.
 
 ```bash
 git clone https://github.com/joses2017smjh/MetaNavT.git
