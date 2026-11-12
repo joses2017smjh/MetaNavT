@@ -330,3 +330,32 @@ def test_each_attempt_keeps_its_own_result_in_the_decision_log(deployment):
     attempts = [(r["action"], r["actor"], r["result"]) for r in a.log.recent(10)]
     assert attempts[0] == ("approve", "operator", "applied")
     assert attempts[1][:2] == ("approve", "web-ui") and attempts[1][2].startswith("refused: ") and len(attempts) == 2
+
+
+def test_the_decision_log_records_who_decided_and_the_operator_signed_actor_of_an_approval(deployment, tmp_path):
+    """C40, on Postgres: the actor column is the one the API passes (the caller's key name when keys are on); an
+    approval's row also carries the actor the operator signed into the capability, read back by DecisionLog.recent
+    (GET /api/plans/decisions/recent) from the row's payload. A capability that does not verify (here: signed by a
+    key the server does not trust, naming "mallory") is refused and leaves no grant actor."""
+    from fastapi import HTTPException
+
+    from app.mcp.approvals import create_key, sign_review
+
+    open_store, sign, sql, root = deployment
+    store = open_store()
+    kept = store.create(SOURCE, "archive/kept.yaml")
+    store.decide(kept.plan_id, "reject", "alice", "not now")
+    moved = store.create(SOURCE, "archive/run_047.yaml")
+    stranger = tmp_path / "stranger"
+    stranger.mkdir()
+    create_key(stranger / "k", stranger / "k.pub")
+    with pytest.raises(HTTPException) as refused:
+        store.decide(moved.plan_id, "approve", "bob", None, sign_review(moved.review, stranger / "k", actor="mallory"))
+    assert _status(refused) == 403
+    store.decide(moved.plan_id, "approve", "bob", None, sign(moved.review))  # deployment's sign(): actor "operator"
+    rows = [(r["plan_id"], r["action"], r["actor"], r["grant_actor"], r["result"].split(":")[0]) for r in store.log.recent(10)]
+    assert rows == [(moved.plan_id, "approve", "bob", "operator", "applied"),
+                    (moved.plan_id, "approve", "bob", None, "refused"),
+                    (kept.plan_id, "reject", "alice", None, "rejected")]
+    assert sql("SELECT payload->>'grant_actor' FROM plan_decisions WHERE result = 'applied'") == [("operator",)]
+    assert (root / "archive" / "run_047.yaml").exists()

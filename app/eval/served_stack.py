@@ -14,10 +14,10 @@ staleness filter reads), and a database of its own created on the Postgres serve
 (PG_TEST_DSN, as for make ingest-runs) and dropped at the end. Two runs never share a database or a table.
 
 The API's environment is built here, not inherited. PATH, HOME, locale, TZ, TMPDIR and the one-thread settings
-come from the caller; every other variable (keys, connection strings, flags) is dropped, and three switches are
+come from the caller; every other variable (keys, connection strings, flags) is dropped, and these switches are
 set off explicitly, so that a .env file read by main.py (python-dotenv does not override a set variable) cannot
-turn them on: ENABLE_PYTHON_EXEC=false (no code-execution agent), METANAVIT_API_KEY empty (no key) and
-RATE_LIMIT_PER_MINUTE empty (no request budget). Compose's MODEL is qwen2.5:14b; each run names the model it
+turn them on: ENABLE_PYTHON_EXEC=false (no code-execution agent), METANAVIT_API_KEY and METANAVIT_API_KEYS_FILE
+empty (no key: the API is open) and RATE_LIMIT_PER_MINUTE empty (no request budget). Compose's MODEL is qwen2.5:14b; each run names the model it
 used. public_env() is the environment as a results file records it.
 """
 
@@ -63,7 +63,8 @@ COMPOSE_API_ENV = {
 DEPLOY_STEP = ("-m", "app.database.migrate")
 INDEX_STEP = ("-m", "app.engine.ingest")
 RUN_SET = ("PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "MODEL", "OLLAMA_BASE_URL", "DATA_DIR")
-OFF_SWITCHES = {"ENABLE_PYTHON_EXEC": "false", "METANAVIT_API_KEY": "", "RATE_LIMIT_PER_MINUTE": ""}
+OFF_SWITCHES = {"ENABLE_PYTHON_EXEC": "false", "METANAVIT_API_KEY": "", "METANAVIT_API_KEYS_FILE": "",
+                "RATE_LIMIT_PER_MINUTE": ""}
 KEEP = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "TMPDIR", "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
         "MKL_NUM_THREADS", "TOKENIZERS_PARALLELISM", "RAYON_NUM_THREADS", "PYTHONDONTWRITEBYTECODE")
 _NOT_RECORDED = ("PATH", "HOME", "TMPDIR", "PYTHONPATH")

@@ -28,11 +28,12 @@ def test_the_deploy_step_and_the_index_step_run_before_the_api_as_in_compose():
 
 def test_code_execution_key_and_budget_stay_off_whatever_the_parent_sets(tmp_path):
     parent = {"PATH": "/usr/bin", "HOME": "/home/someone", "ENABLE_PYTHON_EXEC": "true",
-              "METANAVIT_API_KEY": "parent-key", "RATE_LIMIT_PER_MINUTE": "5", "PG_TEST_DSN": DSN,
-              "AWS_SECRET_ACCESS_KEY": "x", "FRONTEND_ENDPOINT": "http://localhost:3000"}
+              "METANAVIT_API_KEY": "parent-key", "METANAVIT_API_KEYS_FILE": "/srv/keys", "RATE_LIMIT_PER_MINUTE": "5",
+              "PG_TEST_DSN": DSN, "AWS_SECRET_ACCESS_KEY": "x", "FRONTEND_ENDPOINT": "http://localhost:3000"}
     env = ss.api_env(DSN, "mnv_api_1", tmp_path, model="qwen2.5:7b", ollama_url="http://127.0.0.1:11434",
-                     parent=parent, extra={"ENABLE_PYTHON_EXEC": "true"})
-    assert env["ENABLE_PYTHON_EXEC"] == "false" and env["METANAVIT_API_KEY"] == "" and env["RATE_LIMIT_PER_MINUTE"] == ""
+                     parent=parent, extra={"ENABLE_PYTHON_EXEC": "true", "METANAVIT_API_KEYS_FILE": "/srv/keys"})
+    assert env["ENABLE_PYTHON_EXEC"] == "false" and env["RATE_LIMIT_PER_MINUTE"] == ""
+    assert env["METANAVIT_API_KEY"] == "" and env["METANAVIT_API_KEYS_FILE"] == ""  # a .env cannot turn a key on
     assert "AWS_SECRET_ACCESS_KEY" not in env and "PG_TEST_DSN" not in env and "FRONTEND_ENDPOINT" not in env
     assert env["PG_CONNECTION_STRING"] == "postgresql://someone:secret@127.0.0.1:5432/mnv_api_1"
     assert env["MODEL"] == "qwen2.5:7b" and env["EMBEDDING_PROVIDER"] == "hash"
@@ -45,8 +46,8 @@ def test_python_exec_stays_off_in_the_built_environment(monkeypatch, tmp_path):
     from app.engine.tools.python_exec import python_exec_enabled
 
     env = ss.api_env(DSN, "mnv_api_1", tmp_path, model="m", ollama_url="http://127.0.0.1:1",
-                     parent={"ENABLE_PYTHON_EXEC": "true", "METANAVIT_API_KEY": "k"})
-    for name in ("ENABLE_PYTHON_EXEC", "METANAVIT_API_KEY"):
+                     parent={"ENABLE_PYTHON_EXEC": "true", "METANAVIT_API_KEY": "k", "METANAVIT_API_KEYS_FILE": "/srv/keys"})
+    for name in ("ENABLE_PYTHON_EXEC", "METANAVIT_API_KEY", "METANAVIT_API_KEYS_FILE"):
         monkeypatch.setenv(name, env[name])
     assert python_exec_enabled() is False
 

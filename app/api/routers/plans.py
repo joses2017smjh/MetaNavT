@@ -28,8 +28,13 @@ replaced since the review is refused as stale. A decision holds its row's lock u
 new status is saved, so an approval and a rejection of one plan, or two approvals, sent to two replicas
 are decided one after the other.
 
-A database failure answers 503 with a fixed text; its cause (which can name tables, hosts and ports) goes
-to the server log only, and an operating system error's text (file names) is replaced by a fixed one in
+Who decided: with API keys configured (app/api/security.py), the actor of a decision is the caller's key name
+("shared-key" for METANAVIT_API_KEY), in the plan and in the decision log, whatever the body's `actor` says; with
+the API open there is no identity and the actor is the body's, as the client sends it. An approval's log row also
+records the actor the operator signed into the capability (grant_actor), read only after the verifier accepted it.
+
+A database failure answers 503 with a fixed text and the request id (app/api/errors.failure); its cause
+(which can name tables, hosts and ports) goes to the server log only, under that id, and an operating system error's text (file names) is replaced by a fixed one in
 the answer and in the decision log (told()). A record that fails to be written after the fact (the audit
 event of a move that has run, the decision log's copy of the result of a saved decision) is logged and the
 answer is the decision. build_plan_store(None), without a database (the API tests),
@@ -38,6 +43,7 @@ keeps the rows in a MemoryPlans object instead of the table.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -49,11 +55,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
+from app.api.errors import failure, public_startup_error
+from app.api.security import Caller, require_api_key
 from app.mcp.approvals import REFUSAL_CHECKS, review_hash, verifier_from_env
+from app.observability import report_failure
 from app.mcp.filesystem import ApprovalRequired, FilesystemTools, MovePlan, refusal_check
 
 plans_router = r = APIRouter()
@@ -80,6 +89,23 @@ def told(exc: BaseException, fallback: str | None) -> str | None:
     return REFUSAL_CHECKS[check] if check else fallback
 
 
+def verified_grant_actor(token: str) -> str | None:
+    """The `actor` the operator signed into a capability. Call it only after apply_plan returned (or moved the file):
+    ApprovalVerifier.consume has then checked the signature over exactly this body (the token's part before the dot,
+    decoded the same way), so the field is the operator's. Nothing here verifies anything."""
+    try:
+        encoded = token.split(".")[0]
+        actor = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))).get("actor")
+    except (ValueError, AttributeError):
+        return None
+    return actor if isinstance(actor, str) else None
+
+
+def decision_actor(caller: Caller, body: "Decision") -> str:
+    """The caller's identity when the API requires a key, else the actor the client sent."""
+    return caller.name if caller.name is not None else body.actor
+
+
 class PlanCreate(BaseModel):
     src: str = Field(..., min_length=1, max_length=1024)
     dst: str = Field(..., min_length=1, max_length=1024)
@@ -98,7 +124,7 @@ class PlanView(BaseModel):
 
 
 class Decision(BaseModel):
-    actor: str = Field("web-ui", max_length=128)
+    actor: str = Field("web-ui", max_length=128)  # recorded only while the API is open; a key's name replaces it
     note: Optional[str] = Field(None, max_length=1000)
     approval_token: Optional[str] = Field(None, max_length=8192)
 
@@ -246,8 +272,7 @@ class PlanStore:
         try:
             return self.tools.root_identity
         except OSError as exc:
-            logger.error(f"plan store: DATA_DIR cannot be read: {type(exc).__name__}: {exc}")
-            raise HTTPException(status_code=503, detail="DATA_DIR cannot be read") from exc
+            raise failure(exc, "plan store: reading DATA_DIR", status_code=503, detail="DATA_DIR cannot be read", log=logger) from exc
 
     @staticmethod
     def _stored(what: str, call, *args):
@@ -255,8 +280,7 @@ class PlanStore:
         try:
             return call(*args)
         except Exception as exc:  # noqa: BLE001 - refused with a fixed text, the cause logged
-            logger.error(f"plan store: {what} failed: {type(exc).__name__}: {exc}")
-            raise HTTPException(status_code=503, detail=STORE_UNAVAILABLE) from exc
+            raise failure(exc, f"plan store: {what}", status_code=503, detail=STORE_UNAVAILABLE, log=logger) from exc
 
     def create(self, src: str, dst: str) -> PlanView:
         try:
@@ -302,8 +326,8 @@ class PlanStore:
                     try:
                         self.log.write(record)  # intent first: an action never runs unrecorded
                     except Exception as exc:  # noqa: BLE001 - refused, not hidden
-                        logger.error(f"decision log: writing the intent failed: {type(exc).__name__}: {exc}")
-                        raise HTTPException(status_code=503, detail=LOG_UNAVAILABLE) from exc
+                        raise failure(exc, "decision log: writing the intent", status_code=503, detail=LOG_UNAVAILABLE,
+                                      log=logger) from exc
                 if action == "approve":
                     record["result"] = self._apply(row, approval_token, record)
                     row.status = "applied"
@@ -313,14 +337,13 @@ class PlanStore:
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001 - the plans table: reading or locking the row, or saving the decision
-            logger.error(f"plan store: deciding plan {plan_id} failed: {type(exc).__name__}: {exc}")
-            raise HTTPException(status_code=503, detail=STORE_UNAVAILABLE) from exc
+            raise failure(exc, f"plan store: deciding plan {plan_id}", status_code=503, detail=STORE_UNAVAILABLE, log=logger) from exc
         if self.log is not None:
             try:
                 self.log.update(record)
             except Exception as exc:  # noqa: BLE001 - the decision is saved; only the log's copy of its result is missing
-                logger.error(f"decision log: the result of {action} on plan {plan_id} ({record['result']}) was not "
-                             f"written; its intent row reads pending: {type(exc).__name__}: {exc}")
+                report_failure(logger, f"decision log: writing the result of {action} on plan {plan_id} ({record['result']}; "
+                               "its intent row reads pending)", exc)
         return self.view(plan_id)
 
     def _apply(self, row: PlanRow, approval_token: str | None, record: dict[str, Any]) -> str:
@@ -328,7 +351,9 @@ class PlanStore:
         plan = row.move_plan()
         self.tools.load_move_plan(plan, row.review)
         try:
-            return self.tools.apply_plan(row.plan_id, approval_token=approval_token).get("status", "applied")
+            result = self.tools.apply_plan(row.plan_id, approval_token=approval_token).get("status", "applied")
+            record["grant_actor"] = verified_grant_actor(approval_token)  # the capability was verified and consumed
+            return result
         except (ApprovalRequired, PermissionError) as exc:
             text = self._result(record, "refused: ", exc, told(exc, "the file system refused the move"))
             raise HTTPException(status_code=403, detail=text) from exc
@@ -341,13 +366,14 @@ class PlanStore:
             raise HTTPException(status_code=500, detail=text) from exc
         except Exception as exc:  # noqa: BLE001 - not a refusal: the grant ledger's or the audit trail's database
             if plan.applied:  # the move ran; only the audit event written after it failed
-                logger.error(f"plan {row.plan_id} applied, but its audit event was not written: {type(exc).__name__}: {exc}")
+                report_failure(logger, f"plan {row.plan_id} applied, but writing its audit event", exc)
+                record["grant_actor"] = verified_grant_actor(approval_token)
                 return "applied"
-            logger.error(f"approval of plan {row.plan_id} not recorded: {type(exc).__name__}: {exc}")
+            error = failure(exc, f"recording the approval of plan {row.plan_id}", status_code=503, detail=NOT_RECORDED, log=logger)
             record["result"] = f"failed: {type(exc).__name__}"
             if self.log is not None:
                 self.log.update(record)
-            raise HTTPException(status_code=503, detail=NOT_RECORDED) from exc
+            raise error from exc
         finally:
             self.tools.forget_plan(row.plan_id)
 
@@ -408,10 +434,14 @@ class DecisionLog:
             conn.commit()
 
     def recent(self, limit: int = 50) -> list[dict[str, Any]]:
+        """The newest attempts. `actor` is who decided (the caller's key name with keys on); `grant_actor` is the actor
+        the operator signed into the capability of an approval that was verified, else None (from the payload)."""
+        columns = ("plan_id", "src", "dst", "action", "actor", "decided_at", "result", "grant_actor")
         with self.vsm.get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(f"SELECT plan_id, src, dst, action, actor, decided_at, result FROM {self.TABLE} ORDER BY id DESC LIMIT %s;", (limit,))
-                return [dict(zip(("plan_id", "src", "dst", "action", "actor", "decided_at", "result"), row)) for row in cur.fetchall()]
+                cur.execute(f"SELECT plan_id, src, dst, action, actor, decided_at, result, payload->>'grant_actor' FROM {self.TABLE} "
+                            "ORDER BY id DESC LIMIT %s;", (limit,))
+                return [dict(zip(columns, row)) for row in cur.fetchall()]
 
 
 def build_plan_store(vsm=None, root: str | None = None) -> PlanStore:
@@ -429,19 +459,11 @@ def build_plan_store(vsm=None, root: str | None = None) -> PlanStore:
     return PlanStore(tools, DecisionLog(vsm), PlanTable(vsm))
 
 
-def public_startup_error(error: str | None) -> str:
-    """What a client is told of a failed start: an approval configuration error as written (texts for the
-    operator, naming no path, table or address), any other error by its class only; the server log has it all."""
-    if not error:
-        return "plan store not initialised"
-    kind = error.split(":", 1)[0].strip()
-    return error if kind == "ApprovalError" else f"{kind} (the server log has the reason)"
-
-
 def _store(request: Request) -> PlanStore:
     store = getattr(request.app.state, "plans", None)
-    if store is None:
-        detail = public_startup_error(getattr(request.app.state, "startup_error", None))
+    if store is None:  # a failed start: an approval configuration error as written, any other by its class and log id
+        detail = public_startup_error(getattr(request.app.state, "startup_error", None),
+                                      getattr(request.app.state, "startup_error_id", None), missing="plan store not initialised")
         raise HTTPException(status_code=503, detail=f"plans unavailable: {detail}")
     return store
 
@@ -464,8 +486,7 @@ async def recent_decisions(request: Request, limit: int = Query(50, ge=1, le=MAX
     try:
         return await run_in_threadpool(store.log.recent, limit)
     except Exception as exc:  # noqa: BLE001 - a fixed text for the client, the cause logged
-        logger.error(f"decision log: reading failed: {type(exc).__name__}: {exc}")
-        raise HTTPException(status_code=503, detail="decision log unavailable") from exc
+        raise failure(exc, "decision log: reading", status_code=503, detail="decision log unavailable", log=logger) from exc
 
 
 @r.get("/{plan_id}", response_model=PlanView)
@@ -474,12 +495,15 @@ async def get_plan(plan_id: str, request: Request) -> PlanView:
 
 
 @r.post("/{plan_id}/approve", response_model=PlanView)
-async def approve_plan(plan_id: str, request: Request, body: Decision | None = None) -> PlanView:
+async def approve_plan(plan_id: str, request: Request, body: Decision | None = None,
+                       caller: Caller = Depends(require_api_key)) -> PlanView:
     body = body or Decision()
-    return await run_in_threadpool(_store(request).decide, plan_id, "approve", body.actor, body.note, body.approval_token)
+    return await run_in_threadpool(_store(request).decide, plan_id, "approve", decision_actor(caller, body), body.note,
+                                   body.approval_token)
 
 
 @r.post("/{plan_id}/reject", response_model=PlanView)
-async def reject_plan(plan_id: str, request: Request, body: Decision | None = None) -> PlanView:
+async def reject_plan(plan_id: str, request: Request, body: Decision | None = None,
+                      caller: Caller = Depends(require_api_key)) -> PlanView:
     body = body or Decision()
-    return await run_in_threadpool(_store(request).decide, plan_id, "reject", body.actor, body.note)
+    return await run_in_threadpool(_store(request).decide, plan_id, "reject", decision_actor(caller, body), body.note)

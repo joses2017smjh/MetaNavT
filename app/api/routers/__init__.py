@@ -5,8 +5,9 @@ tree. The lightweight mobile fixture can therefore use the same retrieval
 contract with just FastAPI, while ``main:app`` retains every production route.
 
 ``api_router`` carries the two opt-in dependencies from app/api/security.py: the
-API key check (METANAVIT_API_KEY) and the per-replica request budget
-(RATE_LIMIT_PER_MINUTE). Both do nothing unless configured. An individual
+API key check (METANAVIT_API_KEY, METANAVIT_API_KEYS_FILE), which also says who
+the caller is, and the per-replica request budget (RATE_LIMIT_PER_MINUTE). Both
+do nothing unless configured. An individual
 router imported on its own, as the mobile fixture does, does not carry them.
 """
 

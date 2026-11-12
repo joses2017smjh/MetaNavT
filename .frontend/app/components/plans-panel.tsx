@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import { apiFetch, useApiKeyVersion } from "./ui/chat/hooks/api-key";
 import { useClientConfig } from "./ui/chat/hooks/use-config";
 import { Input } from "./ui/input";
 
 // Human-in-the-loop file plans. A plan is a proposed move; nothing on disk changes
 // until a separately issued, reviewed approval token is verified by the server.
 // The UI cannot issue tokens and never stores them in browser persistence.
+// Requests go through apiFetch, which adds the API key the user entered (ApiKeyField); with keys
+// on, the server records the key's name as the actor, whatever the actor field says.
 
 export interface Plan {
   plan_id: string;
@@ -40,10 +43,11 @@ export default function PlansPanel() {
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const keyVersion = useApiKeyVersion();
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch(`${base}/`);
+      const response = await apiFetch(`${base}/`);
       if (!response.ok) throw new Error(await readError(response));
       setPlans((await response.json()) as Plan[]);
       setError(null);
@@ -52,15 +56,16 @@ export default function PlansPanel() {
     }
   }, [base]);
 
+  // again when the key changes: a list refused without the key is fetched with it
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, keyVersion]);
 
   const post = useCallback(
     async (url: string, body: unknown) => {
       setBusy(url);
       try {
-        const response = await fetch(url, {
+        const response = await apiFetch(url, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
@@ -144,7 +149,7 @@ export default function PlansPanel() {
           className="min-w-[16rem] flex-1"
         />
         <Input
-          placeholder="your name (logged)"
+          placeholder="your name (logged if the API has no keys)"
           value={actor}
           onChange={(e) => setActor(e.target.value)}
           className="w-40"
