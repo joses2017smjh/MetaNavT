@@ -1,6 +1,6 @@
 # Override: real models on CPU (what the image ships; no CUDA wheels).
 #   docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
-# Installs the `ml` extra with CPU torch, embeds with BAAI/bge-small-en-v1.5
+# Installs the `ml` extra from requirements/ml.txt (pinned, torch's CPU wheel), embeds with BAAI/bge-small-en-v1.5
 # (about 130 MB, 384 dims) and reranks the fused top 20 with
 # BAAI/bge-reranker-v2-m3 (about 2.2 GB, fp32 on CPU, max_length 512). The
 # pgvector table is created with EMBEDDING_DIM, so drop the volume when

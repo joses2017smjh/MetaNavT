@@ -32,6 +32,8 @@ PROFILES: dict[str, tuple[str, ...]] = {
     "requirements/agent.txt": ("eval", "mobile", "agent"),
     "requirements/dev.txt": ("dev",),
     "requirements/distill.txt": ("distill",),
+    "requirements/ml.txt": ("ml",),  # the image's EXTRAS=...,ml layer; torch is the CPU wheel (+cpu)
+    "requirements/otel.txt": ("otel",),  # the image's EXTRAS=...,otel layer
 }
 PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)")
 

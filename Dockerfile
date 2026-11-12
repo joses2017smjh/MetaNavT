@@ -2,7 +2,8 @@
 # API image. Default build is API-only with the `app` extra (no torch) and the
 # deterministic hash embedder; see docker-compose.yml for the knobs.
 #   docker build .                                      # API only
-#   docker build --build-arg EXTRAS=app,ml .            # + torch, sentence-transformers, HF embeddings
+#   docker build --build-arg EXTRAS=app,ml .            # + torch (CPU), sentence-transformers, HF embeddings
+#   docker build --build-arg EXTRAS=app,otel .          # + OpenTelemetry exporter
 #   docker build --build-arg WITH_FRONTEND=1 .          # + Next.js static export served at /
 ARG WITH_FRONTEND=0
 
@@ -22,28 +23,39 @@ FROM frontend-${WITH_FRONTEND} AS frontend
 # ---- API -------------------------------------------------------------------
 FROM python:3.11-slim AS api
 ARG EXTRAS=app
-ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+# Empty: torch is the CPU wheel pinned in requirements/ml.txt. docker-compose.gpu.yml sets a CUDA
+# wheel index here; torch is then the same release from that index, and the CUDA packages it
+# requires are resolved at build time (no lock file covers them; that build is by hand only).
+ARG TORCH_INDEX_URL=
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app
 WORKDIR /app
 
-# Dependencies first (cached layer), from the lock: requirements/app.txt is the pinned
-# `app` extra written by `make lock`, installed exactly as committed. The default build
-# (EXTRAS=app) resolves nothing else.
-# Extras with no pinned file (ml, otel) are still ranges from pyproject.toml; they are
-# installed afterwards with the pinned file as a constraint, so they can add packages
-# but cannot move a pinned one. Torch comes from the selected wheel index before the
-# ml extra. CPU remains the default; docker-compose.gpu.yml explicitly selects CUDA wheels.
-COPY pyproject.toml scripts/print_deps.py requirements/app.txt ./scripts/
-RUN mv scripts/pyproject.toml . \
-    && pip install -r scripts/app.txt \
-    && if [ "${EXTRAS}" != "app" ]; then \
-         (case ",${EXTRAS}," in *,ml,*) pip install torch --index-url "${TORCH_INDEX_URL}" ;; esac) \
-         && python scripts/print_deps.py "${EXTRAS}" > /tmp/extras.txt \
-         && pip install -c scripts/app.txt -r /tmp/extras.txt ; \
-       fi
+# Dependencies first (cached layer), from the lock (`make lock`): requirements/app.txt, then
+# the pinned file of every other extra in EXTRAS (requirements/ml.txt, requirements/otel.txt),
+# each with --no-deps, so nothing is resolved and nothing outside the files is installed.
+# Every file is compiled under requirements.txt as a constraint, so a package two files share
+# has one version; pip check confirms the files fit together. An extra with no pinned file
+# stops the build.
+COPY requirements/ ./requirements/
+RUN set -eu; \
+    pip install --no-deps -r requirements/app.txt; \
+    for extra in $(echo "${EXTRAS}" | tr ',' ' '); do \
+      if [ "${extra}" = app ]; then continue; fi; \
+      if [ ! -f "requirements/${extra}.txt" ]; then \
+        echo "EXTRAS=${EXTRAS}: no pinned file requirements/${extra}.txt (make lock writes one per extra)" >&2; exit 1; \
+      fi; \
+      if [ "${extra}" = ml ] && [ -n "${TORCH_INDEX_URL:-}" ]; then \
+        grep -v '^torch==' requirements/ml.txt > "${TMPDIR:-/tmp}/ml-without-torch.txt"; \
+        pip install --no-deps -r "${TMPDIR:-/tmp}/ml-without-torch.txt"; \
+        pip install "torch==$(sed -n 's/^torch==\([^+]*\)+cpu$/\1/p' requirements/ml.txt)" --index-url "${TORCH_INDEX_URL}"; \
+      else \
+        pip install --no-deps -r "requirements/${extra}.txt"; \
+      fi; \
+    done; \
+    pip check
 
 # Source tree, installed in place so bench/ and app/ resolve from /app.
 COPY . .

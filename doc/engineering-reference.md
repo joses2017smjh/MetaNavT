@@ -1684,14 +1684,27 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 `pyproject.toml` is the single dependency spec (version ranges). `make lock`
 resolves it into pinned files: `requirements.txt` (eval + app) and one
 `requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
-`agent`, `dev`), each compiled under `requirements.txt` as a constraint so a
-package has the same version in every file. The image and every CI job install
-their pinned file first and then the package with `--no-deps`
-(`make install-locked` does the same locally); `make lock-check`, which is
+`agent`, `dev`, `distill`, `ml`, `otel`), each compiled under `requirements.txt` as a constraint so a
+package has the same version in every file. Every CI job installs its pinned
+file first and then the package with `--no-deps`
+(`make install-locked` does the same locally). The image installs
+`requirements/app.txt`, then the file of each other extra named in its
+`EXTRAS` build argument (`ml`, `otel`), all with `--no-deps`, and runs
+`pip check`; an extra with no pinned file stops the build.
+`requirements/ml.txt` is resolved with PyTorch's CPU wheel index next to PyPI,
+so torch is pinned as its CPU build and the file holds no CUDA package. The
+image's three files also pin setuptools: `llama-index-core` and torch need a
+newer one than the base image ships, which pip used to fetch, unpinned, while
+it resolved `app.txt`. There is no Docker on the development host, so
+`tests/eval/test_image_build.py` runs the image's install step under `sh` with
+a stand-in `pip`. The CUDA override (`docker-compose.gpu.yml`, built by hand
+only) takes every ml pin but torch from `requirements/ml.txt` and installs the
+same torch release from the CUDA wheel index that file names; the CUDA packages
+torch requires are resolved at build time, so that build is not reproducible
+from a lock file. The torch range in `pyproject.toml` stops below the first
+release that index lacks. `make lock-check`, which is
 also a test and a CI step, fails when a pinned file no longer covers
-`pyproject.toml`. The `ml` and `otel` extras have no pinned file: the image
-installs them from their ranges with the pinned app file as a constraint, so
-they are not reproducible to the same degree. `make lint` runs ruff with the
+`pyproject.toml`. `make lint` runs ruff with the
 narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
 names, shadowed imports); CI runs it as its own job.
 
@@ -1755,7 +1768,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans still live in one API process's memory. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included; the CUDA packages of the hand-built GPU override and the base images are not pinned.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 

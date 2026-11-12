@@ -1,0 +1,103 @@
+"""The image's dependency step installs only the pinned files (no Docker needed).
+
+There is no Docker on the development host, so the Dockerfile's install step is run here as the build runs it: the
+RUN line under `sh -c`, with the build arguments as environment variables, from a directory holding the committed
+requirements files, and a stand-in `pip` that records its arguments. CI's docker-smoke job builds the default image
+(EXTRAS=app) and docker-ml-smoke the ml one; the CUDA override (docker-compose.gpu.yml) is built by hand only.
+"""
+
+import importlib.util
+import os
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+_spec = importlib.util.spec_from_file_location("check_lock", ROOT / "scripts" / "check_lock.py")
+check_lock = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(check_lock)
+
+STAND_IN_PIP = """#!/bin/sh
+echo "$*" >> "$PIP_LOG"
+case "$*" in *"$PIP_FAIL_ON"*) [ -n "$PIP_FAIL_ON" ] && exit 1 ;; esac
+exit 0
+"""
+
+
+def _dependency_step() -> str:
+    """The RUN instruction that installs the requirements files, joined as Docker joins continued lines."""
+    text = (ROOT / "Dockerfile").read_text().replace("\\\n", "")
+    runs = [line.strip()[len("RUN "):] for line in text.splitlines() if line.strip().startswith("RUN ")]
+    (step,) = [run for run in runs if "requirements/app.txt" in run]
+    return step
+
+
+def _build(tmp_path: Path, extras: str, torch_index_url: str = "", fail_on: str = ""):
+    context = tmp_path / "context"
+    (context / "requirements").mkdir(parents=True)
+    for name in ("app", "ml", "otel"):
+        shutil.copy(ROOT / "requirements" / f"{name}.txt", context / "requirements" / f"{name}.txt")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "pip").write_text(STAND_IN_PIP)
+    (bin_dir / "pip").chmod(0o755)
+    log = tmp_path / "pip.log"
+    log.touch()
+    env = {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "EXTRAS": extras, "TORCH_INDEX_URL": torch_index_url,
+           "TMPDIR": str(tmp_path), "PIP_LOG": str(log), "PIP_FAIL_ON": fail_on}
+    done = subprocess.run(["sh", "-c", _dependency_step()], cwd=context, env=env, capture_output=True, text=True,
+                          timeout=60)
+    return done, log.read_text().splitlines()
+
+
+def _torch_version() -> str:
+    return check_lock.read_pins(ROOT / "requirements" / "ml.txt")["torch"].split("+")[0]
+
+
+@pytest.mark.parametrize("extras, files", [
+    ("app", ["app"]),
+    ("app,ml", ["app", "ml"]),
+    ("app,otel", ["app", "otel"]),
+    ("app,ml,otel", ["app", "ml", "otel"]),
+])
+def test_each_extra_comes_from_its_pinned_file_with_no_resolution(tmp_path, extras, files):
+    done, calls = _build(tmp_path, extras)
+    assert done.returncode == 0, done.stderr
+    assert calls == [f"install --no-deps -r requirements/{name}.txt" for name in files] + ["check"]
+
+
+def test_an_extra_with_no_pinned_file_stops_the_build(tmp_path):
+    done, calls = _build(tmp_path, "app,gpu")
+    assert done.returncode != 0
+    assert "gpu" in done.stderr
+    assert "check" not in calls
+
+
+def test_a_failed_install_stops_the_build(tmp_path):
+    done, calls = _build(tmp_path, "app,ml,otel", fail_on="requirements/ml.txt")
+    assert done.returncode != 0
+    assert calls == ["install --no-deps -r requirements/app.txt", "install --no-deps -r requirements/ml.txt"]
+
+
+def test_the_cuda_override_installs_the_locked_torch_version_from_its_index(tmp_path):
+    """docker-compose.gpu.yml names a CUDA wheel index: every other ml pin still comes from the file, and torch is the
+    same release from that index (its CUDA packages are resolved at build time; no lock file covers them)."""
+    (cuda_index,) = re.findall(r"TORCH_INDEX_URL:\s*(\S+)", (ROOT / "docker-compose.gpu.yml").read_text())
+    done, calls = _build(tmp_path, "app,ml", torch_index_url=cuda_index)
+    assert done.returncode == 0, done.stderr
+    without_torch = tmp_path / "ml-without-torch.txt"
+    assert calls == ["install --no-deps -r requirements/app.txt", f"install --no-deps -r {without_torch}",
+                     f"install torch=={_torch_version()} --index-url {cuda_index}", "check"]
+    kept = (ROOT / "requirements" / "ml.txt").read_text().splitlines()
+    assert without_torch.read_text().splitlines() == [line for line in kept if not line.startswith("torch==")]
+
+
+def test_the_image_resolves_no_version_range():
+    """Before M33 the ml and otel extras were installed from pyproject.toml's ranges (scripts/print_deps.py) under
+    `-c requirements/app.txt`, and torch with no version."""
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    assert "print_deps" not in dockerfile
+    assert "pip install torch " not in dockerfile and " -c " not in _dependency_step()
