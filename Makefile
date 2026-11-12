@@ -253,9 +253,10 @@ explain-sql-synthetic: ## the same over 10k generated hash-vector rows in a scra
 	$(PYTHON) scripts/explain_hybrid.py --synthetic-rows 10000 --out doc/sql/hybrid_explain_synthetic_10k.txt
 
 # ---- served path at scale (GPU node + Apptainer; app/eval/served_scale.py) ----
-# FiQA written one file per document, indexed by app/engine/ingest.index_directory into a task-local
-# PostgreSQL 16 + pgvector (Apptainer image PGVECTOR_SIF) with bge-small, scored through POST /api/retrieve/
-# and paired with the in-memory BEIR rows in the same job. SERVED_SCALE_SCRATCH: node-local disk for the
+# FiQA written one file per document and taken through the deploy order into a task-local PostgreSQL 16 +
+# pgvector (Apptainer image PGVECTOR_SIF) with bge-small: the migrations, a timed build (index_directory with the
+# index step's arguments), the index step itself (python -m app.engine.ingest, which must find nothing to embed),
+# the API; scored through POST /api/retrieve/ and paired with the in-memory BEIR rows in the same job. SERVED_SCALE_SCRATCH: node-local disk for the
 # corpus files and the database; SERVED_SCALE_STATE: where each stage's results and the database snapshot
 # go (shared storage lets a resumed run, SERVED_SCALE_ARGS=--resume, continue on another node).
 # BEIR_DATA_DIR (above) holds FiQA and the BEIR embedding cache.
