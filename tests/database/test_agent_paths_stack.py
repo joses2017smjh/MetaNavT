@@ -13,12 +13,19 @@ import json
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.skipif(not os.environ.get("PG_TEST_DSN"), reason="PG_TEST_DSN not set")
 
 MODEL = "fake-tools:0b"
+FIXTURE = Path(__file__).resolve().parents[2] / "bench" / "corpus" / "files"
+# The file tools as a model calls them: the list with no arguments, a listed file, a path the index does not
+# hold, the list with a pattern; then the scripted model answers.
+FILE_TOOL_CALLS = [("list_available_files", {}), ("get_file_content", {"file_path": "configs/run_047.yaml"}),
+                   ("get_file_content", {"file_path": "configs/missing.yaml"}),
+                   ("list_available_files", {"pattern": "configs/*.yaml"})]
 
 
 def _companion_reply(messages):
@@ -37,8 +44,13 @@ def _companion_reply(messages):
                                                         "abstain": False, "reason": ""})}
 
 
-def _chat_reply(messages):
+def _chat_reply(messages, plan=None):
     tools = [m for m in messages if m["role"] == "tool"]
+    if plan is not None:  # one planned call per turn, in order, then an answer
+        if len(tools) < len(plan):
+            name, arguments = plan[len(tools)]
+            return {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": name, "arguments": arguments}}]}
+        return {"role": "assistant", "content": "Scripted answer from the file tools."}
     if not tools:
         user = [m for m in messages if m["role"] == "user"][-1]["content"]
         return {"role": "assistant", "content": "", "tool_calls": [
@@ -47,11 +59,13 @@ def _chat_reply(messages):
 
 
 class FakeOllama(ThreadingHTTPServer):
-    """Ollama's HTTP API as the two clients use it; replies come from _companion_reply and _chat_reply."""
+    """Ollama's HTTP API as the two clients use it; replies come from _companion_reply and _chat_reply (with
+    chat_plan, the chat model's tool calls in order)."""
 
-    def __init__(self):
+    def __init__(self, chat_plan=None):
         super().__init__(("127.0.0.1", 0), _Handler)
         self.requests = []
+        self.chat_plan = chat_plan
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
 
     @property
@@ -107,7 +121,7 @@ class _Handler(BaseHTTPRequestHandler):
         if "search_research" in names:
             message = _companion_reply(body["messages"])
         elif names:
-            message = _chat_reply(body["messages"])
+            message = _chat_reply(body["messages"], self.server.chat_plan)
         else:  # the query engine's synthesis call: no tools
             message = {"role": "assistant", "content": "Scripted synthesis."}
         done = {"model": MODEL, "created_at": "2026-01-01T00:00:00Z", "message": message, "done": True,
@@ -195,3 +209,32 @@ def test_chat_route_smoke_run_end_to_end(tmp_path):
     assert report["chat_llm"]["model"] == MODEL and report["summary"]["/api/chat/request"]["code_tool_calls"] == 0
     assert report["working_tree_dirty"] == bool(report["working_tree_changes"])
     assert not _names_this_account(out.read_text())
+
+
+def test_the_file_tools_answer_on_the_served_stack_as_the_agent_calls_them(tmp_path):
+    # Through uvicorn main:app after the deploy and index steps, llama-index's Ollama client and the agent workflow:
+    # the model's arguments only (none for the first list), and the smoke runner's reading of the route's JSON.
+    from app.eval import chat_smoke as smoke
+
+    dsn = os.environ["PG_TEST_DSN"]
+    with FakeOllama(chat_plan=FILE_TOOL_CALLS) as ollama:
+        out = tmp_path / "chat_route_smoke.json"
+        assert smoke.main(["--model", MODEL, "--ollama-url", ollama.url, "--pg-dsn", dsn, "--limit", "1",
+                           "--out", str(out), "--log-dir", str(tmp_path / "logs")]) == 0
+    report = json.loads(out.read_text())
+    request = next(r for r in report["rows"] if r["route"] == "/api/chat/request")
+    assert [(c["name"], c["arguments"]) for c in request["tools"]] == FILE_TOOL_CALLS
+    listed, content, missing, pattern = request["tools"]
+    paths = sorted(p.relative_to(FIXTURE).as_posix() for p in FIXTURE.rglob("*") if p.is_file())
+    # the model got the list's text: every file of the task-local fixture copy (the served index), not an error
+    assert not listed["is_error"] and not listed["returned_error_text"] and listed["output_chars"] == len(str(paths))
+    # the listed file's whole text, read from the index
+    text = (FIXTURE / "configs" / "run_047.yaml").read_bytes().decode("utf-8")
+    assert not content["is_error"] and not content["returned_error_text"] and not content["returned_not_found"]
+    assert content["output_chars"] == len(text)
+    assert missing["returned_not_found"] and not missing["is_error"] and not missing["returned_error_text"]
+    configs = [p for p in paths if p.startswith("configs/") and p.endswith(".yaml")]
+    assert not pattern["is_error"] and pattern["output_chars"] == len(str(configs))
+    summary = report["summary"]["/api/chat/request"]
+    assert summary["tool_calls_raised"] == {} and summary["tool_calls_returned_error_text"] == {}
+    assert summary["tool_calls_returned_not_found"] == {"get_file_content": 1}
