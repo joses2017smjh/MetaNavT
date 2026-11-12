@@ -1,7 +1,7 @@
 {
-  "git_sha": "1d8cbc1",
-  "timestamp": "2026-11-11T06:44:56.316461+00:00",
-  "command": "python -m app.eval.harness --backend api --url http://127.0.0.1:39209 --out bench/results/parity_shared_chunker_restart.json",
+  "git_sha": "c445848",
+  "timestamp": "2026-11-11T23:14:08.358552+00:00",
+  "command": "python -m app.eval.harness --backend api --url http://127.0.0.1:55467 --out bench/results/parity_shared_chunker_restart.json",
   "device": {
     "requested": "cpu",
     "python": "3.11.16",
@@ -40,6 +40,14 @@
     },
     "required_device": null,
     "bm25_backend": "ts_rank_cd",
+    "dense_search": {
+      "depth": 50,
+      "settings": {
+        "hnsw.ef_search": 100,
+        "hnsw.iterative_scan": "strict_order"
+      },
+      "pgvector": "0.8.6"
+    },
     "retrieval_mode": "sql",
     "reranker_loaded": false,
     "reranker": {
@@ -116,12 +124,12 @@
   "gap": {
     "metric": "ndcg@10",
     "in_memory": 0.5159,
-    "api": 0.5858,
-    "gap": 0.0699,
+    "api": 0.6024,
+    "gap": 0.0865,
     "paired_delta_api_minus_in_memory": {
-      "delta": 0.0699,
-      "lo": 0.0259,
-      "hi": 0.1135
+      "delta": 0.0865,
+      "lo": 0.0484,
+      "hi": 0.1231
     }
   },
   "api_ok": true,
@@ -229,36 +237,36 @@
       "latency": {
         "route": {
           "n": 136,
-          "p50_ms": 0.01,
-          "p95_ms": 0.02,
-          "mean_ms": 0.01
+          "p50_ms": 0.02,
+          "p95_ms": 0.03,
+          "mean_ms": 0.02
         },
         "bm25": {
           "n": 136,
-          "p50_ms": 0.21,
-          "p95_ms": 0.29,
-          "mean_ms": 0.21
+          "p50_ms": 0.06,
+          "p95_ms": 0.12,
+          "mean_ms": 0.07
         },
         "embed": {
           "n": 128,
-          "p50_ms": 0.2,
-          "p95_ms": 0.28,
-          "mean_ms": 0.22
+          "p50_ms": 0.26,
+          "p95_ms": 0.37,
+          "mean_ms": 0.26
         },
         "vector_search": {
           "n": 128,
-          "p50_ms": 0.01,
+          "p50_ms": 0.02,
           "p95_ms": 0.02,
-          "mean_ms": 0.01
+          "mean_ms": 0.02
         },
         "lexical": {
           "n": 8,
-          "p50_ms": 0.32,
-          "p95_ms": 0.36,
-          "mean_ms": 0.33
+          "p50_ms": 0.43,
+          "p95_ms": 0.49,
+          "mean_ms": 0.43
         }
       },
-      "wall_ms": 85.33,
+      "wall_ms": 77.74,
       "routes": {
         "semantic": 95,
         "aggregation_query": 33,
@@ -310,7 +318,7 @@
     {
       "config": "api:postgres",
       "settings": {
-        "url": "http://127.0.0.1:39209",
+        "url": "http://127.0.0.1:55467",
         "k": 50,
         "route": "semantic",
         "retrieval_mode": "sql",
@@ -324,12 +332,12 @@
         }
       },
       "retrieval": {
-        "ndcg@10": 0.5858,
-        "recall@5": 0.7223,
-        "recall@10": 0.7988,
-        "recall@50": 0.9467,
-        "mrr@10": 0.5473,
-        "mean_unique_paths@50": 40.77,
+        "ndcg@10": 0.6024,
+        "recall@5": 0.7444,
+        "recall@10": 0.8208,
+        "recall@50": 0.9614,
+        "mrr@10": 0.562,
+        "mean_unique_paths@50": 40.82,
         "n_queries": 136,
         "by_category": {
           "simple_factual": {
@@ -375,10 +383,10 @@
             "n": 8.0
           },
           "exact_path": {
-            "ndcg@10": 0.625,
-            "recall@10": 0.625,
-            "recall@50": 0.75,
-            "mrr@10": 0.625,
+            "ndcg@10": 0.9077,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.875,
             "n": 8.0
           },
           "semantic": {
@@ -390,88 +398,263 @@
           }
         },
         "n_files": 61,
-        "random_recall@5": 0.0804,
-        "random_recall@10": 0.16,
-        "random_recall@50": 0.6684
+        "random_recall@5": 0.081,
+        "random_recall@10": 0.1606,
+        "random_recall@50": 0.6691
       },
       "latency": {
         "e2e": {
           "n": 136,
-          "p50_ms": 7.41,
-          "p95_ms": 8.61,
-          "mean_ms": 7.3
+          "p50_ms": 9.29,
+          "p95_ms": 11.03,
+          "mean_ms": 9.34
         },
         "server:route": {
           "n": 136,
           "p50_ms": 0.02,
-          "p95_ms": 0.03,
+          "p95_ms": 0.04,
           "mean_ms": 0.02
         },
         "server:embed": {
           "n": 128,
-          "p50_ms": 0.34,
-          "p95_ms": 0.44,
-          "mean_ms": 0.35
+          "p50_ms": 0.41,
+          "p95_ms": 0.54,
+          "mean_ms": 0.43
         },
         "server:hybrid_sql": {
           "n": 136,
-          "p50_ms": 4.76,
-          "p95_ms": 5.55,
-          "mean_ms": 4.63
+          "p50_ms": 6.14,
+          "p95_ms": 7.51,
+          "mean_ms": 6.17
         },
         "server:staleness": {
           "n": 136,
-          "p50_ms": 0.22,
-          "p95_ms": 0.27,
-          "mean_ms": 0.23
+          "p50_ms": 0.27,
+          "p95_ms": 0.34,
+          "mean_ms": 0.27
         },
         "server:total": {
           "n": 136,
-          "p50_ms": 5.76,
-          "p95_ms": 6.82,
-          "mean_ms": 5.66
+          "p50_ms": 7.41,
+          "p95_ms": 9.02,
+          "mean_ms": 7.44
         }
       },
-      "wall_ms": 995.42,
+      "wall_ms": 1273.11,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
       "n_queries": 136,
       "zero_hit_queries": [],
       "ci": {
         "ndcg@10": {
-          "mean": 0.5858,
-          "lo": 0.5383,
-          "hi": 0.6375
+          "mean": 0.6024,
+          "lo": 0.5567,
+          "hi": 0.6507
         },
         "recall@10": {
-          "mean": 0.7988,
-          "lo": 0.7483,
-          "hi": 0.8488
+          "mean": 0.8208,
+          "lo": 0.7749,
+          "hi": 0.8678
         },
         "recall@50": {
-          "mean": 0.9467,
-          "lo": 0.9154,
-          "hi": 0.9743
+          "mean": 0.9614,
+          "lo": 0.9375,
+          "hi": 0.9835
         }
       },
       "delta_vs_bm25_only": null,
       "delta_vs_previous": {
         "reference": "in_memory:hybrid+router+staleness",
         "ndcg@10": {
-          "delta": 0.0699,
-          "lo": 0.0259,
-          "hi": 0.1135
+          "delta": 0.0865,
+          "lo": 0.0484,
+          "hi": 0.1231
         },
         "recall@10": {
-          "delta": 0.0934,
-          "lo": 0.0422,
-          "hi": 0.1454
+          "delta": 0.1155,
+          "lo": 0.074,
+          "hi": 0.1607
         },
         "recall@50": {
-          "delta": 0.007,
-          "lo": -0.0224,
-          "hi": 0.0349
+          "delta": 0.0217,
+          "lo": 0.0033,
+          "hi": 0.0419
         }
       },
-      "delta_vs_parent_by_category": null
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1547,
+            "lo": 0.0866,
+            "hi": 0.2483
+          },
+          "recall@10": {
+            "delta": 0.0853,
+            "lo": 0.0375,
+            "hi": 0.1374
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.2606,
+            "lo": 0.1246,
+            "hi": 0.3934
+          },
+          "recall@10": {
+            "delta": 0.1875,
+            "lo": 0.0625,
+            "hi": 0.375
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1048,
+            "lo": 0.0216,
+            "hi": 0.1779
+          },
+          "recall@10": {
+            "delta": 0.1688,
+            "lo": -0.0125,
+            "hi": 0.3375
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.075
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0298,
+            "lo": -0.1384,
+            "hi": 0.0491
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1524,
+            "lo": 0.0579,
+            "hi": 0.2684
+          },
+          "recall@10": {
+            "delta": 0.125,
+            "lo": 0.0,
+            "hi": 0.3125
+          },
+          "recall@50": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0511,
+            "lo": -0.2356,
+            "hi": 0.1334
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0417,
+            "lo": 0.0,
+            "hi": 0.125
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": 0.0675,
+            "lo": 0.0172,
+            "hi": 0.1196
+          },
+          "recall@10": {
+            "delta": 0.1125,
+            "lo": 0.0563,
+            "hi": 0.1812
+          },
+          "recall@50": {
+            "delta": 0.025,
+            "lo": 0.0,
+            "hi": 0.0563
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+router+staleness",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1536,
+            "lo": 0.0264,
+            "hi": 0.3333
+          },
+          "recall@10": {
+            "delta": 0.25,
+            "lo": 0.0,
+            "hi": 0.625
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ]
     }
   ]
 }

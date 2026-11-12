@@ -1,0 +1,724 @@
+{
+  "git_sha": "2ca5fa1",
+  "timestamp": "2026-11-11T23:35:45.261957+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.harness --backend api --url http://127.0.0.1:38937 --out bench/results/parity_neural.json --parity-config in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.52.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "in_memory_config": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+  "settings": {
+    "embedding_model": {
+      "in_memory": "BAAI/bge-small-en-v1.5",
+      "api": "BAAI/bge-small-en-v1.5"
+    },
+    "query_instruction": {
+      "in_memory": "",
+      "api": ""
+    },
+    "retrieve_k": {
+      "in_memory": 50,
+      "api": 50
+    },
+    "router": {
+      "in_memory": true,
+      "api": true
+    },
+    "reranker": {
+      "in_memory": "BAAI/bge-reranker-v2-m3",
+      "api": "BAAI/bge-reranker-v2-m3"
+    },
+    "rerank_depth": {
+      "in_memory": 20,
+      "api": 20
+    },
+    "rerank_precision": {
+      "in_memory": "fp16",
+      "api": "fp16"
+    },
+    "rerank_max_length": {
+      "in_memory": 512,
+      "api": 512
+    },
+    "staleness": {
+      "in_memory": "before the rerank",
+      "api": "before the rerank"
+    }
+  },
+  "settings_differ": [],
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 136,
+  "n_files": 61,
+  "mtimes": {
+    "in_memory": {
+      "source": "manifest",
+      "file": "bench/corpus/MANIFEST.json",
+      "field": "files[].mtime"
+    },
+    "api": {
+      "source": "disk",
+      "dir": "bench/corpus/files",
+      "equal_to_manifest": true
+    }
+  },
+  "api_health": {
+    "status": "ok",
+    "n_nodes": 71,
+    "embedding_provider": "huggingface",
+    "embed_model": "HuggingFaceEmbedding",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "embedding_query_instruction": "",
+    "devices": {
+      "embedding": "cuda:0",
+      "reranker": "cuda:0"
+    },
+    "required_device": "cuda",
+    "bm25_backend": "ts_rank_cd",
+    "dense_search": {
+      "depth": 50,
+      "settings": {
+        "hnsw.ef_search": 100,
+        "hnsw.iterative_scan": "strict_order"
+      },
+      "pgvector": "0.8.6"
+    },
+    "retrieval_mode": "sql",
+    "reranker_loaded": true,
+    "reranker": {
+      "configured": true,
+      "loaded": true,
+      "model": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "device": "cuda:0",
+      "precision": "fp16",
+      "max_length": 512,
+      "depth": 20,
+      "error": null,
+      "dtype": "torch.float16"
+    },
+    "degraded": [],
+    "indexing": {
+      "schema": "ingest-report-v1",
+      "chunker": "app/chunking (structure-aware)",
+      "files_seen": 61,
+      "files_indexed": 61,
+      "files_unchanged": 0,
+      "files_removed": 0,
+      "files_rejected": 0,
+      "indexed_new": 61,
+      "indexed_changed": 0,
+      "rejected_by_reason": {
+        "unsupported_type": 0,
+        "too_large": 0,
+        "undecodable": 0,
+        "empty": 0,
+        "duplicate_content": 0
+      },
+      "rejected_sample": [],
+      "max_rejected": 0,
+      "indexed": true,
+      "data_dir": "bench/corpus/files",
+      "pipeline": "app.chunking/auto/v1|BAAI/bge-small-en-v1.5",
+      "chunks_embedded": 71,
+      "chunks_deleted": 0,
+      "unlisted_chunks_deleted": 0,
+      "n_nodes": 71,
+      "lock": {
+        "waited": false,
+        "waited_ms": 0.2
+      }
+    },
+    "observability": {
+      "log_format": "text",
+      "tracing": {
+        "configured": true,
+        "enabled": false,
+        "reason": "OTEL_EXPORTER_OTLP_ENDPOINT not set"
+      }
+    },
+    "auth": {
+      "enabled": false,
+      "scheme": "X-API-Key header or Authorization: Bearer",
+      "scope": "<path>/api routes and <path>/files mounts; <path>/health is always open"
+    },
+    "rate_limit": {
+      "enabled": false,
+      "per_minute": null,
+      "burst": null,
+      "scope": "per replica (in-process buckets)"
+    }
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 136,
+    "level": 0.95
+  },
+  "gap": {
+    "metric": "ndcg@10",
+    "in_memory": 0.8242,
+    "api": 0.8138,
+    "gap": -0.0104,
+    "paired_delta_api_minus_in_memory": {
+      "delta": -0.0104,
+      "lo": -0.0362,
+      "hi": 0.0152
+    }
+  },
+  "api_ok": true,
+  "api_problems": [],
+  "results": [
+    {
+      "config": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+      "settings": {
+        "name": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "retrieve_k": 50,
+        "rerank_n": 8,
+        "enable_router": true,
+        "enable_rerank": true,
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "chunk_strategy": "auto",
+        "mode": "hybrid",
+        "graph_hops": 0,
+        "staleness_tier1": true,
+        "e2e": false,
+        "log_triples": false,
+        "jury": false,
+        "hipporag": false,
+        "multi_query": false,
+        "hyde": false,
+        "decompose": false,
+        "corrective": false,
+        "adaptive": false,
+        "graphrag": false,
+        "contextual": false,
+        "late_chunking": false,
+        "parent": null,
+        "rerank_depth": 20,
+        "rerank_precision": "fp16",
+        "rerank_max_length": 512,
+        "staleness_before_rerank": true
+      },
+      "retrieval": {
+        "ndcg@10": 0.8242,
+        "recall@5": 0.8275,
+        "recall@10": 0.8712,
+        "recall@50": 0.9375,
+        "mrr@10": 0.8496,
+        "mean_unique_paths@50": 38.1,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8921,
+            "recall@10": 0.9,
+            "recall@50": 0.9,
+            "mrr@10": 0.9563,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.6691,
+            "recall@10": 0.9,
+            "recall@50": 1.0,
+            "mrr@10": 0.5104,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.6388,
+            "recall@10": 0.7083,
+            "recall@50": 1.0,
+            "mrr@10": 0.6875,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.584,
+            "recall@10": 0.6621,
+            "recall@50": 1.0,
+            "mrr@10": 0.5792,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.6873,
+            "recall@10": 0.75,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6667,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.818,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9375,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.9167,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.8129,
+            "recall@10": 0.8333,
+            "recall@50": 1.0,
+            "mrr@10": 0.8333,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.0798,
+        "random_recall@10": 0.1575,
+        "random_recall@50": 0.6245
+      },
+      "latency": {
+        "route": {
+          "n": 136,
+          "p50_ms": 0.06,
+          "p95_ms": 0.09,
+          "mean_ms": 0.05
+        },
+        "bm25": {
+          "n": 136,
+          "p50_ms": 0.07,
+          "p95_ms": 0.12,
+          "mean_ms": 0.07
+        },
+        "embed": {
+          "n": 128,
+          "p50_ms": 8.03,
+          "p95_ms": 8.5,
+          "mean_ms": 8.04
+        },
+        "vector_search": {
+          "n": 128,
+          "p50_ms": 0.02,
+          "p95_ms": 0.02,
+          "mean_ms": 0.02
+        },
+        "rerank": {
+          "n": 95,
+          "p50_ms": 31.01,
+          "p95_ms": 37.68,
+          "mean_ms": 31.97
+        },
+        "lexical": {
+          "n": 8,
+          "p50_ms": 0.32,
+          "p95_ms": 0.36,
+          "mean_ms": 0.32
+        }
+      },
+      "wall_ms": 4130.66,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_chunks": 71,
+      "reranker_name": "BAAI/bge-reranker-v2-m3",
+      "reranker_loaded": true,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "depth": 20,
+          "precision": "fp16",
+          "max_length": 512,
+          "loaded_dtype": "torch.float16",
+          "loaded_max_length": 512
+        }
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8242,
+          "lo": 0.7803,
+          "hi": 0.8658
+        },
+        "recall@10": {
+          "mean": 0.8712,
+          "lo": 0.8269,
+          "hi": 0.914
+        },
+        "recall@50": {
+          "mean": 0.9375,
+          "lo": 0.9081,
+          "hi": 0.9632
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": null,
+      "delta_vs_parent_by_category": null
+    },
+    {
+      "config": "api:postgres",
+      "settings": {
+        "url": "http://127.0.0.1:38937",
+        "k": 50,
+        "route": "semantic",
+        "retrieval_mode": "sql",
+        "bm25_backend": "ts_rank_cd",
+        "embedding_provider": "huggingface",
+        "reranker_loaded": true,
+        "staleness": {
+          "enabled": true,
+          "applied": true,
+          "dropped": 4
+        }
+      },
+      "retrieval": {
+        "ndcg@10": 0.8138,
+        "recall@5": 0.8132,
+        "recall@10": 0.8564,
+        "recall@50": 0.9632,
+        "mrr@10": 0.8542,
+        "mean_unique_paths@50": 39.11,
+        "n_queries": 136,
+        "by_category": {
+          "simple_factual": {
+            "ndcg@10": 0.8473,
+            "recall@10": 0.8438,
+            "recall@50": 0.95,
+            "mrr@10": 0.9479,
+            "n": 80.0
+          },
+          "conditional": {
+            "ndcg@10": 0.7117,
+            "recall@10": 0.975,
+            "recall@50": 1.0,
+            "mrr@10": 0.5146,
+            "n": 8.0
+          },
+          "comparative": {
+            "ndcg@10": 0.7793,
+            "recall@10": 0.8958,
+            "recall@50": 1.0,
+            "mrr@10": 0.8095,
+            "n": 8.0
+          },
+          "aggregation": {
+            "ndcg@10": 0.7358,
+            "recall@10": 0.7507,
+            "recall@50": 1.0,
+            "mrr@10": 0.6833,
+            "n": 10.0
+          },
+          "multi_hop": {
+            "ndcg@10": 0.7203,
+            "recall@10": 0.8125,
+            "recall@50": 0.9375,
+            "mrr@10": 0.6979,
+            "n": 8.0
+          },
+          "staleness": {
+            "ndcg@10": 0.785,
+            "recall@10": 0.9375,
+            "recall@50": 1.0,
+            "mrr@10": 0.75,
+            "n": 8.0
+          },
+          "exact_path": {
+            "ndcg@10": 0.9077,
+            "recall@10": 1.0,
+            "recall@50": 1.0,
+            "mrr@10": 0.875,
+            "n": 8.0
+          },
+          "semantic": {
+            "ndcg@10": 0.7178,
+            "recall@10": 0.75,
+            "recall@50": 0.9167,
+            "mrr@10": 0.7222,
+            "n": 6.0
+          }
+        },
+        "n_files": 61,
+        "random_recall@5": 0.081,
+        "random_recall@10": 0.1606,
+        "random_recall@50": 0.6412
+      },
+      "latency": {
+        "e2e": {
+          "n": 136,
+          "p50_ms": 47.62,
+          "p95_ms": 53.47,
+          "mean_ms": 38.45
+        },
+        "server:route": {
+          "n": 136,
+          "p50_ms": 0.09,
+          "p95_ms": 0.11,
+          "mean_ms": 0.07
+        },
+        "server:embed": {
+          "n": 128,
+          "p50_ms": 8.48,
+          "p95_ms": 8.95,
+          "mean_ms": 8.53
+        },
+        "server:hybrid_sql": {
+          "n": 136,
+          "p50_ms": 5.2,
+          "p95_ms": 6.17,
+          "mean_ms": 5.24
+        },
+        "server:staleness": {
+          "n": 136,
+          "p50_ms": 0.25,
+          "p95_ms": 0.26,
+          "mean_ms": 0.24
+        },
+        "server:rerank": {
+          "n": 95,
+          "p50_ms": 31.32,
+          "p95_ms": 37.87,
+          "mean_ms": 31.98
+        },
+        "server:total": {
+          "n": 136,
+          "p50_ms": 45.54,
+          "p95_ms": 51.22,
+          "mean_ms": 36.42
+        }
+      },
+      "wall_ms": 5232.65,
+      "routes": {
+        "semantic": 95,
+        "aggregation_query": 33,
+        "lexical_path": 8
+      },
+      "n_queries": 136,
+      "zero_hit_queries": [],
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.8138,
+          "lo": 0.7697,
+          "hi": 0.8554
+        },
+        "recall@10": {
+          "mean": 0.8564,
+          "lo": 0.8134,
+          "hi": 0.8972
+        },
+        "recall@50": {
+          "mean": 0.9632,
+          "lo": 0.9412,
+          "hi": 0.9853
+        }
+      },
+      "delta_vs_bm25_only": null,
+      "delta_vs_previous": {
+        "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+        "ndcg@10": {
+          "delta": -0.0104,
+          "lo": -0.0362,
+          "hi": 0.0152
+        },
+        "recall@10": {
+          "delta": -0.0148,
+          "lo": -0.0442,
+          "hi": 0.014
+        },
+        "recall@50": {
+          "delta": 0.0257,
+          "lo": 0.0074,
+          "hi": 0.0478
+        }
+      },
+      "delta_vs_parent_by_category": null,
+      "delta_vs_parent_by_category_all": [
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "aggregation",
+          "n": 10,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1518,
+            "lo": 0.0182,
+            "hi": 0.2833
+          },
+          "recall@10": {
+            "delta": 0.0886,
+            "lo": 0.0125,
+            "hi": 0.1797
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "comparative",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.1405,
+            "lo": 0.0255,
+            "hi": 0.3053
+          },
+          "recall@10": {
+            "delta": 0.1875,
+            "lo": 0.0625,
+            "hi": 0.375
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "conditional",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.0425,
+            "lo": 0.0,
+            "hi": 0.1276
+          },
+          "recall@10": {
+            "delta": 0.075,
+            "lo": 0.0,
+            "hi": 0.225
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "exact_path",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0298,
+            "lo": -0.1384,
+            "hi": 0.0491
+          },
+          "recall@10": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "multi_hop",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": 0.033,
+            "lo": 0.0,
+            "hi": 0.099
+          },
+          "recall@10": {
+            "delta": 0.0625,
+            "lo": 0.0,
+            "hi": 0.1875
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "semantic",
+          "n": 6,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.0951,
+            "lo": -0.2853,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": -0.0833,
+            "lo": -0.25,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": -0.0833,
+            "lo": -0.25,
+            "hi": 0.0
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "simple_factual",
+          "n": 80,
+          "small_n": false,
+          "ndcg@10": {
+            "delta": -0.0448,
+            "lo": -0.0726,
+            "hi": -0.0188
+          },
+          "recall@10": {
+            "delta": -0.0563,
+            "lo": -0.0938,
+            "hi": -0.025
+          },
+          "recall@50": {
+            "delta": 0.05,
+            "lo": 0.0187,
+            "hi": 0.0875
+          }
+        },
+        {
+          "reference": "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first",
+          "category": "staleness",
+          "n": 8,
+          "small_n": true,
+          "ndcg@10": {
+            "delta": -0.033,
+            "lo": -0.099,
+            "hi": 0.0
+          },
+          "recall@10": {
+            "delta": -0.0625,
+            "lo": -0.1875,
+            "hi": 0.0
+          },
+          "recall@50": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          }
+        }
+      ]
+    }
+  ]
+}

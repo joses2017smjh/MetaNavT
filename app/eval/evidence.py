@@ -23,6 +23,8 @@ FILES = {
     "beir": "bench/results/beir_scifact.json",
     "beir_rerank_cap": "bench/results/beir_scifact_rerank_cap.json",
     "parity": "bench/results/parity_shared_chunker.json",
+    "parity_neural": "bench/results/parity_neural.json",
+    "rerank_depth": "bench/results/rerank_depth.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
     "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
@@ -49,6 +51,13 @@ def _ci(block: dict | None, key: str = "mean", digits: int = 3) -> tuple[str, st
 
 def _rows(blob: dict) -> dict[str, dict]:
     return {r["config"]: r for r in blob.get("results", [])}
+
+
+def _zero(block: dict | None) -> str:
+    """Whether a paired interval covers zero, in words (owner rule: an interval that covers zero is reported as such)."""
+    if not block:
+        return "no interval"
+    return "the interval covers zero" if block["lo"] <= 0.0 <= block["hi"] else "the interval excludes zero"
 
 
 def _p50(row: dict, stage: str = "total"):
@@ -205,6 +214,29 @@ def claims(root: Path = ROOT) -> list[dict]:
             lat = (api.get("latency") or {}).get("e2e") or {}
             out.append({"claim": "API over Postgres, hash embedder, no reranker: per-query e2e latency p50 / p95 (ms)", "value": f"{lat.get('p50_ms')} / {lat.get('p95_ms')}", "ci": "—", "n": parity["n_gold"], "command": "make parity", "source": f"{FILES['parity']} @ {parity['git_sha']}",
                         "not_shown": "measured on the machine that produced the file, over HTTP, 61 files; not a load test"})
+    depth = _load(FILES["rerank_depth"], root)
+    top20 = _rows(depth).get("hybrid+bge-rerank@bge-small/top20") if depth else None
+    if top20:
+        block = (top20.get("delta_vs_previous") or {}).get("ndcg@10")
+        d, ci = _ci(block, "delta")
+        changed = top20.get("vs_parent") or {}
+        out.append({"claim": "Fixture v1, bge-reranker-v2-m3 on the fused top 20 (the served RERANK_DEPTH) vs every fused candidate (fp32, bge-small), paired delta in nDCG@10",
+                    "value": d, "ci": ci, "n": depth["n_gold"], "command": "make bench-rerank-depth", "source": f"{FILES['rerank_depth']} @ {depth['git_sha']}",
+                    "not_shown": f"{_zero(block)}; the depth alone; {changed.get('n_top10_differs', '?')} of {changed.get('n_questions', '?')} questions change their top 10; "
+                                 "the file walks on to max_length 512, fp16, the router with Tier 1, and Tier 1 before the rerank, each against its parent"})
+    neural_parity = _load(FILES["parity_neural"], root)
+    if neural_parity:
+        d = (neural_parity.get("gap") or {}).get("paired_delta_api_minus_in_memory") or {}
+        dv, ci = _ci(d, "delta") if d else ("—", "—")
+        differ = ", ".join(neural_parity.get("settings_differ") or []) or "none"
+        device = (neural_parity.get("device") or {}).get("device_name")
+        bare = (neural_parity.get("api_health") or {}).get("embedding_query_instruction") == ""
+        query = "the bare query: EMBEDDING_QUERY_INSTRUCTION=none, not the served default" if bare else "LlamaIndex's query instruction"
+        out.append({"claim": f"API with bge-small ({query}) + bge-reranker-v2-m3 (fp16, max_length 512, depth 20) vs the in-memory bench with the same settings, nDCG@10 gap",
+                    "value": dv, "ci": ci, "n": neural_parity["n_gold"], "command": f"make parity PARITY_CONFIG={neural_parity.get('in_memory_config')}",
+                    "source": f"{FILES['parity_neural']} @ {neural_parity['git_sha']}",
+                    "not_shown": f"{_zero(d)}; one run in a Slurm GPU job ({device}), not re-run by CI; reported, not gated; "
+                                 f"settings that differ between the two sides: {differ}"})
     lat = _load(FILES["latency"], root)
     if lat:
         h = lat.get("health", {}).get("reranker", {})

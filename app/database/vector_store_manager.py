@@ -66,6 +66,20 @@ def lexical_backend_setting() -> str:
     return value
 
 
+class SearchRows(list):
+    """The rows of one search, labelled with the lexical backend that answered it.
+
+    hybrid_search and search_bm25 return their rows in this list, so the label (paradedb |
+    ts_rank_cd | ilike | none, or None when the search failed) belongs to the request that ran
+    the search. The manager is shared by every request the API serves at once: a label written
+    on it and read back after the call could be another request's (C28).
+    """
+
+    def __init__(self, rows=(), lexical_backend: str | None = None):
+        super().__init__(rows)
+        self.lexical_backend = lexical_backend
+
+
 def word_runs(text: str):
     """Runs of word characters (letters and digits of any script, "_": what the regex \\w matches)
     and of the combining marks that follow them, in order.
@@ -127,10 +141,9 @@ class VectorStoreManager(DatabaseManager):
         self.data_table = f"data_{self.table_name}"
         # The configured lexical backend (LEXICAL_BACKEND); a bad value fails here, at start-up.
         self.lexical_backend = lexical_backend_setting()
-        # Which lexical backend answered the last search_bm25 call:
-        # paradedb | ts_rank_cd | ilike | none. Surfaced by /health and /api/retrieve.
-        self.last_bm25_backend: str | None = None
-        
+        # Which backend answered a search is not kept here: it comes back with that search's
+        # rows (SearchRows.lexical_backend), because this manager is shared by every request.
+
         # First, detect the actual vector dimensions in the database
         # before setting self.embed_dim
         detected_dim = self._detect_vector_dimensions()
@@ -246,13 +259,13 @@ class VectorStoreManager(DatabaseManager):
 
         return self.vector_store
 
-    def search_bm25(self, query: str, limit: int = 5) -> list[dict]:
+    def search_bm25(self, query: str, limit: int = 5) -> SearchRows:
         """
         Perform BM25 search using the 'text' column (the python retrieval mode).
 
         With LEXICAL_BACKEND=paradedb, ParadeDB's BM25 first; otherwise, or if that fails
-        or finds nothing, Postgres full text (ts_rank_cd), then ILIKE. last_bm25_backend
-        names the one that answered.
+        or finds nothing, Postgres full text (ts_rank_cd), then ILIKE. The rows come back as
+        SearchRows labelled with the one that answered (none: no row; None: every query failed).
         """
         if not query:
             raise ValueError("Search query cannot be empty")
@@ -288,8 +301,7 @@ class VectorStoreManager(DatabaseManager):
             
                 if results:
                     logger.info(f"BM25 search successful, found {len(results)} results")
-                    self.last_bm25_backend = "paradedb"
-                    return self._bm25_rows(results)
+                    return SearchRows(self._bm25_rows(results), "paradedb")
             
                 # Format 2: Try more flexible tokenized search
                 tokenized_query = " OR ".join(query.split())
@@ -316,8 +328,7 @@ class VectorStoreManager(DatabaseManager):
             
                 if results:
                     logger.info(f"BM25 tokenized search successful, found {len(results)} results")
-                    self.last_bm25_backend = "paradedb"
-                    return self._bm25_rows(results)
+                    return SearchRows(self._bm25_rows(results), "paradedb")
             
             except Exception as e:
                 logger.warning(f"BM25 search failed: {e}")
@@ -341,8 +352,7 @@ class VectorStoreManager(DatabaseManager):
             
             if results:
                 logger.info(f"Fallback full-text search successful, found {len(results)} results")
-                self.last_bm25_backend = "ts_rank_cd"
-                return self._bm25_rows(results)
+                return SearchRows(self._bm25_rows(results), "ts_rank_cd")
             
             # Last resort: ILIKE search
             basic_sql = sql.SQL("""
@@ -359,15 +369,13 @@ class VectorStoreManager(DatabaseManager):
             
             if results:
                 logger.info(f"Basic ILIKE search successful, found {len(results)} results")
-                self.last_bm25_backend = "ilike"
-                return self._bm25_rows(results)
+                return SearchRows(self._bm25_rows(results), "ilike")
             else:
                 logger.info("No results found in any search")
-                self.last_bm25_backend = "none"
-                return []
+                return SearchRows([], "none")
         except Exception as e:
             logger.error(f"All search methods failed: {e}")
-            return []
+            return SearchRows([], None)
 
     # ------------------------------------------------------------------ hybrid (one query)
     SQL_DIR = Path(__file__).resolve().parent / "sql"
@@ -492,24 +500,34 @@ class VectorStoreManager(DatabaseManager):
             cur.execute(statement, params)
         return self.search_settings(k)
 
-    def hybrid_search(
-        self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None
-    ) -> list[dict]:
-        """One round trip: dense top-k + lexical top-k + RRF in SQL (see sql/hybrid_*.sql).
+    def hybrid_params(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, path_query: str | None = None) -> dict:
+        """The hybrid statement's parameters (sql/hybrid_*.sql)."""
+        return {
+            "qvec": self.vector_literal(query_embedding),
+            "query": query if self.hybrid_backend == "paradedb" else self.lexical_query(query),
+            "path_query": path_query or None,
+            "k": int(k),
+            "rrf_k": float(rrf_k),
+        }
 
-        query_embedding=None runs the lexical list only (router skip_embed). Each row:
-        node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf.
+    def hybrid_search(
+        self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, statement_timeout_ms: int | None = None,
+        path_query: str | None = None,
+    ) -> SearchRows:
+        """One round trip: dense top-k + lexical top-k (+ the path list) + RRF in SQL (see sql/hybrid_*.sql).
+
+        query_embedding=None runs the lexical list only (router skip_embed). path_query (the
+        query text, on the router's lexical_path route only) adds the path list: the rows whose
+        file name, path or stem occur in it, scored as InMemoryHybridIndex.search_path scores
+        chunks. Each row: node_id, text, metadata, bm25 (score, rank), dense (score, rank), rrf,
+        path (score, rank). The rows come back as SearchRows labelled with the lexical backend,
+        or "none" when no row came from the lexical list.
         The statement runs in its own transaction with search_settings(k), and with
         statement_timeout_ms as its statement_timeout when given: Postgres cancels it
         there, the transaction is rolled back and this raises TimeoutError.
         """
         backend = self.hybrid_backend
-        params = {
-            "qvec": self.vector_literal(query_embedding),
-            "query": query if backend == "paradedb" else self.lexical_query(query),
-            "k": int(k),
-            "rrf_k": float(rrf_k),
-        }
+        params = self.hybrid_params(query, query_embedding, k, rrf_k, path_query)
         settings, settings_params = self.settings_sql(k, statement_timeout_ms)
         with self.get_connection() as conn:
             with conn.cursor() as cur:
@@ -518,8 +536,7 @@ class VectorStoreManager(DatabaseManager):
                 except psycopg2.errors.QueryCanceled as exc:
                     raise TimeoutError(f"hybrid statement cancelled by its statement_timeout ({statement_timeout_ms} ms)") from exc
                 rows = cur.fetchall()
-        self.last_bm25_backend = backend if any(r[3] is not None for r in rows) else "none"
-        return [
+        return SearchRows([
             {
                 "node_id": r[0],
                 "text": r[1],
@@ -529,19 +546,16 @@ class VectorStoreManager(DatabaseManager):
                 "dense_score": None if r[5] is None else float(r[5]),
                 "dense_rank": None if r[6] is None else int(r[6]),
                 "rrf_score": float(r[7]),
+                "path_score": None if r[8] is None else float(r[8]),
+                "path_rank": None if r[9] is None else int(r[9]),
             }
             for r in rows
-        ]
+        ], backend if any(r[3] is not None for r in rows) else "none")
 
-    def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60) -> str:
+    def explain_hybrid(self, query: str, query_embedding=None, k: int = 50, rrf_k: int = 60, path_query: str | None = None) -> str:
         """EXPLAIN (ANALYZE, BUFFERS) of the hybrid query with the settings hybrid_search uses, for doc/sql/."""
         backend = self.hybrid_backend
-        params = {
-            "qvec": self.vector_literal(query_embedding),
-            "query": query if backend == "paradedb" else self.lexical_query(query),
-            "k": int(k),
-            "rrf_k": float(rrf_k),
-        }
+        params = self.hybrid_params(query, query_embedding, k, rrf_k, path_query)
         settings, settings_params = self.settings_sql(k)
         with self.get_connection() as conn:
             with conn.cursor() as cur:

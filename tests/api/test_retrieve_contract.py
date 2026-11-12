@@ -105,7 +105,6 @@ class _FakeState:
 
 class _FakeVSM:
     hybrid_backend = "ts_rank_cd"
-    last_bm25_backend = None
     pgvector_version = (0, 8, 6)
 
     def count_nodes(self):
@@ -133,8 +132,8 @@ def test_happy_path_is_typed_with_paths_byte_ranges_and_stage_scores(ready_clien
     assert [h["path"] for h in body["hits"]] == ["configs/run_047.yaml", "/abs/logs/run_047.out"]
     first = body["hits"][0]
     assert (first["start_byte"], first["end_byte"], first["rank"]) == (0, 19, 1)
-    assert first["scores"] == {"bm25": 0.9, "dense": 0.8, "rrf": 0.0325, "rerank": None}
-    assert body["hits"][1]["scores"] == {"bm25": None, "dense": None, "rrf": None, "rerank": None}
+    assert first["scores"] == {"bm25": 0.9, "dense": 0.8, "path": None, "rrf": 0.0325, "rerank": None}
+    assert body["hits"][1]["scores"] == {"bm25": None, "dense": None, "path": None, "rrf": None, "rerank": None}
     assert ready_client.app.state.retrieval.retriever.calls == [("current learning rate for run 47", 2)]
 
 
@@ -159,6 +158,16 @@ def test_response_and_health_list_degraded_components_and_the_reranker(ready_cli
     assert h["reranker"]["model"] == "BAAI/bge-reranker-v2-m3" and h["retrieval_mode"] == "sql" and h["n_nodes"] == 61
     # the settings each hybrid statement runs with at the retriever's depth (VectorStoreManager.search_settings)
     assert h["dense_search"] == {"depth": 50, "settings": {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}, "pgvector": "0.8.6"}
+
+
+def test_health_names_the_embedding_model_and_its_query_instruction(ready_client):
+    """M17 (A19): a results file that copies /health says which model embedded the queries, and how."""
+    from app.engine.embeddings import HashEmbedding
+
+    assert ready_client.get("/health").json()["embedding_model"] is None  # no index in the fake state
+    ready_client.app.state.retrieval.index = type("_Index", (), {"_embed_model": HashEmbedding(256)})()
+    h = ready_client.get("/health").json()
+    assert h["embedding_model"] == "hash-256" and h["embedding_query_instruction"] == "" and h["embed_model"] == "HashEmbedding"
 
 
 class _HealthyRetriever(_FakeRetriever):

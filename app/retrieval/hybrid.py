@@ -17,6 +17,7 @@ from app.retrieval.router import QueryRouter, RouteDecision, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
 
 RerankFn = Callable[[str, list[tuple[Chunk, float]]], list[tuple[Chunk, float]]]
+PairFilter = Callable[[list[tuple[Chunk, float]]], list[tuple[Chunk, float]]]
 
 # Dense scores are rounded to this many decimals before they are ranked. The cosine is computed
 # in float64 from the stored float32 vectors, so its error (the summation order of the BLAS
@@ -62,7 +63,8 @@ class RetrievalResult:
     stages_ms: dict[str, float]
     skipped_rerank: bool = False
     skipped_embed: bool = False
-    # The fused list in fused order with its RRF scores: what rerank_fn received, or would have
+    # The fused list in fused order with its RRF scores (after the prefilter, when one ran): the
+    # list whose head (rerank_depth; all of it by default) rerank_fn received, or would have
     # received when the rerank was skipped. Empty when the result was assembled elsewhere.
     fused: list[tuple[Chunk, float]] = field(default_factory=list)
 
@@ -91,13 +93,20 @@ class InMemoryHybridIndex:
         rerank_fn: RerankFn | None = None,
         enable_router: bool = True,
         enable_rerank: bool = True,
+        rerank_depth: int | None = None,
     ):
         if not chunks:
             raise ValueError("InMemoryHybridIndex requires at least one chunk")
+        if rerank_depth is not None and rerank_depth < 1:
+            raise ValueError(f"rerank_depth must be a positive number of candidates or None (every one), got {rerank_depth}")
         self.chunks = list(chunks)
         self.by_id = {c.chunk_id: c for c in self.chunks}
         self.retrieve_k = retrieve_k
         self.rerank_n = rerank_n
+        # Rerank the fused top `rerank_depth` only; the rest keep the fused order and their RRF scores,
+        # as the served retriever does with RERANK_DEPTH. None: every fused candidate (every row
+        # recorded before M17).
+        self.rerank_depth = rerank_depth
         self.rrf_k = rrf_k
         self.router = router or QueryRouter()
         self.rerank_fn = rerank_fn
@@ -156,9 +165,13 @@ class InMemoryHybridIndex:
         k: int | None = None,
         n: int | None = None,
         query_vec: np.ndarray | None = None,
+        prefilter: PairFilter | None = None,
     ) -> RetrievalResult:
-        """BM25 and dense legs, RRF, then the reranker. `query_vec` replaces the query's own
-        embedding in the dense leg (first-stage HyDE); BM25 and the reranker still read `query`."""
+        """BM25 and dense legs, RRF, then the reranker on the fused top `rerank_depth`. `query_vec`
+        replaces the query's own embedding in the dense leg (first-stage HyDE); BM25 and the
+        reranker still read `query`. `prefilter` runs on the fused list before the reranker (the
+        served order of staleness Tier 1 and the rerank: app/eval/harness.py passes it for
+        staleness_before_rerank)."""
         retrieve_k = k or self.retrieve_k
         rerank_n = n or self.rerank_n
         local = StageTimer() if timer is None else timer
@@ -213,15 +226,19 @@ class InMemoryHybridIndex:
         pairs: list[tuple[Chunk, float]] = [
             (self.by_id[cid], score) for cid, score in fused_sorted if cid in self.by_id
         ]
+        if prefilter is not None:
+            pairs = prefilter(pairs)
         fused_pairs = list(pairs)
 
         rerank_scores: dict[str, float] = {}
         if not skip_rerank and self.rerank_fn and pairs:
+            depth = self.rerank_depth or len(pairs)
+            head, tail = pairs[:depth], pairs[depth:]
             with local.stage("rerank"):
-                reranked = self.rerank_fn(query, pairs)
+                reranked = self.rerank_fn(query, head)
             stage_ms["rerank"] = local.stages["rerank"].samples_ms[-1]
-            pairs = reranked
-            rerank_scores = {c.chunk_id: s for c, s in pairs}
+            rerank_scores = {c.chunk_id: s for c, s in reranked}
+            pairs = list(reranked) + tail  # the tail keeps the fused order and its RRF scores
         # Keep the fused top-`retrieve_k` for Recall@50. Generation callers slice to rerank_n.
 
         hits = []

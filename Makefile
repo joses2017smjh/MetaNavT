@@ -151,6 +151,10 @@ sweeps:
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
 
+.PHONY: bench-rerank-depth
+bench-rerank-depth: ## fixture v1, bge-small + bge-reranker-v2-m3: every fused candidate -> depth 20 -> max_length 512 -> fp16 (the served settings) -> + router and staleness -> staleness before the rerank, each vs its parent (needs .[ml] and CUDA) -> bench/results/rerank_depth.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --rerank-depth --out bench/results/rerank_depth.json
+
 # The BEIR archives are downloaded once into BEIR_DATA_DIR (gitignored by default; sha256-pinned in app/eval/beir.py).
 BEIR_DATA_DIR ?= bench/external
 bench-beir:     ## BEIR SciFact: BM25 / dense / hybrid / + reranker -> bench/results/beir_scifact.json
@@ -192,9 +196,12 @@ demos: matlab-demo demo-data figures gifs
 # ---- parity (API over Postgres vs the in-memory bench) ----------------------
 API_URL ?= http://localhost:8000
 PARITY_OUT ?= bench/results/parity.json
+# The in-memory row's named configuration (app/eval/parity.py IN_MEMORY_CONFIGS): CI's hash one by default; the
+# model-backed one is in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first.
+PARITY_CONFIG ?= in_memory:hybrid+router+staleness
 
-parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
-	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
+parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI against the in-memory row PARITY_CONFIG (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
+	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT) --parity-config '$(PARITY_CONFIG)'
 
 migrate:        ## the deploy step: apply pending schema migrations (PG_CONNECTION_STRING; vector table from PGVECTOR_TABLE, EMBEDDING_DIM, LEXICAL_BACKEND). Until it has run, the API answers 503 and retries.
 	$(PYTHON) -m app.database.migrate
