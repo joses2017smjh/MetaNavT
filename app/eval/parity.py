@@ -20,7 +20,8 @@ Two rows come out of one run:
              pgvector, SQL hybrid) -> app/engine/retriever.py in mode "sql"
 The header's `settings` puts what each side ran with next to each other (from the
 in-memory configuration and from /health and the responses) and `settings_differ`
-lists the ones that differ.
+lists the ones that differ. Its `ingest` block is what the in-memory row indexed
+(app/eval/harness.py ingest_header); the API's own report is in `api_health`.
 Both are scored with the same path-level metrics and the same paired bootstrap.
 The run reports the nDCG@10 gap (API minus in-memory) with its paired 95% interval,
 and the paired gap per gold category (on the API row, delta_vs_parent_by_category_all;
@@ -61,7 +62,7 @@ from urllib import error, request
 
 from app.eval.corpus import load_manifest, mtime_mismatches, verify_manifest
 from app.eval.gold import load_gold
-from app.eval.harness import RERANK_DEPTH_CONFIGS, BenchConfig, attach_confidence, project_root, run_config
+from app.eval.harness import RERANK_DEPTH_CONFIGS, BenchConfig, attach_confidence, ingest_header, project_root, run_config
 from app.eval.index_loader import mtime_provenance
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
@@ -213,6 +214,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
 
     mem = run_config(cfg, gold, files_root, n_files=manifest["n_files"], mtimes="manifest")
     mem.pop("_triples", None)
+    ingest = ingest_header([(cfg.chunk_strategy, mem.pop("_ingest"))]) if "_ingest" in mem else None
     api = replay_api(url, gold, manifest["n_files"], k=k)
     scores = {mem["config"]: mem.pop("_per_query_scores"), api["config"]: api.pop("_per_query_scores")}
     results = [mem, api]
@@ -246,6 +248,9 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
         # run says whether bench/corpus/files on disk had them (make fixture-mtimes), as in CI.
         "mtimes": {"in_memory": mtime_provenance(files_root, "manifest", base=root),
                    "api": {"source": "disk", "dir": "bench/corpus/files", "equal_to_manifest": not mtime_mismatches(files_root, manifest)}},
+        # what the in-memory row indexed (files seen, indexed, rejected by reason, chunks embedded); the API's own
+        # report is api_health.indexing
+        "ingest": ingest,
         "api_health": scrub(health),  # what /health reported, with paths, user and host names made publishable
         "bootstrap": boot,
         "gap": gap_report,

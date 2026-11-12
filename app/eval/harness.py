@@ -19,6 +19,7 @@ from app.eval.frontier_llm import GENERATIONS_FILE, context_prefixes, header as 
 from app.eval.gold import GoldQuestion, load_gold
 from app.eval.hashing import content_hash
 from app.eval.index_loader import build_index, mtime_provenance
+from app.eval.ingest import CHUNKER_VERSION
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
@@ -562,6 +563,7 @@ def run_config(
     if cfg.e2e:
         payload["e2e"] = aggregate_e2e(e2e_rows).as_dict()
     payload["_per_query_scores"] = retrieval.per_query  # gold order; used for the bootstrap, then dropped
+    payload["_ingest"] = index.ingest_report  # what the loader indexed: the header's ingest block (ingest_header), then dropped
     if keep_retrieved:
         payload["_retrieved"] = [row["retrieved"] for row in per_query]  # gold order; compared with the parent, then dropped
     if fired:
@@ -837,6 +839,29 @@ def attach_frontier(results: list[dict[str, Any]], retrieved: dict[str, list[lis
     }
 
 
+# The loader's ingest report fields a results header keeps (app/eval/ingest.py ingest_report); an in-memory build
+# has no previous run, so its unchanged / removed / changed counts are always zero and are left out.
+INGEST_FIELDS = ("schema", "chunker", "files_seen", "files_indexed", "files_rejected", "rejected_by_reason", "rejected_sample")
+
+
+def ingest_header(reports: list[tuple[str, dict]]) -> dict:
+    """What a run indexed, from the ingest report of each row's index ((chunk strategy, report) pairs): the scan's
+    counts, which every row shares (one fixture, one scan rule), and the chunks embedded per chunk strategy."""
+    if not reports:
+        return {}
+    first = reports[0][1]
+    block: dict[str, Any] = {k: first[k] for k in INGEST_FIELDS}
+    block["chunker_version"] = CHUNKER_VERSION  # the structure-aware ("auto") chunker's label
+    chunks: dict[str, int] = {}
+    for strategy, report in reports:
+        if any(report[k] != first[k] for k in INGEST_FIELDS):
+            raise RuntimeError(f"rows indexed different files: {[(k, report[k], first[k]) for k in INGEST_FIELDS if report[k] != first[k]]}")
+        if chunks.setdefault(strategy, report["chunks_embedded"]) != report["chunks_embedded"]:
+            raise RuntimeError(f"two {strategy} rows embedded {chunks[strategy]} and {report['chunks_embedded']} chunks")
+    block["chunks_embedded"] = chunks
+    return block
+
+
 def run_bench(
     *,
     root: Path | None = None,
@@ -882,10 +907,12 @@ def run_bench(
 
     results = []
     all_triples = []
+    ingest_reports: list[tuple[str, dict]] = []
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
         row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier or compare_lists, mtimes="manifest", probes=probes)
+        ingest_reports.append((cfg.chunk_strategy, row.pop("_ingest")))
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
         scores_by_config[cfg.name] = row.pop("_per_query_scores", [])
@@ -914,6 +941,7 @@ def run_bench(
         "n_gold": len(gold),
         "n_files": manifest["n_files"],
         "mtimes": mtimes,  # what the staleness filter and the file graph compared
+        "ingest": ingest_header(ingest_reports),  # files seen, indexed, rejected by reason; chunks embedded per strategy
         "bootstrap": boot,
         "results": results,
     }

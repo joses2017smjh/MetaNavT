@@ -308,7 +308,11 @@ came from. The MANIFEST lists the corpus files only, so the gold questions are
 pinned apart: `tests/eval/test_gold_digest.py` holds the SHA-256 of the committed
 `bench/gold/questions.jsonl` (checked out byte for byte, `.gitattributes`), and
 the harness, parity and rerank-arms headers record the digest of the file they
-scored (`gold_sha256`). Every results writer takes the code's provenance from one
+scored (`gold_sha256`). Their `ingest` block is the loader's own report of what
+the run indexed (`load_chunks_with_report`, the accounting the served indexer
+uses): files seen, indexed and rejected by reason, the chunker and its version,
+and the chunks embedded per chunk strategy (in a parity file, the in-memory
+row's; the API's report is under `api_health.indexing`). Every results writer takes the code's provenance from one
 helper, `run_provenance` in [app/eval/provenance.py](../app/eval/provenance.py):
 the full commit (`git_head`, next to the short `git_sha` the generated blocks
 quote), whether the working tree had uncommitted changes when the run started
