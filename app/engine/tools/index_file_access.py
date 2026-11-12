@@ -7,7 +7,7 @@ rather than directly from the file system.
 
 import fnmatch
 import logging
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Dict, Any, Union
 from pydantic import BaseModel, Field
 from llama_index.core.tools import FunctionTool, BaseTool
 

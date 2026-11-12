@@ -83,7 +83,7 @@ def test_the_helper_reads_the_commit_and_whether_the_tree_changed(tmp_path, monk
 
 
 def test_source_hashes_default_to_the_app_modules_this_process_imported():
-    import app.eval.harness  # noqa: F401
+    import app.eval.harness  # noqa: F401 - puts the harness and what it imports in sys.modules, which loaded_sources() reads
 
     names = loaded_sources()
     assert {"app/eval/provenance.py", "app/eval/harness.py", "app/retrieval/hybrid.py"} <= set(names)

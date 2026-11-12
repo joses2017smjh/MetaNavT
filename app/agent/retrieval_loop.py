@@ -15,7 +15,7 @@ from typing import Callable, Iterator
 
 from app.retrieval.bm25 import tokenize
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit, RetrievalResult
-from app.retrieval.router import QueryRouter, RouteDecision, RouteType
+from app.retrieval.router import QueryRouter, RouteDecision
 
 
 @dataclass

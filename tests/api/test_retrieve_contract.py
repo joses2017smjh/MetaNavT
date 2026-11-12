@@ -6,7 +6,6 @@ the parity run need a database and live in CI's docker-smoke job (M0) and the
 parity job (M3).
 """
 
-import os
 import threading
 import time
 

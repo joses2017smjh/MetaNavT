@@ -14,12 +14,7 @@ Dependencies:
 """
 
 import logging
-import os
-import time
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
-from queue import Queue
 from typing import List, Dict, Any, Optional
 
 from .db_base_manager import DatabaseManager

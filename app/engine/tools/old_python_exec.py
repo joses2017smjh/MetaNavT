@@ -12,7 +12,7 @@ import os
 import io 
 import contextlib 
 from pathlib import Path  
-from typing import Dict, Any, List, Optional  
+from typing import Dict, Any, Optional  
 from llama_index.core.tools import FunctionTool
 from app.engine.tools import create_tool_callback
 

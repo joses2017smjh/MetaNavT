@@ -54,7 +54,6 @@ from llama_index.core.workflow.handler import WorkflowHandler
 from llama_index.core.workflow.workflow import WorkflowMeta
 from llama_index.core.settings import Settings
 
-from app.engine.tools import add_tool_call, get_tool_call_registry
 from app.observability import report_failure
 
 import llama_index.core.instrumentation as instrument
@@ -787,7 +786,6 @@ class AgentWorkflow(Workflow, PromptMixin, metaclass=AgentWorkflowMeta):
 if __name__ == "__main__":
     import os
     from llama_index.utils.workflow import draw_all_possible_flows
-    import asyncio
     from app.engine.agents.file_access_agent import create_file_access_agent
     from app.engine.agents.python_exec_agent import create_python_exec_agent
     try:

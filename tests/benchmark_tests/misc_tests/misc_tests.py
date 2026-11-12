@@ -1,19 +1,13 @@
-import json
 import asyncio
-from pathlib import Path
-from dataclasses import dataclass
 from typing import List, Any
-import csv
-from datetime import datetime
 
-from deepeval import evaluate
-from deepeval.metrics import TaskCompletionMetric, ToolCorrectnessMetric, AnswerRelevancyMetric, ContextualRelevancyMetric
+from deepeval.metrics import AnswerRelevancyMetric, ContextualRelevancyMetric
 from deepeval.dataset import Golden
 from deepeval.test_case import LLMTestCase
 
 
 from tests.benchmark_tests.common.eval_llm import EvalLLM_4Bit
-from tests.benchmark_tests.common.utils import write_results_to_csv, convert_registry_to_tool_call, get_tool_call_registry
+from tests.benchmark_tests.common.utils import write_results_to_csv, convert_registry_to_tool_call
 from tests.benchmark_tests.run_eval import get_chat_response
 
 from . import test_cases
