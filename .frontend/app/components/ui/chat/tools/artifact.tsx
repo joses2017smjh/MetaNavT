@@ -14,6 +14,7 @@ import { ScrollArea } from "../../scroll-area";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Markdown } from "../custom/markdown";
+import { apiFetch } from "../hooks/api-key";
 import { useClientConfig } from "../hooks/use-config";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 
@@ -102,7 +103,7 @@ export function ArtifactCode({
     try {
       setSandboxCreating(true);
 
-      const response = await fetch(`${backend}/api/sandbox`, {
+      const response = await apiFetch(`${backend}/api/sandbox`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
