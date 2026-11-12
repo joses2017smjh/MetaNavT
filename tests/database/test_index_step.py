@@ -192,7 +192,7 @@ def test_the_api_as_compose_runs_it_answers_health_while_another_process_holds_t
     assert entered, "the API never started serving while the lock was held"
     status, body = seen["health"][-1]
     assert status == 200 and body["n_nodes"] == rows
-    assert body["indexing"]["indexed"] is False and body["indexing"]["manifest"]["chunks"] == rows
+    assert body["indexing"]["indexed"] is False and body["indexing"]["manifest_at_start"]["chunks"] == rows
     assert body["indexing"]["chunker"] == "app/chunking (structure-aware)"
 
 

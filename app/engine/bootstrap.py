@@ -120,8 +120,10 @@ def build_retrieval_state() -> RetrievalState:
     if os.getenv("INDEX_ON_START", "false").strip().lower() in {"1", "true", "yes"}:
         indexing = index_data_dir(vsm)
     else:
-        # The index step (python -m app.engine.ingest) indexes DATA_DIR; this start only reports what it listed.
-        indexing = {"indexed": False, "reason": "INDEX_ON_START not set", "chunker": CHUNKER, "manifest": vsm.manifest_summary()}
+        # The index step (python -m app.engine.ingest) indexes DATA_DIR; this start only reports what the manifest
+        # listed when it ran (kept as the start's record: an upload or a later index run changes the manifest, and
+        # /health's n_nodes counts the rows at each request).
+        indexing = {"indexed": False, "reason": "INDEX_ON_START not set", "chunker": CHUNKER, "manifest_at_start": vsm.manifest_summary()}
     # The GIN and HNSW indexes the hybrid statement reads are migrations (vector/0004, 0005), not built here.
     enable_staleness = os.getenv("ENABLE_STALENESS", "true").strip().lower() != "false"
     clusters = build_clusters(vsm) if enable_staleness else {}

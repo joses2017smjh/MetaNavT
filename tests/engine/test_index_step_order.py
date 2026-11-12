@@ -138,7 +138,7 @@ def test_a_start_without_index_on_start_reports_what_the_manifest_lists(monkeypa
         "indexed": False,
         "reason": "INDEX_ON_START not set",
         "chunker": "app/chunking (structure-aware)",
-        "manifest": {"files": 61, "chunks": 71, "pipelines": ["app.chunking/auto/v2|hash-256"]},
+        "manifest_at_start": {"files": 61, "chunks": 71, "pipelines": ["app.chunking/auto/v2|hash-256"]},
     }
 
 
