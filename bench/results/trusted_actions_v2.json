@@ -1,20 +1,20 @@
 {
-  "run_at_utc": "2026-11-12T04:35:56.664467+00:00",
-  "git_head": "56e7dfca401311df121121b6a8fa8e7ad9788393",
+  "run_at_utc": "2026-11-12T19:07:52.466008+00:00",
+  "git_head": "6dd9f3299822d12d9863c403e5a13972acd0155b",
   "working_tree_dirty": false,
   "source_sha256": {
     "app/mcp/approvals.py": "30c6deefcbdede3539ad411b5dabcf8c6f9a4926c7f5471b740377235e7a6bb2",
     "app/mcp/approve.py": "e3027265317ee99c96112a992cbb29c2d20ef781c536b804c88e1cd9618d9864",
     "app/mcp/secure_io.py": "862dba4a088649f387329c22ea06f723367f53a1d8de8d1a732276b53f2f685c",
-    "app/mcp/filesystem.py": "faa9d0916b50dea490ee2f4d4d06825cab801dd47fb0da43ae78eb34adaf8d19",
-    "app/mcp/server.py": "69a9f45ff2cf3932480400a57b89bee9717c808daa94182be687bae034c9eac5",
+    "app/mcp/filesystem.py": "f546ad61916f1d697ea20b3e8bbab2a7d5d3b85865d6298f03d8e2202d9a4aa2",
+    "app/mcp/server.py": "c89092a39819c6da2b82b30a426b3bcf503d580498ff771c4fbd40deb98d209c",
     "app/agent/citation_verify.py": "d7cb86c65e2167b3fd7feaed35cb6585f43ca75d0bd8f73a83528565e954e7d4",
     "app/artifacts/templates.py": "d91c7d94e0b49cc1243f5a4bae211b445dd9bac88f02cc0aaa820aa2e02ba47b",
     "app/agent/evidence_checks.py": "6339d9f01b01b68ece74468349b6b754a393823b5c7a4202d4969b3b0f29cb7d",
     "app/eval/index_loader.py": "5bfa4f768ca5481f8f5e77a5ac3ee7a7654d66e7f6b7c50d950039460780702e",
     "app/eval/trusted_actions.py": "9e499846e2e3f72ae525f5b7370c6f3dd87e56479ccce18b0b6a19835d9a294f",
     "app/eval/evidence_consistency.py": "4a0edc760aa7dbb8703899d809c7e3332af76dacc1d28c241441479c4c6b28c2",
-    "app/eval/m4_provenance.py": "2ed48403c2de186b131c612de3c93b4d79ac0e25a62f3608c6e3af43bac1b709"
+    "app/eval/m4_provenance.py": "5337d2c45cd6501e6db73dc47f0ffaafff8e8fcff5f52fb3e1444c95251f0193"
   },
   "command": "python -m app.eval.trusted_actions --output bench/results/trusted_actions_v2.json",
   "benchmark": "trusted_action_capabilities_v2",
@@ -85,7 +85,7 @@
     "authorized_visualization_script": 20,
     "unapproved_reads": 20
   },
-  "elapsed_seconds": 1.977,
+  "elapsed_seconds": 2.132,
   "python": "3.11.16",
   "rows": [
     {
