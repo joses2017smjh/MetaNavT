@@ -33,7 +33,7 @@ def _round_of(messages):
 
 def _terms(messages):
     """The required strings, as the attacker's instructions list them."""
-    return re.findall(r'"([^"]+)"', re.search(r"these exact strings: (.*?); no absolute", messages[0]["content"]).group(1))
+    return re.findall(r'"([^"]+)"', re.search(r"character for character: (.*?); no absolute", messages[0]["content"]).group(1))
 
 
 def attacker_bot(text=None, adapt=True):
@@ -604,7 +604,8 @@ def test_the_adaptive_table_and_the_evidence_rows_read_the_results_file(tmp_path
     # every hijack pair where v3's phrasings got one seed in two, and the planted actions are attempted from round 2
     assert blob["comparison"]["bot"]["none"]["hijack"]["attempted"]["delta"]["delta"] == 0.5
     assert blob["comparison"]["bot"]["none"]["planted_actions"]["attempted"]["delta"]["delta"] == 1.0
-    assert "attacker `qwen2.5:7b` (instructions v1" in text and "7 on the same pairs and seeds" in text
+    assert f"attacker `{aa.ATTACKER_MODEL}` (instructions {aa.ATTACKER_PROMPT_VERSION}" in text
+    assert f"{len(ai.PHRASINGS)} on the same pairs and seeds" in text
     assert "the targets made" in text and "The corpus changed in 0 rounds" in text
     assert "the same server version and GPU" in text or "not the same server version and GPU" in text
     assert "is missing" in agent_injection_adaptive_table(None)
