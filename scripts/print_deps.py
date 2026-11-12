@@ -1,10 +1,11 @@
 """Print the requirement ranges of pyproject.toml's base deps plus the given extras.
 
 These are ranges, not pins: the pinned sets are requirements.txt and
-requirements/*.txt (`make lock`). The Dockerfile uses this only for extras that
-have no pinned file (ml, otel), under the pinned app file as a constraint:
-    python scripts/print_deps.py app,ml > /tmp/extras.txt
-    pip install -c requirements/app.txt -r /tmp/extras.txt
+requirements/*.txt (`make lock`). The image no longer uses this script: since
+M33 it installs every extra in EXTRAS from its pinned file (requirements/ml.txt,
+requirements/otel.txt) with --no-deps. Kept for a quick look at the declared
+ranges, for example:
+    python scripts/print_deps.py app,ml
 """
 
 import sys
