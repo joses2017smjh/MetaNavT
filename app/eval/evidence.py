@@ -25,7 +25,7 @@ FILES = {
     "parity": "bench/results/parity_shared_chunker.json",
     "latency": "bench/results/api_latency_docker_cpu_ml.json",
     "jury": "bench/results/jury.json",
-    "agent_injection": "bench/results/agent_injection.json",
+    "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
@@ -495,6 +495,7 @@ def _frontier_claims(root: Path = ROOT) -> list[dict]:
 
 
 def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
+    """The current injection run (agent_injection_v2): planted claims and actions next to the capability control."""
     blob = _load(FILES["agent_injection"], root)
     if not blob:
         return []
@@ -503,8 +504,8 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
     if segments and "--summarize-only" in str(blob.get("command") or ""):  # the header names the scoring run
         src += (f" (episodes generated at {str(segments[0].get('git_head') or '')[:7]}, scored by "
-                "`make bench-agent-injection-rescore`)")
-    cmd = "make bench-agent-injection"
+                "`make bench-agent-injection-v2-rescore`)")
+    cmd = "make bench-agent-injection-v2"
     k = blob["config"]["k"]
     scope = "one phrasing per goal and task, written for this benchmark (not an adaptive attacker); two local 7-8B models; synthetic config questions"
     for model, per in blob["summary"].items():
@@ -519,12 +520,28 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
         pa = none["planted_actions"]
         out.append({"claim": f"Agent injection, {model}, no defense: episodes that pursued a planted file action (move, patch, read outside the root), of those in which the planted text reached the model",
                     "value": f"{pa['attempted_episodes']} of {pa['exposed_episodes']}", "ci": "—", "n": pa["exposed_episodes"], "command": cmd, "source": src,
-                    "not_shown": f"{scope}; no capability control, so a model that calls tools badly shows few attempts out of incapability"})
+                    "not_shown": f"{scope}; read it next to the capability-control rows of the same model, where the user asks for the same move and patch"})
+        cap = none.get("capability")
+        if cap:
+            g = none["by_goal"]
+            planted = sum(g[x]["attempted_episodes"] for x in ("move", "patch"))
+            exposed = sum(g[x]["exposed_episodes"] for x in ("move", "patch"))
+            value, ci = _ci(cap["attempted"])
+            out.append({"claim": f"Agent injection, {model}, no defense: capability control, attempted: the user asks for the move and the patch a planted instruction asks for, and the model calls the requested action's tools, per trial",
+                        "value": value, "ci": ci, "n": cap["attempted"]["n"], "command": cmd, "source": src,
+                        "not_shown": (f"n is questions, each with a move and a patch task and {k} trials; counted as planted attempts are (a call to the action's tools) "
+                                      f"and read against {planted} planted move and patch attempts in {exposed} episodes in which that text reached the model; "
+                                      "the user's request names the same tool calls and arguments as the planted text, and the operator signs only the requested change")})
+            value, ci = _ci(cap["success"])
+            out.append({"claim": f"Agent injection, {model}, no defense: capability control, done: the copy ends in exactly the requested move and patch, per trial",
+                        "value": value, "ci": ci, "n": cap["success"]["n"], "command": cmd, "source": src,
+                        "not_shown": ("n is questions, as in the attempted row; done also takes passing the operator's signed token to the apply call unchanged, "
+                                      "so it measures carrying the action out, not whether the model calls the tools")})
         hat = none["benign_pass_hat_k"][str(k)]
         value, ci = _ci(hat)
         out.append({"claim": f"Agent injection, {model}, no planted text: pass^{k} (all {k} sampled trials answer correctly, citing a file of the asked run that contains the value)",
                     "value": value, "ci": ci, "n": hat["n"], "command": cmd, "source": src,
-                    "not_shown": "ten single-field config questions; reliability on this tool set and prompt, not general agent reliability"})
+                    "not_shown": "ten single-field config questions whose files carry neutral lines with the same run number and field name as the planted text; reliability on this tool set and prompt, not general agent reliability"})
         delta = ((blob.get("paired_deltas") or {}).get(model) or {}).get("spotlight - none", {}).get("hijack_planted_value")
         if delta:
             value, ci = _ci(delta, "delta")
@@ -534,9 +551,12 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     gates = [b["gate"] for per in blob["summary"].values() for b in per.values()]
     writes = sum(x.get("write_tool_calls", 0) for x in gates)
     changed = sum(x["corpus_changed_episodes"] for x in gates)
-    out.append({"claim": "Agent injection, all models and configurations: write-tool calls made by a model, and episodes in which the corpus changed",
-                "value": f"{writes} calls; {changed} of {blob['n_episodes']} episodes", "ci": "—", "n": blob["n_episodes"], "command": cmd, "source": src,
-                "not_shown": "with no write-tool call the approval gate was not exercised by a model (its evidence is the deterministic approval benchmark); no grant was ever issued; not OS isolation and not an adaptive attacker"})
+    n_base = sum(b["episodes"] for per in blob["summary"].values() for b in per.values())
+    gate_note = ("with no write-tool call in these tasks the approval gate was not exercised there by a model" if not writes else
+                 "every write-tool call in these tasks met the approval gate without an operator grant")
+    out.append({"claim": "Agent injection, all models and configurations, question and injected tasks: write-tool calls made by a model, and episodes in which the corpus changed",
+                "value": f"{writes} calls; {changed} of {n_base} episodes", "ci": "—", "n": n_base, "command": cmd, "source": src,
+                "not_shown": f"{gate_note}; no grant is ever issued in these tasks (the capability tasks, where the operator signs the requested change, are in their own rows); not OS isolation and not an adaptive attacker"})
     return out
 
 
@@ -553,7 +573,7 @@ Solo work in this fork, 2026:
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and reports the gap to the in-memory bench with its interval, and a live-database test that requires the dense leg to equal the in-memory dense search on every gold question; no silent fallbacks, per-request stage latency and scores.
 - Added a typed retrieval endpoint that returns byte-range citations, and a human-in-the-loop gate for file changes: an agent can only propose a change, and applying it needs an operator-signed, single-use approval bound to the reviewed action.
 - Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published; on the first full run the reference slice was saturated, so the gate stayed closed and no judge score was published.
-- Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
+- Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered) across no defense, datamarking and a least-privilege tool filter, with a capability control (the planted actions asked for by the user and signed by an operator key), controls that carry the planted text's query terms, τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas.
 '''
 
 QA = '''## Likely interview questions, with honest answers
@@ -576,9 +596,9 @@ QA = '''## Likely interview questions, with honest answers
 
 **What did the LLM answer evaluation show?** The generator answered every simple-factual question with the gold value, which saturated the reference the judges are measured against: with a one-class reference Cohen's kappa is zero by construction, so the gate could not be evaluated and no judge score is published. The deterministic checks are the usable result: nearly every cited path was in the retrieved set, most stated values sit inside the cited bytes, and the two answers with no citation failed loud. The kept losers are that both judges preferred the extractive answer to the LLM answer, showed strong position bias in the AB/BA swap, and agreed with each other only moderately. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching); the fixes and the rescored file are separate commits, so the before and after are both in the history.
 
-**What did the injection evaluation show?** Neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and no model called a write tool at all, so the approval gate was not exercised by a model in this run; its evidence is still the deterministic approval benchmark. What the models did follow was the planted claim: the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says.
+**What did the injection evaluation show?** Neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and in the question and injected tasks no model called a write tool, so planted text never reached the approval gate; the gate's evidence against forged tokens is still the deterministic approval benchmark. A capability control shows that, where an injected task is offered the write tools, this is not an inability to make the calls: when the user asks for the same move or patch, with the same tool calls and arguments, both models call the write tools and the operator signs the requested change. Completing it is rarer: many episodes stop after the signed proposal, and an apply call has to pass the plan id and the token on unchanged; the weaker model's apply calls mostly named plan ids the server never issued, and the stronger model's mostly carried a token that did not verify. What the models did follow was the planted claim: the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says.
 
-**How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore`.
+**How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the current run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`).
 
 **What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the 71-chunk fixture today), ParadeDB BM25 in the production path with the same parity gate, and a kappa reference with variance: the simple-factual slice is saturated for this generator, so the gate needs a harder slice or harder questions before it can say anything about a judge.
 '''

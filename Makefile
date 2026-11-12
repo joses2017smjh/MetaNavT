@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -118,8 +118,8 @@ bench-hybrid-drops: ## per question, the gold files hybrid@bge-base drops (and g
 	$(PYTHON) -m app.eval.hybrid_drops --out bench/results/hybrid_drops_bge_base.json
 
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
-bench-agent-injection: ## LLM-in-the-loop injection: real models choose MCP tool calls over planted text (needs Ollama)
-	$(PYTHON) -m app.eval.agent_injection --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
+bench-agent-injection: ## LLM-in-the-loop injection, the first run's task set (agent_injection_v1, kept as recorded): real models choose MCP tool calls over planted text (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v1 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
 
 bench-agent-injection-rescore: ## rebuild bench/results/agent_injection.json from the committed episodes (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
@@ -141,6 +141,12 @@ CHAT_SMOKE_MODEL ?= qwen2.5:7b
 CHAT_SMOKE_LOG_DIR ?=
 chat-route-smoke: ## POST /api/chat and /api/chat/request with the Ollama model at OLLAMA_BASE_URL on the default stack (hash embedder, code execution off, database created on PG_TEST_DSN), the first gold question of each category -> bench/results/chat_route_smoke.json
 	$(PYTHON) -m app.eval.chat_smoke --model $(CHAT_SMOKE_MODEL) --out bench/results/chat_route_smoke.json $(if $(CHAT_SMOKE_LOG_DIR),--log-dir $(CHAT_SMOKE_LOG_DIR))
+
+bench-agent-injection-v2: ## LLM-in-the-loop injection, the current task set (agent_injection_v2, with the capability control) -> bench/results/agent_injection_v2.json and its episodes (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v2 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl
+
+bench-agent-injection-v2-rescore: ## rebuild the current run's scores and summary from its committed episodes -> bench/results/agent_injection_v2_rescore.json, not tracked, to compare with agent_injection_v2.json (no model call)
+	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2_rescore.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
@@ -204,6 +210,12 @@ PARITY_OUT ?= bench/results/parity.json
 
 parity:         ## replay the gold set through a running API; report the nDCG@10 gap with its paired CI (fails if the API is broken; refuses a fixture that differs from its MANIFEST)
 	$(PYTHON) -m app.eval.harness --backend api --url $(API_URL) --out $(PARITY_OUT)
+
+migrate:        ## the deploy step: apply pending schema migrations (PG_CONNECTION_STRING; vector table from PGVECTOR_TABLE, EMBEDDING_DIM, LEXICAL_BACKEND). Until it has run, the API answers 503 and retries.
+	$(PYTHON) -m app.database.migrate
+
+migrate-check:  ## list pending schema migrations, exit 1 if any (applies nothing)
+	$(PYTHON) -m app.database.migrate --check
 
 ingest-runs:    ## first start, unchanged restart, one edit, one delete on a copy of the fixture (PG_TEST_DSN) -> bench/results/ingest_runs.json
 	$(PYTHON) -m app.engine.ingest_runs

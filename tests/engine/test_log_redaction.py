@@ -24,16 +24,30 @@ class _Capture(logging.Handler):
 
 
 class _FakeStore:
-    """Stands in for PGVectorStore: records what it was built with, accepts the probe."""
+    """Stands in for PGVectorStore: records what it was built with."""
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    def add(self, nodes):
-        return [n.node_id for n in nodes]
 
-    def delete(self, ref_doc_id):
-        return None
+class _ProbeConnection:
+    """Answers the read-only start-up probe: the table exists, 8 dimensions, every privilege."""
+
+    def cursor(self):
+        class Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, params=None):
+                self.row = (8, True, True, True) if "pg_attribute" in sql else (True,)
+
+            def fetchone(self):
+                return self.row
+
+        return Cursor()
 
 
 @pytest.fixture
@@ -46,13 +60,10 @@ def captured(monkeypatch):
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_ensure_database_exists", lambda self: None)
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_initialize_connection_pool", lambda self, *a, **k: None)
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_detect_vector_dimensions", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_vector_extension", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_pg_search_extension", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_create_bm25_index", lambda self, conn: False)
 
     @contextmanager
     def no_connection(self):
-        yield None
+        yield _ProbeConnection()
 
     monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", no_connection)
     monkeypatch.setattr(vsm_module, "PGVectorStore", _FakeStore)

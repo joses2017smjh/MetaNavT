@@ -6,8 +6,9 @@
 --             v1 it scans: doc/sql/hybrid_explain.txt). An HNSW scan returns at most
 --             hnsw.ef_search rows, so the caller sets it for this statement's
 --             transaction, in the same execute (VectorStoreManager.settings_sql).
---   lexical : websearch_to_tsquery('english', ...) over to_tsvector('english', text),
---             ranked by ts_rank_cd, with the GIN index on the same expression
+--   lexical : websearch_to_tsquery('english', ...) over text_tsv, the stored
+--             to_tsvector('english', text) (schema migration vector/0006), ranked by
+--             ts_rank_cd, with the GIN index on that column (vector/0007)
 --   fused   : reciprocal rank fusion, score = sum 1 / (rrf_k + rank) with 1-based
 --             ranks, the same formula as app/retrieval/fuse.py (tests/database/
 --             test_hybrid_sql.py checks the two agree on identical input lists)
@@ -24,9 +25,10 @@
 -- its right; read from a materialized CTE it is a column, and the dense list could
 -- never be read from the HNSW index (tests/database/test_dense_parity.py forces the
 -- index and checks the plan). lexical_params stays MATERIALIZED, as the tsquery was
--- when both shared one CTE read twice: inlined as a constant, it leads the planner to
--- a sequential scan of fixture v1 that computes to_tsvector for every row, slower
--- than the GIN bitmap scan the lexical list keeps this way.
+-- when both shared one CTE read twice. The lexical list can be read with a bitmap scan of
+-- the GIN index on text_tsv (test_dense_parity.py checks it with sequential scans off);
+-- on fixture v1's few rows the planner reads the table instead, which no longer computes
+-- to_tsvector for each row.
 WITH params AS NOT MATERIALIZED (
     SELECT %(qvec)s::vector AS qvec
 ),
@@ -61,9 +63,9 @@ lexical AS (
     SELECT node_id, bm25_score,
            row_number() OVER (ORDER BY bm25_score DESC, node_id) AS bm25_rank
     FROM (
-        SELECT t.node_id, ts_rank_cd(to_tsvector('english', t.text), p.tsq) AS bm25_score
+        SELECT t.node_id, ts_rank_cd(t.text_tsv, p.tsq) AS bm25_score
         FROM {table} t, lexical_params p
-        WHERE to_tsvector('english', t.text) @@ p.tsq
+        WHERE t.text_tsv @@ p.tsq
         ORDER BY bm25_score DESC, t.node_id
         LIMIT %(k)s
     ) s

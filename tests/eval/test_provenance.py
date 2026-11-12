@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 import app.eval.provenance as prov
-from app.eval.provenance import REPO_ROOT, command_line, device_info, hf_revision, model_provenance, sanitize_command, sanitize_path, scrub
+from app.eval.provenance import (REPO_ROOT, command_line, device_info, hf_revision, model_provenance, sanitize_command,
+                                 sanitize_path, scrub, scrub_names)
 
 
 def test_hf_revision_reads_refs_main_from_the_cache(tmp_path, monkeypatch):
@@ -88,6 +89,12 @@ def test_scrub_reaches_nested_values_and_leaves_urls_alone(identity):
               "url": "http://127.0.0.1:8000/api/retrieve/", "log": [f"wrote /tmp/{USER}/x.log on {HOST}", None, 1.5]}
     assert scrub(health) == {"indexing": {"data_dir": "<path>/corpus", "n": 3}, "dsn": "postgresql://<user>@127.0.0.1:5432/db",
                              "url": "http://127.0.0.1:8000/api/retrieve/", "log": ["wrote <path>/x.log on <host>", None, 1.5]}
+
+
+def test_scrub_names_replaces_user_and_host_names_and_keeps_paths_as_written(identity):
+    # for text that must stay as a model saw or wrote it, such as tool results and arguments
+    value = {"arguments": {"path": f"/data/{USER}/x.yaml"}, "result": ["#!/bin/bash", f"ran on {HOST}", 2]}
+    assert scrub_names(value) == {"arguments": {"path": "/data/<user>/x.yaml"}, "result": ["#!/bin/bash", "ran on <host>", 2]}
 
 
 def test_device_info_records_no_host_name(identity):

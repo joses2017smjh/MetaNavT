@@ -89,11 +89,19 @@ def test_committed_plans_ran_with_the_current_statement_and_settings(name):
     assert line == str(manager(version).search_settings(k)), regenerate
 
 
-def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index():
+def test_synthetic_plan_reads_the_dense_list_from_the_hnsw_index_and_the_lexical_list_from_gin():
     text = (PLANS / "hybrid_explain_synthetic_10k.txt").read_text()
     rows = int(re.search(r"\((\d+) SYNTHETIC rows", text).group(1))
     assert rows >= 10_000
-    assert re.search(r"Index Scan using \S+_embedding_hnsw on ", text)
+    assert re.search(r"Index Scan using \S+_embedding_hnsw_m\d+_efc\d+ on ", text)
+    assert re.search(r"Bitmap Index Scan on \S+_text_tsv_english_gin", text)
+
+
+@pytest.mark.parametrize("name", ["hybrid_explain.txt", "hybrid_explain_synthetic_10k.txt"])
+def test_no_committed_plan_computes_to_tsvector_per_row(name):
+    """The lexical list reads the stored text_tsv column (schema migration vector/0006)."""
+    plan = "\n".join(line for line in (PLANS / name).read_text().splitlines() if not line.startswith("--"))
+    assert "to_tsvector" not in plan and "text_tsv @@" in plan
 
 
 # ---------------------------------------------------------------- the two statements
@@ -234,11 +242,51 @@ def test_search_bm25_tries_paradedb_only_when_configured(monkeypatch):
     assert "SET search_path TO paradedb, public;" in conn.statements
 
 
-@pytest.mark.parametrize("setting, creates", [(None, False), ("ts_rank_cd", False), ("paradedb", True)])
-def test_start_up_creates_pg_search_objects_only_for_paradedb(monkeypatch, setting, creates):
+# ---------------------------------------------------------------- start-up issues no DDL (C35: the BM25 index is never dropped)
+
+
+class _RecordingConnection:
+    """Every statement any cursor of this connection executes, in order; pg_search reads as installed and
+    the read-only probe finds the table with 8 dimensions and every privilege."""
+
+    def __init__(self):
+        self.statements: list[str] = []
+
+    def cursor(self):
+        connection = self
+
+        class Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, params=None):
+                connection.statements.append(" ".join(str(sql).split()))
+
+            def fetchone(self):
+                return (8, True, True, True) if "pg_attribute" in connection.statements[-1] else (1,)
+
+            def fetchall(self):
+                return []
+
+        return Cursor()
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
+@pytest.mark.parametrize("setting", [None, "ts_rank_cd", "paradedb"])
+def test_get_vector_store_issues_no_drop_index_and_no_ddl(monkeypatch, setting):
+    """A recording cursor sees every statement the manager's constructor and get_vector_store send. With
+    LEXICAL_BACKEND=paradedb they used to drop the BM25 index and build it again at every start; now the
+    pg_search objects are schema migrations (migrations/paradedb/) and start-up sends no DDL at all."""
     from app.database import db_base_manager, vector_store_manager as vsm_module
 
-    calls = []
     monkeypatch.setenv("PG_CONNECTION_STRING", "postgresql://u@127.0.0.1:1/db")
     monkeypatch.setenv("EMBEDDING_DIM", "8")
     if setting is None:
@@ -248,25 +296,83 @@ def test_start_up_creates_pg_search_objects_only_for_paradedb(monkeypatch, setti
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_ensure_database_exists", lambda self: None)
     monkeypatch.setattr(db_base_manager.DatabaseManager, "_initialize_connection_pool", lambda self, *a, **k: None)
     monkeypatch.setattr(vsm_module.VectorStoreManager, "_detect_vector_dimensions", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_vector_extension", lambda self: None)
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_ensure_pg_search_extension", lambda self: calls.append("extension"))
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "_create_bm25_index", lambda self, conn: calls.append("bm25 index") or True)
+    connection = _RecordingConnection()
 
     @contextmanager
-    def no_connection(self):
-        yield None
+    def recording(self):
+        yield connection
 
     class _Store:
+        writes: list = []
+
         def __init__(self, **kwargs):
-            pass
+            self.kwargs = kwargs
 
         def add(self, nodes):
-            return []
+            self.writes.append(("add", [n.node_id for n in nodes]))
+            return [n.node_id for n in nodes]
 
         def delete(self, ref_doc_id):
-            return None
+            self.writes.append(("delete", ref_doc_id))
 
-    monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", no_connection)
+    monkeypatch.setattr(vsm_module.VectorStoreManager, "get_connection", recording)
     monkeypatch.setattr(vsm_module, "PGVectorStore", _Store)
-    vsm_module.VectorStoreManager(conn_string="postgresql://u@127.0.0.1:1/db").get_vector_store()
-    assert calls == (["extension", "bm25 index"] if creates else [])
+    store = vsm_module.VectorStoreManager(conn_string="postgresql://u@127.0.0.1:1/db").get_vector_store()
+
+    assert store.kwargs["perform_setup"] is False  # nor does LlamaIndex create anything
+    assert not [s for s in connection.statements if "DROP INDEX" in s.upper()], connection.statements
+    ddl = re.compile(r"^\s*(CREATE|DROP|ALTER)\b", re.I)
+    assert not [s for s in connection.statements if ddl.match(s)], connection.statements
+    # C36: the start-up probe only reads; nothing is written to the shared table, through the store or the pool.
+    assert store.writes == [] and not [s for s in connection.statements if re.match(r"^\s*(INSERT|UPDATE|DELETE)\b", s, re.I)]
+
+
+# ---------------------------------------------------------------- the row count (C31: only a missing table reads as zero)
+
+
+def counting_manager(error=None, rows=7):
+    """A manager whose count statement raises `error`, or returns `rows`."""
+    vsm = manager()
+    vsm.schema_name, vsm.table_name, vsm.data_table = "public", "t", "data_t"
+
+    class Connection:
+        def cursor(self):
+            class Cursor:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc):
+                    return False
+
+                def execute(self, sql, params=None):
+                    if error is not None:
+                        raise error
+
+                def fetchone(self):
+                    return (rows,)
+
+            return Cursor()
+
+    @contextmanager
+    def get_connection():
+        yield Connection()
+
+    vsm.get_connection = get_connection
+    return vsm
+
+
+def test_count_nodes_raises_a_database_error_instead_of_reading_it_as_an_empty_table():
+    """Any error used to read as 0 rows, so /health said n_nodes 0 while the database was unreachable."""
+    import psycopg2
+
+    with pytest.raises(psycopg2.OperationalError, match="server closed the connection"):
+        counting_manager(psycopg2.OperationalError("server closed the connection unexpectedly")).count_nodes()
+    with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+        counting_manager(psycopg2.errors.InsufficientPrivilege("permission denied for table data_t")).count_nodes()
+
+
+def test_count_nodes_is_zero_only_when_the_table_does_not_exist():
+    import psycopg2.errors
+
+    assert counting_manager(psycopg2.errors.UndefinedTable('relation "public.data_t" does not exist')).count_nodes() == 0
+    assert counting_manager(rows=7).count_nodes() == 7
