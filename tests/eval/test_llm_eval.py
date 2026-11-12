@@ -586,3 +586,19 @@ def test_the_evidence_rows_publish_a_judge_score_only_after_the_gate():
     assert [r["ci"] for r in kappas] == ["[1.0, 1.0]", "[1.0, 1.0]"] and all("planted" in r["not_shown"] for r in kappas)
     blob["summary"]["publishable_judges"] = []
     assert not [r for r in evidence._jury_v2_claims(blob, "bench/results/jury_v2.json") if "mean correctness" in r["claim"]]
+
+
+def test_claim_values_come_out_in_the_same_order_in_every_process():
+    """The value checks list the values an answer states; deduplicating them through a set made that order follow
+    the process's hash seed, so a rescore of the same answers wrote the lists of four rows in another order."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    code = ("from app.agent.citation_verify import extract_claims; "
+            "print([c.value for c in extract_claims('Runs 42, 47 and 53 used 3 pairs with dinov2 and clip, val 0.0568 and 0.0521, lr 3e-4.')])")
+    root = Path(__file__).resolve().parents[2]
+    outs = {subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, check=True,
+                           env={**os.environ, "PYTHONHASHSEED": str(seed), "PYTHONPATH": str(root)}).stdout for seed in range(1, 7)}
+    assert len(outs) == 1, outs
