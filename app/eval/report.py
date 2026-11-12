@@ -24,7 +24,7 @@ FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-b
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
-JURY_FILE = "bench/results/jury.json"
+JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the M4 run, linked from the block
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"
 LATENCY_FILES = {
     "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
@@ -581,6 +581,11 @@ def jury_v2_table(blob: dict) -> str:
             lines.append(f"| jury majority ({', '.join(k['members'])}) | {k['kappa_vs_exact_match_simple_factual']} | {interval(k)} | {k['n']} | {gate_cell(k['readme_ok'])} | — |")
         else:
             lines.append(f"| {name} | {k['kappa_vs_exact_match_simple_factual']} | {interval(k)} | {k['n']} | {gate_cell(k['readme_ok'])} | {_lcpw(k['label_counts'])} |")
+    for name, k in s["kappa"].items():
+        one = [lab for lab, count in (k.get("label_counts") or {}).items() if count and count == k["n"]]
+        if name != "jury_majority" and one:
+            lines += ["", f"{name} labelled all {k['n']} calibration answers {one[0]}: its verdicts carry no information about the gold, "
+                      "which is why its kappa is 0."]
     own = [f"{name} {k['simple_factual_answers']['agree']} of {k['simple_factual_answers']['n']}" for name, k in s["kappa"].items()
            if name != "jury_majority" and k.get("simple_factual_answers")]
     if own:
@@ -622,6 +627,9 @@ def jury_v2_table(blob: dict) -> str:
                   "| judge | mean correctness over the judged answers | n |", "|---|---:|---:|"]
         for name in pub:
             lines.append(f"| {name} | {s['kappa'][name]['mean_correctness_all']} | {s['kappa'][name]['n_all']} |")
+        if gen["model"] in pub:
+            lines += ["", f"{gen['model']} scores answers its own weights generated (self-preference risk), and the gate validated it on "
+                      "single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers."]
         lines += ["", f"Verdict: {s['verdict']}."]
     else:
         lines += ["", f"Verdict: {s['verdict']}. Mean judge scores are in the results file but are not printed here."]
@@ -640,7 +648,7 @@ def jury_table(blob: dict | None) -> str:
     """M4: deterministic checks always; judge scores only when a judge passed the kappa gate. A file with a
     `protocol` block (M29 on) renders with jury_v2_table."""
     if not blob:
-        return f"_{JURY_FILE} is missing; run `make bench-jury` (needs Ollama)._"
+        return f"_{JURY_FILE} is missing; run `make bench-jury-v2` (needs Ollama)._"
     if "protocol" in blob:
         return jury_v2_table(blob)
     s = blob["summary"]
