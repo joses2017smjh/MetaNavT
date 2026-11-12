@@ -616,15 +616,23 @@ def pgvector_hnsw_table(blob: dict | None) -> str:
         f"pgvector's HNSW index against the exact scan on the table the served indexer built from FiQA (`make bench-served-scale`): {table['rows']} chunk vectors, "
         f"{table['dim']} dimensions ({table['embedder']}), queried with the served query embedding of the {blob['queries']['n']} test queries, k = {blob['k']}; "
         f"the served index (m {index['m']}, ef_construction {index['ef_construction']}, {_mib(index['bytes'])}) as a deployment builds it: the schema migrations create it on the "
-        f"empty table and index_directory's inserts grow it row by row; a REINDEX of it on the final table took {index['reindex_seconds']} s; {server.get('postgres')}, "
-        f"pgvector {server.get('pgvector')}; {scale_machine(blob)}; {scale_sha(blob)}. Recall: {blob['recall_definition']}. Latency: {blob['latency_definition']}.",
+        f"empty table and index_directory's inserts grow it row by row; a REINDEX of it took {index['reindex_seconds']} s, in the variants step below, after the two copies "
+        f"had been added and the table vacuumed; {server.get('postgres')}, pgvector {server.get('pgvector')}; {scale_machine(blob)}; {scale_sha(blob)}. "
+        f"Recall: {blob['recall_definition']}. Latency: {blob['latency_definition']}.",
         "",
-        "| configuration | hnsw.ef_search | Recall@10 [95% CI] | Recall@50 [95% CI] | queries with all 50 | p50 / p95 ms | plan |",
-        "|---|---:|---:|---:|---:|---:|---|",
+        "| configuration | hnsw.ef_search | rows returned (mean) | Recall@10 [95% CI] | Recall@50 [95% CI] | queries with all 50 | p50 / p95 ms | plan |",
+        "|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     for r in blob["rows"]:
         ef = r.get("ef_search") or (r.get("settings") or {}).get("hnsw.ef_search") or "—"
-        lines.append(f"| {r['config']} | {ef} | {_mean_ci(r['recall@10'])} | {_mean_ci(r['recall@50'])} | {r.get('queries_with_full_recall@50', '—')} | {_p50_p95(r.get('latency'))} | {r.get('plan_node')} |")
+        lines.append(f"| {r['config']} | {ef} | {_rows_returned(r)} | {_mean_ci(r['recall@10'])} | {_mean_ci(r['recall@50'])} | {r.get('queries_with_full_recall@50', '—')} | "
+                     f"{_p50_p95(r.get('latency'))} | {r.get('plan_node')} |")
+    short = [r for r in blob["rows"] if (r.get("rows_returned") or {}).get("queries_under_k")]
+    if short:
+        k = blob["k"]
+        lines += ["", f"With hnsw.iterative_scan off, an index scan stops after about hnsw.ef_search rows, so a configuration that returns fewer than k = {k} rows cannot reach "
+                      f"Recall@{k} = 1: " + "; ".join(f"{r['config']} returned {r['rows_returned']['mean']} rows per query on average, so its Recall@{k} is at most "
+                                                         f"{min(r['rows_returned']['mean'], k) / k:.4f}" for r in short) + "."]
     v = blob["variants"]
     after, before = v["sizes_after"], v["sizes_before"]
     names = v["indexes"]
@@ -633,12 +641,32 @@ def pgvector_hnsw_table(blob: dict | None) -> str:
                   f"no schema migration adds either copy, and the served statement reads only the float32 column): the exact scan found the same rows after the rewrite: "
                   f"{v['exact_unchanged']}. The rows below read the indexes rebuilt in bulk; the rows above read the served index as it grew. HNSW index sizes after REINDEX: float32 "
                   f"{_mib(after['indexes'][names['float32']]['bytes'])}, halfvec {_mib(after['indexes'][names['halfvec']]['bytes'])}, binary {_mib(after['indexes'][names['binary']]['bytes'])}; "
-                  f"REINDEX seconds: float32 {secs.get('reindex_float32')}, halfvec {secs.get('reindex_halfvec')}, binary {secs.get('reindex_binary')}. Both copies stay next to the "
-                  f"float32 column, so the table grew from {_mib(before['table_bytes_with_toast'])} to {_mib(after['table_bytes_with_toast'])}.", "",
-              "| variant | hnsw.ef_search | binary candidates | Recall@10 [95% CI] | Recall@50 [95% CI] | p50 / p95 ms | plan |", "|---|---:|---:|---:|---:|---:|---|"]
+                  f"REINDEX seconds: float32 {secs.get('reindex_float32')}, halfvec {secs.get('reindex_halfvec')}, binary {secs.get('reindex_binary')}. {_copies_growth(before, after)}", "",
+              "| variant | hnsw.ef_search | binary candidates | rows returned (mean) | Recall@10 [95% CI] | Recall@50 [95% CI] | p50 / p95 ms | plan |", "|---|---:|---:|---:|---:|---:|---:|---|"]
     for r in v["rows"]:
-        lines.append(f"| {r['variant']} | {r.get('ef_search', '—')} | {r.get('candidates', '—')} | {_mean_ci(r['recall@10'])} | {_mean_ci(r['recall@50'])} | {_p50_p95(r.get('latency'))} | {r.get('plan_node')} |")
+        lines.append(f"| {r['variant']} | {r.get('ef_search', '—')} | {r.get('candidates', '—')} | {_rows_returned(r)} | {_mean_ci(r['recall@10'])} | {_mean_ci(r['recall@50'])} | "
+                     f"{_p50_p95(r.get('latency'))} | {r.get('plan_node')} |")
     return "\n".join(lines)
+
+
+def _rows_returned(row: dict) -> str:
+    return str(row["rows_returned"]["mean"]) if row.get("rows_returned") else "—"
+
+
+def _copies_growth(before: dict, after: dict) -> str:
+    """What the two copies take per row, and the table's growth with what the UPDATEs that fill them left behind."""
+    columns = after.get("avg_column_bytes") or {}
+    half, bit = columns.get("embedding_half"), columns.get("embedding_bit")
+    grown = (f"The table (heap and TOAST) grew from {_mib(before['table_bytes_with_toast'])} to {_mib(after['table_bytes_with_toast'])} "
+             f"(the heap from {_mib(before.get('heap_bytes'))} to {_mib(after.get('heap_bytes'))})")
+    if half is None or bit is None or not after.get("rows"):
+        return grown + "."
+    own = (half + bit) * after["rows"]
+    growth = after["table_bytes_with_toast"] - before["table_bytes_with_toast"]
+    share = "most of that growth is not the copies' own size" if own < growth / 2 else "part of that growth is not the copies' own size"
+    return (f"Both copies stay next to the float32 column: they average {half} and {bit} bytes per row, about {_mib(own)} over {after['rows']} rows. {grown}: each copy is "
+            "filled by an UPDATE of every row, which leaves the old row versions behind, and the plain VACUUM before the REINDEX marks their space reusable but keeps it in "
+            f"the file, so {share}.")
 
 
 PARITY_NEURAL_CONFIG = "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first"

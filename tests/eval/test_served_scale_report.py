@@ -93,7 +93,8 @@ def test_served_block_refuses_a_slice_or_a_dry_run_and_names_split_machines():
 
 
 def hnsw_blob():
-    row = {"recall@10": ci(0.97), "recall@50": ci(0.95), "queries_with_full_recall@50": 300, "latency": {"n": 4, "p50_ms": 1.5, "p95_ms": 2.5}}
+    row = {"recall@10": ci(0.97), "recall@50": ci(0.95), "queries_with_full_recall@50": 300, "rows_returned": {"mean": 50.0, "min": 50, "queries_under_k": 0},
+           "latency": {"n": 4, "p50_ms": 1.5, "p95_ms": 2.5}}
     names = {"float32": "h_idx", "halfvec": "h_half", "binary": "h_bit"}
     sizes = {"table_bytes_with_toast": 500 * 2**20, "indexes": {"h_idx": {"bytes": 230 * 2**20}, "h_half": {"bytes": 120 * 2**20}, "h_bit": {"bytes": 20 * 2**20}}}
     return {
@@ -102,9 +103,11 @@ def hnsw_blob():
         "index": {"m": 16, "ef_construction": 64, "reindex_seconds": 400.75, "bytes": 230 * 2**20}, "server": {"postgres": "PostgreSQL 16.15", "pgvector": "0.8.6"},
         "recall_definition": "R", "latency_definition": "L",
         "rows": [{"config": "exact", "plan_node": "Seq Scan", "recall@10": {"mean": 1.0}, "recall@50": {"mean": 1.0}, "latency": {"n": 4, "p50_ms": 150.5, "p95_ms": 170.5}},
-                 {**row, "config": "hnsw ef_search=40", "ef_search": 40, "plan_node": "Index Scan using h_idx"},
+                 {**row, "config": "hnsw ef_search=40", "ef_search": 40, "plan_node": "Index Scan using h_idx", "rows_returned": {"mean": 40.0, "min": 40, "queries_under_k": 648}},
                  {**row, "config": "served dense CTE", "settings": {"hnsw.ef_search": 100}, "plan_node": "Index Scan using h_idx"}],
-        "variants": {"indexes": names, "sizes_before": {"table_bytes_with_toast": 500 * 2**20}, "sizes_after": {**sizes, "table_bytes_with_toast": 900 * 2**20},
+        "variants": {"indexes": names, "sizes_before": {"table_bytes_with_toast": 500 * 2**20, "heap_bytes": 200 * 2**20, "rows": 117000},
+                     "sizes_after": {**sizes, "table_bytes_with_toast": 900 * 2**20, "heap_bytes": 600 * 2**20, "rows": 117000,
+                                     "avg_column_bytes": {"embedding": 1540.0, "embedding_half": 775.0, "embedding_bit": 53.0}},
                      "build_seconds": {"reindex_float32": 300.5, "reindex_halfvec": 200.5, "reindex_binary": 50.5}, "exact_unchanged": True,
                      "rows": [{**row, "variant": "float32", "ef_search": 100, "plan_node": "Index Scan using h_idx"}, {**row, "variant": "halfvec", "ef_search": 100, "plan_node": "Index Scan using h_half"},
                               {**row, "variant": "binary+rescore", "candidates": 400, "ef_search": 400, "plan_node": "Index Scan using h_bit"}]},
@@ -114,12 +117,22 @@ def hnsw_blob():
 def test_pgvector_block_shows_the_sweep_and_the_variants_on_one_table():
     text = report.pgvector_hnsw_table(hnsw_blob())
     assert "117000 chunk vectors, 384 dimensions (BAAI/bge-small-en-v1.5)" in text and "the 648 test queries" in text
-    assert "the served index (m 16, ef_construction 64, 230.0 MiB) as a deployment builds it" in text and "a REINDEX of it on the final table took 400.75 s" in text
-    assert "| exact | — | 1.0000 | 1.0000 | — | 150.5 / 170.5 | Seq Scan |" in text
-    assert "| hnsw ef_search=40 | 40 | 0.9700 [0.9500, 0.9900] | 0.9500 [0.9300, 0.9700] | 300 | 1.5 / 2.5 | Index Scan using h_idx |" in text
-    assert "| served dense CTE | 100 |" in text and "GPU X (44.4 GB) with CPU Y" in text
-    assert "float32 230.0 MiB, halfvec 120.0 MiB, binary 20.0 MiB" in text and "grew from 500.0 MiB to 900.0 MiB" in text
-    assert "| binary+rescore | 400 | 400 |" in text and "| halfvec | 100 | — |" in text and "reads only the float32 column" in text
+    assert "the served index (m 16, ef_construction 64, 230.0 MiB) as a deployment builds it" in text
+    # the REINDEX ran in the variants step, on the table the two copies had rewritten, not on the table the served rows read
+    assert "a REINDEX of it took 400.75 s, in the variants step below, after the two copies had been added and the table vacuumed" in text
+    assert "on the final table" not in text
+    assert "| exact | — | — | 1.0000 | 1.0000 | — | 150.5 / 170.5 | Seq Scan |" in text
+    assert "| hnsw ef_search=40 | 40 | 40.0 | 0.9700 [0.9500, 0.9900] | 0.9500 [0.9300, 0.9700] | 300 | 1.5 / 2.5 | Index Scan using h_idx |" in text
+    # a scan that returns fewer than k rows cannot reach Recall@k = 1: the block says so, from the rows each scan returned
+    assert "hnsw ef_search=40 returned 40.0 rows per query on average, so its Recall@50 is at most 0.8000" in text
+    assert "served dense CTE returned" not in text
+    assert "| served dense CTE | 100 | 50.0 |" in text and "GPU X (44.4 GB) with CPU Y" in text
+    assert "float32 230.0 MiB, halfvec 120.0 MiB, binary 20.0 MiB" in text
+    # the growth is mostly the row versions the two UPDATEs left, not the copies' own bytes (775 + 53 bytes x 117000 rows)
+    assert "they average 775.0 and 53.0 bytes per row, about 92.4 MiB over 117000 rows" in text
+    assert "grew from 500.0 MiB to 900.0 MiB (the heap from 200.0 MiB to 600.0 MiB)" in text and "most of that growth is not the copies' own size" in text
+    assert "Both copies stay next to the float32 column, so the table grew" not in text
+    assert "| binary+rescore | 400 | 400 | 50.0 |" in text and "| halfvec | 100 | — | 50.0 |" in text and "reads only the float32 column" in text
     assert "no schema migration adds either copy" in text and "ensure_halfvec" not in text
 
 
