@@ -852,6 +852,15 @@ change per row. Losers stay in the table. The table below, the headline in the
 overview and the figures are all rendered from
 [`bench/results/main.json`](../bench/results/main.json) (`make bench-table`,
 `make figures`); `tests/eval/test_readme_numbers.py` fails if they drift.
+Every harness results file has its per-question scores beside it
+(`main.json` -> `main.per_query.json`, written by the harness and promoted with
+it by `make bench-baseline`; [app/eval/per_question.py](../app/eval/per_question.py)):
+the gold ids and categories and, per row, one unrounded score per question for
+each metric with an interval. `make bench-intervals RESULTS=<file>` runs the
+same bootstrap over them and fails unless every interval, paired delta,
+per-category delta and mean equals the file
+(`tests/eval/test_per_question.py` does it for every committed sidecar). Files
+recorded before the sidecar existed have none until they are re-recorded.
 
 <p align="center">
   <img src="../doc/figures/ndcg.svg" alt="nDCG@10 by retrieval config with 95% confidence intervals" width="820"/>
@@ -887,6 +896,7 @@ make bench            # bench/results/<git-sha>.json and latest.json
 make bench-compare    # latest.json vs bench/results/main.json (report)
 make bench-gate       # same, exit 1 on regression (what CI runs)
 make bench-check      # re-run, exit 1 unless every field of every row equals main.json (CI runs it too)
+make bench-intervals  # recompute every interval of main.json from main.per_query.json (RESULTS=<file> for another)
 make bench-table      # renders the generated blocks from main.json (bench-table-write updates them in place)
 make figures          # regenerates the SVGs above
 make sweeps           # HNSW, halfvec, hops, GraphRAG

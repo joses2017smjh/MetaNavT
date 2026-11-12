@@ -23,6 +23,7 @@ from app.eval.ingest import CHUNKER_VERSION
 from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
+from app.eval import per_question
 from app.eval.probes import load_probes
 # git_sha is also imported from this module by rerank_arms, sweeps, rrf_sweep, hybrid_drops, demo_export and frontier_llm.
 from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sha256_file
@@ -876,7 +877,9 @@ def run_bench(
 
     Without `out`, results go to bench/results/<sha>.json and latest.json (the
     default bench). With `out`, only that file is written, so neural runs never
-    touch the CI baseline. `frontier` adds what a prototype arm needs next to
+    touch the CI baseline. Each results file gets its per-question sidecar
+    (app/eval/per_question.py: <name>.per_query.json), from which every interval
+    in it is recomputed exactly. `frontier` adds what a prototype arm needs next to
     its delta: fallback labels, per-category deltas vs parent for every
     category, and the number of questions whose list differs from the parent's.
     `compare_lists` adds only that last count (vs_parent) to every row with a parent.
@@ -958,18 +961,22 @@ def run_bench(
         blob["frontier"] = attach_frontier(results, retrieved_by_config)
     elif compare_lists:
         attach_list_changes(results, retrieved_by_config)
+    sidecar = per_question.build(blob, scores_by_config, [q.id for q in gold], [q.category for q in gold], CI_METRICS)
     out_dir = root / "bench" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     if out is not None:
         out = out if out.is_absolute() else root / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
+        per_question.write(per_question.sidecar_path(out), sidecar)
         blob["output"] = str(out)
         return blob
     out_path = out_dir / f"{sha}.json"
     out_path.write_text(json.dumps(blob, indent=2) + "\n")
     latest = out_dir / "latest.json"
     latest.write_text(json.dumps(blob, indent=2) + "\n")
+    for path in (out_path, latest):
+        per_question.write(per_question.sidecar_path(path), sidecar)
     if all_triples:
         write_triples(out_dir / f"{sha}.triples.jsonl", all_triples)
     blob["output"] = str(out_path)
@@ -990,8 +997,9 @@ def attach_confidence(
     categories: list[str] | None = None,
     comparisons: list[tuple[str, str]] | None = None,
     all_categories: bool = False,
+    metrics: tuple[str, ...] = CI_METRICS,
 ) -> dict:
-    """Add per-config 95% CIs and paired deltas in place.
+    """Add per-config 95% CIs and paired deltas in place, for each of `metrics`.
 
     delta_vs_bm25_only: every row against the bm25_only row.
     delta_vs_previous:  against the row's explicit `parent` (settings.parent); a row
@@ -1020,7 +1028,7 @@ def attach_confidence(
         if other is None or other == name:
             return None
         out: dict[str, Any] = {"reference": other}
-        for metric in CI_METRICS:
+        for metric in metrics:
             a, b = column(name, metric), column(other, metric)
             if a is None or b is None:
                 return None
@@ -1039,7 +1047,7 @@ def attach_confidence(
             return None
         sub_idx = resample_indices(len(sel), n_boot=n_boot, seed=seed)
         out: dict[str, Any] = {"reference": other, "category": category, "n": len(sel), "small_n": len(sel) < SMALL_N}
-        for metric in CI_METRICS:
+        for metric in metrics:
             a = [rows_a[i][metric] for i in sel]
             b = [rows_b[i][metric] for i in sel]
             d, lo, hi = paired_delta_ci(a, b, sub_idx)
@@ -1051,7 +1059,7 @@ def attach_confidence(
     for i, row in enumerate(results):
         name = row["config"]
         ci: dict[str, Any] = {}
-        for metric in CI_METRICS:
+        for metric in metrics:
             values = column(name, metric)
             if values is None:
                 continue
@@ -1148,10 +1156,12 @@ def main(argv: list[str] | None = None) -> None:
         from app.eval.parity import DEFAULT_OUT, IN_MEMORY, markdown_table as parity_table, run as parity_run
 
         blob = parity_run(args.url, in_memory=args.parity_config or IN_MEMORY.name)
+        sidecar = blob.pop("_sidecar")
         out = args.out or (project_root() / DEFAULT_OUT)  # untracked; a committed parity file is named with --out
         out = out if out.is_absolute() else project_root() / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
+        per_question.write(per_question.sidecar_path(out), sidecar)
         print(parity_table(blob))
         print(f"wrote {out}")
         if not blob["api_ok"]:  # a broken API, not the size of the gap (the table above lists the problems)

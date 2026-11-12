@@ -68,7 +68,8 @@ from urllib import error, request
 
 from app.eval.corpus import load_manifest, mtime_mismatches, verify_manifest
 from app.eval.gold import load_gold
-from app.eval.harness import RERANK_DEPTH_CONFIGS, BenchConfig, attach_confidence, ingest_header, project_root, run_config
+from app.eval import per_question
+from app.eval.harness import CI_METRICS, RERANK_DEPTH_CONFIGS, BenchConfig, attach_confidence, ingest_header, project_root, run_config
 from app.eval.index_loader import mtime_provenance
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
@@ -258,7 +259,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
         "paired_delta_api_minus_in_memory": (api.get("delta_vs_previous") or {}).get("ndcg@10"),
     }
     settings = side_by_side(cfg, mem, api, health)
-    return {
+    blob = {
         "git_sha": git_sha(root),
         **run_provenance(root=root, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -285,6 +286,9 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
         "api_problems": problems,
         "results": results,
     }
+    # the per-question scores of both rows, written beside the results file by its writer (harness.main)
+    blob["_sidecar"] = per_question.build(blob, scores, [q.id for q in gold], [q.category for q in gold], CI_METRICS)
+    return blob
 
 
 def markdown_table(blob: dict) -> str:

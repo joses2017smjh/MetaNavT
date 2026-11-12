@@ -75,8 +75,14 @@ bench-check:    ## run the CPU bench into bench/results/check.json; exit 1 unles
 	$(PYTHON) -m app.eval.harness --out bench/results/check.json
 	$(PYTHON) -m app.eval.compare --exact --current bench/results/check.json
 
-bench-baseline: ## promote latest.json to main.json (review `make bench-compare` first)
+bench-baseline: ## promote latest.json and its per-question sidecar to main.json (review `make bench-compare` first)
 	cp bench/results/latest.json bench/results/main.json
+	cp bench/results/latest.per_query.json bench/results/main.per_query.json
+
+.PHONY: bench-intervals
+RESULTS ?= bench/results/main.json
+bench-intervals: ## recompute every interval, paired delta and mean of a harness results file (RESULTS) from its per-question sidecar; exit 1 unless all equal the file
+	$(PYTHON) -m app.eval.per_question $(RESULTS)
 
 bench-table:    ## render the README benchmark blocks from bench/results/main.json
 	$(PYTHON) -m app.eval.report
