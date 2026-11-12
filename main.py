@@ -107,7 +107,7 @@ async def _start_attempt(app: FastAPI, built: dict) -> bool:
         if built.get("plans") is None:
             built["plans"] = await run_in_threadpool(build_plan_store, built["retrieval"].vsm, DATA_DIR)
             app.state.plans = built["plans"]
-            logger.info(f"Plan store ready over {DATA_DIR} (decisions logged to Postgres)")
+            logger.info(f"Plan store ready over {DATA_DIR} (plans and decisions in Postgres)")
     except Exception as exc:  # noqa: BLE001 - surfaced by /health, then retried
         app.state.startup_error = f"{type(exc).__name__}: {exc}"
         if attempt == 1:

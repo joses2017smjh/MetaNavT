@@ -5,7 +5,8 @@ indexed/agent-readable roots; servers are given only the public key:
   python -m app.mcp.approve init --key /private/operator.key --public-key /srv/metanavit/operator.pub
 Inspect the entire proposal's review JSON, then issue a short-lived capability with the private key:
   python -m app.mcp.approve sign --key /private/operator.key --review review.json --actor operator
-Configure servers with METANAVIT_APPROVAL_PUBLIC_KEY_FILE and METANAVIT_APPROVAL_LEDGER_FILE.
+Configure servers with METANAVIT_APPROVAL_PUBLIC_KEY_FILE and METANAVIT_APPROVAL_LEDGER_FILE
+(API replicas on one database: METANAVIT_APPROVAL_LEDGER=postgres instead of the ledger file).
 The host must protect these paths from every connected agent, not only this MCP:
 the private key from being read, the public key and the ledger from being
 replaced (whoever can replace the public key can mint capabilities).
