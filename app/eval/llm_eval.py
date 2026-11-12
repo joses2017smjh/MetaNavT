@@ -612,7 +612,8 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
                    f"{'one class' if single_class else 'empty'} ({counts} of {len(ref_labels)}), so Cohen's kappa is 0 by construction "
                    f"for any judge with variance and 1 for a judge that never varies; judge scores stay off the README")
     elif publishable:
-        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: their correctness scores may be published"
+        scores = "its correctness score" if len(publishable) == 1 else "their correctness scores"
+        verdict = f"kappa >= {KAPPA_GATE} for {', '.join(publishable)}: {scores} may be published"
     else:
         verdict = (f"no judge reached kappa >= {KAPPA_GATE} vs exact-match labels on the "
                    f"{'calibration set' if calibration is not None else 'simple_factual answers'}; judge scores stay off the README")

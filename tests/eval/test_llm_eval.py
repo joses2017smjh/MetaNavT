@@ -799,3 +799,12 @@ def test_both_answers_of_a_question_move_together(monkeypatch):
     pairs = [(r["checks"]["exact_match_label"], r["correctness"]["j"]["label"]) for r in cal]
     assert llm_eval.kappa_interval(pairs, [f"{r['id']}:{r['condition']}" for r in cal]) == _by_answer(cal, lambda r: r["correctness"]["j"]["label"])
     assert llm_eval.kappa_interval(pairs[:2], ["q000", "q000"]) is None  # one question: nothing to resample
+
+
+def test_the_verdict_reads_correctly_for_one_or_several_published_judges():
+    from app.eval.llm_eval import summarize
+
+    cal = _calibration_set()  # j passes the gate (kappa 0.7), k does not (0.3333)
+    assert summarize([], ["j", "k"], cal)["verdict"] == "kappa >= 0.6 for j: its correctness score may be published"
+    both = [dict(r, correctness={**r["correctness"], "k": r["correctness"]["j"]}) for r in cal]
+    assert summarize([], ["j", "k"], both)["verdict"] == "kappa >= 0.6 for j, k: their correctness scores may be published"
