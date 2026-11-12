@@ -756,6 +756,10 @@ def test_rerank_arms_end_to_end_with_stand_ins_records_both_students_and_the_lis
     from app.eval.report import rerank_arms_table
 
     blob = _stand_in_rerank_arms(monkeypatch, tmp_path, _fake_lightgbm(lambda params, dataset, num_boost_round: _FakeBooster(params, dataset, num_boost_round)))
+    from app.eval.harness import project_root
+    from app.eval.provenance import sha256_file
+
+    assert blob["gold_sha256"] == sha256_file(project_root() / "bench" / "gold" / "questions.jsonl")  # A38
     test_rows = {r["config"]: r for r in blob["test_split"]["results"]}
     assert list(test_rows) == [HYBRID, TEACHER, STUDENT, STUDENT_LGBM] and blob["not_evaluated"] == []
     assert test_rows[STUDENT]["student"]["backend"] == "numpy_lstsq" and test_rows[STUDENT_LGBM]["student"]["backend"] == "lightgbm"
@@ -814,7 +818,9 @@ def test_rerank_arm_split_alternates_inside_each_category_and_scores_pairs():
     assert by["good"]["rerank_latency"]["n"] == len(test)
     (delta,) = by["bad"]["deltas"]
     assert delta["reference"] == "good" and delta["ndcg@10"] == {"delta": -1.0, "lo": -1.0, "hi": -1.0}
-    assert set(delta) == {"reference", "ndcg@10", "recall@10", "recall@50"}
+    from app.eval.harness import CI_METRICS
+
+    assert set(delta) == {"reference", *CI_METRICS}  # the harness's interval metrics (B33 added MRR@10 and Recall@5)
 
 
 def test_rerank_arms_block_reads_verdicts_off_the_file():

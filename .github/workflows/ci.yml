@@ -77,7 +77,7 @@ jobs:
         run: make robotics-verify
       - name: Bench
         run: make bench
-      - name: Regression gate (nDCG@10 / Recall@50 vs bench/results/main.json)
+      - name: Regression gate (nDCG@10 / Recall@10 / Recall@50 vs bench/results/main.json)
         run: make bench-gate
       - name: Exact reproduction (every field of every row equals bench/results/main.json; timings excepted)
         run: make bench-check
@@ -184,7 +184,7 @@ jobs:
         if: always()
         with:
           name: parity-results
-          path: bench/results/parity.json
+          path: bench/results/parity_latest.json
 
   docker-smoke:
     # docker compose up --build, wait for /health (the api container migrates, then indexes

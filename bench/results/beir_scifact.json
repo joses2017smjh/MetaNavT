@@ -10,7 +10,7 @@
     "qrels/test.tsv": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
   },
   "corpus_sha256": "7394141cfad041e3b3cc0925871a7347213f880f40ed68ea27b7eaf351b0b7a1",
-  "runner_sha256": "b7e2e1961d6afef2d1875e81722beedcab9fe5f883fedec216d250099e630687",
+  "runner_sha256": "ea12884edfe8e8a69fe8bc2f578ef3fea05a79b6ffe0f0c4ac1ed8f2cb4314ef",
   "n_docs": 5183,
   "n_queries": 300,
   "full_split_queries": 300,
@@ -25,8 +25,27 @@
   },
   "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
   "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
-  "git_sha": "2583576",
-  "timestamp": "2026-11-11T09:23:36.245167+00:00",
+  "git_sha": "32972cf",
+  "git_head": "32972cf188ccfe08c99490c90b50c3b621090189",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "ea12884edfe8e8a69fe8bc2f578ef3fea05a79b6ffe0f0c4ac1ed8f2cb4314ef",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/provenance.py": "9a43cbd5461f5ad6962280ec94d2f23517096f808e536d58e324732d18318607",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "8eddee17823fb08d3821a285d96912fdac1933384bc7e1ed33f846f56f2d1198",
+    "app/retrieval/embedders.py": "ee8e89cf8177d013677361ba2bcb299339013aef9b28f8552a42f8a6907822f6",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "3e32b273ec8da98b2272f5dd1dceeb1307a1899cc21d349ac9374e37d2e2028b",
+    "app/retrieval/rerank.py": "ddb83a19893a2ff6a4f9988c78d1ea75c4182046f3bb5c8b4b8bed9a86fd3812",
+    "app/retrieval/router.py": "29ff7565a3e1d375f512697ba09f5ea1e6a1689a5db83cb3adc7a70ec4bfaf4e",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-12T16:18:05.321018+00:00",
   "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --data-dir <path>/beir_external --out bench/results/beir_scifact.json",
   "device": {
     "requested": "auto",
@@ -36,7 +55,7 @@
     "torch": "2.5.1+cu121",
     "cuda_available": true,
     "device": "cuda",
-    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "device_name": "Quadro RTX 8000",
     "threads": 1,
     "sentence_transformers": "6.1.0"
   },
@@ -78,22 +97,22 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 2.54,
-          "p95_ms": 4.57,
-          "mean_ms": 2.6
+          "p50_ms": 1.86,
+          "p95_ms": 3.37,
+          "mean_ms": 1.9
         },
         "total": {
           "n": 300,
-          "p50_ms": 2.55,
-          "p95_ms": 4.59,
-          "mean_ms": 2.61
+          "p50_ms": 1.87,
+          "p95_ms": 3.38,
+          "mean_ms": 1.91
         }
       },
       "build_ms": {
-        "bm25_index_ms": 25157.52,
-        "total_ms": 25157.52
+        "bm25_index_ms": 18353.77,
+        "total_ms": 18353.77
       },
-      "wall_ms": 795.13,
+      "wall_ms": 582.72,
       "models": {},
       "metric_cross_check": {
         "status": "passed",
@@ -160,22 +179,22 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 5.52,
-          "p95_ms": 9.24,
-          "mean_ms": 5.45
+          "p50_ms": 4.01,
+          "p95_ms": 6.56,
+          "mean_ms": 3.97
         },
         "total": {
           "n": 300,
-          "p50_ms": 5.53,
-          "p95_ms": 9.25,
-          "mean_ms": 5.47
+          "p50_ms": 4.02,
+          "p95_ms": 6.57,
+          "mean_ms": 3.98
         }
       },
       "build_ms": {
-        "bm25_index_ms": 1096.64,
-        "total_ms": 1096.64
+        "bm25_index_ms": 903.48,
+        "total_ms": 903.48
       },
-      "wall_ms": 1652.55,
+      "wall_ms": 1203.06,
       "models": {},
       "metric_cross_check": {
         "status": "passed",
@@ -272,29 +291,29 @@
       "latency": {
         "embed": {
           "n": 300,
-          "p50_ms": 13.06,
-          "p95_ms": 13.54,
-          "mean_ms": 13.07
+          "p50_ms": 8.55,
+          "p95_ms": 8.94,
+          "mean_ms": 8.57
         },
         "dense": {
           "n": 300,
-          "p50_ms": 1.55,
-          "p95_ms": 2.01,
-          "mean_ms": 1.6
+          "p50_ms": 1.56,
+          "p95_ms": 1.7,
+          "mean_ms": 1.59
         },
         "total": {
           "n": 300,
-          "p50_ms": 14.64,
-          "p95_ms": 15.59,
-          "mean_ms": 14.69
+          "p50_ms": 10.13,
+          "p95_ms": 10.55,
+          "mean_ms": 10.18
         }
       },
       "build_ms": {
-        "embedder_load_ms": 13035.17,
-        "doc_embeddings_ms": 21805.64,
-        "total_ms": 34840.81
+        "embedder_load_ms": 9589.04,
+        "doc_embeddings_ms": 27.64,
+        "total_ms": 9616.68
       },
-      "wall_ms": 4424.11,
+      "wall_ms": 3069.48,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -401,21 +420,21 @@
       "latency": {
         "embed": {
           "n": 300,
-          "p50_ms": 13.11,
-          "p95_ms": 13.73,
-          "mean_ms": 13.19
+          "p50_ms": 8.58,
+          "p95_ms": 8.85,
+          "mean_ms": 8.61
         },
         "dense": {
           "n": 300,
-          "p50_ms": 1.52,
-          "p95_ms": 2.02,
-          "mean_ms": 1.56
+          "p50_ms": 1.56,
+          "p95_ms": 1.68,
+          "mean_ms": 1.58
         },
         "total": {
           "n": 300,
-          "p50_ms": 14.66,
-          "p95_ms": 15.67,
-          "mean_ms": 14.77
+          "p50_ms": 10.17,
+          "p95_ms": 10.46,
+          "mean_ms": 10.21
         }
       },
       "build_ms": {
@@ -423,7 +442,7 @@
         "doc_embeddings_ms": 0.0,
         "total_ms": 0.0
       },
-      "wall_ms": 4450.12,
+      "wall_ms": 3077.21,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -530,33 +549,33 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 2.86,
-          "p95_ms": 5.1,
-          "mean_ms": 2.94
+          "p50_ms": 2.17,
+          "p95_ms": 3.73,
+          "mean_ms": 2.21
         },
         "embed": {
           "n": 300,
-          "p50_ms": 13.13,
-          "p95_ms": 13.67,
-          "mean_ms": 13.13
+          "p50_ms": 8.56,
+          "p95_ms": 8.77,
+          "mean_ms": 8.54
         },
         "dense": {
           "n": 300,
-          "p50_ms": 1.6,
-          "p95_ms": 2.02,
-          "mean_ms": 1.64
+          "p50_ms": 1.63,
+          "p95_ms": 1.76,
+          "mean_ms": 1.63
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.11,
-          "p95_ms": 0.13,
-          "mean_ms": 0.11
+          "p50_ms": 0.1,
+          "p95_ms": 0.11,
+          "mean_ms": 0.1
         },
         "total": {
           "n": 300,
-          "p50_ms": 17.76,
-          "p95_ms": 20.25,
-          "mean_ms": 17.85
+          "p50_ms": 12.45,
+          "p95_ms": 14.31,
+          "mean_ms": 12.51
         }
       },
       "build_ms": {
@@ -565,7 +584,7 @@
         "doc_embeddings_ms": 0.0,
         "total_ms": 0.01
       },
-      "wall_ms": 5373.15,
+      "wall_ms": 3766.79,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -672,49 +691,49 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 3.34,
-          "p95_ms": 5.74,
-          "mean_ms": 3.37
+          "p50_ms": 2.61,
+          "p95_ms": 4.38,
+          "mean_ms": 2.61
         },
         "embed": {
           "n": 300,
-          "p50_ms": 14.08,
-          "p95_ms": 15.16,
-          "mean_ms": 14.13
+          "p50_ms": 9.39,
+          "p95_ms": 10.14,
+          "mean_ms": 9.44
         },
         "dense": {
           "n": 300,
-          "p50_ms": 2.09,
-          "p95_ms": 2.48,
-          "mean_ms": 2.16
+          "p50_ms": 2.06,
+          "p95_ms": 2.28,
+          "mean_ms": 2.09
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.14,
-          "p95_ms": 0.15,
-          "mean_ms": 0.14
+          "p50_ms": 0.11,
+          "p95_ms": 0.12,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 961.36,
-          "p95_ms": 1843.33,
-          "mean_ms": 1066.53
+          "p50_ms": 881.49,
+          "p95_ms": 1718.81,
+          "mean_ms": 996.02
         },
         "total": {
           "n": 300,
-          "p50_ms": 980.75,
-          "p95_ms": 1864.28,
-          "mean_ms": 1086.4
+          "p50_ms": 895.75,
+          "p95_ms": 1733.72,
+          "mean_ms": 1010.33
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.0,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 11127.05,
-        "total_ms": 11127.05
+        "reranker_load_ms": 3731.03,
+        "total_ms": 3731.03
       },
-      "wall_ms": 326037.31,
+      "wall_ms": 303225.46,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -833,49 +852,49 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 3.38,
-          "p95_ms": 5.78,
-          "mean_ms": 3.4
+          "p50_ms": 2.67,
+          "p95_ms": 4.51,
+          "mean_ms": 2.67
         },
         "embed": {
           "n": 300,
-          "p50_ms": 14.13,
-          "p95_ms": 14.63,
-          "mean_ms": 14.14
+          "p50_ms": 9.39,
+          "p95_ms": 10.15,
+          "mean_ms": 9.43
         },
         "dense": {
           "n": 300,
-          "p50_ms": 2.07,
-          "p95_ms": 2.19,
-          "mean_ms": 2.1
+          "p50_ms": 2.06,
+          "p95_ms": 2.25,
+          "mean_ms": 2.08
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.15,
-          "p95_ms": 0.16,
-          "mean_ms": 0.15
+          "p50_ms": 0.11,
+          "p95_ms": 0.12,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 702.95,
-          "p95_ms": 716.29,
-          "mean_ms": 702.76
+          "p50_ms": 640.65,
+          "p95_ms": 651.55,
+          "mean_ms": 640.65
         },
         "total": {
           "n": 300,
-          "p50_ms": 722.84,
-          "p95_ms": 736.4,
-          "mean_ms": 722.61
+          "p50_ms": 655.43,
+          "p95_ms": 666.41,
+          "mean_ms": 655.0
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.01,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 3995.42,
-        "total_ms": 3995.43
+        "reranker_load_ms": 3541.72,
+        "total_ms": 3541.73
       },
-      "wall_ms": 216911.6,
+      "wall_ms": 196649.83,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -994,49 +1013,49 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 3.29,
-          "p95_ms": 5.71,
-          "mean_ms": 3.36
+          "p50_ms": 2.63,
+          "p95_ms": 4.5,
+          "mean_ms": 2.67
         },
         "embed": {
           "n": 300,
-          "p50_ms": 13.8,
-          "p95_ms": 14.4,
-          "mean_ms": 13.9
+          "p50_ms": 9.33,
+          "p95_ms": 9.86,
+          "mean_ms": 9.35
         },
         "dense": {
           "n": 300,
-          "p50_ms": 2.08,
-          "p95_ms": 2.18,
-          "mean_ms": 2.11
+          "p50_ms": 2.06,
+          "p95_ms": 2.25,
+          "mean_ms": 2.13
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.15,
-          "p95_ms": 0.16,
-          "mean_ms": 0.15
+          "p50_ms": 0.11,
+          "p95_ms": 0.12,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 212.8,
-          "p95_ms": 222.81,
-          "mean_ms": 213.49
+          "p50_ms": 156.1,
+          "p95_ms": 163.1,
+          "mean_ms": 156.35
         },
         "total": {
           "n": 300,
-          "p50_ms": 232.47,
-          "p95_ms": 243.55,
-          "mean_ms": 233.08
+          "p50_ms": 170.24,
+          "p95_ms": 177.72,
+          "mean_ms": 170.66
         }
       },
       "build_ms": {
         "bm25_index_ms": 0.01,
         "embedder_load_ms": 0.0,
         "doc_embeddings_ms": 0.0,
-        "reranker_load_ms": 3896.2,
-        "total_ms": 3896.21
+        "reranker_load_ms": 3264.51,
+        "total_ms": 3264.52
       },
-      "wall_ms": 70054.12,
+      "wall_ms": 51353.28,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -1155,39 +1174,39 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 3.36,
-          "p95_ms": 5.89,
-          "mean_ms": 3.4
+          "p50_ms": 2.59,
+          "p95_ms": 4.38,
+          "mean_ms": 2.6
         },
         "embed": {
           "n": 300,
-          "p50_ms": 13.98,
-          "p95_ms": 14.35,
-          "mean_ms": 13.98
+          "p50_ms": 9.33,
+          "p95_ms": 9.62,
+          "mean_ms": 9.5
         },
         "dense": {
           "n": 300,
           "p50_ms": 2.06,
-          "p95_ms": 2.14,
-          "mean_ms": 2.08
+          "p95_ms": 2.12,
+          "mean_ms": 2.13
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.15,
-          "p95_ms": 0.16,
-          "mean_ms": 0.15
+          "p50_ms": 0.11,
+          "p95_ms": 0.12,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 468.75,
-          "p95_ms": 519.52,
-          "mean_ms": 475.78
+          "p50_ms": 344.76,
+          "p95_ms": 378.77,
+          "mean_ms": 347.62
         },
         "total": {
           "n": 300,
-          "p50_ms": 489.4,
-          "p95_ms": 538.72,
-          "mean_ms": 495.45
+          "p50_ms": 359.28,
+          "p95_ms": 394.5,
+          "mean_ms": 362.03
         }
       },
       "build_ms": {
@@ -1197,7 +1216,7 @@
         "reranker_load_ms": 0.0,
         "total_ms": 0.0
       },
-      "wall_ms": 148717.57,
+      "wall_ms": 108677.45,
       "models": {
         "embedder": {
           "role": "embedder",
@@ -1316,39 +1335,39 @@
       "latency": {
         "bm25": {
           "n": 300,
-          "p50_ms": 3.42,
-          "p95_ms": 5.83,
-          "mean_ms": 3.43
+          "p50_ms": 2.64,
+          "p95_ms": 4.39,
+          "mean_ms": 2.61
         },
         "embed": {
           "n": 300,
-          "p50_ms": 14.02,
-          "p95_ms": 14.48,
-          "mean_ms": 14.01
+          "p50_ms": 9.11,
+          "p95_ms": 9.36,
+          "mean_ms": 9.09
         },
         "dense": {
           "n": 300,
-          "p50_ms": 2.07,
-          "p95_ms": 2.18,
-          "mean_ms": 2.1
+          "p50_ms": 2.06,
+          "p95_ms": 2.12,
+          "mean_ms": 2.07
         },
         "fuse": {
           "n": 300,
-          "p50_ms": 0.16,
-          "p95_ms": 0.17,
-          "mean_ms": 0.16
+          "p50_ms": 0.11,
+          "p95_ms": 0.13,
+          "mean_ms": 0.11
         },
         "rerank": {
           "n": 300,
-          "p50_ms": 880.49,
-          "p95_ms": 955.43,
-          "mean_ms": 879.41
+          "p50_ms": 641.5,
+          "p95_ms": 698.07,
+          "mean_ms": 641.35
         },
         "total": {
           "n": 300,
-          "p50_ms": 899.81,
-          "p95_ms": 976.15,
-          "mean_ms": 899.17
+          "p50_ms": 655.31,
+          "p95_ms": 713.13,
+          "mean_ms": 655.28
         }
       },
       "build_ms": {
@@ -1358,7 +1377,7 @@
         "reranker_load_ms": 0.01,
         "total_ms": 0.01
       },
-      "wall_ms": 269798.07,
+      "wall_ms": 196623.33,
       "models": {
         "embedder": {
           "role": "embedder",

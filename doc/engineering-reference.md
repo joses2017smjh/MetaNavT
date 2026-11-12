@@ -52,8 +52,8 @@ external-domain evaluation, measured neural service load, trusted action grants
 and an [LLM-in-the-loop prompt-injection evaluation](#does-the-agent-follow-instructions-planted-in-files)
 of local models in front of the same tools.
 
-The [ablation table](#the-number) reports ranking quality (nDCG@10), coverage
-(Recall@10, and Recall@50 next to a random-list baseline), paired deltas with
+The [ablation table](#the-number) reports ranking quality (nDCG@10, MRR@10), coverage
+(Recall@5, Recall@10, and Recall@50 next to a random-list baseline), paired deltas with
 intervals, and the number of gold questions behind each category.
 
 [Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) ·
@@ -306,14 +306,53 @@ make bench-check           # re-runs the bench; every field of every row must eq
 CI runs exactly this on every push and pull request (Python 3.11 and 3.12).
 The gate fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than
 0.002 below `main.json`; `make bench-check` fails on any difference at all
-outside timings, in either direction. The bench gives the same numbers on any
+outside timings, in either direction. The gate is one-sided: a rise above the
+threshold does not fail it but is printed as drift (`main.json` no longer
+describes the code), with the commit `main.json` was recorded at and how many
+commits HEAD has moved since (CI's eval job fetches the full history; a shallow
+clone without that commit, or a history that does not contain it, as a squash
+merge of the branch that recorded `main.json` would leave, is named as such).
+The bench gives the same numbers on any
 machine and checkout: the staleness filter and the file graph compare mtimes,
 and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
 (a checkout sets them to the moment it wrote each file); dense scores are
 computed in float64, rounded to 10 decimals and ranked with ties in corpus
 order, so neither the last bit of the CPU's BLAS kernel nor numpy's sort
 implementation decides an order. The results header records where the mtimes
-came from. To accept a change on purpose: `make bench-baseline`, review
+came from. The MANIFEST lists the corpus files only, so the gold questions are
+pinned apart: `tests/eval/test_gold_digest.py` holds the SHA-256 of the committed
+`bench/gold/questions.jsonl` (checked out byte for byte, `.gitattributes`), and
+the harness, parity and rerank-arms headers record the digest of the file they
+scored (`gold_sha256`). The harness and parity headers also carry an `ingest`
+block, the loader's own report of what the run indexed (`load_chunks_with_report`, the accounting the served indexer
+uses): files seen, indexed and rejected by reason, the chunker and its version,
+and the chunks embedded per chunk strategy (in a parity file, the in-memory
+row's; the API's report is under `api_health.indexing`). The benchmark writers take the code's provenance from one
+helper, `run_provenance` in [app/eval/provenance.py](../app/eval/provenance.py):
+the full commit (`git_head`, next to the short `git_sha` the generated blocks
+quote), whether the working tree had uncommitted changes when the run started
+(`working_tree_dirty`: a change to a tracked file or an untracked file counts, an
+ignored file does not; a tracked results file an earlier run rewrote counts too,
+such as `latest.json` after a previous `make bench`, so a re-record starts from a
+clean checkout) and the SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
+ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation
+and ingest-runs writers record that block, with every `app/` module the process
+imported as the source files. The writers that already recorded a dirty flag
+compute it with the same helper and keep their own fields and file lists: the M4
+regressions (trusted actions, evidence consistency, injection), the companion and
+chat-route runs, the robotics checks, and ingest scale and two replicas (whose
+`worktree_clean` leaves untracked files and the file being rewritten out). Not
+converted: the jury writer (`app/eval/llm_eval.py`, a short commit only),
+`app/eval/robotics.py` (code hashes, no flag), `app/eval/http_load.py` and
+`scripts/smoke_retrieve.py` (latency files with no commit), and the served-scale
+and pgvector writers, which record their own `git_dirty`. The
+generated blocks add "with uncommitted changes" to the commit of a file whose
+`working_tree_dirty` or `git_dirty` is true.
+Of the header, `make bench-check` compares `gold_sha256` together with the corpus
+digest, the gold set size, the file count, the bootstrap settings and the mtimes;
+it does not compare the provenance fields, which any code change moves, or the `ingest`
+block (a chunker or schema label can change without a metric moving). To accept
+a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use
@@ -838,11 +877,22 @@ an index run beside them.
 ## The number
 
 A frozen fixture, BEIR-style retrieval metrics, and 95% confidence intervals from
-a seeded, paired bootstrap over the gold questions. No LLM judge. One design
+a seeded, paired bootstrap over the gold questions (`CI_METRICS` in
+`app/eval/harness.py`: nDCG@10, Recall@10, Recall@50, MRR@10 and Recall@5, each
+with paired deltas; the regression gate checks the first three). No LLM judge. One design
 change per row. Losers stay in the table. The table below, the headline in the
 overview and the figures are all rendered from
 [`bench/results/main.json`](../bench/results/main.json) (`make bench-table`,
 `make figures`); `tests/eval/test_readme_numbers.py` fails if they drift.
+The harness writes the per-question scores of each results file beside it
+(`main.json` -> `main.per_query.json`, written by the harness and promoted with
+it by `make bench-baseline`; [app/eval/per_question.py](../app/eval/per_question.py)):
+the gold ids and categories and, per row, one unrounded score per question for
+each metric with an interval. `make bench-intervals RESULTS=<file>` runs the
+same bootstrap over them and fails unless every interval, paired delta,
+per-category delta and mean equals the file
+(`tests/eval/test_per_question.py` does it for every committed sidecar). Files
+recorded before the sidecar existed have none until they are re-recorded.
 
 <p align="center">
   <img src="../doc/figures/ndcg.svg" alt="nDCG@10 by retrieval config with 95% confidence intervals" width="820"/>
@@ -878,6 +928,7 @@ make bench            # bench/results/<git-sha>.json and latest.json
 make bench-compare    # latest.json vs bench/results/main.json (report)
 make bench-gate       # same, exit 1 on regression (what CI runs)
 make bench-check      # re-run, exit 1 unless every field of every row equals main.json (CI runs it too)
+make bench-intervals  # recompute every interval of main.json from main.per_query.json (RESULTS=<file> for another)
 make bench-table      # renders the generated blocks from main.json (bench-table-write updates them in place)
 make figures          # regenerates the SVGs above
 make sweeps           # HNSW, halfvec, hops, GraphRAG
@@ -918,7 +969,13 @@ changes, with the capped fp32 row added. The nine rows it shares with the
 earlier recording keep every metric, interval and the published-score
 difference; what changed is the timing columns (per-query latency and build
 time), the GPU, and the fp16 row's paired delta, which is now against fp32 at
-the same cap.
+the same cap. Both this file and the FiQA file were then recorded once more, each
+from a fresh clone of a clean commit, so that their headers carry the full
+commit, the clean-tree flag and the hashes of the code that ran: no metric,
+interval, paired delta or TREC run changed. Their document embeddings came from
+the on-disk cache the earlier runs wrote (SciFact's on the GPU the previous file
+named, FiQA's on the October run's), and the queries and the reranker ran on the
+GPU the new files name.
 
 [Current generated bench-beir evidence](../README.md#bench-beir) ·
 [BM25 settings one at a time](../README.md#bench-beir-bm25).
@@ -938,7 +995,12 @@ CI gate. On the fixture the first stage stops mattering once the reranker is
 on, because the reranker rescores 50 of its 71 chunks; the generated sentence
 above states the hash-versus-bge-small paired delta. Router and staleness are
 fixture-specific mechanisms; their gains are reported per category with the
-small n they rest on, and they are not part of the SciFact rows.
+small n they rest on and how many of those questions moved (nDCG@10 rose on how
+many and fell on how many), and they are not part of the SciFact rows. Every
+ladder row, CPU and real-model, also stores its paired delta against its parent
+for every gold category (`delta_vs_parent_by_category_all`, each slice with the
+same counts), so the slices a mechanism is not aimed at, such as the router's
+aggregation questions, have an interval too.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
 uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
@@ -1043,10 +1105,15 @@ indexes the fixture through the served indexer, runs the dense CTE of
 same chunks in the same order with the same scores as the in-memory dense
 search (scores equal in exact arithmetic are compared as a set). The end-to-end
 nDCG@10 gap is reported with its paired interval and not gated; `make parity`
-fails when the API is broken (a question without an answer or with zero hits)
-and, before it contacts the API, when `bench/corpus/files` differs from its
-MANIFEST (the check the bench runs, `verify_manifest` in
-[app/eval/corpus.py](../app/eval/corpus.py)). On the fixture the planner answers the dense CTE with a sequential scan.
+fails when the API is broken (a request error, which stops the replay and
+leaves the questions after it without an answer; a question without an answer;
+a question with zero hits; `parity.api_problems`, tested in
+[tests/eval/test_parity_report.py](../tests/eval/test_parity_report.py), where a
+large gap passes) and, before it contacts the API, when `bench/corpus/files`
+differs from its MANIFEST (the check the bench runs, `verify_manifest` in
+[app/eval/corpus.py](../app/eval/corpus.py)). It writes the file either way, by
+default to the untracked `bench/results/parity_latest.json` (CI's artifact); a
+committed parity file is written by naming it in `PARITY_OUT`. On the fixture the planner answers the dense CTE with a sequential scan.
 A second test forces the HNSW index (`enable_seqscan` off), requires the whole
 served statement to be planned on it, and requires the same `RETRIEVE_K` rows
 for every gold question. On the fixture that scan reaches every row (the

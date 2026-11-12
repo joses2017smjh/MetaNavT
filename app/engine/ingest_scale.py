@@ -37,7 +37,6 @@ import json
 import os
 import re
 import statistics
-import subprocess
 import tempfile
 import time
 import uuid
@@ -292,14 +291,11 @@ def measure_size(dsn: str, copies: int, repeats: int) -> dict:
 
 
 def worktree_clean(exclude: Path | None = None) -> bool:
-    """True when git sees no change to a tracked file (the results file being rewritten aside)."""
-    command = ["git", "status", "--porcelain", "--untracked-files=no", "--", "."]
-    if exclude is not None:
-        command.append(f":(exclude){exclude.resolve().relative_to(ROOT).as_posix()}")
-    try:
-        return subprocess.check_output(command, cwd=ROOT, stderr=subprocess.DEVNULL).decode().strip() == ""
-    except (subprocess.CalledProcessError, OSError, ValueError):
-        return False
+    """True when git sees no change to a tracked file (the results file being rewritten aside); False when git cannot
+    say. app.eval.provenance.working_tree_dirty with untracked files left out."""
+    from app.eval import provenance
+
+    return provenance.working_tree_dirty(ROOT, untracked=False, exclude=[exclude] if exclude is not None else ()) is False
 
 
 def merge(existing: dict | None, label: str, rows: list[dict]) -> dict:
