@@ -77,3 +77,39 @@ def test_the_request_route_row_shows_the_failed_tool_calls(tmp_path):
     target.parent.mkdir(parents=True)
     target.write_text(json.dumps(blob))
     assert "flagged as errors: query_index 99" in request_row(tmp_path)["value"]
+
+
+def test_the_request_route_row_counts_not_found_replies_apart_from_failures_when_the_file_has_them(tmp_path):
+    if not (ROOT / FILES["chat_route_smoke"]).exists():
+        pytest.skip("bench/results/chat_route_smoke.json not recorded yet")
+    blob = json.loads((ROOT / FILES["chat_route_smoke"]).read_text())
+    request = blob["summary"]["/api/chat/request"]
+
+    def request_row(root):
+        return next(r for r in claims(root) if r["command"] == "make chat-route-smoke" and "/api/chat/request" in r["claim"])
+
+    def write(summary_fields):
+        root = tmp_path / str(len(list(tmp_path.iterdir())))
+        target = root / FILES["chat_route_smoke"]
+        target.parent.mkdir(parents=True)
+        copy = json.loads(json.dumps(blob))
+        copy["summary"]["/api/chat/request"].update(summary_fields)
+        for key in [k for k, v in summary_fields.items() if v is None]:
+            del copy["summary"]["/api/chat/request"][key]
+        target.write_text(json.dumps(copy))
+        return root
+
+    # a file recorded before the runner counted them says nothing about not-found replies
+    old = request_row(write({"tool_calls_returned_not_found": None}))
+    assert "not found" not in old["value"].lower() and "not found" not in old["not_shown"].lower()
+    # a file that counts them shows the count, and says such a reply is not a failure
+    new = request_row(write({"tool_calls_returned_not_found": {"get_file_content": 3}}))
+    assert "; not found: get_file_content 3;" in new["value"]
+    assert "a 'Not found: ...' reply" in new["not_shown"] and "not counted as failed" in new["not_shown"]
+    assert "not found: none" in request_row(write({"tool_calls_returned_not_found": {}}))["value"]
+    # the pointer to the causes of failed calls is there only when a call failed
+    failing = request_row(write({"tool_calls_raised": {"list_available_files": 1}, "tool_calls_returned_error_text": {}}))
+    assert "the causes are described in doc/engineering-reference.md (Backend)" in failing["not_shown"]
+    clean = request_row(write({"tool_calls_raised": {}, "tool_calls_returned_error_text": {}}))
+    assert "the causes are described" not in clean["not_shown"]
+    assert request is not None
