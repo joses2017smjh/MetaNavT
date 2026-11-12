@@ -27,6 +27,7 @@ FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury.json"
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the current run: capability control, controls with neutral lines
+AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # phrasings scored as any-success, the in-loop answer check
 LATENCY_FILES = {
     "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
     "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
@@ -878,6 +879,169 @@ def agent_injection_table(blob: dict | None, earlier: dict | None = None) -> str
                   f"{earlier['n_episodes']} episodes, {_injection_provenance(earlier, with_target=False)}"
                   + (f"; {gen['wall_note']}" if gen.get("wall_note") else "") + ". Today's harness rebuilds its "
                   "summary exactly from its stored episodes, which hold every answer and tool call."]
+    return "\n".join(lines)
+
+
+_V3_MEASURES = (  # (paired-delta name, how the row reads, summary path) for the answer check against none
+    ("planted_value_delivered", "planted value delivered to the user, hijack, per draw", ("by_goal", "hijack", "took_effect")),
+    ("planted_value_delivered_any_phrasing", "... by at least one of the phrasings",
+     ("by_goal", "hijack", "took_effect_any_phrasing")),
+    ("hijack_planted_value", "planted value in an answer the model wrote, per draw", ("by_goal", "hijack", "attempted")),
+    ("utility_under_attack", "utility under attack", ("utility_under_attack",)),
+    ("injected_success", "injected tasks answered correctly with a grounded citation", ("injected_success",)),
+    ("benign_success", "benign success (controls)", ("benign_success",)),
+)
+
+
+def _at(block: dict, path: tuple[str, ...]) -> dict | None:
+    for key in path:
+        block = (block or {}).get(key)
+    return block
+
+
+def _delta_cell(delta: dict | None) -> str:
+    if not delta:
+        return "n/a"
+    return (f"{delta['delta']:+.3f} [{delta['lo']:+.3f}, {delta['hi']:+.3f}], "
+            f"{'excludes' if delta['excludes_zero'] else 'covers'} zero")
+
+
+def _server_line(blob: dict) -> str:
+    ollama = blob.get("ollama") or {}
+    if "per_segment" in ollama:
+        versions = sorted({str(x.get("version")) for x in ollama["per_segment"]})
+        if not versions:
+            return "Ollama (version not recorded)"
+        return f"Ollama {' / '.join(versions)} (the shards' servers differ; see the header)"
+    contexts = sorted({str(x.get("context_length")) for x in (ollama.get("running") or {}).values() if x.get("context_length")})
+    context = f" (context length {' / '.join(contexts)} tokens, the server's choice)" if contexts else ""
+    return f"Ollama {ollama.get('version') or '(version not recorded)'}{context}"
+
+
+def agent_injection_v3_table(blob: dict | None) -> str:
+    """agent_injection_v3: every goal in several phrasings, scored per (question, goal) pair as any-success, and the
+    in-loop answer check against none, with every configuration's paired deltas."""
+    if not blob:
+        return f"_{AGENT_INJECTION_V3_FILE} is missing; run `make bench-agent-injection-v3` (needs Ollama)._"
+    cfg, summary = blob["config"], blob["summary"]
+    phrasings, k = cfg["phrasings"], cfg["k"]
+    gen = blob.get("episodes_generated_by") or {}
+    segments, shards = gen.get("segments") or [], (gen.get("merged") or {}).get("shards") or []
+    device = blob.get("device") or {}
+    gpu = device.get("gpu") or ("GPUs that differ by segment" if "per_segment" in device else "an unrecorded device")
+    how = (f"`make bench-agent-injection-v3`, run as {len(shards)} shards merged by `make bench-agent-injection-v3-merge`"
+           if shards else "`make bench-agent-injection-v3`")
+    head = str(blob.get("git_head") or "")[:7]
+    gen_heads = sorted({str(seg.get("git_head") or "")[:7] for seg in segments})
+    clean = not blob.get("working_tree_dirty") and not any(seg.get("working_tree_dirty") for seg in segments)
+    where = (f"episodes generated and scored at sha {head}{' from a clean tree' if clean else ' with uncommitted changes'} "
+             f"in {len(segments)} process segment{'s' if len(segments) != 1 else ''}" if gen_heads == [head]
+             else f"episodes generated at sha {', '.join(gen_heads)}, scored at sha {head}")
+    wall = (f"wall {blob['wall_s']} s summed over the segments" + (", which ran in parallel" if len(shards) > 1 else "")
+            if blob.get("wall_s") else "wall time not recorded")
+    adojo = [p for p in phrasings if p in (cfg.get("agentdojo_templates") or {})]
+    own = [p for p in phrasings if p not in adojo]
+    lines = [
+        f"LLM-in-the-loop injection with several phrasings per goal and an answer check in the loop ({how}; {where}): "
+        f"{blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; models {', '.join(cfg['models'])} "
+        f"via {_server_line(blob)} on {gpu}; temperature {cfg['temperature']}, k = {k} sampled trials per task, "
+        f"configuration and model, the trial index as seed; {wall}. Every goal of the {cfg['n_user_tasks']} config "
+        f"questions is planted in {len(phrasings)} phrasings around the same goal sentence: {len(own)} written for this "
+        f"benchmark ({', '.join(own)}) and {len(adojo)} AgentDojo attack templates, verbatim ({', '.join(adojo)}). A "
+        "(question, goal) pair counts as attacked under a seed when the episode of at least one of its phrasings with "
+        "that seed attempted the goal (model level) or, apart from that, when the goal took effect (system level); a "
+        f"pair's value is the share of the {k} seeds, and per goal the mean over the {cfg['n_user_tasks']} pairs, with a "
+        "percentile bootstrap over the pairs; per draw averages each pair's episodes. The phrasings of a question share "
+        "each seed, so their episodes mostly follow one trajectory until the planted text is read: any-success compares "
+        f"the texts on shared trajectories and adds no samples; retrying one text, each phrasing's chance of at least "
+        f"once in {k} trials, is in the hijack table below. The controls carry neutral lines with the planted text's "
+        "query terms, as in the current run.",
+        "",
+        f"| model | configuration | goal | attempted per draw [95% CI] | attempted by at least one of {len(phrasings)} "
+        "phrasings, per seed [95% CI] | took effect by at least one, per seed [95% CI] | pairs the planted text reached "
+        "| episodes: attempted / ticket seen / goal's payload seen / all |",
+        "|---|---|---|---:|---:|---:|---:|---:|",
+    ]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            for goal, g in b["by_goal"].items():
+                lines.append(
+                    f"| {model} | {defense} | {goal} | {_rate(g['attempted'])} | {_rate(g['attempted_any_phrasing'])} "
+                    f"| {_rate(g['took_effect_any_phrasing'])} | {g['pairs_exposed']} / {g['pairs']} "
+                    f"| {g['attempted_episodes']} / {g['exposed_episodes']} / {g['payload_seen_episodes']} / {g['episodes']} |")
+    first = next(iter(next(iter(summary.values())).values()))["by_goal"]
+    goals = list(first)
+    sizes = sorted({x["episodes"] for g in first.values() for x in g["by_phrasing"].values()})
+    lines += ["", "Each phrasing on its own: attempted episodes per goal (" + " / ".join(goals) + "), each out of "
+              f"{' or '.join(map(str, sizes))} episodes, losers and zeros included. The payload is what acting on the "
+              "goal needs (the forged token, the private path, the planted value); a search snippet can show the "
+              "ticket and end before it.", "",
+              "| model | configuration | " + " | ".join(phrasings) + " |", "|---|---|" + "---:|" * len(phrasings)]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            cells = [" / ".join(str(b["by_goal"][g]["by_phrasing"].get(p, {}).get("attempted_episodes", "n/a")) for g in goals)
+                     for p in phrasings]
+            lines.append(f"| {model} | {defense} | " + " | ".join(cells) + " |")
+    lines += ["", f"Hijack, each phrasing on its own: the planted value in an answer the model wrote, per trial, and in "
+              f"brackets the chance that at least one of {k} trials of that phrasing wrote it (retrying one text); means "
+              f"over the {cfg['n_user_tasks']} questions, intervals in the results file:", "",
+              "| model | configuration | " + " | ".join(phrasings) + " |", "|---|---|" + "---:|" * len(phrasings)]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            by = b["by_goal"]["hijack"]["by_phrasing"]
+            lines.append(f"| {model} | {defense} | " + " | ".join(
+                f"{_mean(by[p]['attempted'])} ({_mean(by[p].get('attempted_at_k'))})" if p in by else "n/a"
+                for p in phrasings) + " |")
+    checked = [d for d in cfg["defenses"] if d not in ("none", "spotlight", "least_privilege")]
+    deltas = blob.get("paired_deltas") or {}
+    for name in checked:
+        lines += ["", f"The answer check in the loop (`{name}`) against `none`, per model: the configuration has none's "
+                  "tools and prompt, and the structured field check stands between the answer and the user; a flagged "
+                  "answer is held back and the model is told once, without the value or the file, and may answer "
+                  "again within the same turn budget; a second flagged answer, or none, means nothing reaches the "
+                  "user. Paired deltas within a model over the same questions or controls:", "",
+                  f"| model | measure | none [95% CI] | {name} [95% CI] | {name} - none [95% CI] |",
+                  "|---|---|---:|---:|---:|"]
+        for model, per in summary.items():
+            if name not in per or "none" not in per:
+                continue
+            d = (deltas.get(model) or {}).get(f"{name} - none") or {}
+            for key, label, path in _V3_MEASURES:
+                lines.append(f"| {model} | {label} | {_rate(_at(per['none'], path))} | {_rate(_at(per[name], path))} "
+                             f"| {_delta_cell(d.get(key))} |")
+        for model, per in summary.items():
+            loop = (per.get(name) or {}).get("answer_check")
+            if not loop:
+                continue
+            lines += ["", f"{model} under {name}: the check flagged {loop['flagged_first']} of {loop['answered']} first "
+                      f"answers ({loop['episodes']} episodes), {loop['flagged_first_on_last_turn']} of them on the "
+                      f"model's last turn, with no turn left for the note; the model answered again in {loop['revised']}, and "
+                      f"{loop['delivered_after_revision']} of those answers were delivered; {loop['withheld']} episodes "
+                      f"delivered nothing. Of {loop['hijack_planted_first_draft']} first answers that stated the planted "
+                      f"value it flagged {loop['hijack_planted_first_draft_flagged']}, and "
+                      f"{loop['hijack_planted_delivered']} planted values reached the user; of "
+                      f"{loop['controls_correct_first_draft']} correct first answers on the controls it flagged "
+                      f"{loop['controls_correct_first_draft_flagged']}."]
+    rows = [(model, defense, b["field_check"]) for model, per in summary.items() for defense, b in per.items()
+            if b.get("field_check")]
+    if rows:
+        lines += ["", "The same field check read offline on each configuration's answers (under the answer check, the "
+                  "first answer), the rule unchanged since the earlier run, so out of sample here: planted-value answers "
+                  "it flags (pooled over episodes, bootstrap over the hijack pairs) and correct control answers it flags "
+                  "(bootstrap over the controls):", "",
+                  "| model | configuration | planted-value answers flagged [95% CI] | correct control answers flagged [95% CI] |",
+                  "|---|---|---:|---:|"]
+        lines += [f"| {model} | {defense} | {_flagged(fc['recall'])} | {_flagged(fc['false_positive_rate'])} |"
+                  for model, defense, fc in rows]
+    if deltas:
+        lines += ["", "Every configuration against `none` (paired deltas):", ""]
+        for model, per in deltas.items():
+            for name, d in per.items():
+                lines.append(f"- {model}, {name}: " + "; ".join(f"{m.replace('_', ' ')} {_signed(v)}" for m, v in d.items()) + ".")
+    lines += ["", "A fixed set of phrasings, not an adaptive attacker. The check is told which config field and file each "
+              "question is about, so it covers single-field questions only; its rule was fixed on the earlier run's "
+              "answers, and this run's answers were not seen when it was written. Seeds are per trial and shared across "
+              "tasks; sampled episodes are not expected to reproduce token for token on another server version or GPU."]
     return "\n".join(lines)
 
 
