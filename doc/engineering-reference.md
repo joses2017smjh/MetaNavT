@@ -404,7 +404,7 @@ gold       3e-4
 
 ```
 route   aggregation_query   (skip rerank)
-search  BM25 over configs/ + results/ablation.csv
+search  BM25 + dense  →  RRF over the whole index, no reranker
 cite    configs/run_047.yaml  ·  results/ablation.csv
 answer  47
 ```
@@ -496,7 +496,7 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
 
 The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
-`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60 on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every committed hybrid row would be re-recorded (`main.json`, `neural.json`, the frontier files and the BEIR hybrid rows); the command never changes it. The default is written in three places, `RRF_K` in `app/retrieval/fuse.py` (the served path), the `rrf_k` argument of `InMemoryHybridIndex` in `app/retrieval/hybrid.py` (every benchmark row) and `rrf_k` in `app/eval/beir.py`, and the served SQL fusion takes no list weights. On the recorded run (`bench/results/rrf_sweep.json`) the chosen setting's held-out interval covers zero, so the default stays; the setting, its interval and the in-sample grid are in that file, and the setting and its interval are the RRF row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
+`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60 on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every committed hybrid row would be re-recorded (`main.json`, `neural.json`, the frontier files and the BEIR hybrid rows); the command never changes it. The default is `RRF_K` in `app/retrieval/fuse.py`, which the served path and `InMemoryHybridIndex` in `app/retrieval/hybrid.py` (every benchmark row) both read, and it is written once more as `rrf_k` in `app/eval/beir.py` (the BEIR rows); the served SQL fusion takes no list weights. On the recorded run (`bench/results/rrf_sweep.json`) the chosen setting's held-out interval covers zero, so the default stays; the setting, its interval and the in-sample grid are in that file, and the setting and its interval are the RRF row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
 
 ### A router that skips work
 
@@ -504,7 +504,9 @@ The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postg
   <img src="../doc/gifs/router.gif" alt="Router cycling lexical, aggregation, and semantic paths" width="820"/>
 </p>
 
-Forty lines. No extra LLM. On the gold set: 8 queries skipped embed, 41 skipped rerank. Semantic recall did not move. The exact-path nDCG@10 gain over the reranked hybrid is in the [headline](#engineering-overview), with its n = 8; the old README compared the router row against plain RRF, which credited the reranker's share of that gain to the router.
+The GIF's text was written for the first README; the routes are as it shows them, and its counts and its exact-path figure (measured against plain RRF) are superseded by this paragraph and the generated tables.
+
+Regular expressions in `app/retrieval/router.py`, no extra LLM; the first rule that matches picks the route. A path- or file-name-like token sends a question down `lexical_path`: no query embedding and no reranker, and, in the benchmark and the served SQL statement, a path lookup (file name, path, stem in the query) fused with the lexical list. Count / min / max / which-run / compare wording sends it down `aggregation_query`: the hybrid lists fused with RRF, without the reranker. Everything else gets the full pipeline (`research_artifact` and `code_production` are names other components read; retrieval treats them like `semantic`). On the gold set the router sends 8 questions down `lexical_path` and 33 down `aggregation_query` (the router row's `routes` in `main.json`). Against the reranked hybrid, the generated tables give its paired nDCG@10 delta on the exact-path slice it is aimed at (n = 8) and on every slice where that delta is negative, aggregation with real models among them, each with its interval and the number of questions that moved ([CPU](../README.md#bench-table), [real models](../README.md#bench-neural)); the old README compared the router row against plain RRF, which credited the reranker's share of the exact-path gain to the router.
 
 ### Retrieval inside the loop
 
@@ -515,10 +517,10 @@ Forty lines. No extra LLM. On the gold set: 8 queries skipped embed, 41 skipped 
 ```mermaid
 flowchart LR
   Q[query] --> R[route]
-  R -->|path| L[lexical lookup]
-  R -->|count / min / max| A[aggregation]
-  R -->|else| P[plan]
+  R --> P[plan]
   P --> S[hybrid search]
+  R -.->|path lookup and BM25, no rerank| S
+  R -.->|count / min / max, no rerank| S
   S --> G[grade]
   G -->|enough| C[cite + answer]
   G -->|weak| W[rewrite]
@@ -1858,9 +1860,11 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 ```
                     MCP client or localhost:8000
                                 |
-                    route  (40 lines, no extra LLM)
+                    route  (regex rules, no extra LLM)
                      |         |          |
                  lexical   aggregation   plan
+     (path lookup + BM25;  (no rerank)    |
+     no embed, no rerank)                 |
                                            |
                               BM25 ──┐
                                      ├─ RRF ─ rerank ─ grade ─ rewrite?
