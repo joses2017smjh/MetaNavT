@@ -17,7 +17,7 @@ def _workflow() -> tuple[dict, dict]:
     return data, data.get("on", data.get(True))  # YAML 1.1 reads the bare key `on` as true
 
 
-def test_the_web_client_is_built_on_every_push_to_main_and_every_pull_request():
+def test_the_web_client_is_built_on_every_push_to_main_and_every_pull_request_into_main():
     _, on = _workflow()
     assert on["push"] == {"branches": ["main"]}  # no paths filter
     assert on["pull_request"] == {"branches": ["main"]}
