@@ -298,7 +298,7 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
                               f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
                               f"{by_name(request.get('tool_calls_returned_error_text'))}; code tool calls: {request['code_tool_calls']}"),
                     "ci": "—", "n": request["n"], "command": cmd, "source": src,
-                    "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool; an error "
+                    "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool or named a tool that does not exist; an error "
                                   f"text is an 'Error: ...' string a tool returned without the flag; a call that returned "
                                   f"an empty list is not counted as failed; the causes are described in "
                                   f"doc/engineering-reference.md (Backend)")})
