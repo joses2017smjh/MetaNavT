@@ -2,13 +2,15 @@
 
 import json
 import re
+from collections import Counter
 
+import numpy as np
 import pytest
 
 from app.agent.citation_verify import cited_chunks, extract_claims, verify_claims
 from app.agent.generate import NOT_IN_SOURCES, build_prompt, cited_answer, parse_citations, source_tag, strip_citations
 from app.eval.judge import pairwise_ab_ba
-from app.eval.jury import default_jury
+from app.eval.jury import cohens_kappa, default_jury
 from app.retrieval.types import Chunk, RetrievalHit
 
 
@@ -716,3 +718,84 @@ def test_the_committed_answer_evaluation_is_evaluable_pinned_and_unedited():
     assert summarize(blob["rows"], judges, blob["calibration"]["rows"]) == s
     planted = [r for r in blob["calibration"]["rows"] if r["condition"] == "planted"]
     assert planted and all(r["probe"] == bool(r["replacements"]) and r["planted_value"] != r["gold"] for r in planted)
+
+
+# ---- M29b: the kappa interval resamples questions, so a calibration question's two answers move together
+
+
+def _cal(qid, condition, reference, labels):
+    """A calibration row; `labels` maps each judge to its correctness verdict."""
+    checks = {"uncited": True, "abstained": False, "abstention_only": False, "exact_match_label": reference, "exact_match": reference == "correct"}
+    return {"id": qid, "condition": condition, "gold": "g", "probe": True, "checks": checks,
+            "correctness": {name: {"label": lab, "by": "judge", "parsed": True, "raw": "{}"} for name, lab in labels.items()}}
+
+
+def _calibration_set():
+    """Ten questions, each answered from the retrieved context (reference correct) and from a planted one (reference
+    wrong). Judge j agrees with the reference except on three planted answers it calls correct; k calls every planted
+    answer partial, so the jury majority of j and k is a tie (partial) on every planted answer."""
+    rows = []
+    for i in range(10):
+        rows.append(_cal(f"q{i:03d}", "retrieved", "correct", {"j": "correct", "k": "correct"}))
+        rows.append(_cal(f"q{i:03d}", "planted", "wrong", {"j": "correct" if i < 3 else "wrong", "k": "partial"}))
+    return rows
+
+
+def _interval(ks):
+    lo, hi = np.percentile(ks, [2.5, 97.5])
+    return {"lo": round(float(lo), 4), "hi": round(float(hi), 4)}
+
+
+def _by_question(rows, label):
+    """The M29 review's recomputation: 2000 draws of the question ids with replacement (seed 0), every row of a drawn
+    question taken."""
+    ids = list(dict.fromkeys(r["id"] for r in rows))
+    draws = np.random.RandomState(0).randint(0, len(ids), (2000, len(ids)))
+    return _interval([cohens_kappa([r["checks"]["exact_match_label"] for i in row for r in rows if r["id"] == ids[i]],
+                                   [label(r) for i in row for r in rows if r["id"] == ids[i]]) for row in draws])
+
+
+def _by_answer(rows, label):
+    """What M29 published: 2000 draws of the rows one by one (seed 0)."""
+    draws = np.random.RandomState(0).randint(0, len(rows), (2000, len(rows)))
+    return _interval([cohens_kappa([rows[i]["checks"]["exact_match_label"] for i in row], [label(rows[i]) for i in row]) for row in draws])
+
+
+def test_the_kappa_interval_resamples_questions_not_answers():
+    """A question's retrieved and planted answers are not independent draws: each judge's interval and the jury
+    majority's resample the questions, and the results file says so."""
+    from app.eval.llm_eval import _majority, summarize
+
+    cal = _calibration_set()
+    s = summarize([], ["j", "k"], cal)
+    by = {"j": lambda r: r["correctness"]["j"]["label"], "jury_majority": lambda r: _majority([r["correctness"][m]["label"] for m in ("j", "k")])}
+    for name, label in by.items():
+        assert s["kappa"][name]["interval"] == _by_question(cal, label) != _by_answer(cal, label), name
+    assert s["kappa"]["jury_majority"]["interval"] == {"lo": 0.3333, "hi": 0.3333}  # every draw keeps one correct and one wrong answer per question
+    method = s["interval"]["method"]
+    assert method.startswith("percentile bootstrap over the calibration questions") and "together" in method and "answers" in method
+    assert (s["interval"]["seed"], s["interval"]["n_boot"], s["interval"]["rng"]) == (0, 2000, "numpy.random.RandomState.randint")
+    sf = summarize([_sf(f"q{i}", "correct" if i % 2 else "wrong", "partial", "correct") for i in range(6)], ["j"])
+    assert sf["interval"]["method"].startswith("percentile bootstrap over the simple-factual questions") and "calibration" not in sf["interval"]["method"]
+
+
+def test_both_answers_of_a_question_move_together(monkeypatch):
+    """In every resample a question's reference answers appear equally often, whatever their number; with one answer
+    per question (a file without a calibration set) the interval is the per-answer bootstrap, same seed and draws."""
+    from app.eval import llm_eval
+
+    drawn = []
+    monkeypatch.setattr(llm_eval, "cohens_kappa", lambda ref, lab: drawn.append(list(lab)) or 0.0)
+    questions = ["a", "a", "b", "c", "c", "c"]  # unequal sizes: a planted row with nothing replaced leaves one answer
+    llm_eval.kappa_interval([("correct", f"{q}{i}") for i, q in enumerate(questions)], questions)
+    assert len(drawn) == 2000
+    for labels in drawn:
+        counts = Counter(labels)
+        times = {q: {counts[f"{x}{i}"] for i, x in enumerate(questions) if x == q} for q in "abc"}
+        assert all(len(t) == 1 for t in times.values()), times  # a drawn question brings every one of its answers
+        assert sum(t.pop() for t in times.values()) == 3  # three questions drawn per resample
+    monkeypatch.undo()
+    cal = _calibration_set()
+    pairs = [(r["checks"]["exact_match_label"], r["correctness"]["j"]["label"]) for r in cal]
+    assert llm_eval.kappa_interval(pairs, [f"{r['id']}:{r['condition']}" for r in cal]) == _by_answer(cal, lambda r: r["correctness"]["j"]["label"])
+    assert llm_eval.kappa_interval(pairs[:2], ["q000", "q000"]) is None  # one question: nothing to resample
