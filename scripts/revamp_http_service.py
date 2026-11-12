@@ -2,6 +2,14 @@
 
 Run inside an allocated Slurm CPU/GPU job. Does not contact an LLM, publish
 the service or alter the existing database. All servers terminate on exit.
+
+The services come from app/eval/service.py: Postgres runs in the Apptainer image
+with only its own scratch directory bound (--scratch, default a temporary
+directory under TMPDIR), and the connection strings name no user. The schema
+migrations run before the API starts (the deploy step; the API applies none). Everything this
+script writes under --out-dir (http_load.json, setup_failure.json) passes through
+app/eval/provenance.scrub, so it carries no absolute path, user or host name; the
+service logs stay in the scratch directory, which is not published.
 """
 from __future__ import annotations
 
@@ -10,44 +18,16 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import socket
-import subprocess
 import sys
 import tempfile
 import time
-import urllib.error
-import urllib.request
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-def free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
-def wait_health(url: str, process: subprocess.Popen, timeout: int = 300) -> dict:
-    deadline = time.monotonic() + timeout
-    last = None
-    while time.monotonic() < deadline:
-        if process.poll() is not None:
-            raise RuntimeError(f"API exited {process.returncode}; see service log")
-        try:
-            with urllib.request.urlopen(url + "/health", timeout=10) as response:
-                health = json.load(response)
-                if health.get("status") == "ok":
-                    return health
-                last = health
-        except urllib.error.HTTPError as exc:
-            try:
-                last = json.load(exc)
-            except (ValueError, OSError):
-                last = str(exc)
-            if isinstance(last, dict) and last.get("status") == "unavailable" and last.get("error"):
-                raise RuntimeError(f"API startup failed: {last['error']}") from exc
-        except (urllib.error.URLError, ValueError, TimeoutError) as exc:
-            last = str(exc)
-        time.sleep(1)
-    raise RuntimeError(f"API not ready after {timeout}s: {last}")
+from app.eval.provenance import sanitize_path, scrub  # noqa: E402
+from app.eval.service import ApiServer, TaskPostgres, base_environment, migrate  # noqa: E402
 
 
 def main() -> int:
@@ -61,40 +41,24 @@ def main() -> int:
     parser.add_argument("--requests", type=int, default=32)
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--rerank-depth", type=int, default=20)
+    parser.add_argument("--scratch", type=Path, default=None, help="service data and logs (default: a temporary directory under TMPDIR, removed at exit)")
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[1]
-    sources = ["main.py", "app/api/routers/retrieve.py", "app/engine/retriever.py", "app/settings.py", "app/eval/http_load.py", "scripts/revamp_http_service.py"]
-    source_sha256 = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in sources}
+    sources = ["main.py", "app/api/routers/retrieve.py", "app/engine/retriever.py", "app/settings.py", "app/eval/http_load.py", "app/eval/service.py", "app/database/migrate.py", "scripts/revamp_http_service.py"]
+    source_sha256 = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sources}
     corpus_identity = hashlib.sha256(json.dumps([(str(p.relative_to(args.data)), hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(args.data.rglob("*")) if p.is_file()], separators=(",", ":")).encode()).hexdigest()
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    pg_port, api_port = free_port(), free_port()
-    env = dict(os.environ)
-    env.update({"PG_CONNECTION_STRING": f"postgresql://{os.environ['USER']}@127.0.0.1:{pg_port}/metanavit", "PSYCOPG2_CONNECTION_STRING": f"dbname=metanavit user={os.environ['USER']} host=127.0.0.1 port={pg_port}", "ENVIRONMENT": "prod", "MODEL_PROVIDER": "ollama", "EMBEDDING_PROVIDER": "huggingface", "EMBEDDING_MODEL": "BAAI/bge-small-en-v1.5", "EMBEDDING_DIM": "384", "EMBEDDING_DEVICE": args.device, "RETRIEVAL_REQUIRE_DEVICE": args.device, "RERANKER_DEVICE": args.device, "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3", "RERANKER_REQUIRED": "true", "RERANKER_PRECISION": args.precision, "RERANKER_MAX_LENGTH": str(args.max_length), "RERANK_DEPTH": str(args.rerank_depth), "RERANK_TOP_N": "8", "DATA_DIR": str(args.data.resolve()), "INDEX_ON_START": "true", "CHUNK_SIZE": "512", "CHUNK_OVERLAP": "50", "RETRIEVE_K": "50", "RETRIEVAL_MODE": "sql", "ENABLE_ROUTER": "true", "BGE_ALLOW_DOWNLOAD": "0", "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "LOG_FORMAT": "json"})
-    env.pop("FRONTEND_ENDPOINT", None)
-    invocation = ["apptainer", "exec", "--cleanenv", "--bind", "/nfs/stak/users/sanchej7/hpc-share", str(args.container.resolve())]
-    postgres = api = None
+    settings = {"ENVIRONMENT": "prod", "MODEL_PROVIDER": "ollama", "EMBEDDING_PROVIDER": "huggingface", "EMBEDDING_MODEL": "BAAI/bge-small-en-v1.5", "EMBEDDING_DIM": "384", "EMBEDDING_DEVICE": args.device, "RETRIEVAL_REQUIRE_DEVICE": args.device, "RERANKER_DEVICE": args.device, "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3", "RERANKER_REQUIRED": "true", "RERANKER_PRECISION": args.precision, "RERANKER_MAX_LENGTH": str(args.max_length), "RERANK_DEPTH": str(args.rerank_depth), "RERANK_TOP_N": "8", "DATA_DIR": str(args.data.resolve()), "INDEX_ON_START": "true", "CHUNK_SIZE": "512", "CHUNK_OVERLAP": "50", "RETRIEVE_K": "50", "RETRIEVAL_MODE": "sql", "ENABLE_ROUTER": "true", "BGE_ALLOW_DOWNLOAD": "0", "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "LOG_FORMAT": "json"}
     started = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="metanavit-service-") as scratch, (args.out_dir / "postgres.log").open("w") as pg_log, (args.out_dir / "api.log").open("w") as api_log:
-        data = Path(scratch) / "pgdata"
-        run = Path(scratch) / "socket"
-        run.mkdir()
+    with tempfile.TemporaryDirectory(prefix="metanavit-service-") as temporary:
+        scratch = (args.scratch or Path(temporary)).resolve()
+        postgres = TaskPostgres(args.container, scratch / "postgres")
+        api = None
         try:
-            subprocess.run([*invocation, "/usr/lib/postgresql/16/bin/initdb", "-D", str(data), "--auth=trust", "--no-locale", "--encoding=UTF8"], stdout=pg_log, stderr=subprocess.STDOUT, check=True)
-            postgres = subprocess.Popen([*invocation, "/usr/lib/postgresql/16/bin/postgres", "-D", str(data), "-h", "127.0.0.1", "-p", str(pg_port), "-k", str(run)], stdout=pg_log, stderr=subprocess.STDOUT)
-            for _ in range(30):
-                ready = subprocess.run([*invocation, "/usr/lib/postgresql/16/bin/pg_isready", "-h", "127.0.0.1", "-p", str(pg_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if ready.returncode == 0:
-                    break
-                if postgres.poll() is not None:
-                    raise RuntimeError("task-local PostgreSQL exited; see postgres.log")
-                time.sleep(1)
-            else:
-                raise RuntimeError("task-local PostgreSQL not ready")
-            subprocess.run([*invocation, "/usr/lib/postgresql/16/bin/createdb", "-h", "127.0.0.1", "-p", str(pg_port), "metanavit"], check=True)
-            subprocess.run([sys.executable, "-m", "app.database.migrate"], cwd=root, env=env, check=True)  # the deploy step: the API refuses pending migrations
-            api = subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(api_port)], cwd=root, env=env, stdout=api_log, stderr=subprocess.STDOUT)
-            url = f"http://127.0.0.1:{api_port}"
-            health = wait_health(url, api)
+            postgres.start()
+            environment = base_environment({**settings, **postgres.env()})
+            migrate(environment, cwd=ROOT, log_path=scratch / "migrate.log")  # the deploy step: the API refuses pending migrations
+            api = ApiServer(environment, cwd=ROOT, log_path=scratch / "api.log").start()
+            health, _ = api.wait_ready(timeout=300)
             startup_seconds = time.monotonic() - started
             from app.eval.http_load import run_load
             import asyncio
@@ -103,30 +67,26 @@ def main() -> int:
                 if line.strip():
                     row = json.loads(line)
                     queries.append((str(row.get("id", len(queries))), row.get("question") or row.get("query") or row["text"]))
-            from app.eval.provenance import sanitize_path, scrub
-            deployment = {"backend": "original FastAPI main:app + task-local PostgreSQL16/pgvector SQL retrieval", "data_dir": sanitize_path(str(args.data.resolve())), "corpus_kind": "existing deterministic fixture" if args.data.resolve() == (root / "bench/corpus/files").resolve() else "caller supplied corpus", "data_files": sum(p.is_file() for p in args.data.rglob("*")), "corpus_sha256": corpus_identity, "source_sha256": source_sha256, "startup_seconds": startup_seconds, "slurm_job_id": os.environ.get("SLURM_JOB_ID"), "precision": args.precision, "max_length": args.max_length, "rerank_depth": args.rerank_depth, "observed_health": scrub(health), "container": sanitize_path(str(args.container.resolve()))}
+            deployment = scrub({"backend": "original FastAPI main:app + task-local PostgreSQL16/pgvector SQL retrieval", "data_dir": sanitize_path(str(args.data.resolve())), "corpus_kind": "existing deterministic fixture" if args.data.resolve() == (ROOT / "bench/corpus/files").resolve() else "caller supplied corpus", "data_files": sum(p.is_file() for p in args.data.rglob("*")), "corpus_sha256": corpus_identity, "source_sha256": source_sha256, "startup_seconds": startup_seconds, "slurm_job_id": os.environ.get("SLURM_JOB_ID"), "precision": args.precision, "max_length": args.max_length, "rerank_depth": args.rerank_depth, "observed_health": health, "container": sanitize_path(str(args.container.resolve()))})
             def checkpoint(report):
                 report["deployment"] = deployment
                 target = args.out_dir / "http_load.json"
-                temporary = target.with_suffix(".json.partial")
-                temporary.write_text(json.dumps(report, indent=2) + "\n")
-                temporary.replace(target)
-            report = asyncio.run(run_load(url, queries, requests_per_level=args.requests, warmup_requests=2, timeout=120, require_reranker=True, require_device=args.device, fresh_service=True, checkpoint=checkpoint))
-            (args.out_dir / "http_load.json").write_text(json.dumps(report, indent=2) + "\n")
-            print(json.dumps({"outcome": report["outcome"], "all_attempts": report["all_attempts"], "out": str(args.out_dir / "http_load.json")}))
+                temporary_file = target.with_suffix(".json.partial")
+                temporary_file.write_text(json.dumps(scrub(report), indent=2) + "\n")
+                temporary_file.replace(target)
+            report = asyncio.run(run_load(api.url, queries, requests_per_level=args.requests, warmup_requests=2, timeout=120, require_reranker=True, require_device=args.device, fresh_service=True, checkpoint=checkpoint))
+            report["deployment"] = deployment
+            (args.out_dir / "http_load.json").write_text(json.dumps(scrub(report), indent=2) + "\n")
+            print(json.dumps({"outcome": report["outcome"], "all_attempts": report["all_attempts"], "out": sanitize_path(str(args.out_dir / "http_load.json"))}))
             return 0 if report["outcome"] == "ok" else 2
         except Exception as exc:
-            (args.out_dir / "setup_failure.json").write_text(json.dumps({"error": f"{type(exc).__name__}: {exc}", "slurm_job_id": os.environ.get("SLURM_JOB_ID"), "device": args.device, "elapsed_seconds": time.monotonic() - started}, indent=2) + "\n")
+            failure = {"error": f"{type(exc).__name__}: {exc}", "slurm_job_id": os.environ.get("SLURM_JOB_ID"), "device": args.device, "elapsed_seconds": time.monotonic() - started}
+            (args.out_dir / "setup_failure.json").write_text(json.dumps(scrub(failure), indent=2) + "\n")
             raise
         finally:
-            for process in [api, postgres]:
-                if process is not None and process.poll() is None:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait()
+            if api is not None:
+                api.stop()
+            postgres.stop()
 
 
 if __name__ == "__main__":
