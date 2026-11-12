@@ -614,10 +614,13 @@ def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
         if "none" in per:
             hijack = per["none"]["by_goal"]["hijack"]["attempted_any_phrasing"]
             value, ci = _ci(hijack)
+            # an interval pinned at one: no configuration could show a higher rate, so the measure separates none of them
+            ceiling = ("; at the ceiling: every pair was attacked under every seed, so this rate cannot separate one "
+                       "configuration from another" if hijack["lo"] == 1.0 else "")
             out.append({"claim": f"Agent injection with {n} phrasings, {model}, no defense: hijack questions in which at least one phrasing put the planted value into the model's answer, per seed",
                         "value": value, "ci": ci, "n": hijack["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; n is (question, hijack) pairs, each read over {k} seeds; the phrasings share each seed, so "
-                                      "this compares texts on shared trajectories, not independent tries")})
+                                      f"this compares texts on shared trajectories, not independent tries{ceiling}")})
         deltas = ((blob.get("paired_deltas") or {}).get(model) or {}).get("answer_check - none") or {}
         for key, what in (("planted_value_delivered", "the planted value delivered to the user, hijack, per draw"),
                           ("utility_under_attack", "utility under attack"),

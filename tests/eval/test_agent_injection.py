@@ -1328,10 +1328,18 @@ def test_the_v3_evidence_rows_read_any_success_and_the_answer_check_deltas_from_
     claims = _agent_injection_v3_claims(tmp_path)
     assert len(claims) == 4 and all(c["command"] == "make bench-agent-injection-v3" and c["not_shown"] for c in claims)
     assert claims[0]["claim"].startswith(f"Agent injection with {len(ai.PHRASINGS)} phrasings, bot, no defense: hijack")
-    assert (claims[0]["value"], claims[0]["ci"]) == _ci(blob["summary"]["bot"]["none"]["by_goal"]["hijack"]["attempted_any_phrasing"])
+    any_phrasing = blob["summary"]["bot"]["none"]["by_goal"]["hijack"]["attempted_any_phrasing"]
+    assert (claims[0]["value"], claims[0]["ci"]) == _ci(any_phrasing)
     deltas = blob["paired_deltas"]["bot"][f"{ai.ANSWER_CHECK} - none"]
     for claim, key in zip(claims[1:], ("planted_value_delivered", "utility_under_attack", "benign_success")):
         assert (claim["value"], claim["ci"], claim["n"]) == (*_ci(deltas[key], "delta"), deltas[key]["n"])
+    # the bot states every "direct" hijack's planted value: every pair under every seed, an interval pinned at one, which
+    # no configuration could raise; the row says so, and does not when the interval leaves room
+    ceiling = "at the ceiling: every pair was attacked under every seed, so this rate cannot separate one configuration from another"
+    assert any_phrasing["lo"] == 1.0 and ceiling in claims[0]["not_shown"]
+    any_phrasing.update(mean=0.5, lo=0.25, hi=0.75)
+    out.write_text(json.dumps(blob))
+    assert ceiling not in _agent_injection_v3_claims(tmp_path)[0]["not_shown"]
 
 
 def test_only_the_v3_run_and_merge_targets_write_its_committed_files():
