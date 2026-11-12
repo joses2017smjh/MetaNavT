@@ -4,6 +4,7 @@ are replaced by stubs; tests/database/test_startup.py runs the same path against
 migration, then the deploy step).
 """
 
+import re
 import threading
 import time
 
@@ -85,13 +86,15 @@ def test_a_failed_start_is_retried_and_health_turns_200_without_a_restart(app_mo
         first = client.get("/health")
         assert first.status_code == 503, first.text
         assert first.json()["status"] == "unavailable"
-        assert first.json()["error"] == "OperationalError: the database system is starting up"
+        # C47: the class and the id the attempt was logged under; the text stays in the server log and in app.state
+        assert re.fullmatch(r"OperationalError \(the server log has the reason, id [0-9a-f]{16}\)", first.json()["error"])
+        assert client.app.state.startup_error == "OperationalError: the database system is starting up"
         assert first.json()["startup"]["attempts"] >= 1 and first.json()["startup"]["retrying"] is True
         # The third attempt is under way (it waits for the release): /health still says why the last one failed.
         assert _wait_for(lambda: client.app.state.startup["attempts"] == 3)
         waiting = client.get("/health")
         assert waiting.status_code == 503 and waiting.json()["startup"]["attempts"] == 3
-        assert waiting.json()["error"] == "OperationalError: the database system is starting up"
+        assert waiting.json()["error"] == f"OperationalError (the server log has the reason, id {client.app.state.startup_error_id})"
         assert client.post("/api/retrieve/", json={"query": "q"}).status_code == 503
         release.set()
         assert _wait_for(lambda: client.get("/health").status_code == 200), client.get("/health").text

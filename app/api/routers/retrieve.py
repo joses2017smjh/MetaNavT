@@ -4,7 +4,9 @@ POST /api/retrieve/  {"query": "...", "k": 8}
   -> route, per-stage latency, counts, and hits with path + byte range +
      per-stage scores (bm25, dense, path, rrf, rerank). 422 on a bad body, 503 when
      the backend is down, 504 when the retrieval runs past its time budget
-     (RETRIEVE_TIMEOUT_SECONDS), naming the stage. The index, vector store,
+     (RETRIEVE_TIMEOUT_SECONDS), naming the stage. A 503 names no exception's text: a
+     failure while retrieving is "retrieval backend unavailable" and the request id
+     (app/api/errors.py), a failed start its class and the id it was logged under. The index, vector store,
      clusters and retriever are built once in main.py's lifespan; the blocking
      retrieve runs in a worker thread and returns a per-request RetrievalOutcome
      (no shared state).
@@ -13,6 +15,7 @@ POST /api/retrieve/  {"query": "...", "k": 8}
 from __future__ import annotations
 
 import functools
+import logging
 import math
 import os
 from typing import Optional
@@ -21,9 +24,11 @@ import anyio
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
+from app.api.errors import failure, public_startup_error
 from app.engine.budget import Deadline, StageTimeout
 
 retrieve_router = r = APIRouter()
+logger = logging.getLogger("uvicorn")
 
 MAX_K = 50
 MAX_QUERY_CHARS = 2000
@@ -130,7 +135,8 @@ def _int(value) -> Optional[int]:
 async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
     state = getattr(request.app.state, "retrieval", None)
     if state is None:
-        detail = getattr(request.app.state, "startup_error", None) or "retrieval backend not initialised"
+        detail = public_startup_error(getattr(request.app.state, "startup_error", None),
+                                      getattr(request.app.state, "startup_error_id", None), missing="retrieval backend not initialised")
         raise HTTPException(status_code=503, detail=f"retrieval backend unavailable: {detail}")
     budget = retrieve_timeout_seconds()
     deadline = Deadline(budget)
@@ -145,7 +151,7 @@ async def retrieve(req: RetrieveRequest, request: Request) -> RetrieveResponse:
     except Exception as exc:  # noqa: BLE001 - any backend failure is a 503 to the client
         # including a TimeoutError a stage raises itself inside the budget (a client library's
         # socket timeout): only StageTimeout and the route's own wait below blame the budget
-        raise HTTPException(status_code=503, detail=f"retrieval backend unavailable: {exc}") from exc
+        raise failure(exc, "retrieval", status_code=503, detail="retrieval backend unavailable", log=logger) from exc
     if wait.cancelled_caught:
         stage = deadline.stage or "waiting for a worker thread"
         raise HTTPException(status_code=504, detail=f"retrieval timed out: stage {stage} still running past the {budget:g} s retrieval budget")

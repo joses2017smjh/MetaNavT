@@ -2,10 +2,13 @@
 
 Open by default; 401 without the key once one is configured; 200 with it; 429 past
 the budget with Retry-After; /health always reachable and honest about both.
+Named keys (METANAVIT_API_KEYS_FILE): one identity and one budget per name; a key file
+that cannot be used refuses every request instead of opening the API.
 No database: same closed-port setup as tests/api/test_plans.py, so /health is 503
 here for the backend's sake, which is still "reachable" (not 401, not 429).
 """
 
+import hashlib
 import os
 import re
 
@@ -27,7 +30,7 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setenv("PSYCOPG2_CONNECTION_STRING", "dbname=metanavit user=postgres password=password host=127.0.0.1 port=1")
     monkeypatch.setenv("INDEX_ON_START", "false")
     monkeypatch.delenv("FRONTEND_ENDPOINT", raising=False)
-    for name in (security.API_KEY_ENV, security.RATE_ENV, security.BURST_ENV):
+    for name in (security.API_KEY_ENV, "METANAVIT_API_KEYS_FILE", security.RATE_ENV, security.BURST_ENV):
         monkeypatch.delenv(name, raising=False)
     security.reset_limiter()
     import main
@@ -197,3 +200,133 @@ def test_budget_config_is_off_unless_positive(monkeypatch):
     monkeypatch.delenv(security.BURST_ENV, raising=False)
     assert security.budget_config() == (90.0, 90)
     assert "PER REPLICA" in security.TokenBucketLimiter.__doc__ and "PER REPLICA" in security.__doc__
+
+
+# ---------------------------------------------------------------- named keys (METANAVIT_API_KEYS_FILE)
+
+KEYS_FILE_ENV = "METANAVIT_API_KEYS_FILE"
+ALICE, BOB = "alice-key-4b1d9e-do-not-log", "bob-key-93ac07-do-not-log"
+
+
+def _key_file(directory, **keys):
+    """A named-key file as `python -m app.api.keys add` writes it: one "name:<sha256 of the key>" line per key."""
+    path = directory / "api_keys"
+    path.write_text("# named API keys\n" + "".join(f"{name}:{hashlib.sha256(key.encode()).hexdigest()}\n" for name, key in keys.items()))
+    return path
+
+
+def test_two_named_keys_get_separate_budgets(client, monkeypatch, tmp_path):
+    monkeypatch.setenv(KEYS_FILE_ENV, str(_key_file(tmp_path, alice=ALICE, bob=BOB)))
+    monkeypatch.setenv(security.RATE_ENV, "6")
+    monkeypatch.setenv(security.BURST_ENV, "2")
+    security.reset_limiter()
+
+    assert client.get("/api/plans/").status_code == 401  # a key file alone turns authentication on
+    alice, bob = {"X-API-Key": ALICE}, {"Authorization": f"Bearer {BOB}"}
+    assert [client.get("/api/plans/", headers=alice).status_code for _ in range(3)] == [200, 200, 429]
+    assert [client.get("/api/plans/", headers=bob).status_code for _ in range(3)] == [200, 200, 429]  # bob's own bucket
+    assert client.get("/health").json()["auth"]["enabled"] is True
+
+
+def test_the_single_key_still_works_alone_and_beside_named_keys(client, monkeypatch, tmp_path):
+    monkeypatch.setenv(security.API_KEY_ENV, KEY)
+    assert client.get("/api/plans/", headers={"X-API-Key": KEY}).status_code == 200
+    monkeypatch.setenv(KEYS_FILE_ENV, str(_key_file(tmp_path, alice=ALICE)))
+    for headers in ({"X-API-Key": KEY}, {"X-API-Key": ALICE}):
+        assert client.get("/api/plans/", headers=headers).status_code == 200, headers
+    assert client.get("/api/plans/", headers={"X-API-Key": BOB}).status_code == 401
+
+
+def test_every_named_key_is_compared_in_constant_time_and_none_is_echoed_or_logged(client, monkeypatch, tmp_path, caplog):
+    path = _key_file(tmp_path, alice=ALICE, bob=BOB)
+    assert ALICE not in path.read_text() and BOB not in path.read_text()  # the file holds hashes only
+    monkeypatch.setenv(KEYS_FILE_ENV, str(path))
+    seen = []
+    real = security.hmac.compare_digest
+
+    def spy(a, b):
+        seen.append((len(a), len(b)))
+        return real(a, b)
+
+    monkeypatch.setattr(security.hmac, "compare_digest", spy)
+    assert client.get("/api/plans/", headers={"X-API-Key": ALICE}).status_code == 200
+    assert seen == [(32, 32), (32, 32)]  # alice matched the first entry, and bob's was still compared
+    rejected = client.get("/api/plans/", headers={"X-API-Key": ALICE + "x"})
+    assert rejected.status_code == 401
+    for text in (rejected.text, client.get("/health").text, caplog.text):
+        assert ALICE not in text and BOB not in text
+
+
+@pytest.mark.parametrize("case", ["missing", "plaintext_key", "duplicate_name", "bad_name", "reserved_name", "inside_data_dir"])
+def test_a_key_file_that_cannot_be_used_fails_closed_without_echoing_it(client, monkeypatch, tmp_path, caplog, case):
+    digest = hashlib.sha256(ALICE.encode()).hexdigest()
+    path = tmp_path / "api_keys"
+    lines = {"missing": None, "plaintext_key": f"alice:{ALICE}\n", "duplicate_name": f"alice:{digest}\nalice:{'0' * 64}\n",
+             "bad_name": f"alice smith:{digest}\n", "reserved_name": f"shared-key:{digest}\n"}.get(case)
+    if case == "inside_data_dir":  # the file would be served under /api/files/data and indexed
+        (tmp_path / "data").mkdir()
+        path = _key_file(tmp_path / "data", alice=ALICE)
+        monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    elif lines is not None:
+        path.write_text(lines)
+    monkeypatch.setenv(KEYS_FILE_ENV, str(path))
+    for headers in ({}, {"X-API-Key": ALICE}):
+        resp = client.get("/api/plans/", headers=headers)
+        assert resp.status_code == 503, (case, resp.status_code)
+        assert resp.json()["detail"] == "API keys unavailable (the server log has the reason)"
+        assert ALICE not in resp.text and digest not in resp.text and str(tmp_path) not in resp.text
+    assert ALICE not in caplog.text and digest not in caplog.text  # the log names the line, not its text
+    assert client.get("/health").json()["auth"]["enabled"] is True  # configured, so never read as "open"
+
+
+def test_python_exec_counts_named_keys_as_authentication(monkeypatch, tmp_path):
+    from app.engine.tools.python_exec import python_exec_enabled
+
+    monkeypatch.delenv(security.API_KEY_ENV, raising=False)
+    monkeypatch.setenv("ENABLE_PYTHON_EXEC", "true")
+    monkeypatch.setenv(KEYS_FILE_ENV, str(_key_file(tmp_path, alice=ALICE)))
+    assert python_exec_enabled() is True
+    monkeypatch.delenv(KEYS_FILE_ENV)
+    assert python_exec_enabled() is False
+
+
+def test_keys_add_stores_only_the_hash_and_prints_the_key_once(tmp_path, capsys):
+    from app.api import keys
+
+    path = tmp_path / "api_keys"
+    assert keys.main(["add", "--file", str(path), "alice"]) == 0
+    key = capsys.readouterr().out.strip()
+    assert len(key) >= 32 and key not in path.read_text()
+    assert f"alice:{hashlib.sha256(key.encode()).hexdigest()}" in path.read_text().splitlines()
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert keys.main(["add", "--file", str(path), "bob"]) == 0
+    second = capsys.readouterr().out.strip()
+    assert second != key and [line.split(":")[0] for line in path.read_text().splitlines() if line and not line.startswith("#")] == ["alice", "bob"]
+    for name in ("alice", "shared-key", "no spaces", "a:b"):  # taken, reserved, malformed
+        with pytest.raises(SystemExit):
+            keys.main(["add", "--file", str(path), name])
+    assert capsys.readouterr().out == ""  # a refused name prints no key
+
+
+def test_keys_add_to_a_file_whose_last_line_has_no_newline_keeps_every_key_working(client, monkeypatch, tmp_path, capsys):
+    """A file written by hand often ends without a newline; the added line used to join the last one, so the API
+    refused every request (503) and the printed key never worked."""
+    from app.api import keys
+
+    path = tmp_path / "api_keys"
+    path.write_text(f"alice:{hashlib.sha256(ALICE.encode()).hexdigest()}")
+    assert keys.main(["add", "--file", str(path), "bob"]) == 0
+    bob = capsys.readouterr().out.strip()
+    assert sorted(security.parse_key_file(path.read_text())) == ["alice", "bob"]
+    monkeypatch.setenv(KEYS_FILE_ENV, str(path))
+    for key in (ALICE, bob):
+        assert client.get("/api/plans/", headers={"X-API-Key": key}).status_code == 200
+
+
+def test_deleting_a_line_revokes_that_key_without_a_restart(client, monkeypatch, tmp_path):
+    path = _key_file(tmp_path, alice=ALICE, bob=BOB)
+    monkeypatch.setenv(KEYS_FILE_ENV, str(path))
+    assert client.get("/api/plans/", headers={"X-API-Key": BOB}).status_code == 200
+    path.write_text("".join(f"{line}\n" for line in path.read_text().splitlines() if not line.startswith("bob:")))
+    assert client.get("/api/plans/", headers={"X-API-Key": BOB}).status_code == 401  # the same process, the file reread
+    assert client.get("/api/plans/", headers={"X-API-Key": ALICE}).status_code == 200

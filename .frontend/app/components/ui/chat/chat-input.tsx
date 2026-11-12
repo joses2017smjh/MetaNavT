@@ -1,8 +1,9 @@
 "use client";
 
-import { ChatInput, useChatUI, useFile } from "@llamaindex/chat-ui";
+import { ChatInput, useChatUI } from "@llamaindex/chat-ui";
 import { DocumentInfo, ImagePreview } from "@llamaindex/chat-ui/widgets";
 import { useClientConfig } from "./hooks/use-config";
+import { useFile } from "./hooks/use-file"; // chat-ui's, uploading with the API key
 
 export default function CustomChatInput() {
   const { requestData, isLoading, input } = useChatUI();

@@ -9,6 +9,13 @@
 - configure_logging(): LOG_FORMAT=json turns every record from the app and
   uvicorn loggers into one JSON object per line (ts, level, logger, msg, plus
   any `extra` fields); the default keeps uvicorn's text format.
+- report_failure(log, what, exc): the one place an exception becomes what a
+  client may be told. The exception's text (a driver error names the database
+  host, port and user; an OS error names paths) goes to the server log under an
+  id: the request's (app/api/errors.py gives every request one and sends it as
+  X-Request-ID), else a new one (start-up, model loading, offline runs). The
+  client gets the class and the id, never the text. Routes turn it into a fixed
+  HTTP answer with app.api.errors.failure().
 
 pip install -e ".[otel]" for the SDK; without it the API behaves the same.
 """
@@ -19,7 +26,9 @@ import json
 import logging
 import os
 import sys
+import uuid
 from contextlib import contextmanager
+from contextvars import ContextVar, Token
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
@@ -106,3 +115,40 @@ def configure_logging(fmt: str | None = None, level: str | None = None) -> str:
         logger.propagate = False
         logger.setLevel(level_name)
     return "json"
+
+
+# ---------------------------------------------------------------- request ids and what a client is told of a failure
+
+_request_id: ContextVar[str | None] = ContextVar("metanavit_request_id", default=None)
+
+
+def new_request_id() -> str:
+    return uuid.uuid4().hex[:16]
+
+
+def current_request_id() -> str | None:
+    """The id of the request being served (set by app.api.errors.RequestIdMiddleware), None outside a request.
+    Worker threads started for the request (run_in_threadpool, anyio.to_thread) see it too."""
+    return _request_id.get()
+
+
+def bind_request_id(value: str) -> Token:
+    return _request_id.set(value)
+
+
+def unbind_request_id(token: Token) -> None:
+    _request_id.reset(token)
+
+
+def public_failure(kind: str, error_id: str | None = None) -> str:
+    """What a client is told of a failure: its kind (an exception's class name), never the exception's text."""
+    return f"{kind} (the server log has the reason{f', id {error_id}' if error_id else ''})"
+
+
+def report_failure(log: logging.Logger, what: str, exc: BaseException, *, error_id: str | None = None,
+                   level: int = logging.ERROR, traceback: bool = False) -> tuple[str, str]:
+    """Log that `what` failed, with the exception's full text, under an id: `error_id`, else the current request's,
+    else a new one. Returns (the id, what a client may be told: the class and the id)."""
+    error_id = error_id or current_request_id() or new_request_id()
+    log.log(level, f"{what} failed [id {error_id}]: {type(exc).__name__}: {exc}", exc_info=exc if traceback else None)
+    return error_id, public_failure(type(exc).__name__, error_id)

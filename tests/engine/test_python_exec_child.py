@@ -29,7 +29,7 @@ FLAG, TIMEOUT, MEMORY = "ENABLE_PYTHON_EXEC", "PYTHON_EXEC_TIMEOUT_SECONDS", "PY
 @pytest.fixture
 def engine_env(monkeypatch):
     """get_chat_engine() as the API builds it, minus the database: no index, so no query tool."""
-    for name in (FLAG, security.API_KEY_ENV, TIMEOUT, MEMORY):
+    for name in (FLAG, security.API_KEY_ENV, security.API_KEYS_FILE_ENV, TIMEOUT, MEMORY):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(Settings, "_llm", MockLLM())  # agents only store it; nothing calls it here
     monkeypatch.setattr(file_access_agent, "get_index", lambda config=None: None)

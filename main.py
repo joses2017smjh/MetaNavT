@@ -35,10 +35,12 @@ import os
 from contextlib import asynccontextmanager, suppress
 
 import uvicorn
+from app.api.errors import install as install_error_answers
+from app.api.errors import public_startup_error
 from app.api.routers import api_router
 from app.api.security import GuardedStaticFiles, security_status
 from app.middlewares.frontend import FrontendProxyMiddleware
-from app.observability import configure_logging, tracing_status
+from app.observability import configure_logging, new_request_id, report_failure, tracing_status
 from app.settings import init_settings
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
@@ -55,17 +57,19 @@ async def lifespan(app: FastAPI):
     """Build the model settings and the retrieval singletons off the event loop.
 
     The first attempt runs before the server accepts requests. A failure (database down
-    or still starting, a migration not applied yet, bad DATA_DIR) is recorded in
-    app.state.startup_error and retried in the background with capped exponential backoff
+    or still starting, a migration not applied yet, bad DATA_DIR) is logged under an id and
+    recorded in app.state.startup_error (in full, for the server) and startup_error_id, and
+    retried in the background with capped exponential backoff
     (app.engine.bootstrap.startup_retry_policy): the process stays up, /health answers 503
-    with the error and the attempt count and /api/retrieve 503, until an attempt succeeds;
-    then /health turns 200 without a restart. It used to keep the first error for the life
-    of the process.
+    with the error's class and that id (app.api.errors.public_startup_error) and the attempt
+    count, and /api/retrieve 503, until an attempt succeeds; then /health turns 200 without a
+    restart. It used to keep the first error for the life of the process.
     """
     from app.engine.bootstrap import retry_delays, startup_retry_policy
 
     app.state.retrieval = None
     app.state.startup_error = None
+    app.state.startup_error_id = None
     app.state.plans = None
     app.state.startup = {"attempts": 0, "retrying": False, "retry_delay_s": None}
     policy = startup_retry_policy()
@@ -108,14 +112,15 @@ async def _start_attempt(app: FastAPI, built: dict) -> bool:
             built["plans"] = await run_in_threadpool(build_plan_store, built["retrieval"].vsm, DATA_DIR)
             app.state.plans = built["plans"]
             logger.info(f"Plan store ready over {DATA_DIR} (plans and decisions in Postgres)")
-    except Exception as exc:  # noqa: BLE001 - surfaced by /health, then retried
-        app.state.startup_error = f"{type(exc).__name__}: {exc}"
+    except Exception as exc:  # noqa: BLE001 - surfaced by /health (its class and the id), then retried
+        error_id = new_request_id()
         if attempt == 1:
-            logger.error(f"Retrieval backend failed to start: {app.state.startup_error}", exc_info=True)
+            report_failure(logger, "Retrieval backend start", exc, error_id=error_id, traceback=True)
         else:
-            logger.warning(f"Start-up attempt {attempt} failed: {app.state.startup_error}")
+            report_failure(logger, f"Start-up attempt {attempt}", exc, error_id=error_id, level=logging.WARNING)
+        app.state.startup_error, app.state.startup_error_id = f"{type(exc).__name__}: {exc}", error_id
         return False
-    app.state.startup_error = None
+    app.state.startup_error = app.state.startup_error_id = None
     if attempt > 1:
         logger.info(f"Start-up succeeded on attempt {attempt}")
     return True
@@ -145,14 +150,18 @@ async def _retry_start(app: FastAPI, built: dict, policy, delays, delay: float |
 
 # Initialize FastAPI app
 app = FastAPI(lifespan=lifespan)
+# A request id on every response; an exception's text never in a body, only its class or a fixed text (app/api/errors.py)
+install_error_answers(app)
 
 
 @app.get("/health")
 async def health():
-    """200 with index stats once retrieval is ready; 503 with the startup error otherwise.
+    """200 with index stats once retrieval is ready; 503 with the startup error otherwise
+    (its class and the id it was logged under, app.api.errors.public_startup_error).
 
     Also 503 (status "unavailable", n_nodes null, a "database" entry in degraded) when the
-    data table cannot be read: a database error is never reported as an empty index.
+    data table cannot be read: a database error is never reported as an empty index. The
+    entry names the error's class and the request's id; its text is in the server log.
     Never behind the API key (orchestrator probes must reach it). Both answers say
     whether authentication and the request budget are on (app/api/security.py).
     """
@@ -160,15 +169,17 @@ async def health():
     # Start-up attempts so far, and whether (and after what wait) another one is coming.
     startup = dict(getattr(app.state, "startup", None) or {})
     if state is None:
+        error = getattr(app.state, "startup_error", None)
+        error = public_startup_error(error, getattr(app.state, "startup_error_id", None)) if error else None
         return JSONResponse(
             status_code=503,
-            content={"status": "unavailable", "error": getattr(app.state, "startup_error", None), "startup": startup, **security_status()},
+            content={"status": "unavailable", "error": error, "startup": startup, **security_status()},
         )
     database_error = None
     try:
         n_nodes = await run_in_threadpool(state.vsm.count_nodes)
     except Exception as exc:  # noqa: BLE001 - the data table cannot be read: never report it as 0 rows
-        n_nodes, database_error = None, f"{type(exc).__name__}: {exc}"
+        n_nodes, (_, database_error) = None, report_failure(logger, "/health: counting the rows", exc)
     dense_search = await run_in_threadpool(_dense_search_status, state)
     reranker = getattr(state.retriever, "reranker_info", None) or {}
     from app.settings import embedding_device

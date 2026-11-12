@@ -24,6 +24,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 from app.api.routers.events import EventCallbackHandler
 from app.api.routers.models import ChatData, SourceNodes
+from app.observability import report_failure
 
 logger = logging.getLogger("uvicorn")
 
@@ -76,10 +77,11 @@ class VercelStreamResponse(StreamingResponse):
                         yield cls.convert_text("")
 
                     yield output
-        except Exception:
-            logger.exception("Error in stream response")
+        except Exception as exc:
+            request_id, _ = report_failure(logger, "streaming the chat response", exc, traceback=True)
             yield cls.convert_error(
-                "An unexpected error occurred while processing your request, preventing the creation of a final answer. Please try again."
+                "An unexpected error occurred while processing your request, preventing the creation of a final answer. "
+                f"Please try again. (request id {request_id})"
             )
         finally:
             # Ensure event handler is marked as done even if connection breaks
