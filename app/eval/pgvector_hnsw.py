@@ -2,13 +2,14 @@
 and its half-precision and binary variants on the same table (C04).
 
 Stages of the served-path scale run (app/eval/served_scale.py, `make bench-served-scale`): they run on the
-table its index stage built (FiQA's chunks, the served embedder's vectors, the HNSW index the API's start-up
-creates with its m and ef_construction) and use the served query embedding of every FiQA test query.
+table its index stage built (FiQA's chunks, the served embedder's vectors, the HNSW index the schema migrations
+create with its m and ef_construction) and use the served query embedding of every FiQA test query.
 Results: bench/results/pgvector_hnsw.json.
 
   exact     ORDER BY embedding <=> q, node_id LIMIT k with index scans off: a sequential scan over every row
   hnsw      ORDER BY embedding <=> q LIMIT k with sequential scans off, at several hnsw.ef_search values and
-            hnsw.iterative_scan off: the index alone, which returns at most ef_search rows
+            hnsw.iterative_scan off: the index alone, which stops after about ef_search rows (rows_returned
+            records how many; below k they bound Recall@k)
   served    the dense CTE of app/database/sql/hybrid_tsrank.sql with the settings hybrid_search sends
             (VectorStoreManager.settings_sql: ef_search twice the depth, iterative scan, read 2k keep k),
             planned freely: what the served statement reads

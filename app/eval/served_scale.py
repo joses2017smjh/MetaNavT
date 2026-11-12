@@ -21,9 +21,9 @@ index stage the data directory is copied to <state>, and a resumed run on a fres
                  insert: seconds (and the embedder's share), rows, rejections by reason; ANALYZE; the indexes read
                  from pg_indexes; sizes on disk; index_directory again over the unchanged directory (what
                  INDEX_ON_START=true costs per start)
-  startup        what start-up reads: every chunk back (fetch_all_chunks) and the version clusters
-                 (bootstrap.build_clusters), timed here; then the API (uvicorn main:app, INDEX_ON_START unset,
-                 both models), seconds from launch to /health ok
+  startup        the API (uvicorn main:app, INDEX_ON_START unset, both models), seconds from launch to /health
+                 ok; then what every start reads, timed here in the runner: every chunk back (fetch_all_chunks)
+                 and the version clusters (bootstrap.build_clusters)
   probe          a few hybrid statements and lexical-only statements, timed in this process before the replay
   replay_rerank  every test query through POST /api/retrieve/ with k = 50 and the served defaults (reranker on)
   load           app/eval/http_load on that API: concurrency 1, 4 and 16, k = 8, failures counted
