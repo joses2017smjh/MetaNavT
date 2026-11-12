@@ -15,7 +15,7 @@ A status says what exists and, for a measured piece, the verdict its row holds: 
 | Phase | Item | Status |
 |---|---|---|
 | 0.1 | Freeze a corpus, hash manifest | done (demo research tree; swap for capstone dir later) |
-| 0.2 | Gold set (Q/A), CRAG taxonomy + staleness | done: written by `bench/corpus/build.py` from the corpus registry, no LLM; the question count is `n_gold` in every results header |
+| 0.2 | Gold set (Q/A), CRAG taxonomy + staleness | done: written by `bench/corpus/build.py` from the corpus registry, no LLM; the question count is `n_gold` in the header of `bench/results/main.json` |
 | 0.3 | Retrieval scoreboard: Recall@50, nDCG@10, MRR@10 | done, with paired bootstrap intervals ([CPU fixture](README.md#bench-table)) |
 | 0.3 | End-to-end RAGAS-style metrics | built: heuristic token-overlap columns, labelled and never an LLM result; the LLM judge is row `6` |
 | 0.4 | p50/p95 latency per stage | done |
