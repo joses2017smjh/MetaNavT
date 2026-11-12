@@ -105,11 +105,6 @@ def generate_datasource() -> dict:
     return report
 
 
-def print_all_env_variables():
-    for key, value in os.environ.items():
-        print(f"{key}={value}")
-
-
 if __name__ == "__main__":
     from app.engine.ingest import main
 
