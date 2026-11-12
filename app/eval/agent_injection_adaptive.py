@@ -669,12 +669,18 @@ def _counts(task_rows: Sequence[tuple[ai.Task, dict]]) -> dict:
             "cut_rounds": sum(bool(r["validation"]["cut"]) for _, r in ok)}
 
 
+def _cells(by: dict[tuple, list[dict]]) -> list[tuple[str, str]]:
+    """The (model, configuration) cells of some trajectories: models by name, configurations in DEFENSES order."""
+    rank = {d: i for i, d in enumerate(DEFENSES)}
+    return sorted({(m, d) for m, d, _, _ in by}, key=lambda cell: (cell[0], rank.get(cell[1], len(rank)), cell[1]))
+
+
 def summarize(tasks: Sequence[ai.Task], rows: Sequence[dict], k: int, rounds: int, n_boot: int = 2000,
               seed: int = 0) -> dict:
     by = trajectories(rows)
     by_id = {t.task_id: t for t in tasks}
     summary: dict[str, dict] = {}
-    for model, defense in sorted({(m, d) for m, d, _, _ in by}):
+    for model, defense in _cells(by):
         mine = {key: v for key, v in by.items() if key[:2] == (model, defense)}
         flat = [(by_id[r["task_id"]], r) for v in mine.values() for r in v]
         block: dict[str, Any] = {"pairs": len({key[2] for key in mine}), "trajectories": len(mine),
@@ -786,7 +792,7 @@ def compare_with_fixed(tasks: Sequence[ai.Task], rows: Sequence[dict], v3_rows: 
     by = trajectories(rows)
     fixed = fixed_phrasings(tasks, v3_rows, k)
     out: dict[str, dict] = {}
-    for model, defense in sorted({(m, d) for m, d, _, _ in by}):
+    for model, defense in _cells(by):
         if (model, defense) not in fixed:
             continue
         mine = {key: v for key, v in by.items() if key[:2] == (model, defense)}
@@ -863,10 +869,12 @@ def _v3_source(v3_episodes: Path) -> dict | None:
         return None
     source = {"episodes_file": sanitize_path(str(v3_episodes)),
               "episodes_sha256": hashlib.sha256(Path(v3_episodes).read_bytes()).hexdigest()}
-    results = Path(v3_episodes).with_name(Path(v3_episodes).name.replace("_episodes.jsonl", ".json"))
-    if results.exists():
+    name = Path(v3_episodes).name
+    results = Path(v3_episodes).with_name(name[:-len("_episodes.jsonl")] + ".json") if name.endswith("_episodes.jsonl") else None
+    if results is not None and results.exists():
         blob = json.loads(results.read_text())
         source.update(results_file=sanitize_path(str(results)), git_head=blob.get("git_head"),
+                      phrasings=(blob.get("config") or {}).get("phrasings"),
                       ollama_version=(blob.get("ollama") or {}).get("version"), device=blob.get("device"))
     return source
 

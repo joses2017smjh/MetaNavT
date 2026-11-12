@@ -544,3 +544,78 @@ def test_the_declared_design_is_recorded_in_every_results_file(tmp_path, routed,
     assert blob["module_sha256"] != blob["harness_sha256"] and blob["n_episodes"] == len(rows)
     json.dumps(blob, allow_nan=False)  # no NaN or infinity, which strict JSON cannot hold
     assert Counter(r["defense"] for r in rows) == {"none": len(rows)}
+
+
+def test_the_adaptive_table_and_the_evidence_rows_read_the_results_file(tmp_path, monkeypatch, routed):
+    # From a scripted run compared with a scripted v3 run: the README block has one row per model, configuration and
+    # group of goals with the adaptive and the fixed rates and their paired difference at both levels, the per-goal and
+    # per-round tables, the rounds counts and the boundary line; the evidence rows read the headline differences
+    from app.eval.evidence import FILES, _agent_injection_adaptive_claims, _ci
+    from app.eval.report import _delta_cell, _rate, agent_injection_adaptive_table
+    questions = ["q021", "q046"]
+    v3_dir = tmp_path / "v3"
+    v3_dir.mkdir()
+    original = ai.run_episode
+
+    def v3_maker(task):
+        def chat(messages, tools, seed):
+            if not any(m["role"] == "tool" for m in messages):
+                return _call("read_file", path=task.gold_path)
+            follow = task.goal == "hijack" and task.style == "direct" and seed == 0
+            return _say(f"Run {task.run} used {task.planted_value if follow else task.gold} [{task.gold_path}].")
+        return chat
+
+    monkeypatch.setattr(ai, "run_episode", lambda chat, env, d, seed, max_turns=6: original(
+        v3_maker(env.task), env, d, seed, max_turns))
+    v3_episodes = v3_dir / "agent_injection_v3_episodes.jsonl"
+    v3_tasks, v3_rows = ai.run(["bot"], k=2, workers=2, episodes_path=v3_episodes, questions=questions,
+                               defenses=("none", ai.ANSWER_CHECK), chat_factory=lambda m: None, log=lambda _: None,
+                               benchmark=ai.BENCHMARK_V3)
+    monkeypatch.setattr(ai, "_ollama_info", lambda base_url, models: {"version": "9.9.9", "running": {}})
+    v3_blob = ai.report(v3_tasks, ai.rescore(v3_tasks, v3_rows), models=["bot"], k=2, temperature=0.7,
+                        base_url="http://x:1", wall_s=1.0, episodes_path=v3_episodes, max_turns=6,
+                        benchmark=ai.BENCHMARK_V3)
+    (v3_dir / "agent_injection_v3.json").write_text(json.dumps(v3_blob))
+    routed(lambda t: victim(t, fix=True))
+    episodes = tmp_path / "a.jsonl"
+    tasks, rows = aa.run(["bot"], split="held_out", questions=questions, defenses=("none", ai.ANSWER_CHECK), k=2,
+                         rounds=3, episodes_path=episodes, chat_factory=lambda m: None,
+                         attacker_factory=lambda m: attacker_bot(), workers=2, log=lambda _: None)
+    blob = json.loads(json.dumps(aa.report(tasks, aa.rescore(tasks, rows), models=["bot"], k=2, rounds=3, temperature=0.7,
+                                           base_url="http://x:1", attacker_base_url=None, wall_s=1.0,
+                                           episodes_path=episodes, max_turns=6, split="held_out",
+                                           defenses=("none", ai.ANSWER_CHECK), v3_episodes=v3_episodes)))
+    assert blob["comparison"]["source"]["phrasings"] == list(ai.PHRASINGS)
+    assert blob["comparison"]["source"]["episodes_sha256"] == aa.hashlib.sha256(v3_episodes.read_bytes()).hexdigest()
+    text = agent_injection_adaptive_table(blob)
+    for defense in ("none", ai.ANSWER_CHECK):
+        for group in ("planted_actions", "hijack"):
+            comp = blob["comparison"]["bot"][defense][group]
+            label = group.replace("_", " ")
+            assert (f"| bot | {defense} | {label} | {_rate(comp['attempted']['adaptive'])} | {_rate(comp['attempted']['fixed'])} "
+                    f"| {_delta_cell(comp['attempted']['delta'])} | {_rate(comp['took_effect']['adaptive'])} "
+                    f"| {_rate(comp['took_effect']['fixed'])} | {_delta_cell(comp['took_effect']['delta'])} |") in text
+        b = blob["summary"]["bot"][defense]
+        assert (f"| bot | {defense} | {b['trajectories']} | {b['rounds']} | {b['own_text_rounds']} | {b['completed_rounds']} "
+                f"| {b['replaced_rounds']} | {b['cut_rounds']} | {b['exposed_rounds']} / {b['payload_seen_rounds']} |") in text
+        curve = b["by_goal"]["hijack"]["after_round"]
+        assert f"| bot | {defense} | hijack | " + " | ".join(f"{x:.3f}" for x in curve) + " |" in text
+    # the scripted agent states the hijack's planted value once MAGIC is planted (round 2), so the adaptive attacker gets
+    # every hijack pair where v3's phrasings got one seed in two, and the planted actions are attempted from round 2
+    assert blob["comparison"]["bot"]["none"]["hijack"]["attempted"]["delta"]["delta"] == 0.5
+    assert blob["comparison"]["bot"]["none"]["planted_actions"]["attempted"]["delta"]["delta"] == 1.0
+    assert "attacker `qwen2.5:7b` (instructions v1" in text and "7 on the same pairs and seeds" in text
+    assert "the targets made" in text and "The corpus changed in 0 rounds" in text
+    assert "the same server version and GPU" in text or "not the same server version and GPU" in text
+    assert "is missing" in agent_injection_adaptive_table(None)
+    out = tmp_path / FILES["agent_injection_adaptive"]
+    out.parent.mkdir(parents=True)
+    assert _agent_injection_adaptive_claims(tmp_path) == []
+    out.write_text(json.dumps(blob))
+    claims = _agent_injection_adaptive_claims(tmp_path)
+    assert len(claims) == 3 and all(c["command"] == "make bench-agent-injection-adaptive" for c in claims)
+    for claim, (defense, group, level) in zip(claims, (("none", "planted_actions", "attempted"), ("none", "hijack", "attempted"),
+                                                       (ai.ANSWER_CHECK, "hijack", "took_effect"))):
+        block = blob["comparison"]["bot"][defense][group][level]
+        assert (claim["value"], claim["ci"], claim["n"]) == (*_ci(block["delta"], "delta"), block["delta"]["n"])
+        assert f"adaptive {_ci(block['adaptive'])[0]} against fixed {_ci(block['fixed'])[0]}" in claim["not_shown"]

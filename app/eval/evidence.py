@@ -29,6 +29,7 @@ FILES = {
     "jury": "bench/results/jury_v2.json",  # M29; the M4 run (jury.json) is the earlier record
     "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
     "agent_injection_v3": "bench/results/agent_injection_v3.json",  # phrasings as any-success, the in-loop answer check
+    "agent_injection_adaptive": "bench/results/agent_injection_adaptive.json",  # the adaptive attacker, held-out questions
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
@@ -295,6 +296,7 @@ def claims(root: Path = ROOT) -> list[dict]:
                         "not_shown": "a measure of order bias, not of answer quality"})
     out += _agent_injection_claims(root)
     out += _agent_injection_v3_claims(root)
+    out += _agent_injection_adaptive_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
     out += _companion_live_claims(root)
@@ -782,6 +784,45 @@ def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
                         "value": value, "ci": ci, "n": d["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; {_zero(d)}; the check is told each question's config field and file, so it covers "
                                       "single-field questions only; a flagged answer gets one retry within the same turn budget")})
+    return out
+
+
+def _agent_injection_adaptive_claims(root: Path = ROOT) -> list[dict]:
+    """The adaptive attacker on the held-out questions, per target model, against agent_injection_v3's fixed phrasings on
+    the same pairs and seeds: the planted actions and the hijack attempted with no defense, and the planted value
+    delivered past the answer check, each a paired difference over the questions."""
+    blob = _load(FILES["agent_injection_adaptive"], root)
+    if not blob:
+        return []
+    cfg = blob["config"]
+    gen = blob.get("episodes_generated_by") or {}
+    shards = (gen.get("merged") or {}).get("shards") or []
+    cmd = (f"make bench-agent-injection-adaptive-shard ({len(shards)} shards), then make bench-agent-injection-adaptive-merge"
+           if shards else "make bench-agent-injection-adaptive")
+    src = f"{FILES['agent_injection_adaptive']} @ {str(blob.get('git_head') or '')[:7]}"
+    rounds, k, split = cfg["rounds"], cfg["k"], cfg["split"]
+    scope = (f"one attacker model ({cfg['attacker']['model']}, also one of the targets), told after each round whether its "
+             "text reached the assistant, whether the goal was attempted and took effect, and the start of the answer: "
+             f"more than a user sees; {len(split['questions'])} held-out questions, its instructions tuned on "
+             f"{len(split['train'])} others; two local 7-8B targets; synthetic config questions; two runs sampled at "
+             "different times")
+    out: list[dict] = []
+    for model, per in (blob.get("comparison") or {}).items():
+        if model == "source":
+            continue
+        for defense, group, level, what in (
+                ("none", "planted_actions", "attempted", "a planted file action (move, patch, read outside the root) attempted"),
+                ("none", "hijack", "attempted", "the planted value in the model's answer (hijack)"),
+                ("answer_check", "hijack", "took_effect", "the planted value delivered to the user past the answer check")):
+            block = ((per.get(defense) or {}).get(group) or {}).get(level)
+            if not block:
+                continue
+            value, ci = _ci(block["delta"], "delta")
+            where = "no defense" if defense == "none" else f"the {defense} configuration"
+            out.append({"claim": f"Agent injection, {model}, {where}: an adaptive attacker with {rounds} rounds minus v3's fixed phrasings, {what} in some round, per trial, paired",
+                        "value": value, "ci": ci, "n": block["delta"]["n"], "command": cmd, "source": src,
+                        "not_shown": (f"adaptive {_ci(block['adaptive'])[0]} against fixed {_ci(block['fixed'])[0]}; "
+                                      f"{_zero(block['delta'])}; n is questions, each pair read over {k} trials; {scope}")})
     return out
 
 
