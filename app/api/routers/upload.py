@@ -7,9 +7,10 @@ instead of letting FastAPI buffer a body of any size before validation.
 
 The file is saved under DATA_DIR/uploads and indexed (app/engine/uploads.py).
 A file the index step would reject is refused with the reason, nothing written:
-415 (type or not UTF-8 text), 413 (over INGEST_MAX_FILE_BYTES), 422 (empty),
-409 (its bytes are already indexed); 503 when another indexing run holds the
-ingest lock past INGEST_LOCK_TIMEOUT_SECONDS.
+415 (type or not UTF-8 text), 413 (over INGEST_MAX_FILE_BYTES), 422 (empty, or
+a body that is not base64), 409 (its bytes are already indexed); 503 when
+another indexing run holds the ingest lock past INGEST_LOCK_TIMEOUT_SECONDS.
+The data URL's declared type is not used: the file name's extension decides.
 """
 import logging
 import os

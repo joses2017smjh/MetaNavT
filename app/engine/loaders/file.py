@@ -80,13 +80,14 @@ class FileService:
             from app.engine.index import IndexConfig
         except ImportError as e:
             raise ValueError("IndexConfig is not found") from e
-        from app.engine.uploads import save_and_index
+        from app.engine.uploads import decode_data_url, save_and_index
 
         # Validate the optional indexing parameters, as before
         IndexConfig(**(params or {}))
 
-        # Decode the base64 file content (the stored name keeps the uploaded name's extension)
-        file_data, _ = cls._preprocess_base64_file(base64_content)
+        # Decode the base64 file content; the stored name keeps the uploaded name's extension, and the declared
+        # type is not used (_preprocess_base64_file fails on a type mimetypes does not know, e.g. YAML's)
+        file_data = decode_data_url(base64_content)
         return DocumentFile(**save_and_index(file_name, file_data))
 
     @classmethod

@@ -24,6 +24,8 @@ hybrid SQL, and the served rows do not carry it.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import logging
 import os
@@ -42,6 +44,20 @@ class UploadRejected(ValueError):
     def __init__(self, status: int, reason: str, detail: str):
         self.status, self.reason = status, reason
         super().__init__(detail)
+
+
+def decode_data_url(content: str) -> bytes:
+    """The file's bytes from the upload body's base64 field ("data:<type>;base64,<payload>", or the payload alone).
+
+    The declared type is not used: the stored name keeps the uploaded name's extension, which is what the index
+    step decides by. (FileService._preprocess_base64_file maps the type to an extension and fails on a type
+    mimetypes does not know, such as application/x-yaml or an empty one, which browsers send for YAML files.)
+    """
+    payload = content.split(",", 1)[1] if content.startswith("data:") and "," in content else content
+    try:
+        return base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError):
+        raise UploadRejected(422, "bad_base64", "the base64 field is not base64 data") from None
 
 
 def uploads_dir() -> Path:

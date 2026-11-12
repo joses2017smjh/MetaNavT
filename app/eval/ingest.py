@@ -4,7 +4,7 @@ Pure functions (stdlib, app.chunking and the chunk-id helper): no database and
 no LlamaIndex, so `make test-eval` covers them. Two callers:
 
   app/eval/index_loader.py   the in-memory benchmark index
-  app/engine/ingest.py       the served pgvector index (API start)
+  app/engine/ingest.py       the served pgvector index (the index step, before the API starts)
 
 Both call file_chunks(), so a chunk boundary the benchmark measures is the
 boundary the API serves.

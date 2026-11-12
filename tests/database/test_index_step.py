@@ -170,7 +170,7 @@ def _serve(env: dict, until, deadline_s: float) -> dict:
     return seen
 
 
-def test_the_api_as_compose_runs_it_answers_health_while_another_process_holds_the_ingest_lock(table):
+def test_the_api_as_compose_runs_it_answers_health_while_another_process_holds_the_ingest_lock(table, monkeypatch):
     """Compose's api container indexed before the server started; now the server's start reads the table and the
     manifest without touching the lock, so a process that is indexing (or stuck) does not hold it up. Before, Compose
     set INDEX_ON_START=true and the start waited in pg_advisory_lock with no limit: no /health answer at all."""
@@ -180,7 +180,7 @@ def test_the_api_as_compose_runs_it_answers_health_while_another_process_holds_t
     assert _index_command(env).returncode == 0  # the index step ran first
     rows = vsm.count_nodes()
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]["api"]["environment"]
-    os.environ["INDEX_ON_START"] = str(compose["INDEX_ON_START"])  # as the Compose file sets it (restored by monkeypatch)
+    monkeypatch.setenv("INDEX_ON_START", str(compose["INDEX_ON_START"]))  # as the Compose file sets it
     holder = LockHolder(env["PG_CONNECTION_STRING"], _lock_key(vsm.schema_name, vsm.data_table))
     try:
         seen = _serve(env, lambda r: r.status_code == 200, deadline_s=30)

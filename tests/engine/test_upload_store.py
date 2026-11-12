@@ -138,3 +138,31 @@ def test_the_route_answers_with_the_refusals_status(monkeypatch):
         busy = client.post("/api/chat/upload", json=body)
     assert refused.status_code == 409 and refused.json()["detail"].startswith("duplicate_content: ")
     assert busy.status_code == 503 and busy.headers["retry-after"] == "10"
+
+
+@pytest.mark.parametrize("declared", ["application/x-yaml", "text/yaml", "", "text/plain"])
+def test_the_upload_service_decodes_the_body_whatever_type_the_browser_declared(monkeypatch, declared):
+    """Browsers send application/x-yaml, text/yaml or nothing for a .yaml file; mimetypes knows none of them, and the
+    team's decoder (which only needed the type for a CSV rule that is gone) failed on them with a 500."""
+    import base64
+
+    from app.engine.loaders.file import FileService
+
+    seen = {}
+
+    def store(name, data):
+        seen.update(name=name, data=data)
+        return {"id": "i", "name": "run_047_i.yaml", "type": "yaml", "size": len(data), "path": "p",
+                "url": "u", "refs": ["uploads/run_047_i.yaml"]}
+
+    monkeypatch.setattr(uploads, "save_and_index", store)
+    body = f"data:{declared};base64," + base64.b64encode(b"run_id: run_047\n").decode()
+    stored = FileService.process_private_file("run_047.yaml", body)
+    assert seen == {"name": "run_047.yaml", "data": b"run_id: run_047\n"} and stored.refs == ["uploads/run_047_i.yaml"]
+
+
+def test_a_body_that_is_not_base64_is_refused():
+    with pytest.raises(uploads.UploadRejected) as refused:
+        uploads.decode_data_url("data:text/plain;base64,not base64!")
+    assert (refused.value.status, refused.value.reason) == (422, "bad_base64")
+    assert uploads.decode_data_url("aGk=") == b"hi"  # the payload alone is accepted too
