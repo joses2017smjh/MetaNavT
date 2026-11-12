@@ -122,9 +122,10 @@ def test_the_docs_say_the_parity_gap_is_reported_not_gated():
 
 
 def test_ts_rank_cd_is_labelled_the_default_lexical_backend_not_a_fallback():
-    """M11 made the lexical backend an explicit setting (LEXICAL_BACKEND) whose default is ts_rank_cd; nothing falls
-    back to it. Every doc still labels it as not BM25 wherever its numbers appear (owner rule 3), without calling it a
-    fallback."""
+    """M11 made the lexical backend an explicit setting (LEXICAL_BACKEND) whose default is ts_rank_cd; the served SQL
+    statement never falls back to it (only the python retrieval mode's search_bm25 does, from ParadeDB, and labels the
+    rows). Every doc still labels it as not BM25 wherever its numbers appear (owner rule 3), without calling the
+    served default a fallback."""
     for rel in DOCS:
         for line in (ROOT / rel).read_text().splitlines():
             if "ts_rank_cd" in line:
