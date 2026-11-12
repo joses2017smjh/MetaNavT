@@ -1,6 +1,7 @@
-"""A42 (= D05): one helper, app.eval.provenance.run_provenance, gives every results writer the full commit, whether the
+"""A42 (= D05): one helper, app.eval.provenance.run_provenance, gives the benchmark writers the full commit, whether the
 working tree had uncommitted changes, and the sha256 of the source files that ran; report.py says "with uncommitted
-changes" next to the commit of a file whose flag is true.
+changes" next to the commit of a file whose flag is true. (Which writers are not converted yet: the CPU benchmark
+section of doc/engineering-reference.md.)
 
 Each benchmark writer runs here in a temporary git repository that holds a copy of fixture v1 and an uncommitted change.
 """

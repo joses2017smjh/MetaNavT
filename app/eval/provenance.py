@@ -24,11 +24,13 @@ carries a host name, a user name or an absolute path:
   user and host names, for text that must otherwise stay as written (the
   injection harness's tool results, where a path is corpus text or a model's).
 
-run_provenance() is the block every results writer records about the code that
+run_provenance() is the block the benchmark writers record about the code that
 ran: the full commit (`git_head`), whether the working tree had uncommitted
 changes (`working_tree_dirty`, read when the run starts) and the sha256 of the
 source files that ran (`source_sha256`). A short `git_sha` alone could name a
-commit whose code was not what ran.
+commit whose code was not what ran. Which writers record it, and which still
+record a flag of their own, is listed in doc/engineering-reference.md (CPU
+benchmark).
 """
 
 from __future__ import annotations
@@ -284,7 +286,7 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-# ---- what code produced a result: the block every results writer records (run_provenance)
+# ---- what code produced a result: the block the benchmark writers record (run_provenance)
 
 def git_head(root: Path | None = None) -> str | None:
     """The full commit checked out at `root` (default: this repository); None outside a git checkout."""

@@ -325,15 +325,24 @@ scored (`gold_sha256`). Their `ingest` block is the loader's own report of what
 the run indexed (`load_chunks_with_report`, the accounting the served indexer
 uses): files seen, indexed and rejected by reason, the chunker and its version,
 and the chunks embedded per chunk strategy (in a parity file, the in-memory
-row's; the API's report is under `api_health.indexing`). Every results writer takes the code's provenance from one
+row's; the API's report is under `api_health.indexing`). The benchmark writers take the code's provenance from one
 helper, `run_provenance` in [app/eval/provenance.py](../app/eval/provenance.py):
 the full commit (`git_head`, next to the short `git_sha` the generated blocks
 quote), whether the working tree had uncommitted changes when the run started
 (`working_tree_dirty`; an untracked file counts, an ignored one does not) and the
-SHA-256 of the source files that ran (`source_sha256`: for the harness, parity,
-BEIR and rerank-arms writers every `app/` module the process imported; the
-writers that already listed their files keep their lists). The generated blocks
-add "with uncommitted changes" to the commit of a file whose flag is true.
+SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
+ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation
+and ingest-runs writers record that block, with every `app/` module the process
+imported as the source files. The writers that already recorded a dirty flag
+compute it with the same helper and keep their own fields and file lists: the M4
+regressions (trusted actions, evidence consistency, injection), the companion and
+chat-route runs, the robotics checks, and ingest scale and two replicas (whose
+`worktree_clean` leaves untracked files and the file being rewritten out). Not
+converted: the jury writer (`app/eval/llm_eval.py`, a short commit only),
+`app/eval/robotics.py` (code hashes, no flag), `app/eval/http_load.py`, and the
+served-scale and pgvector writers, which record their own `git_dirty`. The
+generated blocks add "with uncommitted changes" to the commit of a file whose
+`working_tree_dirty` or `git_dirty` is true.
 `make bench-check` does not compare these fields, since any code change moves
 them. To accept a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
