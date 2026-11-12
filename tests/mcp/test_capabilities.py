@@ -92,6 +92,57 @@ def test_a_loaded_move_plan_is_rebuilt_with_its_own_session_not_the_loading_obje
     assert refused.value.check == "staleness" and (tools.root / "source").exists() and not (tools.root / "destination").exists()
 
 
+# One verifier in a process of its own, on the shared ledger file: it says "ready", waits for "go" on stdin, consumes
+# the capability and prints what happened. The parent starts two and lets both go at once.
+LEDGER_CHILD = r"""
+import json, sys
+from pathlib import Path
+from app.mcp.approvals import ApprovalError, ApprovalVerifier
+args = json.loads(sys.argv[1])
+verifier = ApprovalVerifier(Path(args["root"]), Path(args["public"]), Path(args["ledger"]))
+print("ready", flush=True)
+sys.stdin.readline()
+try:
+    verifier.consume(args["token"], args["review"])
+    print(json.dumps({"outcome": "consumed"}), flush=True)
+except ApprovalError as exc:
+    print(json.dumps({"outcome": "refused", "check": exc.check}), flush=True)
+"""
+
+
+def test_two_processes_on_one_ledger_file_consume_a_capability_exactly_once(tmp_path):
+    """C18: single use across processes, not only across threads: two verifier processes on one SQLite ledger file,
+    released together, five rounds with a fresh capability each. In every round one consumes it and the other is
+    refused by the ledger check; the file holds one grant per round."""
+    import os
+    import subprocess
+    import sys
+
+    tools, key, verifier, plan = _setup(tmp_path)  # the parent creates the ledger file and its tables
+    env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    for _ in range(5):
+        args = json.dumps({"root": str(tools.root), "public": str(key.parent / "key.pub"), "ledger": str(verifier.ledger),
+                           "token": sign_review(plan["review"], key, actor="operator"), "review": plan["review"]})
+        children = [subprocess.Popen([sys.executable, "-c", LEDGER_CHILD, args], cwd=ROOT, env=env, text=True,
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(2)]
+        try:
+            for child in children:
+                assert child.stdout.readline().strip() == "ready", child.stderr.read()
+            for child in children:
+                child.stdin.write("go\n")
+                child.stdin.flush()
+            outcomes = [json.loads(child.stdout.readline()) for child in children]
+            assert all(child.wait(60) == 0 for child in children)
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+        assert sorted(o["outcome"] for o in outcomes) == ["consumed", "refused"], outcomes
+        assert [o["check"] for o in outcomes if o["outcome"] == "refused"] == ["ledger"]
+    with sqlite3.connect(verifier.ledger) as db:
+        assert db.execute("SELECT count(*), count(DISTINCT grant_id) FROM grants").fetchone() == (5, 5)
+
+
 def test_review_copy_does_not_mutate_immutable_manifest_and_audit_excludes_token(tmp_path):
     tools, key, verifier, plan = _setup(tmp_path)
     copied = tools.review_plan(plan["plan_id"])
