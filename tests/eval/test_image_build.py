@@ -98,20 +98,31 @@ def test_the_cuda_override_installs_the_locked_torch_version_from_its_index(tmp_
 PINNED = re.compile(r"[a-z0-9][a-z0-9._/-]*:[\w.-]+@sha256:[0-9a-f]{64}")
 
 
+def _dockerfiles() -> list[Path]:
+    """Every Dockerfile in the tree: the API image's and .frontend/'s (a standalone Next.js image no job builds)."""
+    skip = {".git", "node_modules", "__pycache__", ".vendor", ".next", "android", "ios"}
+    found = []
+    for directory, dirs, files in os.walk(ROOT):
+        dirs[:] = [name for name in dirs if name not in skip and not name.startswith((".venv", "venv"))]
+        found += [Path(directory) / name for name in files if name == "Dockerfile" or name.startswith("Dockerfile.")]
+    return sorted(found)
+
+
 def _image_references() -> list[tuple[str, str]]:
-    """(file, reference) for every image a build or a CI run pulls: the Dockerfile's syntax line and FROM lines (not
+    """(file, reference) for every image a build or a CI run pulls: each Dockerfile's syntax line and FROM lines (not
     the build stage a FROM selects by name), and every `image:` line of the Compose files and the workflows."""
-    dockerfile = (ROOT / "Dockerfile").read_text().splitlines()
-    stages = {m.group(1) for line in dockerfile if (m := re.match(r"FROM\s+\S+\s+AS\s+(\S+)", line.strip(), re.I))}
     references = []
-    for line in dockerfile:
-        if m := re.match(r"#\s*syntax=(\S+)", line):
-            references.append(("Dockerfile", m.group(1)))
-        elif m := re.match(r"FROM\s+(\S+)", line.strip(), re.I):
-            ref = m.group(1)
-            if ref in stages or ("${" in ref and any(stage.startswith(ref.split("${")[0]) for stage in stages)):
-                continue
-            references.append(("Dockerfile", ref))
+    for path in _dockerfiles():
+        dockerfile, label = path.read_text().splitlines(), path.relative_to(ROOT).as_posix()
+        stages = {m.group(1) for line in dockerfile if (m := re.match(r"FROM\s+\S+\s+AS\s+(\S+)", line.strip(), re.I))}
+        for line in dockerfile:
+            if m := re.match(r"#\s*syntax=(\S+)", line):
+                references.append((label, m.group(1)))
+            elif m := re.match(r"FROM\s+(\S+)", line.strip(), re.I):
+                ref = m.group(1)
+                if ref in stages or ("${" in ref and any(stage.startswith(ref.split("${")[0]) for stage in stages)):
+                    continue
+                references.append((label, ref))
     sources = [*sorted(ROOT.glob("docker-compose*.yml")), *sorted((ROOT / ".github" / "workflows").glob("*.yml"))]
     for path in sources:
         for line in path.read_text().splitlines():
@@ -126,7 +137,7 @@ def test_every_base_image_is_pinned_by_digest():
     references = _image_references()
     names = {ref.split("@")[0].rsplit(":", 1)[0] for _, ref in references}
     assert {"docker/dockerfile", "node", "alpine", "python", "pgvector/pgvector", "jaegertracing/all-in-one"} <= names
-    assert {name for name, _ in references} >= {"Dockerfile", "docker-compose.yml", "ci.yml"}
+    assert {name for name, _ in references} >= {"Dockerfile", ".frontend/Dockerfile", "docker-compose.yml", "ci.yml"}
     assert [(name, ref) for name, ref in references if not PINNED.fullmatch(ref)] == []
 
 

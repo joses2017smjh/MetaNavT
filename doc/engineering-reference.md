@@ -1723,8 +1723,9 @@ names, shadowed imports); CI runs it as its own job.
 
 **Pinned base images.** Every image a build or a CI run pulls is pinned by
 digest: the Dockerfile's `# syntax` frontend and its three `FROM` images, the
-Postgres image of `docker-compose.yml` and of CI's parity job, and the optional
-Jaeger image. Each reference keeps the tag it was looked up from in front of
+Postgres image of `docker-compose.yml` and of CI's parity job, the optional
+Jaeger image, and the Node image of `.frontend/Dockerfile` (a standalone
+Next.js image that no Compose file or CI job builds). Each reference keeps the tag it was looked up from in front of
 the digest (`name:tag@sha256:...`), and a comment beside it names the release
 that tag pointed to on that day, so a tag that moves later does not change the
 build. The digest is the multi-platform index's, so other architectures still
@@ -1733,7 +1734,7 @@ move to a newer image, look up the tag's current index digest, replace digest
 and comment together (the Postgres image is named in both `docker-compose.yml`
 and `ci.yml`), and let CI rebuild: docker-smoke builds the default image, the
 Node stage is built only with `WITH_FRONTEND=1` (docker-ml-smoke), and no job
-pulls Jaeger (`--profile otel`).
+pulls Jaeger (`--profile otel`) or builds `.frontend/Dockerfile`.
 
 ```bash
 docker buildx imagetools inspect python:3.11-slim     # the "Digest:" line
