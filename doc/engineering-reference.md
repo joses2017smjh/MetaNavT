@@ -485,7 +485,7 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
 
-The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
+The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); CI's web workflow (`.github/workflows/web.yml`) runs its tests and that build on every push to `main` and every pull request (Frontend, under How the app is put together). The Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
 
 <p align="center">
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
