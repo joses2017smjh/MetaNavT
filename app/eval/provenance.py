@@ -23,6 +23,12 @@ carries a host name, a user name or an absolute path:
   a service's /health block or a path field. scrub_names() replaces only the
   user and host names, for text that must otherwise stay as written (the
   injection harness's tool results, where a path is corpus text or a model's).
+
+run_provenance() is the block every results writer records about the code that
+ran: the full commit (`git_head`), whether the working tree had uncommitted
+changes (`working_tree_dirty`, read when the run starts) and the sha256 of the
+source files that ran (`source_sha256`). A short `git_sha` alone could name a
+commit whose code was not what ran.
 """
 
 from __future__ import annotations
@@ -276,6 +282,76 @@ def sha256_file(path: Path) -> str:
     """sha256 of a file's bytes as they are on disk: a results header's `gold_sha256` (bench/gold/questions.jsonl, whose
     committed digest tests/eval/test_gold_digest.py pins; the corpus MANIFEST does not list it)."""
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+# ---- what code produced a result: the block every results writer records (run_provenance)
+
+def git_head(root: Path | None = None) -> str | None:
+    """The full commit checked out at `root` (default: this repository); None outside a git checkout."""
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root or REPO_ROOT, stderr=subprocess.DEVNULL, text=True)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.strip() or None
+
+
+def working_tree_dirty(root: Path | None = None, *, untracked: bool = True, exclude: Sequence[Path] = ()) -> bool | None:
+    """Whether `git status --porcelain` lists anything at `root`: an uncommitted change to a tracked file, or an untracked
+    file unless `untracked` is False (ignored files never count). `exclude`: paths left out (a results file the run is
+    rewriting). None when git cannot say (no checkout, git missing, an excluded path outside the repository)."""
+    base = Path(root or REPO_ROOT)
+    command = ["git", "status", "--porcelain", *([] if untracked else ["--untracked-files=no"])]
+    try:
+        if exclude:
+            command += ["--", ".", *(f":(exclude){Path(p).resolve().relative_to(base.resolve()).as_posix()}" for p in exclude)]
+        out = subprocess.check_output(command, cwd=base, stderr=subprocess.DEVNULL, text=True)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    return bool(out.strip())
+
+
+def git_state(root: Path | None = None) -> dict:
+    """{"git_head", "working_tree_dirty"} at `root`. A writer takes it when its run starts and hands it to run_provenance:
+    a run's own new or rewritten files under bench/results would make the tree look dirty by the time it writes."""
+    return {"git_head": git_head(root), "working_tree_dirty": working_tree_dirty(root)}
+
+
+def loaded_sources(package: str = "app") -> list[str]:
+    """Repository-relative paths of every module of `package` this process has imported, sorted: the code a run
+    executed (the entry module, every module it imports, and those imported lazily on the way, such as a model's)."""
+    base = REPO_ROOT.resolve()
+    found = set()
+    for module in list(sys.modules.values()):
+        name = getattr(module, "__file__", None)
+        if not name or not name.endswith(".py"):
+            continue
+        try:
+            rel = Path(name).resolve().relative_to(base)
+        except (OSError, ValueError):
+            continue
+        if rel.parts and rel.parts[0] == package:
+            found.add(rel.as_posix())
+    return sorted(found)
+
+
+def source_hashes(paths: Sequence[str], root: Path | None = None) -> dict[str, str]:
+    """{path: sha256 of its bytes} for repository-relative `paths`, in the order given."""
+    base = Path(root or REPO_ROOT)
+    return {rel: sha256_file(base / rel) for rel in paths}
+
+
+def run_provenance(*, root: Path | None = None, sources: Sequence[str] | None = None, started: Mapping | None = None) -> dict:
+    """What code produced a results file, for its header: `git_head` (the full commit) and `working_tree_dirty` from
+    `started`, a git_state() taken when the run began (taken now when it is None), and `source_sha256`, the sha256 of
+    each file of `sources` (repository-relative; default: every app module this process imported, loaded_sources()).
+
+    `root` is the checkout git is asked about (default: this repository); the source files are always this
+    repository's, the code that ran (a test may point `root` at a copy of the fixture). The short `git_sha` a header
+    also carries stays where it was: the README and the evidence page quote it. report.py says "with uncommitted
+    changes" next to the commit of a file whose working_tree_dirty is true."""
+    state = dict(started) if started is not None else git_state(root)
+    return {"git_head": state.get("git_head"), "working_tree_dirty": state.get("working_tree_dirty"),
+            "source_sha256": source_hashes(loaded_sources() if sources is None else sources)}
 
 
 def git_sha(cwd: Path | None = None) -> str:

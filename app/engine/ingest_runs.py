@@ -97,11 +97,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from app.eval.corpus import load_manifest
-    from app.eval.provenance import command_line, git_sha
+    from app.eval.provenance import command_line, git_sha, git_state, run_provenance
 
+    started = git_state(ROOT)  # before anything is written (run_provenance)
     runs = record_runs(dsn)
     blob = {
         "git_sha": git_sha(ROOT),
+        **run_provenance(root=ROOT, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "corpus_sha256": load_manifest(ROOT / "bench" / "corpus" / "MANIFEST.json")["aggregate_sha256"],

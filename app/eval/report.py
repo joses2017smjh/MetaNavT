@@ -65,6 +65,12 @@ def _end(name: str) -> str:
     return f"<!-- {name}:end -->"
 
 
+def _sha(blob: dict) -> str:
+    """The commit a results file was written at, and " with uncommitted changes" when its header says the working tree
+    differed from it (working_tree_dirty, app.eval.provenance.run_provenance); unchanged for a file without the flag."""
+    return f"{blob.get('git_sha')}" + (" with uncommitted changes" if blob.get("working_tree_dirty") is True else "")
+
+
 def _rows(blob: dict) -> dict[str, dict]:
     return {row["config"]: row for row in blob.get("results", [])}
 
@@ -193,7 +199,7 @@ def table(blob: dict) -> str:
         lines += [
             "",
             f"Intervals: {boot.get('method')}; {boot.get('n_boot')} resamples, seed {boot.get('seed')}, "
-            f"{boot.get('rng')}. Results file sha {blob.get('git_sha')}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
+            f"{boot.get('rng')}. Results file sha {_sha(blob)}, corpus sha {str(blob.get('corpus_sha256', ''))[:12]}.",
         ]
     return "\n".join(lines)
 
@@ -264,7 +270,7 @@ def neural_table(blob: dict | None) -> str:
     rows = list(blob.get("results", []))
     by = _rows(blob)
     lines = [
-        f"Fixture v1 with real models (`make bench-neural`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Fixture v1 with real models (`make bench-neural`, {_device(blob)}; results sha {_sha(blob)}). "
         f"Each row names its parent (one change away); the paired delta is against that parent. "
         f"Wall time is the whole row after a warm-up query.",
         "",
@@ -363,7 +369,7 @@ def beir_table(blob: dict | None, file: str = BEIR_FILE, command: str = "make be
                 reference += "."
     lines = [
         f"BEIR {dataset} test split (`{command}`): {blob.get('n_docs')} documents ({blob.get('document_text', 'title + text')}), "
-        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {blob.get('git_sha')}. {reference} Each row names its parent; per-query p50/p95 exclude "
+        f"{blob.get('n_queries')} queries; {_device(blob)}; results sha {_sha(blob)}. {reference} Each row names its parent; per-query p50/p95 exclude "
         f"build (index, document embeddings, model load: the build column) and one warm-up query.",
         "",
         "| config | parent | models (revision) | reranker precision / max_length / depth | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ vs bm25 | beats BM25? | p50 / p95 ms | build s |",
@@ -407,7 +413,7 @@ def beir_bm25_table(blob: dict | None) -> str:
     boot = blob.get("bootstrap") or {}
     lines = [
         f"BM25 on BEIR SciFact, one setting at a time (`make bench-beir-bm25-ablation`; {(blob.get('device') or {}).get('device', '?')}, "
-        f"no model; results sha {blob.get('git_sha')}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
+        f"no model; results sha {_sha(blob)}): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries. "
         "`bm25@default-tokenizer` (also in the table above) changes the analyzer, k1 and b at once; `bm25@default-analyzer` "
         "changes the analyzer alone and `bm25@k1-1.5-b-0.75` changes k1 and b alone. Every delta is paired against bm25 "
         f"({boot.get('n_boot')} bootstrap resamples of the queries, seed {boot.get('seed')}), printed to the four decimals "
@@ -467,7 +473,7 @@ def _parity_run_text(blob: dict, rel: str) -> str:
     config = blob.get("in_memory_config")
     command = "`make parity`" if not config or config == "in_memory:hybrid+router+staleness" else f"`make parity PARITY_CONFIG={config}`"
     device = (blob.get("device") or {}).get("device_name")
-    parts = [f"**{_parity_stack(blob)}** ({rel}, {command}, results sha {blob.get('git_sha')}"
+    parts = [f"**{_parity_stack(blob)}** ({rel}, {command}, results sha {_sha(blob)}"
              + (f", {device}" if device and (blob.get("device") or {}).get("device") == "cuda" else "") + ")."]
     if not blob.get("settings"):  # files recorded before the settings were written down: the hash run
         parts.append("The in-memory row is the bench harness with the switches the API serves in CI: hybrid RRF, router on, "
@@ -626,7 +632,7 @@ def jury_v2_table(blob: dict) -> str:
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
     rs = blob.get("rescore") or {}
     sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
+                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {_sha(blob)}")
     ref = s["reference"]
     gate = blob.get("kappa_gate")
     lines = [
@@ -755,7 +761,7 @@ def jury_table(blob: dict | None) -> str:
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
     rs = blob.get("rescore") or {}
     sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`make bench-jury-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {blob.get('git_sha')}")
+                f"`make bench-jury-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {_sha(blob)}")
     lines = [
         f"Generated answers on fixture v1 (`make bench-jury`, {sha_note}): {blob['n_gold']} questions, "
         f"retrieval `{cfg.get('name')}` ({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "
@@ -1205,7 +1211,7 @@ def frontier_table(blob: dict | None, rel: str = FRONTIER_FILE, target: str = "m
     parents, arms = meta.get("parents") or [], meta.get("arms") or []
     n = blob.get("n_gold")
     lines = [
-        f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Prototype arms on fixture v1 (`{target}`, {_device(blob)}; results sha {_sha(blob)}). "
         f"Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off "
         f"the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "
         f"\"Fired\" counts the questions (of {n}) on which the arm's mechanism triggered; \"top 10 differs\" counts the questions "
@@ -1322,7 +1328,7 @@ def rerank_arms_table(blob: dict | None) -> str:
     cand = blob["candidates"]
     split = blob["split"]
     lines = [
-        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {blob.get('git_sha')}). "
+        f"Reranker prototypes on fixture v1 (`{rerank_arms_command(blob)}`, {_device(blob)}; results sha {_sha(blob)}). "
         f"Every arm reranks the same list: the fused top {cand['retrieve_k']} of `{cand['config']}`. A student is fitted on the cross-encoder's "
         f"scores for {len(split['train_ids'])} train questions and scored on the other {len(split['test_ids'])} ({split['rule']}), with the features "
         f"it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.",

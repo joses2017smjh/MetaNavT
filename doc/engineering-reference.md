@@ -308,7 +308,17 @@ came from. The MANIFEST lists the corpus files only, so the gold questions are
 pinned apart: `tests/eval/test_gold_digest.py` holds the SHA-256 of the committed
 `bench/gold/questions.jsonl` (checked out byte for byte, `.gitattributes`), and
 the harness, parity and rerank-arms headers record the digest of the file they
-scored (`gold_sha256`). To accept a change on purpose: `make bench-baseline`, review
+scored (`gold_sha256`). Every results writer takes the code's provenance from one
+helper, `run_provenance` in [app/eval/provenance.py](../app/eval/provenance.py):
+the full commit (`git_head`, next to the short `git_sha` the generated blocks
+quote), whether the working tree had uncommitted changes when the run started
+(`working_tree_dirty`; an untracked file counts, an ignored one does not) and the
+SHA-256 of the source files that ran (`source_sha256`: for the harness, parity,
+BEIR and rerank-arms writers every `app/` module the process imported; the
+writers that already listed their files keep their lists). The generated blocks
+add "with uncommitted changes" to the commit of a file whose flag is true.
+`make bench-check` does not compare these fields, since any code change moves
+them. To accept a change on purpose: `make bench-baseline`, review
 `make bench-compare`, commit `main.json`.
 
 Keep the committed corpus when comparing against the published table. Use

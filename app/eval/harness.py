@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import time
 from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
@@ -24,7 +23,8 @@ from app.eval.jury import KAPPA_GATE, default_jury, kappa_vs_gold
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
 from app.eval.probes import load_probes
-from app.eval.provenance import command_line, device_info, model_device, model_provenance, sha256_file
+# git_sha is also imported from this module by rerank_arms, sweeps, rrf_sweep, hybrid_drops, demo_export and frontier_llm.
+from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sha256_file
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.eval.ragas_metrics import (
     answer_relevancy,
@@ -42,18 +42,6 @@ from app.retrieval.cache import SemanticCache
 from app.retrieval.distill import bench_log_triples, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
-
-
-def git_sha(cwd: Path) -> str:
-    try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=cwd,
-            stderr=subprocess.DEVNULL,
-        )
-        return out.decode().strip()
-    except Exception:
-        return "nogit"
 
 
 def project_root() -> Path:
@@ -869,6 +857,7 @@ def run_bench(
     `compare_lists` adds only that last count (vs_parent) to every row with a parent.
     """
     root = root or project_root()
+    started = git_state(root)  # before the run writes anything (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold_path = root / "bench" / "gold" / "questions.jsonl"
     manifest_path = root / "bench" / "corpus" / "MANIFEST.json"
@@ -916,6 +905,7 @@ def run_bench(
     sha = git_sha(root)
     blob = {
         "git_sha": sha,
+        **run_provenance(root=root, started=started),  # full commit, dirty tree, sha256 of the modules that ran
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info(device),

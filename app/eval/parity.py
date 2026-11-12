@@ -65,7 +65,7 @@ from app.eval.harness import RERANK_DEPTH_CONFIGS, BenchConfig, attach_confidenc
 from app.eval.index_loader import mtime_provenance
 from app.eval.latency import StageTimer
 from app.eval.metrics import aggregate_retrieval
-from app.eval.provenance import command_line, device_info, git_sha, scrub, sha256_file
+from app.eval.provenance import command_line, device_info, git_sha, git_state, run_provenance, scrub, sha256_file
 
 IN_MEMORY = BenchConfig(
     name="in_memory:hybrid+router+staleness",
@@ -199,6 +199,7 @@ def api_problems(api: dict, n_gold: int) -> list[str]:
 def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_MEMORY.name) -> dict[str, Any]:
     cfg = in_memory_config(in_memory)
     root = root or project_root()
+    started = git_state(root)  # before anything is written (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold_path = root / "bench" / "gold" / "questions.jsonl"
     gold = load_gold(gold_path)
@@ -230,6 +231,7 @@ def run(url: str, *, root: Path | None = None, k: int = 50, in_memory: str = IN_
     settings = side_by_side(cfg, mem, api, health)
     return {
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info("auto" if _uses_models(cfg) else "cpu"),
