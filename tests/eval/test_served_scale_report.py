@@ -165,6 +165,7 @@ def test_evidence_rows_come_from_the_full_run_files(tmp_path):
     claims = {r["claim"]: r for r in rows}
     head = next(r for r in rows if r["claim"].startswith("BEIR FiQA (57638 documents) through the served API"))
     assert (head["value"], head["ci"], head["n"]) == ("0.3123", "[0.2923, 0.3323]", 4) and "ts_rank_cd (a fallback, not BM25)" in head["not_shown"]
+    assert "40 of the 57638 documents were rejected by the served scanner and never indexed (1 of them judged relevant)" in head["not_shown"]
     assert head["source"] == "bench/results/served_scale_fiqa.json @ abc1234" and head["command"] == "make bench-served-scale"
     pair = claims[f"FiQA: served `api:hybrid` minus in-memory `{HYBRID + SAME_FORM_SUFFIX}` (same query form, same job), paired delta in nDCG@10"]
     assert (pair["value"], pair["ci"]) == ("-0.0512", "[-0.0612, -0.0412]") and pair["not_shown"].startswith("the interval excludes zero")
@@ -201,10 +202,17 @@ def test_a_file_measured_before_the_schema_migrations_is_not_rendered(tmp_path):
     assert evidence._served_scale_claims(tmp_path) == []
 
 
-def test_a_reassembled_file_names_where_its_stages_were_measured():
+def test_a_reassembled_file_names_where_its_stages_were_measured(tmp_path):
+    from app.eval import evidence
+
     blob, hnsw = served_blob(), hnsw_blob()
     assert "results sha abc1234" in report.served_scale_table(blob)
     for b in (blob, hnsw):
         b["stage_git_sha"] = {"index": "def5678", "replay_hybrid": "def5678"}
     assert "stages measured at def5678, file assembled at abc1234" in report.served_scale_table(blob)
     assert "stages measured at def5678, file assembled at abc1234" in report.pgvector_hnsw_table(hnsw)
+    # the evidence rows too: nothing was measured at the sha that assembled the file
+    write_results(tmp_path, blob, hnsw)
+    sources = {r["source"] for r in evidence._served_scale_claims(tmp_path)}
+    assert sources == {"bench/results/served_scale_fiqa.json @ abc1234 (stages measured at def5678, file assembled at abc1234)",
+                       "bench/results/pgvector_hnsw.json @ abc1234 (stages measured at def5678, file assembled at abc1234)"}

@@ -456,19 +456,25 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
 
 def _served_scale_claims(root: Path = ROOT) -> list[dict]:
     """FiQA through the served path (A05 / D13) and pgvector on that table (C03, C04); nothing from a slice or a dry run."""
-    from app.eval.report import SERVED_ROWS, scale_run_problem, scale_machine
+    from app.eval.report import SERVED_ROWS, scale_machine, scale_run_problem, scale_sha
+
+    def source(file: str, blob: dict) -> str:  # a file assembled again from recorded stages says where they were measured
+        note = scale_sha(blob)
+        return f"{file} @ {blob['git_sha']}" + ("" if note.startswith("results sha") else f" ({note})")
 
     out: list[dict] = []
     blob = _load(FILES["served_scale"], root)
     if blob and not scale_run_problem(blob):
-        src, n, cmd = f"{FILES['served_scale']} @ {blob['git_sha']}", blob["n_queries"], "make bench-served-scale"
+        src, n, cmd = source(FILES["served_scale"], blob), blob["n_queries"], "make bench-served-scale"
         where = scale_machine(blob)
         rerank = blob["served"][SERVED_ROWS[0]]
         failed = (rerank.get("requests") or {}).get("failed")
         v, ci = _ci(rerank["ci"]["ndcg@10"], digits=4)
+        rejected, judged = blob["build"]["report"].get("files_rejected"), len((blob.get("not_indexed") or {}).get("judged", []))
         out.append({"claim": f"BEIR FiQA ({blob['n_docs']} documents) through the served API (Postgres + pgvector, bge-small + bge-reranker-v2-m3): nDCG@10 at the document level",
                     "value": v, "ci": ci, "n": n, "command": cmd, "source": src,
                     "not_shown": f"one run on {where}; the lexical leg is Postgres ts_rank_cd (a fallback, not BM25); a document ranks at its best chunk; "
+                                 f"{rejected} of the {blob['n_docs']} documents were rejected by the served scanner and never indexed ({judged} of them judged relevant); "
                                  f"{failed} failed requests scored zero; the in-memory rows of the same job and the differences between the sides are in the results file"})
         for row in SERVED_ROWS:
             s = blob["served"][row]
@@ -491,7 +497,7 @@ def _served_scale_claims(root: Path = ROOT) -> list[dict]:
                                  f"client and server on one node ({where}); one run"})
     hnsw = _load(FILES["pgvector_hnsw"], root)
     if hnsw and not scale_run_problem(hnsw):
-        src, n, cmd = f"{FILES['pgvector_hnsw']} @ {hnsw['git_sha']}", hnsw["queries"]["n"], "make bench-served-scale"
+        src, n, cmd = source(FILES["pgvector_hnsw"], hnsw), hnsw["queries"]["n"], "make bench-served-scale"
         served = next(r for r in hnsw["rows"] if r["config"] == "served dense CTE")
         v, ci = _ci(served["recall@50"], digits=4)
         out.append({"claim": f"pgvector HNSW on the served FiQA table ({hnsw['table']['rows']} chunk vectors): Recall@50 against the exact scan with the served settings",
