@@ -65,6 +65,10 @@ The [research companion](../doc/research-companion.md) exposes search and source
 tools through HTTP and MCP. Agent Field can ask this service for cited research evidence
 and open its tool trace. Demo mode is explicitly scripted; live mode uses a server-hosted
 Ollama tool-calling model. Requests are bounded and mutations are unavailable.
+Live mode has one recorded run with a local model, over every gold question and over
+a copy of the fixture with planted instructions (`make bench-companion-live`; results in
+`bench/results/companion_live.json`, rows in [docs/RESUME_EVIDENCE.md](../docs/RESUME_EVIDENCE.md);
+what it scores and what it does not is under [validation scope](../doc/research-companion.md#validation-scope)).
 
 ### Android and iOS companion backend
 
@@ -843,9 +847,19 @@ one parameterized SQL query ([hybrid_tsrank.sql](../app/database/sql/hybrid_tsra
 with a pgvector top-k CTE (`<=>`; the planner may read it from the HNSW index), a full-text top-k CTE
 (`websearch_to_tsquery` + `ts_rank_cd` over `text_tsv`, a stored generated column holding
 `to_tsvector('english', text)`, so no query computes it per row, with a GIN index on that column; ParadeDB BM25 only with
-`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), and
+`LEXICAL_BACKEND=paradedb`, a variant no test or results file has run), on the
+router's `lexical_path` route a path list in place of the dense list, and
 reciprocal rank fusion computed in SQL, then
-staleness Tier 1 from the same `app/graph` code the bench uses. The API
+staleness Tier 1 from the same `app/graph` code the bench uses. The path list is the
+benchmark's path lookup (`InMemoryHybridIndex.search_path`) in SQL: a row scores
+when its file name, its path or its file name without the extension occurs in the
+lowercased query, with the same weights, and the route fuses it with the lexical
+list as the in-memory index does. It reads every row of the table (a sequential
+scan) on that route only; on every other route its parameter is NULL and the scan
+never runs. `tests/database/test_dense_parity.py` requires the same score for every
+chunk as the in-memory lookup on each gold question the router sends down that
+route, and `tests/database/test_hybrid_sql.py` checks that a path query returns the
+named file first where the lexical list alone ranks a note that mentions it first. The API
 builds its version clusters once, at start, from the ingest manifest: the
 indexer writes each new or changed file's mtime and the id of its last chunk
 on its manifest row (schema migration `vector/0008`, which fills both from the
@@ -856,7 +870,17 @@ back from the whole table
 shows the clusters equal the ones every chunk gives, and that a restart sends
 no statement that selects the text column). Every hit
 carries `path`, `start_byte`, `end_byte`, `chunk_id` and its per-stage scores;
-the response carries the route and per-stage latency. `k` is validated (1-50),
+the response carries the route and per-stage latency. Its `bm25_backend` names the
+lexical backend that answered that request (`ts_rank_cd`, `paradedb`, or `none` when
+no row came from the lexical list): the label comes back from the database call with
+the request's own rows, so a request served at the same moment on another worker
+thread cannot change it. In the Python fusion mode a lexical call that raises is
+listed in that request's own `degraded`; the database manager's `search_bm25`
+catches its database errors itself and answers with no rows and a `null` label,
+which is not listed as degraded. The retriever and the database manager are shared by
+every request and keep no per-request field (`tests/engine/test_hybrid_retriever.py`
+interleaves two requests on threads, and checks the retriever's fields are unchanged
+after requests); `/health` reports the configured backend. `k` is validated (1-50),
 bad bodies are 422, a down backend is 503, and a retrieval that runs past its
 time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
 statement gets the rest of the budget as its `statement_timeout`, so Postgres
@@ -881,10 +905,13 @@ reads the lexical list with a bitmap scan of the GIN index and the dense list fr
 
 [Current generated bench-parity evidence](../README.md#bench-parity).
 
-That block renders
-[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json)
+That block renders two runs:
+[bench/results/parity_shared_chunker.json](../bench/results/parity_shared_chunker.json),
+the hash embedder with no reranker as CI runs it
 (`parity_shared_chunker_restart.json` is the same command after a restart on
-the indexed database). Both runs were made after the API took the bench's
+the indexed database), and
+[bench/results/parity_neural.json](../bench/results/parity_neural.json), the
+model-backed run described below. Every run was made after the API took the bench's
 chunker: both paths call `file_chunks` in [app/eval/ingest.py](../app/eval/ingest.py),
 and [tests/engine/test_ingest_nodes.py](../tests/engine/test_ingest_nodes.py)
 compares the chunk boundaries and texts of the two paths on the fixture, so the
@@ -895,9 +922,12 @@ same file mtimes, which the staleness filter compares: the in-memory row reads
 the fixture's MANIFEST, and the API reads the disk after `make fixture-mtimes`
 has set it to the MANIFEST's values (CI runs it before starting the API; a
 checkout's own mtimes are arbitrary, and the API keeps reading the disk as a
-served system should). The API row scores above the in-memory row and the
-paired interval excludes zero: sharing the chunker removed one difference and
-did not make the rows agree.
+served system should). In the hash run the API row scores above the in-memory
+row and the paired interval excludes zero: sharing the chunker removed one
+difference and did not make the rows agree. In the model-backed run the API row
+scores below the in-memory row and the interval covers zero; its per-category
+gaps (on the API row) are not all of one sign. For each run the block names every
+gold category whose paired interval excludes zero.
 
 What is checked exactly is the dense leg:
 [tests/database/test_dense_parity.py](../tests/database/test_dense_parity.py)
@@ -939,10 +969,12 @@ chunks as a set.
 
 The remaining differences, with both rows reported rather than one being
 declared "the" number: the lexical legs (Okapi BM25 versus Postgres
-`ts_rank_cd` over OR-joined terms), the order of equal scores (the SQL orders
-ties by `node_id`, the in-memory fusion by first-seen order), and the
-exact-path route (the in-memory index searches paths; the API runs its lexical
-list alone). CI's `parity` job runs the dense-leg test and the parity report on every push.
+`ts_rank_cd` over OR-joined terms) and the order of equal scores (the SQL orders
+ties by `node_id`, the in-memory fusion and path lookup by first-seen and corpus
+order). Until M17 the API's `lexical_path` route ran the lexical list alone;
+the parity report gives the paired gap per gold category on the API row, and on
+the fixture the `exact_path` questions are exactly the ones the router sends down
+that route. CI's `parity` job runs the dense-leg test and the parity report on every push.
 
 **Served reranker configuration, chosen from the SciFact table.** With a
 reranker configured, the API reranks the fused top 20 (`RERANK_DEPTH`) and
@@ -951,14 +983,62 @@ keeps the rest of the fused list in RRF order, with `max_length` 512
 (`RERANKER_PRECISION`). The sweep above is the reason: fp16 with a 512-token
 cap is a quality tie with fp32 uncapped at a fraction of the latency, and
 reranking deeper than 20 loses nDCG@10 while costing more. The CI stack serves
-no reranker; the `ml` override serves this one on CPU.
+no reranker; the `ml` override serves this one on CPU. Staleness Tier 1 runs on the
+fused list before the reranker, so the reranked top 20 holds no chunk Tier 1 drops.
+
+The benchmark can run a row with the same three settings (`rerank_depth`,
+`rerank_precision`, `rerank_max_length` in `BenchConfig`; an fp16 row stops without
+CUDA rather than measure fp32 under its name) and with Tier 1 in front of the
+reranker (`staleness_before_rerank`). A row that sets none of them runs as every row
+recorded before M17: the reranker gets every fused candidate, in fp32 at the model's
+own token cap, and Tier 1 runs after it. With every candidate reranked the two
+staleness orders give the same lists (`tests/eval/test_rerank_depth.py`); with a
+depth cut they can differ. `make bench-rerank-depth` (GPU) walks fixture v1 from the
+every-candidate row to the served settings one change at a time, then adds the
+router and Tier 1 and moves Tier 1 in front of the reranker, into
+`bench/results/rerank_depth.json`, with each row's paired delta against its parent
+and on how many questions its list differs from the parent's.
+
+**The query vector, and the model-backed parity run.** With real models the
+served HuggingFace embedder (LlamaIndex `HuggingFaceEmbedding`) puts its per-model
+instruction in front of every query by default (for the BGE English models,
+"Represent this question for searching relevant passages: "), and nothing in front
+of documents. Every committed model-backed benchmark row embeds the bare query
+(`SentenceTransformerEmbedder`), so the two dense legs got different query vectors
+from the same model. `EMBEDDING_QUERY_INSTRUCTION=none` makes the served path embed
+the bare query, as the benchmark does; the default keeps the instruction, so served
+runs recorded before it (the latency files) keep describing the default. `/health`
+reports `embedding_model` and `embedding_query_instruction`, and
+`tests/engine/test_query_instruction.py` covers the setting (passing an empty
+instruction to the LlamaIndex constructor would not work: it falls back to the
+per-model default, so the setting changes the loaded model's query prompt).
+`make parity` takes the in-memory row's configuration by name (`PARITY_CONFIG`,
+CI's hash configuration by default). The model-backed run compares an API serving
+bge-small-en-v1.5 with the bare query and bge-reranker-v2-m3 at the served
+settings with `in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first`,
+the same models and settings in memory (Tier 1 before the reranker, as served),
+into `bench/results/parity_neural.json`; the file records both sides' settings
+next to each other (`settings`, and `settings_differ` for any that differ), and the
+README parity block renders it next to the hash run. It is one GPU run, not a CI
+job. `DENSE_PARITY_EMBEDDER=served` runs the dense-leg check with the embed model the
+API builds from the environment against the benchmark's embedder of the same model.
+In the job that recorded the file (its log, not a committed results file) that check
+held on every gold question with the bare query, at the hash check's tolerance, and
+failed on every gold question with the default instruction; the same job ran the API
+with the default instruction against the same in-memory row, which is not committed.
+`bench/results/rerank_depth.json` comes from the same job (`make bench-rerank-depth`);
+its depth-20 row against every candidate is in the
+[evidence table](../docs/RESUME_EVIDENCE.md), and its last row is the parity run's
+in-memory configuration.
 
 **No silent fallbacks.** `RERANKER_MODEL` set but not loadable is a startup
 error (`/health` 503 with the reason) unless `RERANKER_REQUIRED=false`, in
 which case `/health` reports `degraded` and every response lists the missing
 component. A reranker call that fails at request time serves that request in
-RRF order and says so in `degraded`; the lexical leg failing in Python mode
-does the same. `/health` reports the reranker's model, revision, device,
+RRF order and says so in `degraded`; in Python mode a lexical call that raises
+does the same, but the database manager's `search_bm25` catches its own database
+errors and answers with no rows and a `null` `bm25_backend`, which `degraded`
+does not list. `/health` reports the reranker's model, revision, device,
 precision, `max_length` and depth. `tests/engine/test_hybrid_retriever.py`
 fails if a configured reranker could fall back without a trace. The benchmark's
 in-memory `CrossEncoderReranker` (`app/retrieval/rerank.py`) follows the same
@@ -1455,7 +1535,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). Pending plans live in the API process's memory (one worker); the decision log is the durable record and `GET /api/plans/decisions/recent` reads it back. The page background is the four-stop radial gradient in `globals.css`.
 
-**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. Retrieval is now hybrid + loop, not a single dense `top_k`.
+**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text. The recorded run shows two file-access tools failing on the default stack, both defects in `app/engine/tools/index_file_access.py` that the run does not fix: `list_available_files` called without a pattern raises, because its `pattern` default is a pydantic `Field` object rather than a string, and with a pattern it returns an empty list, because the served indexer never writes the `indexed_files` table it reads; `get_file_content` passes a plain dict as metadata filters, and the query engine's error comes back to the model as text. Only `query_index` returned file content to the model; the counts are in the generated rows. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
 **Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`. The per-statement search settings on `VectorStoreManager`; the vector table and its indexes are schema migrations (below). The `ensure_halfvec` / `ensure_binary` helpers, which had no caller and ran their DDL inline, were removed with the rest of the inline DDL; a halfvec or bit column would be a new migration.
 
