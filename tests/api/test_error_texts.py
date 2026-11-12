@@ -139,6 +139,34 @@ def test_an_upload_that_fails_is_its_fixed_text_and_an_id(client, monkeypatch, c
     assert_public(client.post("/api/chat/upload", json=body), 500, "Error processing file", caplog)
 
 
+def test_an_upload_name_cannot_start_a_log_line_of_its_own(client, monkeypatch, caplog):
+    """The route logs the client's file name when it starts and again when the upload is refused; a name holding a
+    newline, a carriage return or a forged record must stay inside the one line the route writes (as report_failure's
+    lines do since M35 C4)."""
+    import base64
+
+    from app.engine.loaders.file import FileService
+    from app.engine.uploads import UploadRejected
+
+    forged = "notes.md\nERROR forged record id=deadbeefdeadbeef\rmore"
+    caplog.set_level(logging.INFO, logger="uvicorn")  # the route's lines are INFO; an earlier test may raise this logger's level
+
+    def refuse(name, *args, **kwargs):
+        raise UploadRejected(415, "unsupported_type", f"{name} is not a text file")
+
+    monkeypatch.setattr(FileService, "process_private_file", staticmethod(refuse))
+    body = {"name": forged, "base64": "data:text/markdown;base64," + base64.b64encode(b"# notes\n").decode()}
+    resp = client.post("/api/chat/upload", json=body)
+    assert resp.status_code == 415
+    upload_lines = [r.getMessage() for r in caplog.records
+                    if r.getMessage().startswith(("Processing file: ", "Upload refused"))]
+    assert any(line.startswith("Processing file: ") for line in upload_lines), upload_lines
+    assert any(line.startswith("Upload refused (unsupported_type): ") for line in upload_lines), upload_lines
+    for line in upload_lines:
+        assert "\n" not in line and "\r" not in line, line
+        assert "forged record" not in line or "\\n" in line, line  # the forged text is still there, escaped
+
+
 # ---------------------------------------------------------------- retrieve
 
 
