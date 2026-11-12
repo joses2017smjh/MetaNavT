@@ -246,6 +246,11 @@ INGEST_SCALE_LABEL ?=
 ingest-scale:   ## indexing and start-up time at 1x, 10x and 100x copies of the fixture, hash embedder (PG_TEST_DSN); INGEST_SCALE_LABEL=before|after names the rows it writes, other rows are kept -> bench/results/ingest_scale.json
 	$(PYTHON) -m app.engine.ingest_scale --label $(INGEST_SCALE_LABEL)
 
+.PHONY: two-replicas
+TWO_REPLICAS_OUT ?= bench/results/two_replicas.json
+two-replicas:   ## two API processes on one Postgres (PG_TEST_DSN; a database of its own, dropped after): one index step, both serve retrieve, a plan proposed on one approved on the other, approve without a valid capability 403, a burnt capability refused on the other -> $(TWO_REPLICAS_OUT)
+	$(PYTHON) -m app.eval.two_replicas --out $(TWO_REPLICAS_OUT)
+
 explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TEST_DSN (fixture v1 already indexed) -> doc/sql/hybrid_explain.txt
 	$(PYTHON) scripts/explain_hybrid.py
 
