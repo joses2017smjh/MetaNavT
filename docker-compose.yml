@@ -51,8 +51,6 @@ services:
       DATA_DIR: bench/corpus/files
       INDEX_ON_START: "false"      # the server does not index: the index step below does, before it starts
       INGEST_MAX_REJECTED: "0"     # a rejected file (undecodable, empty, too large, ...) fails the index step, which stops the container
-      CHUNK_SIZE: "512"
-      CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
       RERANK_TOP_N: "8"
       ENABLE_ROUTER: "true"

@@ -140,3 +140,11 @@ def test_a_start_without_index_on_start_reports_what_the_manifest_lists(monkeypa
         "chunker": "app/chunking (structure-aware)",
         "manifest": {"files": 61, "chunks": 71, "pipelines": ["app.chunking/auto/v2|hash-256"]},
     }
+
+
+def test_compose_ci_and_the_env_example_set_no_chunk_size_nothing_reads():
+    """CHUNK_SIZE / CHUNK_OVERLAP sized the SentenceSplitter of the old generate CLI; the index step cuts with
+    app/chunking (CHUNKER_VERSION names its boundaries), so the settings fed nothing that runs."""
+    for name in ("docker-compose.yml", "docker-compose.ml.yml", "docker-compose.gpu.yml", ".github/workflows/ci.yml", ".env.example"):
+        text = (ROOT / name).read_text()
+        assert "CHUNK_SIZE" not in text and "CHUNK_OVERLAP" not in text, name

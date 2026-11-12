@@ -667,9 +667,20 @@ gate is a suffix allow-list (`INGEST_SUFFIXES`), so PDFs and office documents
 are counted as rejected, not parsed; a hard link inside `DATA_DIR` has no other
 path to resolve, so the `outside_root` gate reads one to a file elsewhere like
 a regular file. The older `indexed_files` table in
-`app/database/index_manager.py` is not used by this path, and the legacy
-`python -m app.engine.generate` CLI still splits with `SentenceSplitter` and
-does not consult the manifest.
+`app/database/index_manager.py` is not used by this path. `python -m
+app.engine.generate` (`scripts/run.sh generate`) is the index step under its
+old name: it used to split the crawler's documents with LlamaIndex's
+`SentenceSplitter` into the served table, outside the manifest, so a second
+run added a second copy of every chunk
+([tests/database/test_generate_cli.py](../tests/database/test_generate_cli.py)
+runs it after an API start, which leaves every row as it was, and compares the
+rows it writes with the rows a start writes). That pipeline (`run_pipeline` in
+`app/engine/generate.py`) and the team's crawler (`get_documents` in
+`app/engine/loaders/__init__.py`, `app/engine/loaders/file_system.py`) are kept,
+by the owner's decision on team code, and nothing calls them any more.
+`CHUNK_SIZE` and `CHUNK_OVERLAP` sized that splitter only, so Compose, CI and
+`.env.example` no longer set them (`app/settings.py` still reads them into
+LlamaIndex's `Settings`, which nothing that runs uses for chunking).
 
 ### pgvector knobs on a trade-off curve
 
@@ -1492,7 +1503,7 @@ docker compose up db                 # or any Postgres with pgvector
 make migrate                         # schema migrations (the deploy step; run.sh generate and dev run it too)
 ollama serve && ollama pull qwen2.5:14b
 
-./scripts/run.sh generate            # index DATA_DIR (config/loaders.yaml)
+./scripts/run.sh generate            # the index step (same as make index): DATA_DIR into pgvector
 ./scripts/run.sh dev                 # API + Next.js dev server, http://localhost:8000
 ```
 

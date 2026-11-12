@@ -132,8 +132,6 @@ jobs:
       DATA_DIR: bench/corpus/files
       INDEX_ON_START: "false"    # the index step below indexes DATA_DIR; the API does not
       INGEST_MAX_REJECTED: "0"   # a fixture file that stops being indexable fails the index step
-      CHUNK_SIZE: "512"
-      CHUNK_OVERLAP: "50"
       RETRIEVE_K: "50"
       RERANK_TOP_N: "8"
       ENABLE_ROUTER: "true"
