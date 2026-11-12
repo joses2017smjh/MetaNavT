@@ -808,3 +808,18 @@ def test_the_verdict_reads_correctly_for_one_or_several_published_judges():
     assert summarize([], ["j", "k"], cal)["verdict"] == "kappa >= 0.6 for j: its correctness score may be published"
     both = [dict(r, correctness={**r["correctness"], "k": r["correctness"]["j"]}) for r in cal]
     assert summarize([], ["j", "k"], both)["verdict"] == "kappa >= 0.6 for j, k: their correctness scores may be published"
+
+
+def test_the_evidence_rows_say_what_the_interval_resamples():
+    """The kappa rows of the resume evidence take the interval method from the results file: questions resampled,
+    not answers."""
+    from app.eval import evidence, llm_eval
+    from app.eval.harness import BenchConfig
+
+    for calibration_generator, unit in (("gen:1b", "calibration questions"), (None, "simple-factual questions")):
+        blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="gen:7b", judge_models=["gen:7b", "other:8b"], limit=5,
+                            complete_fn=_echo_and_exact_judge, calibration_generator=calibration_generator)
+        method = blob["summary"]["interval"]["method"]
+        kappas = [r for r in evidence._jury_v2_claims(blob, "bench/results/jury_v2.json") if "kappa" in r["claim"] and "vs exact-match labels" in r["claim"]]
+        assert [r["claim"].split(":")[0] for r in kappas] == ["Judge gen", "Judge other", "Jury majority (two judge models, correctness verdicts)"]
+        assert all(r["not_shown"].endswith(f"; {method}") and unit in r["not_shown"] for r in kappas), kappas
