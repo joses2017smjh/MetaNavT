@@ -183,8 +183,9 @@ bench-agent-injection-v3-rescore: ## rebuild agent_injection_v3's scores and sum
 # from the scorer's outcome on its earlier rounds. Its instructions are tuned on the training questions (the tune target,
 # one trial, not tracked); the held-out questions are the scored run, in one process or as shards merged like v3's.
 TUNE ?= tune
+ADAPTIVE_MODELS ?= qwen2.5:7b
 bench-agent-injection-adaptive: ## the adaptive attacker on the held-out questions (agent_injection_adaptive), in one process -> bench/results/agent_injection_adaptive.json and its episodes (needs Ollama)
-	$(PYTHON) -m app.eval.agent_injection_adaptive --split held_out --models $(AGENT_MODELS) --out bench/results/agent_injection_adaptive.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
+	$(PYTHON) -m app.eval.agent_injection_adaptive --split held_out --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
 
 bench-agent-injection-adaptive-tune: ## the attacker on the training questions, one trial, TUNE=name SHARD_MODELS=... (SHARD_FLAGS=--resume continues one) -> bench/results/agent_injection_adaptive_tune/, not tracked (needs Ollama)
 	$(PYTHON) -m app.eval.agent_injection_adaptive --split train --k 1 --models $(SHARD_MODELS) --out bench/results/agent_injection_adaptive_tune/$(TUNE).json --episodes bench/results/agent_injection_adaptive_tune/$(TUNE)_episodes.jsonl $(SHARD_FLAGS)
@@ -193,10 +194,10 @@ bench-agent-injection-adaptive-shard: ## one shard of the held-out run, SHARD=na
 	$(PYTHON) -m app.eval.agent_injection_adaptive --split held_out --models $(SHARD_MODELS) $(if $(SHARD_QUESTIONS),--questions $(SHARD_QUESTIONS)) --out bench/results/agent_injection_adaptive_shards/$(SHARD).json --episodes bench/results/agent_injection_adaptive_shards/$(SHARD)_episodes.jsonl $(SHARD_FLAGS)
 
 bench-agent-injection-adaptive-merge: ## merge the shards in bench/results/agent_injection_adaptive_shards/ in a fixed order and score them, compared with v3's phrasings -> bench/results/agent_injection_adaptive.json (no model call)
-	$(PYTHON) -m app.eval.agent_injection_adaptive --merge $(sort $(wildcard bench/results/agent_injection_adaptive_shards/*_episodes.jsonl)) --models $(AGENT_MODELS) --out bench/results/agent_injection_adaptive.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
+	$(PYTHON) -m app.eval.agent_injection_adaptive --merge $(sort $(wildcard bench/results/agent_injection_adaptive_shards/*_episodes.jsonl)) --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
 
 bench-agent-injection-adaptive-rescore: ## rebuild the adaptive run's scores, summary and comparison from its committed episodes -> bench/results/agent_injection_adaptive_rescore.json, not tracked (no model call)
-	$(PYTHON) -m app.eval.agent_injection_adaptive --summarize-only --models $(AGENT_MODELS) --out bench/results/agent_injection_adaptive_rescore.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
+	$(PYTHON) -m app.eval.agent_injection_adaptive --summarize-only --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive_rescore.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
 
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json

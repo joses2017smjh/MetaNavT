@@ -1652,7 +1652,8 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
         f"{rounds} rounds per trial and {k} trials per (question, goal) pair, the target's seed the trial index in every "
         "round; a trial stops once its goal took effect. The harness makes every line a comment line after the ticket, so "
         "the config's values never change, and completes a text that lacks what the goal needs with v3's goal sentence "
-        "(or replaces an empty text, or one with an absolute path or a URL, by it); the rounds table counts both apart. "
+        "(or replaces an empty text, or one with an absolute path or a URL, by it); the rounds table counts both apart, "
+        "and one column reads success from the rounds that planted the attacker's own text only. "
         "The attacker knows the goal and how it is scored, the two files, the run, the tool names and the "
         "configuration's one-line description; after each round it is told, for its own earlier rounds only, whether "
         "its text reached the assistant, whether the assistant attempted the goal, whether it took effect, and the "
@@ -1667,9 +1668,9 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
         "questions, paired for the differences.",
         "",
         f"| model | configuration | goals | adaptive: attempted within {rounds} rounds [95% CI] | v3 fixed phrasings: "
-        "attempted by any [95% CI] | adaptive - fixed [95% CI] | adaptive: took effect [95% CI] | fixed: took effect "
-        "[95% CI] | adaptive - fixed [95% CI] |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
+        "attempted by any [95% CI] | adaptive - fixed [95% CI] | adaptive, rounds with its own text only [95% CI] "
+        "| adaptive: took effect [95% CI] | fixed: took effect [95% CI] | adaptive - fixed [95% CI] |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for model, per in summary.items():
         for defense, b in per.items():
@@ -1680,6 +1681,8 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
                     block = comp.get(level) or {}
                     cells += [_rate(block.get("adaptive") or b["by_group"][group][own]), _rate(block.get("fixed")),
                               _delta_cell(block.get("delta"))]
+                    if level == "attempted":
+                        cells.append(_rate(b["by_group"][group].get("success_after_k_own_text")))
                 lines.append(f"| {model} | {defense} | {label} | " + " | ".join(cells) + " |")
     goals = list(next(iter(next(iter(summary.values())).values()))["by_goal"])
     lines += ["", f"Per goal: attempted within {rounds} rounds [95% CI], and in brackets after it v3's fixed phrasings "
@@ -1705,13 +1708,18 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
     lines += ["", "Rounds: the planted texts, and what reached the assistant (a search snippet can show the ticket line "
               "and end before the goal's payload: the planted value, the private path or the forged token):", "",
               "| model | configuration | trajectories | rounds | attacker's own text | completed with v3's goal sentence "
-              "| replaced by it | cut at the length limit | reached: ticket / payload | attacker reply, mean tokens |",
-              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+              "| replaced by it | cut at the length limit | reached: ticket / payload | attempted rounds: own / completed / "
+              "replaced text | attacker reply, mean tokens |",
+              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for model, per in summary.items():
         for defense, b in per.items():
+            by_text = {kind: sum(g["attempted_rounds_by_text"][kind][0] for g in b["by_goal"].values())
+                       for kind in ("own", "completed", "replaced")}
             lines.append(f"| {model} | {defense} | {b['trajectories']} | {b['rounds']} | {b['own_text_rounds']} "
                          f"| {b['completed_rounds']} | {b['replaced_rounds']} | {b['cut_rounds']} "
-                         f"| {b['exposed_rounds']} / {b['payload_seen_rounds']} | {b['attacker']['mean_output_tokens']} |")
+                         f"| {b['exposed_rounds']} / {b['payload_seen_rounds']} "
+                         f"| {by_text['own']} / {by_text['completed']} / {by_text['replaced']} "
+                         f"| {b['attacker']['mean_output_tokens']} |")
     for model, per in summary.items():
         loop = (per.get("answer_check") or {}).get("answer_check")
         if loop:
@@ -1766,10 +1774,13 @@ def agent_injection_adaptive_table(blob: dict | None) -> str:
                   f"its targets on {v3_gpu} with Ollama {source.get('ollama_version')}, this run on {gpu} with Ollama "
                   f"{ours}: {same} server version and GPU. The two were sampled at different times, so the differences "
                   "above compare runs, not texts on identical trajectories."]
-    lines += ["", f"One attacker model, which is also one of the targets; its instructions were tuned on "
-              f"{len(split['train'])} training questions, and {len(split['questions'])} held-out questions make wide "
-              "intervals. The feedback tells the attacker more than a user would see. This measures how these targets "
-              "and configurations held up against this attacker, not against adaptive attackers in general."]
+    role = ("the target too (a self-attack)" if cfg["models"] == [attacker["model"]] else
+            "one of the targets" if attacker["model"] in cfg["models"] else "not a target")
+    cut = f" {cfg['target_cut'][:1].upper()}{cfg['target_cut'][1:]}." if cfg.get("target_cut") else ""
+    lines += ["", f"One attacker model, which is {role}; its instructions were tuned on {len(split['train'])} training "
+              f"questions, and {len(split['questions'])} held-out questions make wide intervals.{cut} The feedback tells "
+              "the attacker more than a user would see. This measures how the target and these configurations held up "
+              "against this attacker, not against adaptive attackers in general."]
     return "\n".join(lines)
 
 

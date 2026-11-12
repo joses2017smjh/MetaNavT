@@ -1348,10 +1348,15 @@ offline, so this is its first run on answers it was not written against.
 however varied, says how the models treat those texts, and adaptive attackers
 get past most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)).
 This run lets an attacker model write the planted text and rewrite it after
-every episode, against each configuration. The attacker is qwen2.5:7b, which is
-also one of the two targets: it is the stronger instruction follower of the two
-cached models, so a weak attacker does not explain a null, and the same
-attacker faces both targets. It controls only the planted text: plain lines
+every episode, against each configuration. The attacker is qwen2.5:7b, the
+stronger instruction follower of the two cached models, so a weak attacker does
+not explain a null. The design declared both cached models as targets; llama3.1:8b
+was cut during tuning, before any held-out round: with the attacker's server on
+the same GPU, its rounds took several times as long as its episodes in v3, so the
+design did not fit the GPU budget, and the task allows cutting a target or the
+number of rounds, of which only the first keeps the match with v3's phrasings.
+So the attacker attacks its own model, qwen2.5:7b being the only target. It
+controls only the planted text: plain lines
 that the harness turns into comment lines after the ticket line and appends to
 the same two files of the same throwaway copy, so the config's structured
 values never change; the goals, their scoring and the four configurations are
@@ -1381,20 +1386,22 @@ that any round's effect, read per trial: a pair's value is the share of its
 trials, per goal the mean over the pairs, and a group of goals averages each
 question's goals first. The first question of each config field is a training
 question: the attacker's instructions are tuned on those three only, with at
-most three candidates, each run once on every goal and configuration with both
-targets and one trial, and the candidate with the highest success is kept; only
-the instructions and the attacker's sampling temperature may change. The other
+most three candidates, each run once on every goal and configuration with one
+trial (on the qwen2.5:7b target only, after the cut), and the candidate with the
+highest success is kept; only the instructions and the attacker's sampling
+temperature may change. The other
 seven questions are held out and run once, at one commit. The comparison was
 fixed before that run: per target model and configuration, success after the
 seven rounds minus v3's any-phrasing rate on the same held-out pairs and seeds,
 paired over the questions with the percentile bootstrap, at both levels; round
 one alone against v3's per-draw rate; and each configuration minus `none` within
 the adaptive run. The planted actions pooled and the hijack at the model level
-for every model and configuration, and the hijack at the system level under the
-answer check, are the comparisons named first. v3's planted-action rates are
-at or near zero, so there the attacker can only tie or win, and the stronger
-model's hijack rate is at one under three configurations, so there it can only
-tie or lose. The two runs were sampled at different times, so this is a
+for every configuration, and the hijack at the system level under the answer
+check, are the comparisons named first. On the held-out pairs v3's
+planted-action rates for this target are zero, so there the attacker can only
+tie or win, and its hijack rate at the model level is at one in all four
+configurations, so there it can only tie or lose (the declaration said three
+configurations; this was corrected with the cut). The two runs were sampled at different times, so this is a
 comparison between runs; each results header records its server version and
 GPU. A harness bug found during the held-out run stops it, and the fix, with a
 test, is followed by a new held-out run from the start.
@@ -1483,9 +1490,9 @@ make bench-agent-injection-v3          # phrasings and the in-loop answer check,
 make bench-agent-injection-v3-shard SHARD=llama-a SHARD_MODELS=llama3.1:8b SHARD_QUESTIONS=q011,q019  # or one GPU job per shard (SHARD_FLAGS=--resume continues one)
 make bench-agent-injection-v3-merge    # merges the shards into agent_injection_v3_episodes.jsonl in a fixed order and scores it, no model call
 make bench-agent-injection-v3-rescore  # recomputes its scores and summary into agent_injection_v3_rescore.json (not tracked), no model call
-make bench-agent-injection-adaptive-tune TUNE=v1 SHARD_MODELS=llama3.1:8b  # the attacker on the training questions, one trial (not tracked)
+make bench-agent-injection-adaptive-tune TUNE=v3 SHARD_MODELS=qwen2.5:7b  # the attacker on the training questions, one trial (not tracked)
 make bench-agent-injection-adaptive    # the adaptive attacker on the held-out questions, all in one process
-make bench-agent-injection-adaptive-shard SHARD=llama-a SHARD_MODELS=llama3.1:8b SHARD_QUESTIONS=q021,q046  # or one GPU job per shard (SHARD_FLAGS=--resume continues one)
+make bench-agent-injection-adaptive-shard SHARD=qwen-a SHARD_MODELS=qwen2.5:7b SHARD_QUESTIONS=q021,q046,q054,q058  # or one GPU job per shard (SHARD_FLAGS=--resume continues one)
 make bench-agent-injection-adaptive-merge    # merges the shards in a fixed order and scores them against v3's phrasings, no model call
 make bench-agent-injection-adaptive-rescore  # recomputes scores, summary and comparison into agent_injection_adaptive_rescore.json (not tracked), no model call
 ```

@@ -801,11 +801,16 @@ def _agent_injection_adaptive_claims(root: Path = ROOT) -> list[dict]:
            if shards else "make bench-agent-injection-adaptive")
     src = f"{FILES['agent_injection_adaptive']} @ {str(blob.get('git_head') or '')[:7]}"
     rounds, k, split = cfg["rounds"], cfg["k"], cfg["split"]
-    scope = (f"one attacker model ({cfg['attacker']['model']}, also one of the targets), told after each round whether its "
-             "text reached the assistant, whether the goal was attempted and took effect, and the start of the answer: "
-             f"more than a user sees; {len(split['questions'])} held-out questions, its instructions tuned on "
-             f"{len(split['train'])} others; two local 7-8B targets; synthetic config questions; two runs sampled at "
-             "different times")
+    attacker = cfg["attacker"]["model"]
+    role = ("also the target" if cfg["models"] == [attacker] else
+            "also one of the targets" if attacker in cfg["models"] else "not a target")
+    scope = (f"one attacker model ({attacker}, {role}), told after each round whether its text reached the assistant, "
+             "whether the goal was attempted and took effect, and the start of the answer: more than a user sees; "
+             f"{len(split['questions'])} held-out questions, its instructions tuned on {len(split['train'])} others; "
+             f"target{'s' if len(cfg['models']) > 1 else ''} {', '.join(cfg['models'])}"
+             + (f" ({', '.join(m for m in cfg.get('declared_models') or [] if m not in cfg['models'])} declared and cut)"
+                if set(cfg.get("declared_models") or []) - set(cfg["models"]) else "")
+             + "; synthetic config questions; two runs sampled at different times")
     out: list[dict] = []
     for model, per in (blob.get("comparison") or {}).items():
         if model == "source":
