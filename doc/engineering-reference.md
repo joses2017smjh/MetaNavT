@@ -4,6 +4,8 @@
 
 This reference retains the detailed feature walkthrough, experiments, setup options, and team attribution from the project README. Generated benchmark tables remain in the [README evidence appendix](../README.md#generated-benchmark-evidence), where the existing generator and tests keep them synchronized. Demo illustrations, deterministic fixtures, model-backed runs, and prototypes have different scopes; read each section’s labels.
 
+Every number in this reference's prose is either cited, by an HTML comment beside it that names the results file (a JSON pointer) or the source line it comes from, or listed in `app/eval/prose_numbers.py` as not a result (a version, a year, a run id, an HTTP status). `make doc-numbers-check` (and `tests/eval/test_prose_numbers.py`, in CI) fails when a cited number differs from its source or a number is neither cited nor listed. Numbers inside code blocks are not checked, and the README's numbers are its generated blocks (`make bench-table-check`).
+
 # MetaNaviT
 
 <p align="center">
@@ -79,7 +81,7 @@ what it scores and what it does not is under [validation scope](../doc/research-
 The [companion app](../mobile/) searches MetaNavT and inspects retrieved source
 paths, byte ranges, stage scores and server health. It uses the existing
 `GET /health` and `POST /api/retrieve/` contracts in live mode. Retrieval results
-are source excerpts (up to 800 characters), rather than generated answers.
+are source excerpts (up to 800<!-- num: app/api/routers/retrieve.py:"get_content()[:{}]" --> characters), rather than generated answers.
 
 A small read-only server demonstrates the same contract without Postgres,
 LlamaIndex or model downloads:
@@ -126,19 +128,19 @@ still skips in CI; `mobile/e2e/run-connected.py` runs both by hand.
 
 The original FastAPI/PostgreSQL 16/pgvector service now has explicit device
 readiness and a bounded load runner that retains errors, timeouts and per-route
-latencies. On an **NVIDIA H100 80GB**, the real 600-file robotics snapshot indexes
-**5,633 nodes**. With real BGE embeddings and fp16 reranking (512 tokens, top 20),
-client p95 is **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16**. Each level
-has 16 requests; all **48 measured attempts** plus one cold probe and two warmups
+latencies. On an **NVIDIA H100 80GB**, the real 600-file robotics snapshot indexes<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/deployment/data_files -->
+**5,633 nodes**. With real BGE embeddings and fp16 reranking (512 tokens, top 20),<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/health/n_nodes; #/health/reranker/max_length; #/health/reranker/depth -->
+client p95 is **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16**<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/runs/[concurrency=1]/e2e_all_attempts/p95_ms; #/runs/[concurrency=4]/e2e_all_attempts/p95_ms; #/runs/[concurrency=16]/e2e_all_attempts/p95_ms; #/workload/concurrency_levels/0; #/workload/concurrency_levels/1; #/workload/concurrency_levels/2 -->. Each level
+has 16 requests; all **48 measured attempts**<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/workload/requests_per_level; #/measured_attempts/attempted --> plus one cold probe and two warmups
 succeed. The queries are generated experiment lookups. These short runs establish
 measured endpoint behavior, without establishing capacity or answer accuracy.
 
-[600-file HTTP measurements](../bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json)
+[600-file HTTP measurements](../bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json)<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/deployment/data_files -->
 
-A separate matched fp32 comparison uses the same 61-file fixture and query
-workload on CPU and GPU. GPU p95 is 62 / 235 / 889 ms with no errors. CPU succeeds
-at concurrency 1 and 4 (p95 15.6 / 63.3 seconds), then **13/16 attempts time out**
-at concurrency 16. Failed attempts remain in the report; successful-only latency
+A separate matched fp32 comparison uses the same 61-file fixture and query<!-- num: bench/results/revamp_20261007/http_gpu_fp32_512_paired16/http_load.json#/deployment/data_files -->
+workload on CPU and GPU. GPU p95 is 62 / 235 / 889 ms<!-- num: bench/results/revamp_20261007/http_gpu_fp32_512_paired16/http_load.json#/runs/[concurrency=1]/e2e_all_attempts/p95_ms; #/runs/[concurrency=4]/e2e_all_attempts/p95_ms; #/runs/[concurrency=16]/e2e_all_attempts/p95_ms --> with no errors. CPU succeeds
+at concurrency 1 and 4 (p95 15.6 / 63.3 seconds), then **13/16 attempts time out**<!-- num: bench/results/revamp_20261007/http_cpu_fp32_512_paired16/http_load.json#/workload/concurrency_levels/0; #/workload/concurrency_levels/1; #/runs/[concurrency=1]/e2e_all_attempts/p95_ms|/1000; #/runs/[concurrency=4]/e2e_all_attempts/p95_ms|/1000; #/runs/[concurrency=16]/error_counts/timeout; #/runs/[concurrency=16]/attempted -->
+at concurrency 16<!-- num: bench/results/revamp_20261007/http_cpu_fp32_512_paired16/http_load.json#/workload/concurrency_levels/2 -->. Failed attempts remain in the report; successful-only latency
 would conceal the failure rate. This comparison changes hardware/device, not
 just precision. The interrupted earlier CPU profile and failed SQL_ASCII setup
 are retained separately; the real-file run uses explicit UTF-8 database encoding.
@@ -169,8 +171,8 @@ string or on a command line.
 
 ### New external domain validation
 
-The October 7 evaluation adds **NFCorpus (3,633 documents, 323 official test
-queries)** and **FiQA (57,638 documents, 648 test queries)**. Each configuration
+The October 7 evaluation adds **NFCorpus (3,633 documents, 323 official test<!-- num: bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json#/n_docs; #/n_queries -->
+queries)** and **FiQA (57,638 documents, 648 test queries)**<!-- num: bench/results/revamp_20261007/beir_fiqa_gpu.json#/n_docs; #/n_queries -->. Each configuration
 uses the full test split, preserves graded relevance for nDCG, emits TREC runs,
 and independently cross-checks every reported query metric with `pytrec_eval`.
 Configurations were fixed before these runs; per-domain winners below describe
@@ -178,15 +180,15 @@ the measured results rather than a newly validated automatic selector.
 
 | Dataset | BM25 nDCG@10 | Dense BGE-small | Hybrid RRF | Finding |
 |---|---:|---:|---:|---|
-| NFCorpus | 0.3207 | 0.3373 | 0.3637 | Hybrid improves on BM25; adding the bounded reranker reduces nDCG to 0.3555 |
-| FiQA | 0.2369 | 0.3848 | 0.3645 | Dense improves on BM25; hybrid reduces quality relative to dense |
+| NFCorpus | 0.3207 | 0.3373 | 0.3637 | Hybrid improves on BM25; adding the bounded reranker reduces nDCG to 0.3555 <!-- num: bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json#/results/[config=bm25]/retrieval/ndcg@10; #/results/[config=dense@bge-small]/retrieval/ndcg@10; #/results/[config=hybrid@bge-small]/retrieval/ndcg@10; #/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/retrieval/ndcg@10 --> |
+| FiQA | 0.2369 | 0.3848 | 0.3645 | Dense improves on BM25; hybrid reduces quality relative to dense <!-- num: bench/results/revamp_20261007/beir_fiqa_gpu.json#/results/[config=bm25]/retrieval/ndcg@10; #/results/[config=dense@bge-small]/retrieval/ndcg@10; #/results/[config=hybrid@bge-small]/retrieval/ndcg@10 --> |
 
 [Full NFCorpus results](../bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) ·
 [Full FiQA results](../bench/results/revamp_20261007/beir_fiqa_gpu.json)
 
 FiQA with the reranker (`make bench-beir-fiqa`; [results](../bench/results/beir_fiqa.json),
 [generated table](../README.md#bench-beir-fiqa)) runs BM25, dense and hybrid again
-next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512, first
+next to bge-reranker-v2-m3 over the hybrid's top 20 with `max_length` 512<!-- num: bench/results/beir_fiqa.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_top; #/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/max_length -->, first
 in fp32 and then in fp16, each row paired with its parent, with a TREC run file
 for every row in `bench/results/beir_fiqa_trec`. Its document embeddings are the
 cached bge-small matrix of the October run (the GPU that computed it is the one
@@ -194,12 +196,12 @@ cached bge-small matrix of the October run (the GPU that computed it is the one
 the queries and the reranker ran on the GPU the new file names.
 
 On NFCorpus, changing the GPU reranker from fp32 to fp16 while holding the
-**512-token cap and top-20 depth fixed** reduces warm offline total p95 from
-**216.52 to 77.15 ms** (64.4%). nDCG changes from **0.3555 to 0.3554**. This
+**512-token cap and top-20 depth fixed** reduces warm offline total p95 from<!-- num: bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json#/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/max_length -->
+**216.52 to 77.15 ms**<!-- num: bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/latency/total/p95_ms; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/latency/total/p95_ms -->. nDCG changes from **0.3555 to 0.3554**<!-- num: #/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/retrieval/ndcg@10; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/retrieval/ndcg@10 -->. This
 isolates precision more directly than the historical SciFact joint precision/
 truncation comparison. It excludes model load, index build and HTTP concurrency.
 On SciFact the cap and the precision are now also measured one at a time:
-fp32 uncapped, fp32 with `max_length` 512, fp16 at 512, each paired with the row
+fp32 uncapped, fp32 with `max_length` 512, fp16 at 512<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/max_length; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/max_length -->, each paired with the row
 before it, in the ladder behind the [generated SciFact table](../README.md#bench-beir)
 (`make bench-beir`); the evidence table quotes both steps with their rerank-stage
 latency. `make bench-beir-rerank-cap` runs only the hybrid and those three rows
@@ -208,17 +210,17 @@ the ladder's.
 
 ### Real robotics experiment lookup
 
-The October 7 revamp adds a separate, hash-verified snapshot of **600 unique
-experiment files from 110 source groups**, with commit/blob provenance and
-exact UTF-8 evidence spans. Its **360 generated scalar lookup questions** have
-120 development and 240 test questions from disjoint experiment families.
-There are 13 question-bearing families in each split; the broader source tree
+The October 7 revamp adds a separate, hash-verified snapshot of **600 unique<!-- num: bench/robotics/2026-10-07/manifest.json#/n_files -->
+experiment files from 110 source groups**, with commit/blob provenance and<!-- num: bench/robotics/2026-10-07/manifest.json#/n_families -->
+exact UTF-8 evidence spans. Its **360 generated scalar lookup questions** have<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/n_questions -->
+120 development and 240 test questions from disjoint experiment families.<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/labels/dev; #/labels/test -->
+There are 13 question-bearing families in the development split and 13 in the test split<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/dev/bm25_body/ndcg@10/n_families; #/summary/test/bm25_body/ndcg@10/n_families -->; the broader source tree
 also supplies distractor files. No human answer labels are claimed.
 
-On the fixed 240-question test split, indexing file-path context alongside the
-body raises source-file **Recall@10 from 0.058 to 0.671** and **nDCG@10 from 0.024
-to 0.485**. The paired nDCG difference is +0.461, with a family-bootstrap 95%
-interval [0.297, 0.666]. These are generated experiment lookup results, not
+On the fixed 240-question test split, indexing file-path context alongside the<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/labels/test -->
+body raises source-file **Recall@10 from 0.058 to 0.671** and **nDCG@10 from 0.024<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/test/bm25_body/recall@10/mean; #/summary/test/bm25_path_context/recall@10/mean; #/summary/test/bm25_body/ndcg@10/mean -->
+to 0.485**. The paired nDCG difference is +0.461<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/test/bm25_path_context/ndcg@10/mean; #/summary/test/paired_delta_ndcg@10/mean -->, with a family-bootstrap 95%
+interval [0.297, 0.666]<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/test/paired_delta_ndcg@10/ci95/0; #/summary/test/paired_delta_ndcg@10/ci95/1 -->. These are generated experiment lookup results, not
 semantic answer accuracy or current-version accuracy. The search context stays
 separate from citation text. Both configurations use BM25 without a neural model.
 
@@ -305,7 +307,7 @@ make bench-check           # re-runs the bench; every field of every row must eq
 
 CI runs exactly this on every push and pull request (Python 3.11 and 3.12).
 The gate fails if any config's nDCG@10, Recall@10 or Recall@50 drops more than
-0.002 below `main.json`; `make bench-check` fails on any difference at all
+0.002<!-- num: app/eval/compare.py:"DEFAULT_THRESHOLD = {}" --> below `main.json`; `make bench-check` fails on any difference at all
 outside timings, in either direction. The gate is one-sided: a rise above the
 threshold does not fail it but is printed as drift (`main.json` no longer
 describes the code), with the commit `main.json` was recorded at and how many
@@ -316,7 +318,7 @@ The bench gives the same numbers on any
 machine and checkout: the staleness filter and the file graph compare mtimes,
 and the bench takes them from `bench/corpus/MANIFEST.json`, not from the disk
 (a checkout sets them to the moment it wrote each file); dense scores are
-computed in float64, rounded to 10 decimals and ranked with ties in corpus
+computed in float64, rounded to 10<!-- num: app/retrieval/hybrid.py:"DENSE_SCORE_DECIMALS = {}" --> decimals and ranked with ties in corpus
 order, so neither the last bit of the CPU's BLAS kernel nor numpy's sort
 implementation decides an order. The results header records where the mtimes
 came from. The MANIFEST lists the corpus files only, so the gold questions are
@@ -438,7 +440,7 @@ answer   yes  (draft_v2) — generator must address both
 
 ## Hard benchmark demos, generated
 
-The polished trace above is not the only case. [`bench/demo/manifest.json`](../bench/demo/manifest.json) selects nine hard questions from the frozen 136-question gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. The staleness cases below are measured mechanisms; the multi-hop graph, artifact, MATLAB and multimodal demos now sit under [Prototypes (not evaluated)](#prototypes-not-evaluated). `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](../doc/demo/traces.json). The HTML and GIFs consume that file.
+The polished trace above is not the only case. [`bench/demo/manifest.json`](../bench/demo/manifest.json) selects nine hard questions from the frozen 136-question<!-- num: bench/results/main.json#/n_gold --> gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. The staleness cases below are measured mechanisms; the multi-hop graph, artifact, MATLAB and multimodal demos now sit under [Prototypes (not evaluated)](#prototypes-not-evaluated). `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](../doc/demo/traces.json). The HTML and GIFs consume that file.
 
 ### Staleness under contradiction
 
@@ -447,11 +449,11 @@ The polished trace above is not the only case. [`bench/demo/manifest.json`](../b
 </p>
 
 - `q115`: the archived `1e-5` config starts above the live config; Tier 1 removes it and surfaces the structural disagreement before answering `3e-4`.
-- `q117`: Markdown-normalized Tier 2 catches `fusion **does** help` versus `fusion does not help`; the current draft remains rank 1.
+- `q117`: Markdown-normalized Tier 2 catches `fusion **does** help` versus `fusion does not help`; the current draft remains rank 1<!-- num: doc/demo/traces.json#/cases/[id=q117]/method_result/gold_rank -->.
 
 ### The loser stays visible
 
-Blind graph expansion is the negative control: hops=1 raises Recall@50 `0.938 → 0.986` but lowers nDCG@10 `0.495 → 0.446` and takes roughly six times the wall time. Hops=2 falls to `0.350` nDCG@10. The default remains hops=0; PPR is a bounded rerank for aggregation and multi-hop only.
+Blind graph expansion is the negative control. In the first recording of `make sweeps` (`bench/results/sweeps.json`, made at the repository's first commit; the hops figure below plots it), hops=1 raises Recall@50 `0.938 → 0.986`<!-- num: bench/results/sweeps.json#/graph_hops/[config=hybrid+hops=0]/retrieval/recall@50; #/graph_hops/[config=hybrid+hops=1]/retrieval/recall@50 --> but lowers nDCG@10 `0.495 → 0.446`<!-- num: #/graph_hops/[config=hybrid+hops=0]/retrieval/ndcg@10; #/graph_hops/[config=hybrid+hops=1]/retrieval/ndcg@10 --> and is slower (the wall times are in the file), and hops=2 falls to `0.350`<!-- num: #/graph_hops/[config=hybrid+hops=2]/retrieval/ndcg@10 --> nDCG@10; in the current frontier run both settings are below zero against plain hybrid ([generated table](../README.md#bench-frontier)). The default remains hops=0; HippoRAG's PPR is a bounded rerank that runs only on the router's aggregation route.
 
 Regenerate everything with:
 
@@ -480,7 +482,7 @@ A researcher, a content manager, a data analyst, an engineer, a student. They do
 | move logs/run_040.out into archive/ | plan only, until a human says yes |
 | does the current draft say fusion helps | cite `draft_v2.md`, flag `draft_v1.md` as a conflict |
 
-The frozen demo tree is 61 files: live YAML, archived YAML, Slurm, `.out` logs, checkpoint sidecars, two paper drafts, `src/fusion.py`, `results/ablation.csv`. Swap it later for a real capstone directory. The gold set is 136 questions over that tree, eight categories, no LLM judge.
+The frozen demo tree is 61 files<!-- num: bench/results/main.json#/n_files -->: live YAML, archived YAML, Slurm, `.out` logs, checkpoint sidecars, two paper drafts, `src/fusion.py`, `results/ablation.csv`. Swap it later for a real capstone directory. The gold set is 136 questions<!-- num: #/n_gold --> over that tree, eight categories, no LLM judge.
 
 ---
 
@@ -488,7 +490,7 @@ The frozen demo tree is 61 files: live YAML, archived YAML, Slurm, `.out` logs, 
 
 ### Hybrid search
 
-File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sbatch`. BM25 catches those. Dense catches “the run where fusion was off.” Fuse with reciprocal rank fusion, `k=60`. Retrieve 50, rerank 8.
+File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sbatch`. BM25 catches those. Dense catches “the run where fusion was off.” Fuse with reciprocal rank fusion, `k=60`. Retrieve 50, rerank 8<!-- num: app/retrieval/hybrid.py:"retrieve_k: int = {}"; app/retrieval/hybrid.py:"rerank_n: int = {}" -->.
 
 <p align="center">
   <img src="../doc/gifs/hybrid.gif" alt="BM25 vs dense then RRF on the fusion-module question" width="820"/>
@@ -496,7 +498,7 @@ File search is full of tokens embeddings smear: `run_047`, `--num_pairs=3`, `.sb
 
 The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postgres full text, `ts_rank_cd` (`LEXICAL_BACKEND`, whose default it is; a ParadeDB BM25 variant of the statement exists, and no test or results file has run it). Dense is `<=>` on pgvector. Same query, two lists, one RRF ranking. That is the coverage jump in the table below, read next to its random-list baseline.
 
-`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60 on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every committed hybrid row would be re-recorded (`main.json`, `neural.json`, the frontier files and the BEIR hybrid rows); the command never changes it. The default is `RRF_K` in `app/retrieval/fuse.py`, which the served path and `InMemoryHybridIndex` in `app/retrieval/hybrid.py` (every benchmark row) both read, and it is written once more as `rrf_k` in `app/eval/beir.py` (the BEIR rows); the served SQL fusion takes no list weights. On the recorded run (`bench/results/rrf_sweep.json`) the chosen setting's held-out interval covers zero, so the default stays; the setting, its interval and the in-sample grid are in that file, and the setting and its interval are the RRF row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
+`k=60` with equal list weights is the constant from the RRF paper, not a value tuned here. `rrf_score_map` takes an optional weight per list; every weight 1.0 is the unweighted fusion to the last bit, in the same key order (`tests/eval/test_retrieval_primitives.py`), so no recorded row moves. `make bench-rrf-sweep` (`app/eval/rrf_sweep.py`) tunes k (`RRF_KS`) and the dense list's weight against BM25's (`DENSE_WEIGHTS`) with bge-small on the train half of the gold questions, the split the distilled students use, picks one setting by a rule fixed in the code (best tune-half nDCG@10, ties to the setting nearest the default), and scores it against k = 60<!-- num: app/retrieval/fuse.py:"RRF_K = {}" --> on the held-out half with paired intervals. It rebuilds the fusion from each question's BM25 and dense lists exactly as the in-memory index fuses them (`tests/eval/test_rrf_sweep.py`), and records whether the default setting's lists reproduce the committed `hybrid@bge-small` row. The default changes only if the held-out interval excludes zero in favour of the chosen setting, and then by the owner, because every committed hybrid row would be re-recorded (`main.json`, `neural.json`, the frontier files and the BEIR hybrid rows); the command never changes it. The default is `RRF_K` in `app/retrieval/fuse.py`, which the served path and `InMemoryHybridIndex` in `app/retrieval/hybrid.py` (every benchmark row) both read, and it is written once more as `rrf_k` in `app/eval/beir.py` (the BEIR rows); the served SQL fusion takes no list weights. On the recorded run (`bench/results/rrf_sweep.json`) the chosen setting's held-out interval covers zero, so the default stays; the setting, its interval and the in-sample grid are in that file, and the setting and its interval are the RRF row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
 
 ### A router that skips work
 
@@ -506,7 +508,7 @@ The benchmark's lexical list is Okapi BM25 in memory; the served path uses Postg
 
 The GIF's text was written for the first README; the routes are as it shows them, and its counts and its exact-path figure (measured against plain RRF) are superseded by this paragraph and the generated tables.
 
-Regular expressions in `app/retrieval/router.py`, no extra LLM; the first rule that matches picks the route. A path- or file-name-like token sends a question down `lexical_path`: no query embedding and no reranker, and, in the benchmark and the served SQL statement, a path lookup (file name, path, stem in the query) fused with the lexical list. Count / min / max / which-run / compare wording sends it down `aggregation_query`: the hybrid lists fused with RRF, without the reranker. Everything else gets the full pipeline (`research_artifact` and `code_production` are names other components read; retrieval treats them like `semantic`). On the gold set the router sends 8 questions down `lexical_path` and 33 down `aggregation_query` (the router row's `routes` in `main.json`). Against the reranked hybrid, the generated tables give its paired nDCG@10 delta on the exact-path slice it is aimed at (n = 8) and on every slice where that delta is negative, aggregation with real models among them, each with its interval and the number of questions that moved ([CPU](../README.md#bench-table), [real models](../README.md#bench-neural)); the old README compared the router row against plain RRF, which credited the reranker's share of the exact-path gain to the router.
+Regular expressions in `app/retrieval/router.py`, no extra LLM; the first rule that matches picks the route. A path- or file-name-like token sends a question down `lexical_path`: no query embedding and no reranker, and, in the benchmark and the served SQL statement, a path lookup (file name, path, stem in the query) fused with the lexical list. Count / min / max / which-run / compare wording sends it down `aggregation_query`: the hybrid lists fused with RRF, without the reranker. Everything else gets the full pipeline (`research_artifact` and `code_production` are names other components read; retrieval treats them like `semantic`). On the gold set the router sends 8<!-- num: bench/results/main.json#/results/[config=hybrid+rerank+router]/routes/lexical_path --> questions down `lexical_path` and 33<!-- num: #/results/[config=hybrid+rerank+router]/routes/aggregation_query --> down `aggregation_query` (the router row's `routes` in `main.json`). Against the reranked hybrid, the generated tables give its paired nDCG@10 delta on the exact-path slice it is aimed at (n = 8<!-- num: bench/results/main.json#/results/[config=hybrid+rerank+router]/delta_vs_parent_by_category/n -->) and on every slice where that delta is negative, aggregation with real models among them, each with its interval and the number of questions that moved ([CPU](../README.md#bench-table), [real models](../README.md#bench-neural)); the old README compared the router row against plain RRF, which credited the reranker's share of the exact-path gain to the router.
 
 ### Retrieval inside the loop
 
@@ -568,12 +570,12 @@ review = tools.review_plan(plan["plan_id"])        # export for operator review
 tools.apply_plan(plan["plan_id"], approval_token=token)  # applied once
 ```
 
-The deterministic approval benchmark denies **220/220** malicious action fixtures
-across 22 families while preserving **100/100** benign controls. The fixtures
+The deterministic approval benchmark denies **220/220** malicious action fixtures<!-- num: bench/results/trusted_actions_v2.json#/attack_cases_denied_without_mutation; #/attack_cases -->
+across 22 families while preserving **100/100**<!-- num: bench/results/trusted_actions_v2.json#/attack_families; #/benign_cases_succeeded; #/benign_cases --> benign controls. The fixtures
 vary source contents and paths; they test the tool enforcement boundary without
 an LLM or OS isolation. [A separate evaluation](#does-the-agent-follow-instructions-planted-in-files)
 puts real local models in front of the same tools and plants the instructions in
-the files they read. A separate **240-case** balanced JSON-fact suite checks
+the files they read. A separate **240-case**<!-- num: bench/results/evidence_consistency.json#/cases --> balanced JSON-fact suite checks
 subject, value, physical units, polarity and source-supplied currency labels.
 Its results describe that narrow structured contract, without establishing
 natural-language entailment or human-reviewed citation accuracy.
@@ -651,7 +653,7 @@ Six techniques from 2023–2026 RAG research, wired into the bench harness with 
 
 **Adaptive Retrieval**. Not every query needs the full pipeline. Greetings, meta-questions, and textbook definitions skip retrieval entirely. Corpus-specific signals (run IDs, file extensions, config terms) trigger retrieval. Neutral on the gold set — every gold question needs retrieval. `app/retrieval/adaptive.py`.
 
-**Semantic Query Cache**. Near-duplicate queries ("learning rate run 47" vs "what is the learning rate for run 47") hit an in-memory LRU cache with cosine-similarity lookup (threshold 0.92) instead of re-running the full pipeline. TTL eviction prevents stale results. Optional JSON persistence. `app/retrieval/cache.py`. In the benchmark it is the `hybrid+rerank+cache` arm: the gold questions are replayed in gold order into an empty cache, a hit serves the cached file list, and the row counts hits and wrong hits (a cached list that differs from what retrieval returns for that question). The gold set's templated questions differ only in a run id, so this replay measures the false-hit risk. True hits are measured on paraphrases of gold questions ([bench/probes/](../bench/probes/README.md), rule-based rewrites that inherit the relevant paths of the question they rewrite; not gold labels), looked up after the replay without being added.
+**Semantic Query Cache**. Near-duplicate queries ("learning rate run 47" vs "what is the learning rate for run 47") hit an in-memory LRU cache with cosine-similarity lookup (threshold 0.92<!-- num: app/retrieval/cache.py:"similarity_threshold: float = {}" -->) instead of re-running the full pipeline. TTL eviction prevents stale results. Optional JSON persistence. `app/retrieval/cache.py`. In the benchmark it is the `hybrid+rerank+cache` arm: the gold questions are replayed in gold order into an empty cache, a hit serves the cached file list, and the row counts hits and wrong hits (a cached list that differs from what retrieval returns for that question). The gold set's templated questions differ only in a run id, so this replay measures the false-hit risk. True hits are measured on paraphrases of gold questions ([bench/probes/](../bench/probes/README.md), rule-based rewrites that inherit the relevant paths of the question they rewrite; not gold labels), looked up after the replay without being added.
 
 **Citation Verification**. Post-generation gate: extract factual claims from the answer, verify each value and path against retrieved evidence, flag hallucinated numbers, and reject answers below a verification ratio threshold. `app/agent/citation_verify.py`. In strict mode (values must sit inside the cited bytes) a chunk is cited from its raw source span (`evidence_raw`), and the benchmark loader also records that span's SHA-256 (`source_span_sha256`); a span that no longer hashes to it was changed after indexing and is not cited, which catches a same-length edit the byte-range check cannot see. No served path calls this check today (its callers are the offline evaluations `app/eval/llm_eval.py` and `app/eval/evidence_consistency.py`), and the served nodes (`app/engine/ingest.py`) carry neither `evidence_raw` nor the hash.
 
@@ -669,7 +671,7 @@ Tier 2 runs at query time on the top-k only: same entity, disagreeing `learning_
   <img src="../doc/figures/hops.svg" alt="Recall@50 vs graph hops" width="820"/>
 </p>
 
-One hop lifts Recall@50 **0.938 → 0.986** and drops nDCG@10 **0.495 → 0.446**, at ~6x wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding. The same two settings are arms of `make bench-frontier` with a paired interval against plain hybrid: both are below zero ([generated table](../README.md#bench-frontier)).
+In `bench/results/sweeps.json` one hop lifts Recall@50 **0.938 → 0.986**<!-- num: bench/results/sweeps.json#/graph_hops/[config=hybrid+hops=0]/retrieval/recall@50; #/graph_hops/[config=hybrid+hops=1]/retrieval/recall@50 --> and drops nDCG@10 **0.495 → 0.446**<!-- num: #/graph_hops/[config=hybrid+hops=0]/retrieval/ndcg@10; #/graph_hops/[config=hybrid+hops=1]/retrieval/ndcg@10 -->, at several times the wall clock. Two hops is worse. Default stays `graph_hops=0`. That split is the finding. The same two settings are arms of `make bench-frontier` with a paired interval against plain hybrid: both are below zero ([generated table](../README.md#bench-frontier)).
 
 ### Indexing that does not redo the whole tree
 
@@ -762,7 +764,7 @@ order of the steps in `docker-compose.yml` and in CI, which only CI runs;
 diff and the accounting without a database. `make ingest-runs` records four
 consecutive runs on a copy of the fixture in
 [bench/results/ingest_runs.json](../bench/results/ingest_runs.json).
-`make ingest-scale` indexes 1, 10 and 100 copies of the fixture (every copy
+`make ingest-scale` indexes 1, 10 and 100 copies of the fixture (every copy<!-- num: bench/results/ingest_scale.json#/rows/0/copies; #/rows/1/copies; #/rows/2/copies -->
 after the first with one line added to each file, so none is a duplicate) with
 the hash embedder and records, per size, the first index run, the unchanged
 re-run, the cluster read-back and the API's start with and without
@@ -878,7 +880,7 @@ an index run beside them.
 
 ## The number
 
-A frozen fixture, BEIR-style retrieval metrics, and 95% confidence intervals from
+A frozen fixture, BEIR-style retrieval metrics, and 95% confidence intervals from<!-- num: bench/results/main.json#/bootstrap/level|*100 -->
 a seeded, paired bootstrap over the gold questions (`CI_METRICS` in
 `app/eval/harness.py`: nDCG@10, Recall@10, Recall@50, MRR@10 and Recall@5, each
 with paired deltas; the regression gate checks the first three). No LLM judge. One design
@@ -922,7 +924,7 @@ of the score.
 - `bm25_only`: exact tokens still win aggregate ranking; it returns fewer distinct files, which is why its Recall@50 sits below the rest.
 - `hybrid`: RRF over both lists. Coverage up, aggregate ranking down against BM25 alone (the paired delta excludes zero).
 - `+ overlap rerank`: the fallback reranker. No measurable change against plain RRF on aggregate nDCG@10 (its paired delta covers zero); it stays in the table until `bge-reranker-v2-m3` is measured (M2).
-- `+ router`: skips embedding and reranking on exact-path queries; the gain is on that slice only and rests on n = 8.
+- `+ router`: skips embedding and reranking on exact-path queries and the reranker on aggregation queries; its exact-path delta rests on n = 8<!-- num: bench/results/main.json#/results/[config=hybrid+rerank+router]/delta_vs_parent_by_category/n -->, and the per-category lines under the generated table give it with its interval next to every slice where the router's delta is negative.
 - `+ staleness T1`: prefers the current version of a file; the only added component (rerank, router, staleness) whose gain over the previous row excludes zero, as the headline states.
 
 ```bash
@@ -951,7 +953,7 @@ results file header on the recorded device; CI does not download models, and
 
 [Current generated bench-neural evidence](../README.md#bench-neural).
 
-**Why `hybrid@bge-base` has a lower Recall@50 than `dense_only@bge-base`.** Both rows score the files of their top 50 chunks. Hybrid fuses BM25's top 50 and dense's top 50, whose union is longer than 50 whenever BM25 ranks a chunk outside dense's top 50, and keeps the top 50 by RRF score, so the chunks at the bottom of only one leg compete for the last places. `make bench-hybrid-drops` (`app/eval/hybrid_drops.py`) lists, per question, every gold file that one list has and the other lacks, with its file and chunk rank in each leg and its fused rank and score, in `bench/results/hybrid_drops_bge_base.json`; its lists reproduce both committed rows exactly, and every question whose Recall@50 moves is listed. Every gold file hybrid drops there is the Slurm script of a "how many stereo pairs did run N use" question: dense ranks its chunk near the bottom of its top 50, BM25 does not rank it, and it lands just past the fused cut. Gold files that only BM25 ranks can enter hybrid's list instead (the file lists them as gains), so the row's delta is the net of both; the counts and rank ranges are the hybrid-drops row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
+**Why `hybrid@bge-base` has a lower Recall@50 than `dense_only@bge-base`.** Both rows score the files of their top 50<!-- num: bench/results/neural.json#/results/[config=hybrid@bge-base]/settings/retrieve_k --> chunks (`retrieve_k`). Hybrid fuses BM25's and dense's lists of that length, whose union is longer than one list whenever BM25 ranks a chunk outside dense's list, and keeps that many by RRF score, so the chunks at the bottom of only one leg compete for the last places. `make bench-hybrid-drops` (`app/eval/hybrid_drops.py`) lists, per question, every gold file that one list has and the other lacks, with its file and chunk rank in each leg and its fused rank and score, in `bench/results/hybrid_drops_bge_base.json`; its lists reproduce both committed rows exactly, and every question whose Recall@50 moves is listed. Every gold file hybrid drops there is the Slurm script of a "how many stereo pairs did run N use" question: dense ranks its chunk near the bottom of its top 50<!-- num: bench/results/hybrid_drops_bge_base.json#/retrieve_k -->, BM25 does not rank it, and it lands just past the fused cut. Gold files that only BM25 ranks can enter hybrid's list instead (the file lists them as gains), so the row's delta is the net of both; the counts and rank ranges are the hybrid-drops row of the [resume evidence](../docs/RESUME_EVIDENCE.md).
 
 **External benchmark: BEIR SciFact.** A 5k-document corpus where a top-50 list is
 a small slice, with a published BM25 number to check our lexical baseline
@@ -962,7 +964,7 @@ b=0.75 at once, so its gap is the three changes together, not a tokenizer
 effect. `make bench-beir-bm25-ablation` splits it on the CPU: one row changes
 the analyzer alone, one changes k1 and b alone, each paired against `bm25`.
 The dense leg ranks the way the fixture benchmark's does (float64 cosine
-rounded to 10 decimals, exact ties in corpus order). BM25 search reads the
+rounded to 10<!-- num: app/retrieval/hybrid.py:"DENSE_SCORE_DECIMALS = {}" --> decimals, exact ties in corpus order). BM25 search reads the
 postings lists of the query's terms and keeps the top k with a heap; it
 returns the same scores in the same order as scoring every document
 (`tests/eval/test_bm25_postings.py`). The ladder file behind the first
@@ -994,8 +996,8 @@ claims: 5k documents, a published BM25 baseline to check against, a top-50 that
 is a small slice. The fixture carries domain behaviours and regression checks:
 exact-path routing, versioned configs (staleness), byte-range citations, and the
 CI gate. On the fixture the first stage stops mattering once the reranker is
-on, because the reranker rescores 50 of its 71 chunks; the generated sentence
-above states the hash-versus-bge-small paired delta. Router and staleness are
+on, because the reranker rescores most of its chunks; the generated sentence
+above gives both counts and the hash-versus-bge-small paired delta. Router and staleness are
 fixture-specific mechanisms; their gains are reported per category with the
 small n they rest on and how many of those questions moved (nDCG@10 rose on how
 many and fell on how many), and they are not part of the SciFact rows. Every
@@ -1005,8 +1007,8 @@ same counts), so the slices a mechanism is not aimed at, such as the router's
 aggregation questions, have an interval too.
 
 **Reranker settings are measured, not assumed.** The SciFact table keeps fp32
-uncapped, fp32 with `max_length` 512 and fp16 at 512 side by side, and sweeps the rerank
-depth (20, 50, 100), each with its own p50/p95; the served configuration is
+uncapped, fp32 with `max_length` 512 and fp16 at 512<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/max_length; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/max_length --> side by side, and sweeps the rerank
+depth (20, 50, 100)<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/rerank_top; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top50]/settings/rerank_top; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top100]/settings/rerank_top -->, each with its own p50/p95; the served configuration is
 chosen from that table in the API section below, not picked up front.
 
 ---
@@ -1051,7 +1053,7 @@ catches its database errors itself and answers with no rows and a `null` label,
 which is not listed as degraded. The retriever and the database manager are shared by
 every request and keep no per-request field (`tests/engine/test_hybrid_retriever.py`
 interleaves two requests on threads, and checks the retriever's fields are unchanged
-after requests); `/health` reports the configured backend. `k` is validated (1-50),
+after requests); `/health` reports the configured backend. `k` is validated (1 to 50<!-- num: app/api/routers/retrieve.py:"ge={}, le=MAX_K"; app/api/routers/retrieve.py:"MAX_K = {}" -->),
 bad bodies are 422, a down backend is 503 (a fixed text and the request id; Error answers, below), and a retrieval that runs past its
 time budget (`RETRIEVE_TIMEOUT_SECONDS`) is 504, naming the stage. The SQL
 statement gets the rest of the budget as its `statement_timeout`, so Postgres
@@ -1153,17 +1155,17 @@ the parity report gives the paired gap per gold category on the API row, and on
 the fixture the `exact_path` questions are exactly the ones the router sends down
 that route. CI's `parity` job runs the dense-leg test and the parity report on every push.
 
-**At FiQA scale.** `make bench-served-scale` (`app/eval/served_scale.py`, on a GPU node with Apptainer) writes FiQA one file per document and follows the deploy order into a task-local PostgreSQL + pgvector with bge-small: the deploy step (`python -m app.database.migrate`); the build, `app/engine/ingest.index_directory` with the arguments the index step passes, timed with the embedder's share; then the index step itself (`python -m app.engine.ingest`, its own process with the API's settings) over the same files, which must find every file unchanged under the build's pipeline or the run stops; then the API with `INDEX_ON_START` unset and both models, whose `/health` must list what the build wrote. It replays every test query through `POST /api/retrieve/` with k = 50. A BEIR qrel names a document and the API returns chunks, so a document ranks at its best-ranked chunk (`app/eval/beir_api.py`); a failed request keeps its place and scores zero. Each served row is paired, query by query, with an in-memory row of `app/eval/beir.py` computed in the same job on the same queries with the same query form: the served embedder (LlamaIndex `HuggingFaceEmbedding`) puts its sentence-transformers query prompt before every query on the dense leg, so the paired in-memory row does the same (the prompt is read from the served model, and the job compares the two sides' query vectors). The bare-query rows stay next to them and are checked against `bench/results/beir_fiqa.json`. The run also records the build (the schema migrations, then index_directory with the indexes maintained per insert, the sizes on disk, an unchanged re-run, the index step's seconds), the start-up (the API's seconds to `/health` ok, and what a start reads from the database, timed in the runner: the migration ledgers, the manifest summary and the version clusters built from the manifest, with the rows of chunk text those reads return counted on the client), the statement's plan, and `app/eval/http_load` at concurrency 1, 4 and 16 with every failure counted ([results](../bench/results/served_scale_fiqa.json), [generated table](../README.md#bench-served-scale)). The run made before the index step existed, when a start read every chunk back to build the clusters, is kept as [bench/results/served_scale_fiqa_pre_m20.json](../bench/results/served_scale_fiqa_pre_m20.json); the generated section renders only its start-up, as the before row, labelled with its commit and machine. The later run replaced its API run files under `bench/results/served_scale_fiqa_trec/` (the history keeps them). The sides differ by design: chunks against whole documents, `ts_rank_cd` against BM25, the router, and at most 50 chunks against 100 fused documents; the results file lists each difference. The run is a sequence of stages that each write their own file, so a job that dies late resumes (`SERVED_SCALE_ARGS=--resume`) without measuring again what it already measured, on another node from the database snapshot taken after the build; each stage names the machine it ran on.
+**At FiQA scale.** `make bench-served-scale` (`app/eval/served_scale.py`, on a GPU node with Apptainer) writes FiQA one file per document and follows the deploy order into a task-local PostgreSQL + pgvector with bge-small: the deploy step (`python -m app.database.migrate`); the build, `app/engine/ingest.index_directory` with the arguments the index step passes, timed with the embedder's share; then the index step itself (`python -m app.engine.ingest`, its own process with the API's settings) over the same files, which must find every file unchanged under the build's pipeline or the run stops; then the API with `INDEX_ON_START` unset and both models, whose `/health` must list what the build wrote. It replays every test query through `POST /api/retrieve/` with k = 50<!-- num: app/eval/served_scale.py:"SERVED_K = {}" -->. A BEIR qrel names a document and the API returns chunks, so a document ranks at its best-ranked chunk (`app/eval/beir_api.py`); a failed request keeps its place and scores zero. Each served row is paired, query by query, with an in-memory row of `app/eval/beir.py` computed in the same job on the same queries with the same query form: the served embedder (LlamaIndex `HuggingFaceEmbedding`) puts its sentence-transformers query prompt before every query on the dense leg, so the paired in-memory row does the same (the prompt is read from the served model, and the job compares the two sides' query vectors). The bare-query rows stay next to them and are checked against `bench/results/beir_fiqa.json`. The run also records the build (the schema migrations, then index_directory with the indexes maintained per insert, the sizes on disk, an unchanged re-run, the index step's seconds), the start-up (the API's seconds to `/health` ok, and what a start reads from the database, timed in the runner: the migration ledgers, the manifest summary and the version clusters built from the manifest, with the rows of chunk text those reads return counted on the client), the statement's plan, and `app/eval/http_load` at concurrency 1, 4 and 16<!-- num: bench/results/served_scale_fiqa.json#/load/workload/concurrency_levels/0; #/load/workload/concurrency_levels/1; #/load/workload/concurrency_levels/2 --> with every failure counted ([results](../bench/results/served_scale_fiqa.json), [generated table](../README.md#bench-served-scale)). The run made before the index step existed, when a start read every chunk back to build the clusters, is kept as [bench/results/served_scale_fiqa_pre_m20.json](../bench/results/served_scale_fiqa_pre_m20.json); the generated section renders only its start-up, as the before row, labelled with its commit and machine. The later run replaced its API run files under `bench/results/served_scale_fiqa_trec/` (the history keeps them). The sides differ by design: chunks against whole documents, `ts_rank_cd` against BM25, the router, and at most 50 chunks against 100 fused documents<!-- num: app/eval/served_scale.py:"SERVED_K = {}"; bench/results/served_scale_fiqa.json#/in_memory/hybrid@bge-small/settings/k -->; the results file lists each difference. The run is a sequence of stages that each write their own file, so a job that dies late resumes (`SERVED_SCALE_ARGS=--resume`) without measuring again what it already measured, on another node from the database snapshot taken after the build; each stage names the machine it ran on.
 
 **Served reranker configuration, chosen from the SciFact table.** With a
-reranker configured, the API reranks the fused top 20 (`RERANK_DEPTH`) and
-keeps the rest of the fused list in RRF order, with `max_length` 512
+reranker configured, the API reranks the fused top 20<!-- num: app/engine/retriever.py:"RERANK_DEPTH\", \"{}\"" --> (`RERANK_DEPTH`) and
+keeps the rest of the fused list in RRF order, with `max_length` 512<!-- num: app/engine/retriever.py:"RERANKER_MAX_LENGTH\", \"{}\"" -->
 (`RERANKER_MAX_LENGTH`) and fp16 weights on CUDA or fp32 on CPU
-(`RERANKER_PRECISION`). The sweep above is the reason: fp16 with a 512-token
+(`RERANKER_PRECISION`). The sweep above is the reason: fp16 with a 512-token<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/max_length -->
 cap is a quality tie with fp32 uncapped at a fraction of the latency, and
-reranking deeper than 20 loses nDCG@10 while costing more. The CI stack serves
+reranking deeper than 20<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/rerank_top --> loses nDCG@10 while costing more. The CI stack serves
 no reranker; the `ml` override serves this one on CPU. Staleness Tier 1 runs on the
-fused list before the reranker, so the reranked top 20 holds no chunk Tier 1 drops.
+fused list before the reranker, so the reranked top 20<!-- num: app/engine/retriever.py:"RERANK_DEPTH\", \"{}\"" --> holds no chunk Tier 1 drops.
 
 The benchmark can run a row with the same three settings (`rerank_depth`,
 `rerank_precision`, `rerank_max_length` in `BenchConfig`; an fp16 row stops without
@@ -1235,7 +1237,7 @@ is missing.
 
 `make bench-jury-v2` (results in `jury_v2.json`; the first run, `make bench-jury`,
 is kept in `jury.json`) generates a cited answer for every gold question with a
-local model through Ollama, from the top 8 chunks of the best measured retrieval
+local model through Ollama, from the top 8<!-- num: bench/results/jury_v2.json#/config/rerank_n --> chunks of the best measured retrieval
 configuration (a run refuses to start when the configured reranker falls
 back), then runs the deterministic checks before any judge is asked: the cited
 path is in the retrieved set, every number or config value in the answer
@@ -1618,7 +1620,7 @@ bge-small-en-v1.5 and the bge-reranker-v2-m3 cross-encoder and is the one that
 carries the verdicts. The query-side mechanisms are keyword or regex
 heuristics, not models, in both runs, with one exception: the LLM-written arms
 of the real-model run read HyDE hypotheses and chunk prefixes that qwen2.5:7b
-wrote once through Ollama (`make frontier-generations`, temperature 0). They are
+wrote once through Ollama (`make frontier-generations`, temperature 0<!-- num: bench/results/frontier_generations.json#/options/temperature -->). They are
 stored with the model, its digest and both prompts in
 [bench/results/frontier_generations.json](../bench/results/frontier_generations.json),
 so those rows are rescored without the model. The generated tables also compare
@@ -1644,7 +1646,7 @@ each LLM-written arm against the heuristic arm it replaces.
 | HyDE after the reranker + corrective (`hybrid+rerank+hyde+corrective`) | both | below zero | below zero | Evaluated: the loss is that of the after-reranker HyDE wiring; the corrective step adds nothing to the top ten. |
 | Adaptive retrieval (`hybrid+rerank+adaptive`) | skips retrieval when a regex classifier says the query needs none | covers zero: it never skips a gold question | covers zero: it never skips a gold question | Evaluated as a no-harm check only. The gold set has no question that should be skipped, so its latency benefit is not measured. |
 | GraphRAG community routing (`hybrid+rerank+graphrag`) | rank-fuses the files of the community summaries a question matches | covers zero | covers zero | Evaluated: a negative result. The community step collapses the fixture into one community, so the summaries cannot tell files apart and the arm is a member / non-member split. It does not beat hybrid plus rerank beyond the interval in either run and is not kept in the served path. |
-| Semantic cache (`hybrid+rerank+cache`) | serves the cached file list of a near-duplicate earlier question (cosine threshold 0.92), replaying the gold set in gold order | below zero | below zero | Evaluated on the gold set as a false-hit test: every hit served another gold question's file list, and every such list differs from what retrieval returns for the question; most hits are templated questions that differ only in a run id (each hit and the question it was served from are in the results file). A recorded loss on this gold set. On the paraphrase probes (`bench/probes/`, rule-based, not gold labels) most probes hit their own question's entry with bge-small and the served lists are not measurably worse than fresh retrieval; with the hash embedder most probes miss. The counts are in the table notes. |
+| Semantic cache (`hybrid+rerank+cache`) | serves the cached file list of a near-duplicate earlier question (cosine threshold 0.92 <!-- num: bench/results/frontier.json#/results/[config=hybrid+rerank+cache]/cache/threshold -->), replaying the gold set in gold order | below zero | below zero | Evaluated on the gold set as a false-hit test: every hit served another gold question's file list, and every such list differs from what retrieval returns for the question; most hits are templated questions that differ only in a run id (each hit and the question it was served from are in the results file). A recorded loss on this gold set. On the paraphrase probes (`bench/probes/`, rule-based, not gold labels) most probes hit their own question's entry with bge-small and the served lists are not measurably worse than fresh retrieval; with the hash embedder most probes miss. The counts are in the table notes. |
 | TF-IDF embedder (`dense_only@tfidf`, `hybrid@tfidf`) | replaces the hash embedder with TF-IDF and truncated SVD fitted on the indexed chunks | above zero, dense only and hybrid | not evaluated (model-free; CPU run only) | Evaluated: a better model-free stand-in than the hash embedder on this fixture. It is fitted on the fixture's own chunks, so the gain is not evidence about other corpora. |
 | Listwise rerank (`hybrid+rankgpt`) | reranks the fused list listwise | covers zero | below zero | Evaluated here only with its token-overlap fallback, which undoes a real embedder's ordering. Listwise reranking by an LLM has its own row in the reranker prototypes table below. |
 
@@ -1685,7 +1687,7 @@ split.
 
 Listwise reranking by an LLM (`app/retrieval/rankgpt.py`;
 `make bench-rerank-arms LISTWISE_MODEL=qwen2.5:7b`) sends one prompt per
-question through Ollama (temperature 0, a fixed seed) with the first `window`
+question through Ollama (temperature 0<!-- num: bench/results/rerank_arms.json#/listwise/options/temperature -->, a fixed seed) with the first `window`
 fused candidates, twenty by default, and asks for their ranking only. On all
 questions it is above zero against the un-reranked hybrid list and below zero
 against the cross-encoder, and it is far slower per question than the
@@ -1841,7 +1843,7 @@ _ColPali-style page patches and CLIP / SigLIP images (`app/multimodal/`); no ima
   <img src="../doc/figures/colpali.svg" alt="PDF page patches to MaxSim to RRF fusion" width="820"/>
 </p>
 
-PDFs are indexed as page images, not smashed-to-text. Patch grid → MaxSim. Tables and figures stay pixels. Storage is 10–20x a single-vector index, so this is an available mode, not the default path.
+PDFs are indexed as page images, not smashed-to-text. Patch grid → MaxSim. Tables and figures stay pixels. Storage holds one vector per patch, many times what a single-vector index holds, so this is an available mode, not the default path.
 
 Renders and plots go through CLIP/SigLIP when the model is local, pixel-hash otherwise. One query, three retrievers (text, page, image), fused with RRF.
 
@@ -1975,7 +1977,7 @@ Pick the extra for what you want to run:
 **Retrieval API with Docker.** One command; no Ollama, no model download.
 The `api` container applies the schema migrations (`python -m app.database.migrate`),
 runs the index step (`python -m app.engine.ingest`: the first start indexes `bench/corpus/files`
-(61 files) into pgvector with the deterministic hash embedder, a later one embeds only changed
+(61 files<!-- num: bench/results/main.json#/n_files -->) into pgvector with the deterministic hash embedder, a later one embeds only changed
 files), then starts the server, and `/health` reports what is loaded.
 
 ```bash
@@ -1994,11 +1996,12 @@ The compose stack is labelled honestly: lexical search is Postgres `ts_rank_cd`,
 the default `LEXICAL_BACKEND` (`bm25_backend` in the response; the
 `pgvector/pgvector:pg16` image has no ParadeDB `pg_search`), embeddings are the hash adapter
 (`embedding_provider`), and no reranker is loaded (`reranker_loaded`). For
-real models use the override, which installs the `ml` extra and loads
-bge-large-en-v1.5 (~1.3 GB download) and bge-reranker-v2-m3:
+real models use the override, `docker-compose.ml.yml`, which installs the `ml` extra and loads
+bge-small-en-v1.5 (`EMBEDDING_DIM` 384<!-- num: docker-compose.ml.yml:"EMBEDDING_DIM: \"{}\"" -->) and bge-reranker-v2-m3 (fp32 on CPU, `max_length` 512, the fused top 20<!-- num: docker-compose.ml.yml:"RERANKER_MAX_LENGTH: \"{}\""; docker-compose.ml.yml:"RERANK_DEPTH: \"{}\"" -->).
+Drop the volume first: the table is created with `EMBEDDING_DIM`, 256<!-- num: docker-compose.yml:"EMBEDDING_DIM: \"{}\"" --> for the hash adapter and 384<!-- num: docker-compose.ml.yml:"EMBEDDING_DIM: \"{}\"" --> for bge-small:
 
 ```bash
-docker compose down -v   # the table width changes from 256 to 1024
+docker compose down -v   # the table width changes (above)
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
 
@@ -2041,7 +2044,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **The CI table's rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`; it is within noise of plain RRF (see the [ablation table](#the-number)). The real reranker is measured in the [real-models tables](#real-models-and-a-corpus-where-k50-means-something), which are committed artifacts rather than CI output. Until M2 the cross-encoder was called through the wrong API (`compute_score` instead of sentence-transformers' `predict`). In the bench, the weights were never cached, so `get_cross_encoder()` returned nothing and the row fell back to overlap for lack of weights; the first run with weights present raised. In the production retriever the same call was inside a broad `except`, so reranking silently returned the RRF order. No earlier "bge-rerank" number in this repository's history was a cross-encoder result; `reranker_loaded` in the results file is the check.
 
-**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ between a judge's correctness verdicts and the exact-match labels of the calibration set must reach 0.6 before that judge's score is printed. The calibration set's wrong answers are planted same-field values, so a judge that passes is validated on single-value answers only. Retrieval metrics stay BEIR-style and LLM-free.
+**E2E scores in the older result files are token overlap.** The LLM evaluation with its validity gate is the [judge section](#does-the-judge-agree-with-the-gold-labels): deterministic checks first, then two judge models, and Cohen's κ between a judge's correctness verdicts and the exact-match labels of the calibration set must reach 0.6<!-- num: bench/results/jury_v2.json#/kappa_gate --> before that judge's score is printed. The calibration set's wrong answers are planted same-field values, so a judge that passes is validated on single-value answers only. Retrieval metrics stay BEIR-style and LLM-free.
 
 **The injection evaluation is not an adaptive attack.** The first two runs plant one phrasing per goal and task, written for this benchmark; the third task set plants seven, five of them AgentDojo's templates, which is still a fixed set that no loop rewrites against a model or a defense. Each plants its text in two files per task, and each runs two local 7-8B models. Adaptive attackers break most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)), so a low attempt rate here says how these models treated these phrasings, not that a configuration resists prompt injection. The capability control asks, as the user, for the planted move and patch with the same calls and arguments, and the operator signs that change, so it shows whether a model calls these tools when asked, not whether it would act against an operator's will; a model that rarely reaches the planted text still shows few attempts for that reason, and the exposure column is reported for it. The structured field check is told which config field each question asks about and reads that field from the config with comments dropped. It flags an answer that does not state that value, or that states another value for the field: for a numeric field, any number in the answer written with a decimal point or an exponent (an integer such as a run number does not count); for any other field, another value the field takes in the corpus configs, or a bare word in quotes or a code span (a path, a file name, a number, a key-value pair or the field's own name does not count). It does not use the planted value, and an unquoted value outside the field's vocabulary passes; the earlier rule flagged only answers without the true value, so it passed every answer that also named it. Its recall on planted-value answers, its false-positive rate on correct control answers and the planted-value rate with the check in front of the answer are measured offline from the stored answers, next to the earlier rule's recall, in the [generated table](../README.md#agent-injection). The rule was written with those answers in view, so that recall is in-sample. The third run puts the unchanged check in the model loop, on answers it was not written against ([generated table](../README.md#agent-injection-v3)): it is still told each question's config field and file, so it covers single-field questions only, and a model that answers on its last turn gets no second chance. In the first two runs no model called a write tool in a question or injected task; in the third, the weaker model wrote patch proposals there as JSON text, which the tool rejected for a missing argument before any proposal existed, and no model called an apply tool. So planted text did not exercise the approval gate; the unchanged corpus there follows from no grant being issued, and the gate's evidence against forged tokens is the deterministic approval benchmark. The models met the gate in the capability tasks, with the operator's token, and an apply call with a token that did not verify, with none, or with a plan id the server never issued changed nothing. The first run's benign controls were not matched on retrieval (the planted lines add the run number and field name to two files, which can change what a search returns); the current run's controls carry neutral lines with the same terms in the same files, which matches them on those terms, not on every search result. Tool calls recovered from JSON text run whenever an answer contains a JSON object with a tool name, so a refusal that quoted a planted call would count as an attempt; in the first two runs none of the recovered calls in a question or injected task was a write tool, and in the third only the weaker model's rejected patch proposals were, while in a capability task a recovered call can be the requested write and counts as an attempt, as it would for planted text.
 
