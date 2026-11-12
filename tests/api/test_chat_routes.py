@@ -11,6 +11,7 @@ host other than this one.
 """
 
 import json
+import logging
 import os
 import re
 import socket
@@ -238,6 +239,42 @@ def test_non_streaming_chat_route_returns_the_answer_and_the_tool_calls(client):
     body = resp.json()
     assert body["result"]["content"] == "learning_rate is 3e-4"
     assert [tool["tool_name"] for tool in body["tools"]] == ["query_index"]
+
+
+# ---------------------------------------------------------------- a tool that raises (C47)
+
+DRIVER_ERROR = ('connection to server at "db-7.internal.example" (10.20.30.40), port 6432 failed: '
+                'FATAL: password authentication failed for user "metanavit_admin"')
+
+
+def test_a_tool_that_raises_reaches_no_body_by_its_text_only_by_its_class_and_the_request_id(client, monkeypatch, caplog):
+    """The served retriever lets a database error through (the hybrid statement catches only its timeout), and the
+    agent handed the exception's text to the model as query_index's output: /api/chat streamed it as a source and
+    /api/chat/request returned it in its nodes and tools. Both now carry the class and the request id, which the
+    server log files the full text under."""
+    import psycopg2
+    from llama_index.core.retrievers import BaseRetriever
+
+    from app.engine.tools import query_engine
+
+    class DatabaseDown(BaseRetriever):
+        def _retrieve(self, query_bundle):
+            raise psycopg2.OperationalError(DRIVER_ERROR)
+
+    monkeypatch.setattr(query_engine, "get_vector_store_manager", lambda: None)
+    monkeypatch.setattr(query_engine, "create_hybrid_retriever", lambda **kwargs: DatabaseDown())
+    caplog.set_level(logging.INFO)
+    for path in ("/api/chat", "/api/chat/request"):
+        resp = client.post(path, json={"messages": [{"role": "user", "content": QUESTION}]})
+        assert resp.status_code == 200, resp.text
+        request_id = resp.headers["x-request-id"]
+        leaked = [part for part in ("db-7.internal.example", "10.20.30.40", "port 6432", "metanavit_admin") if part in resp.text]
+        assert leaked == [], resp.text
+        assert f"OperationalError (the server log has the reason, id {request_id})" in resp.text, resp.text
+        logged = [record.getMessage() for record in caplog.records if request_id in record.getMessage()]
+        assert any("metanavit_admin" in line and "query_index" in line for line in logged), caplog.text
+    tools = resp.json()["tools"]
+    assert [(tool["tool_name"], tool["is_error"]) for tool in tools] == [("query_index", True)]
 
 
 # ---------------------------------------------------------------- GET /api/query/
