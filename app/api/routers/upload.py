@@ -4,6 +4,13 @@ File Upload Router Module
 The body is JSON with the file as base64. It is read from the socket with a
 byte cap (UPLOAD_MAX_BYTES, the decoded file size) and answers 413 past it,
 instead of letting FastAPI buffer a body of any size before validation.
+
+The file is saved under DATA_DIR/uploads and indexed (app/engine/uploads.py).
+A file the index step would reject is refused with the reason, nothing written:
+415 (type or not UTF-8 text), 413 (over INGEST_MAX_FILE_BYTES), 422 (empty, or
+a body that is not base64), 409 (its bytes are already indexed); 503 when
+another indexing run holds the ingest lock past INGEST_LOCK_TIMEOUT_SECONDS.
+The data URL's declared type is not used: the file name's extension decides.
 """
 import logging
 import os
@@ -14,7 +21,9 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ValidationError
 
 from app.api.routers.models import DocumentFile
+from app.database.vector_store_manager import IngestLockTimeout
 from app.engine.loaders.file import FileService
+from app.engine.uploads import UploadRejected
 
 file_upload_router = r = APIRouter()
 
@@ -100,6 +109,13 @@ async def upload_file(request: Request) -> DocumentFile:
         return await run_in_threadpool(
             FileService.process_private_file, upload.name, upload.base64, upload.params
         )
+    except UploadRejected as e:  # the index step would reject it: nothing was written
+        logger.info(f"Upload refused ({e.reason}): {e}")
+        raise HTTPException(status_code=e.status, detail=f"{e.reason}: {e}") from e
+    except IngestLockTimeout as e:  # another indexing run held the lock: nothing was written
+        logger.warning(f"Upload refused, indexing is busy: {e}")  # names the table; the client is only told to retry
+        raise HTTPException(status_code=503, detail="indexing is busy (another indexing run holds the ingest lock), try again",
+                            headers={"Retry-After": "10"}) from e
     except Exception as e:
         logger.error(f"Error processing file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing file")

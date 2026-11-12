@@ -1,17 +1,17 @@
 """
 Document Ingestion Pipeline Module
 
-Handles the process of:
-1. Loading documents from sources
-2. Setting up document storage
-3. Creating embedding pipeline
-4. Processing documents into vector store
+`python -m app.engine.generate` (scripts/run.sh generate) is the index step under its old
+name: generate_datasource() runs app/engine/ingest.run_index_step, the same call as
+`python -m app.engine.ingest` (make index) and as an API start with INDEX_ON_START. DATA_DIR
+is chunked with the benchmark's chunker and diffed against the ingest manifest, so a run after
+any other indexing run embeds only what changed.
 
-Key Components:
-- Document store initialization
-- Vector store setup
-- Ingestion pipeline configuration
-- Environment-based settings
+It used to load files with the crawler (app/engine/loaders.get_documents) and split them with
+LlamaIndex's SentenceSplitter (run_pipeline below) into the same table, without byte offsets or
+the manifest, so a second run added a second copy of every chunk. run_pipeline, get_doc_store and
+persist_storage are kept (the owner's decision on team code, OD12) and nothing calls them; neither
+does anything call the crawler now.
 """
 # flake8: noqa: E402
 from dotenv import load_dotenv
@@ -19,13 +19,9 @@ from dotenv import load_dotenv
 # Explicit environment variables win over .env (compose, CI and tests set them on purpose).
 load_dotenv()
 
+import json
 import logging
 import os
-
-from app.engine.loaders import get_documents
-from app.database.vector_store_manager import get_vector_store
-
-from app.settings import init_settings
 
 from llama_index.core.ingestion import  IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
@@ -99,37 +95,17 @@ def persist_storage(docstore, vector_store):
     storage_context.persist(STORAGE_DIR)
 
 
-def generate_datasource():
-    init_settings()
-    logger.info("Generate index for the provided data")
+def generate_datasource() -> dict:
+    """Index DATA_DIR into the served table: the index step (see the module docstring). Returns its report."""
+    from app.engine.ingest import run_index_step
 
-    # Get the stores and documents or create new ones
-    documents = get_documents()
-    
-    # Set private=false to mark the document as public (required for filtering)
-    for doc in documents:
-        doc.metadata["private"] = "false"
-
-    docstore = get_doc_store()
-    vector_store = get_vector_store()
-
-    #logger.info(f"Document store: {docstore}")
-    #logger.info(f"Vector store: {vector_store}")
-
-    # Run the ingestion pipeline
-    _ = run_pipeline(docstore, vector_store, documents)
-
-    # Build the index and persist storage
-    persist_storage(docstore, vector_store)
-
-    logger.info("Finished generating the index")
-
-
-
-def print_all_env_variables():
-    for key, value in os.environ.items():
-        print(f"{key}={value}")
+    logger.info("Generate index for the provided data (the index step, as python -m app.engine.ingest)")
+    report = run_index_step()
+    logger.info(f"Finished generating the index: {json.dumps(report, sort_keys=True)}")
+    return report
 
 
 if __name__ == "__main__":
-    generate_datasource()
+    from app.engine.ingest import main
+
+    raise SystemExit(main())
