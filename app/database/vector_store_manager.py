@@ -458,9 +458,11 @@ class VectorStoreManager(DatabaseManager):
     def search_settings(self, k: int) -> dict:
         """Settings the hybrid statement runs with for a dense list of depth k, by parameter name.
 
-        hnsw.ef_search is the HNSW scan's candidate list: a scan returns at most that many
-        rows (pgvector's default, 40, is below RETRIEVE_K, 50), and its first rows are
-        approximate. The dense CTE reads twice the depth from the index and orders a tie at
+        hnsw.ef_search is the size of the HNSW scan's candidate list, whose rows are
+        approximate nearest neighbours: with hnsw.iterative_scan off, a scan stops after about
+        that many rows, not at most that many (bench/results/pgvector_hnsw.json records how
+        many it returned on FiQA at each value). pgvector's default, 40, is below RETRIEVE_K,
+        50. The dense CTE reads twice the depth from the index and orders a tie at
         the cut by node_id among those rows, so ef_search is twice the depth, at least the
         default and at most pgvector's limit. hnsw.iterative_scan = strict_order (pgvector
         0.8 and later) lets a scan that runs out of candidates keep searching instead of

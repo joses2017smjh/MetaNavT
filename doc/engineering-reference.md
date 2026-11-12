@@ -1129,8 +1129,8 @@ approximate, and its recall at a realistic size is what `make bench-served-scale
 measures ([pgvector knobs](#pgvector-knobs-on-a-trade-off-curve)). Two things
 kept the index from serving the full list before: the `params` CTE, read by both
 lists, was materialized, which made the query vector a column and left the dense
-list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
-rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
+list no index path at all; and an HNSW scan without an iterative scan stops
+after about `hnsw.ef_search` rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
 query vector in a `NOT MATERIALIZED` CTE of its own (the tsquery stays a
 materialized value), and `hybrid_search`
 sets `hnsw.ef_search` to twice the depth (plus `hnsw.iterative_scan =
