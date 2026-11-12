@@ -5,6 +5,8 @@ test are configuration; a mistake in either shows up only after a scheduled run 
 can be read from the files are pinned here.
 """
 
+import re
+import shlex
 from pathlib import Path
 
 import yaml
@@ -40,3 +42,38 @@ def test_a_scheduled_run_and_a_push_to_main_do_not_cancel_each_other():
     ci, _ = _workflow("ci.yml")
     assert ci["concurrency"]["cancel-in-progress"] is True
     assert "github.event_name == 'schedule'" in ci["concurrency"]["group"]
+
+
+def test_the_mobile_browser_job_runs_connected_spec_against_the_companion():
+    """connected.spec.ts's research-agent test skips itself without AGENT_E2E_URL, and every run before M33 skipped
+    it. The web job now starts the companion (demo mode: no model, no key), points the test at it, and then requires
+    the test to have passed in every project, read from Playwright's JSON report."""
+    workflow, _ = _workflow("mobile-app.yml")
+    steps = workflow["jobs"]["web"]["steps"]
+    runs = [step.get("run", "") for step in steps]
+    start = next(i for i, run in enumerate(runs) if "app.agent.companion_api:app" in run)
+    e2e = next(i for i, run in enumerate(runs) if "test:e2e" in run)
+    guard = next(i for i, run in enumerate(runs) if "require_playwright_tests.py" in run)
+    assert start < e2e < guard
+    port = re.search(r"--port (\d+)", runs[start]).group(1)
+    assert f"http://127.0.0.1:{port}/agent/health" in runs[start]  # ready before the browser starts
+    vite = re.search(r"baseURL: '([^']+)'", (ROOT / "mobile" / "playwright.config.ts").read_text()).group(1)
+    assert vite in steps[start]["env"]["AGENT_ALLOWED_ORIGINS"].split(",")  # the page's origin may call the service
+    env = steps[e2e]["env"]
+    assert env["AGENT_E2E_URL"] == f"http://127.0.0.1:{port}"
+    reporters = runs[e2e].split("--reporter=")[1].split()[0].split(",")
+    assert "json" in reporters and "html" in reporters  # html: the report the artifact step uploads
+    args = shlex.split(runs[guard])
+    assert args[2] == env["PLAYWRIGHT_JSON_OUTPUT_FILE"]
+    assert args[args.index("--spec") + 1] == "connected.spec.ts"
+    title = args[args.index("--title") + 1]
+    assert f"test('{title}'" in (ROOT / "mobile" / "e2e" / "connected.spec.ts").read_text()
+
+
+def test_the_mobile_workflow_runs_when_the_companion_or_the_guard_changes():
+    _, on = _workflow("mobile-app.yml")
+    for event in ("push", "pull_request"):
+        paths = on[event]["paths"]
+        for path in ("app/agent/**", "app/mobile/**", "app/api/routers/retrieve.py", "requirements/agent.txt",
+                     "scripts/require_playwright_tests.py"):
+            assert path in paths, (event, path)

@@ -111,6 +111,17 @@ localhost refers to the phone. HTTP loopback URLs are available only in the web 
 as a fixture replay. The web demo allows only origins configured with
 `MOBILE_DEMO_ORIGINS`.
 
+CI's mobile workflow (`.github/workflows/mobile-app.yml`) starts the research
+companion in demo mode (scripted decisions over its real retrieval and
+inspection tools; no model, no key) and points the browser test
+`mobile/e2e/connected.spec.ts` at it with `AGENT_E2E_URL`, so the app's research
+agent panel is exercised against the real service over HTTP. A skipped test
+leaves Playwright's exit code at zero, so a guard step
+(`scripts/require_playwright_tests.py`, reading Playwright's JSON report) fails
+the job unless that test passed in every viewport project. The file's other
+test, the soccer workflow, needs the Agentic-Soccer repository's servers and
+still skips in CI; `mobile/e2e/run-connected.py` runs both by hand.
+
 ### Measured neural HTTP service
 
 The original FastAPI/PostgreSQL 16/pgvector service now has explicit device

@@ -49,6 +49,10 @@ npm run test:e2e
 The browser tests use Playwright Chromium. Install it with
 `npx playwright install --with-deps chromium`, or set `CHROME_PATH` to a local Chrome
 binary. These tests use Android and iPhone viewport sizes; native build checks are separate.
+`e2e/connected.spec.ts` skips its research-agent test unless `AGENT_E2E_URL` names a running
+companion (`python -m uvicorn app.agent.companion_api:app --port 8002` from the repository root,
+with `AGENT_ALLOWED_ORIGINS=http://127.0.0.1:8081`); CI's web job starts one and fails if that
+test did not run and pass.
 
 ## Connect your services
 

@@ -3,9 +3,9 @@ name: Agent Field mobile app
 on:
   push:
     branches: [main]
-    paths: ["mobile/**", ".github/workflows/mobile-app.yml", "!mobile/demo/**", "!mobile/README.md", "!mobile/RESUME.md", "!mobile/THIRD_PARTY_NOTICES.md"]
+    paths: ["mobile/**", ".github/workflows/mobile-app.yml", "app/agent/**", "app/mobile/**", "app/api/routers/retrieve.py", "requirements/agent.txt", "scripts/require_playwright_tests.py", "!mobile/demo/**", "!mobile/README.md", "!mobile/RESUME.md", "!mobile/THIRD_PARTY_NOTICES.md"]
   pull_request:
-    paths: ["mobile/**", ".github/workflows/mobile-app.yml", "!mobile/demo/**", "!mobile/README.md", "!mobile/RESUME.md", "!mobile/THIRD_PARTY_NOTICES.md"]
+    paths: ["mobile/**", ".github/workflows/mobile-app.yml", "app/agent/**", "app/mobile/**", "app/api/routers/retrieve.py", "requirements/agent.txt", "scripts/require_playwright_tests.py", "!mobile/demo/**", "!mobile/README.md", "!mobile/RESUME.md", "!mobile/THIRD_PARTY_NOTICES.md"]
   workflow_dispatch:
 
 permissions:
@@ -33,7 +33,42 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      # connected.spec.ts's research-agent test talks to the real companion service over HTTP and
+      # skips itself without AGENT_E2E_URL. The companion runs in demo mode (scripted decisions,
+      # its real retrieval and inspection tools over the mobile fixture; no model, no key), started
+      # as e2e/run-connected.py starts it. The soccer test in that file needs the Agentic-Soccer
+      # repository's servers and still skips.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements/agent.txt
+      - name: Start the research companion (demo mode) for connected.spec.ts
+        working-directory: .
+        env:
+          AGENT_ALLOWED_ORIGINS: http://127.0.0.1:8081,http://localhost:8081
+        run: |
+          python -m pip install -r requirements/agent.txt
+          python -m pip install --no-deps -e .
+          python -m pip check
+          nohup python -m uvicorn app.agent.companion_api:app --host 127.0.0.1 --port 8002 > agent.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fs http://127.0.0.1:8002/agent/health | grep -q '"demo_ready":true'; then exit 0; fi
+            sleep 1
+          done
+          echo "the companion did not become ready"; tail -n 50 agent.log; exit 1
+      - name: Browser tests (connected.spec.ts asks the companion at AGENT_E2E_URL)
+        env:
+          AGENT_E2E_URL: http://127.0.0.1:8002
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/e2e-report.json
+        run: npm run test:e2e -- --reporter=list,html,json
+      # A skipped test leaves Playwright's exit code at 0: require the research-agent test to have
+      # passed in every project, read from the JSON report (uploaded with test-results/).
+      - name: connected.spec.ts ran (its research-agent test passed in every project, not skipped)
+        run: python ../scripts/require_playwright_tests.py test-results/e2e-report.json --spec connected.spec.ts --title "actual research-agent demo service returns inspected citations through HTTP"
+      - name: Companion log
+        if: always()
+        run: tail -n 60 ../agent.log || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
