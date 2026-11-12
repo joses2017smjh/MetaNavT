@@ -35,16 +35,20 @@ def served_blob():
                        "documents_per_response": {"mean": 31.5, "queries_under_50": 4}, "routes": {"semantic": 3, "lexical_path": 1}}
     in_memory = {name: {**summary(0.3645), "latency": {"total": {"n": 4, "p50_ms": 60.1, "p95_ms": 90.2}}} for name in (RERANK, RERANK + SAME_FORM_SUFFIX, HYBRID, HYBRID + SAME_FORM_SUFFIX)}
     return {
-        "schema": "served-scale-v2", "n_docs": 57638, "n_queries": 4, "query_selection": "full split", "embedder_note": None, "git_sha": "abc1234",
+        "schema": "served-scale-v3", "n_docs": 57638, "n_queries": 4, "query_selection": "full split", "embedder_note": None, "git_sha": "abc1234",
         "stage_machines": {"index": MACHINE, "inmemory": dict(MACHINE)},
         "build": {"rows": 117000, "server": {"postgres": "PostgreSQL 16.15", "pgvector": "0.8.6", "settings": {"shared_buffers": "128MB", "maintenance_work_mem": "64MB", "work_mem": "4MB"}},
-                  "report": {"files_rejected": 40, "rejected_by_reason": {"empty": 38, "duplicate_content": 2, "too_large": 0}, "files_indexed": 57598, "chunks_embedded": 117000},
+                  "report": {"files_rejected": 40, "rejected_by_reason": {"empty": 38, "duplicate_content": 2, "too_large": 0}, "files_indexed": 57598, "chunks_embedded": 117000,
+                             "pipeline": "app.chunking/auto/v2|BAAI/bge-small-en-v1.5"},
                   "migrate_seconds": 12.25, "index_directory_seconds": 1200.5, "embedding": {"seconds": 300.25}, "files_per_second": 47.98, "analyze_seconds": 2.5,
                   "index_names": {"hnsw": "h_idx", "text_index": "g_idx"}, "indexes_ddl": {"h_idx": "CREATE INDEX h_idx ... WITH (m='16', ef_construction='64')"},
                   "sizes": {"table_bytes_with_toast": 500 * 2**20, "indexes": {"h_idx": {"bytes": 230 * 2**20}, "g_idx": {"bytes": 60 * 2**20}, "pkey": {"bytes": 3 * 2**20}}},
-                  "unchanged_rerun": {"seconds": 45.5}},
+                  "unchanged_rerun": {"seconds": 45.5},
+                  "index_step": {"command": "python -m app.engine.ingest", "seconds": 52.25, "report": {"files_unchanged": 57598, "chunks_embedded": 0}}},
         "not_indexed": {"judged": ["117276"]},
-        "startup": {"api": {"seconds_to_health_ok": 61.5}, "components": {"fetch_all_chunks_seconds": 3.25, "build_clusters_seconds": 6.5}},
+        "startup": {"api": {"seconds_to_health_ok": 61.5, "health": {"n_nodes": 117000, "indexing": {"manifest_at_start": {"files": 57598, "chunks": 117000}}}},
+                    "components": {"check_migrations_seconds": 0.025, "manifest_summary_seconds": 0.0625, "build_clusters_seconds": 0.75, "manifest": {"files": 57598, "chunks": 117000},
+                                   "clusters": 0, "cluster_members": 0, "rows_in_table": 117000, "text_statements": 0, "text_rows_read": 0}},
         "query_form": {"served": {"query": "Prompt words: ", "text": "", "source": "S"}, "rows": {RERANK + SAME_FORM_SUFFIX: {"dense_leg": "Prompt words: <query>"}, HYBRID + SAME_FORM_SUFFIX: {"dense_leg": "Prompt words: <query>"},
                                                                                          RERANK: {"dense_leg": "<query>"}, HYBRID: {"dense_leg": "<query>"}},
                        "vectors_check": {"status": "compared", "n_queries": 16, "with_served_prompt": {"min_cosine": 1.0, "max_abs_difference": 1e-07}, "bare_query": {"mean_cosine": 0.93}},
@@ -73,9 +77,13 @@ def test_served_block_shows_every_row_with_its_pair_and_labels_the_fallback():
     assert "minimum cosine 1.0" in text and "the same ranking for 640 of 648 queries (the same first 10 for 647)" in text
     assert "Recall@50: a served ranking holds the documents of at most 50 returned chunks (mean 31.5" in text
     assert "the deploy step (`python -m app.database.migrate`) 12.25 s on the empty database, creating the table, the HNSW index (m 16, ef_construction 64)" in text
-    assert "index_directory 1200.5 s for 57598 files and 117000 chunks with both indexes maintained per insert" in text
+    assert "index_directory, with the arguments the index step passes, 1200.5 s for 57598 files and 117000 chunks with both indexes maintained per insert" in text
     assert "the table 500.0 MiB" in text and "the HNSW index 230.0 MiB, the GIN index 60.0 MiB, 1 other indexes 3.0 MiB" in text
     assert "61.5 s from launch to /health ok" in text and "the dense CTE read the HNSW index in 3 of 3" in text
+    # M20's deploy order: the index step after the build, and a start that reads the manifest, not the chunks
+    assert "then the index step (`python -m app.engine.ingest`, its own process, as a redeploy runs it before the API) over the unchanged files: 52.25 s, 0 chunks embedded" in text
+    assert "the migration ledgers 0.025 s, the manifest summary 0.0625 s and the version clusters built from the manifest 0.75 s (57598 manifest rows; 0 clusters); 0 rows of chunk text read" in text
+    assert "fetch_all_chunks" not in text and "what INDEX_ON_START=true adds to a start" not in text
     assert "| 16 | 64 | 6 | http_503 6 | 16008.0 / 32008.0 | 1.25 |" in text
 
 
@@ -216,3 +224,48 @@ def test_a_reassembled_file_names_where_its_stages_were_measured(tmp_path):
     sources = {r["source"] for r in evidence._served_scale_claims(tmp_path)}
     assert sources == {"bench/results/served_scale_fiqa.json @ abc1234 (stages measured at def5678, file assembled at abc1234)",
                        "bench/results/pgvector_hnsw.json @ abc1234 (stages measured at def5678, file assembled at abc1234)"}
+
+
+def pre_m20_blob():
+    """The earlier file's shape (served-scale-v2): a start read every chunk back to build the version clusters."""
+    blob = served_blob()
+    blob.update(schema="served-scale-v2", git_sha="068b42c", stage_git_sha={"index": "66b0efc", "startup": "66b0efc"},
+                stage_machines={"index": {**MACHINE, "device_name": "GPU W"}, "startup": {**MACHINE, "device_name": "GPU W"}})
+    blob["startup"] = {"api": {"seconds_to_health_ok": 70.25}, "components": {"fetch_all_chunks_seconds": 2.807, "build_clusters_seconds": 4.925, "rows_read": 117212,
+                                                                              "text_bytes_read": 47259995, "clusters": 0}}
+    blob["build"].pop("index_step")
+    blob["served"]["api:hybrid+rerank"]["ci"]["ndcg@10"] = ci(0.9876)  # must not reach the table: the earlier file feeds only the start-up line
+    return blob
+
+
+def test_a_file_measured_before_m20_is_not_the_benchmark(tmp_path):
+    """served-scale-v2 files were measured before M20's deploy order: their start-up read every chunk back."""
+    from app.eval import evidence
+
+    text = report.served_scale_table(pre_m20_blob())
+    assert "before M20's deploy order" in text and "not the benchmark" in text and "0.9876" not in text
+    write_results(tmp_path, pre_m20_blob(), None)
+    assert evidence._served_scale_claims(tmp_path) == []
+
+
+def test_the_earlier_file_gives_the_start_up_before_and_after_m20_line():
+    text = report.served_scale_table(served_blob(), earlier=pre_m20_blob())
+    line = next(x for x in text.split("\n\n") if x.startswith("Start-up before and after M20"))
+    # the counts lead, each run labelled with its commit and machine
+    assert ("the earlier run, [bench/results/served_scale_fiqa_pre_m20.json](bench/results/served_scale_fiqa_pre_m20.json) "
+            "(stages measured at 66b0efc, file assembled at 068b42c; GPU W (44.4 GB) with CPU Y, 8 CPUs allocated), read all 117212 chunks "
+            "(47259995 bytes of chunk text) at every start") in line
+    assert "build_clusters 4.925 s in the runner, of which reading the rows back (fetch_all_chunks, timed separately) 2.807 s; launch to /health ok 70.25 s" in line
+    assert ("This run (results sha abc1234; GPU X (44.4 GB) with CPU Y, 8 CPUs allocated) read 0 rows of chunk text: build_clusters 0.75 s "
+            "from the 57598 manifest rows; launch to /health ok 61.5 s") in line
+    assert "different machines, so the seconds are not a speed comparison; the row counts do not depend on the machine" in line
+    assert "0.9876" not in text  # nothing else of the earlier file is rendered
+    same = pre_m20_blob()
+    same["stage_machines"] = {"index": MACHINE, "startup": MACHINE}
+    line = next(x for x in report.served_scale_table(served_blob(), earlier=same).split("\n\n") if x.startswith("Start-up before and after M20"))
+    assert "the same GPU, CPU model and allocation" in line and "not a speed comparison" not in line
+
+
+def test_no_before_line_without_an_earlier_pre_m20_file():
+    assert "Start-up before and after M20" not in report.served_scale_table(served_blob())
+    assert "Start-up before and after M20" not in report.served_scale_table(served_blob(), earlier=served_blob())  # not a pre-M20 file

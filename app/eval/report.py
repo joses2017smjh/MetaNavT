@@ -36,6 +36,7 @@ BEIR_FILE = "bench/results/beir_scifact.json"
 BEIR_BM25_FILE = "bench/results/beir_scifact_bm25_ablation.json"
 BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"
 SERVED_SCALE_FILE = "bench/results/served_scale_fiqa.json"
+SERVED_SCALE_PRE_M20_FILE = "bench/results/served_scale_fiqa_pre_m20.json"  # the earlier run: every start read the chunks back; only its start-up line is rendered
 PGVECTOR_HNSW_FILE = "bench/results/pgvector_hnsw.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 PARITY_NEURAL_FILE = "bench/results/parity_neural.json"  # M17 (A19): bge-small + bge-reranker-v2-m3 through the API, one GPU run
@@ -47,7 +48,7 @@ SOURCES = {
     "bench-beir": BEIR_FILE,
     "bench-beir-bm25": BEIR_BM25_FILE,
     "bench-beir-fiqa": BEIR_FIQA_FILE,
-    "bench-served-scale": SERVED_SCALE_FILE,
+    "bench-served-scale": f"{SERVED_SCALE_FILE} and {SERVED_SCALE_PRE_M20_FILE}",
     "bench-pgvector-hnsw": PGVECTOR_HNSW_FILE,
     "bench-parity": f"{PARITY_FILE} and {PARITY_NEURAL_FILE}",
     "api-latency": "bench/results/api_latency_*.json",
@@ -442,13 +443,19 @@ def beir_bm25_table(blob: dict | None) -> str:
 
 
 SERVED_ROWS = ("api:hybrid+rerank", "api:hybrid")  # app/eval/served_scale.PASSES
-# The results schemas of the served path since the vector table and its indexes became schema migrations (the deploy
-# step builds the indexes on the empty table; the lexical leg reads the stored text_tsv). A v1 file was measured before.
-SCALE_SCHEMAS = ("served-scale-v2", "pgvector-hnsw-v2")
+# The results schemas the blocks render. pgvector-hnsw-v2 and served-scale-v2: the vector table and its indexes are schema
+# migrations (the deploy step builds the indexes on the empty table; the lexical leg reads the stored text_tsv); a v1 file
+# was measured before. served-scale-v3 (M20's deploy order): the index step runs before the API, and a start reads the
+# manifest instead of every chunk; a v2 served file is rendered only as the before row of the start-up (SERVED_SCALE_PRE_M20_FILE).
+SCALE_SCHEMAS = ("served-scale-v3", "pgvector-hnsw-v2")
+PRE_M20_SCHEMA = "served-scale-v2"
 
 
 def scale_run_problem(blob: dict) -> str | None:
     """Why a served-scale or pgvector results file is not the benchmark (an older schema, a hash dry run, a slice), else None."""
+    if blob.get("schema") == PRE_M20_SCHEMA:
+        return (f"a file measured before M20's deploy order ({blob.get('schema')}, {scale_sha(blob)}; a start then read every chunk back to build "
+                "the version clusters, and no index step ran between the build and the API)")
     if blob.get("schema") not in SCALE_SCHEMAS:
         return (f"a file measured before the served schema moved to migrations ({blob.get('schema')}, results sha {blob.get('git_sha')}): its build, plan and "
                 "latency figures describe a served path this code no longer runs")
@@ -508,9 +515,10 @@ def _hnsw_params(ddl: str | None) -> str:
     return ", ".join(f"{key} {m.group(1)}" for key, m in found.items() if m) or "pgvector defaults"
 
 
-def served_scale_table(blob: dict | None) -> str:
+def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
     """bench/results/served_scale_fiqa.json (app/eval/served_scale.py): FiQA through the served indexer, Postgres and
-    POST /api/retrieve/, each served row next to the in-memory rows it is paired with; build, start-up, plan, load."""
+    POST /api/retrieve/, each served row next to the in-memory rows it is paired with; build, start-up, plan, load.
+    `earlier` is the run before M20 (SERVED_SCALE_PRE_M20_FILE): only its start-up is rendered, as the before row."""
     if not blob:
         return f"_{SERVED_SCALE_FILE} is missing; run `make bench-served-scale` on a GPU node._"
     problem = scale_run_problem(blob)
@@ -578,15 +586,23 @@ def served_scale_table(blob: dict | None) -> str:
     hnsw, gin = build["index_names"]["hnsw"], build["index_names"]["text_index"]
     other = [v["bytes"] for name, v in idx.items() if name not in (hnsw, gin)]
     comp, settings = startup["components"], server.get("settings") or {}
-    lines += ["", f"Build: the deploy step (`python -m app.database.migrate`) {build['migrate_seconds']} s on the empty database, creating the table, the HNSW index "
-                  f"({_hnsw_params(build['indexes_ddl'].get(hnsw))}) and the GIN index on the stored text_tsv; then index_directory {build['index_directory_seconds']} s for "
-                  f"{report['files_indexed']} files and {report['chunks_embedded']} chunks with both indexes maintained per insert (the embedder {build['embedding']['seconds']} s of it; "
-                  f"{build['files_per_second']} files/s); ANALYZE {build['analyze_seconds']} s. "
+    step = build["index_step"]
+    lines += ["", f"Build, in M20's deploy order: the deploy step (`python -m app.database.migrate`) {build['migrate_seconds']} s on the empty database, creating the table, the HNSW index "
+                  f"({_hnsw_params(build['indexes_ddl'].get(hnsw))}) and the GIN index on the stored text_tsv; then index_directory, with the arguments the index step passes, "
+                  f"{build['index_directory_seconds']} s for {report['files_indexed']} files and {report['chunks_embedded']} chunks with both indexes maintained per insert "
+                  f"(the embedder {build['embedding']['seconds']} s of it; {build['files_per_second']} files/s); ANALYZE {build['analyze_seconds']} s. "
                   f"On disk: the table {_mib(sizes['table_bytes_with_toast'])} (heap and TOAST), the HNSW index {_mib(idx[hnsw]['bytes'])}, the GIN index {_mib(idx[gin]['bytes'])}, "
-                  f"{len(other)} other indexes {_mib(sum(other))}. index_directory again over the unchanged files (what INDEX_ON_START=true adds to a start): "
-                  f"{build['unchanged_rerun']['seconds']} s. Start-up with INDEX_ON_START unset: {startup['api']['seconds_to_health_ok']} s from launch to /health ok with both models; "
-                  f"reading every chunk back (fetch_all_chunks) {comp['fetch_all_chunks_seconds']} s and the version clusters (build_clusters) {comp['build_clusters_seconds']} s, timed in the runner. "
+                  f"{len(other)} other indexes {_mib(sum(other))}. index_directory again over the unchanged files: {build['unchanged_rerun']['seconds']} s; then the index step "
+                  f"(`python -m app.engine.ingest`, its own process, as a redeploy runs it before the API) over the unchanged files: {step['seconds']} s, "
+                  f"{step['report']['chunks_embedded']} chunks embedded, {step['report']['files_unchanged']} files unchanged. "
+                  f"Start-up with INDEX_ON_START unset (the API indexes nothing): {startup['api']['seconds_to_health_ok']} s from launch to /health ok with both models; "
+                  f"what a start reads from the database, timed in the runner: the migration ledgers {comp['check_migrations_seconds']} s, the manifest summary "
+                  f"{comp['manifest_summary_seconds']} s and the version clusters built from the manifest {comp['build_clusters_seconds']} s ({comp['manifest']['files']} manifest rows; "
+                  f"{comp['clusters']} clusters); {comp['text_rows_read']} rows of chunk text read (counted on the client). "
                   f"Postgres ran with the image's defaults (shared_buffers {settings.get('shared_buffers')}, maintenance_work_mem {settings.get('maintenance_work_mem')}, work_mem {settings.get('work_mem')})."]
+    before = startup_before_after(blob, earlier)
+    if before:
+        lines += ["", before]
     plan = blob["plan"]["queries"]
     joins = sorted({q["facts"]["final_join_scan"] for q in plan if q["facts"].get("final_join_scan")})
     times = [q["facts"]["execution_ms"] for q in plan if q["facts"].get("execution_ms") is not None]
@@ -601,6 +617,25 @@ def served_scale_table(blob: dict | None) -> str:
     for r in load["runs"]:
         lines.append(f"| {r['concurrency']} | {r['attempted']} | {r['failed']} | {_counts(r.get('error_counts'))} | {_p50_p95(r.get('e2e_successful'))} | {r['successful_requests_per_second']:.2f} |")
     return "\n".join(lines)
+
+
+def startup_before_after(blob: dict, earlier: dict | None) -> str | None:
+    """The start-up of the run before M20 (a served-scale-v2 file: every start read the chunks back to build the version
+    clusters) next to this run's (the clusters from the manifest), each labelled with its commit and machine. The row
+    counts lead because they do not depend on the machine; the seconds are compared only on the same hardware."""
+    if not earlier or earlier.get("schema") != PRE_M20_SCHEMA:
+        return None
+    then, now = earlier["startup"], blob["startup"]
+    c0, c1 = then["components"], now["components"]
+    m0, m1 = scale_machine(earlier), scale_machine(blob)
+    machines = ("Both runs had the same GPU, CPU model and allocation; launch to /health ok includes loading both models." if m0 == m1 else
+                "The two runs ran on different machines, so the seconds are not a speed comparison; the row counts do not depend on the machine.")
+    return (f"Start-up before and after M20 (a start builds the version clusters from the manifest instead of reading every chunk back): the earlier run, "
+            f"[{SERVED_SCALE_PRE_M20_FILE}]({SERVED_SCALE_PRE_M20_FILE}) ({scale_sha(earlier)}; {m0}), read all {c0['rows_read']} chunks ({c0['text_bytes_read']} bytes of "
+            f"chunk text) at every start: build_clusters {c0['build_clusters_seconds']} s in the runner, of which reading the rows back (fetch_all_chunks, timed separately) "
+            f"{c0['fetch_all_chunks_seconds']} s; launch to /health ok {then['api']['seconds_to_health_ok']} s. This run ({scale_sha(blob)}; {m1}) read {c1['text_rows_read']} rows "
+            f"of chunk text: build_clusters {c1['build_clusters_seconds']} s from the {c1['manifest']['files']} manifest rows; launch to /health ok "
+            f"{now['api']['seconds_to_health_ok']} s. {machines} Nothing else of the earlier file is rendered here: this run measured everything again.")
 
 
 def pgvector_hnsw_table(blob: dict | None) -> str:
@@ -1624,7 +1659,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
         "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),
-        "bench-served-scale": served_scale_table(_load(root, SERVED_SCALE_FILE)),
+        "bench-served-scale": served_scale_table(_load(root, SERVED_SCALE_FILE), _load(root, SERVED_SCALE_PRE_M20_FILE)),
         "bench-pgvector-hnsw": pgvector_hnsw_table(_load(root, PGVECTOR_HNSW_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),
         "api-latency": latency_table(root),
