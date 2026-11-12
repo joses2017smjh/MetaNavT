@@ -104,6 +104,7 @@ def deployment(tmp_path):
     table = "uploads_" + uuid.uuid4().hex[:8]
     env = {k: v for k, v in os.environ.items() if k not in {"PGVECTOR_SCHEMA", "LEXICAL_BACKEND", "INGEST_SUFFIXES", "INGEST_MAX_FILE_BYTES",
                                                            "INDEX_ON_START", "FRONTEND_ENDPOINT", "RETRIEVAL_REQUIRE_DEVICE", "METANAVIT_API_KEY",
+                                                           "METANAVIT_API_KEYS_FILE",
                                                            "RATE_LIMIT_PER_MINUTE", "FILESERVER_URL_PREFIX", "ENABLE_STALENESS"}}
     env.update({"PG_CONNECTION_STRING": dsn, "PSYCOPG2_CONNECTION_STRING": dsn, "DB_NAME": urlparse(dsn).path.lstrip("/"),
                 "PGVECTOR_TABLE": table, "EMBEDDING_DIM": "256", "EMBEDDING_PROVIDER": "hash", "MODEL_PROVIDER": "ollama",

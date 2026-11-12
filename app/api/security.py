@@ -1,23 +1,39 @@
 """Authentication and a request budget for the /api routes. Both are opt-in.
 
-Authentication (METANAVIT_API_KEY)
-    Unset or empty: the API is open, as it always was, and /health reports
-    "auth": {"enabled": false}. The Compose stack, the mobile fixture backend
-    and the test suites run this way.
-    Set: every route of the API router and both static mounts under /api
-    require the key, sent as `X-API-Key: <key>` or `Authorization: Bearer <key>`.
-    A request without it, or with a wrong one, gets 401. The comparison is
-    constant-time. /health is not under /api and stays reachable for probes.
-    This is one shared key: it says "a holder of the key", not who. The
-    `actor` field of a plan decision is still whatever the client sends.
+Authentication (METANAVIT_API_KEY, METANAVIT_API_KEYS_FILE)
+    Neither set (or both empty): the API is open, as it always was, and /health
+    reports "auth": {"enabled": false}. The Compose stack, the mobile fixture
+    backend and the test suites run this way.
+    Either set: every route of the API router and both static mounts under /api
+    require a key, sent as `X-API-Key: <key>` or `Authorization: Bearer <key>`.
+    A request without one, or with a wrong one, gets 401. /health is not under
+    /api and stays reachable for probes.
+    Each key is an identity (Caller.name): the name of its line in the key file,
+    or SHARED_KEY_IDENTITY ("shared-key") for METANAVIT_API_KEY, which every
+    holder of that one key shares. The identity is the request budget's key and
+    the actor of a plan decision (app/api/routers/plans.py), whatever the body
+    of the request says. With authentication off there is no identity: the
+    budget counts the client address and a decision's actor is what the client
+    sends.
+    The key file (METANAVIT_API_KEYS_FILE; `python -m app.api.keys add` writes
+    it) holds one "name:<SHA-256 of the key, hex>" line per key, never a key.
+    The SHA-256 of a presented key is compared with every configured digest
+    (the shared key's and each line's) with hmac.compare_digest, without
+    stopping at a match. Keys are never logged or echoed. The file is read again
+    when it changes (path, size, mtime, inode), so a line can be removed to
+    revoke a key without a restart. A file that cannot be used (missing,
+    unreadable, a malformed or duplicate line, the reserved name, a path inside
+    DATA_DIR or the output directory, which /api/files serves) refuses every
+    request with 503 rather than open the API; the log names the line, not its
+    text.
 
 Request budget (RATE_LIMIT_PER_MINUTE, RATE_LIMIT_BURST)
     Off unless RATE_LIMIT_PER_MINUTE is a positive number. When on, each
     identity gets a token bucket; a request with no token left gets 429 with a
-    Retry-After header. The identity is the API key when authentication is on
-    (so all holders of the one key share a bucket) and the client address
-    otherwise (behind a proxy that is the proxy's address unless uvicorn is
-    started with --proxy-headers).
+    Retry-After header. The identity is the key's name when authentication is
+    on (all holders of the shared key share one bucket; each named key has its
+    own) and the client address otherwise (behind a proxy that is the proxy's
+    address unless uvicorn is started with --proxy-headers).
 
     The limiter is IN-PROCESS, so the budget is PER REPLICA: each API process
     keeps its own buckets, N replicas admit up to N times the configured
@@ -30,10 +46,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import math
 import os
+import re
 import threading
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 from fastapi import Depends, HTTPException, Request
@@ -41,18 +61,129 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 API_KEY_ENV = "METANAVIT_API_KEY"
+API_KEYS_FILE_ENV = "METANAVIT_API_KEYS_FILE"
+SHARED_KEY_IDENTITY = "shared-key"  # the identity of METANAVIT_API_KEY; reserved in the key file
+KEY_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")  # a named key's identity: the decision actor, the budget key
+KEYS_UNAVAILABLE = "API keys unavailable (the server log has the reason)"
 RATE_ENV = "RATE_LIMIT_PER_MINUTE"
 BURST_ENV = "RATE_LIMIT_BURST"
 MAX_TRACKED_IDENTITIES = 10_000  # buckets kept in memory before idle ones are dropped
+
+logger = logging.getLogger("uvicorn")
 
 
 # ---------------------------------------------------------------- authentication
 
 
 def configured_api_key() -> str | None:
-    """The key from the environment, read per request; None means authentication is off."""
+    """The shared key from the environment, read per request; None when it is not set."""
     key = os.getenv(API_KEY_ENV, "").strip()
     return key or None
+
+
+def configured_keys_file() -> Path | None:
+    """The named-key file from the environment, read per request; None when it is not set."""
+    path = os.getenv(API_KEYS_FILE_ENV, "").strip()
+    return Path(path) if path else None
+
+
+def authentication_enabled() -> bool:
+    """True when a shared key or a key file is configured: the one test of "is authentication on" (the API router,
+    /health, the code-execution gate). A configured file that cannot be used still counts: it refuses every request."""
+    return configured_api_key() is not None or configured_keys_file() is not None
+
+
+@dataclass(frozen=True)
+class Caller:
+    """Who sent a request. `name` is the key's identity when authentication is on, None when the API is open;
+    `budget_key` is what the request budget counts by ("key:<name>" or "addr:<client address>")."""
+
+    name: str | None
+    budget_key: str
+
+
+class KeyFileError(Exception):
+    """The named-key file cannot be used. Its message names the file and a line number, never a line's text."""
+
+
+def _digest(key: str) -> bytes:
+    return hashlib.sha256(key.encode("utf-8")).digest()
+
+
+def parse_key_file(text: str) -> dict[str, bytes]:
+    """{name: SHA-256 digest} from a key file's text: "name:<64 hex digits>" per line; blank lines and lines starting
+    with # are skipped. Refuses a malformed line, a name used twice, a digest used twice and the reserved name."""
+    keys: dict[str, bytes] = {}
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, sep, digest = line.partition(":")
+        if not sep or not KEY_NAME.fullmatch(name) or not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+            raise KeyFileError(f"line {number} is not name:<SHA-256 of the key, 64 hex digits>")
+        if name == SHARED_KEY_IDENTITY:
+            raise KeyFileError(f"line {number} uses the reserved name {SHARED_KEY_IDENTITY} (the identity of {API_KEY_ENV})")
+        if name in keys:
+            raise KeyFileError(f"line {number} repeats a name")
+        value = bytes.fromhex(digest)
+        if value in keys.values():
+            raise KeyFileError(f"line {number} repeats another line's key")
+        keys[name] = value
+    return keys
+
+
+def _served_roots() -> list[Path]:
+    """The directories /api/files serves (main.py's mounts): a key file there would be readable, and indexed."""
+    return [Path(os.getenv("DATA_DIR", "data")).resolve(), Path("output").resolve()]
+
+
+_keys_lock = threading.Lock()
+_keys_cache: tuple[tuple, dict[str, bytes] | KeyFileError] | None = None
+
+
+def named_keys(path: Path) -> dict[str, bytes]:
+    """The key file's {name: digest}, read again whenever the file changes. Raises KeyFileError (logged once per
+    change of the file) when it cannot be used."""
+    global _keys_cache
+    roots = tuple(str(root) for root in _served_roots())
+    try:
+        resolved = path.resolve()
+        st = resolved.stat()
+        stamp = (str(resolved), st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, roots)
+    except OSError as exc:
+        stamp = (str(path), "unreadable", type(exc).__name__, roots)
+    with _keys_lock:
+        if _keys_cache is not None and _keys_cache[0] == stamp:
+            found = _keys_cache[1]
+        else:
+            found = _load_key_file(path)
+            _keys_cache = (stamp, found)
+            if isinstance(found, KeyFileError):
+                logger.error(f"{API_KEYS_FILE_ENV}={path}: {found}; every /api request is refused (503) until it is fixed")
+            else:
+                logger.info(f"{API_KEYS_FILE_ENV}: {len(found)} named key(s) read")
+    if isinstance(found, KeyFileError):
+        raise found
+    return found
+
+
+def _load_key_file(path: Path) -> dict[str, bytes] | KeyFileError:
+    try:
+        roots, resolved = _served_roots(), path.resolve()
+        if any(place == root or root in place.parents for place in (path.absolute(), resolved) for root in roots):
+            return KeyFileError("the key file is inside a directory /api/files serves (DATA_DIR or output)")
+        return parse_key_file(resolved.read_text(encoding="utf-8"))
+    except KeyFileError as exc:
+        return exc
+    except (OSError, UnicodeDecodeError) as exc:
+        return KeyFileError(f"cannot be read ({type(exc).__name__})")
+
+
+def reset_key_cache() -> None:
+    """Forget the key file's last reading (tests)."""
+    global _keys_cache
+    with _keys_lock:
+        _keys_cache = None
 
 
 def _presented_key(request: Request) -> str | None:
@@ -65,34 +196,42 @@ def _presented_key(request: Request) -> str | None:
     return None
 
 
-def _same_key(presented: str, expected: str) -> bool:
-    """Constant-time comparison. Hashing first makes both sides the same length, so the
-    comparison time does not depend on how long the presented value is."""
-    return hmac.compare_digest(
-        hashlib.sha256(presented.encode("utf-8")).digest(),
-        hashlib.sha256(expected.encode("utf-8")).digest(),
-    )
+def _identify(presented: str, shared: str | None, named: dict[str, bytes]) -> str | None:
+    """The identity whose key is `presented`, or None. Every configured digest is compared, in constant time, and a
+    match does not stop the loop, so the time taken does not say which entry matched or how much of one did."""
+    digest = _digest(presented)
+    candidates = ([(SHARED_KEY_IDENTITY, _digest(shared))] if shared is not None else []) + list(named.items())
+    found = None
+    for name, expected in candidates:
+        if hmac.compare_digest(digest, expected) and found is None:
+            found = name
+    return found
 
 
-async def require_api_key(request: Request) -> str:
-    """Router dependency. Returns the caller's identity for the request budget.
+async def require_api_key(request: Request) -> Caller:
+    """Router dependency: who is calling (Caller), for the request budget and the plan routes.
 
-    Open (no key configured): identity is the client address.
-    Key configured: 401 unless the request carries it; identity is a digest of the key
-    (the key itself is never stored, logged or returned).
+    Open (no key configured): no identity; the budget counts the client address.
+    Keys configured: 401 unless the request carries one of them; 503 when the key file cannot be used. The key itself
+    is never stored, logged or returned.
     """
-    expected = configured_api_key()
-    if expected is None:
+    shared, keys_file = configured_api_key(), configured_keys_file()
+    if shared is None and keys_file is None:
         client = request.client.host if request.client else "unknown"
-        return f"addr:{client}"
+        return Caller(name=None, budget_key=f"addr:{client}")
+    try:
+        named = named_keys(keys_file) if keys_file is not None else {}
+    except KeyFileError:
+        raise HTTPException(status_code=503, detail=KEYS_UNAVAILABLE) from None
     presented = _presented_key(request)
-    if presented is None or not _same_key(presented, expected):
+    name = _identify(presented, shared, named) if presented is not None else None
+    if name is None:
         raise HTTPException(
             status_code=401,
             detail="missing or invalid API key (send X-API-Key or Authorization: Bearer)",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return "key:" + hashlib.sha256(expected.encode("utf-8")).hexdigest()[:16]
+    return Caller(name=name, budget_key=f"key:{name}")
 
 
 # ---------------------------------------------------------------- request budget
@@ -186,12 +325,12 @@ def reset_limiter() -> None:
         _limiter, _limiter_config = None, None
 
 
-async def enforce_request_budget(identity: str = Depends(require_api_key)) -> None:
-    """Router dependency: 429 with Retry-After when this identity's bucket is empty. Per replica."""
+async def enforce_request_budget(caller: Caller = Depends(require_api_key)) -> None:
+    """Router dependency: 429 with Retry-After when this caller's bucket is empty. Per replica."""
     limiter = get_limiter()
     if limiter is None:
         return
-    wait = limiter.take(identity)
+    wait = limiter.take(caller.budget_key)
     if wait > 0:
         seconds = max(1, math.ceil(wait))
         raise HTTPException(
@@ -228,7 +367,7 @@ def security_status() -> dict:
     config = budget_config()
     return {
         "auth": {
-            "enabled": configured_api_key() is not None,
+            "enabled": authentication_enabled(),
             "scheme": "X-API-Key header or Authorization: Bearer",
             "scope": "/api routes and /api/files mounts; /health is always open",
         },

@@ -130,7 +130,7 @@ def client(monkeypatch, tmp_path, scripted_llm):
     monkeypatch.setenv("INDEX_ON_START", "false")
     monkeypatch.setenv("STORAGE_DIR", str(tmp_path))  # where the exec tool saves the code it runs
     monkeypatch.delenv("FRONTEND_ENDPOINT", raising=False)
-    for name in ("ENABLE_PYTHON_EXEC", security.API_KEY_ENV, security.RATE_ENV, security.BURST_ENV):
+    for name in ("ENABLE_PYTHON_EXEC", security.API_KEY_ENV, security.API_KEYS_FILE_ENV, security.RATE_ENV, security.BURST_ENV):
         monkeypatch.delenv(name, raising=False)
     security.reset_limiter()
     import main
