@@ -1,0 +1,227 @@
+{
+  "benchmark": "agent_injection_v3",
+  "reconstructed": false,
+  "segments": [
+    {
+      "started_utc": "2026-11-12T01:36:35.242082+00:00",
+      "finished_utc": "2026-11-12T07:16:43.617773+00:00",
+      "episodes_before": 0,
+      "git_head": "083ddea602d72fb7bdf7193901e854766b3b2a18",
+      "working_tree_dirty": false,
+      "module_sha256": "d0a57fca3fc99627b967ab0915a33e0d128ecf7c61df0880676dfa72855040f2",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models llama3.1:8b --questions q011,q019,q021,q028,q046 --k 4 --out bench/results/agent_injection_v3_shards/llama-a.json --episodes bench/results/agent_injection_v3_shards/llama-a_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 20408.3,
+      "episodes_after": 2320,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        },
+        "running": {
+          "llama3.1:8b": {
+            "context_length": 32768,
+            "size_vram": 9205983477
+          }
+        }
+      },
+      "shard": "llama-a_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-12T01:56:40.681047+00:00",
+      "finished_utc": "2026-11-12T07:39:07.053381+00:00",
+      "episodes_before": 0,
+      "git_head": "083ddea602d72fb7bdf7193901e854766b3b2a18",
+      "working_tree_dirty": false,
+      "module_sha256": "d0a57fca3fc99627b967ab0915a33e0d128ecf7c61df0880676dfa72855040f2",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models llama3.1:8b --questions q054,q058,q064,q066,q078 --k 4 --out bench/results/agent_injection_v3_shards/llama-b.json --episodes bench/results/agent_injection_v3_shards/llama-b_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 20546.3,
+      "episodes_after": 2320,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "llama3.1:8b": {
+            "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "8.0B"
+          }
+        },
+        "running": {
+          "llama3.1:8b": {
+            "context_length": 32768,
+            "size_vram": 9205983477
+          }
+        }
+      },
+      "shard": "llama-b_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-12T07:17:37.311639+00:00",
+      "finished_utc": "2026-11-12T10:21:45.332156+00:00",
+      "episodes_before": 0,
+      "git_head": "083ddea602d72fb7bdf7193901e854766b3b2a18",
+      "working_tree_dirty": false,
+      "module_sha256": "d0a57fca3fc99627b967ab0915a33e0d128ecf7c61df0880676dfa72855040f2",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen2.5:7b --questions q011,q019,q021,q028,q046 --k 4 --out bench/results/agent_injection_v3_shards/qwen-a.json --episodes bench/results/agent_injection_v3_shards/qwen-a_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 11048.0,
+      "episodes_after": 2320,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {
+          "qwen2.5:7b": {
+            "context_length": 32768,
+            "size_vram": 6593561230
+          }
+        }
+      },
+      "shard": "qwen-a_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-12T10:06:55.083196+00:00",
+      "finished_utc": "2026-11-12T12:52:35.680732+00:00",
+      "episodes_before": 0,
+      "git_head": "083ddea602d72fb7bdf7193901e854766b3b2a18",
+      "working_tree_dirty": false,
+      "module_sha256": "d0a57fca3fc99627b967ab0915a33e0d128ecf7c61df0880676dfa72855040f2",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen2.5:7b --questions q054,q058,q064,q066,q078 --k 4 --out bench/results/agent_injection_v3_shards/qwen-b.json --episodes bench/results/agent_injection_v3_shards/qwen-b_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 9940.5,
+      "episodes_after": 2320,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {
+          "qwen2.5:7b": {
+            "context_length": 32768,
+            "size_vram": 6593561230
+          }
+        }
+      },
+      "shard": "qwen-b_episodes.jsonl"
+    }
+  ],
+  "merged": {
+    "shards": [
+      {
+        "file": "llama-a_episodes.jsonl",
+        "episodes_sha256": "05d755b7af603b0b05a0c843824708baaf99d1e1829e35aac5cb3e115ecdbbf9",
+        "n_episodes": 2320
+      },
+      {
+        "file": "llama-b_episodes.jsonl",
+        "episodes_sha256": "b6e47e675cd939659986b506ec63da2df9370b914121ff4b21504c1d7703608f",
+        "n_episodes": 2320
+      },
+      {
+        "file": "qwen-a_episodes.jsonl",
+        "episodes_sha256": "27cde018ca77c719ff2e9a415b71c38c6a08d782d08bb45cce4b15ae9c71b9e9",
+        "n_episodes": 2320
+      },
+      {
+        "file": "qwen-b_episodes.jsonl",
+        "episodes_sha256": "3a9a0f64954db75a788b7e31a7de5a12e8ba3feff03ce0044d8b7ad99b744079",
+        "n_episodes": 2320
+      }
+    ],
+    "order": "model (--models order), task (build_tasks order), configuration (BENCHMARK_DEFENSES order), trial"
+  }
+}

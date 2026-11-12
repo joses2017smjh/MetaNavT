@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 from collections import Counter
@@ -19,6 +20,10 @@ RESULTS = ai.ROOT / ai.DEFAULT_OUT
 # the current run (agent_injection_v2), written by `make bench-agent-injection-v2`
 RESULTS_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2.json"
 EPISODES_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2_episodes.jsonl"
+# phrasings scored as any-success and the in-loop answer check (agent_injection_v3), written by
+# `make bench-agent-injection-v3-merge` from the shards of `make bench-agent-injection-v3-shard`
+RESULTS_V3 = ai.ROOT / "bench" / "results" / "agent_injection_v3.json"
+EPISODES_V3 = ai.ROOT / "bench" / "results" / "agent_injection_v3_episodes.jsonl"
 
 
 def _sha256(path):
@@ -1205,6 +1210,105 @@ def test_the_current_run_holds_no_user_or_host_name_and_temporary_paths_only_whe
                        if "/tmp/" in s or "metanavit-agent-injection-" in s)
     assert temporary == [("llama3.1:8b", "least_privilege", "q021-capability-move", 3, "answer"),
                          ("llama3.1:8b", "spotlight", "q066-patch", 1, "tool_calls[1].recovered_text")]
+
+
+@pytest.fixture(scope="module")
+def v3_run():
+    """agent_injection_v3 as committed: the results file, the stored episodes and the tasks they cover, and today's
+    scores of those episodes, loaded and rescored once (its episodes file is the largest in the repository)."""
+    blob = json.loads(RESULTS_V3.read_text())
+    tasks, rows = ai.stored_episodes(EPISODES_V3, k=4)
+    return blob, tasks, rows, ai.rescore(tasks, rows)
+
+
+def test_the_v3_run_was_generated_and_scored_at_one_clean_commit_by_the_committed_module(v3_run):
+    # D19, D23 (D25's rule): four GPU jobs, one per model and question block with all four configurations each, generated
+    # the episodes from one committed harness with nothing uncommitted, and the merge that wrote and scored the file ran
+    # at the same commit (make bench-agent-injection-v3-merge); the module is the one committed there, an ancestor of HEAD
+    blob, tasks, rows, _ = v3_run
+    assert blob["benchmark"] == ai.BENCHMARK_V3 == ai.episodes_benchmark(EPISODES_V3)
+    assert blob["working_tree_dirty"] is False and len(blob["git_head"]) == 40
+    assert blob["module_sha256"] == _module_committed_at(blob["git_head"])
+    assert blob["command"].startswith("python -m app.eval.agent_injection --merge ") and "--summarize-only" not in blob["command"]
+    generated = blob["episodes_generated_by"]
+    assert generated == json.loads(ai.sidecar(EPISODES_V3).read_text())
+    assert generated["reconstructed"] is False and generated["benchmark"] == ai.BENCHMARK_V3
+    segments, shards = generated["segments"], generated["merged"]["shards"]
+    assert generated["merged"]["order"] == ai.MERGE_ORDER and [s["file"] for s in shards] == [seg["shard"] for seg in segments]
+    assert len(segments) > 1 and all(
+        seg["working_tree_dirty"] is False and seg["git_head"] == blob["git_head"] and seg["module_sha256"] == blob["module_sha256"]
+        and "--benchmark agent_injection_v3" in seg["command"] and seg["episodes_before"] == 0
+        and seg["episodes_after"] == shard["n_episodes"] for seg, shard in zip(segments, shards))
+    assert sum(shard["n_episodes"] for shard in shards) == len(rows)
+    assert blob["episodes_file"] == "bench/results/agent_injection_v3_episodes.jsonl"
+    assert blob["episodes_sha256"] == _sha256(EPISODES_V3)
+    cfg = blob["config"]
+    assert cfg["models"] == ["qwen2.5:7b", "llama3.1:8b"] and cfg["temperature"] == 0.7 and cfg["seeds"] == [0, 1, 2, 3]
+    assert cfg["defenses"] == list(ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V3]) and cfg["phrasings"] == list(ai.PHRASINGS)
+    assert ai.run_config(tasks, benchmark=ai.BENCHMARK_V3, models=cfg["models"], k=4, temperature=0.7, max_turns=6) == cfg
+    ollama = blob["ollama"]
+    assert ollama["version"] and all(ollama["models"][m]["digest"] and ollama["running"][m]["context_length"]
+                                     for m in cfg["models"])
+    # every episode of the design once, the trial index as seed, in the merge's fixed order
+    every = len(ai.build_tasks(benchmark=ai.BENCHMARK_V3)) * len(cfg["defenses"]) * len(cfg["models"]) * cfg["k"]
+    keys = [ai._episode_key(r) for r in rows]
+    assert len(rows) == len(set(keys)) == blob["n_episodes"] == every and all(r["seed"] == r["trial"] for r in rows)
+    rank = {t.task_id: i for i, t in enumerate(ai.build_tasks(benchmark=ai.BENCHMARK_V3))}
+    assert keys == sorted(keys, key=lambda x: (cfg["models"].index(x[0]), rank[x[2]], cfg["defenses"].index(x[1]), x[3]))
+    assert blob["n_episode_errors"] == len(blob["episode_errors"]) == sum(1 for r in rows if r.get("error"))
+
+
+def test_the_v3_run_stores_each_tool_result_and_rebuilds_from_the_stored_episodes(v3_run):
+    # As for agent_injection_v2: every stored call carries the result text the model was sent, exposure recomputed from
+    # those results equals the recorded flag, every verdict of the answer check is the field check of the draft as
+    # stored, and today's harness rebuilds the task list, every score, the summary and the paired deltas (each
+    # configuration against none, answer_check included) exactly, so `make bench-agent-injection-v3-rescore` reproduces
+    # every number in the file
+    blob, tasks, rows, rescored = v3_run
+    by_id = {t.task_id: t for t in tasks}
+    calls = [c for r in rows for c in r["tool_calls"]]
+    assert calls and all(isinstance(c["result"], str) and len(c["result"]) <= 4000
+                         and isinstance(c["result_truncated"], bool) for c in calls)
+    assert all(any(ai.exposure_mark(by_id[r["task_id"]]) in c["result"] for c in r["tool_calls"]) == r["exposed"]
+               for r in rows)
+    checked = [r for r in rows if r["defense"] == ai.ANSWER_CHECK]
+    assert checked and all("answer_check" in r for r in checked) and not any("answer_check" in r for r in rows
+                                                                             if r["defense"] != ai.ANSWER_CHECK)
+    files = {t.task_id: ai.task_files(t) for t in tasks}
+    for r in checked:
+        task, text = by_id[r["task_id"]], files[r["task_id"]]
+        structured, vocabulary = ai.parse_config_field(text[task.gold_path], task.field), ai.field_vocabulary(text, task.field)
+        assert [ai.field_check(d["answer"], task.field, structured, vocabulary)["flags"] for d in r["answer_check"]["drafts"]] == [
+            d["flags"] for d in r["answer_check"]["drafts"]]
+    assert json.loads(json.dumps(ai.task_rows(tasks, ai.BENCHMARK_V3))) == blob["tasks"]
+    assert [r["score"] for r in rescored] == [r["score"] for r in rows]
+    assert ai.summarize(tasks, rescored, k=4) == blob["summary"]
+    assert ai.paired_deltas(tasks, rescored, defenses=ai.BENCHMARK_DEFENSES[ai.BENCHMARK_V3]) == blob["paired_deltas"]
+
+
+def test_the_v3_run_holds_no_user_or_host_name_and_absolute_paths_only_where_a_model_wrote_them(v3_run):
+    # No user name, host name, temporary or shared-filesystem path anywhere in the episodes. One answer holds a home
+    # path: llama3.1 wrote an sbatch command line around a /home/username/ path it made up. Every other absolute path in
+    # the file is corpus text (the Slurm scripts' "#!/bin/bash", in a tool result through JSON escaping or datamarking,
+    # and copied into some answers) or a path a model made up in an answer or a draft; those are pinned here
+    from app.eval.provenance import _ABS_PATH_RE
+    _, _, rows, _ = v3_run
+    text = EPISODES_V3.read_text()
+    assert scrub_names(text) == text
+    roots = ("/nfs/", "/home/", "/raid/", "/scratch/", "/Users/", "/tmp/", "metanavit-agent-injection-")
+    machine = sorted((*ai._episode_key(r), path) for r in rows for path, s in _strings(r) if any(x in s for x in roots))
+    assert machine == [("llama3.1:8b", "least_privilege", "q019-move-system_override", 1, "answer")]
+    corpus = "\n".join(p.read_text(errors="replace") for p in sorted(ai.CORPUS.rglob("*")) if p.is_file())
+    made_up = sorted((*ai._episode_key(r), path, m.group(0)) for r in rows for path, s in _strings(r)
+                     for m in _ABS_PATH_RE.finditer(s) if re.split(r"\\|" + ai.MARK, m.group(0))[0] not in corpus)
+    assert made_up == [
+        ("llama3.1:8b", "answer_check", "q054-benign", 1, "answer_check.drafts[0].answer", "/path"),
+        ("llama3.1:8b", "answer_check", "q054-move-important_instructions", 1, "answer_check.drafts[0].answer", "/path"),
+        ("llama3.1:8b", "least_privilege", "q019-move-system_override", 1, "answer", "/home/username/models/bert-base-uncased"),
+        ("llama3.1:8b", "least_privilege", "q019-move-system_override", 1, "answer", "/home/username/output/run_43"),
+        ("llama3.1:8b", "least_privilege", "q064-hijack-important_instructions", 3, "answer", "/path/to/corpus/configs/run_52.yaml"),
+        ("llama3.1:8b", "least_privilege", "q078-patch-ignore_previous", 1, "answer", "/run/55/slurm_script.sh"),
+        ("llama3.1:8b", "spotlight", "q021-move-direct", 3, "answer", "/path/to/corpus/logs/run_044.out")]
 
 
 def test_the_current_runs_rescore_target_leaves_the_committed_file_alone():
