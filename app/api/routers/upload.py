@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ValidationError
 
+from app.api.errors import failure
 from app.api.routers.models import DocumentFile
 from app.database.vector_store_manager import IngestLockTimeout
 from app.engine.loaders.file import FileService
@@ -117,5 +118,4 @@ async def upload_file(request: Request) -> DocumentFile:
         raise HTTPException(status_code=503, detail="indexing is busy (another indexing run holds the ingest lock), try again",
                             headers={"Retry-After": "10"}) from e
     except Exception as e:
-        logger.error(f"Error processing file: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error processing file")
+        raise failure(e, "processing an upload", detail="Error processing file", log=logger, traceback=True) from e

@@ -1,5 +1,9 @@
 """Approve / reject plans: nothing moves without an approval, every decision is logged."""
 
+import base64
+import hashlib
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -39,6 +43,8 @@ def client(monkeypatch, corpus):
     monkeypatch.setenv("PSYCOPG2_CONNECTION_STRING", "dbname=metanavit user=postgres password=password host=127.0.0.1 port=1")
     monkeypatch.setenv("INDEX_ON_START", "false")
     monkeypatch.delenv("FRONTEND_ENDPOINT", raising=False)
+    for name in ("METANAVIT_API_KEY", "METANAVIT_API_KEYS_FILE", "RATE_LIMIT_PER_MINUTE"):  # open API unless a test sets one
+        monkeypatch.delenv(name, raising=False)
     import main
 
     from app.database import vector_store
@@ -218,13 +224,16 @@ def test_a_move_whose_audit_event_cannot_be_written_after_it_ran_is_answered_as_
 
 
 def test_a_failed_start_tells_the_client_an_approval_error_and_only_the_class_of_anything_else(client):
+    """...and the id the failed attempt was logged under (main.py stores both; C47)."""
     client.app.state.plans = None
     client.app.state.startup_error = 'OperationalError: connection to server at "db.internal.example", port 5432 failed'
+    client.app.state.startup_error_id = "0123456789abcdef"
     resp = client.get("/api/plans/")
-    assert resp.status_code == 503 and resp.json()["detail"] == "plans unavailable: OperationalError (the server log has the reason)"
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "plans unavailable: OperationalError (the server log has the reason, id 0123456789abcdef)"
     client.app.state.startup_error = "ApprovalError: configure both the approval public key and ledger paths"
     assert client.get("/api/plans/").json()["detail"] == "plans unavailable: ApprovalError: configure both the approval public key and ledger paths"
-    client.app.state.startup_error = None
+    client.app.state.startup_error = client.app.state.startup_error_id = None
 
 
 def test_no_plan_is_kept_in_the_tools_between_requests(client, corpus, operator_grant):
@@ -266,3 +275,79 @@ def test_an_operating_system_errors_text_never_reaches_the_client(client, corpus
     (corpus / "configs" / "run_047.yaml").unlink()  # a refusal worded here is sent as it is
     resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": operator_grant(store.tools, plan["review"])})
     assert (resp.status_code, resp.json()["detail"]) == (500, "move failed: reviewed source is missing")
+
+
+# ---------------------------------------------------------------- who decided: the key's name, and the grant's actor (A13, C40, D45)
+
+ALICE, BOB, SHARED = "alice-key-4b1d9e-do-not-log", "bob-key-93ac07-do-not-log", "shared-key-5e0c2a-do-not-log"
+
+
+@pytest.fixture
+def named_keys(monkeypatch, tmp_path_factory):
+    """METANAVIT_API_KEYS_FILE with alice and bob (hashes only), outside DATA_DIR and the plans' root."""
+    path = tmp_path_factory.mktemp("api-keys") / "api_keys"
+    path.write_text("".join(f"{name}:{hashlib.sha256(key.encode()).hexdigest()}\n" for name, key in (("alice", ALICE), ("bob", BOB))))
+    monkeypatch.setenv("METANAVIT_API_KEYS_FILE", str(path))
+    return {"alice": {"X-API-Key": ALICE}, "bob": {"Authorization": f"Bearer {BOB}"}}
+
+
+def _log_rows(client, headers):
+    return [(row["plan_id"], row["action"], row["actor"], row.get("grant_actor"), row["result"])
+            for row in client.get("/api/plans/decisions/recent", headers=headers).json()]
+
+
+def test_with_named_keys_the_decision_actor_is_the_key_s_name_whatever_the_body_says(client, corpus, operator_grant, named_keys):
+    """A13 / D45: a decision posted with alice's key and body actor "bob" is recorded as alice, in the plan and in the
+    decision log; two keys give two actors. C40: an approval also records the actor the operator signed into the
+    capability (operator_grant signs as "test-operator"), never the body's."""
+    alice, bob = named_keys["alice"], named_keys["bob"]
+    plan = {"src": "configs/run_047.yaml", "dst": "configs/archive/run_047.yaml"}
+    assert client.post("/api/plans/", json=plan).status_code == 401  # keys on: no key, no plan
+    kept = client.post("/api/plans/", json=plan, headers=alice).json()
+    rejected = client.post(f"/api/plans/{kept['plan_id']}/reject", json={"actor": "bob", "note": "not now"}, headers=alice)
+    assert rejected.status_code == 200 and rejected.json()["actor"] == "alice"
+    assert client.get(f"/api/plans/{kept['plan_id']}", headers=bob).json()["actor"] == "alice"
+
+    moved = client.post("/api/plans/", json=plan, headers=bob).json()
+    token = operator_grant(client.app.state.plans.tools, moved["review"])
+    approved = client.post(f"/api/plans/{moved['plan_id']}/approve", json={"actor": "alice", "approval_token": token}, headers=bob)
+    assert (approved.status_code, approved.json()["status"], approved.json()["actor"]) == (200, "applied", "bob")
+
+    rows = _log_rows(client, alice)
+    assert (kept["plan_id"], "reject", "alice", None, "rejected") in rows
+    assert (moved["plan_id"], "approve", "bob", "test-operator", "applied") in rows
+    assert {actor for _, _, actor, _, _ in rows} == {"alice", "bob"}  # the body's forged names never reach the log
+
+
+def test_with_the_single_key_every_holder_is_its_one_identity(client, corpus, monkeypatch):
+    monkeypatch.setenv("METANAVIT_API_KEY", SHARED)
+    headers = {"X-API-Key": SHARED}
+    plan = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "archive/run_047.yaml"}, headers=headers).json()
+    rejected = client.post(f"/api/plans/{plan['plan_id']}/reject", json={"actor": "jose"}, headers=headers).json()
+    assert rejected["actor"] == "shared-key"
+    assert _log_rows(client, headers)[-1][2] == "shared-key"
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def test_a_capability_that_does_not_verify_leaves_no_grant_actor(client, corpus, operator_grant, named_keys, tmp_path_factory):
+    """The grant's actor is read only from a capability the verifier accepted: a token whose body names "mallory", unsigned
+    or signed by a key the server does not trust, is refused (403) and the log row carries no grant actor."""
+    from app.mcp.approvals import canonical, create_key, review_hash, sign_review
+
+    bob = named_keys["bob"]
+    plan = client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "archive/run_047.yaml"}, headers=bob).json()
+    operator_grant(client.app.state.plans.tools, plan["review"])  # the server's verifier, with the operator's public key
+    body = canonical({"review_sha256": review_hash(plan["review"]), "grant_id": "a" * 48, "issued_at": 1.0, "expires_at": 2.0,
+                      "actor": "mallory"})
+    other = tmp_path_factory.mktemp("not-the-operator")
+    create_key(other / "k", other / "k.pub")
+    for token in (_b64(body) + "." + _b64(bytes(64)), sign_review(plan["review"], other / "k", actor="mallory")):
+        resp = client.post(f"/api/plans/{plan['plan_id']}/approve", json={"approval_token": token}, headers=bob)
+        assert resp.status_code == 403, resp.text
+        row = client.app.state.plans.log.rows[-1]
+        assert row["result"].startswith("refused") and row.get("grant_actor") is None and row["actor"] == "bob"
+    assert "mallory" not in client.get("/api/plans/decisions/recent", headers=bob).text
+    assert (corpus / "configs" / "run_047.yaml").exists()

@@ -11,9 +11,10 @@ Features:
 """
 import os
 import logging
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Request, status
 from llama_index.core.llms import MessageRole
 
+from app.api.errors import failure
 from app.api.routers.events import EventCallbackHandler
 from app.api.routers.models import (
     ChatData,
@@ -90,11 +91,9 @@ async def chat(
         )
         
     except Exception as e:
-        logger.exception("Error in chat engine", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error in chat engine: {e}",
-        ) from e
+        # The fixed text and the request id; the exception (a model server's or a database's error) goes to the log.
+        raise failure(e, "chat engine", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in chat engine",
+                      log=logger, traceback=True) from e
 
 
 # non-streaming endpoint for testing

@@ -6,6 +6,7 @@ raw score, so a BM25 score above a cosine score replaced the node that carried
 file_path. Real llama_index node types, fake vector store + retriever.
 """
 
+import re
 import time
 
 import pytest
@@ -232,14 +233,17 @@ class _BrokenCrossEncoder:
         raise RuntimeError("CUDA out of memory (simulated)")
 
 
-def test_rerank_failure_is_reported_as_degraded_not_hidden():
+def test_rerank_failure_is_reported_as_degraded_not_hidden(caplog):
     retriever = HybridRetriever(_FakeVectorRetriever(), _FakeVSM(), reranker=_BrokenCrossEncoder(), rerank_top_n=8, enable_router=False,
                                 reranker_info={"configured": True, "loaded": True, "model": "x"})
 
     out = retriever.retrieve_detailed("anything")
 
     assert len(out.nodes) == 3  # RRF order served for this request
-    assert out.degraded == [{"component": "rerank", "error": "RuntimeError: CUDA out of memory (simulated)"}]
+    # C47: the entry reaches clients; it names the class and the id the error's text is logged under
+    [entry] = out.degraded
+    error_id = re.fullmatch(r"RuntimeError \(the server log has the reason, id ([0-9a-f]{16})\)", entry["error"]).group(1)
+    assert entry["component"] == "rerank" and f"[id {error_id}]: RuntimeError: CUDA out of memory (simulated)" in caplog.text
     assert all(out.scores[n.node.node_id]["rerank"] is None for n in out.nodes)
 
 
@@ -265,14 +269,15 @@ def test_configured_but_unloaded_reranker_is_listed_as_degraded_on_every_respons
     assert out.degraded == [{"component": "rerank", "error": "weights not cached"}]
 
 
-def test_bm25_failure_in_python_mode_is_degraded_not_silent():
+def test_bm25_failure_in_python_mode_is_degraded_not_silent(caplog):
     class _FailingVSM:
         def search_bm25(self, query, limit):
             raise ConnectionError("db gone")
 
     retriever = HybridRetriever(_FakeVectorRetriever(), _FailingVSM(), reranker=None, enable_router=False)
     out = retriever.retrieve_detailed("anything")
-    assert out.degraded[0]["component"] == "bm25" and "db gone" in out.degraded[0]["error"]
+    assert out.degraded[0]["component"] == "bm25" and out.degraded[0]["error"].startswith("ConnectionError (the server log has the reason, id ")
+    assert "db gone" not in out.degraded[0]["error"] and "ConnectionError: db gone" in caplog.text  # the text is logged, not served
     assert len(out.nodes) == 2  # vector-only for this request
 
 

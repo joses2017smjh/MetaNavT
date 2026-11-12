@@ -217,7 +217,9 @@ def test_health_is_not_ok_with_zero_rows_when_the_database_cannot_be_read(ready_
     assert response.status_code == 503, response.text
     body = response.json()
     assert body["status"] == "unavailable" and body["n_nodes"] is None
-    assert body["degraded"] == [{"component": "database", "error": "OperationalError: server closed the connection unexpectedly"}]
+    # C47: the class and the request's id; the driver's text goes to the server log under that id
+    request_id = response.headers["x-request-id"]
+    assert body["degraded"] == [{"component": "database", "error": f"OperationalError (the server log has the reason, id {request_id})"}]
 
 
 def test_health_reads_a_missing_data_table_as_zero_rows(ready_client):
@@ -303,7 +305,7 @@ def test_a_timeout_error_inside_the_budget_is_a_backend_failure_not_the_budget(r
     monkeypatch.setenv("RETRIEVE_TIMEOUT_SECONDS", "5")
     ready_client.app.state.retrieval.retriever = _ClientTimeoutRetriever()
     resp = ready_client.post("/api/retrieve/", json={"query": "q"})
-    assert resp.status_code == 503 and "timed out" in resp.json()["detail"], resp.text
+    assert resp.status_code == 503 and resp.json()["detail"] == "retrieval backend unavailable", resp.text  # no exception text (C47)
     assert "budget" not in resp.json()["detail"], resp.text
 
 

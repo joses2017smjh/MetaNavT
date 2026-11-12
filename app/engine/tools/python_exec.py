@@ -8,7 +8,8 @@ Dynamically generated python code can be better than an LLM models capabilities.
 The tool runs model-written code, so it is off unless switched on explicitly
 (see python_exec_enabled):
     ENABLE_PYTHON_EXEC=true         offer the tool to the chat agents
-    METANAVIT_API_KEY=<key>         required as well; without it the tool stays off
+    METANAVIT_API_KEY=<key>         required as well (or named keys, METANAVIT_API_KEYS_FILE);
+                                    without a key the tool stays off
     PYTHON_EXEC_TIMEOUT_SECONDS     wall-clock (and CPU) limit per call
     PYTHON_EXEC_MAX_MEMORY_MB       address-space limit per call
 When it is on, each call runs the code in a child process (python_exec_runner.py),
@@ -35,7 +36,7 @@ import time
 from pathlib import Path  
 from typing import Dict, Any, List, Optional  
 from llama_index.core.tools import FunctionTool
-from app.api.security import API_KEY_ENV, configured_api_key
+from app.api.security import API_KEY_ENV, API_KEYS_FILE_ENV, authentication_enabled
 from app.engine.tools import create_tool_callback
 from app.engine.tools.python_exec_runner import REPORT_MARKER
 
@@ -63,15 +64,16 @@ STDERR_TAIL_BYTES = 4096
 def python_exec_enabled() -> bool:
     """True only when ENABLE_PYTHON_EXEC is 1/true/yes and the API requires a key.
 
-    The flag alone is not enough: with METANAVIT_API_KEY unset the API is open,
-    so the tool stays off and a warning says why.
+    The flag alone is not enough: with no key configured (METANAVIT_API_KEY and
+    METANAVIT_API_KEYS_FILE unset) the API is open, so the tool stays off and a
+    warning says why.
     """
     if os.getenv(EXEC_FLAG_ENV, "false").strip().lower() not in {"1", "true", "yes"}:
         return False
-    if configured_api_key() is None:
+    if not authentication_enabled():
         logger.warning(
-            f"{EXEC_FLAG_ENV} is set but {API_KEY_ENV} is not: the code-execution tool stays off "
-            f"(it runs model-written code, so the API serving it must require the key)"
+            f"{EXEC_FLAG_ENV} is set but no API key is ({API_KEY_ENV} or {API_KEYS_FILE_ENV}): the code-execution "
+            f"tool stays off (it runs model-written code, so the API serving it must require a key)"
         )
         return False
     return True

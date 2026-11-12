@@ -55,6 +55,7 @@ from llama_index.core.workflow.workflow import WorkflowMeta
 from llama_index.core.settings import Settings
 
 from app.engine.tools import add_tool_call, get_tool_call_registry
+from app.observability import report_failure
 
 import llama_index.core.instrumentation as instrument
 
@@ -332,11 +333,15 @@ class AgentWorkflow(Workflow, PromptMixin, metaclass=AgentWorkflowMeta):
             else:
                 tool_output = await tool.acall(**tool_input)
         except Exception as e:
+            # The output reaches the model and the client (/api/chat streams query_index's output as a source,
+            # /api/chat/request returns the tool outputs): the class and the log id, never the text (a driver
+            # error names the database host, port and user). The text is logged under the request's id.
+            _, error = report_failure(logger, f"Tool {tool.metadata.name}", e, level=logging.WARNING)
             tool_output = ToolOutput(
-                content=str(e),
+                content=error,
                 tool_name=tool.metadata.name,
                 raw_input=tool_input,
-                raw_output=str(e),
+                raw_output=error,
                 is_error=True,
             )
 
