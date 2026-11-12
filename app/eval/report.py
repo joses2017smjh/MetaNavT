@@ -441,9 +441,13 @@ PARITY_SETTINGS = ("embedding_model", "query_instruction", "reranker", "rerank_d
 
 
 def _parity_stack(blob: dict) -> str:
-    """The models the API served in this run, from its /health copy."""
+    """The models the API served in this run, from its /health copy. The hash adapter is labelled the fallback it is,
+    "hash embedder", also in files whose /health names it as an embedding model ("hash-256", since M17)."""
     health = blob.get("api_health") or {}
-    embedder = health.get("embedding_model") or ("hash embedder" if health.get("embedding_provider") == "hash" else health.get("embed_model"))
+    if health.get("embedding_provider") == "hash":
+        embedder = "hash embedder"
+    else:
+        embedder = health.get("embedding_model") or health.get("embed_model")
     reranker = health.get("reranker") or {}
     return f"{embedder}, " + (f"{reranker.get('model')}" if reranker.get("loaded") else "no reranker")
 

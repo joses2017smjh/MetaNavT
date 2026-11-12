@@ -128,3 +128,15 @@ def test_the_readme_block_renders_both_runs_with_the_settings(tmp_path):
     assert block.count("exact_path questions") == 2 and "is missing" not in block
     assert block.count("EMBEDDING_QUERY_INSTRUCTION=none (the bare query") == 1  # the model-backed API's non-default setting, said
     assert "is missing" in parity_table(hash_run)  # the model-backed file not recorded yet: said, not hidden
+
+
+def test_a_hash_run_that_names_its_embedding_model_is_still_labelled_the_hash_embedder():
+    """Since M17 /health names the embedding model, "hash-256" for the hash adapter: a hash run recorded with it keeps
+    the fallback label the block has always given that run, and a real model is named by its model id."""
+    from app.eval.report import _parity_stack
+
+    health = {"embedding_provider": "hash", "embed_model": "HashEmbedding", "embedding_model": "hash-256", "reranker": {"loaded": False}}
+    assert _parity_stack({"api_health": health}) == "hash embedder, no reranker"
+    served = {**health, "embedding_provider": "huggingface", "embed_model": "HuggingFaceEmbedding", "embedding_model": "BAAI/bge-small-en-v1.5"}
+    assert _parity_stack({"api_health": served}) == "BAAI/bge-small-en-v1.5, no reranker"
+
