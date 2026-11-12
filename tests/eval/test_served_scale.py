@@ -405,3 +405,68 @@ def test_the_results_file_hashes_the_modules_that_produce_its_numbers():
     """source_sha256 names the code behind the file: the index step, the start-up reads and their text-read counter among it."""
     for rel in ("app/engine/ingest.py", "app/engine/bootstrap.py", "app/engine/ingest_scale.py", "app/eval/service.py", "app/database/vector_store_manager.py"):
         assert rel in served_scale.SOURCES and (ROOT / rel).exists()
+
+
+def test_the_snapshot_is_owner_only_and_a_resumed_run_restores_it(tmp_path, monkeypatch):
+    """The snapshot holds the server's password file (app/eval/service.TaskPostgres), so it is owner-only from its first byte,
+    also when an interrupted job left a partial copy with a looser mode (O_CREAT keeps an existing file's mode, and the tar
+    was once written into it and tightened only afterwards); a resumed run on a node without the database restores it
+    before Postgres starts."""
+    import stat
+    import tarfile
+
+    from app.eval import service
+
+    started = []
+
+    class Postgres:
+        def __init__(self, container, root):
+            self.root = Path(root)
+
+        def start(self):
+            started.append(sorted(p.name for p in (self.root / "pgdata").iterdir()))
+            return self
+
+        def stop(self):
+            pass
+
+        def env(self):
+            return {}
+
+    real_open, write_modes = tarfile.open, []
+
+    def open_spy(*args, **kwargs):
+        if kwargs.get("fileobj") is not None:  # the snapshot's tar, written into the file the runner opened
+            write_modes.append(stat.S_IMODE(os.fstat(kwargs["fileobj"].fileno()).st_mode))
+        return real_open(*args, **kwargs)
+
+    monkeypatch.setattr(tarfile, "open", open_spy)
+    monkeypatch.setattr(service, "TaskPostgres", Postgres)
+    monkeypatch.setattr(served_scale.Run, "vsm", lambda self: None)  # snapshot() opens the manager again at the end
+    run = served_scale.Run(served_scale.parse_args(args_for(tmp_path, "--embedder", "hash", "--device", "cpu")))
+    for key in run.settings:  # postgres() exports the run's settings into the environment; monkeypatch restores them
+        monkeypatch.setenv(key, "")
+    data = run.scratch / "pg" / "pgdata"
+    data.mkdir(parents=True)
+    (data / "PG_VERSION").write_text("16\n")
+    (data / service.PASSWORD_FILE).write_text("not-a-real-password\n")
+    snapshot, partial = run.state / "pgdata.tar", run.state / "pgdata.tar.partial"
+
+    def take_snapshot():
+        run.pg, run._vsm = Postgres(None, run.scratch / "pg"), types.SimpleNamespace(close=lambda: None)
+        run.snapshot()
+        return stat.S_IMODE(snapshot.stat().st_mode)
+
+    assert take_snapshot() == 0o600 and write_modes == [0o600] and not partial.exists()
+    partial.write_text("left by an interrupted job")
+    partial.chmod(0o644)
+    assert take_snapshot() == 0o600 and write_modes == [0o600, 0o600] and not partial.exists()
+    with tarfile.open(snapshot) as tar:
+        assert {"pgdata/PG_VERSION", f"pgdata/{service.PASSWORD_FILE}"} <= set(tar.getnames())
+    # a resumed run on another node: the index stage is recorded in the shared state, the database is not on this node
+    (run.state / "index.json").write_text(json.dumps({"stage": "index"}))
+    other = served_scale.Run(served_scale.parse_args(["--data-dir", str(tmp_path / "data"), "--container", str(tmp_path / "pg.sif"), "--scratch", str(tmp_path / "node2"),
+                                                      "--state", str(run.state), "--embedder", "hash", "--device", "cpu"]))
+    other.postgres()
+    assert started == [sorted(["PG_VERSION", service.PASSWORD_FILE])]
+    assert (tmp_path / "node2" / "pg" / "pgdata" / service.PASSWORD_FILE).read_text() == "not-a-real-password\n"

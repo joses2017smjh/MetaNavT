@@ -774,9 +774,10 @@ class Run:
         started = time.perf_counter()
         target = self.state / "pgdata.tar"
         partial = target.with_suffix(".tar.partial")
-        with open(os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb") as out, tarfile.open(fileobj=out, mode="w") as tar:
+        # a partial copy an interrupted job left would keep its own mode through O_CREAT: write a new file, owner-only from the first byte
+        partial.unlink(missing_ok=True)
+        with open(os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as out, tarfile.open(fileobj=out, mode="w") as tar:
             tar.add(self.scratch / "pg" / "pgdata", arcname="pgdata")
-        partial.chmod(0o600)  # a file that already existed keeps its mode through O_CREAT
         partial.replace(target)
         log(f"database snapshot {target.stat().st_size / 2**20:.0f} MiB in {time.perf_counter() - started:.0f} s")
         self.vsm()
