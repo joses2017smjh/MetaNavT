@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index bench-served-scale
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -281,6 +281,23 @@ explain-sql:    ## EXPLAIN (ANALYZE, BUFFERS) of the hybrid query against PG_TES
 
 explain-sql-synthetic: ## the same over 10k generated hash-vector rows in a scratch table on PG_TEST_DSN -> doc/sql/hybrid_explain_synthetic_10k.txt
 	$(PYTHON) scripts/explain_hybrid.py --synthetic-rows 10000 --out doc/sql/hybrid_explain_synthetic_10k.txt
+
+# ---- served path at scale (GPU node + Apptainer; app/eval/served_scale.py) ----
+# FiQA written one file per document and taken through the deploy order into a task-local PostgreSQL 16 +
+# pgvector (Apptainer image PGVECTOR_SIF) with bge-small: the migrations, a timed build (index_directory with the
+# index step's arguments), the index step itself (python -m app.engine.ingest, which must find nothing to embed),
+# the API; scored through POST /api/retrieve/ and paired with the in-memory BEIR rows in the same job. SERVED_SCALE_SCRATCH: node-local disk for the
+# corpus files and the database; SERVED_SCALE_STATE: where each stage's results and the database snapshot
+# go (shared storage lets a resumed run, SERVED_SCALE_ARGS=--resume, continue on another node).
+# BEIR_DATA_DIR (above) holds FiQA and the BEIR embedding cache.
+PGVECTOR_SIF ?=
+SERVED_SCALE_SCRATCH ?=
+SERVED_SCALE_STATE ?=
+SERVED_SCALE_ARGS ?=
+bench-served-scale: ## FiQA through the served indexer, Postgres and the API vs the in-memory rows (GPU; set PGVECTOR_SIF, SERVED_SCALE_SCRATCH) -> bench/results/served_scale_fiqa.json
+	@test -n "$(PGVECTOR_SIF)" || { echo "set PGVECTOR_SIF to an Apptainer image with PostgreSQL 16 and pgvector"; exit 2; }
+	@test -n "$(SERVED_SCALE_SCRATCH)" || { echo "set SERVED_SCALE_SCRATCH to a node-local directory"; exit 2; }
+	$(PYTHON) -m app.eval.served_scale --data-dir $(BEIR_DATA_DIR) --container $(PGVECTOR_SIF) --scratch $(SERVED_SCALE_SCRATCH) $(if $(SERVED_SCALE_STATE),--state $(SERVED_SCALE_STATE)) $(SERVED_SCALE_ARGS)
 
 # ---- docker ----------------------------------------------------------------
 docker-smoke:   ## build the compose stack, wait for /health, POST one query, tear down

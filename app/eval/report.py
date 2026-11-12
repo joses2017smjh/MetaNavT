@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -36,6 +36,9 @@ NEURAL_FILE = "bench/results/neural.json"
 BEIR_FILE = "bench/results/beir_scifact.json"
 BEIR_BM25_FILE = "bench/results/beir_scifact_bm25_ablation.json"
 BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"
+SERVED_SCALE_FILE = "bench/results/served_scale_fiqa.json"
+SERVED_SCALE_PRE_M20_FILE = "bench/results/served_scale_fiqa_pre_m20.json"  # the earlier run: every start read the chunks back; only its start-up line is rendered
+PGVECTOR_HNSW_FILE = "bench/results/pgvector_hnsw.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 PARITY_NEURAL_FILE = "bench/results/parity_neural.json"  # M17 (A19): bge-small + bge-reranker-v2-m3 through the API, one GPU run
 SOURCES = {
@@ -46,6 +49,8 @@ SOURCES = {
     "bench-beir": BEIR_FILE,
     "bench-beir-bm25": BEIR_BM25_FILE,
     "bench-beir-fiqa": BEIR_FIQA_FILE,
+    "bench-served-scale": f"{SERVED_SCALE_FILE} and {SERVED_SCALE_PRE_M20_FILE}",
+    "bench-pgvector-hnsw": PGVECTOR_HNSW_FILE,
     "bench-parity": f"{PARITY_FILE} and {PARITY_NEURAL_FILE}",
     "api-latency": "bench/results/api_latency_*.json",
     "bench-jury": JURY_FILE,
@@ -437,6 +442,268 @@ def beir_bm25_table(blob: dict | None) -> str:
     if parts:
         lines += ["", " ".join(parts)]
     return "\n".join(lines)
+
+
+SERVED_ROWS = ("api:hybrid+rerank", "api:hybrid")  # app/eval/served_scale.PASSES
+# The results schemas the blocks render. pgvector-hnsw-v2 and served-scale-v2: the vector table and its indexes are schema
+# migrations (the deploy step builds the indexes on the empty table; the lexical leg reads the stored text_tsv); a v1 file
+# was measured before. served-scale-v3 (M20's deploy order): the index step runs before the API, and a start reads the
+# manifest instead of every chunk; a v2 served file is rendered only as the before row of the start-up (SERVED_SCALE_PRE_M20_FILE).
+SCALE_SCHEMAS = ("served-scale-v3", "pgvector-hnsw-v2")
+PRE_M20_SCHEMA = "served-scale-v2"
+
+
+def scale_run_problem(blob: dict) -> str | None:
+    """Why a served-scale or pgvector results file is not the benchmark (an older schema, a hash dry run, a slice), else None."""
+    if blob.get("schema") == PRE_M20_SCHEMA:
+        return (f"a file measured before M20's deploy order ({blob.get('schema')}, {scale_sha(blob)}; a start then read every chunk back to build "
+                "the version clusters, and no index step ran between the build and the API)")
+    if blob.get("schema") not in SCALE_SCHEMAS:
+        return (f"a file measured before the served schema moved to migrations ({blob.get('schema')}, results sha {blob.get('git_sha')}): its build, plan and "
+                "latency figures describe a served path this code no longer runs")
+    embedder = str((blob.get("table") or {}).get("embedder") or "")
+    if blob.get("embedder_note") or embedder.startswith("hash"):
+        return blob.get("embedder_note") or "a hash-embedder dry run"
+    if blob.get("query_selection") != "full split":
+        return f"a slice ({blob.get('query_selection')})"
+    return None
+
+
+def scale_machine(blob: dict) -> str:
+    """The machine every stage ran on (stage_machines), or how many there were when a resumed run used more than one."""
+    distinct = {json.dumps(m, sort_keys=True): m for m in (blob.get("stage_machines") or {}).values() if m}
+    if len(distinct) == 1:
+        m = next(iter(distinct.values()))
+        return f"{m.get('device_name')} ({m.get('gpu_memory_gb')} GB) with {m.get('cpu_model')}, {(m.get('allocation') or {}).get('cpus')} CPUs allocated"
+    if distinct:
+        return f"stages on {len(distinct)} different machines (stage_machines in the results file)"
+    hw = blob.get("hardware") or {}
+    return f"{hw.get('device_name', '?')} with {hw.get('cpu_model', '?')}"
+
+
+def scale_sha(blob: dict) -> str:
+    """'results sha X', or, for a file assembled again from recorded stages, where the stages ran and where it was assembled."""
+    stages = sorted(set((blob.get("stage_git_sha") or {}).values()) - {None})
+    if not stages or stages == [blob.get("git_sha")]:
+        return f"results sha {blob.get('git_sha')}"
+    return f"stages measured at {', '.join(stages)}, file assembled at {blob.get('git_sha')}"
+
+
+def _mib(n) -> str:
+    return "—" if n is None else f"{n / 2**20:.1f} MiB"
+
+
+def _p50_p95(block: dict | None) -> str:
+    return f"{block['p50_ms']} / {block['p95_ms']}" if block and block.get("n") else "—"
+
+
+def _mean_ci(block: dict | None, digits: int = 4) -> str:
+    if not block:
+        return "—"
+    if "lo" not in block:
+        return f"{block['mean']:.{digits}f}"
+    return f"{block['mean']:.{digits}f} [{block['lo']:.{digits}f}, {block['hi']:.{digits}f}]"
+
+
+def _counts(counts: dict | None) -> str:
+    kept = {k: v for k, v in (counts or {}).items() if v}
+    return ", ".join(f"{k} {v}" for k, v in kept.items()) or "none"
+
+
+def _hnsw_params(ddl: str | None) -> str:
+    import re
+
+    found = {key: re.search(rf"{key}='?(\d+)", ddl or "") for key in ("m", "ef_construction")}
+    return ", ".join(f"{key} {m.group(1)}" for key, m in found.items() if m) or "pgvector defaults"
+
+
+def served_scale_table(blob: dict | None, earlier: dict | None = None) -> str:
+    """bench/results/served_scale_fiqa.json (app/eval/served_scale.py): FiQA through the served indexer, Postgres and
+    POST /api/retrieve/, each served row next to the in-memory rows it is paired with; build, start-up, plan, load.
+    `earlier` is the run before M20 (SERVED_SCALE_PRE_M20_FILE): only its start-up is rendered, as the before row."""
+    if not blob:
+        return f"_{SERVED_SCALE_FILE} is missing; run `make bench-served-scale` on a GPU node._"
+    problem = scale_run_problem(blob)
+    if problem:
+        return f"_{SERVED_SCALE_FILE} holds {problem}, not the benchmark; run `make bench-served-scale` on the full split._"
+    build, startup, server = blob["build"], blob["startup"], blob["build"]["server"]
+    report, sizes = build["report"], build["sizes"]
+    form = blob.get("query_form") or {}
+    served_form = form.get("served") or {}
+    n = blob["n_queries"]
+    lines = [
+        f"BEIR FiQA test split through the served path (`make bench-served-scale`): {blob['n_docs']} documents written one file per document and indexed by "
+        f"app/engine/ingest.index_directory into {server.get('postgres')} + pgvector {server.get('pgvector')} with bge-small ({build['rows']} chunks; the scanner rejected "
+        f"{report.get('files_rejected')} documents: {_counts(report.get('rejected_by_reason'))}; judged relevant among them: {len((blob.get('not_indexed') or {}).get('judged', []))}), "
+        f"then the {n} test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of "
+        f"app/eval/beir.py computed in the same job on the same queries; {scale_machine(blob)}; {scale_sha(blob)}. "
+        "Lexical leg: Postgres ts_rank_cd on the served side (a fallback, not BM25), Okapi BM25 in memory. "
+        f"Dense-leg query: the served embedder puts {served_form.get('query')!r} before each query (read from the served model); a row named "
+        "'+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.",
+        "",
+        "| row | side | lexical leg | dense-leg query | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 [95% CI] | failed requests | p50 / p95 ms per query |",
+        "|---|---|---|---|---:|---:|---:|---:|---:|",
+    ]
+    rows_form = form.get("rows") or {}
+    for row in SERVED_ROWS:
+        s = blob["served"][row]
+        lines.append(f"| {row} | served | ts_rank_cd (fallback) | {'prompt + query' if served_form.get('query') else 'query'} | {_ci(s, 'ndcg@10', 4)} | {_ci(s, 'recall@10', 4)} | "
+                     f"{_ci(s, 'recall@50', 4)} | {(s.get('requests') or {}).get('failed')} of {s['n_queries']} | {_p50_p95((s.get('latency') or {}).get('e2e'))} (HTTP) |")
+        for name in (s["paired_with"], s.get("bare_query_row")):
+            if name:
+                m = blob["in_memory"][name]
+                query = "prompt + query" if rows_form.get(name, {}).get("dense_leg", "<query>") != "<query>" else "query"
+                lines.append(f"| {name} | in memory | Okapi BM25 | {query} | {_ci(m, 'ndcg@10', 4)} | {_ci(m, 'recall@10', 4)} | {_ci(m, 'recall@50', 4)} | — | "
+                             f"{_p50_p95((m.get('latency') or {}).get('total'))} (in process) |")
+    parts = []
+    for row in SERVED_ROWS:
+        s = blob["served"][row]
+        d = s["delta_vs_in_memory"]
+        parts.append(f"{row} minus {s['paired_with']} (the same query form), paired over {s['n_queries']} queries: "
+                     + ", ".join(f"{label} {_delta(d[m], 4)} ({_zero_note(d[m])})" for m, label in (("ndcg@10", "nDCG@10"), ("recall@10", "Recall@10"), ("recall@50", "Recall@50"))) + ".")
+        if s.get("bare_query_row"):
+            db = s["delta_vs_bare_query_row"]["ndcg@10"]
+            parts.append(f"Against {s['bare_query_row']} (bare query): nDCG@10 {_delta(db, 4)} ({_zero_note(db)}).")
+    for bare, effect in (form.get("in_memory_prompt_effect") or {}).items():
+        d = effect["delta"]["ndcg@10"]
+        parts.append(f"The served prompt alone, in memory ({effect['row']} minus {bare}): nDCG@10 {_delta(d, 4)} ({_zero_note(d)}).")
+    check = form.get("vectors_check") or {}
+    if check.get("status") == "compared":
+        parts.append(f"Query vectors on the first {check['n_queries']} queries, as directions: the in-memory embedder with the served prompt against the served "
+                     f"get_query_embedding, minimum cosine {check['with_served_prompt']['min_cosine']}; without the prompt, mean cosine {check['bare_query']['mean_cosine']}.")
+    lines += ["", " ".join(parts)]
+    rep = blob.get("in_memory_reproduction") or {}
+    if rep.get("status") == "compared":
+        bits = [f"{name}: nDCG@10 {r['this_job_ndcg@10']:.4f} here and {r['committed_ndcg@10']:.4f} there, the same ranking for {r['identical_rankings']} of {r['n']} queries "
+                f"(the same first 10 for {r['identical_top10']})" for name, r in rep["rows"].items()]
+        lines += ["", f"The bare-query rows against {rep['file']} (results sha {rep['git_sha']}, {rep['device']}; same code, corpus and document embeddings): " + "; ".join(bits) + "."]
+    else:
+        lines += ["", f"The bare-query rows were not compared with {rep.get('file', BEIR_FIQA_FILE)}: {rep.get('reason', 'not recorded')}."]
+    docs = blob["served"]["api:hybrid"].get("documents_per_response") or {}
+    routes = blob["served"]["api:hybrid"].get("routes") or {}
+    lines += ["", f"Recall@50: a served ranking holds the documents of at most 50 returned chunks (mean {docs.get('mean')} distinct documents per response; "
+                  f"{docs.get('queries_under_50')} of {n} responses hold fewer than 50), while an in-memory row fuses 100 candidates per leg and counts its first 50 documents. "
+                  f"Served routes: {_counts(routes)} (aggregation_query skips the reranker; lexical_path skips the query embedding and the reranker); the deltas per route are in the results file."]
+    idx = sizes["indexes"]
+    hnsw, gin = build["index_names"]["hnsw"], build["index_names"]["text_index"]
+    other = [v["bytes"] for name, v in idx.items() if name not in (hnsw, gin)]
+    comp, settings = startup["components"], server.get("settings") or {}
+    step = build["index_step"]
+    lines += ["", f"Build, in M20's deploy order: the deploy step (`python -m app.database.migrate`) {build['migrate_seconds']} s on the empty database, creating the table, the HNSW index "
+                  f"({_hnsw_params(build['indexes_ddl'].get(hnsw))}) and the GIN index on the stored text_tsv; then index_directory, with the arguments the index step passes, "
+                  f"{build['index_directory_seconds']} s for {report['files_indexed']} files and {report['chunks_embedded']} chunks with both indexes maintained per insert "
+                  f"(the embedder {build['embedding']['seconds']} s of it; {build['files_per_second']} files/s); ANALYZE {build['analyze_seconds']} s. "
+                  f"On disk: the table {_mib(sizes['table_bytes_with_toast'])} (heap and TOAST), the HNSW index {_mib(idx[hnsw]['bytes'])}, the GIN index {_mib(idx[gin]['bytes'])}, "
+                  f"{len(other)} other indexes {_mib(sum(other))}. index_directory again over the unchanged files: {build['unchanged_rerun']['seconds']} s; then the index step "
+                  f"(`python -m app.engine.ingest`, its own process, as a redeploy runs it before the API) over the unchanged files: {step['seconds']} s, "
+                  f"{step['report']['chunks_embedded']} chunks embedded, {step['report']['files_unchanged']} files unchanged. "
+                  f"Start-up with INDEX_ON_START unset (the API indexes nothing): {startup['api']['seconds_to_health_ok']} s from launch to /health ok with both models; "
+                  f"what a start reads from the database, timed in the runner: the migration ledgers {comp['check_migrations_seconds']} s, the manifest summary "
+                  f"{comp['manifest_summary_seconds']} s and the version clusters built from the manifest {comp['build_clusters_seconds']} s ({comp['manifest']['files']} manifest rows; "
+                  f"{comp['clusters']} clusters); {comp['text_rows_read']} rows of chunk text read (counted on the client). "
+                  f"Postgres ran with the image's defaults (shared_buffers {settings.get('shared_buffers')}, maintenance_work_mem {settings.get('maintenance_work_mem')}, work_mem {settings.get('work_mem')})."]
+    before = startup_before_after(blob, earlier)
+    if before:
+        lines += ["", before]
+    plan = blob["plan"]["queries"]
+    joins = sorted({q["facts"]["final_join_scan"] for q in plan if q["facts"].get("final_join_scan")})
+    times = [q["facts"]["execution_ms"] for q in plan if q["facts"].get("execution_ms") is not None]
+    lines += ["", f"Plan (EXPLAIN ANALYZE of the served statement for {len(plan)} semantic queries, {blob['plan']['settings']}): the dense CTE read the HNSW index in "
+                  f"{sum(1 for q in plan if q['facts']['dense_uses_hnsw'])} of {len(plan)}, the lexical CTE the GIN index in {sum(1 for q in plan if q['facts']['lexical_uses_gin'])} of {len(plan)}; "
+                  f"the join back to the table by node_id: {', '.join(joins) or 'not found'} (no index on node_id)"
+                  + (f"; execution {min(times)} to {max(times)} ms." if times else ".")]
+    load = blob["load"]
+    lines += ["", f"Load (app/eval/http_load): POST /api/retrieve/ with k = {load['k']}, reranker on, {load['workload']['requests_per_level']} requests per level, {blob['load'].get('workload_note')}; "
+                  "client end-to-end times over HTTP on the job's node; a failed request is counted and never retried.", "",
+              "| concurrency | attempted | failed | errors | p50 / p95 ms (successful) | successful requests/s |", "|---:|---:|---:|---|---:|---:|"]
+    for r in load["runs"]:
+        lines.append(f"| {r['concurrency']} | {r['attempted']} | {r['failed']} | {_counts(r.get('error_counts'))} | {_p50_p95(r.get('e2e_successful'))} | {r['successful_requests_per_second']:.2f} |")
+    return "\n".join(lines)
+
+
+def startup_before_after(blob: dict, earlier: dict | None) -> str | None:
+    """The start-up of the run before M20 (a served-scale-v2 file: every start read the chunks back to build the version
+    clusters) next to this run's (the clusters from the manifest), each labelled with its commit and machine. The row
+    counts lead because they do not depend on the machine; the seconds are compared only on the same hardware."""
+    if not earlier or earlier.get("schema") != PRE_M20_SCHEMA:
+        return None
+    then, now = earlier["startup"], blob["startup"]
+    c0, c1 = then["components"], now["components"]
+    m0, m1 = scale_machine(earlier), scale_machine(blob)
+    machines = ("Both runs had the same GPU, CPU model and allocation; launch to /health ok includes loading both models." if m0 == m1 else
+                "The two runs ran on different machines, so the seconds are not a speed comparison; the row counts do not depend on the machine.")
+    return (f"Start-up before and after M20 (a start builds the version clusters from the manifest instead of reading every chunk back): the earlier run, "
+            f"[{SERVED_SCALE_PRE_M20_FILE}]({SERVED_SCALE_PRE_M20_FILE}) ({scale_sha(earlier)}; {m0}), read all {c0['rows_read']} chunks ({c0['text_bytes_read']} bytes of "
+            f"chunk text) at every start: build_clusters {c0['build_clusters_seconds']} s in the runner, reading the rows back included (that read alone, "
+            f"fetch_all_chunks in a call of its own, {c0['fetch_all_chunks_seconds']} s); launch to /health ok {then['api']['seconds_to_health_ok']} s. This run ({scale_sha(blob)}; {m1}) read {c1['text_rows_read']} rows "
+            f"of chunk text: build_clusters {c1['build_clusters_seconds']} s from the {c1['manifest']['files']} manifest rows; launch to /health ok "
+            f"{now['api']['seconds_to_health_ok']} s. {machines} Nothing else of the earlier file is rendered here: this run measured everything again.")
+
+
+def pgvector_hnsw_table(blob: dict | None) -> str:
+    """bench/results/pgvector_hnsw.json (app/eval/pgvector_hnsw.py): the HNSW index against the exact scan on the served FiQA
+    table at several ef_search values (C03), then halfvec and binary + rescore against float32 on the same table (C04)."""
+    if not blob:
+        return f"_{PGVECTOR_HNSW_FILE} is missing; run `make bench-served-scale` on a GPU node._"
+    problem = scale_run_problem(blob)
+    if problem:
+        return f"_{PGVECTOR_HNSW_FILE} holds {problem}, not the benchmark; run `make bench-served-scale` on the full split._"
+    table, index, server = blob["table"], blob["index"], blob["server"]
+    lines = [
+        f"pgvector's HNSW index against the exact scan on the table the served indexer built from FiQA (`make bench-served-scale`): {table['rows']} chunk vectors, "
+        f"{table['dim']} dimensions ({table['embedder']}), queried with the served query embedding of the {blob['queries']['n']} test queries, k = {blob['k']}; "
+        f"the served index (m {index['m']}, ef_construction {index['ef_construction']}, {_mib(index['bytes'])}) as a deployment builds it: the schema migrations create it on the "
+        f"empty table and index_directory's inserts grow it row by row; a REINDEX of it took {index['reindex_seconds']} s, in the variants step below, after the two copies "
+        f"had been added and the table vacuumed; {server.get('postgres')}, pgvector {server.get('pgvector')}; {scale_machine(blob)}; {scale_sha(blob)}. "
+        f"Recall: {blob['recall_definition']}. Latency: {blob['latency_definition']}.",
+        "",
+        "| configuration | hnsw.ef_search | rows returned (mean) | Recall@10 [95% CI] | Recall@50 [95% CI] | queries with all 50 | p50 / p95 ms | plan |",
+        "|---|---:|---:|---:|---:|---:|---:|---|",
+    ]
+    for r in blob["rows"]:
+        ef = r.get("ef_search") or (r.get("settings") or {}).get("hnsw.ef_search") or "—"
+        lines.append(f"| {r['config']} | {ef} | {_rows_returned(r)} | {_mean_ci(r['recall@10'])} | {_mean_ci(r['recall@50'])} | {r.get('queries_with_full_recall@50', '—')} | "
+                     f"{_p50_p95(r.get('latency'))} | {r.get('plan_node')} |")
+    short = [r for r in blob["rows"] if (r.get("rows_returned") or {}).get("queries_under_k")]
+    if short:
+        k = blob["k"]
+        lines += ["", f"With hnsw.iterative_scan off, an index scan stops after about hnsw.ef_search rows, so a configuration that returns fewer than k = {k} rows cannot reach "
+                      f"Recall@{k} = 1: " + "; ".join(f"{r['config']} returned {r['rows_returned']['mean']} rows per query on average, so its Recall@{k} is at most "
+                                                         f"{min(r['rows_returned']['mean'], k) / k:.4f}" for r in short) + "."]
+    v = blob["variants"]
+    after, before = v["sizes_after"], v["sizes_before"]
+    names = v["indexes"]
+    secs = v["build_seconds"]
+    lines += ["", f"halfvec and binary + rescore on the same table (the run's own DDL on its task-local table, HALFVEC_SQL and BINARY_SQL of app/retrieval/pgvector_tune.py: "
+                  f"no schema migration adds either copy, and the served statement reads only the float32 column): the exact scan found the same rows after the rewrite: "
+                  f"{v['exact_unchanged']}. The rows below read the indexes rebuilt in bulk; the rows above read the served index as it grew. HNSW index sizes after REINDEX: float32 "
+                  f"{_mib(after['indexes'][names['float32']]['bytes'])}, halfvec {_mib(after['indexes'][names['halfvec']]['bytes'])}, binary {_mib(after['indexes'][names['binary']]['bytes'])}; "
+                  f"REINDEX seconds: float32 {secs.get('reindex_float32')}, halfvec {secs.get('reindex_halfvec')}, binary {secs.get('reindex_binary')}. {_copies_growth(before, after)}", "",
+              "| variant | hnsw.ef_search | binary candidates | rows returned (mean) | Recall@10 [95% CI] | Recall@50 [95% CI] | p50 / p95 ms | plan |", "|---|---:|---:|---:|---:|---:|---:|---|"]
+    for r in v["rows"]:
+        lines.append(f"| {r['variant']} | {r.get('ef_search', '—')} | {r.get('candidates', '—')} | {_rows_returned(r)} | {_mean_ci(r['recall@10'])} | {_mean_ci(r['recall@50'])} | "
+                     f"{_p50_p95(r.get('latency'))} | {r.get('plan_node')} |")
+    return "\n".join(lines)
+
+
+def _rows_returned(row: dict) -> str:
+    return str(row["rows_returned"]["mean"]) if row.get("rows_returned") else "—"
+
+
+def _copies_growth(before: dict, after: dict) -> str:
+    """What the two copies take per row, and the table's growth with what the UPDATEs that fill them left behind."""
+    columns = after.get("avg_column_bytes") or {}
+    half, bit = columns.get("embedding_half"), columns.get("embedding_bit")
+    grown = (f"The table (heap and TOAST) grew from {_mib(before['table_bytes_with_toast'])} to {_mib(after['table_bytes_with_toast'])} "
+             f"(the heap from {_mib(before.get('heap_bytes'))} to {_mib(after.get('heap_bytes'))})")
+    if half is None or bit is None or not after.get("rows"):
+        return grown + "."
+    own = (half + bit) * after["rows"]
+    growth = after["table_bytes_with_toast"] - before["table_bytes_with_toast"]
+    share = "most of that growth is not the copies' own size" if own < growth / 2 else "part of that growth is not the copies' own size"
+    return (f"Both copies stay next to the float32 column: they average {half} and {bit} bytes per row, about {_mib(own)} over {after['rows']} rows. {grown}: each copy is "
+            "filled by an UPDATE of every row, which leaves the old row versions behind, and the plain VACUUM before the REINDEX marks their space reusable but keeps it in "
+            f"the file, so {share}.")
 
 
 PARITY_NEURAL_CONFIG = "in_memory:hybrid+bge-rerank+router+staleness@bge-small/fp16-512/top20/staleness-first"
@@ -1607,6 +1874,8 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
         "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),
+        "bench-served-scale": served_scale_table(_load(root, SERVED_SCALE_FILE), _load(root, SERVED_SCALE_PRE_M20_FILE)),
+        "bench-pgvector-hnsw": pgvector_hnsw_table(_load(root, PGVECTOR_HNSW_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),
         "api-latency": latency_table(root),
         "bench-jury": jury_table(_load(root, JURY_FILE)),
