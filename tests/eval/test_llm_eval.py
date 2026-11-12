@@ -185,6 +185,26 @@ def test_a_model_run_refuses_a_tag_without_a_digest(fake_ollama):
         llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-b"], limit=1, base_url=url)
 
 
+def test_a_run_refuses_to_record_answers_when_the_reranker_falls_back(monkeypatch):
+    """The answers would come from another retrieval than the config names, so the run stops before any model call."""
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    real = llm_eval.build_index
+
+    def fell_back(*args, **kwargs):  # what build_index records when the configured cross-encoder did not load
+        index = real(*args, **kwargs)
+        index.reranker_fallback = "overlap"
+        return index
+
+    monkeypatch.setattr(llm_eval, "build_index", fell_back)
+    calls = []
+    with pytest.raises(SystemExit, match="did not load"):
+        llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=1,
+                     complete_fn=lambda prompt: calls.append(prompt) or "")
+    assert calls == []
+
+
 def test_exact_match_label_treats_equal_numbers_as_equal():
     from app.eval.judge import exact_match_label
 
@@ -552,6 +572,51 @@ def test_calibration_answers_are_judged_cited_or_not():
                         complete_fn=uncited, calibration_generator="fake-small")
     assert all(r.get("failed") == "uncited_answer" and not r["correctness"] for r in blob["rows"])
     assert all(r["checks"]["uncited"] and r["correctness"]["fake-a"]["by"] == "judge" for r in blob["calibration"]["rows"])
+
+
+def test_a_planted_context_with_nothing_replaced_is_not_a_probe(tmp_path, monkeypatch):
+    """Where the gold value is nowhere in the retrieved chunks, the planted context equals the retrieved one: that row
+    is kept in the file, no judge is asked, and it is left out of the reference, in the run and in a rescore."""
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    real = llm_eval.plant
+
+    def plant(hits, gold_value, planted):  # q001 is the only question of the first five with this gold
+        return (list(hits), 0) if gold_value == "1e-04" else real(hits, gold_value, planted)
+
+    monkeypatch.setattr(llm_eval, "plant", plant)
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=5,
+                        complete_fn=_echo_and_exact_judge, calibration_generator="fake-small")
+    rows = blob["calibration"]["rows"]
+    blank = next(r for r in rows if r["id"] == "q001" and r["condition"] == "planted")
+    assert blank["replacements"] == 0 and not blank["probe"] and blank["correctness"] == {}
+    assert all(r["probe"] and r["correctness"] for r in rows if r is not blank)
+    ref = blob["summary"]["reference"]
+    assert ref["left_out_not_planted"] == 1 and ref["n"] == 9 and blob["summary"]["kappa"]["fake-a"]["n"] == 9
+    path = tmp_path / "jury_v2.json"
+    path.write_text(json.dumps(blob))
+    assert llm_eval.rescore(path)["summary"] == blob["summary"]
+
+
+def test_rescore_refuses_another_planted_value_or_other_abstentions_in_the_calibration_set(tmp_path):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=["fake-a"], limit=3,
+                        complete_fn=_echo_and_exact_judge, calibration_generator="fake-small")
+    path = tmp_path / "jury_v2.json"
+    planted = next(r for r in blob["calibration"]["rows"] if r["condition"] == "planted")
+    stored = planted["planted_value"]
+    planted["planted_value"] = f"{stored}0"
+    path.write_text(json.dumps(blob))
+    with pytest.raises(SystemExit, match="planted value would be"):
+        llm_eval.rescore(path)
+    planted["planted_value"] = stored
+    blob["calibration"]["rows"][0]["answer"] = NOT_IN_SOURCES  # the stored checks say it was not a pure abstention
+    path.write_text(json.dumps(blob))
+    with pytest.raises(SystemExit, match="abstention rule"):
+        llm_eval.rescore(path)
 
 
 def test_the_readme_block_renders_the_calibration_gate_and_links_the_earlier_record():
