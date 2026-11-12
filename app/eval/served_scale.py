@@ -91,7 +91,7 @@ HNSW_STAGES = ("files", "index", "hnsw", "variants")  # pgvector_hnsw.json
 SERVER_SETTINGS = ("shared_buffers", "maintenance_work_mem", "work_mem", "effective_cache_size", "max_parallel_maintenance_workers",
                    "max_parallel_workers_per_gather", "jit", "synchronous_commit", "random_page_cost")
 SOURCES = ("app/eval/served_scale.py", "app/eval/beir_api.py", "app/eval/service.py", "app/eval/beir.py", "app/eval/http_load.py", "app/engine/ingest.py", "app/database/migrate.py",
-           "app/eval/ingest.py", "app/engine/bootstrap.py", "app/engine/retriever.py", "app/database/vector_store_manager.py",
+           "app/eval/ingest.py", "app/engine/bootstrap.py", "app/engine/ingest_scale.py", "app/engine/retriever.py", "app/database/vector_store_manager.py",
            "app/database/sql/hybrid_tsrank.sql", "app/api/routers/retrieve.py", "main.py", "app/eval/pgvector_hnsw.py")
 _VECTOR_LITERAL = re.compile(r"'\[[-0-9.,eE+ ]*\]'::(vector|halfvec)")
 _SCAN = re.compile(r"(Parallel Seq Scan|Seq Scan|Index Scan|Index Only Scan|Bitmap Heap Scan|Bitmap Index Scan)(?: Backward)?(?: using (\S+))? on (\S+)(?: (\w+))?")

@@ -395,3 +395,9 @@ def test_the_load_note_says_whether_the_api_had_just_served_the_replay(tmp_path,
     run.stage_replay("api:hybrid+rerank")  # starts the API, as the replay stage of a full run does
     assert run.stage_load()["report"]["workload_note"].endswith("; the API had served replay_rerank in this process, without a restart")
     run.close()
+
+
+def test_the_results_file_hashes_the_modules_that_produce_its_numbers():
+    """source_sha256 names the code behind the file: the index step, the start-up reads and their text-read counter among it."""
+    for rel in ("app/engine/ingest.py", "app/engine/bootstrap.py", "app/engine/ingest_scale.py", "app/eval/service.py", "app/database/vector_store_manager.py"):
+        assert rel in served_scale.SOURCES and (ROOT / rel).exists()
