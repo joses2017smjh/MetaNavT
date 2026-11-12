@@ -29,6 +29,8 @@ FILES = {
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
+    "rrf_sweep": "bench/results/rrf_sweep.json",
+    "hybrid_drops": "bench/results/hybrid_drops_bge_base.json",
 }
 
 
@@ -144,6 +146,8 @@ def claims(root: Path = ROOT) -> list[dict]:
                 d, ci = _ci(c.get("ndcg@10"), "delta")
                 out.append({"claim": "Fixture v1: bge-small + reranker vs hash + reranker (does the first stage matter once the reranker is on?), paired delta in nDCG@10", "value": d, "ci": ci, "n": n, "command": "make bench-neural", "source": src,
                             "not_shown": f"a tie because the reranker rescores {by[c['row']]['settings']['retrieve_k']} of {by[c['row']]['n_chunks']} chunks; it says nothing about corpora where the first stage is a real filter"})
+    out += _rrf_sweep_claims(root)
+    out += _hybrid_drops_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -292,6 +296,68 @@ def _rerank_arm_claims(root: Path = ROOT) -> list[dict]:
                             "not_shown": f"verdict from the interval: {verdict(d)}; {stand_in}; rerank step p50 {lat.get('p50_ms')} ms vs {tlat.get('p50_ms')} ms for the cross-encoder on the GPU; "
                                          f"{reranks} of a {blob['n_files']}-file synthetic fixture"})
     return out
+
+
+def _rrf_sweep_claims(root: Path = ROOT) -> list[dict]:
+    """The RRF setting chosen on the tune half, against the default setting on the held-out half; the default it leaves in
+    place (read from the file, as every other number of the row)."""
+    from app.eval.report import verdict
+
+    blob = _load(FILES["rrf_sweep"], root)
+    if not blob:
+        return []
+    d, grid = blob["decision"], blob["grid"]
+    k0, w0 = d["default"]["k"], d["default"]["weights"]
+    base = f"k = {k0} with " + ("equal weights" if w0["dense"] == w0["bm25"] else f"dense weight {w0['dense'] / w0['bm25']:g}")
+    src, cmd = f"{FILES['rrf_sweep']} @ {blob['git_sha']}", "make bench-rrf-sweep"
+    model = blob["models"]["embedder"]["model"].split("/")[-1]
+    head = f"Fixture v1, RRF k and dense-vs-BM25 list weight chosen on the tune half of the gold questions ({model}, no reranker)"
+    chosen = (f"chosen by the best tune-half nDCG@10 among {len(grid['k']) * len(grid['dense_weight'])} settings "
+              f"(k in {', '.join(map(str, grid['k']))}; dense weight in {', '.join(f'{w:g}' for w in grid['dense_weight'])}; BM25 weight 1), "
+              f"so the tune-half numbers are in-sample")
+    rep = blob.get("reproduces") or {}
+    tail = (f"the default setting's lists reproduce the committed {', '.join(rep['rows'])} rows; " if rep.get("all") else "")
+    tail += f"a {blob['n_files']}-file synthetic fixture"
+    if d["chosen_is_default"]:
+        return [{"claim": f"{head}: the tune half chose the default, {base}", "value": "the default", "ci": "—",
+                 "n": len(blob["split"]["tune_ids"]), "command": cmd, "source": src,
+                 "not_shown": f"{chosen}; nothing to compare on the held-out half, and no evidence that k = {k0} is best; {tail}"}]
+    block = d["held_out_ndcg@10"]
+    value, ci = _ci(block, "delta", digits=4)  # the file's precision: a small delta at 3 decimals reads larger than it is
+    stays = ("the interval excludes zero in favour of the chosen setting; the default is unchanged until the owner decides "
+             "(every hybrid row of main.json and neural.json would be re-recorded)" if d["owner_decision_needed"] else
+             f"the default stays {base} (it changes only if this interval excludes zero in favour of the chosen setting)")
+    w = d["chosen"]["weights"]["dense"]
+    return [{"claim": f"{head}: k = {d['chosen']['k']}, dense weight {w:g} minus {base}, paired delta in nDCG@10 on the held-out half",
+             "value": value, "ci": ci, "n": len(blob["split"]["held_out_ids"]), "command": cmd, "source": src,
+             "not_shown": f"verdict from the interval: {verdict(block)}; {stays}; {chosen}; {tail}"}]
+
+
+def _hybrid_drops_claims(root: Path = ROOT) -> list[dict]:
+    """The gold files hybrid@bge-base drops at Recall@50 against dense_only@bge-base: how many, and where they rank."""
+    blob = _load(FILES["hybrid_drops"], root)
+    if not blob:
+        return []
+    s, k, rows = blob["summary"], blob["retrieve_k"], blob["rows"]
+    drops = [d for q in blob["questions"] for d in q["dropped"]]
+    parts = [f"the Recall@50 delta {s['recall@50']['delta']:+.4f} ({rows['hybrid']} minus {rows['dense_only']}) is the net of these drops and gains"
+             + ("; every question that moves is listed in the file" if s["every_question_that_moves_is_listed"] else "")]
+    if drops:
+        dense, fused = [d["dense"]["chunk_rank"] for d in drops], [d["fused"]["chunk_rank"] for d in drops]
+        parts.append(f"{s['dropped_with_no_chunk_in_bm25_list']} of the {len(drops)} dropped files have no chunk in BM25's top {k}; their best chunks "
+                     f"rank {min(dense)}-{max(dense)} in dense's top {k} and {min(fused)}-{max(fused)} in the fused list, which is cut at {k}")
+        cats = s["dropped_by_category"]
+        parts.append(f"every drop is a {next(iter(cats))} question" if len(cats) == 1 else "drops by category: " + ", ".join(f"{c} {n}" for c, n in cats.items()))
+        if s["dropped_tied_with_cut"]:
+            parts.append(f"{s['dropped_tied_with_cut']} of the drops tie the score of the last chunk kept")
+    rep = blob.get("reproduces") or {}
+    if rep.get("all"):
+        parts.append(f"the file's lists reproduce the committed {', '.join(rep['rows'])} rows")
+    parts.append(f"a diagnosis of one pair of rows on a {blob['n_files']}-file synthetic fixture, not a retrieval-quality claim")
+    return [{"claim": f"Fixture v1, {rows['hybrid']} vs {rows['dense_only']}: gold files with a chunk in dense's top {k} chunks and none in the "
+                      f"fused top {k} (dropped from Recall@50), and the reverse (gained)",
+             "value": f"{s['n_dropped']} dropped on {s['n_questions_with_drops']} questions, {s['n_gained']} gained", "ci": "—", "n": s["n_questions"],
+             "command": "make bench-hybrid-drops", "source": f"{FILES['hybrid_drops']} @ {blob['git_sha']}", "not_shown": "; ".join(parts)}]
 
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:

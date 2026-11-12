@@ -109,6 +109,14 @@ LISTWISE_MODEL ?=
 bench-rerank-arms: ## distilled students vs the cross-encoder they imitate (needs .[ml]; the LightGBM student needs .[distill], else it is recorded as not evaluated); LISTWISE_MODEL=<ollama model> adds the listwise LLM arm -> bench/results/rerank_arms.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.rerank_arms $(if $(LISTWISE_MODEL),--listwise-model $(LISTWISE_MODEL)) --out bench/results/rerank_arms.json
 
+.PHONY: bench-rrf-sweep
+bench-rrf-sweep: ## RRF k x dense-vs-BM25 weight chosen on the tune half of the gold questions (bge-small), then scored against k=60 on the held-out half (needs .[ml]; never changes the default) -> bench/results/rrf_sweep.json
+	$(PYTHON) -m app.eval.rrf_sweep --out bench/results/rrf_sweep.json
+
+.PHONY: bench-hybrid-drops
+bench-hybrid-drops: ## per question, the gold files hybrid@bge-base drops (and gains) at Recall@50 against dense_only@bge-base, with their dense, BM25 and fused ranks (needs .[ml]) -> bench/results/hybrid_drops_bge_base.json
+	$(PYTHON) -m app.eval.hybrid_drops --out bench/results/hybrid_drops_bge_base.json
+
 AGENT_MODELS ?= qwen2.5:7b,llama3.1:8b
 bench-agent-injection: ## LLM-in-the-loop injection, the first run's task set (agent_injection_v1, kept as recorded): real models choose MCP tool calls over planted text (needs Ollama)
 	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v1 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection.json --episodes bench/results/agent_injection_episodes.jsonl
