@@ -8,17 +8,42 @@ Search and propose_artifact use an index built over ROOT at start
 (filesystem.build_root_index: hash embedder and overlap reranker unless
 --embedder names another); --no-index, or a root with no indexable file,
 starts without one and those tools refuse.
+
+A call that raises is answered with isError and a text written here, never the
+exception's own text (an operating system error names the root's absolute path,
+and an error from below the tools can name a host or a user): a refusal names
+the check that refused it and the check's fixed description (REFUSAL_CHECKS, the
+text app/mcp/server_sdk.py sends for it), any other exception its class and an
+id. The exception's text goes to stderr under that id
+(app.observability.report_failure); stdout carries only the protocol.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any, TextIO
 
-from app.mcp.filesystem import DEFAULT_EMBEDDER, FilesystemTools, build_root_index, index_summary
+from app.mcp.approvals import REFUSAL_CHECKS
+from app.mcp.filesystem import DEFAULT_EMBEDDER, FilesystemTools, build_root_index, index_summary, refusal_check
+from app.observability import report_failure
+
+# Nothing in this process configures logging, so a WARNING goes to Python's last-resort handler: stderr.
+logger = logging.getLogger("app.mcp.server")
+
+
+def tool_error(name: Any, exc: Exception) -> str:
+    """What the client is told of a tool call that raised: a refusal's check and its fixed description, or the
+    exception's class and the id its text is logged under. Never the exception's text."""
+    check = refusal_check(exc)
+    if check is not None:  # anticipated: answered, not logged (apply_* refusals are in the audit trail)
+        reason = f"refused by the {check} check: {REFUSAL_CHECKS[check]}"
+    else:
+        _, reason = report_failure(logger, f"MCP tool {name!r}", exc, level=logging.WARNING)
+    return f"Error executing tool {name}: {reason}"
 
 
 class MCPServer:
@@ -56,7 +81,7 @@ class MCPServer:
                 return _ok(
                     msg_id,
                     {
-                        "content": [{"type": "text", "text": str(exc)}],
+                        "content": [{"type": "text", "text": tool_error(name, exc)}],
                         "isError": True,
                     },
                 )
