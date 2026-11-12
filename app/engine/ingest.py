@@ -18,7 +18,8 @@ another indexing process waits for at most INGEST_LOCK_TIMEOUT_SECONDS:
   4. fail before writing anything if rejections exceed INGEST_MAX_REJECTED;
   5. delete the rows of removed files; for each new or changed file embed its
      chunks, delete its old rows by path, insert the new ones, then list it in
-     the manifest;
+     the manifest with what the staleness clusters need from it (its mtime and
+     the node id of its last chunk), so start-up never reads chunk text back;
   6. delete chunks whose path the manifest does not list;
   7. verify: the rows per path must now equal the manifest's chunk counts, or
      the run raises IngestUnreconciled instead of reporting success.
@@ -206,7 +207,8 @@ def index_directory(
                 node.embedding = list(vector)
             chunks_deleted += vsm.forget_file(path)  # after embedding: an embedder failure leaves the old rows in place
             store.add(nodes)
-            vsm.record_file(path, source.sha256, len(nodes), pipeline)
+            # with the file's staleness record: its mtime and the member id a version cluster names (its last chunk)
+            vsm.record_file(path, source.sha256, len(nodes), pipeline, mtime=source.mtime, member_node_id=nodes[-1].node_id)
             chunks_embedded += len(nodes)
         unlisted = vsm.delete_unlisted_chunks()
         listed = vsm.ingest_manifest()

@@ -552,14 +552,6 @@ class VectorStoreManager(DatabaseManager):
                 cur.execute(settings + "EXPLAIN (ANALYZE, BUFFERS) " + self.hybrid_sql(backend), {**params, **settings_params})
                 return "\n".join(r[0] for r in cur.fetchall())
 
-    def fetch_all_chunks(self) -> list[dict]:
-        """node_id, text, metadata for every row (staleness clusters at startup)."""
-        with self.get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql.SQL("SELECT node_id, text, metadata_ FROM {table};").format(
-                    table=sql.Identifier(self.schema_name, self.data_table)))
-                return [{"node_id": r[0], "text": r[1], "metadata": r[2] or {}} for r in cur.fetchall()]
-
     @staticmethod
     def _bm25_rows(results) -> list[dict]:
         """Rows are (node_id, text, metadata_, score). metadata_ is JSON/JSONB, decoded by psycopg2."""
@@ -591,7 +583,9 @@ class VectorStoreManager(DatabaseManager):
     # manifest row is written only after its chunks are in the data table, and is
     # deleted in the same transaction as those chunks, so the manifest never lists a
     # file whose rows are missing. The table and the path index the per-file delete reads
-    # are schema migrations (migrations/vector/0002 and 0003), not created here.
+    # are schema migrations (migrations/vector/0002 and 0003), not created here. The row also
+    # carries what the staleness clusters need from the file (vector/0008: its mtime and the
+    # node id of its last chunk), so start-up builds them without reading a chunk.
 
     @property
     def manifest_table(self) -> str:
@@ -667,15 +661,31 @@ class VectorStoreManager(DatabaseManager):
                     table=sql.Identifier(self.schema_name, self.data_table)), (path,))
                 return int(cur.rowcount)
 
-    def record_file(self, path: str, content_hash: str, n_chunks: int, pipeline: str = "") -> None:
-        """List a file in the manifest. Call only after its chunks are committed to the data table."""
+    def record_file(
+        self, path: str, content_hash: str, n_chunks: int, pipeline: str = "", *, mtime: float | None = None, member_node_id: str | None = None
+    ) -> None:
+        """List a file in the manifest. Call only after its chunks are committed to the data table.
+
+        mtime and member_node_id (the node id of the file's last chunk) are what the staleness clusters read.
+        """
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL(
-                    "INSERT INTO {manifest} (path, content_hash, n_chunks, pipeline) VALUES (%s, %s, %s, %s) "
-                    "ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash, "
-                    "n_chunks = EXCLUDED.n_chunks, pipeline = EXCLUDED.pipeline, indexed_at = now();"
-                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)), (path, content_hash, int(n_chunks), pipeline))
+                    "INSERT INTO {manifest} (path, content_hash, n_chunks, pipeline, mtime, member_node_id) VALUES (%s, %s, %s, %s, %s, %s) "
+                    "ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash, n_chunks = EXCLUDED.n_chunks, "
+                    "pipeline = EXCLUDED.pipeline, mtime = EXCLUDED.mtime, member_node_id = EXCLUDED.member_node_id, indexed_at = now();"
+                ).format(manifest=sql.Identifier(self.schema_name, self.manifest_table)),
+                    (path, content_hash, int(n_chunks), pipeline, None if mtime is None else float(mtime), member_node_id))
+
+    def cluster_records(self) -> list[dict]:
+        """One record per listed file, what the staleness clusters are built from: path, content hash, mtime and
+        member node id, in path order (code point order, the order the indexer writes files in). No chunk is read."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("SELECT path, content_hash, mtime, member_node_id FROM {manifest};").format(
+                    manifest=sql.Identifier(self.schema_name, self.manifest_table)))
+                rows = cur.fetchall()
+        return [{"path": r[0], "content_hash": r[1], "mtime": r[2], "member_node_id": r[3]} for r in sorted(rows, key=lambda r: r[0])]
 
     def rows_per_path(self) -> dict[str, int]:
         """{path: chunk rows} for every row that carries a path, what the manifest's n_chunks must equal."""

@@ -86,21 +86,27 @@ class RetrievalState:
 
 
 def build_clusters(vsm) -> dict:
-    """Staleness Tier 1 version clusters over every indexed chunk (app/graph/staleness, unchanged)."""
-    chunks = []
-    for row in vsm.fetch_all_chunks():
-        meta = row["metadata"] or {}
-        chunks.append(
-            Chunk(
-                chunk_id=row["node_id"],
-                path=meta.get("path") or meta.get("file_path") or row["node_id"],
-                text=row["text"] or "",
-                start_byte=int(meta.get("start_byte") or 0),
-                end_byte=int(meta.get("end_byte") or 0),
-                mtime=float(meta.get("mtime") or 0.0),
-                content_hash=str(meta.get("content_hash") or ""),
-            )
+    """Staleness Tier 1 version clusters over every indexed file (app/graph/staleness.cluster_versions, unchanged).
+
+    Built from the manifest, one record per file (VectorStoreManager.cluster_records: path, content hash, mtime,
+    the node id of its last chunk), not from the chunks: it used to select node_id, text and metadata of every row
+    at every start. cluster_versions keys a file by its path, keeps per path the chunk with the newest mtime (all of
+    a file's chunks share it), and reads a chunk's text only to hash it when its content hash is empty, which a
+    manifest row never is; so one text-less record per file gives the clusters the rows gave, members in path order
+    (the order the indexer writes files in, so the order a freshly indexed table returned its rows in).
+    """
+    chunks = [
+        Chunk(
+            chunk_id=record["member_node_id"] or record["path"],
+            path=record["path"],
+            text="",
+            start_byte=0,
+            end_byte=0,
+            mtime=float(record["mtime"] or 0.0),
+            content_hash=str(record["content_hash"] or ""),
         )
+        for record in vsm.cluster_records()
+    ]
     return cluster_versions(chunks)
 
 
