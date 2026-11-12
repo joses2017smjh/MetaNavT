@@ -221,6 +221,25 @@ tests: undecodable text, byte duplicates, and a secret pattern that matches
 another name, or a JSON key whose closing quote comes before the colon, is not
 caught.
 
+Two checks outside fixture v1 run on this snapshot
+(`app/eval/robotics_checks.py`). `make bench-robotics-chunking` compares the
+structure-aware chunker with a fixed character window for every file, the
+change the fixture's `hybrid+fixed-chunks` row makes, here on files most of
+which are longer than one window. `make bench-robotics-multiquery` adds the
+multi-query rewrite of the fixture's `hybrid+multiquery` row to the same index,
+on questions its keyword rules were not written for. Both use the in-memory
+hybrid index with the path context in the BM25 leg and the hash embedder (no
+model, no reranker, no router). Both legs rank every chunk and the fused
+ranking is cut to its first distinct paths, so each arm is scored on the same
+number of files however many chunks a file has. The primary score is
+path-level nDCG@10; intervals come from the family bootstrap, on the
+development and test splits separately, with each arm paired with its parent.
+The configuration is written in the code (`DECLARATION`, pinned by
+`tests/eval/test_robotics_checks.py`) and was committed before the test split
+was scored; nothing was tuned on either split. The questions name each
+experiment by the words of its path, so an interval that covers zero does not
+show that the two chunkers find answers equally well.
+
 Opt in to the same search-only context with
 `build_index(..., include_path_context=True)`. The existing fixture remains the
 regression baseline. Human-reviewed temporal, multi-artifact and unanswerable

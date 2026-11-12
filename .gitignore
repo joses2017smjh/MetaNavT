@@ -46,6 +46,8 @@ bench/results/*.json
 !bench/results/jury.json
 !bench/results/robotics_file_lookup_2026-10-07.json
 !bench/results/robotics_file_lookup_revalidated_2026-10-07.json
+!bench/results/robotics_chunking.json
+!bench/results/robotics_multiquery.json
 
 # editable install metadata
 *.egg-info/
