@@ -77,6 +77,11 @@ bench/external/
 # the current injection run (make bench-agent-injection-v2): capability control and controls with neutral lines
 !bench/results/agent_injection_v2.json
 !bench/results/agent_injection_v2_episodes.meta.json
+# phrasings scored as any-success and the in-loop answer check (make bench-agent-injection-v3, or its shards merged by
+# make bench-agent-injection-v3-merge); the shard files stay untracked, the merged episodes file holds every row
+!bench/results/agent_injection_v3.json
+!bench/results/agent_injection_v3_episodes.meta.json
+bench/results/agent_injection_v3_shards/
 # prototype arms vs their parents (make bench-frontier, make bench-frontier-neural)
 !bench/results/frontier.json
 !bench/results/frontier_neural.json
