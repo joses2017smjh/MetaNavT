@@ -332,7 +332,8 @@ class PlanStore:
 
 
 class DecisionLog:
-    """plan_decisions table in Postgres, written through the vector store manager's pool."""
+    """plan_decisions table in Postgres, written through the vector store manager's pool: one row per approve or
+    reject attempt, from any replica, written before the action and updated with its result."""
 
     TABLE = "plan_decisions"
 
@@ -352,22 +353,26 @@ class DecisionLog:
             require_current(conn)
 
     def write(self, record: dict[str, Any]) -> None:
+        """Insert the attempt; its row id goes into record["log_id"], which update() needs."""
         with self.vsm.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"INSERT INTO {self.TABLE} (plan_id, src, dst, action, actor, note, decided_at, result, payload) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;",
                     (record["plan_id"], record["src"], record["dst"], record["action"], record.get("actor"), record.get("note"),
                      datetime.fromtimestamp(record["decided_at"], tz=timezone.utc), record["result"], json.dumps(record)),
                 )
+                record["log_id"] = int(cur.fetchone()[0])
             conn.commit()
 
     def update(self, record: dict[str, Any]) -> None:
+        """Set this attempt's result. It used to rewrite every row of the plan and action, so an earlier refusal
+        read as the later attempt's result."""
         with self.vsm.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    f"UPDATE {self.TABLE} SET result = %s, payload = %s WHERE plan_id = %s AND action = %s;",
-                    (record["result"], json.dumps(record), record["plan_id"], record["action"]),
+                    f"UPDATE {self.TABLE} SET result = %s, payload = %s WHERE id = %s;",
+                    (record["result"], json.dumps(record), record["log_id"]),
                 )
             conn.commit()
 

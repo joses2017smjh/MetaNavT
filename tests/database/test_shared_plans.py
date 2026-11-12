@@ -313,3 +313,20 @@ def test_two_approvals_with_two_valid_capabilities_move_the_file_once(deployment
     assert (root / "archive/run_047.yaml").exists()
     with sqlite3.connect(os.environ["METANAVIT_APPROVAL_LEDGER_FILE"]) as db:
         assert db.execute("SELECT count(*) FROM grants").fetchone()[0] == 1  # the second capability was never consumed
+
+
+def test_each_attempt_keeps_its_own_result_in_the_decision_log(deployment):
+    """The decision log records every approve / reject attempt; updating one attempt's result used to rewrite every
+    row of that plan and action, so a refusal on one replica read "applied" once another replica applied the plan."""
+    from fastapi import HTTPException
+
+    open_store, sign, sql, root = deployment
+    a, b = open_store(), open_store()
+    plan = a.create(SOURCE, "archive/run_047.yaml")
+    with pytest.raises(HTTPException) as refused:
+        a.decide(plan.plan_id, "approve", "web-ui", None, None)  # no capability
+    assert _status(refused) == 403
+    b.decide(plan.plan_id, "approve", "operator", None, sign(plan.review))
+    attempts = [(r["action"], r["actor"], r["result"]) for r in a.log.recent(10)]
+    assert attempts[0] == ("approve", "operator", "applied")
+    assert attempts[1][:2] == ("approve", "web-ui") and attempts[1][2].startswith("refused: ") and len(attempts) == 2
