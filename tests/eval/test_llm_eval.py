@@ -799,6 +799,8 @@ def test_both_answers_of_a_question_move_together(monkeypatch):
     pairs = [(r["checks"]["exact_match_label"], r["correctness"]["j"]["label"]) for r in cal]
     assert llm_eval.kappa_interval(pairs, [f"{r['id']}:{r['condition']}" for r in cal]) == _by_answer(cal, lambda r: r["correctness"]["j"]["label"])
     assert llm_eval.kappa_interval(pairs[:2], ["q000", "q000"]) is None  # one question: nothing to resample
+    with pytest.raises(ValueError, match="question ids"):  # every pair needs its question
+        llm_eval.kappa_interval(pairs, [r["id"] for r in cal][:-1])
 
 
 def test_the_verdict_reads_correctly_for_one_or_several_published_judges():
@@ -823,3 +825,6 @@ def test_the_evidence_rows_say_what_the_interval_resamples():
         kappas = [r for r in evidence._jury_v2_claims(blob, "bench/results/jury_v2.json") if "kappa" in r["claim"] and "vs exact-match labels" in r["claim"]]
         assert [r["claim"].split(":")[0] for r in kappas] == ["Judge gen", "Judge other", "Jury majority (two judge models, correctness verdicts)"]
         assert all(r["not_shown"].endswith(f"; {method}") and unit in r["not_shown"] for r in kappas), kappas
+    del blob["summary"]["interval"]  # a file that names no method gets the generic phrase, never "None"
+    kappas = [r for r in evidence._jury_v2_claims(blob, "bench/results/jury_v2.json") if "vs exact-match labels" in r["claim"]]
+    assert kappas and all(r["not_shown"].endswith("; percentile bootstrap interval") and "None" not in r["not_shown"] for r in kappas)
