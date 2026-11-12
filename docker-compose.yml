@@ -12,7 +12,9 @@ services:
   db:
     # pgvector only, without ParadeDB's pg_search (true BM25): lexical search is Postgres
     # ts_rank_cd, LEXICAL_BACKEND's default; /health reports bm25_backend.
-    image: pgvector/pgvector:pg16
+    # Pinned by digest, as is every image here, in the Dockerfile and in CI (refresh: doc/engineering-reference.md,
+    # Pinned base images). pg16 = 0.8.7-pg16 (pgvector 0.8.7, PostgreSQL 16.15, Debian bookworm) on 2026-11-11.
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -82,7 +84,8 @@ services:
     # docker compose --profile otel up --build : Jaeger UI on :16686, OTLP/HTTP on :4318.
     # The API exports spans only when OTEL_EXPORTER_OTLP_ENDPOINT is set and the image
     # was built with EXTRAS=app,otel; otherwise spans are no-ops (/health.observability).
-    image: jaegertracing/all-in-one:1.60
+    # 1.60 = 1.60.0, pinned by digest (refresh: doc/engineering-reference.md, Pinned base images).
+    image: jaegertracing/all-in-one:1.60@sha256:4fd2d70fa347d6a47e79fcb06b1c177e6079f92cba88b083153d56263082135e
     profiles: ["otel"]
     ports:
       - "16686:16686"

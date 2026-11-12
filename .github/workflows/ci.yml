@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # docker-ml-smoke once a week (owner decision OD18): Sundays 09:41 UTC, night in US Pacific
+  # time and off the top of the hour, when GitHub delays scheduled runs most. GitHub runs a
+  # schedule on the default branch only, and a scheduled run runs that job alone.
+  schedule:
+    - cron: "41 9 * * 0"
   workflow_dispatch:
     inputs:
       ml_smoke:
@@ -13,7 +18,9 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A scheduled run gets a group of its own: it runs on refs/heads/main like a push to main, and
+  # in one group with cancel-in-progress a merge would cancel the weekly smoke, or the smoke a push run.
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'schedule' && '-schedule' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +29,7 @@ jobs:
     # syntax errors, undefined names, shadowed imports. Also checks that the pinned
     # requirement files every other job installs still cover pyproject.toml.
     name: lint (ruff) + lock check
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -41,6 +49,7 @@ jobs:
   eval:
     # Frozen fixture v1, hash embeddings, overlap reranker: no downloads, no database.
     name: eval (py${{ matrix.python }})
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -78,6 +87,7 @@ jobs:
   unit:
     # FastAPI + LlamaIndex stack installed, no Postgres: import-time side effects would fail here.
     name: unit + engine + api (app extra, no database)
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -108,11 +118,13 @@ jobs:
     # the step fails only when the API is broken or bench/corpus/files differs from its
     # MANIFEST (app/eval/parity.py).
     name: parity (API over Postgres vs in-memory bench)
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        # the digest docker-compose.yml pins (pg16 = 0.8.7-pg16 on 2026-11-11); refresh both together
+        image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
@@ -176,6 +188,7 @@ jobs:
     # bench/corpus/files with the hash embedder, then starts the server), POST one query,
     # require hits with non-null paths.
     name: docker compose smoke
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -194,12 +207,14 @@ jobs:
         run: docker compose down -v
 
   docker-ml-smoke:
-    # Manual: builds the CPU real-model stack once, confirms the reranker loads on CPU
-    # (/health.reranker.loaded, no degraded components) and records per-query latency
-    # over the 136 gold questions as an artifact. Not part of every push: it downloads
-    # about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
-    name: docker compose ml smoke (CPU, manual)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ml_smoke }}
+    # Weekly (the schedule above) and on a manual run with ml_smoke: builds the CPU real-model
+    # stack from the pinned files (requirements/ml.txt, torch's CPU wheel; the Next.js export
+    # too), confirms the reranker loads on CPU (/health.reranker.loaded, no degraded components)
+    # and records per-query latency over the 136 gold questions as an artifact. Not part of
+    # every push: it downloads about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
+    # docker-compose.gpu.yml has no job: hosted runners have no GPU, so it is built by hand only.
+    name: docker compose ml smoke (CPU, weekly + manual)
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.ml_smoke) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

@@ -34,6 +34,37 @@ def test_every_profile_in_the_makefile_lock_target_is_checked():
     assert makefile.count("$(PIP_COMPILE) ") == len(check_lock.PROFILES)
 
 
+def test_the_ml_and_otel_extras_have_pinned_files():
+    """The image installs each extra in EXTRAS from its pinned file. Before M33 ml and otel had none: the image
+    resolved their ranges at build time, and torch from an index with no version."""
+    assert check_lock.PROFILES["requirements/ml.txt"] == ("ml",)
+    assert check_lock.PROFILES["requirements/otel.txt"] == ("otel",)
+
+
+def test_the_ml_file_pins_the_cpu_torch_wheel_and_no_cuda_package():
+    """The image installs requirements/ml.txt with --no-deps, so the file is exactly what the CPU image gets: torch's
+    CPU build from PyTorch's CPU index (the index line is in the file, so `pip install -r` finds the wheel), and none
+    of the CUDA packages that PyPI's torch for Linux would add."""
+    path = ROOT / "requirements" / "ml.txt"
+    pins = check_lock.read_pins(path)
+    assert pins["torch"].endswith("+cpu"), pins["torch"]
+    assert "--extra-index-url https://download.pytorch.org/whl/cpu" in path.read_text().splitlines()
+    assert sorted(name for name in pins if name.startswith(("nvidia-", "cuda-")) or name == "triton") == []
+
+
+def test_the_image_files_also_pin_setuptools():
+    """The image installs app.txt, ml.txt and otel.txt with --no-deps and then runs pip check, so they must pin every
+    package the image needs. pip-compile leaves setuptools out unless --allow-unsafe, and llama-index-core (in app.txt
+    and ml.txt) needs a newer setuptools than python:3.11-slim ships (torch's setuptools>=77.0.3 is met by the image's
+    79.0.1; otel.txt needs none); pip used to fetch the newest one, unpinned, while it resolved app.txt (found by
+    running the install step in the pinned base image)."""
+    for name in ("app", "ml", "otel"):
+        lines = (ROOT / "requirements" / f"{name}.txt").read_text().splitlines()
+        assert "# setuptools" not in lines and "# pip" not in lines, name  # how pip-compile lists one it left unpinned
+    for name in ("app", "ml"):
+        assert "setuptools" in check_lock.read_pins(ROOT / "requirements" / f"{name}.txt"), name
+
+
 def test_a_dependency_missing_from_the_lock_is_reported(tmp_path):
     root = _copy(tmp_path)
     target = root / "requirements.txt"

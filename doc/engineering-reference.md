@@ -111,6 +111,17 @@ localhost refers to the phone. HTTP loopback URLs are available only in the web 
 as a fixture replay. The web demo allows only origins configured with
 `MOBILE_DEMO_ORIGINS`.
 
+CI's mobile workflow (`.github/workflows/mobile-app.yml`) starts the research
+companion in demo mode (scripted decisions over its real retrieval and
+inspection tools; no model, no key) and points the browser test
+`mobile/e2e/connected.spec.ts` at it with `AGENT_E2E_URL`, so the app's research
+agent panel is exercised against the real service over HTTP. A skipped test
+leaves Playwright's exit code at zero, so a guard step
+(`scripts/require_playwright_tests.py`, reading Playwright's JSON report) fails
+the job unless that test passed in every viewport project. The file's other
+test, the soccer workflow, needs the Agentic-Soccer repository's servers and
+still skips in CI; `mobile/e2e/run-connected.py` runs both by hand.
+
 ### Measured neural HTTP service
 
 The original FastAPI/PostgreSQL 16/pgvector service now has explicit device
@@ -474,7 +485,7 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
 
-The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the manual `docker-ml-smoke` CI job together with the CPU real-model stack, not on every push.
+The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); the Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
 
 <p align="center">
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
@@ -1699,16 +1710,59 @@ Models in `.env`: `qwen2.5:14b` via Ollama, `BAAI/bge-large-en-v1.5` (1024d), `B
 `pyproject.toml` is the single dependency spec (version ranges). `make lock`
 resolves it into pinned files: `requirements.txt` (eval + app) and one
 `requirements/<profile>.txt` per install profile (`eval`, `app`, `mobile`,
-`agent`, `dev`), each compiled under `requirements.txt` as a constraint so a
-package has the same version in every file. The image and every CI job install
-their pinned file first and then the package with `--no-deps`
-(`make install-locked` does the same locally); `make lock-check`, which is
+`agent`, `dev`, `distill`, `ml`, `otel`), each compiled under `requirements.txt` as a constraint so a
+package has the same version in every file. Every CI job that imports the
+package installs its pinned file first and then the package with `--no-deps`,
+as `make install-locked` does locally; the lint job installs only
+`requirements/dev.txt`. The image installs
+`requirements/app.txt`, then the file of each other extra named in its
+`EXTRAS` build argument (`ml`, `otel`), all with `--no-deps`, and runs
+`pip check`; an extra with no pinned file stops the build. It then installs the
+package itself with `--no-deps --no-build-isolation`, so the package is built
+with the pinned setuptools rather than one pip fetches for `[build-system]`.
+`requirements/ml.txt` is resolved with PyTorch's CPU wheel index next to PyPI,
+so torch is pinned as its CPU build and the file holds no CUDA package. The
+image's three files are compiled with `--allow-unsafe`, so `app.txt` and
+`ml.txt` pin setuptools (`otel.txt` needs none): `llama-index-core` needs a
+newer one than the base image ships, which pip used to fetch, unpinned, while
+it resolved `app.txt`. There is no Docker on the development host, so
+`tests/eval/test_image_build.py` runs the image's install step under `sh` with
+a stand-in `pip`. The CUDA override (`docker-compose.gpu.yml`, built by hand
+only) takes every ml pin but torch from `requirements/ml.txt` and installs the
+same torch release from the CUDA wheel index `docker-compose.gpu.yml` names; the CUDA packages
+torch requires are resolved at build time, so that build is not reproducible
+from a lock file. The torch range in `pyproject.toml` stops below the first
+release that index lacks. `make lock-check`, which is
 also a test and a CI step, fails when a pinned file no longer covers
-`pyproject.toml`. The `ml` and `otel` extras have no pinned file: the image
-installs them from their ranges with the pinned app file as a constraint, so
-they are not reproducible to the same degree. `make lint` runs ruff with the
+`pyproject.toml`. `make lint` runs ruff with the
 narrow defect-only rule set in `pyproject.toml` (syntax errors, undefined
 names, shadowed imports); CI runs it as its own job.
+
+**Pinned base images.** Every image a build or a CI run pulls is pinned by
+digest: the Dockerfile's `# syntax` frontend and its three `FROM` images, the
+Postgres image of `docker-compose.yml` and of CI's parity job, the optional
+Jaeger image, and the Node image of `.frontend/Dockerfile` (a standalone
+Next.js image that no Compose file or CI job builds). Each reference keeps the tag it was looked up from in front of
+the digest (`name:tag@sha256:...`), and a comment beside it names the release
+that tag pointed to on that day, so a tag that moves later does not change the
+build. The digest is the multi-platform index's, so other architectures still
+resolve. `tests/eval/test_image_build.py` fails on a reference without one. To
+move to a newer image, look up the tag's current index digest, replace digest
+and comment together (the Postgres image is named in both `docker-compose.yml`
+and `ci.yml`), and let CI rebuild: docker-smoke builds the default image, the
+Node stage is built only with `WITH_FRONTEND=1` (docker-ml-smoke), and no job
+pulls Jaeger (`--profile otel`) or builds `.frontend/Dockerfile`.
+
+```bash
+docker buildx imagetools inspect python:3.11-slim     # the "Digest:" line
+# without Docker, from the registry (Docker Hub here; library/ for official images):
+repo=library/python tag=3.11-slim
+token=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$repo:pull" \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["token"])')
+curl -sI -H "Authorization: Bearer $token" \
+     -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+     "https://registry-1.docker.io/v2/$repo/manifests/$tag" | grep -i docker-content-digest
+```
 
 Pick the extra for what you want to run:
 
@@ -1748,6 +1802,17 @@ docker compose down -v   # the table width changes from 256 to 1024
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
 
+CI builds and starts this CPU real-model stack in its `docker-ml-smoke` job
+once a week (the `schedule` in `.github/workflows/ci.yml`; a scheduled run
+runs that job alone, on `main`) and when the workflow is started by hand with
+`ml_smoke`; a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
+its latency step wrote the file.
+GitHub turns off the scheduled workflows of a public repository that has had
+no activity for a while (see GitHub's documentation on disabling and enabling
+workflows), so after a quiet spell the schedule has to be switched back on in
+the Actions tab. The CUDA override, `docker-compose.gpu.yml`, has no CI job:
+GitHub's hosted runners have no GPU, so it is built and run by hand only.
+
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash
@@ -1770,7 +1835,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 ## What we are not claiming
 
-**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans are shared through Postgres, but only by replicas that see `DATA_DIR` at the same path on the same filesystem. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for the `eval`, `app`, `mobile`, `agent` and `dev` profiles; the `ml` and `otel` extras and the base images are not pinned.
+**The API is not a hardened multi-replica service.** Authentication is off unless `METANAVIT_API_KEY` is set, and then it is a single shared key with no users or roles. The request budget is counted per process, so it is not a global rate limit. Pending file plans are shared through Postgres, but only by replicas that see `DATA_DIR` at the same path on the same filesystem. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest, except: outside the image setuptools is not pinned (`requirements.txt` and `requirements/dev.txt` leave it unpinned, `dev.txt` leaves pip unpinned too, and the CI jobs' `pip install --no-deps -e .` builds the package with the newest setuptools `[build-system]` allows), and the CUDA packages of the hand-built GPU override are resolved at build time.
 
 **RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
 
