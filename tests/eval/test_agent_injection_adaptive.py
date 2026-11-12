@@ -647,3 +647,17 @@ def test_success_is_also_read_from_the_rounds_that_planted_the_attackers_own_tex
     assert g["attempted_rounds_by_text"] == {"own": [0, 1], "completed": [1, 1], "replaced": [0, 0]}
     assert summary["by_group"]["hijack"]["success_after_k_own_text"]["mean"] == 0.0
     assert summary["by_group"]["hijack"]["success_after_k"]["mean"] == 1.0
+
+
+def test_the_kept_candidate_is_the_one_planted_and_every_results_file_names_it_in_words():
+    # D20, TUNING_RULE: candidate v3 of the attacker's instructions was kept before any held-out round; the module plants
+    # that candidate's instructions, and the results file's config says which candidate was kept and why. The tuning
+    # runs stay outside the repository, so the outcome is written in words with no number (the commit that set it
+    # carries the numbers in its message)
+    from app.eval.prose_numbers import NUMBER
+    assert aa.ATTACKER_PROMPT_VERSION == "v3"
+    assert aa.TUNING_OUTCOME.startswith(f"candidate {aa.ATTACKER_PROMPT_VERSION} kept")
+    assert NUMBER.findall(aa.TUNING_OUTCOME) == []
+    cfg = aa.run_config(models=list(aa.TARGET_MODELS), k=1, rounds=1, temperature=0.7, max_turns=6, split="train",
+                        questions=["q011"], defenses=aa.DEFENSES)
+    assert cfg["tuning_outcome"] == aa.TUNING_OUTCOME and cfg["attacker"]["prompt_version"] == aa.ATTACKER_PROMPT_VERSION

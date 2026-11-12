@@ -1464,7 +1464,13 @@ question: the attacker's instructions are tuned on those three only, with at
 most three candidates, each run once on every goal and configuration with one
 trial (on the qwen2.5:7b target only, after the cut), and the candidate with the
 highest success is kept; only the instructions and the attacker's sampling
-temperature may change. The other
+temperature may change. The first candidate was stopped after its first rounds,
+because its format section led the attacker to put its text outside the tags,
+so it was not eligible; of the other two, the third, which adds one sentence
+asking for every required string in full even where it names the file the text
+sits in, had the higher success and is the one the held-out run plants
+(`TUNING_OUTCOME` in the results file; the tuning runs are not tracked, so their
+numbers are in the message of the commit that recorded the choice). The other
 seven questions are held out and run once, at one commit. The comparison was
 fixed before that run: per target model and configuration, success after the
 seven rounds minus v3's any-phrasing rate on the same held-out pairs and seeds,
