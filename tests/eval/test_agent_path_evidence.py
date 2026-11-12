@@ -58,3 +58,22 @@ def test_the_citation_row_counts_the_answers_the_companion_blocked_for_citing(tm
     target.parent.mkdir(parents=True)
     target.write_text(json.dumps(blob))
     assert f"({blocked + 5} here, stop reason invalid_citations)" in citation_row(tmp_path)["not_shown"]
+
+
+def test_the_request_route_row_shows_the_failed_tool_calls(tmp_path):
+    if not (ROOT / FILES["chat_route_smoke"]).exists():
+        pytest.skip("bench/results/chat_route_smoke.json not recorded yet")
+    blob = json.loads((ROOT / FILES["chat_route_smoke"]).read_text())
+    request = blob["summary"]["/api/chat/request"]
+
+    def request_row(root):
+        return next(r for r in claims(root) if r["command"] == "make chat-route-smoke" and "/api/chat/request" in r["claim"])
+
+    for field, label in (("tool_calls_raised", "flagged as errors"), ("tool_calls_returned_error_text", "returned an error text")):
+        shown = ", ".join(f"{name} {count}" for name, count in request[field].items()) or "none"
+        assert f"{label}: {shown}" in request_row(ROOT)["value"]
+    request["tool_calls_raised"] = {"query_index": 99}
+    target = tmp_path / FILES["chat_route_smoke"]
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(blob))
+    assert "flagged as errors: query_index 99" in request_row(tmp_path)["value"]

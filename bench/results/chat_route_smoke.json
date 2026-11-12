@@ -1,11 +1,11 @@
 {
  "benchmark": "chat_route_smoke_v1",
  "scope": "POST /api/chat and POST /api/chat/request of main:app with a local Ollama model, on the default stack (hash embeddings, ts_rank_cd, no reranker) over fixture v1, code execution off. One request per question and route, one at a time, after a warm-up. A smoke run of the routes: status, latency, tool calls; not an accuracy measurement.",
- "run_at_utc": "2026-11-12T00:01:56+00:00",
- "git_head": "5b062d80fe25fc58469f2ac235be3c8649f1ec3b",
+ "run_at_utc": "2026-11-12T00:50:14+00:00",
+ "git_head": "44d2c5f5da666c3cd7c753dcf75d42bb96a5bd11",
  "working_tree_dirty": false,
  "source_sha256": {
-  "app/eval/chat_smoke.py": "088a8fc5d55dcbdbee6a4b5ecde1a922594a5911ed379896ec5275eaee390502",
+  "app/eval/chat_smoke.py": "fab914d794859a31bc837b2bfeda9e2f3849da136219ca4b5ac25842c8f77e19",
   "app/eval/served_stack.py": "6abe2a34448772f37b61f4af1e0ccf0d6d667af155a795bec678de5b2d7851e3",
   "app/api/routers/chat.py": "6a6cdbb5ef9e1ecf83ca4cd9dee123e8c2bd1ae21f01a32e257dc6a2613190e3",
   "app/engine/engine.py": "3ab9057c42db5f36921ca27ba58556a59ded6be36f3ac29ac46f97d9c827c216",
@@ -43,10 +43,10 @@
     "context_length": 32768
    }
   ],
-  "warm_up_s": 6.088
+  "warm_up_s": 6.367
  },
  "device": {
-  "gpu": "Tesla V100-SXM3-32GB"
+  "gpu": "NVIDIA A40"
  },
  "chat_llm": {
   "class": "Ollama",
@@ -67,7 +67,7 @@
  "served_api": {
   "corpus": "task-local copy of bench/corpus/files (fixture v1, MANIFEST mtimes)",
   "corpus_sha256": "9cfc24ce2eff3e1cf2fe4bbe0dfd848aadfab823b5ce12fbc17bc9a14b9a39de",
-  "startup_s": 7.23,
+  "startup_s": 8.245,
   "health": {
    "status": "ok",
    "n_nodes": 71,
@@ -102,7 +102,7 @@
    },
    "degraded": [],
    "indexing": {
-    "schema": "ingest-report-v1",
+    "schema": "ingest-report-v2",
     "chunker": "app/chunking (structure-aware)",
     "files_seen": 61,
     "files_indexed": 61,
@@ -112,6 +112,7 @@
     "indexed_new": 61,
     "indexed_changed": 0,
     "rejected_by_reason": {
+     "outside_root": 0,
      "unsupported_type": 0,
      "too_large": 0,
      "undecodable": 0,
@@ -122,14 +123,19 @@
     "max_rejected": 0,
     "indexed": true,
     "data_dir": "<path>/files",
-    "pipeline": "app.chunking/auto/v1|hash-256",
+    "pipeline": "app.chunking/auto/v2|hash-256",
     "chunks_embedded": 71,
     "chunks_deleted": 0,
     "unlisted_chunks_deleted": 0,
     "n_nodes": 71,
+    "reconciliation": {
+     "files_mismatched_at_start": 0,
+     "mismatched_sample": [],
+     "files_mismatched_after_run": 0
+    },
     "lock": {
      "waited": false,
-     "waited_ms": 0.3
+     "waited_ms": 0.2
     }
    },
    "observability": {
@@ -169,7 +175,7 @@
    "MKL_NUM_THREADS": "1",
    "MODEL": "qwen2.5:7b",
    "MODEL_PROVIDER": "ollama",
-   "OLLAMA_BASE_URL": "http://127.0.0.1:50913",
+   "OLLAMA_BASE_URL": "http://127.0.0.1:57759",
    "OMP_NUM_THREADS": "1",
    "OPENBLAS_NUM_THREADS": "1",
    "PG_CONNECTION_STRING": "<task-local database>",
@@ -193,14 +199,15 @@
    "question": "what learning rate did run 40 use",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 19.294,
-   "total_s": 42.242,
-   "answer": "To find out what learning rate was used in run 40, we need to locate the relevant file or log that contains information about the hyperparameters of the runs, including the learning rate for each run.\n\nFirst, let's list the available files to see if we can find the one that contains this information.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an error in the response format. Let's try listing the files again using the `list_available_files` tool to see if we can find the relevant file that contains information about the learning rates for the runs.\nIt appears there is an issue with the response format. Let's try listing the files again to see if we can find the relevant file that contains information about the learning rates for the runs.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with the response format. Let's try a different approach by querying the index directly to see if we can find any relevant files or logs that might contain information about the learning rates for the runs.\n\nI will use the `query_index` tool with a query to find files related to learning rates or run configurations.\nThe learning rate for run 40 is 0.0001. \n\nIf you need any more details or have other questions, feel free to ask!",
+   "ttfb_s": 23.555,
+   "total_s": 42.779,
+   "answer": "To determine the learning rate used in run 40, we need to find the relevant file or log that contains information about the hyperparameters of this run. Let's first check if there are any files available that might contain this information.\n\nI will list the available files to see if we can find the necessary information.\nIt seems there was an issue with the previous approach. Let's try listing the files directly to see if we can find the relevant information about run 40 and its learning rate.\n\nI will list the available files now.\nIt appears there is an issue with the method used to list the files. Let's try listing the files again using the correct approach.\n\nI will list the available files now.\nIt seems there is a persistent issue with listing the files directly. Let's try a different approach by querying the index for any documents that might contain information about run 40 and its learning rate.\n\nI will query the index for \"run 40 learning rate\".\nThe learning rate for run 40 is 0.0001. \n\nIf you need more context or additional details about this run, let me know, and I can provide more information.",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
    "gold_value_stated": true,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -209,22 +216,48 @@
    "question": "what learning rate did run 40 use",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 7.541,
-   "total_s": 7.541,
-   "answer": "To answer your question, I need to find the configuration details of run 40, specifically focusing on the learning rate used. Let's start by searching for the details of run 40.\n\nI will query the document index to find information about run 40.\nRun 40 used a learning rate of 0.0001.",
+   "ttfb_s": 31.316,
+   "total_s": 31.316,
+   "answer": "To answer your question, I'll need to find the configuration or log of run 40 to check the learning rate used. Let's start by listing the available files to see if we can find相关信息尚未用目标语言正确表达，请尝试提供英文描述：To find the learning rate used in run 40, I need to locate the configuration or log file of run 40. Let's start by listing the available files to see if we can find相关信息尚未用目标语言正确表达，请尝试提供英文描述：To find the learning rate used in run 40, I need to locate the configuration or log file of run 40. Let's start by listing the available files to see if we can find the relevant file.\nIt seems there was an error in the previous attempt to list the files. Let's try listing the available files again to see if we can find the configuration or log file for run 40.\n\nI will use the `list_available_files` tool to retrieve the list of files.\nIt appears there is an issue with listing the files as the response indicates an error. Let's try listing the files again to ensure we can access the necessary information.\n\nI will use the `list_available_files` tool to retrieve the list of files.\nIt seems there is a persistent issue with listing the files directly. However, we can still attempt to find the learning rate used in run 40 by searching through the document index using a query.\n\nLet's use the `query_index` tool to search for information related to run 40 and the learning rate.\nThe learning rate used in run 40 is 0.0001.",
    "source_nodes": 1,
    "tools": [
     {
+     "name": "list_available_files",
+     "arguments": {},
+     "is_error": true,
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
+    },
+    {
+     "name": "list_available_files",
+     "arguments": {},
+     "is_error": true,
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
+    },
+    {
+     "name": "list_available_files",
+     "arguments": {},
+     "is_error": true,
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
+    },
+    {
      "name": "query_index",
      "arguments": {
-      "input": "run 40 learning rate"
+      "input": "learning rate run 40"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 39
     }
    ],
    "answered": true,
    "gold_value_stated": true,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -233,14 +266,15 @@
    "question": "what LR did the DINOv2 runs use with fusion on",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 27.378,
-   "total_s": 52.626,
-   "answer": "To answer your question, I'll need to search for relevant files that might contain information about the learning rate (LR) used for DINOv2 runs with fusion. Let's start by listing the available files to see if we can find what we need.\n\nI'll use the `list_available_files` tool to get the list of files.\nIt seems there was an issue with the previous request. Let's try listing the available files again to see if we can find the information we need.\n\nI'll use the `list_available_files` tool to get the list of files.\nIt appears there is an issue with the tool response. Let's try listing the files again using the `list_available_files` tool to see if we can find the information about the learning rate (LR) used for DINOv2 runs with fusion.\nIt seems there is a persistent issue with the tool response. Let's try a different approach by querying the document index directly to see if we can find information about the learning rate (LR) used for DINOv2 runs with fusion.\n\nI'll use the `query_index` tool with a query to find relevant documents.\nBased on the information retrieved from the document index, the DINOv2 runs with fusion used the following learning rates:\n\n- Run 47: Learning rate set to \\(3.0 \\times 10^{-4}\\), achieving a validation RMSE of 0.0521.\n- Run 48: Learning rate set to \\(0.0003\\), achieving a validation RMSE of 0.0533.\n\nThese runs were specifically configured with fusion enabled. Runs 45 and 49 did not use fusion.\n\nIf you need more detailed information or have any other questions, feel free to ask!",
+   "ttfb_s": 22.777,
+   "total_s": 39.597,
+   "answer": "To answer your question, I'll need to search for relevant files that might contain information about the learning rate (LR) used for DINOv2 runs with fusion. Let's start by listing the available files that might contain this information.\n\nI'll use the `list_available_files` tool to get a list of files that might be relevant.\nIt seems there are no files listed that could contain information about the learning rates (LR) used for DINOv2 runs with fusion. Let's try a more targeted search using the document index to see if we can find any relevant documents or files.\n\nI'll use the `query_index` tool with a query to find documents that mention \"DINOv2\", \"fusion\", and \"learning rate\".\nBased on the information retrieved from the document index, the learning rate (LR) used for DINOv2 runs with fusion is \\(3.0 \\times 10^{-4}\\), as mentioned in the current draft (draft_v2.md).\n\nIf you need more details or the exact location within the document, I can retrieve the content of `draft_v2.md` for you. Would you like to proceed with that?",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -249,46 +283,48 @@
    "question": "what LR did the DINOv2 runs use with fusion on",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 28.887,
-   "total_s": 28.887,
-   "answer": "To answer your question, I'll need to search for relevant files or documents that contain information about the learning rates (LR) used for DINOv2 runs with fusion. Let's start by listing the available files to see if we can find the necessary information.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an error with the previous request. Let's try listing the available files again to see if we can find the information we need.\n\nI will use the `list_available_files` tool to list the available files.\nIt appears there is an issue with the tool response. Let's try listing the files again using the `list_available_files` tool to see if we can find the necessary information about the learning rates used for DINOv2 runs with fusion.\nIt seems there is a persistent issue with the tool response. Let's attempt to list the files again to see if we can find the necessary information.\n\nI will use the `list_available_files` tool to list the available files.\nIt appears there is a recurring issue with the tool response. Given the persistent error, let's try a different approach. We can use the `query_index` tool to search for relevant documents that might contain information about the learning rates used for DINOv2 runs with fusion.\n\nI will use the `query_index` tool with the query \"DINOv2 learning rate fusion\".\nBased on the information provided in the `paper/draft_v2.md` document, the learning rate (LR) used for the DINOv2 runs with fusion that has a val RMSE of 0.0521 is \\(3.0 \\times 10^{-4}\\) or 0.0003.\n\nIf you need more context or additional details, please let me know!",
+   "ttfb_s": 44.241,
+   "total_s": 44.241,
+   "answer": "To answer your question, I'll need to search for relevant files that might contain information about the learning rate (LR) used for DINOv2 runs with fusion. Let's start by listing the available files to see if we can find what we need.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an error in the previous attempt to list the files. Let's try again to list the available files and see if we can find any relevant information about the DINOv2 runs with fusion and the learning rate (LR) used.\nIt appears there is an issue with the method call. Let's try listing the files again using the `list_available_files` tool without any specific pattern to see if we can get a list of files that might contain the information we need.\nIt seems there is a persistent issue with the method call. Let's try a different approach by querying the document index directly to see if we can find any relevant information about the DINOv2 runs with fusion and the learning rate (LR) used. I will use the `query_index` tool with a query that includes keywords like \"DINOv2\", \"fusion\", and \"learning rate\".\nBased on the information retrieved from the document index, the DINOv2 fusion learning rate runs used a learning rate of \\(3.0 \\times 10^{-4}\\) for the following runs:\n\n- Run 47: Achieved a validation RMSE of 0.0521.\n- Run 48: Achieved a validation RMSE of 0.0533.\n\nThese runs show that the learning rate of \\(3.0 \\times 10^{-4}\\) was effective in reducing the validation RMSE, particularly when combined with fusion. Run 45, which did not use fusion, had a different learning rate of \\(1.0 \\times 10^{-4}\\) and a higher validation RMSE of 0.0568.\n\nIf you need more detailed information or specific code examples related to these runs, please let me know!",
    "source_nodes": 1,
    "tools": [
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
-    },
-    {
-     "name": "list_available_files",
-     "arguments": {},
-     "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "query_index",
      "arguments": {
-      "input": "DINOv2 learning rate fusion"
+      "input": "DINOv2 fusion learning rate runs"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 622
     }
    ],
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -297,14 +333,15 @@
    "question": "which ablation had the lowest val RMSE",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 25.619,
-   "total_s": 48.477,
-   "answer": "To determine which ablation had the lowest validation Root Mean Squared Error (val RMSE), we need to analyze a file that contains the results of these ablations. Let's first list the available files to see if there's a relevant one.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an issue with the response format. Let's try listing the files again using the `list_available_files` tool to get a clear list of the available files.\nIt appears there is an issue with how the response is being handled. Let's try listing the files again in a more straightforward manner.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with handling the response. Let's try a different approach by directly querying the index for files that might contain the necessary data.\n\nI will use the `query_index` tool with a query to find files that might contain validation RMSE results.\nBased on the provided results, the run with the lowest validation RMSE is Run 47, with a value of 0.0521.\n\nIf you need more detailed information or analysis, such as which ablation was used in Run 47, we can proceed by looking at the specific file or run details. Would you like to proceed with that? If so, I can help you identify the relevant file or extract more detailed information.",
+   "ttfb_s": 32.282,
+   "total_s": 57.516,
+   "answer": "To answer your question, I need to find the ablation study results that include val RMSE and identify which one had the lowest value. Let's start by listing the available files that might contain this information.\n\nI will use the `list_available_files` tool to get a list of files that could potentially contain the required data.\nIt seems there was an issue with the previous approach. Let's try listing the files directly using the `list_available_files` tool to see which files are available for analysis.\n\nI will call the `list_available_files` tool without any specific pattern to get a comprehensive list of files.\nIt appears there is an issue with how the file listing is being handled. Let's try a different approach by directly querying the document index for files that might contain the information we need. I'll use the `query_index` tool with a relevant query to find files that might contain ablation study results with val RMSE.\n\nI will construct a query to search for files that might contain information about ablation studies and val RMSE.\nBased on the information retrieved from the document index, the ablation study shows that the DINOv2 with fusion and 3-pair run (run 47) has the lowest validation RMSE among the configurations mentioned. This setup achieves a validation RMSE of 0.0521, which is better than the baseline RMSE of 0.0550.\n\nIf you need more detailed information or analysis, we can retrieve specific files or further process this data. Would you like to proceed with retrieving a specific file that contains the full ablation study results?",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -313,54 +350,56 @@
    "question": "which ablation had the lowest val RMSE",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 30.305,
-   "total_s": 30.305,
-   "answer": "To determine which ablation had the lowest validation Root Mean Squared Error (val RMSE), we need to analyze a file that contains the results of different ablations. Let's first list the available files to see if there's a relevant one.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an issue with the previous request. Let's try listing the available files again to find a relevant one that contains the ablation results.\n\nI will use the `list_available_files` tool to get the list of files.\nIt appears there is an issue with the environment or the response handling. Let's try listing the files again in a more straightforward manner.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with the environment or response handling. Let's try a different approach to list the available files.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with the environment or response handling. Given the repeated error, let's assume we have a list of files that we can work with. We will proceed by listing the files manually and then checking which one contains the ablation results.\n\nLet's list the available files manually:\n1. `ablation_results.csv`\n2. `model_training.log`\n3. `configurations.txt`\n4. `data_preprocessing.py`\n5. `README.md`\n\nFrom the list, `ablation_results.csv` seems like the most likely candidate to contain the ablation results. Let's retrieve the content of this file to analyze it.\nIt seems there is still an issue with the environment or response handling. Let's try a different approach to retrieve the content of the `ablation_results.csv` file.\n\nI will use the `get_file_content` tool to retrieve the content of the `ablation_results.csv` file.\nIt appears there is a persistent issue with the environment or response handling. Given the repeated errors, let's assume we have the file content and proceed with analyzing it manually.\n\nSince we cannot directly retrieve the file content, let's assume the file `ablation_results.csv` contains the necessary data. We will analyze the content of this file to determine which ablation had the lowest val RMSE.\n\nIf you have access to the file content, please provide it, or let me know if you need any specific columns or data points extracted from the file. Otherwise, I will simulate the process based on typical CSV content.\n\nFor now, let's assume the file has columns such as `ablation_name`, `val_rmse`, etc. We can use Python to read and analyze the CSV file. Would you like to proceed with this simulation?",
-   "source_nodes": 0,
+   "ttfb_s": 47.474,
+   "total_s": 47.474,
+   "answer": "To determine which ablation had the lowest validation Root Mean Squared Error (val RMSE), we need to analyze a file that contains the evaluation results. Let's first list the available files to see if we have any relevant files.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an issue with the previous request. Let's try listing the available files again to see if we can find a file that contains the evaluation results.\n\nI will use the `list_available_files` tool to get the list of files.\nIt appears there is an issue with the environment or the response handling. Let's try listing the files again in a more straightforward manner.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with the environment or response handling. Let's try a different approach to list the files.\n\nI will use the `list_available_files` tool to get the list of files.\nIt appears there is a recurring issue with the environment or response handling. Let's try a different approach to list the files by directly querying the document index.\n\nI will use the `query_index` tool to search for files that might contain the evaluation results.\nBased on the evaluation results from the `ablation.csv` file, the ablation that had the lowest validation Root Mean Squared Error (val RMSE) is:\n\n- **fusion_off_dino, dinov2, False, 0.0568, 45**: This run does not use stereo fusion with DINOv2 and has a validation RMSE of 0.0568.\n\nThis result aligns with the information in the `paper/draft_v1.md` file, which suggests that stereo fusion does not provide a significant benefit and can be disabled.\n\nIf you need more detailed analysis or have additional questions, feel free to ask!",
+   "source_nodes": 1,
    "tools": [
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
-     "name": "get_file_content",
+     "name": "query_index",
      "arguments": {
-      "file_path": "ablation_results.csv"
+      "input": "evaluation results"
      },
      "is_error": false,
-     "output_chars": 0
-    },
-    {
-     "name": "get_file_content",
-     "arguments": {
-      "file_path": "ablation_results.csv"
-     },
-     "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 834
     }
    ],
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -369,14 +408,15 @@
    "question": "how many runs used 3 stereo pairs",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 27.605,
-   "total_s": 53.152,
-   "answer": "To answer your question, I will need to search through the relevant files or data to find information about the number of runs that used 3 stereo pairs. Let's start by listing the available files to see if there's any relevant data.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an error with the previous request. Let's try listing the available files again to see if we can find the relevant data.\n\nI will use the `list_available_files` tool to get the list of files.\nIt appears there is an issue with the tool response. Let's try listing the files again to see if we can identify the relevant data.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with the tool response. Let's try a different approach by querying the index directly to see if we can find the relevant information about runs using 3 stereo pairs.\n\nI will use the `query_index` tool with a query to find runs that used 3 stereo pairs.\nBased on the information retrieved from the index, the runs that used 3 stereo pairs are:\n\n- Run 47: DINOv2 + fusion + 3-pair, with a val RMSE of 0.0521.\n- Run 45: Fusion-off DINOv2 with 3 pairs, which matched the fusion-on run within noise.\n- Run 49: DINOv2 with 3 pairs, fusion disabled, having a val RMSE of 0.0559.\n- Run 055: DINOv2 with 3 pairs, no fusion, which used the `run_055.sbatch` script.\n\nSo, there are 4 runs that used 3 stereo pairs.",
+   "ttfb_s": 38.411,
+   "total_s": 60.83,
+   "answer": "To answer your question, I need to search through the relevant files to find information about the number of runs that used 3 stereo pairs. Let's start by listing the available files that might contain this information.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an error with the previous approach. Let's try listing the files using a different method. I'll use the `list_available_files` tool to get the list of files that might contain the information we need.\n\nLet's proceed with listing the files.\nIt appears there's an issue with the method used to list the files. Let's try a different approach by querying the index directly to see if we can find files that might contain the information about runs using 3 stereo pairs.\n\nI'll use the `query_index` tool with a query that might help us find the relevant files.\nBased on the information retrieved from the index, there are several runs that used 3 stereo pairs:\n\n1. Run 47: DINOv2 + fusion + 3-pair, with a val RMSE of 0.0521.\n2. Run 50: DINOv2, fusion=False, num_pairs=3, with a val RMSE of 0.064.\n3. Run 55: DINOv2, num_pairs=3, with a val RMSE that is not explicitly stated in the provided context.\n4. Run 42: Resnet50, fusion=True, num_pairs=3, with a val RMSE of 0.0571.\n\nSo, the number of runs that used 3 stereo pairs is 4.",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -385,22 +425,42 @@
    "question": "how many runs used 3 stereo pairs",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 23.707,
-   "total_s": 23.707,
-   "answer": "To answer your question, I need to search through the relevant files or data to find how many runs used exactly 3 stereo pairs. Let's start by listing the available files that might contain this information.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an error with the previous request. Let's try listing the files again using the `list_available_files` tool to ensure we get the correct list of files that might contain the information we need.\nIt appears there is an issue with the way the files are being listed. Let's try a different approach by querying the index directly to see if we can find the relevant files that might contain information about runs using 3 stereo pairs.\n\nI will use the `query_index` tool with a query to find files that might contain this information.\nBased on the information retrieved from the index, the runs that used 3 stereo pairs are:\n\n- Run 47: DINOv2 + fusion + 3-pair, with a val RMSE of 0.0521.\n- Run 49: DINOv2 without fusion + 3-pair, with a val RMSE of 0.0559.\n- Run 50: Resnet50 without fusion + 3-pair, with a val RMSE of 0.064.\n- Run 55: DINOv2 + 3-pair, with a val RMSE that is not explicitly stated but can be inferred from the configuration.\n\nIf you need more detailed information or specific files to analyze further, please let me know!",
+   "ttfb_s": 42.183,
+   "total_s": 42.183,
+   "answer": "To answer your question, I'll need to search through the relevant files or data to find information about the number of runs that used 3 stereo pairs. Let's start by listing the available files to see if there's any relevant data.\n\nI'll use the `list_available_files` tool to get the list of files.\nIt seems there was an error with the previous request. Let's try listing the available files again to see if we can find the relevant data.\n\nI'll use the `list_available_files` tool to get the list of files.\nIt appears there's an issue with the tool response. Let's try listing the files again to ensure we get the correct information.\n\nI'll use the `list_available_files` tool to get the list of files.\nIt seems there is a persistent issue with the tool response. Let's attempt to list the files one more time to see if we can get the list of available files.\n\nI'll use the `list_available_files` tool to get the list of files.\nIt appears there is a recurring issue with the tool response. Given the persistent error, I will proceed by directly querying the index for files that might contain the necessary information about runs using 3 stereo pairs.\n\nI'll use the `query_index` tool with a query to find files that might contain this information.\nBased on the information retrieved from the index, there are several runs that used 3 stereo pairs:\n\n1. Run 47: DINOv2 + fusion + 3-pair, with a val RMSE of 0.0521.\n2. Run 50: encoder=resnet50, fusion=False, num_pairs=3, val_rmse=0.064.\n3. Run 49: encoder: dinov2, fusion: false, num_pairs: 3, val_rmse=0.0559.\n4. Run 55: encoder=dinov2, num_pairs=3.\n\nThese runs are configured to use 3 stereo pairs in their experiments. If you need more detailed information or specific data from these runs, please let me know!",
    "source_nodes": 1,
    "tools": [
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
+    },
+    {
+     "name": "list_available_files",
+     "arguments": {},
+     "is_error": true,
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
+    },
+    {
+     "name": "list_available_files",
+     "arguments": {},
+     "is_error": true,
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "query_index",
@@ -408,11 +468,13 @@
       "input": "runs with 3 stereo pairs"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 379
     }
    ],
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -421,14 +483,15 @@
    "question": "which bark type was used in the run that beat the 0.0550 baseline with the lowest RMSE, and where is its config",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 55.917,
-   "total_s": 87.192,
-   "answer": "To answer your question, I need to find the run that achieved the lowest RMSE while beating the 0.0550 baseline and then identify the bark type and its configuration used in that run.\n\nLet's start by retrieving the relevant files that might contain this information. I'll query the document index to find files that are likely to have this data.\n\nI will use the `query_index` function to search for files that might contain the information we need.\nBased on the information provided, the run that beat the 0.0550 baseline with the lowest RMSE is **Run 46**. This run used the **birch** bark type and had a validation RMSE of 0.0542.\n\nTo find the configuration for this run, we need to locate the file containing the configuration details for Run 46. Let's list the available files and check if we can find the configuration file for Run 46.\nIt seems that there are no files listed in the index that match the pattern we are looking for. However, we can still attempt to retrieve the configuration file for Run 46 by specifying its path if we have an idea of where it might be located. \n\nLet's try to find the path of the configuration file for Run 46. If we don't have a specific path, we can use the `query_index` function to search for files related to Run 46 and its configuration.\n\nI will use the `query_index` function to search for files related to Run 46 and its configuration.\nThe configuration for Run 46, which used the birch bark type and achieved a validation RMSE of 0.0542 (beating the baseline of 0.055), is as follows:\n\n- **encoder**: dinov2\n- **fusion**: true\n- **num_pairs**: 2\n- **bark_type**: birch\n- **learning_rate**: 0.0001\n- **val_rmse**: 0.0542\n- **seed**: 13\n- **baseline_rmse**: 0.055\n- **render**: trellis: true\n- **checkpoint**: checkpoints/run_046.ckpt.meta.json\n- **notes**: beats baseline\n\nThis configuration details the settings used for Run 46, including the bark type and other parameters that contributed to its performance.",
+   "ttfb_s": 44.195,
+   "total_s": 62.211,
+   "answer": "To answer your question, we need to identify the run that beat the 0.0550 baseline with the lowest RMSE and then find out which bark type was used in that run, as well as locate its configuration file.\n\nLet's start by retrieving the relevant files that might contain this information. We can use the `query_index` tool to search for files that might contain the necessary information.\n\nBased on the information provided, the run that beat the 0.0550 baseline with the lowest RMSE is run 46, which uses a bark type of birch. Now, we need to find the configuration file for this run.\n\nLet's use the `query_index` tool again to search for the configuration file associated with run 46.\n\nThe configuration file for run 46 is `configs/run_046.yaml`. Here is the configuration for run 46:\n\n```yaml\n# run 46 config (CURRENT)\nrun_id: 46\nencoder: dinov2\nfusion: true\nnum_pairs: 2\nbark_type: birch\nlearning_rate: 0.0001\nval_rmse: 0.0542\nseed: 13\nbaseline_rmse: 0.055\nrender:\n  trellis: true\ncheckpoint: checkpoints/run_046.ckpt.meta.json\nnotes: beats baseline\n```\n\nFrom this configuration, we can see that the bark type used in the run that beat the 0.0550 baseline with the lowest RMSE is `birch`, and its configuration file is `configs/run_046.yaml`.",
    "errors": [],
    "source_nodes": 2,
    "tools": null,
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -437,30 +500,52 @@
    "question": "which bark type was used in the run that beat the 0.0550 baseline with the lowest RMSE, and where is its config",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 24.137,
-   "total_s": 24.137,
-   "answer": "To answer your question, I need to find the run that achieved the lowest RMSE while beating the 0.0550 baseline and then identify the bark type and its configuration used in that run.\n\nFirst, let's list the available files that might contain this information. I will check files with patterns like `results*`, `config*`, and `bark*`.\n\nIt seems there are no files matching the patterns `results*`, `config*`, or `bark*` in the document index. Let's try a broader search using the `query_index` tool to see if we can find relevant information.\n\nI'll use the `query_index` tool with a query that might help us find the required details.\nThe run that beat the 0.0550 baseline with the lowest RMSE is run 47, which has a validation RMSE of 0.0521. The bark type used in this run is `birch`. The configuration for this run is specified in the file `configs/run_046.yaml` (note that the file name in the context is `run_046.yaml`).\n\nHere are the relevant configuration details:\n- encoder: dinov2\n- fusion: true\n- num_pairs: 2\n- bark_type: birch\n- learning_rate: 0.0001\n\nIf you need further analysis or specific parts of the configuration, let me know!",
+   "ttfb_s": 51.334,
+   "total_s": 51.334,
+   "answer": "To answer your question, I'll need to follow these steps:\n\n1. Identify the run that beat the 0.0550 baseline with the lowest RMSE.\n2. Determine which bark type was used in that run.\n3. Find the config file for that run.\n\nLet's start by querying the index to find the run that beat the 0.0550 baseline with the lowest RMSE.\n\nI'll use the `query_index` function to search for relevant information.\nBased on the information retrieved from the index, the run that beat the 0.0550 baseline with the lowest RMSE (0.0521) used the **Birch** bark type.\n\nNow, let's find the config file for this run. Typically, config files are named based on the run details, such as the encoder, fusion method, number of pairs, bark type, learning rate, and seed. A common naming convention might be something like `run_47_config.yaml`.\n\nI'll now search for the config file using the `get_file_content` function.\nIt seems there was an error with the previous approach. Let's try a different method to locate the config file. We can list the available files and filter by the run number and bark type to find the relevant config file.\n\nI'll use the `list_available_files` function to list the files and then filter by the run number (47) and bark type (Birch).\nIt appears that no files were listed, which might indicate that the files are not directly named with the run number or bark type in a straightforward manner. Let's try a more detailed search by filtering the files based on the run number and bark type using a pattern.\n\nI'll use the `list_available_files` function with a pattern that includes the run number (47) and the bark type (Birch).\nIt seems that there are no files matching the pattern we provided. This could mean that the files are not named in a way that directly includes the run number or bark type. \n\nGiven the information we have, the bark type used in the run that beat the 0.0550 baseline with the lowest RMSE is **Birch**. \n\nTo proceed, we might need to look into the directory structure or use a more detailed search pattern. If you have any additional information about the file naming convention or directory structure, please provide it so we can refine our search.\n\nFor now, the config file for this run is likely to be named something like `run_47_config.yaml` or a similar pattern, but we couldn't find it with the current search method. \n\nWould you like to try another approach or provide more details about the file structure?",
    "source_nodes": 1,
    "tools": [
     {
-     "name": "list_available_files",
-     "arguments": {
-      "pattern": "results*|config*|bark*"
-     },
-     "is_error": false,
-     "output_chars": 0
-    },
-    {
      "name": "query_index",
      "arguments": {
-      "input": "run that beat the 0.0550 baseline with the lowest RMSE and its bark type and config"
+      "input": "find the run that beat the 0.0550 baseline with the lowest RMSE"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 328
+    },
+    {
+     "name": "get_file_content",
+     "arguments": {
+      "file_path": "run_47_config.yaml"
+     },
+     "is_error": false,
+     "returned_error_text": true,
+     "output_chars": 49,
+     "error": "Error: 'dict' object has no attribute 'condition'"
+    },
+    {
+     "name": "list_available_files",
+     "arguments": {
+      "pattern": "run_47*config*"
+     },
+     "is_error": false,
+     "returned_error_text": false,
+     "output_chars": 2
+    },
+    {
+     "name": "list_available_files",
+     "arguments": {
+      "pattern": "run_47_birch*"
+     },
+     "is_error": false,
+     "returned_error_text": false,
+     "output_chars": 2
     }
    ],
    "answered": true,
    "gold_value_stated": false,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -469,14 +554,15 @@
    "question": "what's the current learning rate for the DINOv2 run 47",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 16.548,
-   "total_s": 31.686,
-   "answer": "To find the current learning rate for the DINOv2 run 47, I'll first need to locate the relevant log or configuration file for that run. Let's start by listing the available files that might contain this information.\n\nI will use the `list_available_files` tool to get a list of files that might be related to DINOv2 run 47.\nIt seems there are no files listed that are directly related to DINOv2 run 47. However, we can try to query the document index for more specific information using the `query_index` tool. Let's search for \"DINOv2 run 47 learning rate\" to see if we can find any relevant logs or configurations.\n\nI will use the `query_index` tool with the query \"DINOv2 run 47 learning rate\".\nThe current learning rate for DINOv2 run 47 is 0.0003. This information was retrieved from the document index. If you need any further details or have additional questions, feel free to ask!",
+   "ttfb_s": 18.508,
+   "total_s": 32.321,
+   "answer": "To find the current learning rate for the DINOv2 run 47, I'll need to search through the relevant logs or configuration files. Let's start by listing files related to DINOv2 and run 47 to see if we can find the necessary information.\n\nI will use the `list_available_files` tool to find relevant files.\nIt seems there are no files directly related to DINOv2 run 47 in the document index. Let's try a more general search to see if we can find any relevant logs or configuration files that might contain the learning rate information.\n\nI will use the `query_index` tool with a query related to \"DINOv2 run 47 learning rate\" to see if we can find any relevant documents.\nThe current learning rate for DINOv2 run 47 is 0.0003. \n\nIf you need any further analysis or additional information, feel free to ask!",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
    "gold_value_stated": true,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -485,40 +571,33 @@
    "question": "what's the current learning rate for the DINOv2 run 47",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 17.946,
-   "total_s": 17.946,
-   "answer": "To find the current learning rate for the DINOv2 run 47, we need to locate the relevant log or configuration file for this run. Let's first list the available files to see if we can find the necessary information.\n\nI will use the `list_available_files` tool to get the list of files.\nIt seems there was an issue with the previous request. Let's try listing the available files again to see if we can find the relevant information.\n\nI will use the `list_available_files` tool to get the list of files.\nIt appears there is an issue with the tool response. Let's try listing the files again using the `list_available_files` tool to see if we can find the relevant information for DINOv2 run 47.\nIt seems there is a persistent issue with the tool response. Let's try a different approach by querying the index directly for any files or logs related to DINOv2 run 47.\n\nI will use the `query_index` tool with a query related to DINOv2 run 47 to see if we can find the necessary information.\nThe current learning rate for DINOv2 run 47 is 0.0003. \n\nIf you need any further details or have additional questions, feel free to ask!",
+   "ttfb_s": 23.018,
+   "total_s": 23.018,
+   "answer": "To find the current learning rate for the DINOv2 run 47, we need to locate the relevant log files or configuration files for this run. Let's first list the available files that might contain this information.\n\nI will use the `list_available_files` tool to get a list of files that might be related to DINOv2 run 47.\nIt seems there are no files listed that are directly related to DINOv2 run 47. However, we can try to retrieve files using a more specific search pattern. Let's search for files containing \"DINOv2\" and \"run 47\" in their names or paths.\n\nI will use the `query_index` tool with a specific pattern to find relevant files.\nBased on the information retrieved, the learning rate for DINOv2 run 47 is **0.0003**.\n\nIf you need more detailed logs or additional information, we can try to fetch more files using a broader search pattern. Would you like to proceed with that?",
    "source_nodes": 1,
    "tools": [
     {
      "name": "list_available_files",
-     "arguments": {},
-     "is_error": true,
-     "output_chars": 0
-    },
-    {
-     "name": "list_available_files",
-     "arguments": {},
-     "is_error": true,
-     "output_chars": 0
-    },
-    {
-     "name": "list_available_files",
-     "arguments": {},
-     "is_error": true,
-     "output_chars": 0
+     "arguments": {
+      "pattern": "run_47*"
+     },
+     "is_error": false,
+     "returned_error_text": false,
+     "output_chars": 2
     },
     {
      "name": "query_index",
      "arguments": {
-      "input": "DINOv2 run 47 learning rate"
+      "input": "DINOv2 run 47"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 220
     }
    ],
    "answered": true,
    "gold_value_stated": true,
+   "gold_value_not_scored": null,
    "scrubbed": false
   },
   {
@@ -527,14 +606,15 @@
    "question": "open configs/run_047.yaml",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 24.522,
-   "total_s": 49.878,
-   "answer": "It seems there was an error while trying to retrieve the file. Let's try listing the available files to see if the `run_047.yaml` file is in the index.\n\nI will use the `list_available_files` function to list the files.\nIt appears there was an unexpected error with the function call. Let's try listing the files again using a different approach.\n\nI will use the `list_available_files` function to list the files in the index.\nIt seems there is an issue with the function call itself. Let's try a different method to retrieve the file content.\n\nI will directly attempt to get the content of `configs/run_047.yaml` using the `get_file_content` function again.\nIt seems there is a persistent issue with the function calls. As a workaround, let's try using the `query_index` function to see if we can find the `run_047.yaml` file in the index.\n\nI will use the `query_index` function with a query related to the file name.\nBased on the information provided by the `query_index`, the `run_047.yaml` file is referenced in the `run_047.sbatch` Slurm script. The file is used as a configuration file for the `train.py` script with specific parameters.\n\nSince we couldn't directly retrieve the file content, we can infer that the file likely contains configuration settings for the training process. However, if you need the actual content of the `run_047.yaml` file, we can attempt to retrieve it again or you can provide more details about the file's content, and I can help you analyze it.\n\nWould you like to proceed with any specific analysis or do you need the content of the file?",
+   "ttfb_s": 43.003,
+   "total_s": 72.311,
+   "answer": "It seems there was an error while trying to retrieve the file. Let's try listing the available files to see if the `run_047.yaml` file is in the index.\n\nI will use the `list_available_files` function to list the available files.\nIt appears there was an unexpected error with the response format. Let's try listing the files again to ensure we can access `run_047.yaml`.\n\nI will use the `list_available_files` function to list the available files.\nIt seems there is an issue with the response handling. Let's try listing the files directly using the `list_available_files` function again to see if we can identify the `run_047.yaml` file.\n\nI will proceed with listing the available files.\nIt seems there is a persistent issue with the response handling. Let's try a different approach by directly querying the index for the `run_047.yaml` file using the `query_index` function.\n\nI will use the `query_index` function to find the `run_047.yaml` file.\nBased on the information provided, it seems that `run_047.yaml` is a configuration file used by the `train.py` script, specifically for a training process with 3 pairs and using the `dinov2` encoder. However, the exact content of `run_047.yaml` is not available in the context.\n\nTo proceed, we can attempt to retrieve the file directly using the `get_file_content` function. Let's try that now.\nIt appears there is still an issue with the response handling. Given the context, let's assume that `run_047.yaml` is a configuration file and we can proceed with the information that it is used for a training process with 3 pairs and the `dinov2` encoder.\n\nIf you need specific details about the content of `run_047.yaml`, we can create a placeholder or template for it based on the information provided. Would you like to proceed with this approach, or do you need further assistance with the configuration or the training process?",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
-   "gold_value_stated": true,
+   "gold_value_stated": null,
+   "gold_value_not_scored": "the question states the gold value",
    "scrubbed": false
   },
   {
@@ -543,10 +623,10 @@
    "question": "open configs/run_047.yaml",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 23.939,
-   "total_s": 23.939,
-   "answer": "It seems there was an error retrieving the file. Let's try listing the available files to see if the file exists in the index.\n\nI will use the `list_available_files` function to check the available files.\nIt appears there was an unexpected error with the function call. Let's try listing the available files directly using the `list_available_files` function to see if the `run_047.yaml` file is present in the index.\n\nI will proceed with listing the available files now.\nIt seems there is an issue with the function call. Let's try listing the available files directly using the `list_available_files` function to check if the `run_047.yaml` file is present in the index.\n\nI will attempt to list the available files now.\nIt appears there is a persistent issue with the function call. Let's try a different approach to list the available files directly.\n\nI will use the `list_available_files` function to list the files in the index.\nIt seems there is a recurring issue with the function call. Given the current limitations, I will proceed by attempting to list the files directly using the `list_available_files` function one more time.\n\nI will try listing the available files again.\nIt appears there is a persistent issue with the function call. Since we are unable to list the files directly, let's assume the `run_047.yaml` file is available in the index and proceed by trying to retrieve its content.\n\nI will attempt to retrieve the content of `configs/run_047.yaml` using the `get_file_content` function.\nIt seems there is a persistent issue with the function calls. Given the current limitations, I will make an assumption that the `run_047.yaml` file is available and proceed by providing a general approach to handle the file content.\n\nLet's assume we have the content of `configs/run_047.yaml`. If you could provide the content or any specific details you need from the file, I can assist you further. Alternatively, if you have a specific question or task related to the file, please let me know and I will do my best to help without directly accessing the file content.",
-   "source_nodes": 0,
+   "ttfb_s": 42.247,
+   "total_s": 42.247,
+   "answer": "It seems there was an error while trying to retrieve the file. Let's try listing the available files to see if the file exists in the index.\n\nI will use the `list_available_files` function to check the available files.\nIt appears there was an unexpected error with the previous request. Let's try listing the available files again to verify if the `run_047.yaml` file is present in the index.\n\nI will use the `list_available_files` function to list the available files.\nIt seems there is an issue with the function call. Let's try listing the available files again using a different approach.\n\nI will use the `list_available_files` function to list the available files in the index.\nIt appears there is a persistent issue with the function call. As a workaround, I will attempt to list the available files using the `list_available_files` function again, hoping that the issue resolves itself.\n\nI will use the `list_available_files` function to list the available files in the index.\nIt seems there is a persistent issue with the function call. Let's try a different approach by directly querying the index for the presence of the `run_047.yaml` file.\n\nI will use the `query_index` function to check if the file exists in the index.\nThe `run_047.yaml` configuration file is indeed present in the index and is referenced in the `run_047.sbatch` Slurm script. It is used for training with the following command:\n\n```bash\npython train.py --config configs/run_047.yaml --num_pairs=3 --encoder dinov2\n```\n\nThis suggests that `run_047.yaml` contains configuration settings for the training process, including the number of pairs and the encoder type.\n\nWould you like to retrieve the contents of `run_047.yaml` or perform any specific analysis on it?",
+   "source_nodes": 1,
    "tools": [
     {
      "name": "get_file_content",
@@ -554,49 +634,55 @@
       "file_path": "configs/run_047.yaml"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": true,
+     "output_chars": 49,
+     "error": "Error: 'dict' object has no attribute 'condition'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
      "name": "list_available_files",
      "arguments": {},
      "is_error": true,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 45,
+     "error": "'FieldInfo' object has no attribute 'replace'"
     },
     {
-     "name": "list_available_files",
-     "arguments": {},
-     "is_error": true,
-     "output_chars": 0
-    },
-    {
-     "name": "get_file_content",
+     "name": "query_index",
      "arguments": {
-      "file_path": "configs/run_047.yaml"
+      "input": "run_047.yaml"
      },
      "is_error": false,
-     "output_chars": 0
+     "returned_error_text": false,
+     "output_chars": 325
     }
    ],
    "answered": true,
-   "gold_value_stated": true,
+   "gold_value_stated": null,
+   "gold_value_not_scored": "the question states the gold value",
    "scrubbed": false
   },
   {
@@ -605,14 +691,15 @@
    "question": "what does the fusion module do",
    "route": "/api/chat",
    "http_status": 200,
-   "ttfb_s": 22.143,
-   "total_s": 46.227,
-   "answer": "To provide you with a detailed explanation of what the fusion module does, I'll need to retrieve and analyze the relevant documentation or code related to the fusion module. Let's start by listing the available files that might contain information about the fusion module.\n\nIt seems there are no files directly mentioning a \"fusion module\" in the current document index. However, we can still try to gather more information by searching for related terms or concepts. Let's perform a search using the query index to see if we can find any relevant documents or code snippets.\n\nI'll use the `query_index` tool to search for terms related to \"fusion module\".\nBased on the information retrieved from the query index, the fusion module in the stereo fusion setup is used as follows:\n\n- **When fusion is on**: Per-view DINOv2 features are concatenated and passed through a 1x1 projection before the depth head.\n- **When fusion is off**: Only the reference view is utilized.\n\nThe results from an ablation study indicate that disabling fusion (fusion-off) in the DINOv2 run (run 45) matches the performance of the fusion-on setup, with a Val RMSE of 0.0568. This suggests that stereo fusion does not provide a significant benefit in this context.\n\nIf you need more detailed information or specific code snippets related to the fusion module, we can further refine our search or look into the codebase directly. Would you like to proceed with a more targeted search or retrieve specific files?",
+   "ttfb_s": 33.241,
+   "total_s": 58.068,
+   "answer": "To provide a detailed explanation of what the fusion module does, I'll need to retrieve the relevant documentation or code related to the fusion module. Let's start by listing the available files that might contain information about the fusion module.\n\nI will use the `list_available_files` function to get the list of files.\nIt seems there was an issue with the previous request. Let's try listing the available files again to see if we can find any documentation or code related to the fusion module.\n\nI will use the `list_available_files` function to list the available files.\nIt appears there is an issue with the `FieldInfo` object, which might be causing the error. Let's try a different approach by directly querying the index for information related to the fusion module.\n\nI will use the `query_index` function with a query to find relevant documents.\nBased on the information retrieved from the index, the fusion module in this context is used to concatenate per-view DINOv2 features when fusion is enabled. Specifically:\n\n- **When Fusion is Enabled**: The module concatenates features from multiple views.\n- **When Fusion is Disabled**: Only the features from the reference view are used.\n\nThe results from an ablation study indicate that disabling fusion (run 45) yields a Val RMSE (Root Mean Squared Error) of 0.0568. This value is slightly higher than the runs where fusion is enabled, suggesting that fusion does not provide a significant benefit in this context.\n\nIf you need more detailed information or have specific questions about the fusion module, please let me know!",
    "errors": [],
    "source_nodes": 1,
    "tools": null,
    "answered": true,
    "gold_value_stated": null,
+   "gold_value_not_scored": "the gold answer is a sentence or yes/no",
    "scrubbed": false
   },
   {
@@ -621,13 +708,33 @@
    "question": "what does the fusion module do",
    "route": "/api/chat/request",
    "http_status": 200,
-   "ttfb_s": 7.16,
-   "total_s": 7.16,
-   "answer": "To provide you with an accurate answer, I would need more context about which specific fusion module you are referring to. However, based on common terminology in machine learning and data processing, a \"fusion module\" typically refers to a component that combines or integrates multiple sources of data or models to produce a unified output. This can be seen in various domains such as multimodal learning, where data from different modalities (e.g., text, images, audio) are combined, or in model fusion where multiple models are integrated to improve performance.\n\nIf you could provide more details about the specific fusion module you are interested in, I can give a more precise explanation. Otherwise, I can provide a general overview.\n\nWould you like to proceed with a general explanation or do you have a specific module in mind?",
-   "source_nodes": 0,
-   "tools": [],
+   "ttfb_s": 33.794,
+   "total_s": 33.795,
+   "answer": "To provide you with a detailed explanation of what the fusion module does, I'll need to retrieve and analyze the relevant documentation or code related to the fusion module. Let's start by listing the available files that might contain information about the fusion module.\n\nI will use the `list_available_files` tool to get a list of files that might contain information about the fusion module.\nIt seems there are no files directly mentioning the \"fusion module\" in the current document index. However, we can still try to gather more information by searching for related keywords or concepts. Let's use the `query_index` tool to search for information about the fusion module.\n\nI will perform a search using the `query_index` tool with the query \"fusion module\".\nBased on the information retrieved from the document index, the fusion module in this context is used to concatenate per-view DINOv2 features when fusion is enabled. Specifically:\n\n- **When fusion is on**: The concatenated feature set from multiple views is passed through a 1x1 projection before being processed by the depth head.\n- **When fusion is off**: Only the reference view is utilized.\n\nThe results from an ablation study indicate that disabling fusion (fusion-off) in the DINOv2 run (run 45) yields a val RMSE of 0.0568, which is slightly higher than the fusion-on run (run 46) with a val RMSE of 0.0542. This suggests that in this particular setup, stereo fusion does not provide a significant benefit.\n\nIf you need more detailed information or have specific questions about the fusion module, please let me know!",
+   "source_nodes": 1,
+   "tools": [
+    {
+     "name": "list_available_files",
+     "arguments": {
+      "pattern": "fusion*"
+     },
+     "is_error": false,
+     "returned_error_text": false,
+     "output_chars": 2
+    },
+    {
+     "name": "query_index",
+     "arguments": {
+      "input": "fusion module"
+     },
+     "is_error": false,
+     "returned_error_text": false,
+     "output_chars": 609
+    }
+   ],
    "answered": true,
    "gold_value_stated": null,
+   "gold_value_not_scored": "the gold answer is a sentence or yes/no",
    "scrubbed": false
   }
  ],
@@ -639,19 +746,25 @@
    },
    "answered": 8,
    "ttfb_s": {
-    "p50": 25.07,
-    "max": 55.917
+    "p50": 32.761,
+    "max": 44.195
    },
    "total_s": {
-    "p50": 49.177,
-    "max": 87.192
+    "p50": 57.792,
+    "max": 72.311
    },
    "tool_calls": null,
+   "tool_calls_raised": null,
+   "tool_calls_returned_error_text": null,
    "questions_with_a_tool_call": null,
-   "code_tool_calls": 0,
+   "code_tool_calls": null,
    "states_gold_value_aside": {
-    "k": 3,
-    "n": 7
+    "k": 2,
+    "n": 6,
+    "not_scored": {
+     "the gold answer is a sentence or yes/no": 1,
+     "the question states the gold value": 1
+    }
    }
   },
   "/api/chat/request": {
@@ -661,25 +774,35 @@
    },
    "answered": 8,
    "ttfb_s": {
-    "p50": 23.823,
-    "max": 30.305
+    "p50": 42.215,
+    "max": 51.334
    },
    "total_s": {
-    "p50": 23.823,
-    "max": 30.305
+    "p50": 42.215,
+    "max": 51.334
    },
    "tool_calls": {
-    "get_file_content": 4,
-    "list_available_files": 19,
-    "query_index": 5
+    "get_file_content": 2,
+    "list_available_files": 22,
+    "query_index": 8
    },
-   "questions_with_a_tool_call": 7,
+   "tool_calls_raised": {
+    "list_available_files": 18
+   },
+   "tool_calls_returned_error_text": {
+    "get_file_content": 2
+   },
+   "questions_with_a_tool_call": 8,
    "code_tool_calls": 0,
    "states_gold_value_aside": {
-    "k": 3,
-    "n": 7
+    "k": 2,
+    "n": 6,
+    "not_scored": {
+     "the gold answer is a sentence or yes/no": 1,
+     "the question states the gold value": 1
+    }
    }
   }
  },
- "wall_s": 590.9
+ "wall_s": 759.7
 }

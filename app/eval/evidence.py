@@ -280,7 +280,11 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
     def stated(route: dict) -> str:
         aside = route["states_gold_value_aside"]
         return (f"answered means the route returned text, not that the text answers the question (it states the gold "
-                f"value in {aside['k']} of the {aside['n']} questions with a value answer)")
+                f"value in {aside['k']} of the {aside['n']} questions with a value answer that the question does not "
+                f"itself name)")
+
+    def by_name(counts: dict | None) -> str:
+        return ", ".join(f"{name} {count}" for name, count in (counts or {}).items()) or "none"
 
     stream = blob["summary"].get("/api/chat")
     if stream:
@@ -289,10 +293,15 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
                     "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
     request = blob["summary"].get("/api/chat/request")
     if request:
-        tools = ", ".join(f"{name} {count}" for name, count in (request.get("tool_calls") or {}).items()) or "none"
-        out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name",
-                    "value": f"{request['answered']} of {request['n']}; tool calls: {tools}; code tool calls: {request['code_tool_calls']}",
-                    "ci": "—", "n": request["n"], "command": cmd, "source": src, "not_shown": f"{common}; {stated(request)}"})
+        out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name, and the calls that failed",
+                    "value": (f"{request['answered']} of {request['n']}; tool calls: {by_name(request.get('tool_calls'))}; "
+                              f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
+                              f"{by_name(request.get('tool_calls_returned_error_text'))}; code tool calls: {request['code_tool_calls']}"),
+                    "ci": "—", "n": request["n"], "command": cmd, "source": src,
+                    "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool; an error "
+                                  f"text is an 'Error: ...' string a tool returned without the flag; a call that returned "
+                                  f"an empty list is not counted as failed; the causes are described in "
+                                  f"doc/engineering-reference.md (Backend)")})
     return out
 
 
