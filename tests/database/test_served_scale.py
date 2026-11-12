@@ -20,6 +20,7 @@ pytestmark = pytest.mark.skipif(not os.environ.get("PG_TEST_DSN"), reason="PG_TE
 
 ROOT = Path(__file__).resolve().parents[2]
 DIM = 64
+INGEST_SETTINGS = ("INGEST_MAX_REJECTED", "INGEST_SUFFIXES", "INGEST_MAX_FILE_BYTES", "PGVECTOR_SCHEMA", "LEXICAL_BACKEND")
 LONG = " ".join(f"word{i} returns dividends" for i in range(120))  # well over one 512-character window
 CORPUS = {"1": "index funds and expense ratios", "2": "", "3": "roth ira conversion rules", "4": "roth ira conversion rules", "5": LONG}
 QRELS = {"q1": {"1": 1}, "q2": {"2": 1, "3": 1}, "q3": {"5": 2}}
@@ -28,8 +29,10 @@ QRELS = {"q1": {"1": 1}, "q2": {"2": 1, "3": 1}, "q3": {"5": 2}}
 @pytest.fixture(scope="module")
 def indexed(tmp_path_factory):
     dsn = os.environ["PG_TEST_DSN"]
-    saved = {k: os.environ.get(k) for k in ("PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "PGVECTOR_TABLE", "EMBEDDING_DIM")}
+    saved = {k: os.environ.get(k) for k in ("PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "PGVECTOR_TABLE", "EMBEDDING_DIM") + INGEST_SETTINGS}
     os.environ.update(PG_CONNECTION_STRING=dsn, PSYCOPG2_CONNECTION_STRING=dsn, PGVECTOR_TABLE="scaletest_" + uuid.uuid4().hex[:8], EMBEDDING_DIM=str(DIM))
+    for name in INGEST_SETTINGS:  # the build reads them as the index step does; CI sets INGEST_MAX_REJECTED=0, and this corpus has 2 rejections
+        os.environ.pop(name, None)
     from app.database.migrate import drop_vector_table, migrate_all
     from app.database.vector_store_manager import VectorStoreManager
     from app.engine.embeddings import HashEmbedding
@@ -156,14 +159,17 @@ def test_index_stage_refuses_a_table_that_already_has_rows(indexed, tmp_path, mo
 def test_the_deploy_orders_index_step_accepts_the_build(indexed, tmp_path):
     """`python -m app.engine.ingest`, in its own process with the settings an API of this table reads, finds every file the
     timed build indexed unchanged under the same pipeline: the build wrote what the deploy order's index step writes."""
+    from urllib.parse import urlparse
+
     from app.eval import served_scale
     from app.eval.service import base_environment
 
     vsm, blob, _, corpus_dir = indexed
     env = base_environment({"PG_CONNECTION_STRING": os.environ["PG_CONNECTION_STRING"], "PSYCOPG2_CONNECTION_STRING": vsm.conn_string,
+                            "DB_NAME": urlparse(os.environ["PG_CONNECTION_STRING"]).path.lstrip("/"),
                             "PGVECTOR_TABLE": os.environ["PGVECTOR_TABLE"], "EMBEDDING_DIM": str(DIM), "EMBEDDING_PROVIDER": "hash",
                             "MODEL_PROVIDER": "ollama", "RERANKER_MODEL": "none", "DATA_DIR": str(corpus_dir), "PYTHONPATH": str(ROOT)})
-    for name in ("PGVECTOR_SCHEMA", "LEXICAL_BACKEND", "INGEST_SUFFIXES", "INGEST_MAX_FILE_BYTES", "INGEST_MAX_REJECTED"):
+    for name in INGEST_SETTINGS:
         env.pop(name, None)
     out = served_scale.index_step_unchanged(env, blob["report"], log_path=tmp_path / "index-step.log")
     assert out["report"]["files_unchanged"] == 3 and out["report"]["chunks_embedded"] == 0 and out["report"]["pipeline"] == blob["report"]["pipeline"]
