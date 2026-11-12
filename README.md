@@ -30,7 +30,7 @@ Research directories contain near-duplicate configurations, archived results, an
 
 [![Illustrated lexical and dense candidate lists combined through reciprocal rank fusion](doc/gifs/hybrid.gif)](doc/engineering-reference.md#hybrid-search)
 
-*Illustrated ranking flow. The displayed Recall@50 comes from the 61-file fixture, where retrieving most files makes coverage easy; it is not a claim about external-domain ranking quality.*
+*Illustrated ranking flow. The displayed Recall@50 comes from the 61-file<!-- num: bench/results/main.json#/n_files --> fixture, where retrieving most files makes coverage easy; it is not a claim about external-domain ranking quality.*
 
 ### Keep archived evidence from becoming the answer
 
@@ -44,10 +44,10 @@ Research directories contain near-duplicate configurations, archived results, an
 
 | Evaluation | Published finding | Scope |
 | --- | --- | --- |
-| NFCorpus | Hybrid nDCG@10 **0.3637**, versus **0.3207** for BM25 | 323 official test queries; the added reranker reduced the hybrid score. [Results](bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) |
-| FiQA | Dense nDCG@10 **0.3848**, versus **0.3645** for hybrid | 648 test queries; hybrid is not the best choice on every corpus. [Results](bench/results/revamp_20261007/beir_fiqa_gpu.json) |
-| Robotics-file lookup | Path context increased source-file Recall@10 **0.058 → 0.671** | 240 generated test questions with disjoint experiment families; this measures file retrieval, not answer correctness. [Results](bench/results/robotics_file_lookup_revalidated_2026-10-07.json) |
-| Neural HTTP service | Client p95 **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16** | H100, 600 files, 5,633 nodes; 16 requests per level, all 48 measured requests succeeded. A short workload, not a capacity claim. [Results](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json) |
+| NFCorpus | Hybrid nDCG@10 **0.3637**, versus **0.3207** for BM25 | 323 official test queries; the added reranker reduced the hybrid score.<!-- num: bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json#/results/[config=hybrid@bge-small]/retrieval/ndcg@10; #/results/[config=bm25]/retrieval/ndcg@10; #/n_queries --> [Results](bench/results/revamp_20261007/beir_nfcorpus_gpu_rescored.json) |
+| FiQA | Dense nDCG@10 **0.3848**, versus **0.3645** for hybrid | 648 test queries; hybrid is not the best choice on every corpus.<!-- num: bench/results/revamp_20261007/beir_fiqa_gpu.json#/results/[config=dense@bge-small]/retrieval/ndcg@10; #/results/[config=hybrid@bge-small]/retrieval/ndcg@10; #/n_queries --> [Results](bench/results/revamp_20261007/beir_fiqa_gpu.json) |
+| Robotics-file lookup | Path context increased source-file Recall@10 **0.058 → 0.671** | 240 generated test questions with disjoint experiment families; this measures file retrieval, not answer correctness.<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/test/bm25_body/recall@10/mean; #/summary/test/bm25_path_context/recall@10/mean; #/labels/test --> [Results](bench/results/robotics_file_lookup_revalidated_2026-10-07.json) |
+| Neural HTTP service | Client p95 **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16** <!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/runs/[concurrency=1]/e2e_all_attempts/p95_ms; #/runs/[concurrency=4]/e2e_all_attempts/p95_ms; #/runs/[concurrency=16]/e2e_all_attempts/p95_ms; #/workload/concurrency_levels/0; #/workload/concurrency_levels/1; #/workload/concurrency_levels/2 --> | H100, 600 files, 5,633 nodes; 16 requests per level, all 48 measured requests succeeded.<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/deployment/data_files; #/health/n_nodes; #/workload/requests_per_level; #/measured_attempts/succeeded --> A short workload, not a capacity claim. [Results](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json) |
 
 The small frozen fixture uses **hash embeddings and overlap reranking**. Its full pipeline does not establish an overall ranking improvement over BM25. Model-backed retrieval, generated answers, and mobile fixture replays have different dependencies and evidence. [Full generated measurements](#generated-benchmark-evidence) · [HTTP load studies](doc/engineering-reference.md#measured-neural-http-service).
 
@@ -117,7 +117,7 @@ python3 scripts/smoke_retrieve.py --require-bm25
 docker compose down
 ```
 
-The default stack indexes the committed 61-file fixture. Responses disclose the PostgreSQL `ts_rank_cd` lexical fallback, hash embedder, and absent neural reranker. This is a retrieval API demo; generated chat additionally needs Ollama, and the default image does not build the Next.js interface. [Full application, real models, and deployment options](doc/engineering-reference.md#run-it).
+The default stack indexes the committed 61-file<!-- num: bench/results/main.json#/n_files --> fixture. Responses disclose the lexical backend (PostgreSQL `ts_rank_cd`, the default of the `LEXICAL_BACKEND` setting, not BM25), the hash embedder, and the absent neural reranker. This is a retrieval API demo; generated chat additionally needs Ollama, and the default image does not build the Next.js interface. [Full application, real models, and deployment options](doc/engineering-reference.md#run-it).
 
 <a id="android-and-ios-companion-backend"></a>
 
@@ -142,7 +142,7 @@ These tables remain generated from committed artifacts. `make bench-table-check`
 ### Fixture summary
 
 <!-- bench-headline:start (generated by `make bench-table` from bench/results/main.json; do not edit by hand) -->
-On the frozen fixture (136 questions over 61 files; hash embeddings, overlap reranker) the full pipeline scores nDCG@10 0.493 [0.453, 0.538] and Recall@10 0.748 [0.691, 0.804]; BM25 alone scores nDCG@10 0.505 [0.454, 0.555] and Recall@10 0.730 [0.664, 0.793]. Paired delta, full pipeline minus BM25: nDCG@10 -0.012 [-0.062, +0.040] (the interval covers zero), Recall@10 +0.018 [-0.037, +0.080] (the interval covers zero). Staleness Tier 1 on vs off: nDCG@10 +0.036 [+0.027, +0.046] (the interval excludes zero). Of the added components (rerank, router, staleness), the nDCG@10 gain over the previous row that excludes zero: staleness. The router's exact-path gain, nDCG@10 0.875 → 0.938, rests on n = 8 questions. Recall@50 is 0.940 against 0.660 for a random list of the same length: with 40 unique files in a top-50 over 61, that metric mostly measures list length.
+On the frozen fixture (136 questions over 61 files; hash embeddings, overlap reranker) the full pipeline scores nDCG@10 0.493 [0.453, 0.538] and Recall@10 0.748 [0.691, 0.804]; BM25 alone scores nDCG@10 0.505 [0.454, 0.555] and Recall@10 0.730 [0.664, 0.793]. Paired delta, full pipeline minus BM25: nDCG@10 -0.012 [-0.062, +0.040] (the interval covers zero), Recall@10 +0.018 [-0.037, +0.080] (the interval covers zero). Staleness Tier 1 on vs off: nDCG@10 +0.036 [+0.027, +0.046] (the interval excludes zero). Of the added components (rerank, router, staleness), the nDCG@10 gain over the previous row that excludes zero: staleness. The router's exact-path gain, nDCG@10 0.875 → 0.938, rests on n = 8 questions. Its nDCG@10 delta against the reranked hybrid is negative on the aggregation and comparative slices (intervals in the per-category lines below the table). Recall@50 is 0.940 against 0.660 for a random list of the same length: with 40 unique files in a top-50 over 61, that metric mostly measures list length.
 <!-- bench-headline:end -->
 
 <a id="bench-table"></a>
@@ -183,10 +183,13 @@ Per category, hybrid+rerank+router+staleness (n is the number of gold questions;
 | exact_path | 8 | 0.938 | 1.000 | 1.000 |
 | semantic | 6 | 0.707 | 0.750 | 0.833 |
 
-Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice):
+Per-category paired deltas vs parent, where the mechanism targets one category (small n, no claim beyond the slice); under each, every other category where that delta is negative:
 
 - `hybrid+rerank+router` vs `hybrid+rerank` on `exact_path`, n = 8 (small n): nDCG@10 +0.062 [+0.000, +0.188] (the interval covers zero), Recall@10 +0.000 [+0.000, +0.000]; nDCG@10 rose on 1 of the 8 questions and fell on 0.
+  - `hybrid+rerank+router` on `aggregation`, n = 10 (small n), a category it is not aimed at: nDCG@10 -0.016 [-0.119, +0.077] (the interval covers zero), Recall@10 +0.023 [-0.072, +0.121]; nDCG@10 rose on 3 of the 10 questions and fell on 3.
+  - `hybrid+rerank+router` on `comparative`, n = 8 (small n), a category it is not aimed at: nDCG@10 -0.039 [-0.107, +0.000] (the interval covers zero), Recall@10 -0.062 [-0.188, +0.000]; nDCG@10 rose on 0 of the 8 questions and fell on 2.
 - `hybrid+rerank+router+staleness` vs `hybrid+rerank+router` on `staleness`, n = 8 (small n): nDCG@10 +0.064 [+0.009, +0.155] (the interval excludes zero), Recall@10 +0.000 [+0.000, +0.000]; nDCG@10 rose on 4 of the 8 questions and fell on 0.
+  - `hybrid+rerank+router+staleness`: no other category has a negative nDCG@10 delta.
 
 Intervals: percentile bootstrap over queries, one index matrix shared by all configs (paired deltas); 2000 resamples, seed 0, numpy.random.RandomState.randint. Results file sha c92b455, corpus sha f1ba038674e7.
 <!-- bench-table:end -->
@@ -212,10 +215,14 @@ Fixture v1 with real models (`make bench-neural`, cuda (Quadro RTX 8000), torch 
 
 Hybrid RRF over dense bge-small: nDCG@10 +0.131 [+0.087, +0.175] (the interval excludes zero). bge-reranker-v2-m3 over that hybrid: nDCG@10 +0.116 [+0.076, +0.160] (the interval excludes zero). Router on top of the reranked hybrid: nDCG@10 -0.004 [-0.025, +0.016] (the interval covers zero). Staleness Tier 1 on top of that: nDCG@10 +0.017 [+0.008, +0.027] (the interval excludes zero). With the reranker on, the first stage stops mattering on this fixture: bge-small + reranker 0.812 vs hash + reranker 0.814, paired delta -0.003 [-0.010, +0.005] (the interval covers zero), because the reranker rescores 50 of 71 chunks.
 
-Per-category paired deltas vs parent (small n):
+Per-category paired deltas vs parent (small n); under each, every other category where that delta is negative:
 
 - `hybrid+bge-rerank+router@bge-small` vs `hybrid+bge-rerank@bge-small` on `exact_path`, n = 8 (small n): nDCG@10 +0.201 [+0.046, +0.342] (the interval excludes zero), Recall@10 +0.000 [+0.000, +0.000]; nDCG@10 rose on 4 of the 8 questions and fell on 0.
+  - `hybrid+bge-rerank+router@bge-small` on `aggregation`, n = 10 (small n), a category it is not aimed at: nDCG@10 -0.123 [-0.275, +0.020] (the interval covers zero), Recall@10 -0.037 [-0.145, +0.068]; nDCG@10 rose on 2 of the 10 questions and fell on 7.
+  - `hybrid+bge-rerank+router@bge-small` on `multi_hop`, n = 8 (small n), a category it is not aimed at: nDCG@10 -0.027 [-0.082, +0.000] (the interval covers zero), Recall@10 -0.062 [-0.188, +0.000]; nDCG@10 rose on 0 of the 8 questions and fell on 1.
+  - `hybrid+bge-rerank+router@bge-small` on `simple_factual`, n = 80, a category it is not aimed at: nDCG@10 -0.011 [-0.024, +0.000] (the interval covers zero), Recall@10 +0.000 [+0.000, +0.000]; nDCG@10 rose on 0 of the 80 questions and fell on 3.
 - `hybrid+bge-rerank+router+staleness@bge-small` vs `hybrid+bge-rerank+router@bge-small` on `staleness`, n = 8 (small n): nDCG@10 +0.050 [+0.000, +0.142] (the interval covers zero), Recall@10 +0.000 [+0.000, +0.000]; nDCG@10 rose on 2 of the 8 questions and fell on 0.
+  - `hybrid+bge-rerank+router+staleness@bge-small`: no other category has a negative nDCG@10 delta.
 <!-- bench-neural:end -->
 
 <a id="bench-beir"></a>
@@ -287,14 +294,14 @@ Dense bge-small vs BM25: nDCG@10 +0.1479 [+0.1239, +0.1729] (the interval exclud
 FiQA again, this time through the served path end to end: the served indexer writes the corpus into PostgreSQL with pgvector, the API answers every test query, and each answer is scored next to the in-memory rows computed in the same job on the same queries.
 
 <!-- bench-served-scale:start (generated by `make bench-table` from bench/results/served_scale_fiqa.json and bench/results/served_scale_fiqa_pre_m20.json; do not edit by hand) -->
-BEIR FiQA test split through the served path (`make bench-served-scale`): 57638 documents written one file per document and indexed by app/engine/ingest.index_directory into PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) + pgvector 0.8.6 with bge-small (117212 chunks; the scanner rejected 40 documents: empty 38, duplicate_content 2; judged relevant among them: 1), then the 648 test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of app/eval/beir.py computed in the same job on the same queries; Quadro RTX 8000 (44.3 GB) with Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz, 8 CPUs allocated; results sha 6ff210f. Lexical leg: Postgres ts_rank_cd on the served side (a fallback, not BM25), Okapi BM25 in memory. Dense-leg query: the served embedder puts 'Represent this question for searching relevant passages: ' before each query (read from the served model); a row named '+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.
+BEIR FiQA test split through the served path (`make bench-served-scale`): 57638 documents written one file per document and indexed by app/engine/ingest.index_directory into PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) + pgvector 0.8.6 with bge-small (117212 chunks; the scanner rejected 40 documents: empty 38, duplicate_content 2; judged relevant among them: 1), then the 648 test queries through POST /api/retrieve/ (k = 50), scored at the document level (a document ranks at its best chunk) and paired with rows of app/eval/beir.py computed in the same job on the same queries; Quadro RTX 8000 (44.3 GB) with Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz, 8 CPUs allocated; results sha 6ff210f. Lexical leg: Postgres ts_rank_cd on the served side (not BM25: the default of the explicit LEXICAL_BACKEND setting, never chosen automatically), Okapi BM25 in memory. Dense-leg query: the served embedder puts 'Represent this question for searching relevant passages: ' before each query (read from the served model); a row named '+served-query-prompt' does the same in memory; the lexical legs and the rerankers read the bare query on both sides.
 
 | row | side | lexical leg | dense-leg query | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 [95% CI] | failed requests | p50 / p95 ms per query |
 |---|---|---|---|---:|---:|---:|---:|---:|
-| api:hybrid+rerank | served | ts_rank_cd (fallback) | prompt + query | 0.3631 [0.3353, 0.3911] | 0.4169 [0.3859, 0.4491] | 0.5219 [0.4904, 0.5535] | 0 of 648 | 561.08 / 1483.06 (HTTP) |
+| api:hybrid+rerank | served | ts_rank_cd (default LEXICAL_BACKEND, not BM25) | prompt + query | 0.3631 [0.3353, 0.3911] | 0.4169 [0.3859, 0.4491] | 0.5219 [0.4904, 0.5535] | 0 of 648 | 561.08 / 1483.06 (HTTP) |
 | hybrid+bge-rerank@bge-small/fp16-512/top20+served-query-prompt | in memory | Okapi BM25 | prompt + query | 0.4255 [0.3967, 0.4529] | 0.4838 [0.4510, 0.5140] | 0.6335 [0.6044, 0.6612] | — | 211.9 / 247.0 (in process) |
 | hybrid+bge-rerank@bge-small/fp16-512/top20 | in memory | Okapi BM25 | query | 0.4255 [0.3966, 0.4532] | 0.4835 [0.4511, 0.5146] | 0.6348 [0.6060, 0.6637] | — | 210.85 / 245.75 (in process) |
-| api:hybrid | served | ts_rank_cd (fallback) | prompt + query | 0.2604 [0.2376, 0.2828] | 0.3615 [0.3311, 0.3929] | 0.5219 [0.4904, 0.5535] | 0 of 648 | 505.81 / 1410.49 (HTTP) |
+| api:hybrid | served | ts_rank_cd (default LEXICAL_BACKEND, not BM25) | prompt + query | 0.2604 [0.2376, 0.2828] | 0.3615 [0.3311, 0.3929] | 0.5219 [0.4904, 0.5535] | 0 of 648 | 505.81 / 1410.49 (HTTP) |
 | hybrid@bge-small+served-query-prompt | in memory | Okapi BM25 | prompt + query | 0.3636 [0.3354, 0.3901] | 0.4389 [0.4071, 0.4693] | 0.6335 [0.6044, 0.6612] | — | 61.53 / 96.08 (in process) |
 | hybrid@bge-small | in memory | Okapi BM25 | query | 0.3645 [0.3365, 0.3921] | 0.4365 [0.4050, 0.4682] | 0.6348 [0.6060, 0.6637] | — | 60.5 / 93.48 (in process) |
 

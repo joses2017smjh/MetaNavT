@@ -27,7 +27,7 @@ def l2_normalize(mat: np.ndarray) -> np.ndarray:
 
 
 class HashEmbedder:
-    """Signed hashing trick over character 3-grams. Deterministic, no deps besides numpy."""
+    """Signed hashing trick over character 3- and 4-grams. Deterministic, no deps besides numpy."""
 
     name = "hash"
 
