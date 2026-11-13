@@ -24,7 +24,16 @@ ID = re.compile(r"[0-9a-f]{16}")
 
 
 def leaked(text: str) -> list[str]:
+    """The pieces of SECRET found in `text`. Request ids (16 random hex digits, made by the server) are removed first:
+    an id can contain the port's or the address's digits by chance (one CI run's id held '6432'), which is not a leak."""
+    text = re.sub(r"\b[0-9a-f]{16}\b", "<id>", text)
     return [needle for needle in NEEDLES if needle in text]
+
+
+def test_the_leak_check_ignores_a_request_id_that_happens_to_hold_the_ports_digits():
+    assert leaked('{"detail":"Error in chat engine","request_id":"6d4ea7a499b6432e"}') == []
+    assert leaked(f'{{"detail":"port {PORT} failed","request_id":"6d4ea7a499b6432e"}}') == [PORT]
+    assert leaked(f"x-request-id: 0123456789abcdef; host {HOST}") == [HOST]
 
 
 def _raise(*args, **kwargs):
