@@ -245,6 +245,19 @@ def test_no_plan_is_kept_in_the_tools_between_requests(client, corpus, operator_
     assert store.tools.plans == {} and store.tools._reviews == {}
 
 
+def test_a_refused_proposal_leaves_no_plan_in_the_tools(client, corpus):
+    """A move onto an existing file (409) or of a directory (400) is refused by the review propose_move builds after it
+    stored the plan; the refused plan is dropped with it, so the process holds none (it held one per refusal)."""
+    store = client.app.state.plans
+    (corpus / "configs" / "taken.yaml").write_text("existing\n")
+    for _ in range(3):
+        assert client.post("/api/plans/", json={"src": "configs/run_047.yaml", "dst": "configs/taken.yaml"}).status_code == 409
+        assert client.post("/api/plans/", json={"src": "configs", "dst": "elsewhere"}).status_code == 400
+    assert store.tools.plans == {} and store.tools._reviews == {}
+    assert client.get("/api/plans/").json() == []
+    assert (corpus / "configs" / "taken.yaml").read_text() == "existing\n"
+
+
 def test_an_operating_system_errors_text_never_reaches_the_client(client, corpus, operator_grant, monkeypatch):
     """A refusal this repository words (a check's error, "reviewed source is missing") is sent as it is; an
     operating system error's text names files, here an absolute path, and is not: the client gets a fixed text."""

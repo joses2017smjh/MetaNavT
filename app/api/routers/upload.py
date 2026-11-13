@@ -25,6 +25,7 @@ from app.api.routers.models import DocumentFile
 from app.database.vector_store_manager import IngestLockTimeout
 from app.engine.loaders.file import FileService
 from app.engine.uploads import UploadRejected
+from app.observability import one_line
 
 file_upload_router = r = APIRouter()
 
@@ -106,15 +107,15 @@ async def upload_file(request: Request) -> DocumentFile:
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors(include_url=False, include_input=False)) from exc
     try:
-        logger.info(f"Processing file: {upload.name}")
+        logger.info(f"Processing file: {one_line(upload.name)}")  # the client's text: one line, escaped
         return await run_in_threadpool(
             FileService.process_private_file, upload.name, upload.base64, upload.params
         )
     except UploadRejected as e:  # the index step would reject it: nothing was written
-        logger.info(f"Upload refused ({e.reason}): {e}")
+        logger.info(f"Upload refused ({e.reason}): {one_line(str(e))}")
         raise HTTPException(status_code=e.status, detail=f"{e.reason}: {e}") from e
     except IngestLockTimeout as e:  # another indexing run held the lock: nothing was written
-        logger.warning(f"Upload refused, indexing is busy: {e}")  # names the table; the client is only told to retry
+        logger.warning(f"Upload refused, indexing is busy: {one_line(str(e))}")  # names the table; the client is only told to retry
         raise HTTPException(status_code=503, detail="indexing is busy (another indexing run holds the ingest lock), try again",
                             headers={"Retry-After": "10"}) from e
     except Exception as e:

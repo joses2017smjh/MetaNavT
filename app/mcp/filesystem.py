@@ -38,6 +38,12 @@ class ApprovalRequired(Exception):
         self.check = check
 
 
+class IndexRequired(RuntimeError):
+    """search_semantic, search_lexical or propose_artifact called without an index (a server started with --no-index,
+    or on a root with nothing to index). Its text is written here and names nothing of the server, so the JSON-RPC
+    server (app/mcp/server.py) answers with it as written (SHOWN_IN_FULL there)."""
+
+
 def refusal_check(exc: BaseException) -> str | None:
     """The gate check that refused a call (a key of REFUSAL_CHECKS), or None when `exc` is not a refusal."""
     check = getattr(exc, "check", None)
@@ -293,6 +299,16 @@ class FilesystemTools:
         self._reviews[plan_id] = canonical(self._describe(plan_id)).decode()
         return self.review_plan(plan_id)
 
+    def _review_or_forget(self, plan_id: str) -> dict:
+        """Register the review of a proposal a propose_* tool has just stored. Building the review is what refuses
+        a proposal (an existing destination, a directory, a folder that is a regular file); the refused proposal
+        is then dropped with it, so none stays in the process."""
+        try:
+            return self._register_review(plan_id)
+        except BaseException:
+            self.forget_plan(plan_id)
+            raise
+
     def registered_review(self, plan_id: str) -> str:
         """The canonical review text registered for a plan: byte for byte what a capability's hash covers."""
         if plan_id not in self._reviews:
@@ -312,8 +328,9 @@ class FilesystemTools:
         self._reviews[plan.plan_id] = review
 
     def forget_plan(self, plan_id: str) -> None:
-        """Drop a move plan and its review from this object."""
-        self.plans.pop(plan_id, None)
+        """Drop a proposal (a move, patch, artifact or visualization) and its review from this object."""
+        for proposals in (self.plans, self.patches, self.artifacts, self.visualizations):
+            proposals.pop(plan_id, None)
         self._reviews.pop(plan_id, None)
 
     def review_plan(self, plan_id: str, **options) -> dict:
@@ -348,9 +365,14 @@ class FilesystemTools:
             raise ValueError("this action has no review options")
         return review
 
-    def _authorize(self, plan_id: str, action: str, approval_token: str | None, **options) -> dict:
+    def _require_capability(self, plan_id: str, approval_token: str | None) -> None:
+        """The first check of every apply_* call, before its plan is looked up: no token, or no verifier to check
+        one, is refused by the capability_required check, whether the plan exists or not."""
         if self.approval_verifier is None or not approval_token:
             raise ApprovalRequired(plan_id)
+
+    def _authorize(self, plan_id: str, action: str, approval_token: str | None, **options) -> dict:
+        self._require_capability(plan_id, approval_token)
         review = self.review_plan(plan_id, **options)
         if review["action"] != action:
             raise ApprovalError("capability action mismatch", check="action_mismatch")
@@ -371,7 +393,7 @@ class FilesystemTools:
 
     def search_semantic(self, query: str, k: int = 8, filters: dict | None = None) -> list[dict]:
         if self.index is None:
-            raise RuntimeError("semantic search requires an index")
+            raise IndexRequired("semantic search requires an index")
         result = self.index.retrieve(query, n=k)
         hits = []
         for hit in result.hits[:k]:
@@ -391,7 +413,7 @@ class FilesystemTools:
 
     def search_lexical(self, query: str, k: int = 8) -> list[dict]:
         if self.index is None:
-            raise RuntimeError("lexical search requires an index")
+            raise IndexRequired("lexical search requires an index")
         hits = self.index.search_bm25(query, k=k)
         return [
             {"path": c.path, "chunk_id": c.chunk_id, "score": s, "text": c.text[:500]}
@@ -463,7 +485,7 @@ class FilesystemTools:
             session=self._session,
         )
         self.plans[plan.plan_id] = plan
-        review = self._register_review(plan.plan_id)
+        review = self._review_or_forget(plan.plan_id)
         return {
             "plan_id": plan.plan_id,
             "src": plan.src,
@@ -493,10 +515,10 @@ class FilesystemTools:
         from app.artifacts.pipeline import ArtifactAgent
 
         if self.index is None:
-            raise RuntimeError("propose_artifact requires an index")
+            raise IndexRequired("propose_artifact requires an index")
         prop = ArtifactAgent(self.index).produce(query)
         self.artifacts[prop.plan_id] = prop
-        review = self._register_review(prop.plan_id)
+        review = self._review_or_forget(prop.plan_id)
         return {**prop.as_dict(), "review": review}
 
     @_serialized
@@ -518,7 +540,7 @@ class FilesystemTools:
         plan_id = str(uuid.uuid4())
         patch = FilePatch(path=str(target.relative_to(self.root)), old=old, new=new)
         self.patches[plan_id] = patch
-        review = self._register_review(plan_id)
+        review = self._review_or_forget(plan_id)
         return {
             "plan_id": plan_id,
             "path": patch.path,
@@ -592,7 +614,7 @@ class FilesystemTools:
             chart_type=chart_type,
         )
         self.visualizations[plan.plan_id] = plan
-        review = self._register_review(plan.plan_id)
+        review = self._review_or_forget(plan.plan_id)
         return {**plan.as_dict(), "review": review}
 
     @_serialized
@@ -607,6 +629,7 @@ class FilesystemTools:
     ) -> dict:
         from app.artifacts.visualization import execute_matlab
 
+        self._require_capability(plan_id, approval_token)  # as in the other apply_* tools, before the lookup
         plan = self.visualizations.get(plan_id)
         if plan is None:
             raise KeyError(f"unknown visualization {plan_id}")

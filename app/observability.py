@@ -15,7 +15,8 @@
   id: the request's (app/api/errors.py gives every request one and sends it as
   X-Request-ID), else a new one (start-up, model loading, offline runs). The
   client gets the class and the id, never the text. Routes turn it into a fixed
-  HTTP answer with app.api.errors.failure().
+  HTTP answer with app.api.errors.failure(). The log line stays one line
+  (one_line): a client's text in it cannot start a line of its own.
 
 pip install -e ".[otel]" for the SDK; without it the API behaves the same.
 """
@@ -145,10 +146,24 @@ def public_failure(kind: str, error_id: str | None = None) -> str:
     return f"{kind} (the server log has the reason{f', id {error_id}' if error_id else ''})"
 
 
+def one_line(text: str) -> str:
+    """`text` with every character that is not printable (a newline, a carriage return, any other line break or
+    control character, a bidirectional control) written as its escape, as repr() writes it; printable text, other
+    scripts included, is left as it is."""
+    if text.isprintable():
+        return text
+    return "".join(ch if ch.isprintable() else ch.encode("unicode_escape").decode("ascii") for ch in text)
+
+
 def report_failure(log: logging.Logger, what: str, exc: BaseException, *, error_id: str | None = None,
                    level: int = logging.ERROR, traceback: bool = False) -> tuple[str, str]:
     """Log that `what` failed, with the exception's full text, under an id: `error_id`, else the current request's,
-    else a new one. Returns (the id, what a client may be told: the class and the id)."""
+    else a new one. Returns (the id, what a client may be told: the class and the id).
+
+    The line is written through one_line: `what` and the exception's text can hold a client's own text (a path, a
+    plan id from the URL), and a newline or a carriage return in it would otherwise start a log line of the client's
+    choosing, with any id. With `traceback`, the traceback that follows the line is Python's, as before."""
     error_id = error_id or current_request_id() or new_request_id()
-    log.log(level, f"{what} failed [id {error_id}]: {type(exc).__name__}: {exc}", exc_info=exc if traceback else None)
+    log.log(level, one_line(f"{what} failed [id {error_id}]: {type(exc).__name__}: {exc}"),
+            exc_info=exc if traceback else None)
     return error_id, public_failure(type(exc).__name__, error_id)

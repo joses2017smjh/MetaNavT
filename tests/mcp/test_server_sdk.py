@@ -8,7 +8,8 @@ import sqlite3
 import sys
 import time
 from pathlib import Path
-from app.mcp.approvals import create_key, sign_review
+from app.mcp.approvals import ApprovalError, create_key, sign_review
+from app.mcp.server import tool_error
 
 import pytest
 
@@ -172,8 +173,11 @@ def test_sdk_server_refuses_forged_expired_and_replayed_capabilities(tmp_path, t
     out = asyncio.run(_refusals(tmp_path, tmp_path_factory.mktemp("sdk-operator-private")))
 
     expected = {"forged": "signature", "expired": "expiry", "replay_burnt": "ledger", "replay_applied": "staleness"}
+    tools = {"forged": "apply_plan", "expired": "apply_plan", "replay_burnt": "apply_patch", "replay_applied": "apply_plan"}
     for label, check in expected.items():
         assert f"refused by the {check} check" in out["texts"][label], out["texts"][label]
+        # the hand-written JSON-RPC server (app/mcp/server.py) answers the same refusal with the same text
+        assert out["texts"][label] == tool_error(tools[label], ApprovalError("refused", check=check))
         assert out["alive"][label]  # the server answers the next call
     for label in ("forged", "expired", "replay_burnt"):
         assert out["trees"][label] == out["trees"]["start"]

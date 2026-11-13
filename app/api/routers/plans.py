@@ -11,11 +11,10 @@ Postgres tables: the plans (plan_proposals, migration 0004) and a decision log (
 approve / reject is written to the log before the action runs and updated with its result. If the log
 cannot be written, the action is refused (503) rather than run unrecorded.
 
-Every request reads its plan by id from plan_proposals and no saved plan is kept in a process between
-requests (a proposal FilesystemTools refuses, such as a move onto an existing file, still leaves its
-unsaved MovePlan in this process's FilesystemTools: propose_move stores the plan before building the
-review that refuses it), so every API replica on the database, and a restarted one, serves the same
-plans: a plan proposed on one replica is listed, viewed, approved or rejected on another, and its status
+Every request reads its plan by id from plan_proposals and no plan is kept in a process between requests
+(a proposal FilesystemTools refuses, such as a move onto an existing file, is dropped with the refusal),
+so every API replica on the database, and a restarted one, serves the same plans: a plan proposed on one
+replica is listed, viewed, approved or rejected on another, and its status
 (pending_approval, applied, rejected) is the row's. A row holds the move, the canonical review the operator signs (its text and
 SHA-256), the session it was proposed in, the identity of the root it was proposed over, and the decision
 (when, by whom, the note). An approval loads the row into this process's FilesystemTools and runs its

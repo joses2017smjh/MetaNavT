@@ -21,7 +21,7 @@ from app.eval.trusted_actions import ATTACK_FAMILIES, BENIGN_FAMILIES, action_ca
 from app.eval.trusted_actions import main as write_benchmark
 from app.mcp import approve
 from app.mcp.approvals import REFUSAL_CHECKS, ApprovalError, ApprovalVerifier, canonical, create_key, review_hash, sign_review, verifier_from_env
-from app.mcp.filesystem import ApprovalRequired, FilesystemTools, refusal_check
+from app.mcp.filesystem import ApprovalRequired, FilesystemTools, build_root_index, refusal_check
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -90,6 +90,79 @@ def test_a_loaded_move_plan_is_rebuilt_with_its_own_session_not_the_loading_obje
     with pytest.raises(ApprovalError) as refused:
         other.apply_plan(plan["plan_id"], approval_token=sign_review(plan["review"], key, actor="operator"))
     assert refused.value.check == "staleness" and (tools.root / "source").exists() and not (tools.root / "destination").exists()
+
+
+def test_a_refused_move_proposal_leaves_no_plan_in_the_process(tmp_path):
+    """propose_move stores the plan, then builds its review, which refuses a move onto an existing file, of a directory
+    or under a regular file. The refused plan goes with it: refused proposals hold no plan and no review (the API's plan
+    store held one per refusal until a restart, and a stdio server for its whole life)."""
+    tools, _key, _verifier, plan = _setup(tmp_path)
+    (tools.root / "existing").write_text("must survive")
+    (tools.root / "folder").mkdir()
+    refused = [("source", "existing", FileExistsError), ("folder", "elsewhere", PermissionError),
+               ("source", "existing/below", PermissionError)] * 3
+    for src, dst, kind in refused:
+        with pytest.raises(kind):
+            tools.propose_move(src, dst)
+    assert set(tools.plans) == set(tools._reviews) == {plan["plan_id"]}  # only _setup's proposal, which was not refused
+    assert (tools.root / "existing").read_text() == "must survive" and (tools.root / "source").read_text() == "original"
+
+
+def test_a_refused_patch_artifact_or_visualization_proposal_leaves_nothing_in_the_process(tmp_path):
+    """As for moves (above): propose_patch, propose_artifact and propose_visualization store their proposal, then build
+    its review, which refuses a patch of a directory, and an artifact or a visualization whose file exists already or
+    whose folder is a regular file. Each refused proposal goes with its refusal; the accepted ones stay, with their
+    reviews."""
+    tools, _key, _verifier, move = _setup(tmp_path)
+    root = tools.root
+    (root / "fusion.py").write_text("def fuse(lexical, dense, k=60):\n    return sorted(set(lexical) | set(dense))\n")
+    (root / "data.csv").write_text("group,value\na,1\nb,2\n")
+    (root / "folder").mkdir()
+    tools.index = build_root_index(root)
+    query, question = "write a test for the fusion module", "average value by group"
+    artifact, chart = tools.propose_artifact(query), tools.propose_visualization("data.csv", question)
+    for existing in (artifact["spec"]["file_path"], chart["script_path"]):  # where the accepted proposals would write
+        (root / existing).parent.mkdir(parents=True, exist_ok=True)
+        (root / existing).write_text("an existing file\n")
+    refused = [(lambda: tools.propose_patch("folder", "old", "new"), PermissionError),  # only regular files
+               (lambda: tools.propose_artifact(query), FileExistsError),
+               (lambda: tools.propose_visualization("data.csv", question), FileExistsError)] * 3
+    for propose, kind in refused:
+        with pytest.raises(kind):
+            propose()
+    assert tools.patches == {}
+    assert set(tools.artifacts) == {artifact["plan_id"]} and set(tools.visualizations) == {chart["plan_id"]}
+    assert set(tools._reviews) == {move["plan_id"], artifact["plan_id"], chart["plan_id"]}
+
+    blocked = tmp_path / "blocked"  # the proposals' folder is a regular file
+    blocked.mkdir()
+    for name in ("fusion.py", "data.csv"):
+        (blocked / name).write_bytes((root / name).read_bytes())
+    (blocked / "artifacts").write_text("a regular file where the proposals' folder would be\n")
+    other = FilesystemTools(root=blocked, index=build_root_index(blocked))
+    for propose in [lambda: other.propose_artifact(query), lambda: other.propose_visualization("data.csv", question)] * 3:
+        with pytest.raises(PermissionError):  # parent is not a directory
+            propose()
+    assert other.artifacts == other.visualizations == other._reviews == {}
+
+
+@pytest.mark.parametrize("tool", ["apply_plan", "apply_patch", "apply_artifact", "apply_visualization"])
+def test_every_apply_tool_answers_an_unknown_plan_alike(tmp_path, tool):
+    """Without a capability (no token, or no verifier to check one) an apply_* call is refused by the
+    capability_required check before its plan is looked up, so an unknown plan id is answered as a known one is, and
+    the audit trail names the check. apply_visualization used to look its plan up first and raise KeyError. With a
+    verifier and a token, an unknown plan is a KeyError for all four."""
+    tools, key, _verifier, plan = _setup(tmp_path)
+    token = sign_review(plan["review"], key, actor="operator")  # valid, for another plan
+    for gate, arguments in ((tools, {"plan_id": "unknown"}),
+                            (FilesystemTools(root=tools.root), {"plan_id": "unknown", "approval_token": token})):
+        with pytest.raises(ApprovalRequired) as refused:
+            gate.call(tool, arguments)
+        assert refusal_check(refused.value) == "capability_required"
+        assert gate.audit_events[-1]["action"] == tool and gate.audit_events[-1]["check"] == "capability_required"
+    with pytest.raises(KeyError):
+        tools.call(tool, {"plan_id": "unknown", "approval_token": token})
+    assert tools.audit_events[-1]["detail"] == "KeyError" and tools.audit_events[-1]["check"] is None
 
 
 # One verifier in a process of its own, on the shared ledger file: it says "ready", waits for "go" on stdin, consumes
