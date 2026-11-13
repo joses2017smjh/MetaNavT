@@ -508,6 +508,29 @@ def test_committed_frontier_file_is_self_contained(rel):
     assert graph and all("n_communities" in r["graphrag"] and "discriminates" in r["graphrag"] for r in graph)
 
 
+@pytest.mark.parametrize("rel", ["bench/results/frontier.json", "bench/results/frontier_neural.json"])
+def test_committed_frontier_file_has_every_interval_its_provenance_and_its_sidecar(rel):
+    """B32, B33: each frontier file carries an interval and a paired delta for every metric of CI_METRICS (MRR@10 and
+    Recall@5 too), the provenance header of a clean checkout, and its per-question sidecar, from which
+    tests/eval/test_per_question.py recomputes every interval."""
+    import json
+
+    from app.eval.harness import CI_METRICS, project_root
+    from app.eval.per_question import sidecar_path
+
+    path = project_root() / rel
+    blob = json.loads(path.read_text())
+    assert blob.get("working_tree_dirty") is False and (blob.get("git_head") or "").startswith(blob["git_sha"])
+    for key in ("source_sha256", "gold_sha256", "ingest"):
+        assert blob.get(key), key
+    for row in blob["results"]:
+        assert set(CI_METRICS) <= set(row["ci"]), row["config"]
+        assert set(CI_METRICS) <= set(row["delta_vs_previous"] or CI_METRICS), row["config"]
+    for comparison in blob["bootstrap"]["comparisons"]:
+        assert set(CI_METRICS) <= set(comparison), comparison["row"]
+    assert sidecar_path(path).exists()
+
+
 # ---- reporting: generated only ---------------------------------------------------------------
 
 def test_verdict_word_comes_from_the_interval_alone():
