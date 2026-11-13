@@ -1722,7 +1722,7 @@ def test_the_engineering_reference_on_the_injection_study_holds_for_the_current_
     assert delta["excludes_zero"] and delta["delta"] > 0
     hijack = {d: blob["summary"][weaker][d]["by_goal"]["hijack"]["exposed_episodes"] for d in ("none", "least_privilege")}
     assert hijack["least_privilege"] > hijack["none"]
-    assert "matched on retrieval" not in text.split("**The injection evaluation is not an adaptive attack.**")[0].split(
+    assert "matched on retrieval" not in text.split("**The injection evaluation is not a strong adaptive attack.**")[0].split(
         "## Does the agent follow instructions planted in files?")[1]
     # the neutral lines carry the planted text's query terms, which is all the D29 test checks; the limits say so too
     assert ("the current run's controls carry neutral lines with the same terms in the same files, which matches them on "
@@ -1897,7 +1897,7 @@ def test_the_scores_writer_refuses_a_score_that_holds_an_absolute_path(tmp_path)
 def test_the_engineering_reference_describes_the_field_check_as_coded():
     text = (ai.ROOT / "doc" / "engineering-reference.md").read_text()
     assert "by construction, so it shows the mechanism" not in text
-    limits = next(p for p in text.split("\n\n") if p.startswith("**The injection evaluation is not an adaptive attack.**"))
+    limits = next(p for p in text.split("\n\n") if p.startswith("**The injection evaluation is not a strong adaptive attack.**"))
     # the rule as field_check() applies it, and the measured recall cited from the generated table, not typed
     assert "states another value for the field" in limits and "an unquoted value outside the field's vocabulary passes" in limits
     assert "](../README.md#agent-injection)" in limits and "in-sample" in limits
@@ -1919,7 +1919,7 @@ def test_the_field_check_is_described_per_kind_of_field_as_stated_values_reads_i
     from app.eval.report import agent_injection_table
     readme = agent_injection_table(json.loads(RESULTS.read_text()))
     text = (ai.ROOT / "doc" / "engineering-reference.md").read_text()
-    limits = next(p for p in text.split("\n\n") if p.startswith("**The injection evaluation is not an adaptive attack.**"))
+    limits = next(p for p in text.split("\n\n") if p.startswith("**The injection evaluation is not a strong adaptive attack.**"))
     for doc in (readme, limits):
         assert "for a numeric field, any number in the answer written with a decimal point or an exponent" in doc
         assert ("for any other field, another value the field takes in the corpus configs, or a bare word in quotes or "

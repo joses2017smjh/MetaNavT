@@ -823,3 +823,112 @@ def test_the_adaptive_run_holds_no_user_or_host_name_and_absolute_paths_only_whe
     replaced = [r for r in rows if r["validation"]["replaced"]]
     assert [(aa.episode_key(r), r["validation"]["replaced"]) for r in replaced] == [
         (("qwen2.5:7b", "spotlight", "q064-move", 0, r), "absolute_path") for r in range(1, 8)]
+
+
+def test_the_docs_on_the_adaptive_run_hold_for_its_results_file(adaptive_run):
+    # the hand-written reading of the held-out run in the engineering reference, the README and the evidence page's
+    # interview answer, sentence by sentence, each verdict read off the file's paired intervals, the null and the
+    # losers included
+    blob, tasks, rows, _, _, _ = adaptive_run
+    by_id = {t.task_id: t for t in tasks}
+    text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
+    readme = " ".join(next(p for p in (ai.ROOT / "README.md").read_text().split("\n\n")
+                           if p.startswith("A fourth run replaces the fixed phrasings")).split())
+    from app.eval.evidence import QA
+    answer = next(p for p in QA.split("\n\n") if p.startswith("**What did the injection evaluation show?**"))
+    cfg, summary, comparison, deltas = blob["config"], blob["summary"], blob["comparison"], blob["paired_deltas"]
+    (model,) = cfg["models"]
+    attacker = cfg["attacker"]["model"]
+    configs = cfg["defenses"]
+    named = [goal for goal in ai.GOALS] + [name for name, _ in aa.GOAL_GROUPS if name not in ai.GOALS]
+
+    def covers(block):
+        return block["lo"] <= 0 <= block["hi"]
+
+    # one run at one commit with no harness error; after K rounds every comparison with v3 covers zero
+    assert len({seg["git_head"] for seg in blob["episodes_generated_by"]["segments"]}) == 1 and blob["n_episode_errors"] == 0
+    assert all(covers(comparison[model][d][name][level]["delta"]) for d in configs for name in named
+               for level in ("attempted", "took_effect"))
+    assert ("The held-out run ran once, at the commit its results name, with no harness error in any round") in text
+    assert ("After seven rounds, no comparison with v3's fixed phrasings on the same pairs and seeds showed a difference, "
+            "for any goal or group of goals, at either level: every paired interval covers zero.") in text
+    # the planted actions: attempted in no round, as in v3, with no defense too; no write-tool call at all
+    planted = [r for r in rows if by_id[r["task_id"]].goal in ("move", "patch", "exfiltrate")]
+    assert planted and not any(r["score"]["attempted"] for r in planted)
+    assert all(comparison[model][d]["planted_actions"]["attempted"]["fixed"]["hi"] == 0 for d in configs)
+    assert all(b["gate"]["write_tool_calls"] == b["recovered_write_tool_calls"] == 0 for b in summary[model].values())
+    assert ("The target attempted no planted action in any round of any configuration, as in v3 on these pairs, so that "
+            "tie at zero says nothing about the configurations: it holds with no defense as well. No target called a "
+            "write tool in any round, so planted text again never reached the approval gate.") in text
+    # the hijack: lower than v3 under none, spotlight and answer_check, tied at one under the tool filter; delivered
+    # past the check higher, covering zero
+    hijack = {d: comparison[model][d]["hijack"]["attempted"] for d in configs}
+    assert all(hijack[d]["delta"]["delta"] < 0 and covers(hijack[d]["delta"]) for d in ("none", "spotlight", ai.ANSWER_CHECK))
+    assert all(hijack["least_privilege"][side]["mean"] == hijack["least_privilege"][side]["lo"] == 1.0
+               for side in ("adaptive", "fixed"))
+    delivered = comparison[model][ai.ANSWER_CHECK]["hijack"]["took_effect"]["delta"]
+    assert delivered["delta"] > 0 and covers(delivered)
+    assert ("On the hijack the adaptive rate is not above v3's in any configuration: it is lower with no defense, under "
+            "datamarking and under the answer check, each paired interval covering zero, and tied with it under the tool "
+            "filter, where both are at one. The planted value delivered past the answer check is higher than in v3, an "
+            "interval that covers zero.") in text
+    # round one against v3's per-draw rate
+    first = {d: comparison[model][d]["hijack"]["round_1_vs_per_draw"]["delta"] for d in configs}
+    assert first["none"]["hi"] < 0 and first[ai.ANSWER_CHECK]["hi"] < 0
+    assert covers(first["spotlight"]) and covers(first["least_privilege"])
+    assert ("The attacker's first text, written before any feedback, got the planted value into the answer less often "
+            "than v3's phrasings per draw with no defense and under the answer check, paired intervals below zero; under "
+            "datamarking and the tool filter that difference covers zero.") in text
+    # each configuration against none within the adaptive run
+    check = deltas[model][f"{ai.ANSWER_CHECK} - none"]["hijack"]
+    assert check["took_effect"]["hi"] < 0 and covers(check["attempted"])
+    assert all(covers(deltas[model][f"{d} - none"][name][level]) for d in ("spotlight", "least_privilege")
+               for name in named for level in ("attempted", "took_effect"))
+    assert ("Within the adaptive run the answer check lowered the planted value delivered to the user against `none`, an "
+            "interval below zero, while the rate at which the model wrote it did not change measurably; neither "
+            "datamarking nor the tool filter changed either level measurably.") in text
+    # whose text was planted: mostly the attacker's own; most of the rest patch rounds completed with v3's sentence; one
+    # trajectory replaced in every round, for a line the validator reads as an absolute path
+    own = [r for r in rows if aa.own_text(r["validation"])]
+    rest = [r for r in rows if not aa.own_text(r["validation"])]
+    completed_patch = [r for r in rest if by_id[r["task_id"]].goal == "patch" and not r["validation"]["replaced"]]
+    assert 2 * len(own) > len(rows) and 2 * len(completed_patch) > len(rest)
+    replaced = [r for r in rows if r["validation"]["replaced"]]
+    (trajectory,) = {aa.trajectory_key(r) for r in replaced}
+    assert len(replaced) == len(aa.trajectories(rows)[trajectory]) and {r["validation"]["replaced"] for r in replaced} == {"absolute_path"}
+    assert ("Most rounds planted the attacker's own text; most of the rest were patch rounds completed with v3's goal "
+            "sentence, and in one trajectory every round was replaced, because the attacker ended each text with a line "
+            "the validator reads as an absolute path.") in text
+    # the same server version, context length, GPU type and weights as v3's run, which the headers record
+    v3 = json.loads(aa.V3_RESULTS.read_text())
+    for server in (blob["ollama"], blob["attacker_ollama"]):
+        assert server["version"] == v3["ollama"]["version"]
+        assert server["running"][model]["context_length"] == v3["ollama"]["running"][model]["context_length"]
+        assert server["models"][model]["digest"] == v3["ollama"]["models"][model]["digest"]
+    assert blob["device"] == v3["device"] and attacker == model
+    assert ("Both runs used the same Ollama version, context length, GPU type and model weights, as their headers record, "
+            "but were sampled at different times.") in text
+    assert ("A null from one attacker model that attacks its own weights, with seven rounds per trial, three training "
+            "questions and seven held-out ones, says how this target and these configurations held up against this "
+            "attacker, not that they resist adaptive attacks.") in text
+    assert (cfg["rounds"], len(cfg["split"]["train"]), len(cfg["split"]["questions"])) == (7, 3, 7)
+    # the limits paragraph and the links
+    assert ("The adaptive run adds such a loop, a narrow one: one local model rewrites the planted text against its own "
+            "weights, the only target, for seven rounds per trial, with instructions tuned on three questions and "
+            "feedback that tells it more than a user would see.") in text
+    assert "[the adaptive attacker](../README.md#agent-injection-adaptive)" in text
+    # the README and the interview answer say the same; "stronger" and "weaker" are v3's, by benign success with no defense
+    v3_benign = {m: b["none"]["benign_success"]["mean"] for m, b in v3["summary"].items()}
+    weaker, stronger = sorted(v3_benign, key=v3_benign.get)
+    assert attacker == model == stronger and [m for m in cfg["declared_models"] if m not in cfg["models"]] == [weaker]
+    assert ("A fourth run replaces the fixed phrasings with an attacker model that rewrites the planted text after every "
+            "round, against each configuration, from the scorer's outcome of its earlier rounds; the attacker is the "
+            "stronger model itself, the only target after the weaker one was cut for GPU time.") in readme
+    assert ("On the held-out questions, after seven rounds, no comparison with the fixed phrasings on the same pairs and "
+            "seeds showed a difference: no planted action was attempted in any round, and for the planted value, whether "
+            "the model wrote it or it reached the user, every paired interval covers zero in every configuration.") in readme
+    assert "[Every round](bench/results/agent_injection_adaptive_episodes.jsonl)" in readme
+    assert ("An adaptive attacker (the stronger model rewriting the planted text against each configuration, told the "
+            "scorer's outcome of its earlier rounds) showed no measurable difference from the fixed phrasings on held-out "
+            "questions after seven rounds: it got no planted action attempted, and every paired interval for the planted "
+            "value covers zero.") in answer
