@@ -1320,7 +1320,8 @@ and the summary of the committed file from its stored answers without a model
 call, re-running retrieval and the planting and refusing if the retrieved
 paths, the planted values or their counts differ or the abstention rule would
 label other rows; the file and the block name both the sha that generated the
-answers and the sha that rescored them. The first run's stored retrieval no
+answers and the sha that rescored them, and the file keeps each run's provenance
+block ([CPU benchmark](#cpu-benchmark)). The first run's stored retrieval no
 longer matches today's, so its rescore refuses. The results header pins the generator and each judge by the
 manifest digest Ollama reports for its tag (`revision`), next to the server
 version, and a model run refuses to start when a tag has no digest; files
