@@ -337,19 +337,35 @@ quote), whether the working tree had uncommitted changes when the run started
 ignored file does not; a tracked results file an earlier run rewrote counts too,
 such as `latest.json` after a previous `make bench`, so a re-record starts from a
 clean checkout) and the SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
-ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation
-and ingest-runs writers record that block, with every `app/` module the process
-imported as the source files. The writers that already recorded a dirty flag
+ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation,
+ingest-runs, answer-evaluation (`app/eval/llm_eval.py`) and robotics-lookup
+(`app/eval/robotics.py evaluate`, next to the `code_sha256` its mixed-run check
+compares) writers record that block, with every `app/` module the process
+imported as the source files. A rescored answer-evaluation file's header describes
+the rescore, and its `rescore` block keeps the block of the run that generated the
+answers (`rows_git_head`, `rows_working_tree_dirty`, `rows_source_sha256`; null for a
+file written before the jury writer recorded it). The HTTP load file records the
+block through `write_report` in `app/eval/http_load.py`, which its command line and
+`scripts/revamp_http_service.py` use (the script reads the tree before it starts the
+services, and hashes the files its `deployment` block lists: the API's code and the
+client's); `run_load` itself records none, since the served-scale runner nests its
+report in a file with its own flag. The smoke script's latency file
+(`scripts/smoke_retrieve.py --latency`) records it with the script among the source
+files, and passes through the sanitizer. The writers that already recorded a dirty flag
 compute it with the same helper and keep their own fields and file lists: the M4
 regressions (trusted actions, evidence consistency, injection), the companion and
 chat-route runs, the robotics checks, and ingest scale and two replicas (whose
 `worktree_clean` leaves untracked files and the file being rewritten out). Not
-converted: the jury writer (`app/eval/llm_eval.py`, a short commit only),
-`app/eval/robotics.py` (code hashes, no flag), `app/eval/http_load.py` and
-`scripts/smoke_retrieve.py` (latency files with no commit), and the served-scale
-and pgvector writers, which record their own `git_dirty`. The
+converted: the served-scale and pgvector writers, which record their own
+`git_dirty`, and `app/eval/beir_rescore.py`, whose rescored copy keeps its input's
+header and adds the rescoring module's hash (`rescored`). Outside `bench/results`,
+the demo data (`app/eval/demo_export.py`) and the EXPLAIN plans under `doc/sql/`
+(`scripts/explain_hybrid.py`) name a short commit only, and the MATLAB demo payload
+(`app/eval/matlab_demo.py`) none. Committed files written
+before their writer recorded the block keep the headers they have. The
 generated blocks add "with uncommitted changes" to the commit of a file whose
-`working_tree_dirty` or `git_dirty` is true.
+`working_tree_dirty` or `git_dirty` is true, and to each of the two commits a
+rescored answer-evaluation file names.
 Of the header, `make bench-check` compares `gold_sha256` together with the corpus
 digest, the gold set size, the file count, the bootstrap settings and the mtimes;
 it does not compare the provenance fields, which any code change moves, or the `ingest`
@@ -616,8 +632,18 @@ mutation. Symlink paths and implicit overwrites are refused. The audit trail
 names the check that refused an `apply_*` call (`REFUSAL_CHECKS` in
 `app/mcp/approvals.py`: signature, expiry, ledger, staleness and the rest). The
 SDK server also returns that name and a fixed description as a tool error, and
-gives a call without a capability the structured `approval_required` result;
-the JSON-RPC server returns the exception's message, as before.
+gives a call without a capability the structured `approval_required` result.
+The JSON-RPC server answers a refusal by one of those checks, a call without a
+capability included, with that same tool error; search or `propose_artifact` on
+a server started without an index with the text written for it (`semantic
+search requires an index`: `SHOWN_IN_FULL` in `app/mcp/server.py`, the rule the
+API applies to its start-up errors), not logged; and any other exception (a path
+outside the root or a proposed move onto an existing file among them) with its
+class and an id: the exception's text, which for an operating system error
+names the root's absolute path, goes to the server's stderr under that id, on
+one line, and never to the client (`tests/mcp/test_server_stdio.py`). The SDK
+server answers such an exception, the missing index included, with `Error
+executing tool <name>` alone and logs it with its traceback.
 
 ```bash
 # Run as the trusted operator; choose paths outside the indexed corpus.
@@ -1131,8 +1157,8 @@ approximate, and its recall at a realistic size is what `make bench-served-scale
 measures ([pgvector knobs](#pgvector-knobs-on-a-trade-off-curve)). Two things
 kept the index from serving the full list before: the `params` CTE, read by both
 lists, was materialized, which made the query vector a column and left the dense
-list no index path at all; and an HNSW scan returns at most `hnsw.ef_search`
-rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
+list no index path at all; and an HNSW scan without an iterative scan stops
+after about `hnsw.ef_search` rows, and pgvector's default is below `RETRIEVE_K`. The statement now keeps the
 query vector in a `NOT MATERIALIZED` CTE of its own (the tsquery stays a
 materialized value), and `hybrid_search`
 sets `hnsw.ef_search` to twice the depth (plus `hnsw.iterative_scan =
@@ -1297,7 +1323,8 @@ and the summary of the committed file from its stored answers without a model
 call, re-running retrieval and the planting and refusing if the retrieved
 paths, the planted values or their counts differ or the abstention rule would
 label other rows; the file and the block name both the sha that generated the
-answers and the sha that rescored them. The first run's stored retrieval no
+answers and the sha that rescored them, and the file keeps each run's provenance
+block ([CPU benchmark](#cpu-benchmark)). The first run's stored retrieval no
 longer matches today's, so its rescore refuses. The results header pins the generator and each judge by the
 manifest digest Ollama reports for its tag (`revision`), next to the server
 version, and a model run refuses to start when a tag has no digest; files
@@ -2002,7 +2029,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **API access.** `app/api/security.py` puts two opt-in dependencies on the API router. With neither `METANAVIT_API_KEY` nor `METANAVIT_API_KEYS_FILE` set the API is open, which is how the Compose stack, the mobile fixture backend and the tests run, and `/health` reports `auth.enabled: false`. With either set, every `/api` route and the two static mounts under `/api/files/` answer 401 unless the request carries a configured key (`X-API-Key`, or `Authorization: Bearer`), and `/health` stays open for probes. Each key is an identity, not a role: any key may do whatever the API allows. `METANAVIT_API_KEY` is one shared key, as before, and every holder of it is the identity `shared-key`. `METANAVIT_API_KEYS_FILE` names a file of named keys, one `name:<SHA-256 of the key>` line each and never a key, written by `python -m app.api.keys add --file <file> <name>`, which prints the new key once; the two can be set together, so a deployment keeps its shared key while it hands out named ones. The SHA-256 of a presented key is compared with every configured digest in constant time, without stopping at a match, and no key is logged or echoed. The file is read again when it changes, so deleting a line revokes that key without a restart. A file that cannot be used (missing, a malformed or repeated line, the reserved name `shared-key`, or a path under `DATA_DIR` or the output directory, which `/api/files` serves) makes every `/api` request answer 503 instead of opening the API, and the log names the line, not its text. The identity is the actor of a plan decision, in the plan and in the decision log, whatever the request's `actor` says; only while the API is open is the actor what the client sends. An approval's decision-log row also records `grant_actor`, the actor the operator signed into the capability, read only after the verifier accepted it (`tests/api/test_plans.py`, `tests/database/test_shared_plans.py`). The bundled web UI asks for the key at run time: the user types it into the field above the chat, the page keeps it in that tab's `sessionStorage` (gone when the tab closes; never in `localStorage`, a URL or the build, since anyone who can load a static export can read what it holds), and every request the page's code makes to `/api` sends it as `X-API-Key`. Two limits: a request the browser or a library makes by itself from a URL, such as a link to a cited source or an uploaded file under `/api/files/`, or the PDF viewer loading one, carries no header and answers 401 while a key is required; and any script running in the page can read the stored key. The API sends no CORS headers, so the page has to come from the API's own origin (the export served at `/`) or through a proxy to it, as in development. `RATE_LIMIT_PER_MINUTE` (bucket size `RATE_LIMIT_BURST`) turns on a token bucket per caller, keyed by the key's identity (each named key has its own bucket; the holders of the shared key share one) or else the client address, that answers 429 with `Retry-After`. The buckets live in process memory, so the budget is per replica: N replicas admit N times the configured budget and a restart resets it; a shared limit belongs at the proxy. `POST /api/chat/upload` reads its body under a byte cap (`UPLOAD_MAX_BYTES`) and answers 413 past it (the file is then saved under `DATA_DIR/uploads` and indexed, see Uploads above), and `GET /api/plans/decisions/recent` bounds `limit`. The log line that names the database prints host, port and database name, never the connection string.
 
-**Error answers.** No response body carries an exception's text, which can name the database host, its address, port and user, or a path: `report_failure` (`app/observability.py`) logs the text under an id, and the client gets a fixed text (`app/api/errors.py`). Every response the API answers carries its request's id in `X-Request-ID`; a page that the development proxy (`FRONTEND_ENDPOINT`) fetches from the Next.js server does not, since that middleware sits outside the one that adds the id. A route that fails answers `{"detail": <fixed text>, "request_id": <id>}` with the status it had before: 500 `Error in chat engine`, 503 `retrieval backend unavailable`, the plan store's fixed 503 texts, 500 `Error processing file`. An exception no route catches is 500 `internal error` with the id (it was Starlette's plain-text 500), and a failure while the chat answer streams ends the stream with its fixed message and the id. Where an answer reports an error inside it (the `degraded` entries of `/api/retrieve` and `/health` for the lexical leg, the reranker and the row count, a reranker that failed to load, a failed start, and the output of a chat tool that raised, which the agent hands to the model, `/api/chat` streams as a source for `query_index` and `/api/chat/request` returns among its tools), the text is the exception's class and the id it was logged under; the model sees only that text too. A failed start is logged once per attempt, and `/health`, `/api/retrieve` and `/api/plans` name its class and that attempt's id, except the texts this repository writes for the operator (an approval configuration error, the pending migrations, the ingest lock's wait; `SHOWN_IN_FULL` in `app/api/errors.py`), which name settings and tables but no host, address or user and are shown as written. `tests/api/test_error_texts.py` (and, for a chat tool, `tests/api/test_chat_routes.py`) injects a driver error that names a host, an address, a port and a user at each of these points and finds none of them in any body, and the full text in the log under the body's id.
+**Error answers.** No response body carries an exception's text, which can name the database host, its address, port and user, or a path: `report_failure` (`app/observability.py`) logs the text under an id, and the client gets a fixed text (`app/api/errors.py`). The line `report_failure` writes is one line whatever the texts in it hold: a character that is not printable, such as a newline or a carriage return in a plan id taken from the URL or in a path a client sent, is written as its escape, so a client's text in that line cannot start a log line of its own (`tests/engine/test_observability.py`, `tests/api/test_error_texts.py`, `tests/mcp/test_server_stdio.py`). It covers that line only: the traceback logged after it for an exception no route catches, a chat request answered `Error in chat engine`, an upload answered `Error processing file` or a failure while the chat answer streams is Python's, whose last line repeats the exception's text as it is, and a line logged other than through `report_failure` is escaped only where the code says so: the upload route's lines naming the file it was sent, and its refusal, go through the same `one_line` (`app/api/routers/upload.py`, `tests/api/test_error_texts.py`). Every response the API answers carries its request's id in `X-Request-ID`; a page that the development proxy (`FRONTEND_ENDPOINT`) fetches from the Next.js server does not, since that middleware sits outside the one that adds the id. A route that fails answers `{"detail": <fixed text>, "request_id": <id>}` with the status it had before: 500 `Error in chat engine`, 503 `retrieval backend unavailable`, the plan store's fixed 503 texts, 500 `Error processing file`. An exception no route catches is 500 `internal error` with the id (it was Starlette's plain-text 500), and a failure while the chat answer streams ends the stream with its fixed message and the id. Where an answer reports an error inside it (the `degraded` entries of `/api/retrieve` and `/health` for the lexical leg, the reranker and the row count, a reranker that failed to load, a failed start, and the output of a chat tool that raised, which the agent hands to the model, `/api/chat` streams as a source for `query_index` and `/api/chat/request` returns among its tools), the text is the exception's class and the id it was logged under; the model sees only that text too. A failed start is logged once per attempt, and `/health`, `/api/retrieve` and `/api/plans` name its class and that attempt's id, except the texts this repository writes for the operator (an approval configuration error, the pending migrations, the ingest lock's wait; `SHOWN_IN_FULL` in `app/api/errors.py`), which name settings and tables but no host, address or user and are shown as written. `tests/api/test_error_texts.py` (and, for a chat tool, `tests/api/test_chat_routes.py`) injects a driver error that names a host, an address, a port and a user at each of these points and finds none of them in any body, and the full text in the log under the body's id.
 
 **Python execution in chat.** The chat route's Python tool runs code the model writes, so it is off by default: `config/tools.yaml` does not list it, and `get_chat_engine()` builds the code agent only when `ENABLE_PYTHON_EXEC` is set and an API key is configured (`METANAVIT_API_KEY` or `METANAVIT_API_KEYS_FILE`). With the flag but no key the tool stays off and a warning says why; with a key, the web UI sends the one its user enters (API access). When it is on, each call runs the code in a child process (`app/engine/tools/python_exec_runner.py`), never in the API process: the child starts in a new session with its own environment reduced to `PATH`, `HOME`, locale, `TZ` and `TMPDIR`, plus one-thread settings for the maths libraries (the API key and the connection string are not in it), lowers its own CPU-time, address-space and file-size limits before the code runs (`PYTHON_EXEC_TIMEOUT_SECONDS`, `PYTHON_EXEC_MAX_MEMORY_MB`), and its process group is killed at the time limit and again when the call returns, so a background process left in the group does not outlive the call. The result keeps its fields (output, error, result, figure path). This is a separate process with limits, not OS isolation: the code runs as the API's OS user and can read what that user can read, including the API process's start-up environment under `/proc` and a `.env` file in the working directory, and a process it starts in a session of its own leaves the group and is not killed. `tests/engine/test_python_exec_child.py` covers the default, the key requirement, the other process, the limits and the kill.
 

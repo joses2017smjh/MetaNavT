@@ -139,6 +139,34 @@ def test_an_upload_that_fails_is_its_fixed_text_and_an_id(client, monkeypatch, c
     assert_public(client.post("/api/chat/upload", json=body), 500, "Error processing file", caplog)
 
 
+def test_an_upload_name_cannot_start_a_log_line_of_its_own(client, monkeypatch, caplog):
+    """The route logs the client's file name when it starts and again when the upload is refused; a name holding a
+    newline, a carriage return or a forged record must stay inside the one line the route writes (as report_failure's
+    lines do since M35 C4)."""
+    import base64
+
+    from app.engine.loaders.file import FileService
+    from app.engine.uploads import UploadRejected
+
+    forged = "notes.md\nERROR forged record id=deadbeefdeadbeef\rmore"
+    caplog.set_level(logging.INFO, logger="uvicorn")  # the route's lines are INFO; an earlier test may raise this logger's level
+
+    def refuse(name, *args, **kwargs):
+        raise UploadRejected(415, "unsupported_type", f"{name} is not a text file")
+
+    monkeypatch.setattr(FileService, "process_private_file", staticmethod(refuse))
+    body = {"name": forged, "base64": "data:text/markdown;base64," + base64.b64encode(b"# notes\n").decode()}
+    resp = client.post("/api/chat/upload", json=body)
+    assert resp.status_code == 415
+    upload_lines = [r.getMessage() for r in caplog.records
+                    if r.getMessage().startswith(("Processing file: ", "Upload refused"))]
+    assert any(line.startswith("Processing file: ") for line in upload_lines), upload_lines
+    assert any(line.startswith("Upload refused (unsupported_type): ") for line in upload_lines), upload_lines
+    for line in upload_lines:
+        assert "\n" not in line and "\r" not in line, line
+        assert "forged record" not in line or "\\n" in line, line  # the forged text is still there, escaped
+
+
 # ---------------------------------------------------------------- retrieve
 
 
@@ -287,6 +315,45 @@ def test_a_plan_store_failure_keeps_its_fixed_text_and_gains_the_id(client, capl
     client.app.state.plans = PlanStore(FilesystemTools(root=tmp_path), None, _TableDown())
     assert_public(client.get("/api/plans/"), 503, "plan store unavailable", caplog)
     assert_public(client.post("/api/plans/x/reject"), 503, "plan store unavailable", caplog)
+
+
+def test_a_failure_is_one_log_line_whatever_the_client_put_in_the_url(client, caplog, tmp_path):
+    """The plan id comes from the URL, where %0A and %0D decode to a newline and a carriage return, and the failure is
+    logged with it twice: in what failed, and in the driver's error, which quotes the value it refused. Each such
+    character is written as its escape, so one failure is one log line and the client starts no line of its own, in
+    the text format and in the JSON one (LOG_FORMAT=json), which stays one valid object per line."""
+    import io
+    import json
+    from urllib.parse import quote
+
+    from app.api.routers.plans import PlanStore
+    from app.mcp.filesystem import FilesystemTools
+    from app.observability import JsonFormatter
+
+    class _TableRefuses:
+        def deciding(self, plan_id, root_identity):
+            raise psycopg2.DataError(f'invalid input syntax for type uuid: "{plan_id}"')
+
+    forged = "x\nERROR forged by a newline [id deadbeefdeadbeef]\rERROR forged by a carriage return [id feedfacefeedface]"
+    client.app.state.plans = PlanStore(FilesystemTools(root=tmp_path), None, _TableRefuses())
+    json_log = io.StringIO()
+    handler = logging.StreamHandler(json_log)
+    handler.setFormatter(JsonFormatter())
+    logging.getLogger("uvicorn").addHandler(handler)  # the logger app/api/errors.py and the plans router write to
+    try:
+        resp = client.post(f"/api/plans/{quote(forged, safe='')}/reject")
+    finally:
+        logging.getLogger("uvicorn").removeHandler(handler)
+    assert resp.status_code == 503 and resp.json()["detail"] == "plan store unavailable", resp.text
+    request_id = resp.json()["request_id"]
+    escaped = forged.replace("\n", "\\n").replace("\r", "\\r")
+    [message] = [record.getMessage() for record in caplog.records if request_id in record.getMessage()]
+    assert message == (f"plan store: deciding plan {escaped} failed [id {request_id}]: DataError: "
+                       f'invalid input syntax for type uuid: "{escaped}"')
+    assert message.splitlines() == [message] and not any(line.startswith("ERROR forged") for line in caplog.text.splitlines())
+    lines = json_log.getvalue().splitlines()
+    assert [json.loads(line)["msg"] for line in lines if request_id in line] == [message]
+    assert not any(line.startswith("ERROR forged") for line in lines)
 
 
 def test_an_unexpected_failure_in_a_plans_route_is_a_fixed_500_with_an_id(client, caplog, tmp_path, monkeypatch):
