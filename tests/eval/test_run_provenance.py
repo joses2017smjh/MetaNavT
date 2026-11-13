@@ -244,6 +244,52 @@ def test_the_http_load_reads_the_tree_before_its_first_checkpoint(tmp_path, monk
     assert not {"git_sha", "git_head", "working_tree_dirty", "source_sha256"} & set(bare)
 
 
+def test_the_http_load_command_line_writes_through_write_report(dirty_repo, tmp_path, monkeypatch):
+    """`python -m app.eval.http_load`, the writer the module docstring documents, records the block: the stand-in API
+    is reached through run_load, and write_report's default checkout is the temporary repository."""
+    pytest.importorskip("httpx")
+    from app.eval import http_load
+
+    repo, head = dirty_repo
+    real_run_load = http_load.run_load
+    monkeypatch.setattr(http_load, "REPO_ROOT", repo)
+    monkeypatch.setattr(http_load, "run_load", lambda *a, **kw: real_run_load(*a, transport=_load_transport(), **kw))
+    queries, out = tmp_path / "queries.jsonl", tmp_path / "load.json"
+    queries.write_text(json.dumps({"id": "q1", "question": "alpha"}) + "\n")
+    argv = ["--url", "http://service", "--queries", str(queries), "--out", str(out), "--concurrency", "1", "--requests", "1", "--warmup", "0"]
+    assert http_load.main(argv) == 0
+    blob = json.loads(out.read_text())
+    _assert_dirty_header(blob, head, "app/eval/http_load.py")
+    assert list(blob)[:4] == ["git_sha", "git_head", "working_tree_dirty", "source_sha256"] and blob["outcome"] == "ok"
+
+
+def test_the_http_load_file_passes_through_the_sanitizer(dirty_repo, tmp_path, monkeypatch):
+    """Everything write_report writes is scrubbed, not only the url and health block run_load rewrites itself: here a
+    readiness error names the host and the caller's deployment block holds an absolute path and the host."""
+    pytest.importorskip("httpx")
+    import httpx
+
+    from app.eval import http_load
+
+    host = "node-17.cluster.example.edu"
+    monkeypatch.setattr(prov.platform, "node", lambda: host)
+    monkeypatch.setattr(prov.socket, "gethostname", lambda: host)
+
+    def unreachable(request):
+        raise httpx.ConnectError(f"certificate is not valid for {host}", request=request)
+
+    repo, _ = dirty_repo
+    out = tmp_path / "load.json"
+    blob = http_load.write_report("http://service", [("q1", "ok")], out, root=repo, transport=httpx.MockTransport(unreachable),
+                                  deployment={"data_dir": "/scratch/someone/corpus", "node": host},
+                                  concurrency_levels=(1,), requests_per_level=1, warmup_requests=0)
+    text = out.read_text()
+    assert blob["outcome"] == "readiness_failed" and json.loads(text) == blob
+    assert "node-17" not in text and "/scratch/someone" not in text
+    assert blob["readiness_errors"] == ["ConnectError: certificate is not valid for <host>"]
+    assert blob["deployment"] == {"data_dir": "<path>/corpus", "node": "<host>"}
+
+
 def test_the_revamp_http_file_records_the_tree_as_it_was_when_the_script_started(dirty_repo, tmp_path, monkeypatch):
     """scripts/revamp_http_service.py wrote every committed http_load.json. The services are stand-ins here; the API's
     start reverts the uncommitted change, so a header read after the services started would say the tree was clean."""
