@@ -942,6 +942,19 @@ def _calibration_reference(ref: dict, calgen: str | None) -> str:
     )
 
 
+def _jury_sha_note(blob: dict, target: str) -> str:
+    """The commit an answer-evaluation file was written at; for a rescored file, the commit that generated the answers
+    and the one that recomputed the checks, each followed by " with uncommitted changes" when its flag says so (the
+    rescore block's rows_working_tree_dirty and the header's working_tree_dirty, app/eval/llm_eval.py)."""
+    rs = blob.get("rescore") or {}
+    if not rs:
+        return f"results sha {_sha(blob)}"
+    rows = " with uncommitted changes" if rs.get("rows_working_tree_dirty") is True else ""
+    checks = " with uncommitted changes" if blob.get("working_tree_dirty") is True else ""
+    return (f"answers and judge labels generated at sha {rs['rows_git_sha']}{rows}; deterministic checks and summary recomputed by "
+            f"`{target}-rescore` at sha {rs['checks_git_sha']}{checks}")
+
+
 def jury_v2_table(blob: dict) -> str:
     """M29: the gate reads each judge's correctness verdict against exact match on a calibration set; judge scores of
     the run's answers only for a judge that passed. A file without a calibration set (`make bench-jury` since M29)
@@ -958,9 +971,7 @@ def jury_v2_table(blob: dict) -> str:
     cfg = blob.get("config") or {}
     rr = (blob.get("models") or {}).get("reranker") or {}
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
-    rs = blob.get("rescore") or {}
-    sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`{target}-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {_sha(blob)}")
+    sha_note = _jury_sha_note(blob, target)
     ref = s["reference"]
     gate = blob.get("kappa_gate")
     lines = [
@@ -1087,9 +1098,7 @@ def jury_table(blob: dict | None) -> str:
     cfg = blob.get("config") or {}
     rr = (blob.get("models") or {}).get("reranker") or {}
     rerank_note = "the configured reranker loaded" if rr.get("loaded") else "WARNING: the configured reranker did not load, retrieval fell back"
-    rs = blob.get("rescore") or {}
-    sha_note = (f"answers and judge labels generated at sha {rs['rows_git_sha']}; deterministic checks and summary recomputed by "
-                f"`make bench-jury-rescore` at sha {rs['checks_git_sha']}" if rs else f"results sha {_sha(blob)}")
+    sha_note = _jury_sha_note(blob, "make bench-jury")
     lines = [
         f"Generated answers on fixture v1 (`make bench-jury`, {sha_note}): {blob['n_gold']} questions, "
         f"retrieval `{cfg.get('name')}` ({rerank_note}), top 8 chunks, generator {gen['model']} via Ollama (temperature 0, seed 0), "

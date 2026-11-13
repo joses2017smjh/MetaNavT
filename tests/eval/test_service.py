@@ -173,7 +173,8 @@ def test_http_service_script_binds_its_scratch_directory_and_scrubs_its_failure_
     commands = []
 
     def fake_run(command, **kwargs):
-        commands.append(command)
+        if command[0] != "git":  # git: the commit and working tree the results header records, read before anything starts
+            commands.append(command)
         raise subprocess.CalledProcessError(1, command)  # initdb fails: the error quotes the whole command
 
     monkeypatch.setattr(subprocess, "run", fake_run)

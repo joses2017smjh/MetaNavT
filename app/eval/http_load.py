@@ -7,6 +7,11 @@ Records every cold-probe, warm-up and measured attempt, including non-2xx,
 timeouts and malformed/degraded responses. Cold means the first request this
 client sends after readiness; process/model startup is not measured. Use
 --fresh-service only after an independently confirmed service restart.
+
+The file (write_report) starts with the code's provenance: the short commit and
+app.eval.provenance.run_provenance's block (the full commit, whether the working
+tree had uncommitted changes when the run started, the sha256 of the source
+files that ran), and passes through the provenance sanitizer.
 """
 
 from __future__ import annotations
@@ -21,12 +26,12 @@ import math
 from pathlib import Path
 import time
 from typing import Any
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 
 import httpx
 
 from app.eval.latency import percentile
-from app.eval.provenance import scrub
+from app.eval.provenance import REPO_ROOT, git_sha, git_state, run_provenance, scrub
 
 
 def distribution(values: list[float]) -> dict[str, Any]:
@@ -200,6 +205,32 @@ async def run_load(base_url: str, queries: list[tuple[str, str]], *, concurrency
     return report
 
 
+def write_report(base_url: str, queries: list[tuple[str, str]], out: Path, *, root: Path | None = None, started: Mapping | None = None,
+                 sources: Sequence[str] | None = None, deployment: dict | None = None, **load_options) -> dict:
+    """Run the load (run_load, with `load_options`) and write its report to `out`, rewritten after every attempt
+    (a .partial file replaced in one step), so an interrupted run keeps what it measured.
+
+    The file starts with the code's provenance: `git_sha` and run_provenance's block for the checkout at `root`
+    (default: this repository), the working tree as `started` says (a git_state() the caller took when its run began;
+    default: read here, before the first write, since `out` is often a tracked results file) and the sha256 of
+    `sources` (default: the app modules this process imported). `deployment`, the caller's description of the service
+    it started, follows the report. Everything written passes through scrub(). run_load records no provenance: the
+    served-scale runner nests its report in a file that records its own."""
+    root = Path(root) if root is not None else REPO_ROOT
+    state = dict(started) if started is not None else git_state(root)
+    header = {"git_sha": git_sha(root), **run_provenance(root=root, started=state, sources=sources)}
+    extra = {"deployment": deployment} if deployment is not None else {}
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    def checkpoint(report: dict) -> None:
+        temporary = out.with_suffix(out.suffix + ".partial")
+        temporary.write_text(json.dumps(scrub({**header, **report, **extra}), indent=2) + "\n")
+        temporary.replace(out)
+
+    report = asyncio.run(run_load(base_url, queries, checkpoint=checkpoint, **load_options))
+    return scrub({**header, **report, **extra})
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--url", default="http://127.0.0.1:8000")
@@ -221,12 +252,7 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(query, str) or not query.strip():
                 parser.error("every query row requires nonempty question, query or text")
             queries.append((str(row.get("id", len(queries))), query))
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    def checkpoint(report):
-        temporary = args.out.with_suffix(args.out.suffix + ".partial")
-        temporary.write_text(json.dumps(report, indent=2) + "\n")
-        temporary.replace(args.out)
-    report = asyncio.run(run_load(args.url, queries, concurrency_levels=tuple(int(c) for c in args.concurrency.split(",")), requests_per_level=args.requests, warmup_requests=args.warmup, timeout=args.timeout, require_reranker=args.require_reranker, require_device=args.require_device, fresh_service=args.fresh_service, checkpoint=checkpoint))
+    report = write_report(args.url, queries, args.out, concurrency_levels=tuple(int(c) for c in args.concurrency.split(",")), requests_per_level=args.requests, warmup_requests=args.warmup, timeout=args.timeout, require_reranker=args.require_reranker, require_device=args.require_device, fresh_service=args.fresh_service)
     print(json.dumps({"outcome": report["outcome"], "all_attempts": report["all_attempts"], "out": str(args.out)}))
     return 0 if report["outcome"] == "ok" else 2
 
