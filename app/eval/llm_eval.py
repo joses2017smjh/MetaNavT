@@ -61,6 +61,13 @@ recomputes the deterministic checks and the summary from the stored answers
 and judge labels (no model call), after re-running retrieval and checking that
 every question's retrieved paths equal the stored ones; the file records both
 the sha that generated the rows and the sha that rescored them.
+
+The header carries app.eval.provenance.run_provenance's block (the full commit,
+whether the working tree had uncommitted changes when the run started, the
+sha256 of the app modules that ran) of the run that last wrote the file: for a
+rescored file, the rescore. The rescore block keeps the generating run's block
+as rows_git_head, rows_working_tree_dirty and rows_source_sha256 (None for a
+file written before the jury writer recorded it).
 """
 
 from __future__ import annotations
@@ -103,11 +110,13 @@ from app.eval.provenance import (
     command_line,
     device_info,
     git_sha,
+    git_state,
     model_provenance,
     ollama_model_provenance,
     ollama_tag_entry,
     ollama_tags,
     ollama_version,
+    run_provenance,
     scrub,
 )
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, RNG_NAME, resample_indices
@@ -126,6 +135,8 @@ DEFAULT_CONFIG = BenchConfig(
     e2e=False,
 )
 TOP_N = 8
+# The header fields run_provenance writes; a rescore keeps the generating run's as rows_<field> in its rescore block.
+RUN_BLOCK = ("git_head", "working_tree_dirty", "source_sha256")
 # The label the gate reads, and the rule that labels a pure abstention without asking a judge.
 GATED_LABEL = "correctness verdict (app/eval/judge.py correctness_prompt: question, gold, answer; no retrieved context)"
 REFERENCE_LABELS = "exact_match_label, bounded (the gold may not sit inside a longer number or word)"
@@ -270,6 +281,7 @@ def run(
     """Score generated answers. `complete_fn` (prompt -> text) replaces Ollama for tests. With a
     `calibration_generator`, the gate's reference is the calibration set (CALIBRATION_CONDITIONS) it answers."""
     root = root or project_root()
+    started = git_state(root)  # before the run writes anything (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
     gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
@@ -402,6 +414,7 @@ def run(
     summary = summarize(rows, judge_models, calibration if cal_generator is not None else None)
     blob = {
         "git_sha": git_sha(root),
+        **run_provenance(root=root, started=started),  # full commit, dirty tree, sha256 of the modules that ran
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(),
         "device": device_info("auto"),
@@ -648,6 +661,7 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     question, and the reranker must load as it did; otherwise nothing is written.
     """
     root = root or project_root()
+    started = git_state(root)  # before the caller writes the file back (run_provenance)
     blob = json.loads(path.read_text())
     files_root = root / "bench" / "corpus" / "files"
     manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
@@ -714,8 +728,12 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     judge_models = [j["model"] for j in blob["models"]["judges"]]
     blob["summary"] = summarize(blob["rows"], judge_models, calibration)
     prior = blob.get("rescore") or {}
+    # The generating run's block, carried by key: after a first rescore the header describes that rescore, and a False
+    # flag must not give way to the header's. None for a file written before the jury writer recorded the block.
+    answers = {f"rows_{key}": prior[f"rows_{key}"] if f"rows_{key}" in prior else blob.get(key) for key in RUN_BLOCK}
     blob["rescore"] = {
         "rows_git_sha": prior.get("rows_git_sha") or blob["git_sha"],
+        **answers,
         "rows_command": scrub(prior.get("rows_command") or blob["command"]),  # carried over, published again
         "rows_timestamp": prior.get("rows_timestamp") or blob["timestamp"],
         "checks_git_sha": git_sha(root),
@@ -727,7 +745,14 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     blob["command"] = blob["rescore"]["command"]
     if isinstance(blob.get("device"), dict):  # the generating run's machine, written out again: no host name, no paths
         blob["device"] = scrub({k: v for k, v in blob["device"].items() if k != "hostname"})
-    return blob
+    checks = run_provenance(root=root, started=started)  # the rescore's own block, right after git_sha as run() writes it
+    out: dict[str, Any] = {}
+    for key, value in blob.items():
+        if key not in checks:
+            out[key] = value
+        if key == "git_sha":
+            out.update(checks)
+    return out
 
 
 def markdown_table(blob: dict) -> str:

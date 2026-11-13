@@ -20,6 +20,7 @@ import time
 import numpy as np
 
 from app.eval.metrics import score_query
+from app.eval.provenance import REPO_ROOT, git_sha, git_state, run_provenance
 from app.retrieval.bm25 import BM25Index
 from app.retrieval.context import path_context
 
@@ -361,7 +362,14 @@ def group_bootstrap(rows: list[dict], field: str, *, paired_field: str | None = 
     return {"mean": point, "ci95": [float(low), float(high)], "n_families": len(groups), "resampling_unit": "experiment_family"}
 
 
-def evaluate(snapshot: Path, output: Path) -> dict:
+def evaluate(snapshot: Path, output: Path, *, root: Path | None = None) -> dict:
+    """Score the two declared BM25 configurations on a verified snapshot and write the results to `output`.
+
+    The header names the code: `git_sha` and run_provenance's block for the checkout at `root` (default: this
+    repository; the working tree read when the evaluation starts, the sha256 of the app modules that ran).
+    `code_sha256` is the shorter list the mixed-run check compares before and after the run."""
+    git_root = Path(root) if root is not None else REPO_ROOT
+    started = git_state(git_root)  # before the run writes anything (run_provenance)
     manifest, questions = verify(snapshot)
     manifest_fingerprint = sha256((snapshot / "manifest.json").read_bytes())
     app_root = Path(__file__).resolve().parents[1]
@@ -398,7 +406,8 @@ def evaluate(snapshot: Path, output: Path) -> dict:
         raise ValueError("manifest changed during evaluation")
     if code_sha256 != {p: sha256((app_root / p).read_bytes()) for p in code_paths}:
         raise ValueError("evaluator source changed during evaluation")
-    result = {"schema": SCHEMA, "snapshot_sha256": manifest["aggregate_sha256"], "source_commit": manifest["source_commit"],
+    result = {"schema": SCHEMA, "git_sha": git_sha(git_root), **run_provenance(root=git_root, started=started),
+              "snapshot_sha256": manifest["aggregate_sha256"], "source_commit": manifest["source_commit"],
               "questions_sha256": manifest["questions_sha256"], "manifest_sha256": manifest_fingerprint, "code_sha256": code_sha256,
               "n_files": manifest["n_files"], "n_questions": len(questions), "n_families": manifest["n_families"],
               "labels": manifest["labels"], "tracked_blob_mismatches": tracked_blob_mismatches(manifest), "runtime": {"python": platform.python_version(), "numpy": np.__version__, "platform": platform.platform(), "device": "CPU", "backend": "BM25, no neural model"},

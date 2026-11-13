@@ -337,19 +337,32 @@ quote), whether the working tree had uncommitted changes when the run started
 ignored file does not; a tracked results file an earlier run rewrote counts too,
 such as `latest.json` after a previous `make bench`, so a re-record starts from a
 clean checkout) and the SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
-ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation
-and ingest-runs writers record that block, with every `app/` module the process
-imported as the source files. The writers that already recorded a dirty flag
+ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation,
+ingest-runs, answer-evaluation (`app/eval/llm_eval.py`) and robotics-lookup
+(`app/eval/robotics.py evaluate`, next to the `code_sha256` its mixed-run check
+compares) writers record that block, with every `app/` module the process
+imported as the source files. A rescored answer-evaluation file's header describes
+the rescore, and its `rescore` block keeps the block of the run that generated the
+answers (`rows_git_head`, `rows_working_tree_dirty`, `rows_source_sha256`; null for a
+file written before the jury writer recorded it). The HTTP load file records the
+block through `write_report` in `app/eval/http_load.py`, which its command line and
+`scripts/revamp_http_service.py` use (the script reads the tree before it starts the
+services, and hashes the files its `deployment` block lists: the API's code and the
+client's); `run_load` itself records none, since the served-scale runner nests its
+report in a file with its own flag. The smoke script's latency file
+(`scripts/smoke_retrieve.py --latency`) records it with the script among the source
+files, and passes through the sanitizer. The writers that already recorded a dirty flag
 compute it with the same helper and keep their own fields and file lists: the M4
 regressions (trusted actions, evidence consistency, injection), the companion and
 chat-route runs, the robotics checks, and ingest scale and two replicas (whose
 `worktree_clean` leaves untracked files and the file being rewritten out). Not
-converted: the jury writer (`app/eval/llm_eval.py`, a short commit only),
-`app/eval/robotics.py` (code hashes, no flag), `app/eval/http_load.py` and
-`scripts/smoke_retrieve.py` (latency files with no commit), and the served-scale
-and pgvector writers, which record their own `git_dirty`. The
+converted: the served-scale and pgvector writers, which record their own
+`git_dirty`, and `app/eval/beir_rescore.py`, whose rescored copy keeps its input's
+header and adds the rescoring module's hash (`rescored`). Committed files written
+before their writer recorded the block keep the headers they have. The
 generated blocks add "with uncommitted changes" to the commit of a file whose
-`working_tree_dirty` or `git_dirty` is true.
+`working_tree_dirty` or `git_dirty` is true, and to each of the two commits a
+rescored answer-evaluation file names.
 Of the header, `make bench-check` compares `gold_sha256` together with the corpus
 digest, the gold set size, the file count, the bootstrap settings and the mtimes;
 it does not compare the provenance fields, which any code change moves, or the `ingest`

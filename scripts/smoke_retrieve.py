@@ -4,8 +4,12 @@
 
 Waits for GET /health to return 200 (up to --timeout seconds), then POSTs
 /api/retrieve/ and exits 1 unless the response has at least one hit and every
-hit carries a path. Standard library only, so it runs on the CI runner itself.
+hit carries a path. Standard library only, so it runs on the CI runner itself;
+the latency summary (--latency) also imports app/eval/provenance.py, which is
+standard library only too, for its provenance and its sanitizer.
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -13,6 +17,10 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = "scripts/smoke_retrieve.py"
 
 
 def _get(url: str):
@@ -128,10 +136,22 @@ def _pct(values, p):
     return round(s[lo] + (s[hi] - s[lo]) * (i - lo), 2)
 
 
-def replay_latency(base: str, gold_path: str, health: dict, k: int = 8) -> dict:
-    """POST every gold question; p50/p95 of the server's total stage time and of e2e wall time."""
+def replay_latency(base: str, gold_path: str, health: dict, k: int = 8, *, root: Path | None = None) -> dict:
+    """POST every gold question; p50/p95 of the server's total stage time and of e2e wall time.
+
+    The summary starts with the code's provenance: `git_sha` and app.eval.provenance.run_provenance's block for the
+    checkout at `root` (default: this repository), the working tree read before the first request, and the sha256 of
+    this script and of the app modules the process imported. It passes through the provenance sanitizer, so the url
+    and the health block carry no absolute path, user or host name."""
     import datetime
 
+    if str(ROOT) not in sys.path:  # run as `python scripts/smoke_retrieve.py`, the repository is not on the path
+        sys.path.insert(0, str(ROOT))
+    from app.eval.provenance import git_sha, git_state, loaded_sources, run_provenance, scrub
+
+    git_root = Path(root) if root is not None else ROOT
+    started = git_state(git_root)  # before the replay, as every results writer does
+    header = {"git_sha": git_sha(git_root), **run_provenance(root=git_root, started=started, sources=sorted({SCRIPT, *loaded_sources()}))}
     questions = []
     with open(gold_path) as fh:
         for line in fh:
@@ -147,7 +167,8 @@ def replay_latency(base: str, gold_path: str, health: dict, k: int = 8) -> dict:
         totals.append(float(lat.get("total", 0.0)))
         for name, ms in lat.items():
             stages.setdefault(name, []).append(float(ms))
-    return {
+    return scrub({
+        **header,
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "url": base,
         "n": len(questions),
@@ -157,7 +178,7 @@ def replay_latency(base: str, gold_path: str, health: dict, k: int = 8) -> dict:
         "server_total_ms": {"p50": _pct(totals, 50), "p95": _pct(totals, 95)},
         "e2e_ms": {"p50": _pct(e2e, 50), "p95": _pct(e2e, 95)},
         "stages_p50_ms": {name: _pct(v, 50) for name, v in stages.items()},
-    }
+    })
 
 
 if __name__ == "__main__":
