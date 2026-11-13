@@ -358,7 +358,10 @@ chat-route runs, the robotics checks, and ingest scale and two replicas (whose
 `worktree_clean` leaves untracked files and the file being rewritten out). Not
 converted: the served-scale and pgvector writers, which record their own
 `git_dirty`, and `app/eval/beir_rescore.py`, whose rescored copy keeps its input's
-header and adds the rescoring module's hash (`rescored`). Committed files written
+header and adds the rescoring module's hash (`rescored`). Outside `bench/results`,
+the demo data (`app/eval/demo_export.py`) and the EXPLAIN plans under `doc/sql/`
+(`scripts/explain_hybrid.py`) name a short commit only, and the MATLAB demo payload
+(`app/eval/matlab_demo.py`) none. Committed files written
 before their writer recorded the block keep the headers they have. The
 generated blocks add "with uncommitted changes" to the commit of a file whose
 `working_tree_dirty` or `git_dirty` is true, and to each of the two commits a
