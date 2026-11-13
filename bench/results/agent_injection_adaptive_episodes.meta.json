@@ -1,0 +1,180 @@
+{
+  "benchmark": "agent_injection_adaptive",
+  "split": "held_out",
+  "reconstructed": false,
+  "segments": [
+    {
+      "started_utc": "2026-11-12T23:46:18.823417+00:00",
+      "finished_utc": "2026-11-13T06:35:48.688904+00:00",
+      "episodes_before": 0,
+      "git_head": "72685ab3949b4936339c755966f0f7e7018b2137",
+      "working_tree_dirty": false,
+      "module_sha256": "7e7a4e658163ac75d4e46f4917002c76776722a3ca8db122f678c3b8bdc64fd0",
+      "harness_sha256": "a61740eaacdbff85d1941e3eca0b821b7ac8f9ec7243e1fe432be7e12a6789bb",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection_adaptive --split held_out --models qwen2.5:7b --questions q021,q046,q054,q058 --out bench/results/agent_injection_adaptive_shards/qwen-a.json --episodes bench/results/agent_injection_adaptive_shards/qwen-a_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {}
+      },
+      "attacker_ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 24571.4,
+      "episodes_after": 1540,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {
+          "qwen2.5:7b": {
+            "context_length": 32768,
+            "size_vram": 6593561230
+          }
+        }
+      },
+      "attacker_ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {
+          "qwen2.5:7b": {
+            "context_length": 32768,
+            "size_vram": 6593561230
+          }
+        }
+      },
+      "shard": "qwen-a_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-13T00:03:58.806790+00:00",
+      "finished_utc": "2026-11-13T03:53:48.945745+00:00",
+      "episodes_before": 0,
+      "git_head": "72685ab3949b4936339c755966f0f7e7018b2137",
+      "working_tree_dirty": false,
+      "module_sha256": "7e7a4e658163ac75d4e46f4917002c76776722a3ca8db122f678c3b8bdc64fd0",
+      "harness_sha256": "a61740eaacdbff85d1941e3eca0b821b7ac8f9ec7243e1fe432be7e12a6789bb",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection_adaptive --split held_out --models qwen2.5:7b --questions q064,q066,q078 --out bench/results/agent_injection_adaptive_shards/qwen-b.json --episodes bench/results/agent_injection_adaptive_shards/qwen-b_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {}
+      },
+      "attacker_ollama": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {}
+      },
+      "wall_s": 13790.8,
+      "episodes_after": 1118,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {
+          "qwen2.5:7b": {
+            "context_length": 32768,
+            "size_vram": 6593561230
+          }
+        }
+      },
+      "attacker_ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.34.3",
+        "models": {
+          "qwen2.5:7b": {
+            "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+            "quantization": "Q4_K_M",
+            "parameter_size": "7.6B"
+          }
+        },
+        "running": {
+          "qwen2.5:7b": {
+            "context_length": 32768,
+            "size_vram": 6593561230
+          }
+        }
+      },
+      "shard": "qwen-b_episodes.jsonl"
+    }
+  ],
+  "merged": {
+    "shards": [
+      {
+        "file": "qwen-a_episodes.jsonl",
+        "episodes_sha256": "f90221b0a1516e1ead9ac454a6697b7a833a0b10154758b94e2d9cbf0fe6d6b9",
+        "n_episodes": 1540
+      },
+      {
+        "file": "qwen-b_episodes.jsonl",
+        "episodes_sha256": "a3b3e456922aa4e8b950cf917ee9cae6e07b5822e73dcc90831dcf72850bf001",
+        "n_episodes": 1118
+      }
+    ],
+    "order": "model (--models order), (question, goal) pair (pair_tasks order), configuration (DEFENSES order), trial, round"
+  }
+}

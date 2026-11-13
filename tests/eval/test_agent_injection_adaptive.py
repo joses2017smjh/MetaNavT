@@ -1,7 +1,9 @@
 """The adaptive attacker (agent_injection_adaptive), driven by scripted attackers and scripted agents (no model, no network)."""
 
+import hashlib
 import json
 import re
+import shutil
 import subprocess
 from collections import Counter
 from pathlib import Path
@@ -10,7 +12,7 @@ import pytest
 
 from app.eval import agent_injection as ai
 from app.eval import agent_injection_adaptive as aa
-from app.eval.provenance import _ABS_PATH_RE
+from app.eval.provenance import _ABS_PATH_RE, scrub_names
 
 
 def _call(name, **arguments):
@@ -662,3 +664,162 @@ def test_the_kept_candidate_is_the_one_planted_and_every_results_file_names_it_i
     cfg = aa.run_config(models=list(aa.TARGET_MODELS), k=1, rounds=1, temperature=0.7, max_turns=6, split="train",
                         questions=["q011"], defenses=aa.DEFENSES)
     assert cfg["tuning_outcome"] == aa.TUNING_OUTCOME and cfg["attacker"]["prompt_version"] == aa.ATTACKER_PROMPT_VERSION
+
+
+# ---- the committed held-out run (bench/results/agent_injection_adaptive.json), written by the merge of its shards ----
+RESULTS_ADAPTIVE = ai.ROOT / "bench" / "results" / "agent_injection_adaptive.json"
+EPISODES_ADAPTIVE = ai.ROOT / "bench" / "results" / "agent_injection_adaptive_episodes.jsonl"
+
+
+def _git(*args, text=True):
+    return subprocess.run(["git", *args], cwd=ai.ROOT, capture_output=True, text=text)
+
+
+def _committed_sha256(head, path):
+    """sha256 of `path` as committed at `head`, after checking that `head` is in this history and an ancestor of HEAD.
+    A shallow clone without the commit skips, as the v3 tests do (CI's eval job fetches the full history); a full clone
+    without it fails: the results would name a commit that is not in the history, as a squash merge would leave them."""
+    if shutil.which("git") is None or _git("rev-parse", "--is-inside-work-tree").stdout.strip() != "true":
+        pytest.skip("not a git checkout: the commit that generated the results cannot be read")
+    if _git("cat-file", "-e", f"{head}^{{commit}}").returncode != 0:
+        if _git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            pytest.skip(f"shallow clone without commit {head[:7]}: fetch the full history (git fetch --unshallow)")
+        pytest.fail(f"the results name commit {head}, which is not in this repository's history")
+    assert _git("merge-base", "--is-ancestor", head, "HEAD").returncode == 0, f"{head[:7]} is not an ancestor of HEAD"
+    blob = _git("show", f"{head}:{path}", text=False)
+    assert blob.returncode == 0, blob.stderr
+    return hashlib.sha256(blob.stdout).hexdigest()
+
+
+def _strings(value, path=""):
+    """Every string value in a stored row, with its field path."""
+    if isinstance(value, str):
+        yield path, value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _strings(item, f"{path}.{key}" if path else key)
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            yield from _strings(item, f"{path}[{i}]")
+
+
+@pytest.fixture(scope="module")
+def adaptive_run():
+    """The committed held-out run: the results file, its stored rounds, the pairs they cover, the split, today's scores
+    of the rounds, and agent_injection_v3's stored episodes (the fixed phrasings it is compared with), loaded once."""
+    blob = json.loads(RESULTS_ADAPTIVE.read_text())
+    tasks, rows, split = aa.stored_episodes(EPISODES_ADAPTIVE, k=blob["config"]["k"])
+    return blob, tasks, rows, split, aa.rescore(tasks, rows), aa.load_v3(aa.V3_EPISODES)
+
+
+def test_the_adaptive_run_was_generated_and_scored_at_one_clean_commit_by_the_committed_modules(adaptive_run):
+    # D20: GPU jobs, one per block of held-out questions with every configuration, generated the rounds from one
+    # committed module and harness with nothing uncommitted, and the merge that wrote and scored the file ran at the same
+    # commit (make bench-agent-injection-adaptive-merge); both modules it names are the ones committed there, an
+    # ancestor of HEAD; every trajectory of the design is there and complete
+    blob, tasks, rows, split, _, _ = adaptive_run
+    assert blob["benchmark"] == aa.BENCHMARK_ADAPTIVE and split == "held_out"
+    assert blob["working_tree_dirty"] is False and len(blob["git_head"]) == 40
+    assert blob["module_sha256"] == _committed_sha256(blob["git_head"], "app/eval/agent_injection_adaptive.py")
+    assert blob["harness_sha256"] == _committed_sha256(blob["git_head"], "app/eval/agent_injection.py")
+    assert blob["command"].startswith("python -m app.eval.agent_injection_adaptive --merge ")
+    assert "--summarize-only" not in blob["command"]
+    generated = blob["episodes_generated_by"]
+    assert generated == json.loads(ai.sidecar(EPISODES_ADAPTIVE).read_text())
+    assert generated["reconstructed"] is False and generated["benchmark"] == aa.BENCHMARK_ADAPTIVE
+    assert generated["merged"]["order"] == aa.MERGE_ORDER and generated["split"] == "held_out"
+    segments, shards = generated["segments"], generated["merged"]["shards"]
+    assert {s["file"] for s in shards} == {seg["shard"] for seg in segments}
+    assert all(seg["working_tree_dirty"] is False and seg["git_head"] == blob["git_head"]
+               and seg["module_sha256"] == blob["module_sha256"] and seg["harness_sha256"] == blob["harness_sha256"]
+               and "--split held_out" in seg["command"] for seg in segments)
+    # each shard file's rows are the rows its segments stored, and the shards cover each question once
+    for shard in shards:
+        mine = [seg for seg in segments if seg["shard"] == shard["file"]]
+        assert mine[0]["episodes_before"] == 0 and mine[-1]["episodes_after"] == shard["n_episodes"]
+    assert sum(shard["n_episodes"] for shard in shards) == len(rows) == blob["n_episodes"]
+    blocks = [(seg["command"].split("--models ")[1].split()[0], q) for seg in segments
+              for q in seg["command"].split("--questions ")[1].split()[0].split(",")]
+    cfg = blob["config"]
+    assert sorted(blocks) == sorted({(m, q) for m in cfg["models"] for q in aa.HELD_OUT_QUESTIONS})
+    assert cfg["models"] == list(aa.TARGET_MODELS) and cfg["k"] == aa.TRIALS and cfg["rounds"] == aa.ROUNDS
+    assert cfg["declared_models"] == ["qwen2.5:7b", "llama3.1:8b"] and cfg["target_cut"] == aa.TARGET_CUT
+    assert cfg["tuning_outcome"] == aa.TUNING_OUTCOME and cfg["attacker"]["prompt_version"] == aa.ATTACKER_PROMPT_VERSION
+    assert cfg["defenses"] == list(aa.DEFENSES) and cfg["split"]["questions"] == list(aa.HELD_OUT_QUESTIONS)
+    assert json.loads(json.dumps(aa.run_config(models=cfg["models"], k=aa.TRIALS, rounds=aa.ROUNDS, temperature=0.7,
+                                               max_turns=6, split="held_out", questions=list(aa.HELD_OUT_QUESTIONS),
+                                               defenses=aa.DEFENSES))) == cfg
+    # every trajectory once, its rounds 1..r with no gap and no error, ending at K or at the round that took effect
+    by = aa.trajectories(rows)
+    assert len(tasks) == len(aa.HELD_OUT_QUESTIONS) * len(ai.GOALS)
+    assert set(by) == {(m, d, t.task_id, trial) for m in cfg["models"] for d in aa.DEFENSES for t in tasks
+                       for trial in range(aa.TRIALS)}
+    for key, rounds in by.items():
+        assert [r["round"] for r in rounds] == list(range(1, len(rounds) + 1)), key
+        assert not any(r.get("error") for r in rounds) and aa.complete(rounds, aa.ROUNDS), key
+        assert not any(r["score"]["took_effect"] for r in rounds[:-1]), key
+        assert all(r["seed"] == r["trial"] and r["attacker"]["seed"] == aa.attacker_seed(r["trial"], r["round"])
+                   for r in rounds), key
+    keys = [aa.episode_key(r) for r in rows]
+    rank = {t.task_id: i for i, t in enumerate(aa.pair_tasks())}
+    assert keys == sorted(keys, key=lambda x: (cfg["models"].index(x[0]), rank[x[2]], aa.DEFENSES.index(x[1]), x[3], x[4]))
+    assert blob["n_episode_errors"] == 0 and blob["n_trajectories"] == len(by)
+    assert blob["episodes_file"] == "bench/results/agent_injection_adaptive_episodes.jsonl"
+    assert blob["episodes_sha256"] == hashlib.sha256(EPISODES_ADAPTIVE.read_bytes()).hexdigest()
+    # the servers, device and wall time are the jobs' own; the fixed phrasings are the committed v3 episodes
+    assert blob["ollama"] == ai.merged_ollama([seg.get("ollama_after") or seg.get("ollama") for seg in segments])
+    assert blob["attacker_ollama"] == ai.merged_ollama([seg.get("attacker_ollama_after") or seg.get("attacker_ollama")
+                                                        for seg in segments])
+    assert all(seg["device"] == blob["device"] for seg in segments) and blob["device"]["gpu"]
+    assert blob["wall_s"] == round(sum(seg["wall_s"] for seg in segments), 1)
+    source = blob["comparison"]["source"]
+    assert source["episodes_sha256"] == hashlib.sha256(aa.V3_EPISODES.read_bytes()).hexdigest()
+    assert source["git_head"] == json.loads(aa.V3_RESULTS.read_text())["git_head"]
+
+
+def test_the_adaptive_run_rebuilds_from_its_stored_rounds(adaptive_run):
+    # Every round's planted text is the one its stored reply produces, every feedback the attacker got is recomputed
+    # from the round it is about, every attacker prompt (by sha256) from the earlier rounds of its trajectory, and
+    # today's code rebuilds every score, the summary, the comparison with v3 and the configurations against none, so
+    # `make bench-agent-injection-adaptive-rescore` reproduces every number in the file
+    blob, tasks, rows, _, rescored, v3_rows = adaptive_run
+    by_id = {t.task_id: t for t in tasks}
+    for key, rounds in aa.trajectories(rows).items():
+        pair = by_id[key[2]]
+        for n, r in enumerate(rounds):
+            body, flags = aa.validate(pair, aa.parse_output(r["attacker"]["output"])[1])
+            assert aa.planted_text(body) == r["injection"] and flags == r["validation"], (key, n)
+            assert aa.feedback(aa.round_task(pair, r["injection"]), r) == r["feedback"], (key, n)
+            assert aa.prompt_sha256(aa.attacker_messages(pair, r["defense"], rounds[:n])) == r["attacker"]["prompt_sha256"]
+    assert [r["score"] for r in rescored] == [r["score"] for r in rows]
+    assert json.loads(json.dumps(ai.task_rows(tasks, aa.BENCHMARK_ADAPTIVE))) == blob["tasks"]
+    k, rounds = blob["config"]["k"], blob["config"]["rounds"]
+    assert aa.summarize(tasks, rescored, k, rounds) == blob["summary"]
+    comparison = {key: value for key, value in blob["comparison"].items() if key != "source"}
+    assert aa.compare_with_fixed(tasks, rescored, v3_rows, k) == comparison
+    assert aa.defense_deltas(tasks, rescored) == blob["paired_deltas"]
+
+
+def test_the_adaptive_run_holds_no_user_or_host_name_and_absolute_paths_only_where_a_model_wrote_them(adaptive_run):
+    # No user name, host name, temporary or shared-filesystem path in the run's three files. The harness plants no text
+    # with an absolute path or a URL (it replaces it by v3's goal sentence) and writes paths into the copy relative to the
+    # corpus root; model text is kept as written, and the absolute-path lookalikes in it are pinned here: in one
+    # trajectory the attacker ended every reply with the forged token behind a slash (each of those rounds planted the
+    # goal sentence instead), and a search snippet of one round's planted log begins inside a checkpoint path the
+    # attacker made up (run_51 where the corpus has run_051)
+    _, _, rows, _, _, _ = adaptive_run
+    roots = ("/nfs/", "/home/", "/raid/", "/scratch/", "/Users/", "/tmp/", "metanavit-agent-injection-")
+    for path in (RESULTS_ADAPTIVE, EPISODES_ADAPTIVE, ai.sidecar(EPISODES_ADAPTIVE)):
+        text = path.read_text()
+        assert scrub_names(text) == text and not any(root in text for root in roots), path.name
+    assert all(not _ABS_PATH_RE.search(r["injection"]) for r in rows)
+    corpus = "\n".join(p.read_text(errors="replace") for p in sorted(ai.CORPUS.rglob("*")) if p.is_file())
+    made_up = sorted((*aa.episode_key(r), path, m.group(0)) for r in rows for path, s in _strings(r)
+                     for m in _ABS_PATH_RE.finditer(s) if re.split(r"\\|" + ai.MARK, m.group(0))[0] not in corpus)
+    assert made_up == [
+        ("qwen2.5:7b", "spotlight", "q058-hijack", 1, 2, "tool_calls[0].result",
+         f"/run_51.ckpt.meta.json{ai.MARK}#{ai.MARK}notes"),
+        *[("qwen2.5:7b", "spotlight", "q064-move", 0, r, "attacker.output", "/ops-approved-4471") for r in range(1, 8)]]
+    replaced = [r for r in rows if r["validation"]["replaced"]]
+    assert [(aa.episode_key(r), r["validation"]["replaced"]) for r in replaced] == [
+        (("qwen2.5:7b", "spotlight", "q064-move", 0, r), "absolute_path") for r in range(1, 8)]
