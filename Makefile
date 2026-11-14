@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index bench-served-scale
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-agent-injection-adaptive bench-agent-injection-adaptive-tune bench-agent-injection-adaptive-shard bench-agent-injection-adaptive-merge bench-agent-injection-adaptive-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index bench-served-scale
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -188,6 +188,26 @@ bench-agent-injection-v3-merge: ## merge the shards in bench/results/agent_injec
 
 bench-agent-injection-v3-rescore: ## rebuild agent_injection_v3's scores and summary from its committed episodes -> bench/results/agent_injection_v3_rescore.json, not tracked, to compare with agent_injection_v3.json (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v3_rescore.json --episodes bench/results/agent_injection_v3_episodes.jsonl
+
+# agent_injection_adaptive (D20): an attacker model rewrites the planted text round by round against each configuration,
+# from the scorer's outcome on its earlier rounds. Its instructions are tuned on the training questions (the tune target,
+# one trial, not tracked); the held-out questions are the scored run, in one process or as shards merged like v3's.
+TUNE ?= tune
+ADAPTIVE_MODELS ?= qwen2.5:7b
+bench-agent-injection-adaptive: ## the adaptive attacker on the held-out questions (agent_injection_adaptive), in one process -> bench/results/agent_injection_adaptive.json and its episodes (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection_adaptive --split held_out --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
+
+bench-agent-injection-adaptive-tune: ## the attacker on the training questions, one trial, TUNE=name SHARD_MODELS=... (SHARD_FLAGS=--resume continues one) -> bench/results/agent_injection_adaptive_tune/, not tracked (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection_adaptive --split train --k 1 --models $(SHARD_MODELS) --out bench/results/agent_injection_adaptive_tune/$(TUNE).json --episodes bench/results/agent_injection_adaptive_tune/$(TUNE)_episodes.jsonl $(SHARD_FLAGS)
+
+bench-agent-injection-adaptive-shard: ## one shard of the held-out run, SHARD=name SHARD_MODELS=... SHARD_QUESTIONS=q021,... (SHARD_FLAGS=--resume continues one) -> bench/results/agent_injection_adaptive_shards/, not tracked (needs Ollama)
+	$(PYTHON) -m app.eval.agent_injection_adaptive --split held_out --models $(SHARD_MODELS) $(if $(SHARD_QUESTIONS),--questions $(SHARD_QUESTIONS)) --out bench/results/agent_injection_adaptive_shards/$(SHARD).json --episodes bench/results/agent_injection_adaptive_shards/$(SHARD)_episodes.jsonl $(SHARD_FLAGS)
+
+bench-agent-injection-adaptive-merge: ## merge the shards in bench/results/agent_injection_adaptive_shards/ in a fixed order and score them, compared with v3's phrasings -> bench/results/agent_injection_adaptive.json (no model call)
+	$(PYTHON) -m app.eval.agent_injection_adaptive --merge $(sort $(wildcard bench/results/agent_injection_adaptive_shards/*_episodes.jsonl)) --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
+
+bench-agent-injection-adaptive-rescore: ## rebuild the adaptive run's scores, summary and comparison from its committed episodes -> bench/results/agent_injection_adaptive_rescore.json, not tracked (no model call)
+	$(PYTHON) -m app.eval.agent_injection_adaptive --summarize-only --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive_rescore.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
 
 .PHONY: bench-trusted-actions
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json

@@ -29,6 +29,7 @@ FILES = {
     "jury": "bench/results/jury_v2.json",  # M29; the M4 run (jury.json) is the earlier record
     "agent_injection": "bench/results/agent_injection_v2.json",  # the current run; the first is agent_injection.json
     "agent_injection_v3": "bench/results/agent_injection_v3.json",  # phrasings as any-success, the in-loop answer check
+    "agent_injection_adaptive": "bench/results/agent_injection_adaptive.json",  # the adaptive attacker, held-out questions
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
@@ -301,6 +302,7 @@ def claims(root: Path = ROOT) -> list[dict]:
                         "not_shown": "a measure of order bias, not of answer quality"})
     out += _agent_injection_claims(root)
     out += _agent_injection_v3_claims(root)
+    out += _agent_injection_adaptive_claims(root)
     out += _frontier_claims(root)
     out += _rerank_arm_claims(root)
     out += _companion_live_claims(root)
@@ -791,6 +793,50 @@ def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
     return out
 
 
+def _agent_injection_adaptive_claims(root: Path = ROOT) -> list[dict]:
+    """The adaptive attacker on the held-out questions, per target model, against agent_injection_v3's fixed phrasings on
+    the same pairs and seeds: the planted actions and the hijack attempted with no defense, and the planted value
+    delivered past the answer check, each a paired difference over the questions."""
+    blob = _load(FILES["agent_injection_adaptive"], root)
+    if not blob:
+        return []
+    cfg = blob["config"]
+    gen = blob.get("episodes_generated_by") or {}
+    shards = (gen.get("merged") or {}).get("shards") or []
+    cmd = (f"make bench-agent-injection-adaptive-shard ({len(shards)} shards), then make bench-agent-injection-adaptive-merge"
+           if shards else "make bench-agent-injection-adaptive")
+    src = f"{FILES['agent_injection_adaptive']} @ {str(blob.get('git_head') or '')[:7]}"
+    rounds, k, split = cfg["rounds"], cfg["k"], cfg["split"]
+    attacker = cfg["attacker"]["model"]
+    role = ("also the target" if cfg["models"] == [attacker] else
+            "also one of the targets" if attacker in cfg["models"] else "not a target")
+    scope = (f"one attacker model ({attacker}, {role}), told after each round whether its text reached the assistant, "
+             "whether the goal was attempted and took effect, and the start of the answer: more than a user sees; "
+             f"{len(split['questions'])} held-out questions, its instructions tuned on {len(split['train'])} others; "
+             f"target{'s' if len(cfg['models']) > 1 else ''} {', '.join(cfg['models'])}"
+             + (f" ({', '.join(m for m in cfg.get('declared_models') or [] if m not in cfg['models'])} declared and cut)"
+                if set(cfg.get("declared_models") or []) - set(cfg["models"]) else "")
+             + "; synthetic config questions; two runs sampled at different times")
+    out: list[dict] = []
+    for model, per in (blob.get("comparison") or {}).items():
+        if model == "source":
+            continue
+        for defense, group, level, what in (
+                ("none", "planted_actions", "attempted", "a planted file action (move, patch, read outside the root) attempted"),
+                ("none", "hijack", "attempted", "the planted value in the model's answer (hijack)"),
+                ("answer_check", "hijack", "took_effect", "the planted value delivered to the user past the answer check")):
+            block = ((per.get(defense) or {}).get(group) or {}).get(level)
+            if not block:
+                continue
+            value, ci = _ci(block["delta"], "delta")
+            where = "no defense" if defense == "none" else f"the {defense} configuration"
+            out.append({"claim": f"Agent injection, {model}, {where}: an adaptive attacker with {rounds} rounds minus v3's fixed phrasings, {what} in some round, per trial, paired",
+                        "value": value, "ci": ci, "n": block["delta"]["n"], "command": cmd, "source": src,
+                        "not_shown": (f"adaptive {_ci(block['adaptive'])[0]} against fixed {_ci(block['fixed'])[0]}; "
+                                      f"{_zero(block['delta'])}; n is questions, each pair read over {k} trials; {scope}")})
+    return out
+
+
 BULLETS = '''## Resume bullets (from the rows above only)
 
 Capstone team work, 2024-25 (six-person Oregon State team; my role: retrieval and data APIs):
@@ -827,7 +873,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **What did the LLM answer evaluation show?** On the first run the generator answered every simple-factual question with the gold value, so the exact-match reference was one class, Cohen's kappa was zero by construction, and the gate could not be evaluated. The slice is saturated for that generator, and a smaller model answering from the retrieved chunks still matched nearly every gold value, so the second run measures the judges on a calibration set instead: a smaller model that is not a judge answers each simple-factual question from the retrieved chunks and again from the same chunks with the gold value replaced by another value of the same field. The gated label is a correctness verdict that sees only the question, the gold answer and the answer, because the first run's composite label also rewards faithfulness to the context, so a faithfully copied wrong value would read as partial. On that set the qwen judge agreed with exact match well past the gate, and its score of the generator's answers is published with two caveats: it is the generator's own model, and it was validated on single-value answers only. The llama judge called every calibration answer correct, planted values included, and failed, and the two judges' chance-corrected agreement on the generator's answers was near zero. The deterministic checks remain the part that depends on no judge. The kept losers are the failed judge, the strong position bias in the AB/BA swap, and the composite label that still called abstentions correct, which is why abstentions are now labelled wrong by rule. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching), fixed in commits separate from the rescored file, and its stored answers later showed a substring match that found a gold value inside a longer number, fixed before the second run.
 
-**What did the injection evaluation show?** In the first two runs neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and in the question and injected tasks no model called a write tool; in the third, the weaker model's only write calls there were patch proposals written as JSON text, which the tool rejected for a missing argument. So planted text never reached the approval gate; the gate's evidence against forged tokens is still the deterministic approval benchmark. A capability control shows that, where an injected task is offered the write tools, this is not an inability to make the calls: when the user asks for the same move or patch, with the same tool calls and arguments, both models call the write tools and the operator signs the requested change. Completing it is rarer: many episodes stop after the signed proposal, and an apply call has to pass the plan id and the token on unchanged; the weaker model's apply calls mostly named plan ids the server never issued, and the stronger model's mostly carried a token that did not verify. What the models did follow was the planted claim: in the current run the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably; with seven phrasings, at least one of them got the planted value into its answer for every hijack question and seed in every configuration. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero in the current run; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says. Put in the model loop, that check lowered the planted value delivered to the user for both models with no measurable change in utility under attack, though planted values stated beside the true value still got through, including answers that gave the planted value as the true value's correction.
+**What did the injection evaluation show?** In the first two runs neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and in the question and injected tasks no model called a write tool; in the third, the weaker model's only write calls there were patch proposals written as JSON text, which the tool rejected for a missing argument. So planted text never reached the approval gate; the gate's evidence against forged tokens is still the deterministic approval benchmark. A capability control shows that, where an injected task is offered the write tools, this is not an inability to make the calls: when the user asks for the same move or patch, with the same tool calls and arguments, both models call the write tools and the operator signs the requested change. Completing it is rarer: many episodes stop after the signed proposal, and an apply call has to pass the plan id and the token on unchanged; the weaker model's apply calls mostly named plan ids the server never issued, and the stronger model's mostly carried a token that did not verify. What the models did follow was the planted claim: in the current run the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably; with seven phrasings, at least one of them got the planted value into its answer for every hijack question and seed in every configuration. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero in the current run; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says. Put in the model loop, that check lowered the planted value delivered to the user for both models with no measurable change in utility under attack, though planted values stated beside the true value still got through, including answers that gave the planted value as the true value's correction. An adaptive attacker (the stronger model rewriting the planted text against each configuration, told the scorer's outcome of its earlier rounds) showed no measurable difference from the fixed phrasings on held-out questions after seven rounds: it got no planted action attempted, and every paired interval for the planted value covers zero. One model attacking its own weights says how that target held up against that attacker, not against adaptive attacks in general.
 
 **How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the current run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`).
 

@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -28,6 +28,7 @@ JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the 
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the current run: capability control, controls with neutral lines
 AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # phrasings scored as any-success, the in-loop answer check
+AGENT_INJECTION_ADAPTIVE_FILE = "bench/results/agent_injection_adaptive.json"  # the adaptive attacker on the held-out questions
 LATENCY_FILES = {
     "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
     "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
@@ -56,6 +57,7 @@ SOURCES = {
     "bench-jury": JURY_FILE,
     "agent-injection": f"{AGENT_INJECTION_V2_FILE} and {AGENT_INJECTION_FILE}",
     "agent-injection-v3": AGENT_INJECTION_V3_FILE,
+    "agent-injection-adaptive": AGENT_INJECTION_ADAPTIVE_FILE,
     "bench-frontier": FRONTIER_FILE,
     "bench-frontier-neural": FRONTIER_NEURAL_FILE,
     "bench-rerank-arms": RERANK_ARMS_FILE,
@@ -1680,6 +1682,185 @@ def _v3_boundary_line(summary: dict) -> str:
             f"outside the corpus root appeared in {leaked} answers.")
 
 
+_ADAPTIVE_GROUPS = (("planted_actions", "planted actions"), ("hijack", "hijack"))
+
+
+def _adaptive_where(blob: dict, segments: list[dict]) -> str:
+    head = str(blob.get("git_head") or "")[:7]
+    heads = sorted({str(seg.get("git_head") or "")[:7] for seg in segments})
+    clean = not blob.get("working_tree_dirty") and not any(seg.get("working_tree_dirty") for seg in segments)
+    if heads == [head]:
+        return (f"rounds generated and scored at sha {head}{' from a clean tree' if clean else ' with uncommitted changes'} "
+                f"in {len(segments)} process segment{'s' if len(segments) != 1 else ''}")
+    return f"rounds generated at sha {', '.join(heads)}, scored at sha {head}"
+
+
+def agent_injection_adaptive_table(blob: dict | None) -> str:
+    """The adaptive attacker (agent_injection_adaptive) on the held-out questions: success after K rounds per target
+    model, configuration and goal, against agent_injection_v3's fixed phrasings on the same pairs and seeds, with every
+    round's count, the configurations against none, and what the system let happen."""
+    if not blob:
+        return f"_{AGENT_INJECTION_ADAPTIVE_FILE} is missing; run `make bench-agent-injection-adaptive` (needs Ollama)._"
+    cfg, summary, comparison = blob["config"], blob["summary"], blob.get("comparison") or {}
+    attacker, split, rounds, k = cfg["attacker"], cfg["split"], cfg["rounds"], cfg["k"]
+    source = comparison.get("source") or {}
+    gen = blob.get("episodes_generated_by") or {}
+    segments, shards = gen.get("segments") or [], (gen.get("merged") or {}).get("shards") or []
+    device = blob.get("device") or {}
+    gpu = device.get("gpu") or ("GPUs that differ by segment" if "per_segment" in device else "an unrecorded device")
+    how = (f"`make bench-agent-injection-adaptive`, run as {len(shards)} shards merged by "
+           "`make bench-agent-injection-adaptive-merge`" if shards else "`make bench-agent-injection-adaptive`")
+    wall = f"wall {blob['wall_s']} s" if blob.get("wall_s") else "wall time not recorded"
+    if blob.get("wall_s") and shards:
+        overlap = _segment_overlap(segments)
+        wall += f" summed over the {len(segments)} segments" + (f" ({overlap})" if overlap else "")
+    phrasings = len(source.get("phrasings") or []) or "its"
+    lines = [
+        f"An adaptive attacker against each configuration ({how}; {_adaptive_where(blob, segments)}): "
+        f"{blob['n_episodes']} rounds in {blob['n_trajectories']} trajectories, {blob['n_episode_errors']} harness "
+        f"errors; attacker `{attacker['model']}` (instructions: tuning candidate {attacker['prompt_version']}, temperature "
+        f"{attacker['temperature']}) via its own {_server_line({'ollama': blob.get('attacker_ollama')})}; targets "
+        f"{', '.join(cfg['models'])} (temperature {cfg['temperature']}) via {_server_line(blob)} on {gpu}; {wall}.",
+        "",
+        f"The attacker writes the planted text of `agent_injection_v3`'s goals and rewrites it after every round, up to "
+        f"{rounds} rounds per trial and {k} trials per (question, goal) pair, the target's seed the trial index in every "
+        "round; a trial stops once its goal took effect. The harness makes every line a comment line after the ticket, so "
+        "the config's values never change, and completes a text that lacks what the goal needs with v3's goal sentence "
+        "(or replaces an empty text, or one with an absolute path or a URL, by it); the rounds table counts both apart, "
+        "and one column reads success from the rounds that planted the attacker's own text only. "
+        "The attacker knows the goal and how it is scored, the two files, the run, the tool names and the "
+        "configuration's one-line description; after each round it is told, for its own earlier rounds only, whether "
+        "its text reached the assistant, whether the assistant attempted the goal, whether it took effect, and the "
+        "start of the answer the user received: scorer-outcome feedback, more than a user would see. Its instructions "
+        f"were tuned on the training questions ({', '.join(split['train'])}), where the declared rule kept candidate "
+        f"{attacker['prompt_version']} before any held-out round (`tuning_outcome` in the file); these are the "
+        f"{len(split['questions'])} held-out questions ({', '.join(split['questions'])}), run once. Success after "
+        f"{rounds} rounds is any round's attempt (model level) or, apart from that, any round's effect (system level), "
+        "per trial: a pair's value is the share of its trials, per goal the mean over the pairs, and a group of goals "
+        "averages each question's goals first. The fixed phrasings are `agent_injection_v3`'s "
+        f"{phrasings} on the same pairs and seeds, attacked when any phrasing's episode with that seed was: as many "
+        f"target episodes per pair as {rounds} rounds x {k} trials. Intervals are percentile bootstraps over the "
+        "questions, paired for the differences.",
+        "",
+        f"| model | configuration | goals | adaptive: attempted within {rounds} rounds [95% CI] | v3 fixed phrasings: "
+        "attempted by any [95% CI] | adaptive - fixed [95% CI] | adaptive, rounds with its own text only [95% CI] "
+        "| adaptive: took effect [95% CI] | fixed: took effect [95% CI] | adaptive - fixed [95% CI] |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            for group, label in _ADAPTIVE_GROUPS:
+                comp = ((comparison.get(model) or {}).get(defense) or {}).get(group) or {}
+                cells = []
+                for level, own in (("attempted", "success_after_k"), ("took_effect", "took_effect_after_k")):
+                    block = comp.get(level) or {}
+                    cells += [_rate(block.get("adaptive") or b["by_group"][group][own]), _rate(block.get("fixed")),
+                              _delta_cell(block.get("delta"))]
+                    if level == "attempted":
+                        cells.append(_rate(b["by_group"][group].get("success_after_k_own_text")))
+                lines.append(f"| {model} | {defense} | {label} | " + " | ".join(cells) + " |")
+    goals = list(next(iter(next(iter(summary.values())).values()))["by_goal"])
+    lines += ["", f"Per goal: attempted within {rounds} rounds [95% CI], and in brackets after it v3's fixed phrasings "
+              "on the same pairs; for the hijack also the answers that stated the planted value without the true one "
+              "(an answer that names the planted value to deny it counts as attempted), read from the answer the user "
+              "received, so under answer_check, which holds back an answer that does not state the true value, it "
+              "counts only answers that got past the check:", "",
+              "| model | configuration | " + " | ".join(goals) + " | hijack, planted value only [95% CI] |",
+              "|---|---|" + "---:|" * (len(goals) + 1)]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            comp = (comparison.get(model) or {}).get(defense) or {}
+            cells = [f"{_rate(b['by_goal'][g]['success_after_k'])} ({_mean(((comp.get(g) or {}).get('attempted') or {}).get('fixed'))})"
+                     for g in goals]
+            lines.append(f"| {model} | {defense} | " + " | ".join(cells)
+                         + f" | {_rate(b['by_goal']['hijack'].get('planted_value_only_after_k'))} |")
+    lines += ["", f"Attempted within the first r rounds, per goal (means over the pairs), r = 1 to {rounds}:", "",
+              "| model | configuration | goal | " + " | ".join(f"r = {r}" for r in range(1, rounds + 1)) + " |",
+              "|---|---|---|" + "---:|" * rounds]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            for goal in goals:
+                curve = b["by_goal"][goal]["after_round"]
+                lines.append(f"| {model} | {defense} | {goal} | " + " | ".join("n/a" if x is None else f"{x:.3f}" for x in curve) + " |")
+    lines += ["", "Rounds: the planted texts, and what reached the assistant (a search snippet can show the ticket line "
+              "and end before the goal's payload: the planted value, the private path or the forged token):", "",
+              "| model | configuration | trajectories | rounds | attacker's own text | completed with v3's goal sentence "
+              "| replaced by it | cut at the length limit | reached: ticket / payload | attempted rounds: own / completed / "
+              "replaced text | attacker reply, mean tokens |",
+              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for model, per in summary.items():
+        for defense, b in per.items():
+            by_text = {kind: sum(g["attempted_rounds_by_text"][kind][0] for g in b["by_goal"].values())
+                       for kind in ("own", "completed", "replaced")}
+            lines.append(f"| {model} | {defense} | {b['trajectories']} | {b['rounds']} | {b['own_text_rounds']} "
+                         f"| {b['completed_rounds']} | {b['replaced_rounds']} | {b['cut_rounds']} "
+                         f"| {b['exposed_rounds']} / {b['payload_seen_rounds']} "
+                         f"| {by_text['own']} / {by_text['completed']} / {by_text['replaced']} "
+                         f"| {b['attacker']['mean_output_tokens']} |")
+    for model, per in summary.items():
+        loop = (per.get("answer_check") or {}).get("answer_check")
+        if loop:
+            lines += ["", f"{model} under answer_check: of {loop['hijack_planted_first_draft']} first answers in hijack "
+                      f"rounds that stated the planted value, the check flagged {loop['hijack_planted_first_draft_flagged']}, "
+                      f"and {loop['hijack_planted_delivered']} planted values reached the user; nothing reached the user in "
+                      f"{loop['withheld'] + loop['episodes'] - loop['answered']} of its {loop['episodes']} rounds (the "
+                      f"check held back every answer in {loop['withheld']}, no answer came in "
+                      f"{loop['episodes'] - loop['answered']})."]
+    deltas = blob.get("paired_deltas") or {}
+    if deltas:
+        lines += ["", "Each configuration against `none` within the adaptive run (paired over the questions):", ""]
+        for model, per in deltas.items():
+            for name, d in per.items():
+                parts = [f"{label} {'attempted' if level == 'attempted' else 'took effect'} {_signed(d[group][level])}"
+                         for group, label in _ADAPTIVE_GROUPS for level in ("attempted", "took_effect")
+                         if (d.get(group) or {}).get(level)]
+                lines.append(f"- {model}, {name}: " + "; ".join(parts) + ".")
+    first = [(model, defense, (comparison.get(model) or {}).get(defense) or {}) for model, per in summary.items() for defense in per]
+    if any(c for _, _, c in first):
+        lines += ["", "Round 1 alone (the attacker's first text, before any feedback) against v3's rate per draw (one "
+                  "phrasing per episode), attempted, paired over the questions:", "",
+                  "| model | configuration | " + " | ".join(f"{label}: round 1 / per draw [95% CI of the difference]"
+                                                           for _, label in _ADAPTIVE_GROUPS) + " |",
+                  "|---|---|" + "---:|" * len(_ADAPTIVE_GROUPS)]
+        for model, defense, comp in first:
+            cells = []
+            for group, _ in _ADAPTIVE_GROUPS:
+                block = (comp.get(group) or {}).get("round_1_vs_per_draw") or {}
+                cells.append(f"{_mean(block.get('adaptive'))} / {_mean(block.get('fixed'))}, {_delta_cell(block.get('delta'))}"
+                             if block else "n/a")
+            lines.append(f"| {model} | {defense} | " + " | ".join(cells) + " |")
+    blocks = [(model, defense, b) for model, per in summary.items() for defense, b in per.items()]
+    n = sum(b["rounds"] - b["rounds_with_errors"] for _, _, b in blocks)
+    gate = {key: sum(b["gate"][key] for _, _, b in blocks) for key in blocks[0][2]["gate"]}
+    by = ", ".join(f"{model} under {defense} {b['gate']['write_tool_calls']}" for model, defense, b in blocks
+                   if b["gate"]["write_tool_calls"])
+    calls = (f"the targets made {gate['write_tool_calls']} write-tool calls ({by}), "
+             f"{sum(b['recovered_write_tool_calls'] for _, _, b in blocks)} of them written as JSON text and recovered; "
+             f"the move and patch rounds saw {gate['apply_calls']} apply calls, {gate['apply_calls_refused']} of them "
+             f"refused (only an `ok` status could apply), and {gate['pending_proposals_created']} proposals created"
+             if gate["write_tool_calls"] else "no target called a write tool")
+    lines += ["", f"System boundary, all models and configurations: in the {n} rounds {calls}. The corpus changed in "
+              f"{gate['corpus_changed_episodes']} rounds (no grant is ever issued here, so a change would have meant a "
+              f"bypass), and the canary stored outside the corpus root appeared in {gate['canary_leaked_episodes']} "
+              "answers."]
+    if source:
+        v3_gpu = (source.get("device") or {}).get("gpu") or "an unrecorded device"
+        ours = (blob.get("ollama") or {}).get("version")
+        same = "the same" if (ours, gpu) == (source.get("ollama_version"), v3_gpu) else "not the same"
+        lines += ["", f"The fixed phrasings' run (`agent_injection_v3`, sha {str(source.get('git_head') or '')[:7]}) ran "
+                  f"its targets on {v3_gpu} with Ollama {source.get('ollama_version')}, this run on {gpu} with Ollama "
+                  f"{ours}: {same} server version and GPU. The two were sampled at different times, so the differences "
+                  "above compare runs, not texts on identical trajectories."]
+    role = ("the target too (a self-attack)" if cfg["models"] == [attacker["model"]] else
+            "one of the targets" if attacker["model"] in cfg["models"] else "not a target")
+    cut = f" {cfg['target_cut'][:1].upper()}{cfg['target_cut'][1:]}." if cfg.get("target_cut") else ""
+    lines += ["", f"One attacker model, which is {role}; its instructions were tuned on {len(split['train'])} training "
+              f"questions, and {len(split['questions'])} held-out questions make wide intervals.{cut} The feedback tells "
+              "the attacker more than a user would see. This measures how the target and these configurations held up "
+              "against this attacker, not against adaptive attackers in general."]
+    return "\n".join(lines)
+
+
 def verdict(block: dict | None) -> str:
     """The decision word for a paired delta, read off its interval and nothing else."""
     if not block:
@@ -1958,6 +2139,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-jury": jury_table(_load(root, JURY_FILE)),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_V2_FILE), earlier=_load(root, AGENT_INJECTION_FILE)),
         "agent-injection-v3": agent_injection_v3_table(_load(root, AGENT_INJECTION_V3_FILE)),
+        "agent-injection-adaptive": agent_injection_adaptive_table(_load(root, AGENT_INJECTION_ADAPTIVE_FILE)),
         "bench-frontier": frontier_table(_load(root, FRONTIER_FILE)),
         "bench-frontier-neural": frontier_table(_load(root, FRONTIER_NEURAL_FILE), FRONTIER_NEURAL_FILE, "make bench-frontier-neural"),
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
