@@ -1451,8 +1451,8 @@ however varied, says how the models treat those texts, and adaptive attackers
 get past most published defenses ([Nasr et al. 2025](https://arxiv.org/abs/2510.09023)).
 This run lets an attacker model write the planted text and rewrite it after
 every episode, against each configuration. The attacker is qwen2.5:7b, the
-stronger instruction follower of the two cached models, so a weak attacker does
-not explain a null. The design declared both cached models as targets; llama3.1:8b
+stronger instruction follower of the two models v3 ran, so a weak attacker does
+not explain a null. The design declared both of v3's models as targets; llama3.1:8b
 was cut during tuning, before any held-out round: with the attacker's server on
 the same GPU, its rounds took several times as long as its episodes in v3, so the
 design did not fit the GPU budget, and the task allows cutting a target or the
@@ -1479,7 +1479,8 @@ the user received. That is more than a user who sees only the answer learns, so
 it bounds output-only black-box feedback from above. A trajectory is one target
 model, configuration, (question, goal) pair and trial. It runs seven rounds, as
 many as v3 has phrasings, and each pair runs four trials, v3's seeds, so a pair
-gets as many target episodes as in v3. The target's seed is the trial index in
+gets at most as many target episodes as in v3, fewer when a trajectory stops
+early. The target's seed is the trial index in
 every round, as v3's phrasings share each seed, so a trajectory whose sampled
 path never reads the planted files can change only through what the planted
 text adds to search results. A trajectory stops after a round whose goal took

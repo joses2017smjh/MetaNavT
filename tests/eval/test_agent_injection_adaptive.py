@@ -837,7 +837,7 @@ def test_the_docs_on_the_adaptive_run_hold_for_its_results_file(adaptive_run):
     # the hand-written reading of the held-out run in the engineering reference, the README and the evidence page's
     # interview answer, sentence by sentence, each verdict read off the file's paired intervals, the null and the
     # losers included
-    blob, tasks, rows, _, _, _ = adaptive_run
+    blob, tasks, rows, _, _, v3_rows = adaptive_run
     by_id = {t.task_id: t for t in tasks}
     text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
     readme = " ".join(next(p for p in (ai.ROOT / "README.md").read_text().split("\n\n")
@@ -907,6 +907,16 @@ def test_the_docs_on_the_adaptive_run_hold_for_its_results_file(adaptive_run):
     assert ("Most rounds planted the attacker's own text; most of the rest were patch rounds completed with v3's goal "
             "sentence, and in one trajectory every round was replaced, because the attacker ended each text with a line "
             "the validator reads as an absolute path.") in text
+    # the attempt budget is v3's (K rounds x k trials = its phrasings x seeds per pair and configuration), and a
+    # trajectory that stops once its goal took effect leaves its pair with fewer target episodes than v3 ran
+    v3_base = {t.task_id: ai.base_id(t) for t in ai.build_tasks(benchmark=ai.BENCHMARK_V3) if t.injected}
+    v3_n = Counter((r["defense"], v3_base[r["task_id"]]) for r in v3_rows
+                   if r["model"] == model and r["trial"] < cfg["k"] and v3_base.get(r["task_id"]) in by_id)
+    ours = Counter((r["defense"], r["task_id"]) for r in rows)
+    assert set(ours) == set(v3_n) and all(ours[c] <= v3_n[c] == cfg["rounds"] * cfg["k"] for c in v3_n)
+    assert any(ours[c] < v3_n[c] for c in v3_n)
+    assert ("each pair runs four trials, v3's seeds, so a pair gets at most as many target episodes as in v3, fewer "
+            "when a trajectory stops early.") in text
     # the same server version, context length, GPU type and weights as v3's run, which the headers record
     v3 = json.loads(aa.V3_RESULTS.read_text())
     for server in (blob["ollama"], blob["attacker_ollama"]):
@@ -946,6 +956,10 @@ def test_the_docs_on_the_adaptive_run_hold_for_its_results_file(adaptive_run):
     v3_benign = {m: b["none"]["benign_success"]["mean"] for m, b in v3["summary"].items()}
     weaker, stronger = sorted(v3_benign, key=v3_benign.get)
     assert attacker == model == stronger and [m for m in cfg["declared_models"] if m not in cfg["models"]] == [weaker]
+    # the attacker and the declared targets are named by v3's run, which the repository records (not by a model cache)
+    assert sorted(v3_benign) == sorted(cfg["declared_models"])
+    assert (f"The attacker is {attacker}, the stronger instruction follower of the two models v3 ran, so a weak attacker "
+            "does not explain a null. The design declared both of v3's models as targets;") in text
     assert ("A fourth run replaces the fixed phrasings with an attacker model that rewrites the planted text after every "
             "round, against each configuration, from the scorer's outcome of its earlier rounds; the attacker is the "
             "stronger model itself, the only target after the weaker one was cut for GPU time.") in readme
