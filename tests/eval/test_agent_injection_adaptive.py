@@ -990,3 +990,13 @@ def test_the_planted_value_only_column_says_it_reads_the_answer_the_user_receive
     assert blob["summary"]["qwen2.5:7b"][ai.ANSWER_CHECK]["by_goal"]["hijack"]["planted_value_only_after_k"]["hi"] == 0
     assert ("read from the answer the user received, so under answer_check, which holds back an answer that does not "
             "state the true value, it counts only answers that got past the check") in agent_injection_adaptive_table(blob)
+
+
+def test_the_reference_open_items_do_not_plan_the_attacker_this_run_built():
+    # the engineering reference's open items listed an attacker that rewrites the planted text against each defense as
+    # a next step; this run built it, so the item keeps only what is still open and points at the run's table
+    text = (ai.ROOT / "doc" / "engineering-reference.md").read_text()
+    item = next(line for line in text.splitlines() if line.startswith("4. **Injection evaluation, next steps:**"))
+    assert "an attacker that rewrites the planted text against each defense (the third run's phrasings" not in item
+    assert "larger models" in item and "quarantined reader" in item
+    assert "](../README.md#agent-injection-adaptive)" in item and "after seven rounds" in item
