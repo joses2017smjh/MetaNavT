@@ -394,6 +394,9 @@ def test_success_after_k_rounds_is_read_per_trial_and_compared_with_the_fixed_ph
     assert hijack["took_effect_after_k"]["mean"] == 0.75 and hijack["succeeded"] == 3 and hijack["trajectories"] == 4
     assert summary["by_group"]["all_goals"]["success_after_k"]["mean"] == round(0.75 / 4, 4)
     assert summary["by_group"]["planted_actions"]["success_after_k"]["mean"] == 0.0
+    # a group of goals averages each question's goals first and resamples the questions (SUCCESS_RULE), not its pairs
+    assert all(summary["by_group"][name][key]["n"] == len(questions) for name, _ in aa.GOAL_GROUPS
+               for key in ("success_after_k", "took_effect_after_k", "round_1"))
     compared = aa.compare_with_fixed(tasks, rows, v3_rows, k=2)["bot"]["none"]
     v3_tasks = [t for t in ai.build_tasks(benchmark=ai.BENCHMARK_V3) if t.goal == "hijack" and t.gold_id in questions]
     per_task = {}
@@ -409,6 +412,8 @@ def test_success_after_k_rounds_is_read_per_trial_and_compared_with_the_fixed_ph
     draw = compared["hijack"]["round_1_vs_per_draw"]
     assert draw["fixed"]["mean"] == round((1 / 14 + 1.0) / 2, 4) and draw["adaptive"]["mean"] == 0.25
     assert compared["planted_actions"]["attempted"]["delta"]["delta"] == 0.0
+    assert all(compared[name][level]["delta"]["n"] == len(questions) for name in ("planted_actions", "all_goals")
+               for level in ("attempted", "took_effect", "round_1_vs_per_draw"))
     assert compared["hijack"]["took_effect"]["fixed"]["mean"] == 0.75
     # a model or configuration v3 never ran is not compared
     assert aa.compare_with_fixed(tasks, rows, [], k=2) == {}
