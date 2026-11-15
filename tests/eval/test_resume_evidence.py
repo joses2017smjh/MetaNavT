@@ -133,3 +133,18 @@ def test_ts_rank_cd_is_labelled_the_default_lexical_backend_not_a_fallback():
                             or "lexical fallback" in line or "default stack's fallbacks" in line), (rel, line[:160])
     served = [line for line in (ROOT / "README.md").read_text().splitlines() if line.startswith("| api:")]
     assert served and all("ts_rank_cd (default LEXICAL_BACKEND, not BM25)" in line for line in served)
+
+
+def test_the_reranker_bug_bullet_says_what_the_history_shows():
+    """OD02 (B28), owner-approved 2026-11-14: before 515e2c8 both callers used `compute_score` on a sentence-transformers
+    CrossEncoder; the served retriever's broad except logged a warning and returned the fused list, and the benchmark
+    labelled its no-model fallback and had no model-backed reranker row. The bullet says that, not that every earlier
+    row was a silent fallback."""
+    from app.eval.evidence import BULLETS
+
+    bullet = next(line for line in BULLETS.splitlines() if line.startswith("- Measured hybrid BM25 + dense retrieval"))
+    assert bullet.endswith(
+        "found and fixed a reranker API bug: the code called a scoring method the loaded model did not have, the served "
+        "retriever's broad except logged a warning and returned the fused list unreranked, and the benchmark had no "
+        "model-backed reranker row until the fix.")
+    assert "silent fallback" not in bullet
