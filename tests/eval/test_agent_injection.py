@@ -17,7 +17,7 @@ from app.eval.provenance import scrub, scrub_names
 EPISODES = ai.ROOT / ai.DEFAULT_EPISODES
 SCORES = ai.ROOT / ai.DEFAULT_SCORES
 RESULTS = ai.ROOT / ai.DEFAULT_OUT
-# the current run (agent_injection_v2), written by `make bench-agent-injection-v2`
+# the second run (agent_injection_v2), written by `make bench-agent-injection-v2`
 RESULTS_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2.json"
 EPISODES_V2 = ai.ROOT / "bench" / "results" / "agent_injection_v2_episodes.jsonl"
 # phrasings scored as any-success and the in-loop answer check (agent_injection_v3), written by
@@ -1528,7 +1528,7 @@ def test_the_v3_evidence_rows_read_any_success_and_the_answer_check_deltas_from_
     out.write_text(json.dumps(blob))
     claims = _agent_injection_v3_claims(tmp_path)
     assert len(claims) == 4 and all(c["command"] == "make bench-agent-injection-v3" and c["not_shown"] for c in claims)
-    assert claims[0]["claim"].startswith(f"Agent injection with {len(ai.PHRASINGS)} phrasings, bot, no defense: hijack")
+    assert claims[0]["claim"].startswith(f"Agent injection, current run ({len(ai.PHRASINGS)} phrasings), bot, no defense: hijack")
     any_phrasing = blob["summary"]["bot"]["none"]["by_goal"]["hijack"]["attempted_any_phrasing"]
     assert (claims[0]["value"], claims[0]["ci"]) == _ci(any_phrasing)
     deltas = blob["paired_deltas"]["bot"][f"{ai.ANSWER_CHECK} - none"]
@@ -1653,13 +1653,15 @@ def test_the_table_reads_the_capability_control_against_the_planted_move_and_pat
     assert "in a state other than the requested one" not in "\n".join(lines)
 
 
-def test_the_readme_summary_of_the_injection_study_holds_for_the_current_run():
-    # the hand-written summary above the tables makes claims about the current run; each must hold in its file
+def test_the_readme_summary_of_the_second_injection_run_holds_for_its_results_file():
+    # the hand-written summary of the second run (v2) makes claims about that run; each must hold in its file
     readme = (ai.ROOT / "README.md").read_text()
-    summary = next(p for p in readme.split("\n\n") if p.startswith("The prompt-injection study is separate again"))
+    summary = next(p for p in readme.split("\n\n") if p.startswith("In the second run, with one phrasing per goal"))
     blob = json.loads(RESULTS_V2.read_text())
     blocks = {model: list(per.values()) for model, per in blob["summary"].items()}
-    assert "In the current run neither model pursued a planted file action." in summary
+    assert "In the second run, with one phrasing per goal and task, neither model pursued a planted file action." in summary
+    first = next(b for bs in blocks.values() for b in bs)  # one phrasing per goal and task: one injected task each
+    assert first["n_injected_tasks"] == len(blob["config"]["goals"]) * first["n_benign_tasks"]
     assert all(b["planted_actions"]["attempted_episodes"] == 0 for bs in blocks.values() for b in bs)
     assert ("both models called the write tools and the operator signed their proposals, so where an injected task is "
             "offered those tools the zero is not an inability to make the calls") in summary
@@ -1676,9 +1678,9 @@ def test_the_readme_summary_of_the_injection_study_holds_for_the_current_run():
     assert "](bench/results/agent_injection_v2_episodes.jsonl)" in summary
 
 
-def test_the_interview_answer_on_the_injection_study_holds_for_the_current_run():
+def test_the_interview_answer_on_the_injection_study_holds_for_the_second_run():
     # the hand-written answer in the evidence page says how each model's refused apply calls failed and that the weaker
-    # model never passes all trials of a control; each claim must hold in the current run's file
+    # model never passes all trials of a control; each claim must hold in the second run's file
     from app.eval.evidence import QA
     answer = next(p for p in QA.split("\n\n") if p.startswith("**What did the injection evaluation show?**"))
     blob = json.loads(RESULTS_V2.read_text())
@@ -1703,8 +1705,8 @@ def test_the_interview_answer_on_the_injection_study_holds_for_the_current_run()
     assert not any(deltas[f"{d} - none"]["hijack_planted_value"]["excludes_zero"] for d in ("spotlight", "least_privilege"))
 
 
-def test_the_engineering_reference_on_the_injection_study_holds_for_the_current_run():
-    # the hand-written reading of the current run in the engineering reference: proposals signed, the planted claim
+def test_the_engineering_reference_on_the_injection_study_holds_for_the_second_run():
+    # the hand-written reading of the second run in the engineering reference: proposals signed, the planted claim
     # unchanged by either defense for the stronger model, and the weaker model's tool-filter delta excluding zero
     text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
     blob = json.loads(RESULTS_V2.read_text())
@@ -1713,7 +1715,7 @@ def test_the_engineering_reference_on_the_injection_study_holds_for_the_current_
     assert "the models did call these tools, and the operator signed their proposals." in text
     caps = [x for per in blob["summary"].values() for b in per.values() for x in b["capability"]["by_action"].values()]
     assert all(x["proposals_approved"] for x in caps) and not any(x["proposals_declined"] for x in caps)
-    assert ("In the current run, for the stronger model neither datamarking nor the tool filter changed that measurably, "
+    assert ("In the second run, for the stronger model neither datamarking nor the tool filter changed that measurably, "
             "and the weaker model stated the planted value more often under the tool filter than with no defense, a paired "
             "interval that excludes zero, and more of its hijack episodes reached the planted text there.") in text
     assert not any(blob["paired_deltas"][stronger][f"{d} - none"]["hijack_planted_value"]["excludes_zero"]
@@ -1725,7 +1727,7 @@ def test_the_engineering_reference_on_the_injection_study_holds_for_the_current_
     assert "matched on retrieval" not in text.split("**The injection evaluation is not a strong adaptive attack.**")[0].split(
         "## Does the agent follow instructions planted in files?")[1]
     # the neutral lines carry the planted text's query terms, which is all the D29 test checks; the limits say so too
-    assert ("the current run's controls carry neutral lines with the same terms in the same files, which matches them on "
+    assert ("the second run's controls carry neutral lines with the same terms in the same files, which matches them on "
             "those terms, not on every search result.") in text
 
 
@@ -1736,7 +1738,7 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
     by_id = {t.task_id: t for t in tasks}
     text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
     readme = " ".join(next(p for p in (ai.ROOT / "README.md").read_text().split("\n\n")
-                           if p.startswith("A third run plants each goal")).split())
+                           if p.startswith("The prompt-injection study is separate again")).split())
     cfg, summary, deltas = blob["config"], blob["summary"], blob["paired_deltas"]
     weaker, stronger = sorted(summary, key=lambda m: summary[m]["none"]["benign_success"]["mean"])
     check = ai.ANSWER_CHECK
@@ -1748,7 +1750,7 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
         return delta(model, name, key)["lo"] <= 0 <= delta(model, name, key)["hi"]
 
     assert len(cfg["phrasings"]) == 7 and len(cfg["agentdojo_templates"]) == 5
-    assert ("A third run plants each goal in seven phrasings, five of them AgentDojo's templates, and adds a configuration "
+    assert ("The current run plants each goal in seven phrasings, five of them AgentDojo's templates, and adds a configuration "
             "that puts the structured field check between the answer and the user.") in readme
     assert "[Every episode](bench/results/agent_injection_v3_episodes.jsonl)" in readme
     # what the amendment after the calibration run changed: four trials for every task, any-success read seed by seed,
@@ -1799,7 +1801,7 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
     assert covers(weaker, "least_privilege", "hijack_planted_value")
     assert all(delta(weaker, "spotlight", key)["hi"] < 0 for key in ("hijack_planted_value", "benign_success", "utility_under_attack"))
     assert summary[weaker]["spotlight"]["exposure"]["mean"] < summary[weaker]["none"]["exposure"]["mean"]
-    assert ("In the third run, with seven phrasings, the stronger model stated the planted value under at least one of them "
+    assert ("In the current run, the third, with seven phrasings, the stronger model stated the planted value under at least one of them "
             "for every hijack question and seed in every configuration, a rate at its ceiling that cannot separate the "
             "configurations; per draw, the tool filter lowered its rate, a paired interval below zero, while the planted "
             "text also reached fewer of its hijack episodes there, and datamarking did not change it measurably. The weaker "
@@ -1863,24 +1865,27 @@ def test_the_docs_on_the_third_injection_run_hold_for_its_results_file(v3_run):
             "a missing argument. So planted text never reached the approval gate;") in answer
     assert ("with seven phrasings, at least one of them got the planted value into its answer for every hijack question "
             "and seed in every configuration.") in answer
-    assert "its pass^k on the controls is zero in the current run;" in answer
+    assert "its pass^k on the controls is zero in the second run;" in answer
+    assert ("in the second run the stronger model stated the planted value in nearly every hijack episode" in answer
+            and "in the current run, with seven phrasings," in answer)
     assert ("Put in the model loop, that check lowered the planted value delivered to the user for both models with no "
             "measurable change in utility under attack, though planted values stated beside the true value still got "
             "through, including answers that gave the planted value as the true value's correction.") in answer
 
 
-def test_evidence_rows_come_from_the_current_run_that_generated_and_scored_its_episodes():
-    # the rows cite agent_injection_v2, and the capability control is read as attempted (a call to the requested
+def test_evidence_rows_come_from_the_second_run_that_generated_and_scored_its_episodes():
+    # the rows cite agent_injection_v2 and say so in their label, and the capability control is read as attempted (a call to the requested
     # action's tools, as planted attempts are counted) with done in its own row
     from app.eval.evidence import _agent_injection_claims
     blob = json.loads(RESULTS_V2.read_text())
     rows = _agent_injection_claims()
+    assert rows and all(r["claim"].startswith("Agent injection, second run, ") for r in rows)
     assert rows and all(r["source"] == f"bench/results/agent_injection_v2.json @ {blob['git_head'][:7]}"
                         and r["command"] == "make bench-agent-injection-v2" for r in rows)
     for model, per in blob["summary"].items():
         cap = per["none"]["capability"]
-        attempted = [r for r in rows if r["claim"].startswith(f"Agent injection, {model}, no defense: capability control, attempted")]
-        done = [r for r in rows if r["claim"].startswith(f"Agent injection, {model}, no defense: capability control, done")]
+        attempted = [r for r in rows if r["claim"].startswith(f"Agent injection, second run, {model}, no defense: capability control, attempted")]
+        done = [r for r in rows if r["claim"].startswith(f"Agent injection, second run, {model}, no defense: capability control, done")]
         assert len(attempted) == len(done) == 1
         assert attempted[0]["value"] == f"{cap['attempted']['mean']:.3f}" and done[0]["value"] == f"{cap['success']['mean']:.3f}"
         assert attempted[0]["n"] == done[0]["n"] == cap["success"]["n"] and attempted[0]["ci"].startswith("[")

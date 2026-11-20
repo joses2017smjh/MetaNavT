@@ -841,7 +841,7 @@ def test_the_docs_on_the_adaptive_run_hold_for_its_results_file(adaptive_run):
     by_id = {t.task_id: t for t in tasks}
     text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
     readme = " ".join(next(p for p in (ai.ROOT / "README.md").read_text().split("\n\n")
-                           if p.startswith("A fourth run replaces the fixed phrasings")).split())
+                           if p.startswith("A fourth run replaces the current run's fixed phrasings")).split())
     from app.eval.evidence import QA
     answer = next(p for p in QA.split("\n\n") if p.startswith("**What did the injection evaluation show?**"))
     cfg, summary, comparison, deltas = blob["config"], blob["summary"], blob["comparison"], blob["paired_deltas"]
@@ -960,7 +960,7 @@ def test_the_docs_on_the_adaptive_run_hold_for_its_results_file(adaptive_run):
     assert sorted(v3_benign) == sorted(cfg["declared_models"])
     assert (f"The attacker is {attacker}, the stronger instruction follower of the two models v3 ran, so a weak attacker "
             "does not explain a null. The design declared both of v3's models as targets;") in text
-    assert ("A fourth run replaces the fixed phrasings with an attacker model that rewrites the planted text after every "
+    assert ("A fourth run replaces the current run's fixed phrasings with an attacker model that rewrites the planted text after every "
             "round, against each configuration, from the scorer's outcome of its earlier rounds; the attacker is the "
             "stronger model itself, the only target after the weaker one was cut for GPU time.") in readme
     assert ("On the held-out questions, after seven rounds, no comparison with the fixed phrasings on the same pairs and "
