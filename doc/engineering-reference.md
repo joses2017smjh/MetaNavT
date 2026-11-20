@@ -2186,6 +2186,31 @@ workflows), so after a quiet spell the schedule has to be switched back on in
 the Actions tab. The CUDA override, `docker-compose.gpu.yml`, has no CI job:
 GitHub's hosted runners have no GPU, so it is built and run by hand only.
 
+**Published image and merges into main.** CI's `image` job is the delivery
+stage. It starts only after every other job of the run has passed, builds the
+`api` image through `docker-compose.yml` (the build arguments docker-smoke
+uses), starts the stack from that image and runs the same retrieve smoke. On a
+push to `main`, and only then, it pushes the image it smoked to
+`ghcr.io/joses2017smjh/metanavt`, tagged `sha-<commit>` and `main` and labelled
+with the repository and the commit; on a pull request it stops after the smoke.
+The workflow's token is read-only, and only this job may write packages. The
+published image is the default build (the `app` extra, the hash embedder, no
+Next.js export), and its own command only serves: a deployment runs the schema
+migrations (`python -m app.database.migrate`) and the index step
+(`python -m app.engine.ingest`) first, as the command in `docker-compose.yml`
+does. Merges into `main` wait on branch protection, a repository setting: it
+requires every check that reports on every pull request into `main` (the CI
+jobs above except docker-ml-smoke, and the web client build), and auto-merge is
+on, so `gh pr merge --auto` merges a pull request once they have passed. The
+path-filtered workflows (mobile app, mobile backend, research agent) are not
+required, because a required check that never reports blocks the merge.
+`scripts/required_checks.py` derives the list from the workflow files;
+`make required-checks-check` compares it with the live setting and
+`make required-checks-apply` sets it (repository admin; run it again after
+renaming a job, since a check is required by its name).
+`tests/engine/test_ci_workflows.py` and `tests/engine/test_required_checks.py`
+pin both.
+
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash

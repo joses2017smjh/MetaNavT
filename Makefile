@@ -335,3 +335,17 @@ docker-smoke:   ## build the compose stack, wait for /health, POST one query, te
 	docker compose up --build -d --wait --wait-timeout 300
 	$(PYTHON) scripts/smoke_retrieve.py
 	docker compose down -v
+
+# ---- delivery --------------------------------------------------------------
+# CI's image job pushes the smoked api image to ghcr.io on a push to main. Merges into main wait for
+# the checks branch protection requires (a GitHub setting); scripts/required_checks.py derives them
+# from .github/workflows: every job that reports on every pull request into main.
+.PHONY: required-checks required-checks-check required-checks-apply
+required-checks: ## print the checks main's branch protection requires, derived from .github/workflows
+	$(PYTHON) scripts/required_checks.py
+
+required-checks-check: ## exit 1 unless main's protection on GitHub requires exactly those checks and auto-merge is on (gh)
+	$(PYTHON) scripts/required_checks.py --check
+
+required-checks-apply: ## make main's protection require exactly those checks, and turn on auto-merge (gh; repository admin)
+	$(PYTHON) scripts/required_checks.py --apply

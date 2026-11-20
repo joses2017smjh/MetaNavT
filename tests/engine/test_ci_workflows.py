@@ -86,3 +86,56 @@ def test_the_mobile_browser_job_runs_on_an_image_its_playwright_supports():
     runner = workflow["jobs"]["web"]["runs-on"]
     assert runner != "ubuntu-latest"
     assert re.fullmatch(r"ubuntu-(22|24)\.04", runner), runner
+
+
+# ---- delivery: the image job publishes to ghcr.io only what CI passed and the smoke ran against
+
+PUSH_TO_MAIN = "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
+
+
+def test_the_image_job_starts_only_after_every_other_job_a_push_to_main_runs():
+    ci, on = _workflow("ci.yml")
+    assert on["push"] == {"branches": ["main"]}
+    job = ci["jobs"]["image"]
+    pushed = {name for name, other in ci["jobs"].items() if name != "image" and other.get("if") == job["if"]}
+    assert pushed and set(job["needs"]) == pushed  # a new always-run job must gate the image too
+
+
+def test_only_a_push_to_main_logs_in_or_pushes():
+    ci, _ = _workflow("ci.yml")
+    steps = ci["jobs"]["image"]["steps"]
+    registry = [step for step in steps if "docker login" in step.get("run", "") or "docker push" in step.get("run", "")]
+    assert len(registry) == 2 and all(step["if"] == PUSH_TO_MAIN for step in registry)
+    for name, job in ci["jobs"].items():
+        if name != "image":
+            assert not any("docker push" in step.get("run", "") or "docker login" in step.get("run", "")
+                           for step in job["steps"]), name
+    (login,) = [step for step in registry if "docker login" in step["run"]]
+    assert "--password-stdin" in login["run"] and "secrets.GITHUB_TOKEN" not in login["run"]  # never on a command line
+
+
+def test_the_pushed_image_is_the_one_compose_built_and_the_smoke_ran_against():
+    """No separate `docker build`: the image is built through docker-compose.yml (the build arguments docker-smoke
+    uses), under the name the push step pushes, and the smoke runs before any push."""
+    ci, _ = _workflow("ci.yml")
+    steps = ci["jobs"]["image"]["steps"]
+    runs = [step.get("run", "") for step in steps]
+    assert not any("docker build" in run or "buildx" in run for run in runs)
+    (name_step,) = [i for i, run in enumerate(runs) if "IMAGE_REF=" in run]
+    assert "COMPOSE_FILE=docker-compose.yml:" in runs[name_step]
+    assert re.search(r"image: \\\"%s\\\"\\n    pull_policy: build", runs[name_step])  # built here, never pulled
+    assert '"$image:sha-$GITHUB_SHA"' in runs[name_step] and "IMAGE_REF=$image:sha-$GITHUB_SHA" in runs[name_step]
+    up = next(i for i, run in enumerate(runs) if "docker compose up --build" in run)
+    smoke = next(i for i, run in enumerate(runs) if "scripts/smoke_retrieve.py" in run)
+    push = next(i for i, run in enumerate(runs) if "docker push" in run)
+    assert name_step < up < smoke < push
+    assert runs[push].splitlines()[0] == 'docker push "$IMAGE_REF"'
+    smoke_in_docker_smoke = [s["run"] for s in ci["jobs"]["docker-smoke"]["steps"] if "smoke_retrieve.py" in s.get("run", "")]
+    assert smoke_in_docker_smoke == [runs[smoke]]  # the same check as the Compose smoke
+
+
+def test_only_the_image_job_may_write_packages():
+    ci, _ = _workflow("ci.yml")
+    assert ci["permissions"] == {"contents": "read"}
+    assert ci["jobs"]["image"]["permissions"] == {"contents": "read", "packages": "write"}
+    assert [name for name, job in ci["jobs"].items() if "permissions" in job] == ["image"]
