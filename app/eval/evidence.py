@@ -37,6 +37,7 @@ FILES = {
     "chat_route_smoke": "bench/results/chat_route_smoke.json",
     "rrf_sweep": "bench/results/rrf_sweep.json",
     "hybrid_drops": "bench/results/hybrid_drops_bge_base.json",
+    "file_depth": "bench/results/file_depth.json",  # M37: the file-depth rows beside their chunk-cut parents
     "served_scale": "bench/results/served_scale_fiqa.json",
     "pgvector_hnsw": "bench/results/pgvector_hnsw.json",
 }
@@ -169,6 +170,7 @@ def claims(root: Path = ROOT) -> list[dict]:
                             "not_shown": f"a tie because the reranker rescores {by[c['row']]['settings']['retrieve_k']} of {by[c['row']]['n_chunks']} chunks; it says nothing about corpora where the first stage is a real filter"})
     out += _rrf_sweep_claims(root)
     out += _hybrid_drops_claims(root)
+    out += _file_depth_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -635,6 +637,43 @@ def _hybrid_drops_claims(root: Path = ROOT) -> list[dict]:
                       f"fused top {k} (dropped from Recall@50), and the reverse (gained)",
              "value": f"{s['n_dropped']} dropped on {s['n_questions_with_drops']} questions, {s['n_gained']} gained", "ci": "—", "n": s["n_questions"],
              "command": "make bench-hybrid-drops", "source": f"{FILES['hybrid_drops']} @ {blob['git_sha']}", "not_shown": "; ".join(parts)}]
+
+def _file_depth_claims(root: Path = ROOT) -> list[dict]:
+    """M37: hybrid@bge-base against dense_only@bge-base at Recall@50 under the file-depth cut, next to the chunk-cut
+    delta the committed rows give and the files hybrid drops there."""
+    blob = _load(FILES["file_depth"], root)
+    if not blob or "bge-base" not in blob.get("embedders", {}):
+        return []
+    by = {r["config"]: r for r in blob["results"]}
+    e = blob["embedders"]["bge-base"]
+    names, k = e["rows"]["chunk_cut"], blob["retrieval"]["retrieve_k"]
+
+    def delta(name, ref):  # attach_confidence: the row's delta_vs_previous (its parent) or a bootstrap comparison
+        previous = by[name].get("delta_vs_previous") or {}
+        if previous.get("reference") == ref:
+            return previous["recall@50"]
+        return next(c for c in blob["bootstrap"]["comparisons"] if c["row"] == name and c["other"] == ref)["recall@50"]
+
+    fd = delta(f"{names['hybrid']}/file-depth", f"{names['dense']}/file-depth")
+    cut = delta(names["hybrid"], names["dense"])
+    gain = {leg: delta(f"{names[leg]}/file-depth", names[leg]) for leg in ("dense", "hybrid")}
+    drop = e["dropped_by_the_chunk_cut"]
+    value, ci = _ci(fd, "delta")
+    parts = [f"the committed rows cut every list at {k} chunks, where {names['hybrid']} minus {names['dense']} is "
+             f"{_ci(cut, 'delta')[0]} {_ci(cut, 'delta')[1]} at Recall@50",
+             f"under the file-depth cut both lists hold {k} files, and {drop['n_recovered']} of the {drop['n_dropped']} gold files "
+             f"hybrid drops at the chunk cut are in its list"
+             + (f" (the files {drop['matches']['file']} lists)" if (drop.get("matches") or {}).get("same_files") else ""),
+             f"both rows gain Recall@50 over their chunk-cut parents (dense {_ci(gain['dense'], 'delta')[0]} {_ci(gain['dense'], 'delta')[1]}, "
+             f"hybrid {_ci(gain['hybrid'], 'delta')[0]} {_ci(gain['hybrid'], 'delta')[1]})",
+             "the parents recomputed in the run reproduce neural.json exactly" if e["reproduces"].get("all") else
+             "a parent does NOT reproduce neural.json",
+             "rows added beside the committed ones: the served path and every committed row keep the chunk cut",
+             f"a {blob['n_files']}-file synthetic fixture"]
+    return [{"claim": f"Fixture v1, {names['hybrid']} minus {names['dense']} at Recall@50 under the file-depth cut (every list keeps "
+                      f"chunks until it holds {k} files), paired",
+             "value": value, "ci": ci, "n": blob["n_gold"], "command": "make bench-file-depth",
+             "source": f"{FILES['file_depth']} @ {blob['git_sha']}", "not_shown": "; ".join(parts)}]
 
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:

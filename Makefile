@@ -139,6 +139,14 @@ bench-rerank-arms: ## distilled students vs the cross-encoder they imitate (need
 bench-rrf-sweep: ## RRF k x dense-vs-BM25 weight chosen on the tune half of the gold questions (bge-small), then scored against k=60 on the held-out half (needs .[ml]; never changes the default) -> bench/results/rrf_sweep.json
 	$(PYTHON) -m app.eval.rrf_sweep --out bench/results/rrf_sweep.json
 
+.PHONY: bench-file-depth
+bench-file-depth: ## M37: BM25, dense-only and hybrid rows under the file-depth cut (every list keeps chunks until it holds retrieve_k files) per real embedder, each paired with its chunk-cut parent recomputed in the run (needs .[ml]; adds rows, changes none) -> bench/results/file_depth.json
+	$(PYTHON) -m app.eval.file_depth --out bench/results/file_depth.json
+
+.PHONY: bench-rrf-sweep-hash
+bench-rrf-sweep-hash: ## the same RRF sweep with the hash embedder on the CPU, recorded by the owner's decision (record, do not adopt): its held-out half was seen before this run, so not blind; the default never changes -> bench/results/rrf_sweep_hash.json
+	$(PYTHON) -m app.eval.rrf_sweep --embedder hash --device cpu --out bench/results/rrf_sweep_hash.json
+
 .PHONY: bench-hybrid-drops
 bench-hybrid-drops: ## per question, the gold files hybrid@bge-base drops (and gains) at Recall@50 against dense_only@bge-base, with their dense, BM25 and fused ranks (needs .[ml]) -> bench/results/hybrid_drops_bge_base.json
 	$(PYTHON) -m app.eval.hybrid_drops --out bench/results/hybrid_drops_bge_base.json
