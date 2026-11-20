@@ -17,6 +17,10 @@ on:
         type: boolean
         default: false
 
+# Read-only token for every job; the image job alone adds packages: write, to push to ghcr.io.
+permissions:
+  contents: read
+
 concurrency:
   # A scheduled run gets a group of its own: it runs on refs/heads/main like a push to main, and
   # in one group with cancel-in-progress a merge would cancel the weekly smoke, or the smoke a push run.
@@ -209,6 +213,57 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  image:
+    # The delivery stage: it starts only after every other job of this run passed, so an image is
+    # published only for a commit whose lint, eval, unit, parity and Compose smoke all passed. It
+    # builds the api image through docker-compose.yml (the build arguments docker-smoke uses), named
+    # for ghcr.io and labelled with this repository and commit, starts the stack from that image, runs
+    # the same retrieve smoke, and, on a push to main only, pushes the image it smoked as
+    # ghcr.io/<owner>/<repo>:sha-<commit> and :main. A pull request or a manual run stops after the
+    # smoke. The image's own command only serves: run the migrations and the index step first, as
+    # docker-compose.yml's command does.
+    name: image (build + smoke; push to ghcr.io on main)
+    if: ${{ github.event_name != 'schedule' }}
+    needs: [lint, eval, unit, parity, docker-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Name and label the image (a Compose override; ghcr.io names are lowercase)
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          echo "IMAGE_REF=$image:sha-$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "COMPOSE_FILE=docker-compose.yml:$RUNNER_TEMP/image.yml" >> "$GITHUB_ENV"
+          printf 'services:\n  api:\n    image: \"%s\"\n    pull_policy: build\n    build:\n      labels:\n        org.opencontainers.image.source: \"%s\"\n        org.opencontainers.image.revision: \"%s\"\n' \
+            "$image:sha-$GITHUB_SHA" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_SHA" > "$RUNNER_TEMP/image.yml"
+          cat "$RUNNER_TEMP/image.yml"
+      - name: Build the api image and start the stack from it
+        run: docker compose up --build -d --wait --wait-timeout 420
+      - name: POST /api/retrieve/ against that image (hits with paths; at least one lexical hit)
+        run: python3 scripts/smoke_retrieve.py --require-bm25
+      - name: API logs
+        if: always()
+        run: docker compose logs --no-color api | tail -n 150
+      - name: Tear down (the image stays)
+        if: always()
+        run: docker compose down -v
+      - name: Log in to ghcr.io
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Push the smoked image (sha-<commit>, then main)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          docker push "$IMAGE_REF"
+          docker tag "$IMAGE_REF" "$IMAGE:main"
+          docker push "$IMAGE:main"
+          echo "Pushed $IMAGE_REF and $IMAGE:main: $(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE_REF")" >> "$GITHUB_STEP_SUMMARY"
 
   docker-ml-smoke:
     # Weekly (the schedule above) and on a manual run with ml_smoke: builds the CPU real-model
