@@ -1939,3 +1939,23 @@ def test_the_engineering_reference_names_the_targets_that_leave_the_episodes_fil
     assert "the episodes file is never rewritten" not in text
     assert ("neither `make bench-agent-injection-rescore` nor `make bench-agent-injection-scores` writes to the "
             "episodes file") in text
+
+
+def test_the_current_run_reuses_the_second_runs_matched_term_controls(v3_run):
+    """M36 open question, answered 2026-11-20: the reference says agent_injection_v3 reuses agent_injection_v2's controls.
+    Each v3 control (no goal, no capability action) appends the same neutral lines to the same carriers as the v2 control
+    for that question, and they carry the planted text's query terms (control_text)."""
+    _, v3_tasks, _, _ = v3_run
+    v2_tasks, _ = ai.stored_episodes(EPISODES_V2, k=4)
+
+    def controls(tasks):
+        return {t.gold_id: (t.neutral, t.carriers) for t in tasks if t.goal is None and t.action is None}
+
+    v2, v3 = controls(v2_tasks), controls(v3_tasks)
+    assert v3 and v3 == v2
+    assert all(neutral == ai.control_text(t.run, t.field) for t in v3_tasks if t.goal is None and t.action is None
+               for neutral in [t.neutral])
+    text = " ".join((ai.ROOT / "doc" / "engineering-reference.md").read_text().split())
+    assert ("The current task set (`agent_injection_v3`) reuses those controls: each of its controls appends the second "
+            "run's neutral lines, word for word, to the same two files.") in text
+

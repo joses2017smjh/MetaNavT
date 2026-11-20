@@ -135,6 +135,14 @@ def init_settings():
     Settings.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "20"))
 
 
+def init_retrieval_settings():
+    """What retrieval needs and nothing else: the embedder and the chunking settings. The public demo (PUBLIC_DEMO)
+    starts with this instead of init_settings, so no chat model is configured or imported."""
+    init_embed_model()
+    Settings.chunk_size = int(os.getenv("CHUNK_SIZE", "1024"))
+    Settings.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "20"))
+
+
 def init_ollama():
     try:
         from llama_index.llms.ollama import Ollama

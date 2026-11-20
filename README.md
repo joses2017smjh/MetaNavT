@@ -123,6 +123,8 @@ The default stack indexes the committed 61-file<!-- num: bench/results/main.json
 
 CI publishes this image to `ghcr.io/joses2017smjh/metanavt` (tags `main` and `sha-<commit>`) from a push to `main`, after every CI job has passed and a smoke of that image; its own command only serves, so run the migrations and the index step first, as `docker-compose.yml` does. [Published image and merges into main](doc/engineering-reference.md#run-it).
 
+**Public demo mode (not deployed yet).** With `PUBLIC_DEMO=1` the API serves only search (`/api/retrieve/`) and cited answers (`/api/answer/`): the chat agents, code execution, uploads, files and approval routes are not mounted, and a test checks the route table. An answer comes from Claude over the retrieved excerpts, with the Messages API's own citations, and is delivered only when it cites one of them. Per-caller quotas, a daily dollar budget reserved before each call, and an answer cache live in Redis; without an API key, Redis or budget left, the route still returns the retrieved hits. Claude's answers are not evaluated in this repository: every committed LLM result used local models. [Public demo mode](doc/engineering-reference.md#public-demo-mode).
+
 <a id="android-and-ios-companion-backend"></a>
 
 ## Explore further
