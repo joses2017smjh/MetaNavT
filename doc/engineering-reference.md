@@ -456,7 +456,7 @@ answer   yes  (draft_v2) — generator must address both
 
 ## Hard benchmark demos, generated
 
-The polished trace above is not the only case. [`bench/demo/manifest.json`](../bench/demo/manifest.json) selects nine hard questions from the frozen 136-question<!-- num: bench/results/main.json#/n_gold --> gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. The staleness cases below are measured mechanisms; the multi-hop graph, artifact, MATLAB and multimodal demos now sit under [Prototypes (not evaluated)](#prototypes-not-evaluated). `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](../doc/demo/traces.json). The HTML and GIFs consume that file.
+The polished trace above is not the only case. [`bench/demo/manifest.json`](../bench/demo/manifest.json) selects eight hard questions from the frozen 136-question<!-- num: bench/results/main.json#/n_gold --> gold set, one committed negative control, and three explicitly labeled artifact/safety/visualization scenarios. The staleness cases below are measured mechanisms; the multi-hop graph, artifact, MATLAB and multimodal demos now sit under [Prototypes (not evaluated)](#prototypes-not-evaluated). `python -m app.eval.demo_export` runs the real offline stack and writes [`doc/demo/traces.json`](../doc/demo/traces.json). The HTML and GIFs consume that file.
 
 ### Staleness under contradiction
 

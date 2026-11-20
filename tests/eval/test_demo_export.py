@@ -26,6 +26,18 @@ def test_demo_manifest_ids_exist_in_frozen_gold():
     assert len(manifest["synthetic_cases"]) == 3
 
 
+def test_the_reference_counts_the_demo_cases_as_the_manifest_holds_them():
+    # M36 T4: the reference said "nine hard questions"; the manifest holds eight, plus one negative control and three
+    # synthetic scenarios. The prose spells the counts out, so each word is read from the manifest's lists.
+    manifest = json.loads((ROOT / "bench" / "demo" / "manifest.json").read_text())
+    words = dict(enumerate(("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")))
+    text = " ".join((ROOT / "doc" / "engineering-reference.md").read_text().split())
+    assert f"selects {words[len(manifest['gold_cases'])]} hard questions from the frozen " in text
+    assert (f" gold set, {words[len(manifest['controls'])]} committed negative control, and "
+            f"{words[len(manifest['synthetic_cases'])]} explicitly labeled artifact/safety/visualization scenarios.") in text
+    assert "nine hard questions" not in text
+
+
 def test_rank_and_coverage_checks_are_deterministic():
     paths = ["noise", "gold-a", "gold-b"]
     assert _rank(paths, ["gold-b"]) == 3
