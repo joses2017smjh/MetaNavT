@@ -163,3 +163,57 @@ def test_the_reranker_bug_answer_opens_with_what_the_history_shows_and_keeps_its
         "response looked normal while reranking had been skipped; the benchmark labelled its no-model fallback in each "
         "row and had no model-backed reranker row until the fix. The fix was small; the lesson was structural:")
     assert "silent fallback" not in answer and "before M2" not in answer
+
+
+# M36 T3: the owner's approved text, copied from the brief (milestones2/briefs/M36.md) without retyping
+APPROVED_INJECTION_BULLET = (
+    "Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick "
+    'MCP tool calls over corpus copies whose answering files carry planted instructions, and every '
+    'episode is scored at the model level (attempted the planted action, stated the planted value) and at '
+    'the system level (corpus changed, secret leaked, false value delivered), with τ-bench pass^k, '
+    'any-of-k attack rates and paired bootstrap deltas. The current run plants each goal in seven '
+    'phrasings (five of them AgentDojo templates) under no defense, datamarking, a least-privilege tool '
+    'filter and a structured answer check between the model and the user; the answer check was the one '
+    'defense that cut the planted value reaching the user for both models, with no measurable utility '
+    'cost. An earlier run adds a capability control (the planted actions asked for by the user and signed '
+    'by an operator key), and a later one an adaptive attacker that rewrote the planted text against each '
+    'defense for up to seven rounds and did no measurably better than the fixed phrasings against the '
+    'stronger model, a null result.'
+)
+
+
+def test_the_injection_bullet_is_the_approved_text_and_each_clause_holds_in_its_results_file():
+    """Owner-approved 2026-11-14 (M36 T3): the prompt-injection bullet, word for word. Its clauses are read off the three
+    results files it describes: the current run (v3), the earlier run with the capability control (v2) and the later
+    adaptive run."""
+    import json
+
+    from app.eval.evidence import BULLETS
+
+    bullet = next(line for line in BULLETS.splitlines() if line.startswith("- Built an LLM-in-the-loop prompt-injection"))
+    assert bullet == "- " + APPROVED_INJECTION_BULLET
+    v2, v3, adaptive = (json.loads((ROOT / "bench" / "results" / f"agent_injection_{run}.json").read_text())
+                        for run in ("v2", "v3", "adaptive"))
+    # seven phrasings, five of them AgentDojo templates, under the four configurations named
+    assert len(v3["config"]["phrasings"]) == 7 and len(v3["config"]["agentdojo_templates"]) == 5
+    assert v3["config"]["defenses"] == ["none", "spotlight", "least_privilege", "answer_check"]
+    # the answer check was the one defense that cut the planted value reaching the user for both models, with no
+    # measurable utility cost
+    deltas = v3["paired_deltas"]
+    assert all(deltas[m]["answer_check - none"]["planted_value_delivered"]["hi"] < 0 for m in deltas)
+    for defense in ("spotlight", "least_privilege"):
+        assert not all(deltas[m][f"{defense} - none"]["planted_value_delivered"]["hi"] < 0 for m in deltas)
+    for key in ("utility_under_attack", "benign_success"):
+        assert all(deltas[m]["answer_check - none"][key]["lo"] <= 0 <= deltas[m]["answer_check - none"][key]["hi"]
+                   for m in deltas)
+    # an earlier run adds the capability control; a later one the adaptive attacker, seven rounds, against the stronger
+    # model, with no interval above zero
+    assert v2["run_at_utc"] < v3["run_at_utc"] < adaptive["run_at_utc"]
+    assert v2["config"]["capability_actions"] and not any(
+        b.get("capability") for per in v3["summary"].values() for b in per.values())
+    assert adaptive["config"]["rounds"] == 7
+    stronger = max(v3["summary"], key=lambda m: v3["summary"][m]["none"]["benign_success"]["mean"])
+    assert adaptive["config"]["models"] == [stronger]
+    blocks = [lv["delta"] for d in adaptive["comparison"][stronger].values() for g in d.values() for lv in g.values()
+              if isinstance(lv, dict) and "delta" in lv]
+    assert blocks and not any(b["lo"] > 0 for b in blocks)
