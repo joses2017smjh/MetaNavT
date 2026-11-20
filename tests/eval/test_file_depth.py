@@ -108,17 +108,20 @@ def test_the_hash_check_reproduces_main_json_and_records_every_pair(hash_run, go
     by = {r["config"]: r for r in blob["results"]}
     assert set(by) == {"bm25_only", "bm25_only/file-depth", "dense_only@hash", "dense_only@hash/file-depth", "hybrid@hash",
                        "hybrid@hash/file-depth"}
-    refs = {(name, d["reference"]) for name, r in by.items() for d in r.get("deltas", [])}
-    assert refs == {("bm25_only/file-depth", "bm25_only"), ("dense_only@hash/file-depth", "dense_only@hash"),
-                    ("hybrid@hash/file-depth", "hybrid@hash"), ("hybrid@hash/file-depth", "dense_only@hash/file-depth"),
-                    ("hybrid@hash", "dense_only@hash")}
-    assert all(r["n"] == len(gold) and set(r["ci"]) == set(CI_METRICS) for r in blob["results"])
+    refs = {(name, r["delta_vs_previous"]["reference"]) for name, r in by.items() if r.get("delta_vs_previous")}
+    refs |= {(c["row"], c["other"]) for c in blob["bootstrap"]["comparisons"]}
+    assert refs == {("dense_only@hash", "bm25_only"), ("hybrid@hash", "dense_only@hash"), ("bm25_only/file-depth", "bm25_only"),
+                    ("dense_only@hash/file-depth", "dense_only@hash"), ("hybrid@hash/file-depth", "hybrid@hash"),
+                    ("hybrid@hash/file-depth", "dense_only@hash/file-depth")}
+    assert all(set(r["ci"]) == set(CI_METRICS) for r in blob["results"]) and blob["n_gold"] == len(gold)
     # the per-question sidecar holds every row's scores, and its means are the rows' means
     sidecar = json.loads(per_question.sidecar_path(out).read_text())
     assert sidecar["ids"] == [q.id for q in gold] and set(sidecar["scores"]) == set(by)
     for name, row in by.items():
         scores = sidecar["scores"][name]["recall@50"]
         assert round(sum(scores) / len(scores), 4) == row["ci"]["recall@50"]["mean"]
+    # the repository's sidecar contract: every interval and paired delta in the file is recomputed from the sidecar
+    assert per_question.differences(blob, sidecar) == []
     assert str(ROOT) not in out.read_text()
 
 

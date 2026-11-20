@@ -24,10 +24,9 @@ from typing import Any, Callable, Sequence
 from app.eval import per_question
 from app.eval.corpus import load_manifest, verify_manifest
 from app.eval.gold import GoldQuestion, load_gold
-from app.eval.harness import BGE_BASE, BGE_SMALL, CI_METRICS, git_sha, project_root
+from app.eval.harness import BGE_BASE, BGE_SMALL, CI_METRICS, attach_confidence, git_sha, project_root
 from app.eval.index_loader import build_index, mtime_provenance
 from app.eval.provenance import command_line, device_info, git_state, model_device, model_provenance, run_provenance
-from app.eval.rerank_arms import score_rows
 from app.eval.rrf_sweep import embedder_tag, files_of, fused_ranking, leg_lists, reproduces, scored
 from app.retrieval.fuse import RRF_K
 from app.retrieval.hybrid import InMemoryHybridIndex
@@ -114,8 +113,9 @@ def run(root: Path | None = None, *, embedders: Sequence[str] = EMBEDDERS, retri
     if mismatches:
         raise RuntimeError("corpus drift:\n" + "\n".join(mismatches))
     n_files, every, questions = manifest["n_files"], list(range(len(gold))), [q.question for q in gold]
-    orders: dict[str, list[list[str]]] = {}
-    deltas: list[tuple[str, str]] = []
+    rows: list[dict[str, Any]] = []  # harness-shaped: config, settings.parent, retrieval; attach_confidence adds the intervals
+    per_query: dict[str, list[dict[str, float]]] = {}
+    comparisons: list[tuple[str, str]] = []
     per_embedder: dict[str, Any] = {}
     models: dict[str, Any] = {}
     n_chunks = None
@@ -133,12 +133,17 @@ def run(root: Path | None = None, *, embedders: Sequence[str] = EMBEDDERS, retri
                  for kind, chunks in (("chunk", cut), ("depth", depth))}
         names = {"bm25": "bm25_only", "dense": f"dense_only@{tag}", "hybrid": f"hybrid@{tag}"}
         for leg in ("bm25", "dense", "hybrid"):
-            if leg == "bm25" and names[leg] in orders:  # BM25 does not depend on the embedder: one pair of rows
+            if leg == "bm25" and names[leg] in per_query:  # BM25 does not depend on the embedder: one pair of rows
                 continue
-            orders[names[leg]] = lists["chunk"][leg]
-            orders[f"{names[leg]}/file-depth"] = lists["depth"][leg]
-            deltas.append((f"{names[leg]}/file-depth", names[leg]))
-        deltas += [(f"{names['hybrid']}/file-depth", f"{names['dense']}/file-depth"), (names["hybrid"], names["dense"])]
+            # parents as in neural.json for the chunk-cut rows (dense on BM25, hybrid on dense); each file-depth row on
+            # its chunk-cut row, so delta_vs_previous is the effect of the rule
+            chunk_parent = {"bm25": None, "dense": names["bm25"], "hybrid": names["dense"]}[leg]
+            for name, files, parent, label in ((names[leg], lists["chunk"][leg], chunk_parent, f"top {retrieve_k} chunks"),
+                                               (f"{names[leg]}/file-depth", lists["depth"][leg], names[leg], "file depth")):
+                s = scored(gold, files, every, n_files)
+                per_query[name] = s.per_query
+                rows.append({"config": name, "settings": {"parent": parent, "cut": label}, "retrieval": s.as_dict()})
+        comparisons.append((f"{names['hybrid']}/file-depth", f"{names['dense']}/file-depth"))
         blocks = {leg: scored(gold, lists["chunk"][leg], every, n_files).as_dict() for leg in ("bm25", "dense", "hybrid")}
         per_embedder[tag] = {
             "embedder": embedder,
@@ -152,8 +157,10 @@ def run(root: Path | None = None, *, embedders: Sequence[str] = EMBEDDERS, retri
         }
         models[tag] = {**model_provenance(embedder, "embedder"), "dim": int(getattr(index.embedder, "dim", 0)),
                        "device": model_device(getattr(index.embedder, "_model", None))}
-    rows, boot = score_rows(orders, gold, every, {}, n_files, deltas)
-    per_query = {name: scored(gold, lists, every, n_files).per_query for name, lists in orders.items()}
+    # the harness's own intervals (one shared resample matrix, so every delta is paired), so the per-question sidecar
+    # reproduces every interval in this file (app/eval/per_question.py, make bench-intervals)
+    boot = attach_confidence(rows, per_query, n_queries=len(gold), categories=[q.category for q in gold],
+                             comparisons=comparisons, metrics=CI_METRICS)
     blob = {
         "git_sha": git_sha(root),
         **run_provenance(root=root, started=started),
@@ -198,7 +205,9 @@ def main(argv: list[str] | None = None) -> int:
     per_question.write(per_question.sidecar_path(out), sidecar)
     for row in blob["results"]:
         print(row["config"], row["ci"]["ndcg@10"]["mean"], row["ci"]["recall@50"]["mean"],
-              [(d["reference"], d["recall@50"]) for d in row.get("deltas", [])])
+              [(d["reference"], d["recall@50"]) for d in [row.get("delta_vs_previous")] if d])
+    for c in blob["bootstrap"].get("comparisons") or []:
+        print("comparison", c["row"], "-", c["other"], c["recall@50"])
     for tag, e in blob["embedders"].items():
         print(tag, "reproduces", json.dumps(e["reproduces"]), "dropped", e["dropped_by_the_chunk_cut"]["n_dropped"],
               "recovered", e["dropped_by_the_chunk_cut"]["n_recovered"], json.dumps(e["dropped_by_the_chunk_cut"].get("matches")))
