@@ -2219,6 +2219,63 @@ renaming a job, since a check is required by its name).
 `tests/engine/test_ci_workflows.py` and `tests/engine/test_required_checks.py`
 pin both.
 
+### Public demo mode
+
+`PUBLIC_DEMO=1` turns the API into the public demo. `main.py` mounts the router of `app/api/public.py` under `/api`
+instead of the full one and leaves out the file mounts; start-up builds the embedder only (`init_retrieval_settings`:
+no chat model, no plan store); a request body over `MAX_BODY_BYTES` is refused with 413 before it is read; and with
+`WEB_ORIGIN` set only that origin may call the API from a browser. The allow-list is `POST /api/retrieve/` and
+`POST /api/answer/`, beside `GET /health`, the OpenAPI docs and the web client's files. `tests/api/test_public_demo.py`
+imports the app in a fresh interpreter, compares its routes with the list, posts to every route of the full API (each
+answers 404) and checks that the chat stack, the agents and the plan routes were never imported. The public retrieve
+route also caps `k` and the query length (`PUBLIC_MAX_K`, `PUBLIC_MAX_QUERY_CHARS`).
+
+**Cited answers.** `POST /api/answer/` (`app/api/routers/answer.py`) retrieves with the served retriever, then sends
+each excerpt to the Messages API as a plain-text document with citations enabled (`app/answer/claude.py`). The API
+parses every citation into the document it points at, the cited text and its character range, and the route adds the
+byte range in the file from the excerpt's `start_byte`. A reply is delivered only when it ends normally and cites an
+excerpt. A refusal, a reply cut at `max_tokens`, an uncited reply (returned apart as `uncited_reply`, unverified) and
+a transient API failure are not delivered, each with its reason, and the retrieved hits come back on every path. A
+request the API rejects as malformed is raised instead: it is a bug, not a degraded answer. Requests use the API
+version the SDK sends by default, which takes no sampling parameters, so none are sent. The default model is
+`claude-opus-5-5` (`ANSWER_MODEL`) with the server-side refusal fallback on; `claude-sonnet-5-5` and
+`claude-haiku-5-5` are one setting away, Haiku without a fallback. There is no prompt caching: the fixed system prompt is far shorter than the minimum
+the API caches, and the excerpts change with every question, so a repeated question is served from the answer cache
+instead. `tests/api/test_answer_claude.py` sends the request through the installed SDK into a mocked transport and
+checks what the API would receive, so a parameter the SDK or the API version does not take fails a test rather than a
+deployment. **Claude's answers are not evaluated here:** every committed LLM result in this repository used local
+models, and evaluating Claude spends API credits.
+
+**Limits.** Without `REDIS_URL` the answer route makes no call (it fails closed) and retrieval keeps working. With it
+(`app/api/limits.py`):
+- per-caller quotas per minute and per day;
+- a daily budget in dollars. Each call first reserves its worst case with one atomic increment: all of `max_tokens` as
+  output, the input at a conservative tokens-per-character ratio, at the dearest rate that could bill it. The call is
+  refused when the day's total would go over. Afterwards the reservation is settled to the reply's cost, from its
+  usage and a price table dated in the code; a timeout keeps the whole reservation;
+- an answer cache keyed by the model and the normalised question.
+
+The caller is the API key's name when authentication is on, and otherwise the client address behind
+`TRUSTED_PROXY_HOPS` proxies. Each proxy appends the address it received the request from to `X-Forwarded-For`, so
+the client is that many entries from the right, and an entry the client wrote itself is ignored; a test sends a
+spoofed header. The spend limit set on the API key in the Anthropic Console is the last cap if everything else fails.
+
+The deploy contract, the names the production Compose file and the AWS stack set:
+
+```text
+PUBLIC_DEMO=1                    allow-listed routes only (app/api/public.py)
+REDIS_URL=redis://redis:6379/0   quotas, budget and cache; unset: answers off
+ANTHROPIC_API_KEY=<secret>       unset: answers off, retrieval still works
+ANSWER_MODEL=claude-opus-5-5     or claude-sonnet-5-5, claude-haiku-5-5
+ANSWER_EFFORT=low                ANSWER_MAX_TOKENS=4096           ANSWER_TIMEOUT_SECONDS=30   ANSWER_MAX_RETRIES=2
+ANSWER_DAILY_BUDGET_USD=2.00     ANSWER_CACHE_TTL_SECONDS=86400
+ANSWER_LIMIT_PER_MINUTE=5        ANSWER_LIMIT_PER_DAY=50          per caller
+TRUSTED_PROXY_HOPS=1             proxies whose X-Forwarded-For entries are trusted (Caddy: 1; CloudFront and an ALB: 2)
+WEB_ORIGIN=https://<site>        the web client's origin (CORS)
+MAX_BODY_BYTES=8192
+the API listens on port 8000; health: GET /health
+```
+
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash

@@ -215,3 +215,26 @@ def test_the_public_caps_and_the_body_limit():
     assert big.status_code == 413
     ok = tc.post("/api/retrieve/", json={"query": "run 47", "k": 2})
     assert ok.status_code == 200 and [h["chunk_id"] for h in ok.json()["hits"]] == ["n1", "n2"]
+
+
+def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
+    """The reference's Public demo mode section names the allow-list the app serves, and every variable of its deploy
+    contract is one the code reads; the README says the demo is not deployed and its answers are not evaluated."""
+    import re
+
+    text = (ROOT / "doc" / "engineering-reference.md").read_text()
+    section = text.split("### Public demo mode", 1)[1].split("**Full application locally**", 1)[0]
+    flat = " ".join(section.split())
+    routes = sorted(f"`{method} {path}`" for path, method in PUBLIC_API_ROUTES)
+    assert f"The allow-list is {routes[1]} and {routes[0]}" in flat or f"The allow-list is {routes[0]} and {routes[1]}" in flat
+    assert "**Claude's answers are not evaluated here:**" in flat
+    contract = section.split("```text", 1)[1].split("```", 1)[0]
+    names = set(re.findall(r"^([A-Z][A-Z_]+)=", contract, flags=re.M)) | set(re.findall(r"\s([A-Z][A-Z_]+)=", contract))
+    assert names >= {"PUBLIC_DEMO", "REDIS_URL", "ANTHROPIC_API_KEY", "ANSWER_MODEL", "ANSWER_DAILY_BUDGET_USD",
+                     "TRUSTED_PROXY_HOPS", "WEB_ORIGIN", "MAX_BODY_BYTES"}
+    sources = "".join(p.read_text() for p in [ROOT / "main.py", *(ROOT / "app").rglob("*.py")])
+    unread = sorted(n for n in names if f'"{n}"' not in sources)
+    assert unread == [], unread
+    readme = " ".join((ROOT / "README.md").read_text().split())
+    assert "**Public demo mode (not deployed yet).**" in readme
+    assert "Claude's answers are not evaluated in this repository" in readme
