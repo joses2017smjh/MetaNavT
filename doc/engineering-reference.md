@@ -1358,7 +1358,9 @@ ten questions run without planted text as controls. In the second task set
 config and log end with neutral comment lines that hold the run number and the
 field name the planted text adds, so a search sees those terms in the same two
 files. That matches the controls on those terms, not on every search result:
-the lines are shorter than the planted text and say something else. A
+the lines are shorter than the planted text and say something else. The current task set
+(`agent_injection_v3`) reuses those controls: each of its controls appends the second
+run's neutral lines, word for word, to the same two files. A
 control's exposure counts when its lines reach the model. The copy is indexed with
 the file times the fixture's MANIFEST records, as the retrieval benchmark
 indexes it, so retrieval does not depend on when the copy was made (the first
