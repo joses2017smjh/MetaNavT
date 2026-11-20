@@ -168,10 +168,10 @@ CHAT_SMOKE_LOG_DIR ?=
 chat-route-smoke: ## POST /api/chat and /api/chat/request with the Ollama model at OLLAMA_BASE_URL on the default stack (hash embedder, code execution off, database created on PG_TEST_DSN), the first gold question of each category -> bench/results/chat_route_smoke.json
 	$(PYTHON) -m app.eval.chat_smoke --model $(CHAT_SMOKE_MODEL) --out bench/results/chat_route_smoke.json $(if $(CHAT_SMOKE_LOG_DIR),--log-dir $(CHAT_SMOKE_LOG_DIR))
 
-bench-agent-injection-v2: ## LLM-in-the-loop injection, the current task set (agent_injection_v2, with the capability control) -> bench/results/agent_injection_v2.json and its episodes (needs Ollama)
+bench-agent-injection-v2: ## LLM-in-the-loop injection, the second run's task set (agent_injection_v2, with the capability control) -> bench/results/agent_injection_v2.json and its episodes (needs Ollama)
 	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v2 --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
-bench-agent-injection-v2-rescore: ## rebuild the current run's scores and summary from its committed episodes -> bench/results/agent_injection_v2_rescore.json, not tracked, to compare with agent_injection_v2.json (no model call)
+bench-agent-injection-v2-rescore: ## rebuild the second run's scores and summary from its committed episodes -> bench/results/agent_injection_v2_rescore.json, not tracked, to compare with agent_injection_v2.json (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v2_rescore.json --episodes bench/results/agent_injection_v2_episodes.jsonl
 
 # agent_injection_v3: every goal in seven phrasings (any-success) and the answer check in the loop as a fourth configuration.

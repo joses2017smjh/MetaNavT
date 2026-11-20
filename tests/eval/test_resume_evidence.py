@@ -217,3 +217,30 @@ def test_the_injection_bullet_is_the_approved_text_and_each_clause_holds_in_its_
     blocks = [lv["delta"] for d in adaptive["comparison"][stronger].values() for g in d.values() for lv in g.values()
               if isinstance(lv, dict) and "delta" in lv]
     assert blocks and not any(b["lo"] > 0 for b in blocks)
+
+
+def test_the_scoring_answer_names_each_run_by_the_rescore_target_that_rebuilds_it():
+    """M36 T5: agent_injection_v3 is the current run and agent_injection_v2 the second; the answer on checking the scoring
+    names each run's rescore target, and each target is in the Makefile."""
+    from app.eval.evidence import QA
+
+    answer = next(p for p in QA.split("\n\n") if p.startswith("**How did you check your own scoring?**"))
+    assert ("(the second run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`, and the "
+            "current run's with `make bench-agent-injection-v3-rescore`)") in answer
+    makefile = (ROOT / "Makefile").read_text()
+    assert all(f"\n{target}:" in makefile for target in ("bench-agent-injection-v2-rescore", "bench-agent-injection-v3-rescore"))
+
+
+def test_the_injection_rows_lead_with_the_current_run_and_keep_the_others_labelled_by_run():
+    """M36 T5: the owner's decision that v3 leads. The injection rows open with the current run's (agent_injection_v3)
+    rates, any-of-the-phrasings with no defense and the answer check's effect on the planted value delivered; the second
+    run's and the adaptive run's rows follow, each labelled by its run and citing its own results file."""
+    rows = [c for c in claims() if c["claim"].startswith("Agent injection")]
+    runs = [c["claim"].split(", ")[1].split(" (")[0] for c in rows]
+    assert runs == sorted(runs, key=["current run", "second run", "adaptive run"].index) and set(runs) == {
+        "current run", "second run", "adaptive run"}
+    for run, results in (("current run", "agent_injection_v3.json"), ("second run", "agent_injection_v2.json"),
+                         ("adaptive run", "agent_injection_adaptive.json")):
+        assert all(c["source"].startswith(f"bench/results/{results} @ ") for c, r in zip(rows, runs) if r == run)
+    assert "no defense: hijack questions in which at least one phrasing put the planted value" in rows[0]["claim"]
+    assert "the structured answer check in the loop minus no defense, the planted value delivered" in rows[1]["claim"]

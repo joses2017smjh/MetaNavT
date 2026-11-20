@@ -26,8 +26,8 @@ FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the M4 run, linked from the block
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
-AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the current run: capability control, controls with neutral lines
-AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # phrasings scored as any-success, the in-loop answer check
+AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the second run: capability control, controls with neutral lines
+AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # the current run: phrasings scored as any-success, the in-loop answer check
 AGENT_INJECTION_ADAPTIVE_FILE = "bench/results/agent_injection_adaptive.json"  # the adaptive attacker on the held-out questions
 LATENCY_FILES = {
     "local CPU, bge-small + bge-reranker-v2-m3 (fp32, max_length 512, depth 20)": "bench/results/api_latency_local_cpu_ml.json",
