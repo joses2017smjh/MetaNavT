@@ -2,8 +2,9 @@
 
 There is no Docker on the development host, so the Dockerfile's install step is run here as the build runs it: the
 RUN line under `sh -c`, with the build arguments as environment variables, from a directory holding the committed
-requirements files, and a stand-in `pip` that records its arguments. CI's docker-smoke job builds the default image
-(EXTRAS=app) and docker-ml-smoke the ml one; the CUDA override (docker-compose.gpu.yml) is built by hand only.
+requirements files, and a stand-in `pip` that records its arguments. CI's docker-smoke and image jobs build the default
+image (EXTRAS=app), image-ml and docker-ml-smoke the ml one; the CUDA override (docker-compose.gpu.yml) is built by hand
+only.
 """
 
 import importlib.util

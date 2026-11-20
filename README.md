@@ -121,7 +121,7 @@ docker compose down
 
 The default stack indexes the committed 61-file<!-- num: bench/results/main.json#/n_files --> fixture. Responses disclose the lexical backend (PostgreSQL `ts_rank_cd`, the default of the `LEXICAL_BACKEND` setting, not BM25), the hash embedder, and the absent neural reranker. This is a retrieval API demo; generated chat additionally needs Ollama, and the default image does not build the Next.js interface. [Full application, real models, and deployment options](doc/engineering-reference.md#run-it).
 
-CI publishes this image to `ghcr.io/joses2017smjh/metanavt` (tags `main` and `sha-<commit>`) from a push to `main`, after every CI job has passed and a smoke of that image; its own command only serves, so run the migrations and the index step first, as `docker-compose.yml` does. [Published image and merges into main](doc/engineering-reference.md#run-it).
+CI publishes this image to `ghcr.io/joses2017smjh/metanavt` (tags `main` and `sha-<commit>`) from a push to `main`, after every CI job has passed and a smoke of that image, and after it the CPU model image of `docker-compose.ml.yml` (tags `main-ml` and `sha-<commit>-ml`; the models download at its first start); each image's own command only serves, so run the migrations and the index step first, as `docker-compose.yml` does. [Published image and merges into main](doc/engineering-reference.md#run-it).
 
 <a id="android-and-ios-companion-backend"></a>
 

@@ -555,7 +555,7 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
 
-The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); CI's web workflow (`.github/workflows/web.yml`) runs its tests and that build on every push to `main` and every pull request into `main` (Frontend, under How the app is put together). The Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
+The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); CI's web workflow (`.github/workflows/web.yml`) runs its tests and that build on every push to `main` and every pull request into `main` (Frontend, under How the app is put together). The Docker frontend stage (`WITH_FRONTEND=1`) is built together with the CPU real-model stack: by the `image-ml` CI job on every push to `main` and every manual run, and by the `docker-ml-smoke` job once a week and when CI is started by hand with `ml_smoke`; never on a pull request.
 
 <p align="center">
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
@@ -2128,7 +2128,7 @@ resolve. `tests/eval/test_image_build.py` fails on a reference without one. To
 move to a newer image, look up the tag's current index digest, replace digest
 and comment together (the Postgres image is named in both `docker-compose.yml`
 and `ci.yml`), and let CI rebuild: docker-smoke builds the default image, the
-Node stage is built only with `WITH_FRONTEND=1` (docker-ml-smoke), and no job
+Node stage is built only with `WITH_FRONTEND=1` (image-ml and docker-ml-smoke), and no job
 pulls Jaeger (`--profile otel`) or builds `.frontend/Dockerfile`.
 
 ```bash
@@ -2181,11 +2181,13 @@ docker compose down -v   # the table width changes (above)
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
 
-CI builds and starts this CPU real-model stack in its `docker-ml-smoke` job
+CI builds and starts this CPU real-model stack in two jobs. `image-ml` builds
+it on every push to `main` and every manual run, smokes it and publishes it
+(Published image, below). `docker-ml-smoke` runs
 once a week (the `schedule` in `.github/workflows/ci.yml`; a scheduled run
 runs that job alone, on `main`) and when the workflow is started by hand with
-`ml_smoke`; a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
-its latency step wrote the file.
+`ml_smoke`; it adds the latency replay over the gold questions, and a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
+its latency step wrote the file. Neither runs on a pull request.
 GitHub turns off the scheduled workflows of a public repository that has had
 no activity for a while (see GitHub's documentation on disabling and enabling
 workflows), so after a quiet spell the schedule has to be switched back on in
@@ -2199,14 +2201,23 @@ uses), starts the stack from that image and runs the same retrieve smoke. On a
 push to `main`, and only then, it pushes the image it smoked to
 `ghcr.io/joses2017smjh/metanavt`, tagged `sha-<commit>` and `main` and labelled
 with the repository and the commit; on a pull request it stops after the smoke.
-The workflow's token is read-only, and only this job may write packages. The
-published image is the default build (the `app` extra, the hash embedder, no
-Next.js export), and its own command only serves: a deployment runs the schema
+That image is the default build (the `app` extra, the hash embedder, no
+Next.js export). The CPU model image comes from the `image-ml` job, which
+starts after `image` on a push to `main` or a manual run, never on a pull
+request: it builds the `api` image as `docker-compose.ml.yml` does (the `ml`
+extra with torch's CPU wheel, and the Next.js export; bge-small and
+bge-reranker-v2-m3 are downloaded at the first start, not stored in the
+image), starts that stack, runs the retrieve smoke with the reranker
+required, imports the app's entry points inside the container (including the
+Anthropic and Redis clients the answer path and the shared limits use), and on
+a push to `main` pushes the image it smoked as `sha-<commit>-ml` and `main-ml`.
+The workflow's token is read-only, and only these two jobs may write packages.
+Each published image's own command only serves: a deployment runs the schema
 migrations (`python -m app.database.migrate`) and the index step
 (`python -m app.engine.ingest`) first, as the command in `docker-compose.yml`
 does. Merges into `main` wait on branch protection, a repository setting: it
 requires every check that reports on every pull request into `main` (the CI
-jobs above except docker-ml-smoke, and the web client build), and auto-merge is
+jobs above except image-ml and docker-ml-smoke, and the web client build), and auto-merge is
 on, so `gh pr merge --auto` merges a pull request once they have passed. The
 path-filtered workflows (mobile app, mobile backend, research agent) are not
 required, because a required check that never reports blocks the merge.
