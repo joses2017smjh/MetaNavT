@@ -92,7 +92,9 @@ def test_hash_run_reproduces_main_json_and_records_the_decision(tmp_path, gold, 
     else:
         block = held[blob["tune"]["chosen"]]["deltas"][0]
         assert block["reference"] == blob["tune"]["default"] and decision["held_out_ndcg@10"] == block["ndcg@10"]
-        assert decision["owner_decision_needed"] == (block["ndcg@10"]["lo"] > 0)
+        assert decision["owner_decision_needed"] is False  # the owner decided for the hash sweep: record, do not adopt
+    assert blob["held_out"]["blind"] is False and blob["held_out"] | rrf_sweep.NOT_BLIND["hash"] == blob["held_out"]
+    assert decision["owner_decision"] == rrf_sweep.NOT_BLIND["hash"]["owner_decision"]
     assert str(ROOT) not in text and str(tmp_path) not in text
     assert "python -m app.eval.rrf_sweep --embedder hash --out <path>/rrf_sweep.json" in blob["command"]
 
@@ -161,6 +163,7 @@ def test_only_a_held_out_interval_above_zero_asks_the_owner(monkeypatch, block, 
                 d["ndcg@10"] = dict(block)
         return rows, boot
 
+    monkeypatch.setattr(rrf_sweep, "NOT_BLIND", {})  # the rule for a sweep the owner has not decided in advance
     monkeypatch.setattr(rrf_sweep, "choose", lambda points: (200, 0.5))
     monkeypatch.setattr(rrf_sweep, "score_rows", with_interval)
     decision = rrf_sweep.run(ROOT, embedder="hash")["decision"]
@@ -179,3 +182,27 @@ def test_the_engineering_reference_states_the_recorded_outcome():
             "default stays") in para
     assert d["chosen_is_default"] is False and verdict(d["held_out_ndcg@10"]) == "covers zero"
     assert d["owner_decision_needed"] is False and d["default_changed"] is False
+
+
+def test_the_hash_sweep_never_asks_the_owner_and_is_labelled_not_blind(monkeypatch):
+    """M37 T3: the owner decided before the hash sweep was recorded (record, do not adopt), and its held-out half had
+    been scored before, so a held-out interval above zero asks nobody and the file says the confirmation is not blind.
+    An embedder outside NOT_BLIND (bge-small, the committed rrf_sweep.json) gets none of these keys."""
+    real = rrf_sweep.score_rows
+
+    def above_zero(orders, gold, ids, latency, n_files, deltas):
+        rows, boot = real(orders, gold, ids, latency, n_files, deltas)
+        for row in rows:
+            for d in row.get("deltas", []):
+                d["ndcg@10"] = {"delta": 0.05, "lo": 0.01, "hi": 0.09}
+        return rows, boot
+
+    monkeypatch.setattr(rrf_sweep, "choose", lambda points: (200, 0.5))
+    monkeypatch.setattr(rrf_sweep, "score_rows", above_zero)
+    blob = rrf_sweep.run(ROOT, embedder="hash")
+    assert blob["decision"]["excludes_zero_in_favour_of_chosen"] is True and blob["decision"]["owner_decision_needed"] is False
+    assert blob["decision"]["default_changed"] is False and blob["held_out"]["blind"] is False
+    assert "not blind" in blob["held_out"]["seen_before"] and "no unseen questions" in blob["held_out"]["unseen_questions"]
+    assert "k = 60, equal weights" in blob["held_out"]["owner_decision"]
+    committed = json.loads((ROOT / "bench" / "results" / "rrf_sweep.json").read_text())
+    assert "blind" not in committed["held_out"] and "owner_decision" not in committed["decision"]

@@ -64,6 +64,19 @@ ANCHORS = {
     "hash": ("bench/results/main.json", {"bm25": "bm25_only", "dense": "dense_only", "hybrid": "hybrid"}),
 }
 TAGS = {BGE_SMALL: "bge-small", BGE_BASE: "bge-base", "hash": "hash"}
+# Embedders whose held-out half had been scored before the recorded run, so its confirmation is not blind. The hash
+# sweep is recorded by the owner's decision (2026-11-14: record, do not adopt) in rrf_sweep_hash.json.
+NOT_BLIND = {
+    "hash": {
+        "blind": False,
+        "seen_before": ("the held-out half was already scored before this run, by an uncommitted dry run of this "
+                        "sweep with the hash embedder (and the test of this module runs the same sweep), so its "
+                        "confirmation is not blind"),
+        "unseen_questions": "fixture v1 has no unseen questions: every gold question is in the tune or the held-out half",
+        "owner_decision": ("record, do not adopt (2026-11-14): the default (k = 60, equal weights) does not change "
+                           "whatever this run shows"),
+    },
+}
 
 
 def embedder_tag(embedder: str) -> str:
@@ -182,8 +195,9 @@ def run(root: Path | None = None, *, embedder: str = BGE_SMALL, retrieve_k: int 
         "verdict": ("the tune half chose the default; there is no other setting to compare on the held-out half" if is_default
                     else f"held-out nDCG@10, chosen minus default: {verdict(delta['ndcg@10'])}"),
         "excludes_zero_in_favour_of_chosen": in_favour,
-        "owner_decision_needed": in_favour,
+        "owner_decision_needed": in_favour and embedder not in NOT_BLIND,  # NOT_BLIND carries the owner's decision
         "default_changed": False,
+        **({"owner_decision": NOT_BLIND[embedder]["owner_decision"]} if embedder in NOT_BLIND else {}),
         "rule": RULE,
     }
 
@@ -212,7 +226,7 @@ def run(root: Path | None = None, *, embedder: str = BGE_SMALL, retrieve_k: int 
                   "tune": "train", "held_out": "test", "tune_ids": [gold[i].id for i in tune_ids], "held_out_ids": [gold[i].id for i in test_ids]},
         "tune": {"n": len(tune_ids), "note": "in-sample: these questions chose the setting, so their numbers are not evidence",
                  "bootstrap": bootstrap_settings(len(tune_ids)), "default": default_name, "chosen": chosen_name, "points": points},
-        "held_out": {"bootstrap": held_boot, "results": held_rows},
+        "held_out": {"bootstrap": held_boot, "results": held_rows, **NOT_BLIND.get(embedder, {})},
         "decision": decision,
         "reproduces": reproduces(root, embedder, blocks),
     }
@@ -221,7 +235,7 @@ def run(root: Path | None = None, *, embedder: str = BGE_SMALL, retrieve_k: int 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out", type=Path, default=Path("bench/results/rrf_sweep.json"))
-    p.add_argument("--embedder", default=BGE_SMALL, help="st:<model> or hash (hash: a CPU dry run against main.json, not a result)")
+    p.add_argument("--embedder", default=BGE_SMALL, help="st:<model> or hash (hash: CPU, its held-out half seen before, recorded as not blind by make bench-rrf-sweep-hash)")
     p.add_argument("--retrieve-k", type=int, default=50)
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     args = p.parse_args(argv)
