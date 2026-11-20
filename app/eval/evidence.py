@@ -865,7 +865,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **Why did the router's number change?** The earlier README compared the routed row against plain RRF, which credited the reranker's share of the gain to the router. Against its real parent, the reranked hybrid, the router is a tie overall and a gain on the exact-path slice with n = 8. The generated table prints the honest pair.
 
-**What did the reranker bug teach you?** Every "bge-rerank" row before M2 was a silent fallback because the code called a method the loaded model did not have and a broad except hid it. The fix was small; the lesson was structural: every result now records whether the model actually loaded, responses list degraded components, and a test fails if a configured reranker could fall back without a trace.
+**What did the reranker bug teach you?** The code called a scoring method the loaded model did not have. In the served retriever a broad except caught the error, logged a warning and returned the fused list unreranked, so a response looked normal while reranking had been skipped; the benchmark labelled its no-model fallback in each row and had no model-backed reranker row until the fix. The fix was small; the lesson was structural: every result now records whether the model actually loaded, responses list degraded components, and a test fails if a configured reranker could fall back without a trace.
 
 **Why fp16 with a 512-token cap and depth 20?** On SciFact, fp16 with max_length 512 is a quality tie with fp32 uncapped at a fraction of the latency, and reranking deeper than 20 loses nDCG@10 while costing more. The served configuration is chosen from that table, and CPU latency for the same setting is measured separately in the Docker CPU stack.
 

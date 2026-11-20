@@ -148,3 +148,18 @@ def test_the_reranker_bug_bullet_says_what_the_history_shows():
         "retriever's broad except logged a warning and returned the fused list unreranked, and the benchmark had no "
         "model-backed reranker row until the fix.")
     assert "silent fallback" not in bullet
+
+
+def test_the_reranker_bug_answer_opens_with_what_the_history_shows_and_keeps_its_lesson():
+    """OD02, owner-approved 2026-11-14: the interview answer's first sentence is replaced (the served retriever's broad
+    except returned the fused list unreranked; the benchmark labelled its no-model fallback in each row and had no
+    model-backed reranker row until the fix); the rest of the answer is kept."""
+    from app.eval.evidence import QA
+
+    answer = next(p for p in QA.split("\n\n") if p.startswith("**What did the reranker bug teach you?**"))
+    assert answer.startswith(
+        "**What did the reranker bug teach you?** The code called a scoring method the loaded model did not have. In the "
+        "served retriever a broad except caught the error, logged a warning and returned the fused list unreranked, so a "
+        "response looked normal while reranking had been skipped; the benchmark labelled its no-model fallback in each "
+        "row and had no model-backed reranker row until the fix. The fix was small; the lesson was structural:")
+    assert "silent fallback" not in answer and "before M2" not in answer
