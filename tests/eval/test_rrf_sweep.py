@@ -206,3 +206,43 @@ def test_the_hash_sweep_never_asks_the_owner_and_is_labelled_not_blind(monkeypat
     assert "k = 60, equal weights" in blob["held_out"]["owner_decision"]
     committed = json.loads((ROOT / "bench" / "results" / "rrf_sweep.json").read_text())
     assert "blind" not in committed["held_out"] and "owner_decision" not in committed["decision"]
+
+
+def test_the_recorded_hash_sweep_says_it_is_not_blind_and_keeps_the_default():
+    """bench/results/rrf_sweep_hash.json (make bench-rrf-sweep-hash, M37): written from a clean tree, its default
+    setting's lists reproduce main.json's rows, it carries the three not-blind statements, and the default stays."""
+    blob = json.loads((ROOT / "bench" / "results" / "rrf_sweep_hash.json").read_text())
+    assert blob["working_tree_dirty"] is False and "--embedder hash --device cpu" in blob["command"]
+    assert blob["reproduces"]["file"] == "bench/results/main.json" and blob["reproduces"]["all"] is True
+    assert {key: blob["held_out"][key] for key in rrf_sweep.NOT_BLIND["hash"]} == rrf_sweep.NOT_BLIND["hash"]
+    d = blob["decision"]
+    assert d["default"] == {"k": RRF_K, "weights": {"bm25": 1.0, "dense": 1.0}} and d["default_changed"] is False
+    assert d["owner_decision_needed"] is False and d["owner_decision"] == rrf_sweep.NOT_BLIND["hash"]["owner_decision"]
+    # the held-out rows: the default, and the chosen setting with its paired deltas when the tune half chose another
+    held = {r["config"]: r for r in blob["held_out"]["results"]}
+    assert blob["tune"]["default"] in held and (d["chosen_is_default"] or held[blob["tune"]["chosen"]]["deltas"][0]["ndcg@10"] == d["held_out_ndcg@10"])
+
+
+def test_the_engineering_reference_states_the_hash_sweep_as_recorded_not_blind_not_adopted():
+    """The hand-written paragraph on the hash sweep against bench/results/rrf_sweep_hash.json, and its README block."""
+    from app.eval.report import RRF_SWEEP_HASH_FILE, rrf_sweep_hash_table
+
+    blob = json.loads((ROOT / "bench" / "results" / "rrf_sweep_hash.json").read_text())
+    text = (ROOT / "doc" / "engineering-reference.md").read_text()
+    para = " ".join(next(p for p in text.split("\n\n")
+                         if p.startswith("**The same sweep with the hash embedder: recorded, not blind, not adopted.**")).split())
+    assert ("Its confirmation is not blind: the held-out half had already been scored before the recorded run, by an "
+            "uncommitted dry run (and the module's test runs the same sweep), and fixture v1 has no unseen questions to "
+            "confirm on.") in para
+    d = blob["decision"]
+    assert "The tune half chose another setting, a smaller k with the dense list weighted below BM25's;" in para
+    assert not d["chosen_is_default"] and d["chosen"]["k"] < d["default"]["k"] and d["chosen"]["weights"]["dense"] < 1.0
+    delta = blob["held_out"]["results"][1]["deltas"][0]
+    assert ("on the held-out half its nDCG@10 is higher than the default's, an interval above zero, and its Recall@50 is "
+            "lower, an interval whose upper end is zero") in para
+    assert delta["ndcg@10"]["lo"] > 0 and delta["recall@50"]["delta"] < 0 and delta["recall@50"]["hi"] == 0.0
+    assert "The default does not change: the file records `default_changed: false`, and no owner decision is pending" in para
+    assert d["default_changed"] is False and d["owner_decision_needed"] is False
+    assert RRF_SWEEP_HASH_FILE == "bench/results/rrf_sweep_hash.json"
+    block = rrf_sweep_hash_table(blob)
+    assert block in (ROOT / "README.md").read_text() and "Not blind:" in block and "is missing" in rrf_sweep_hash_table(None)

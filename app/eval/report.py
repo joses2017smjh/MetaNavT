@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-neural", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -34,6 +34,8 @@ LATENCY_FILES = {
     "docker compose ml (CPU, same models)": "bench/results/api_latency_docker_cpu_ml.json",
 }
 NEURAL_FILE = "bench/results/neural.json"
+FILE_DEPTH_FILE = "bench/results/file_depth.json"  # M37: the file-depth rows beside their chunk-cut parents
+RRF_SWEEP_HASH_FILE = "bench/results/rrf_sweep_hash.json"  # M37: the RRF sweep with the hash embedder, not blind
 BEIR_FILE = "bench/results/beir_scifact.json"
 BEIR_BM25_FILE = "bench/results/beir_scifact_bm25_ablation.json"
 BEIR_FIQA_FILE = "bench/results/beir_fiqa.json"
@@ -46,7 +48,9 @@ SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
     "demo-stats": "bench/results/main.json",
+    "bench-rrf-sweep-hash": RRF_SWEEP_HASH_FILE,
     "bench-neural": NEURAL_FILE,
+    "bench-file-depth": FILE_DEPTH_FILE,
     "bench-beir": BEIR_FILE,
     "bench-beir-bm25": BEIR_BM25_FILE,
     "bench-beir-fiqa": BEIR_FIQA_FILE,
@@ -2122,13 +2126,106 @@ def _load(root: Path | None, rel: str) -> dict | None:
     return json.loads(path.read_text()) if path.exists() else None
 
 
+def _pair(blob: dict, name: str, reference: str) -> dict | None:
+    """The paired delta block of row `name` against `reference` (attach_confidence): the row's delta_vs_previous when
+    `reference` is its parent, else the bootstrap comparison of the two rows; None when the file has neither."""
+    row = next((r for r in blob.get("results", []) if r["config"] == name), None)
+    previous = (row or {}).get("delta_vs_previous")
+    if previous and previous.get("reference") == reference:
+        return previous
+    return next((c for c in (blob.get("bootstrap") or {}).get("comparisons") or []
+                 if c.get("row") == name and c.get("other") == reference), None)
+
+
+def file_depth_table(blob: dict | None) -> str:
+    """M37: the rows under the file-depth cut beside their chunk-cut parents, per real embedder (FILE_DEPTH_FILE)."""
+    if not blob:
+        return f"_{FILE_DEPTH_FILE} is missing; run `make bench-file-depth` (needs .[ml])._"
+    by = _rows(blob)
+    k = blob["retrieval"]["retrieve_k"]
+    repro = {tag: e.get("reproduces") or {} for tag, e in blob["embedders"].items()}
+    ok = all(r.get("all") for r in repro.values())
+    lines = [
+        f"Equal file depth (`make bench-file-depth`, {_device(blob)}; results sha {_sha(blob)}). Recall@k scores the "
+        f"first k files of a list, and every committed row cuts its lists at {k} chunks before taking their files, so a "
+        f"list whose chunks share files holds fewer than {k}. These rows apply one rule to every list, the BM25 leg, the "
+        f"dense leg and the fused list: keep chunks in rank order until the list holds {k} distinct files, or its "
+        f"candidates run out; the metrics are unchanged. Each is paired with its parent, the chunk-cut row recomputed "
+        f"in the same run, over all {blob['n_gold']} questions. "
+        + (f"Those parents reproduce {next(iter(repro.values())).get('file')} exactly. " if ok else
+           "A parent does NOT reproduce its committed row, so these rows are not comparable with it. ")
+        + f"The rows are added beside the committed ones: the served path and every committed row keep the {k}-chunk cut.",
+        "",
+        f"| row | parent | mean files held (parent) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 [95% CI] | "
+        f"Δ Recall@50 vs parent [95% CI] | Δ nDCG@10 vs parent [95% CI] |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    depth = {name: d for e in blob["embedders"].values() for name, d in e["depth"].items()}
+    for row in blob["results"]:
+        name = row["config"]
+        if not name.endswith("/file-depth"):
+            continue
+        parent = name[: -len("/file-depth")]
+        d = _pair(blob, name, parent)
+        held = f"{depth[name]['mean_files']:.1f} ({depth[parent]['mean_files']:.1f})" if name in depth and parent in depth else "—"
+        lines.append(f"| {name} | {parent} | {held} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+                     f"{_ci(row, 'recall@50')} | {_delta((d or {}).get('recall@50'))} | {_delta((d or {}).get('ndcg@10'))} |")
+    lines.append("")
+    notes = []
+    for tag, e in blob["embedders"].items():
+        names = e["rows"]["chunk_cut"]
+        cut = _pair(blob, names["hybrid"], names["dense"])
+        fd = _pair(blob, f"{names['hybrid']}/file-depth", f"{names['dense']}/file-depth")
+        drop = e["dropped_by_the_chunk_cut"]
+        match = drop.get("matches")
+        notes.append(
+            f"{tag}: hybrid minus dense-only at Recall@50 is {_delta((cut or {}).get('recall@50'))} under the {k}-chunk cut "
+            f"({_zero_note((cut or {}).get('recall@50'))}) and {_delta((fd or {}).get('recall@50'))} under the file-depth "
+            f"cut ({_zero_note((fd or {}).get('recall@50'))}). Of the {drop['n_dropped']} gold "
+            f"file{'s' if drop['n_dropped'] != 1 else ''} the chunk-cut hybrid list lacks while the chunk-cut dense list "
+            f"holds {'them' if drop['n_dropped'] != 1 else 'it'}, the file-depth hybrid list holds {drop['n_recovered']}" + (f" (the same files {match['file']} lists)" if match and match.get("same_files") else
+                                        f" (NOT the files {match['file']} lists)" if match else "") + ".")
+    lines += [" ".join(notes), "",
+              f"Results: [{FILE_DEPTH_FILE}]({FILE_DEPTH_FILE}) · per question: "
+              f"[{FILE_DEPTH_FILE[:-len('.json')]}.per_query.json]({FILE_DEPTH_FILE[:-len('.json')]}.per_query.json)."]
+    return "\n".join(lines)
+
+
+def rrf_sweep_hash_table(blob: dict | None) -> str:
+    """M37 T3: the RRF sweep with the hash embedder, recorded by the owner's decision and labelled not blind."""
+    if not blob:
+        return f"_{RRF_SWEEP_HASH_FILE} is missing; run `make bench-rrf-sweep-hash`._"
+    held, dec, tune = blob["held_out"], blob["decision"], blob["tune"]
+    rows = {r["config"]: r for r in held["results"]}
+    lines = [
+        f"The RRF sweep with the hash embedder on fixture v1 (`make bench-rrf-sweep-hash`, CPU; results sha {_sha(blob)}): "
+        f"k x the dense list's weight chosen on the tune half ({tune['n']} questions, in-sample), the chosen setting "
+        f"against the default (k = {dec['default']['k']}, equal weights) on the held-out half, paired. "
+        f"Not blind: {held.get('seen_before', 'see the results file')}; {held.get('unseen_questions', '')}. "
+        f"By the owner's decision the default does not change whatever this shows.",
+        "",
+        "| setting | n | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 [95% CI] | Δ nDCG@10 vs default [95% CI] | Δ Recall@50 vs default [95% CI] |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for name, row in rows.items():
+        d = (row.get("deltas") or [None])[0]
+        lines.append(f"| {name}{' (chosen)' if name == tune['chosen'] and not dec['chosen_is_default'] else ''} | {row['n']} | "
+                     f"{_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | {_ci(row, 'recall@50')} | "
+                     f"{_delta((d or {}).get('ndcg@10'))} | {_delta((d or {}).get('recall@50'))} |")
+    lines += ["", f"{dec['verdict']}; the default stays (`default_changed`: {str(dec['default_changed']).lower()}). "
+              f"Results, with the in-sample grid: [{RRF_SWEEP_HASH_FILE}]({RRF_SWEEP_HASH_FILE})."]
+    return "\n".join(lines)
+
+
 def render(blob: dict, root: Path | None = None) -> dict[str, str]:
     root = root if root is not None else Path(__file__).resolve().parents[2]
     return {
         "bench-headline": headline(blob),
         "bench-table": table(blob),
         "demo-stats": demo_stats(blob),
+        "bench-rrf-sweep-hash": rrf_sweep_hash_table(_load(root, RRF_SWEEP_HASH_FILE)),
         "bench-neural": neural_table(_load(root, NEURAL_FILE)),
+        "bench-file-depth": file_depth_table(_load(root, FILE_DEPTH_FILE)),
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
         "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),

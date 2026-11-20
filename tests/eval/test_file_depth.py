@@ -131,3 +131,82 @@ def test_the_default_path_does_not_know_the_rule():
     serving = [p for p in (ROOT / "app").rglob("*.py") if p.parts[len(ROOT.parts) + 1] != "eval"]
     writers = [ROOT / "app" / "eval" / name for name in ("harness.py", "rrf_sweep.py", "index_loader.py", "hybrid_drops.py")]
     assert [p.relative_to(ROOT).as_posix() for p in serving + writers if "file_depth" in p.read_text()] == []
+
+
+RECORDED = ROOT / "bench" / "results" / "file_depth.json"
+
+
+def _delta(blob, name, reference, metric="recall@50"):
+    """A paired delta as attach_confidence writes it: the row's delta_vs_previous when `reference` is its parent, else
+    the bootstrap comparison of the two rows."""
+    row = next(r for r in blob["results"] if r["config"] == name)
+    if (row.get("delta_vs_previous") or {}).get("reference") == reference:
+        return row["delta_vs_previous"][metric]
+    return next(c for c in blob["bootstrap"]["comparisons"] if c["row"] == name and c["other"] == reference)[metric]
+
+
+def test_the_recorded_run_reproduces_its_parents_on_an_a40_and_recovers_the_dropped_files():
+    """bench/results/file_depth.json (one A40 job from a clean clone): the declared rule, both real embedders, parents
+    equal to neural.json's rows, the 50-chunk legs prefixes of the whole rankings, and every gold file hybrid drops at
+    the chunk cut in its file-depth list (for bge-base, the files hybrid_drops_bge_base.json lists)."""
+    blob = json.loads(RECORDED.read_text())
+    assert blob["working_tree_dirty"] is False and blob["device"]["device_name"] == "NVIDIA A40"
+    assert blob["rule"] == file_depth.FILE_DEPTH_RULE and blob["as_coded"] == file_depth.CUT_AS_CODED
+    assert set(blob["embedders"]) == {"bge-small", "bge-base"} and blob["reproduces_all"] is True
+    for e in blob["embedders"].values():
+        assert e["reproduces"]["file"] == "bench/results/neural.json" and e["reproduces"]["all"] is True
+        assert e["chunk_legs_are_prefixes_of_the_whole_rankings"] is True
+        d = e["dropped_by_the_chunk_cut"]
+        assert d["n_dropped"] > 0 and d["n_recovered"] == d["n_dropped"]
+        for name, depth in e["depth"].items():  # every model-backed file-depth list reaches retrieve_k files
+            if name.endswith("/file-depth") and not name.startswith("bm25"):
+                assert depth["min_files"] == blob["retrieval"]["retrieve_k"] and depth["questions_below_retrieve_k_files"] == 0
+    assert blob["embedders"]["bge-base"]["dropped_by_the_chunk_cut"]["matches"]["same_files"] is True
+    sidecar = json.loads(per_question.sidecar_path(RECORDED).read_text())
+    assert sidecar["git_sha"] == blob["git_sha"] and set(sidecar["scores"]) == {r["config"] for r in blob["results"]}
+    for row in blob["results"]:
+        scores = sidecar["scores"][row["config"]]["recall@50"]
+        assert round(sum(scores) / len(scores), 4) == row["ci"]["recall@50"]["mean"]
+
+
+def test_the_engineering_reference_states_what_the_file_depth_run_shows():
+    """The hand-written paragraph, sentence by sentence, against the recorded file."""
+    blob = json.loads(RECORDED.read_text())
+    text = (ROOT / "doc" / "engineering-reference.md").read_text()
+    para = " ".join(next(p for p in text.split("\n\n") if p.startswith("**Equal file depth (`make bench-file-depth`).**")).split())
+    assert ("every list (the BM25 leg, the dense leg and the fused list) keeps chunks in rank order until it holds "
+            "`retrieve_k` distinct files (or its candidates run out); the metrics are unchanged.") in para
+    tags = {tag: e["rows"]["chunk_cut"] for tag, e in blob["embedders"].items()}
+
+    def covers(b):
+        return b["lo"] <= 0 <= b["hi"]
+
+    assert "Under the rule hybrid ties dense-only at Recall@50 for both embedders, each paired interval covering zero" in para
+    assert all(covers(_delta(blob, f"{n['hybrid']}/file-depth", f"{n['dense']}/file-depth")) for n in tags.values())
+    assert ("every gold file hybrid@bge-base drops at the chunk cut is in its file-depth list, the same files "
+            "`hybrid_drops_bge_base.json` lists.") in para
+    assert ("Dense-only and hybrid each gain Recall@50 over their chunk-cut parents, every interval above zero, so the chunk "
+            "cut costs recall on every model-backed list, not only hybrid's;") in para
+    assert all(_delta(blob, f"{n[leg]}/file-depth", n[leg])["lo"] > 0 for n in tags.values() for leg in ("dense", "hybrid"))
+    assert "nDCG@10 moves by less than a hundredth, and hybrid still leads dense-only there with an interval above zero." in para
+    for n in tags.values():
+        for leg in ("dense", "hybrid"):
+            d = _delta(blob, f"{n[leg]}/file-depth", n[leg], "ndcg@10")
+            assert abs(d["delta"]) < 0.01 and abs(d["lo"]) < 0.01 and abs(d["hi"]) < 0.01
+        assert _delta(blob, f"{n['hybrid']}/file-depth", f"{n['dense']}/file-depth", "ndcg@10")["lo"] > 0
+    # the chunk-cut loss the paragraph above it explains is the one the file recomputes
+    assert _delta(blob, tags["bge-base"]["hybrid"], tags["bge-base"]["dense"])["hi"] < 0
+
+
+def test_the_readme_block_and_the_evidence_row_read_the_recorded_file():
+    from app.eval.evidence import claims
+    from app.eval.report import FILE_DEPTH_FILE, file_depth_table
+
+    blob = json.loads(RECORDED.read_text())
+    assert FILE_DEPTH_FILE == "bench/results/file_depth.json"
+    assert file_depth_table(blob) in (ROOT / "README.md").read_text()
+    assert "is missing; run `make bench-file-depth`" in file_depth_table(None)
+    row = next(c for c in claims() if c["command"] == "make bench-file-depth")
+    d = _delta(blob, "hybrid@bge-base/file-depth", "dense_only@bge-base/file-depth")
+    assert row["value"] == f"{d['delta']:+.3f}" and row["n"] == blob["n_gold"]
+    assert row["source"] == f"bench/results/file_depth.json @ {blob['git_sha']}"
