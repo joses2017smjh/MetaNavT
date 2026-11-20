@@ -59,6 +59,10 @@ app = [
     "llama-index-readers-file>=0.4",
     "mcp>=2,<3",  # official MCP SDK for app/mcp/server_sdk.py
     "cryptography>=42",  # Ed25519 operator capabilities; the plans router verifies them
+    # the public demo (PUBLIC_DEMO): cited answers from Claude (SDK 2.x sends API version 2026-10-21) and the
+    # shared quotas, daily budget and answer cache in Redis (app/answer/claude.py, app/api/limits.py)
+    "anthropic>=2.12,<3",
+    "redis>=8.1,<9",
 ]
 # Real models on CPU or GPU: sentence-transformers embedders, the bge reranker,
 # HuggingFace embeddings for LlamaIndex, and the demo/figure extras.

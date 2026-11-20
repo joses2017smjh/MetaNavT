@@ -32,9 +32,14 @@ annotated-types==0.8.0
     # via
     #   -c requirements.txt
     #   pydantic
+anthropic==2.12.0
+    # via
+    #   -c requirements.txt
+    #   metanavit (pyproject.toml)
 anyio==4.15.1
     # via
     #   -c requirements.txt
+    #   anthropic
     #   httpx
     #   httpx2
     #   mcp
@@ -111,6 +116,10 @@ dirtyjson==1.0.8
     # via
     #   -c requirements.txt
     #   llama-index-core
+docstring-parser==0.18.0
+    # via
+    #   -c requirements.txt
+    #   anthropic
 fastapi==0.141.1
     # via
     #   -c requirements.txt
@@ -173,6 +182,7 @@ httpx==0.28.1
 httpx2==2.16.0
     # via
     #   -c requirements.txt
+    #   anthropic
     #   mcp
 idna==3.20
     # via
@@ -186,6 +196,10 @@ jinja2==3.1.6
     # via
     #   -c requirements.txt
     #   banks
+jiter==0.19.0
+    # via
+    #   -c requirements.txt
+    #   anthropic
 joblib==1.6.0
     # via
     #   -c requirements.txt
@@ -283,6 +297,7 @@ ollama==0.6.2
 opentelemetry-api==1.45.2
     # via
     #   -c requirements.txt
+    #   anthropic
     #   mcp
 packaging==26.3
     # via
@@ -323,6 +338,7 @@ pycparser==3.12
 pydantic==2.13.5
     # via
     #   -c requirements.txt
+    #   anthropic
     #   banks
     #   fastapi
     #   llama-index-core
@@ -371,6 +387,10 @@ pyyaml==6.0.3
     #   llama-index-core
     #   metanavit (pyproject.toml)
     #   uvicorn
+redis==8.1.0
+    # via
+    #   -c requirements.txt
+    #   metanavit (pyproject.toml)
 referencing==0.37.0
     # via
     #   -c requirements.txt
@@ -399,6 +419,10 @@ six==1.17.0
     # via
     #   -c requirements.txt
     #   python-dateutil
+sniffio==1.3.1
+    # via
+    #   -c requirements.txt
+    #   anthropic
 soupsieve==2.9.2
     # via
     #   -c requirements.txt
@@ -447,6 +471,7 @@ typing-extensions==4.16.0
     #   aiohttp
     #   aiosignal
     #   aiostream
+    #   anthropic
     #   anyio
     #   beautifulsoup4
     #   fastapi
