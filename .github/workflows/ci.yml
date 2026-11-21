@@ -307,13 +307,14 @@ jobs:
         run: docker compose up --build -d --wait --wait-timeout 1800
       - name: POST /api/retrieve/ against that image (hits with paths; a lexical hit; reranker loaded, nothing degraded)
         run: python3 scripts/smoke_retrieve.py --require-bm25 --require-reranker
-      - name: The app's entry points import inside that container (served app, deploy steps, ml extra on CPU, answer clients)
-        # main imports every router; migrate and ingest are the deploy and index steps; the reranker, the
-        # HuggingFace embedder and torch (the CPU build) come from the ml extra. anthropic and redis are the
-        # clients of the answer path and of the shared limits, which M40a adds to requirements/app.txt in
-        # its own branch: until that lands on main this step fails and nothing is pushed.
+      - name: The app's entry points import inside that container (served app, public demo, deploy steps, ml extra on CPU, answer clients)
+        # main imports every router of the full API (this stack leaves PUBLIC_DEMO off); app.api.public is
+        # the public demo's surface, with the answer route, app/answer/claude.py and app/api/limits.py;
+        # migrate and ingest are the deploy and index steps; the reranker, the HuggingFace embedder and
+        # torch (the CPU build) come from the ml extra. anthropic and redis (pinned in requirements/app.txt)
+        # are imported only inside the answer path's functions, so they are named here.
         run: |
-          docker compose exec -T api python -c "import main, app.database.migrate, app.engine.ingest, app.retrieval.rerank, llama_index.embeddings.huggingface, sentence_transformers, torch, anthropic, redis; assert torch.version.cuda is None; print('imports OK; torch', torch.__version__)"
+          docker compose exec -T api python -c "import main, app.api.public, app.api.routers.answer, app.answer.claude, app.api.limits, app.database.migrate, app.engine.ingest, app.retrieval.rerank, llama_index.embeddings.huggingface, sentence_transformers, torch, anthropic, redis; assert torch.version.cuda is None; print('imports OK; torch', torch.__version__)"
       - name: API logs
         if: always()
         run: docker compose logs --no-color api | tail -n 150

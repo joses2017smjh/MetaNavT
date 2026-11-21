@@ -33,7 +33,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      # the public surface (the deploy contract of M40a)
+      # the deploy contract (doc/engineering-reference.md, Public demo mode): every name it lists, with its defaults
       PUBLIC_DEMO: "1"
       REDIS_URL: redis://redis:6379/0
       TRUSTED_PROXY_HOPS: "1"     # Caddy, which replaces any X-Forwarded-For a client sends with the address it saw
@@ -44,6 +44,7 @@ services:
       ANSWER_EFFORT: ${ANSWER_EFFORT:-low}
       ANSWER_MAX_TOKENS: ${ANSWER_MAX_TOKENS:-4096}
       ANSWER_TIMEOUT_SECONDS: ${ANSWER_TIMEOUT_SECONDS:-30}
+      ANSWER_MAX_RETRIES: ${ANSWER_MAX_RETRIES:-2}
       ANSWER_DAILY_BUDGET_USD: ${ANSWER_DAILY_BUDGET_USD:-2.00}
       ANSWER_CACHE_TTL_SECONDS: ${ANSWER_CACHE_TTL_SECONDS:-86400}
       ANSWER_LIMIT_PER_MINUTE: ${ANSWER_LIMIT_PER_MINUTE:-5}
@@ -52,9 +53,8 @@ services:
       LOG_FORMAT: json
       PG_CONNECTION_STRING: postgresql://metanavit:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env}@db:5432/metanavit
       PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=metanavit password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env} host=db port=5432
-      # the chat path's provider: init_settings needs one, but chat is not mounted under PUBLIC_DEMO and no Ollama runs here
-      MODEL_PROVIDER: ollama
-      MODEL: qwen2.5:14b
+      # No MODEL_PROVIDER, MODEL or OLLAMA_BASE_URL: under PUBLIC_DEMO the api starts without a chat model
+      # (init_retrieval_settings) and answers through app/answer/claude.py.
       # retrieval: docker-compose.yml's settings with docker-compose.ml.yml's models on CPU
       EMBEDDING_PROVIDER: huggingface
       EMBEDDING_MODEL: BAAI/bge-small-en-v1.5

@@ -193,19 +193,24 @@ def test_the_pushed_ml_image_is_the_ml_variant_compose_built_and_the_smoke_ran_a
 
 
 def test_the_ml_image_imports_the_served_app_the_ml_extra_on_cpu_and_the_answer_path_clients():
-    """Imported inside the running container: main (every router), the deploy and index steps, the reranker and the
-    HuggingFace embedder, torch's CPU build, and the clients of the answer path and the shared limits (anthropic and
-    redis, which M40a adds to requirements/app.txt). A walk of app/ would fail on a module no image installs for
-    (app/engine/chunkers/semantic.py imports chonkie), so the list is named."""
+    """Imported inside the running container: main (every router of the full API: the smoke stack leaves PUBLIC_DEMO
+    off), the public demo's surface with the answer route and the shared limits (main imports them only under
+    PUBLIC_DEMO), the deploy and index steps, the reranker and the HuggingFace embedder, torch's CPU build, and the
+    anthropic and redis clients, which the answer path imports only inside its functions. A walk of app/ would fail on
+    a module no image installs for (app/engine/chunkers/semantic.py imports chonkie), so the list is named."""
     ci, _ = _workflow("ci.yml")
     (run,) = [s["run"] for s in ci["jobs"]["image-ml"]["steps"] if "docker compose exec -T api python -c" in s.get("run", "")]
     code = shlex.split(run.strip())[-1]
     tree = ast.parse(code)
     imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
-    app_modules = {"main", "app.database.migrate", "app.engine.ingest", "app.retrieval.rerank"}
+    app_modules = {"main", "app.api.public", "app.api.routers.answer", "app.answer.claude", "app.api.limits",
+                   "app.database.migrate", "app.engine.ingest", "app.retrieval.rerank"}
     assert imported == app_modules | {"llama_index.embeddings.huggingface", "sentence_transformers", "torch",
                                       "anthropic", "redis"}
     for module in app_modules:  # a renamed module fails here, not on main
         assert (ROOT / (module.replace(".", "/") + ".py")).is_file(), module
+    pinned = (ROOT / "requirements" / "app.txt").read_text().splitlines()
+    for package in ("anthropic", "redis"):  # the image installs requirements/app.txt, so the import can succeed
+        assert any(line.startswith(f"{package}==") for line in pinned), package
     asserts = [ast.unparse(node.test) for node in ast.walk(tree) if isinstance(node, ast.Assert)]
     assert asserts == ["torch.version.cuda is None"]  # the CPU wheel requirements/ml.txt pins

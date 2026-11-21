@@ -3,8 +3,8 @@
 There is no Docker on the development host, and CI only checks that the file resolves (`docker compose config` in the
 docker-smoke job); nothing starts this stack. So what can be read from the files is pinned here: every image pinned by
 digest (Postgres by the digest docker-compose.yml uses), Caddy the only service that publishes ports, the api on the
-M40a deploy contract with the retrieval settings of the stack CI smokes, health checks and restarts everywhere, and no
-secret value in the repository.
+deploy contract (doc/engineering-reference.md, Public demo mode) with the retrieval settings of the stack CI smokes,
+health checks and restarts everywhere, and no secret value in the repository.
 """
 
 import re
@@ -20,13 +20,15 @@ PINNED = re.compile(r"[a-z0-9][a-z0-9._/-]*:[\w.-]+@sha256:[0-9a-f]{64}")
 OWN_IMAGE = "${METANAVIT_IMAGE:-ghcr.io/joses2017smjh/metanavt:main-ml}"  # the tag CI's image-ml job pushes
 SECRET_NAME = re.compile(r"(KEY|PASSWORD|SECRET|TOKEN)$")  # a name ending so (not ANSWER_MAX_TOKENS)
 
-# The deploy contract (M40a): values the topology fixes, and the defaults of the settings deploy/prod.env may change.
+# The deploy contract: values the topology fixes, and the defaults of the settings deploy/prod.env may change.
+# test_the_contract_is_the_reference_s checks both against the contract block of doc/engineering-reference.md.
 FIXED = {"PUBLIC_DEMO": "1", "REDIS_URL": "redis://redis:6379/0", "TRUSTED_PROXY_HOPS": "1"}
 DEFAULTS = {
     "ANSWER_MODEL": "claude-opus-5-5",
     "ANSWER_EFFORT": "low",
     "ANSWER_MAX_TOKENS": "4096",
     "ANSWER_TIMEOUT_SECONDS": "30",
+    "ANSWER_MAX_RETRIES": "2",
     "ANSWER_DAILY_BUDGET_USD": "2.00",
     "ANSWER_CACHE_TTL_SECONDS": "86400",
     "ANSWER_LIMIT_PER_MINUTE": "5",
@@ -103,17 +105,35 @@ def test_the_api_runs_the_deploy_contract():
     assert {"db": {"condition": "service_healthy"}, "redis": {"condition": "service_healthy"}} == api["depends_on"]
 
 
+def test_the_contract_is_the_reference_s():
+    """The contract block under Public demo mode lists the names the production Compose file sets: every one is set
+    here, fixed or with the block's default (a placeholder such as <secret> or <site> stands for the host's value)."""
+    text = (ROOT / "doc" / "engineering-reference.md").read_text()
+    section = text.split("### Public demo mode", 1)[1]
+    block = section.split("```text", 1)[1].split("```", 1)[0]
+    contract = dict(re.findall(r"(?:^|\s)([A-Z][A-Z0-9_]+)=(\S+)", block, re.M))
+    assert contract.keys() == FIXED.keys() | DEFAULTS.keys()
+    for name, value in contract.items():
+        if "<" not in value:
+            assert (FIXED.get(name) or DEFAULTS.get(name)) == value, name
+    assert contract["ANTHROPIC_API_KEY"] == "<secret>" and DEFAULTS["ANTHROPIC_API_KEY"] == ""
+    assert contract["WEB_ORIGIN"] == "https://<site>" and DEFAULTS["WEB_ORIGIN"] == "https://${DOMAIN}"
+    assert "the API listens on port 8000; health: GET /health" in block
+
+
 def test_the_api_serves_the_retrieval_stack_ci_smokes():
     """docker-compose.yml with docker-compose.ml.yml is the stack CI's image-ml job builds and smokes: the prod api
-    keeps every setting of it but the database's address, the log format, the Ollama address chat would use, and the
-    deploy contract's own names (a local stack may set those differently)."""
+    keeps every setting of it but the database's address, the log format, the deploy contract's own names (a local
+    stack may set those differently) and the chat model's settings: under PUBLIC_DEMO the api starts without a chat
+    model (init_retrieval_settings), so none is configured."""
     base = _compose(ROOT / "docker-compose.yml")["services"]["api"]
     ml = _compose(ROOT / "docker-compose.ml.yml")["services"]["api"]
     api = _services()["api"]
     smoked = {**base["environment"], **ml["environment"]}
-    own = {"PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "LOG_FORMAT", "OLLAMA_BASE_URL", "ENVIRONMENT",
-           *FIXED, *DEFAULTS}
+    chat = {"MODEL_PROVIDER", "MODEL", "OLLAMA_BASE_URL"}
+    own = {"PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "LOG_FORMAT", "ENVIRONMENT", *chat, *FIXED, *DEFAULTS}
     assert {k: api["environment"].get(k) for k in smoked.keys() - own} == {k: smoked[k] for k in smoked.keys() - own}
+    assert not chat & api["environment"].keys()
     assert api["command"] == base["command"]  # migrations, the index step, then the server
     assert api["healthcheck"] == {**base["healthcheck"], **ml["healthcheck"]}  # the first start's long grace period
     dockerfile = (ROOT / "Dockerfile").read_text().splitlines()
