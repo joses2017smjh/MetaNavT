@@ -69,8 +69,11 @@ def test_fp16_without_cuda_stops_instead_of_measuring_fp32(monkeypatch):
     monkeypatch.setattr("app.eval.index_loader._cuda_available", lambda: False)
     with pytest.raises(RuntimeError, match="needs CUDA"):
         build_index(FILES, embedder_name="hash", reranker="BAAI/bge-reranker-v2-m3", rerank_precision="fp16")
-    with pytest.raises(ValueError, match="fp32 or fp16"):
-        build_index(FILES, embedder_name="hash", reranker="overlap", rerank_precision="bf16")
+    # M41: bf16 is a precision too (Qwen3-Reranker-8B), CUDA only like fp16; any other name is refused
+    with pytest.raises(RuntimeError, match="needs CUDA"):
+        build_index(FILES, embedder_name="hash", reranker="Qwen/Qwen3-Reranker-8B", rerank_precision="bf16")
+    with pytest.raises(ValueError, match="fp32, fp16 or bf16"):
+        build_index(FILES, embedder_name="hash", reranker="overlap", rerank_precision="int8")
 
 
 def test_the_rerank_depth_rows_change_one_thing_at_a_time():

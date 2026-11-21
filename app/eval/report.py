@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -44,6 +44,15 @@ SERVED_SCALE_PRE_M20_FILE = "bench/results/served_scale_fiqa_pre_m20.json"  # th
 PGVECTOR_HNSW_FILE = "bench/results/pgvector_hnsw.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 PARITY_NEURAL_FILE = "bench/results/parity_neural.json"  # M17 (A19): bge-small + bge-reranker-v2-m3 through the API, one GPU run
+# M41: the current open models beside the committed bge rows (app/eval/models_2026.py); harrier-oss-v1-27b's rows are their
+# own run on a larger GPU (its file names it), rendered in the same block as the dataset's main file.
+MODELS_2026_FILE = "bench/results/models_2026.json"
+MODELS_2026_HARRIER_FILE = "bench/results/models_2026_harrier.json"
+MODELS_2026_CPU_FILE = "bench/results/models_2026_cpu.json"
+BEIR_MODELS_2026_FILE = "bench/results/beir_scifact_models_2026.json"
+BEIR_MODELS_2026_HARRIER_FILE = "bench/results/beir_scifact_models_2026_harrier.json"
+BEIR_FIQA_MODELS_2026_FILE = "bench/results/beir_fiqa_models_2026.json"
+BEIR_FIQA_MODELS_2026_HARRIER_FILE = "bench/results/beir_fiqa_models_2026_harrier.json"
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
@@ -51,6 +60,10 @@ SOURCES = {
     "bench-rrf-sweep-hash": RRF_SWEEP_HASH_FILE,
     "bench-neural": NEURAL_FILE,
     "bench-file-depth": FILE_DEPTH_FILE,
+    "bench-models-2026": f"{MODELS_2026_FILE} and {MODELS_2026_HARRIER_FILE}",
+    "bench-models-2026-cpu": MODELS_2026_CPU_FILE,
+    "bench-beir-models-2026": f"{BEIR_MODELS_2026_FILE} and {BEIR_MODELS_2026_HARRIER_FILE}",
+    "bench-beir-fiqa-models-2026": f"{BEIR_FIQA_MODELS_2026_FILE} and {BEIR_FIQA_MODELS_2026_HARRIER_FILE}",
     "bench-beir": BEIR_FILE,
     "bench-beir-bm25": BEIR_BM25_FILE,
     "bench-beir-fiqa": BEIR_FIQA_FILE,
@@ -2217,6 +2230,219 @@ def rrf_sweep_hash_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
+# ---- M41: the current open models beside the committed bge rows (app/eval/models_2026.py)
+
+
+def _dtype(value: str | None) -> str:
+    return (value or "?").replace("torch.", "")
+
+
+def _m41_models(row: dict) -> str:
+    """The models a row loaded, each with its revision, the dtype its weights loaded in and the prompt it adds (the
+    embedder's query prompt, a causal-LM reranker's default instruction): what M41 rows record."""
+    m = row.get("models") or {}
+    parts = []
+    e = m.get("embedder") or {}
+    if e.get("neural"):
+        prompt = f", query prompt `{e['query_prompt_name']}`" if e.get("query_prompt_name") else ""
+        view = ", loaded from a snapshot view" if e.get("snapshot_view") else ""  # harrier: SNAPSHOT_VIEWS in app/retrieval/embedders.py
+        parts.append(f"{e['model']}@{(e.get('revision') or '?')[:7]} ({_dtype(e.get('dtype'))}{prompt}{view})")
+    r = m.get("reranker") or {}
+    if r.get("neural") and r.get("loaded"):
+        prompt = f", prompt `{r['default_prompt_name']}`" if r.get("default_prompt_name") else ""
+        parts.append(f"{r['model']}@{(r.get('revision') or '?')[:7]} ({_dtype(r.get('dtype'))}{prompt})")
+    return ", ".join(parts) if parts else "none (BM25 only)"
+
+
+def _verb(names: list, one: str, many: str) -> str:
+    return one if len(names) == 1 else many
+
+
+def _reproduction(blocks: list[dict] | dict | None) -> str:
+    """Whether the parents recomputed in the run equal the committed rows (app.eval.models_2026.reproduces), said
+    whatever the answer: rows equal in every field of the retrieval block (and, where the committed row wrote a TREC
+    run, in every query's ranking), rows equal in every metric but not in ranking, and rows whose metrics differ."""
+    blocks = [blocks] if isinstance(blocks, dict) else list(blocks or [])
+    if not blocks:
+        return "This file records no reproduction check of its parents."
+    out = []
+    for b in blocks:
+        rows = b.get("rows") or {}
+        same = [n for n, e in rows.items() if e.get("equal") and e.get("ranking_equal", True)]
+        ranked = [n for n in same if "ranking_equal" in rows[n]]
+        reordered = [n for n, e in rows.items() if e.get("equal") and e.get("ranking_equal") is False]
+        moved = [n for n, e in rows.items() if not e.get("equal")]
+        where = f"{b['file']} (results sha {b.get('git_sha')}, {b.get('device') or 'its recorded device'})"
+        text = []
+        quoted = lambda names: _and([f"`{n}`" for n in names])  # noqa: E731
+        if same:
+            text.append(f"{quoted(same)} {_verb(same, 'reproduces', 'reproduce')} {where} in every field of the retrieval block"
+                        + (f", and {quoted(ranked)} {_verb(ranked, 'ranks', 'rank')} every query exactly as the committed TREC "
+                           f"run{_verb(ranked, ' does', 's do')}" if ranked else ""))
+        if reordered:
+            text.append(f"{quoted(reordered)} {_verb(reordered, 'equals', 'equal')} {where} in every field of the retrieval "
+                        f"block but do{_verb(reordered, 'es', '')} NOT rank every query as the committed TREC "
+                        f"run{_verb(reordered, ' does', 's do')}, so {_verb(reordered, 'it does', 'they do')} not reproduce it exactly")
+        for n in moved:
+            e = rows[n]
+            fields = ", ".join(f"{k} {v[0]} there, {v[1]} here" for k, v in (e.get("differs") or {}).items()
+                               if not isinstance(v[0], (dict, list)))
+            what = fields or ("the per-category means" if e.get("differs") else "it is not in that file")
+            text.append(f"`{n}` does NOT reproduce {where}: {what}")
+        out.append("; ".join(text))
+    return ". ".join(out) + "."
+
+
+def _vs_parent_lists(row: dict) -> str:
+    vp = row.get("vs_parent") or {}
+    return f"{vp['n_top10_differs']} / {vp['n_questions']}" if vp else "—"
+
+
+METRIC_NAMES = {"ndcg@10": "nDCG@10", "recall@10": "Recall@10", "recall@50": "Recall@50", "recall@100": "Recall@100", "mrr@10": "MRR@10"}
+
+
+def _comparison_lines(blob: dict, metric: str, digits: int) -> list[str]:
+    """The run's extra paired comparisons (a new embedder's hybrid row against its own dense row, each reranker against
+    the unreranked hybrid), each with its interval and whether it covers zero."""
+    out = []
+    for c in (blob.get("bootstrap") or {}).get("comparisons") or []:
+        d = c.get(metric)
+        if d:
+            out.append(f"`{c['row']}` minus `{c['other']}`: {METRIC_NAMES.get(metric, metric)} {_delta(d, digits)} ({_zero_note(d)}).")
+    return out
+
+
+def models_2026_fixture_table(blob: dict | None, harrier: dict | None = None) -> str:
+    """M41 on fixture v1: models_2026.json, and harrier's own run (models_2026_harrier.json) when it is there."""
+    if not blob:
+        return f"_{MODELS_2026_FILE} is missing; run `make bench-models-2026` (needs .[ml] and a GPU)._"
+    lines = [
+        f"The current open embedders and rerankers on fixture v1 (`make bench-models-2026`, {_device(blob)}; results sha "
+        f"{_sha(blob)}). Each new row changes one model of a committed bge row of {NEURAL_FILE}, its parent, which "
+        f"the same run recomputes; every model passed its load-and-score check before its row ran. Fixture v1 is small: "
+        f"Recall@50 is close to its ceiling, so ties are expected, and BEIR SciFact and FiQA below carry the comparison.",
+        "",
+    ]
+    lines += _m41_fixture_rows(blob)
+    lines += ["", " ".join(_comparison_lines(blob, "ndcg@10", 3)), "", _reproduction(blob.get("reproduces"))]
+    if harrier:
+        lines += ["", f"harrier-oss-v1-27b's rows are their own run on a larger GPU "
+                      f"(`make bench-models-2026-harrier`, {_device(harrier)}; results sha {_sha(harrier)}), with the "
+                      f"bge-small parents recomputed in that run.", ""]
+        lines += _m41_fixture_rows(harrier)
+        lines += ["", " ".join(_comparison_lines(harrier, "ndcg@10", 3)), "", _reproduction(harrier.get("reproduces"))]
+    else:
+        lines += ["", f"_{MODELS_2026_HARRIER_FILE} is missing; run `make bench-models-2026-harrier` (a GPU that holds harrier-oss-v1-27b in bfloat16)._"]
+    lines += ["", f"Results: [{MODELS_2026_FILE}]({MODELS_2026_FILE})" + (f" · [{MODELS_2026_HARRIER_FILE}]({MODELS_2026_HARRIER_FILE})" if harrier else "")
+              + (" (each with its per-question sidecar)." if harrier else " (with its per-question sidecar).")]
+    return "\n".join(lines)
+
+
+def _m41_fixture_rows(blob: dict) -> list[str]:
+    lines = [
+        "| config | parent | models (revision, weights dtype, prompt) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 [95% CI] | "
+        "Δ nDCG@10 vs parent [95% CI] | Δ Recall@50 vs parent [95% CI] | top-10 lists that differ from the parent's | wall s |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in blob.get("results", []):
+        d = row.get("delta_vs_previous") or {}
+        parent = (row.get("settings") or {}).get("parent")
+        lines.append(f"| {row['config']} | {parent or '—'} | {_m41_models(row)} | {_ci(row, 'ndcg@10')} | {_ci(row, 'recall@10')} | "
+                     f"{_ci(row, 'recall@50')} | {_delta(d.get('ndcg@10')) if parent else '—'} | {_delta(d.get('recall@50')) if parent else '—'} | "
+                     f"{_vs_parent_lists(row)} | {row.get('wall_ms', 0) / 1000:.1f} |")
+    return lines
+
+
+def _stage(row: dict, stage: str) -> str:
+    s = (row.get("latency") or {}).get(stage)
+    return f"{s['p50_ms']} / {s['p95_ms']}" if s else "—"
+
+
+def models_2026_cpu_table(blob: dict | None) -> str:
+    """M41: the CPU-servable models on a CPU at the app's default CPU settings (models_2026_cpu.json): what each costs per query."""
+    if not blob:
+        return f"_{MODELS_2026_CPU_FILE} is missing; run `make bench-models-2026-cpu` (needs .[ml]; CPU only)._"
+    d = blob.get("device") or {}
+    lines = [
+        f"What the CPU-servable models cost per query on a CPU (`make bench-models-2026-cpu`; {d.get('cpu_model') or 'CPU model not recorded'}, "
+        f"{d.get('threads')} torch threads, torch {d.get('torch')}, sentence-transformers {d.get('sentence_transformers')}; results sha "
+        f"{_sha(blob)}). The reranked rows use the app's default CPU settings (the fused top 20, max_length 512, fp32), each paired "
+        f"with bge-reranker-v2-m3 at the same settings, recomputed in the run. Latency is per question after one warm-up "
+        f"question: `embed` is the query embedding and the dense search, `rerank` the cross-encoder over the top 20. "
+        f"Fixture chunks are short, so a passage of a few hundred tokens costs more per pair than these.",
+        "",
+        "| config | parent | models (revision, weights dtype, prompt) | embed p50 / p95 ms | rerank p50 / p95 ms | nDCG@10 [95% CI] | "
+        "Δ nDCG@10 vs parent [95% CI] | wall s |",
+        "|---|---|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in blob.get("results", []):
+        dp = (row.get("delta_vs_previous") or {}).get("ndcg@10")
+        parent = (row.get("settings") or {}).get("parent")
+        lines.append(f"| {row['config']} | {parent or '—'} | {_m41_models(row)} | {_stage(row, 'embed')} | {_stage(row, 'rerank')} | "
+                     f"{_ci(row, 'ndcg@10')} | {_delta(dp) if parent else '—'} | {row.get('wall_ms', 0) / 1000:.1f} |")
+    lines += ["", _reproduction(blob.get("reproduces")), "",
+              f"Results: [{MODELS_2026_CPU_FILE}]({MODELS_2026_CPU_FILE}) (with its per-question sidecar)."]
+    return "\n".join(lines)
+
+
+def _doc_embeddings_note(blob: dict) -> str:
+    """Where each embedder's document matrix came from (the BEIR runner records it), said once per source."""
+    by_source: dict[str, list[str]] = {}
+    for row in blob.get("results", []):
+        e = (row.get("models") or {}).get("embedder") or {}
+        if e.get("neural") and e.get("doc_embeddings"):
+            names = by_source.setdefault(e["doc_embeddings"], [])
+            if e["model"] not in names:
+                names.append(e["model"])
+    return " ".join(f"Document embeddings {source}: {_and(names)}." for source, names in by_source.items())
+
+
+def models_2026_beir_table(blob: dict | None, harrier: dict | None, file: str, harrier_file: str, command: str, harrier_command: str,
+                           dataset: str) -> str:
+    """M41 on a BEIR dataset: the new models beside the committed bge rows recomputed in the run, and harrier's run."""
+    if not blob:
+        return f"_{file} is missing; run `{command}` (needs .[ml] and a GPU)._"
+    lines = [
+        f"The current open models on BEIR {dataset} (`{command}`): {blob.get('n_docs')} documents, {blob.get('n_queries')} queries; "
+        f"{_device(blob)}; results sha {_sha(blob)}. Each new row changes one model of a committed bge row, its parent, which "
+        f"the run recomputes: an embedder's dense and hybrid rows against bge-small's, a reranker over hybrid@bge-small "
+        f"against bge-reranker-v2-m3 at its settings (the fused top 20, max_length 512, fp32; Qwen3-Reranker-8B in bf16). The "
+        f"512-token cap counts the causal-LM rerankers' chat template too, so their passages keep fewer tokens. Every model "
+        f"passed its load-and-score check first; intervals are paired bootstrap intervals over the queries, printed to the "
+        f"four decimals the file stores.",
+        "",
+    ]
+    lines += _m41_beir_rows(blob)
+    notes = _comparison_lines(blob, "ndcg@10", 4)
+    lines += ["", " ".join(notes + [_doc_embeddings_note(blob)]), "", _reproduction(blob.get("reproduces"))]
+    if harrier:
+        lines += ["", f"harrier-oss-v1-27b, its own run on a larger GPU (`{harrier_command}`, {_device(harrier)}; results sha "
+                      f"{_sha(harrier)}), with the bge-small parents recomputed in that run.", ""]
+        lines += _m41_beir_rows(harrier)
+        lines += ["", " ".join(_comparison_lines(harrier, "ndcg@10", 4) + [_doc_embeddings_note(harrier)]), "",
+                  _reproduction(harrier.get("reproduces"))]
+    else:
+        lines += ["", f"_{harrier_file} is missing; run `{harrier_command}` (a GPU that holds harrier-oss-v1-27b in bfloat16)._"]
+    lines += ["", f"Results: [{file}]({file})" + (f" · [{harrier_file}]({harrier_file})" if harrier else "") + "."]
+    return "\n".join(lines)
+
+
+def _m41_beir_rows(blob: dict) -> list[str]:
+    lines = [
+        "| config | parent | models (revision, weights dtype, prompt) | reranker precision / max_length / depth | nDCG@10 [95% CI] | "
+        "Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ Recall@100 vs parent [95% CI] | p50 / p95 ms | build s |",
+        "|---|---|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in blob.get("results", []):
+        dp = row.get("delta_vs_parent") or {}
+        lat = (row.get("latency") or {}).get("total") or {}
+        build = ((row.get("build_ms") or {}).get("total_ms") or 0) / 1000
+        lines.append(f"| {row['config']} | {row.get('parent') or '—'} | {_m41_models(row)} | {_rerank_settings(row)} | {_ci(row, 'ndcg@10', 4)} | "
+                     f"{_ci(row, 'recall@100', 4)} | {_delta(dp.get('ndcg@10'), 4)} | {_delta(dp.get('recall@100'), 4)} | "
+                     f"{lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} | {build:.1f} |")
+    return lines
+
+
 def render(blob: dict, root: Path | None = None) -> dict[str, str]:
     root = root if root is not None else Path(__file__).resolve().parents[2]
     return {
@@ -2226,9 +2452,17 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-rrf-sweep-hash": rrf_sweep_hash_table(_load(root, RRF_SWEEP_HASH_FILE)),
         "bench-neural": neural_table(_load(root, NEURAL_FILE)),
         "bench-file-depth": file_depth_table(_load(root, FILE_DEPTH_FILE)),
+        "bench-models-2026": models_2026_fixture_table(_load(root, MODELS_2026_FILE), _load(root, MODELS_2026_HARRIER_FILE)),
+        "bench-models-2026-cpu": models_2026_cpu_table(_load(root, MODELS_2026_CPU_FILE)),
         "bench-beir": beir_table(_load(root, BEIR_FILE)),
         "bench-beir-bm25": beir_bm25_table(_load(root, BEIR_BM25_FILE)),
         "bench-beir-fiqa": beir_table(_load(root, BEIR_FIQA_FILE), BEIR_FIQA_FILE, "make bench-beir-fiqa", "FiQA", digits=4),
+        "bench-beir-models-2026": models_2026_beir_table(_load(root, BEIR_MODELS_2026_FILE), _load(root, BEIR_MODELS_2026_HARRIER_FILE),
+                                                         BEIR_MODELS_2026_FILE, BEIR_MODELS_2026_HARRIER_FILE, "make bench-beir-models-2026",
+                                                         "make bench-beir-models-2026-harrier", "SciFact"),
+        "bench-beir-fiqa-models-2026": models_2026_beir_table(_load(root, BEIR_FIQA_MODELS_2026_FILE), _load(root, BEIR_FIQA_MODELS_2026_HARRIER_FILE),
+                                                              BEIR_FIQA_MODELS_2026_FILE, BEIR_FIQA_MODELS_2026_HARRIER_FILE,
+                                                              "make bench-beir-fiqa-models-2026", "make bench-beir-fiqa-models-2026-harrier", "FiQA"),
         "bench-served-scale": served_scale_table(_load(root, SERVED_SCALE_FILE), _load(root, SERVED_SCALE_PRE_M20_FILE)),
         "bench-pgvector-hnsw": pgvector_hnsw_table(_load(root, PGVECTOR_HNSW_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),

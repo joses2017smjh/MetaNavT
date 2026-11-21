@@ -42,6 +42,10 @@ def test_missing_neural_files_render_a_pointer_not_a_crash(tmp_path):
     assert "make bench-neural" in blocks["bench-neural"] and "make bench-beir" in blocks["bench-beir"]
     assert "make bench-beir-bm25-ablation" in blocks["bench-beir-bm25"] and "make bench-beir-fiqa" in blocks["bench-beir-fiqa"]
     assert "make parity" in blocks["bench-parity"]
+    # M41: the current open models' blocks, before their results files exist
+    assert "make bench-models-2026" in blocks["bench-models-2026"] and "make bench-models-2026-cpu" in blocks["bench-models-2026-cpu"]
+    assert "make bench-beir-models-2026" in blocks["bench-beir-models-2026"]
+    assert "make bench-beir-fiqa-models-2026" in blocks["bench-beir-fiqa-models-2026"]
 
 
 def test_check_reports_missing_markers_and_drift():

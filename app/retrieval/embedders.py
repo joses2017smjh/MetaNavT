@@ -8,6 +8,7 @@ st       — sentence-transformers (real numbers; optional)
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 from typing import Protocol, Sequence
 
 import numpy as np
@@ -18,6 +19,13 @@ class Embedder(Protocol):
     dim: int
 
     def encode(self, texts: Sequence[str]) -> np.ndarray: ...
+
+
+def encode_queries(embedder, texts: Sequence[str]) -> np.ndarray:
+    """Queries through the embedder's query side when it has one (SentenceTransformerEmbedder.encode_queries: the
+    model's own query prompt); otherwise exactly encode(), as every embedder without a query prompt always did."""
+    side = getattr(embedder, "encode_queries", None)
+    return side(texts) if side is not None else embedder.encode(texts)
 
 
 def l2_normalize(mat: np.ndarray) -> np.ndarray:
@@ -96,6 +104,83 @@ class TfidfEmbedder:
         return l2_normalize(dense)
 
 
+# Query-side prompts by model (M41): the name of a prompt in the model's own config_sentence_transformers.json, which
+# sentence-transformers puts before each query (encode(prompt_name=...)); documents get none. These models were
+# trained with an instruction on the query side and score worse without it. A model not listed here gets no prompt,
+# exactly as every committed row did (bge-small, bge-base), so those rows reproduce unchanged.
+QUERY_PROMPT_NAMES = {
+    "Qwen/Qwen3-Embedding-0.6B": "query",
+    "Qwen/Qwen3-Embedding-8B": "query",
+    "microsoft/harrier-oss-v1-27b": "web_search_query",
+}
+# The dtype each of these models loads in (M41), passed as model_kwargs={"dtype": ...}. transformers >= 5 loads a
+# checkpoint in the dtype it was saved in when none is named (its from_pretrained default is "auto"): float32 for the
+# bge checkpoints, bfloat16 for Qwen3-Embedding and harrier. So a dtype is named for every new model: "auto" (bfloat16)
+# for the large ones, which need it (harrier-oss-v1-27b is about 108 GB in float32 and 54 GB in bfloat16), "float32"
+# for the one small enough to serve on a CPU, which is how a CPU would serve it. A model not listed gets no
+# model_kwargs, exactly as every committed row did (bge-small, bge-base: float32 either way). The dtype the weights
+# have once loaded is read back and recorded with every row (provenance()).
+MODEL_DTYPES = {
+    "Qwen/Qwen3-Embedding-0.6B": "float32",
+    "Qwen/Qwen3-Embedding-8B": "auto",
+    "microsoft/harrier-oss-v1-27b": "auto",
+}
+# Texts per encode() batch for the large models (sentence-transformers' default is 32), so the longest batch of a BEIR
+# corpus (batches are sorted by length) fits beside the weights; recorded with every row. A model not listed gets the
+# library default, as every committed row did.
+ENCODE_BATCH_SIZES = {"Qwen/Qwen3-Embedding-8B": 16, "microsoft/harrier-oss-v1-27b": 8}
+
+
+# Models whose published sentence-transformers files sentence-transformers (6.1) cannot load as they are, and the one key
+# that stops them: (file, key, value). harrier-oss-v1-27b's tokenizer_config.json names processor_class Gemma3Processor,
+# the image-and-text processor of the multimodal Gemma 3, but the checkpoint is text only (Gemma3TextModel) and ships no
+# image processor, so the library's AutoProcessor fails ("Can't load image processor"). Such a model loads from a
+# temporary view of its cached snapshot in which every file and folder is a symlink to the snapshot's own except that
+# file, written without that key: AutoProcessor then falls back to the model's own tokenizer (gemma3_text has no
+# processor class), which still begins a text with <bos> and ends it with <eos>, the position last-token pooling reads.
+# The cache itself is not edited, and every row records what the view dropped (provenance()["snapshot_view"]).
+SNAPSHOT_VIEWS = {"microsoft/harrier-oss-v1-27b": ("tokenizer_config.json", "processor_class", "Gemma3Processor")}
+
+
+def _snapshot_path(model_name: str) -> Path:
+    """The cached snapshot of `model_name` (huggingface_hub honours HF_HUB_OFFLINE: the cache, no network)."""
+    from huggingface_hub import snapshot_download
+
+    return Path(snapshot_download(model_name))
+
+
+def snapshot_view(model_name: str):
+    """(a TemporaryDirectory holding the view of SNAPSHOT_VIEWS[model_name], what the view changed). Raises when the
+    snapshot's file no longer holds that key with that value: the model's files changed upstream, so the view must be
+    looked at again rather than applied blindly."""
+    import json
+    import tempfile
+
+    file, key, value = SNAPSHOT_VIEWS[model_name]
+    snapshot = _snapshot_path(model_name)
+    config = json.loads((snapshot / file).read_text())
+    if config.get(key) != value:
+        raise RuntimeError(f"{model_name}: {file} has {key}={config.get(key)!r}, not {value!r}; the snapshot view no longer applies")
+    tmp = tempfile.TemporaryDirectory(prefix="st-snapshot-view-")
+    view = Path(tmp.name)
+    for entry in snapshot.iterdir():
+        if entry.name != file:
+            (view / entry.name).symlink_to(entry)
+    del config[key]
+    (view / file).write_text(json.dumps(config, indent=2))
+    return tmp, {"loaded_from": f"a temporary view of the cached snapshot: every file a symlink to the snapshot's own, except {file}",
+                 "file": file, "dropped": {key: value}}
+
+
+def weights_dtype(model) -> str | None:
+    """The dtype a loaded torch model's weights are in ("torch.bfloat16"), read from its first parameter; None when
+    there is none to read."""
+    try:
+        return str(next(iter(model.parameters())).dtype)
+    except Exception:
+        return None
+
+
 class SentenceTransformerEmbedder:
     name = "st"
 
@@ -103,16 +188,51 @@ class SentenceTransformerEmbedder:
         from sentence_transformers import SentenceTransformer
 
         self.model_name = model_name
-        self._model = SentenceTransformer(model_name)
+        self.dtype = MODEL_DTYPES.get(model_name)  # None: no model_kwargs, the library's default
+        kwargs = {"model_kwargs": {"dtype": self.dtype}} if self.dtype else {}
+        self.snapshot_view = None  # what a SNAPSHOT_VIEWS model's view dropped; None: loaded by its hub id, as committed
+        source = model_name
+        if model_name in SNAPSHOT_VIEWS:
+            self._view, self.snapshot_view = snapshot_view(model_name)  # the TemporaryDirectory lives as long as the embedder
+            source = self._view.name
+        self._model = SentenceTransformer(source, **kwargs)
         self.dim = int(self._model.get_sentence_embedding_dimension())
         self.name = f"st:{model_name}"
+        self.batch_size = ENCODE_BATCH_SIZES.get(model_name)
+        self.query_prompt_name = QUERY_PROMPT_NAMES.get(model_name)
+        self.query_prompt = None
+        if self.query_prompt_name is not None:
+            prompts = getattr(self._model, "prompts", None) or {}
+            if self.query_prompt_name not in prompts:  # a renamed prompt must not silently become no prompt
+                raise ValueError(f"{model_name} has no prompt named {self.query_prompt_name!r} (has {sorted(prompts)})")
+            self.query_prompt = prompts[self.query_prompt_name]
+
+    def encode_queries(self, texts: Sequence[str]) -> np.ndarray:
+        """Queries with the model's query prompt (QUERY_PROMPT_NAMES); without one, exactly encode()."""
+        if self.query_prompt_name is None:
+            return self.encode(texts)
+        return self._encode(texts, prompt_name=self.query_prompt_name)
+
+    def provenance(self) -> dict:
+        """What a results row records about how this embedder encodes: the query prompt (name and text), the dtype asked
+        for (None: the library's default) and the one the weights loaded in, the encode batch size (None: the library's
+        default), the token cap, and what a snapshot view changed (SNAPSHOT_VIEWS; None for every other model)."""
+        return {"query_prompt_name": self.query_prompt_name, "query_prompt": self.query_prompt, "dtype_requested": self.dtype,
+                "dtype": weights_dtype(self._model), "batch_size": self.batch_size,
+                "max_seq_length": getattr(self._model, "max_seq_length", None), "snapshot_view": self.snapshot_view}
 
     def encode(self, texts: Sequence[str]) -> np.ndarray:
+        return self._encode(texts)
+
+    def _encode(self, texts: Sequence[str], **extra) -> np.ndarray:
+        if self.batch_size is not None:
+            extra["batch_size"] = self.batch_size
         vecs = self._model.encode(
             list(texts),
             convert_to_numpy=True,
             normalize_embeddings=True,
             show_progress_bar=False,
+            **extra,
         )
         return np.asarray(vecs, dtype=np.float32)
 

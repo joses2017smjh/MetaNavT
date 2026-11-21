@@ -123,12 +123,20 @@ def get_cross_encoder(
     precision: str = "fp32",
     max_length: int | None = None,
     device: str | None = None,
+    *,
+    raise_errors: bool = False,
 ):
     """Load a sentence-transformers CrossEncoder, or None when it cannot be loaded.
 
-    precision="fp16" loads the weights in torch.float16 (CUDA only; ignored on CPU),
-    max_length caps the tokenized (query, passage) pair. Both are recorded next to
-    every result that used them.
+    precision is the dtype the weights load in: "fp16" torch.float16 and "bf16" torch.bfloat16 on
+    CUDA (bf16 is for the large causal-LM rerankers, Qwen3-Reranker, whose weights are bfloat16);
+    "fp32", and either half precision on a CPU, torch.float32. The float32 is named, not left to the
+    library: transformers >= 5 otherwise loads a checkpoint in the dtype it was saved in, bfloat16 for
+    the causal-LM rerankers (the bge-reranker-v2-m3 checkpoint is float32 either way). max_length caps
+    the tokenized (query, passage) pair. Both are recorded next to every result that used them.
+
+    raise_errors: raise instead of returning None (weights not cached, a load that fails), so a caller
+    that requires the model (a benchmark row) stops with the reason.
     """
     if not model_name or model_name.lower() == "none":
         return None
@@ -138,24 +146,28 @@ def get_cross_encoder(
     allow = os.environ.get("BGE_ALLOW_DOWNLOAD", "").strip().lower() in {"1", "true", "yes"}
     local = Path(model_name).exists()
     if not allow and not local and not _hf_cache_has(model_name):
+        if raise_errors:
+            raise FileNotFoundError(f"{model_name} is not in the Hugging Face cache (HF_HOME) and BGE_ALLOW_DOWNLOAD is not set")
         return None
     try:
         from sentence_transformers import CrossEncoder
     except Exception:
+        if raise_errors:
+            raise
         return None
     kwargs: dict = {}
     if max_length is not None:
         kwargs["max_length"] = int(max_length)
     if device:
         kwargs["device"] = device
-    if precision == "fp16":
-        try:
-            import torch
+    try:
+        import torch
 
-            if device != "cpu" and torch.cuda.is_available():
-                kwargs["model_kwargs"] = {"torch_dtype": torch.float16}
-        except Exception:
-            pass
+        half = {"fp16": torch.float16, "bf16": torch.bfloat16}.get(precision)
+        on_cuda = device != "cpu" and torch.cuda.is_available()
+        kwargs["model_kwargs"] = {"torch_dtype": half if half is not None and on_cuda else torch.float32}
+    except Exception:
+        pass
     try:
         if allow or local:
             return CrossEncoder(model_name, **kwargs)
@@ -164,7 +176,23 @@ def get_cross_encoder(
         except TypeError:
             return CrossEncoder(model_name, **kwargs)
     except Exception:
+        if raise_errors:
+            raise
         return None
+
+
+def cross_encoder_provenance(model) -> dict:
+    """What a results row records about a loaded CrossEncoder beyond its name and revision: the dtype its weights loaded
+    in, its token cap, and the prompt it puts in front of every pair by default (Qwen3-Reranker's instruction; None for
+    the bge and mxbai rerankers)."""
+    from app.retrieval.embedders import weights_dtype
+
+    name = getattr(model, "default_prompt_name", None)
+    max_length = getattr(model, "max_seq_length", None)
+    if max_length is None:
+        max_length = getattr(model, "max_length", None)
+    return {"dtype": weights_dtype(model), "loaded_max_length": max_length, "default_prompt_name": name,
+            "default_prompt": (getattr(model, "prompts", None) or {}).get(name) if name else None}
 
 
 def _hf_cache_has(model_name: str) -> bool:

@@ -10,7 +10,7 @@ from app.eval.hashing import content_hash
 from app.eval.ingest import BENCH_POLICY, SKIP_NAMES, file_chunks, ingest_report, iter_corpus_files, plan_ingest, scan_directory
 from app.retrieval.embedders import HashEmbedder, TfidfEmbedder
 from app.retrieval.hybrid import Chunk, InMemoryHybridIndex
-from app.retrieval.rerank import CrossEncoderReranker, OverlapReranker
+from app.retrieval.rerank import CrossEncoderReranker, OverlapReranker, get_cross_encoder
 from app.retrieval.router import QueryRouter
 from app.retrieval.context import path_context
 
@@ -179,13 +179,16 @@ def build_index(
     rerank_depth: int | None = None,
     rerank_precision: str | None = None,
     rerank_max_length: int | None = None,
+    require_reranker: bool = False,
 ) -> InMemoryHybridIndex:
     """rerank_depth / rerank_precision / rerank_max_length: the served reranker's RERANK_DEPTH,
     RERANKER_PRECISION and RERANKER_MAX_LENGTH for a cross-encoder row (None: every fused
-    candidate, fp32, the model's own token cap, as every row recorded before M17). fp16 needs
-    CUDA: without it the build stops rather than measure fp32 under an fp16 name."""
-    if rerank_precision not in (None, "fp32", "fp16"):
-        raise ValueError(f"rerank_precision must be fp32 or fp16, got {rerank_precision!r}")
+    candidate, fp32, the model's own token cap, as every row recorded before M17). fp16 and bf16
+    (M41: Qwen3-Reranker-8B) need CUDA: without it the build stops rather than measure fp32 under a
+    half-precision name. require_reranker (M41): a cross-encoder that does not load raises with the
+    reason instead of falling back to the overlap reranker."""
+    if rerank_precision not in (None, "fp32", "fp16", "bf16"):
+        raise ValueError(f"rerank_precision must be fp32, fp16 or bf16, got {rerank_precision!r}")
     chunks, ingest = load_chunks_with_report(
         root, strategy=chunk_strategy, include_path_context=include_path_context, contextual=contextual, mtimes=mtimes,
         prefixes=prefixes,
@@ -221,9 +224,13 @@ def build_index(
         elif reranker == "none":
             rerank_fn = None
         else:
-            if rerank_precision == "fp16" and not _cuda_available():
-                raise RuntimeError(f"{reranker} at fp16 needs CUDA (fp16 weights load on CUDA only); a CPU run would measure fp32")
-            rerank_fn = CrossEncoderReranker(model_name=reranker, allow_fallback=True,  # the row is labelled below
+            if rerank_precision in {"fp16", "bf16"} and not _cuda_available():
+                raise RuntimeError(f"{reranker} at {rerank_precision} needs CUDA ({rerank_precision} weights load on CUDA only); "
+                                   "a CPU run would measure fp32")
+            model = None
+            if require_reranker:  # loaded here, so a failure raises with its reason (get_cross_encoder would return None)
+                model = get_cross_encoder(reranker, precision=rerank_precision or "fp32", max_length=rerank_max_length, raise_errors=True)
+            rerank_fn = CrossEncoderReranker(model=model, model_name=reranker, allow_fallback=not require_reranker,  # labelled below
                                              precision=rerank_precision or "fp32", max_length=rerank_max_length)
             reranker_loaded = rerank_fn.model is not None
             reranker_fallback = rerank_fn.fallback  # "overlap" when the model did not load
