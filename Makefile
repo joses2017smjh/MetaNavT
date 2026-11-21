@@ -271,6 +271,22 @@ BEIR_FIQA_ROWS = bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-sma
 bench-beir-fiqa: ## BEIR FiQA: BM25 / dense / hybrid / + bge-reranker at depth 20 (fp32, then fp16; max_length 512), TREC runs -> bench/results/beir_fiqa.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa --data-dir $(BEIR_DATA_DIR) --only $(BEIR_FIQA_ROWS) --trec-dir bench/results/beir_fiqa_trec --out bench/results/beir_fiqa.json
 
+# M41: the current open models on BEIR beside the committed bge rows, recomputed in the run (bm25, dense@bge-small,
+# hybrid@bge-small and the bge reranker at top 20 / fp32 / max_length 512): every model must load and pass its
+# load-and-score check; whether the parents equal the committed file's rows (and, for FiQA, its TREC runs) is recorded.
+.PHONY: bench-beir-models-2026 bench-beir-fiqa-models-2026 bench-beir-models-2026-harrier bench-beir-fiqa-models-2026-harrier
+bench-beir-models-2026: ## BEIR SciFact: Qwen3-Embedding 0.6B/8B (dense, hybrid), mxbai-rerank-base/large-v2 and Qwen3-Reranker 0.6B/8B over hybrid@bge-small, each vs its bge parent (needs .[ml] and a 48 GB GPU) -> bench/results/beir_scifact_models_2026.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder models-2026 --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact_models_2026.json
+
+bench-beir-fiqa-models-2026: ## BEIR FiQA: the same rows (needs .[ml] and a 48 GB GPU) -> bench/results/beir_fiqa_models_2026.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder models-2026 --dataset fiqa --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_fiqa_models_2026.json
+
+bench-beir-models-2026-harrier: ## BEIR SciFact: harrier-oss-v1-27b (dense, hybrid) vs bge-small (needs .[ml] and an 80 GB GPU) -> bench/results/beir_scifact_models_2026_harrier.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder models-2026-harrier --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_scifact_models_2026_harrier.json
+
+bench-beir-fiqa-models-2026-harrier: ## BEIR FiQA: harrier-oss-v1-27b (dense, hybrid) vs bge-small (needs .[ml] and an 80 GB GPU) -> bench/results/beir_fiqa_models_2026_harrier.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder models-2026-harrier --dataset fiqa --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_fiqa_models_2026_harrier.json
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)

@@ -41,6 +41,20 @@ def test_device_info_works_without_cuda():
     assert info["device"] == "cpu" and "python" in info and "torch" in info
 
 
+def test_device_info_names_the_cpu_model(monkeypatch, tmp_path):
+    """M41: a CPU latency names the processor it was measured on, from /proc/cpuinfo (None without one)."""
+    import app.eval.provenance as prov
+
+    cpuinfo = tmp_path / "cpuinfo"
+    cpuinfo.write_text("processor\t: 0\nvendor_id\t: GenuineIntel\nmodel name\t: Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz\n")
+    real = prov.Path
+    monkeypatch.setattr(prov, "Path", lambda p: real(cpuinfo) if p == "/proc/cpuinfo" else real(p))
+    assert prov.cpu_model() == "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz"
+    assert device_info("cpu")["cpu_model"] == "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz"
+    monkeypatch.setattr(prov, "Path", lambda p: real(tmp_path / "missing") if p == "/proc/cpuinfo" else real(p))
+    assert prov.cpu_model() is None
+
+
 # ---- the sanitizer: no absolute path, user name or host name in a recorded command or machine description
 
 USER, HOST = "jdoe42", "node-17.cluster.example.edu"

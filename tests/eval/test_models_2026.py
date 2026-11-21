@@ -6,14 +6,15 @@ tested is the wiring: which rows exist and what each changes, that a model that 
 the run (no overlap fallback, nothing written), what a row records, and the reproduction check.
 """
 
+import hashlib
 import json
 import math
-from dataclasses import fields
+from dataclasses import asdict, fields
 from pathlib import Path
 
 import pytest
 
-from app.eval import harness, models_2026
+from app.eval import beir, harness, models_2026
 from app.eval.gold import load_gold
 from app.eval.harness import BenchConfig, models_2026_comparisons, models_2026_configs, run_bench, run_config
 from app.eval.index_loader import build_index
@@ -227,3 +228,141 @@ def test_a_checked_run_records_the_parents_reproduction_and_writes_nothing_else(
     assert written["reproduces"][0]["rows"] == {"bm25_only": {"equal": True}} and written["reproduces_all"] is True
     assert written["models_2026"] == {"set": "test"} and blob["results"][1]["vs_parent"]["parent"] == "bm25_only"
     assert (tmp_path / "models_2026_check.per_query.json").exists()
+
+
+# ---- M41 on BEIR (make bench-beir-models-2026, bench-beir-fiqa-models-2026): the new models beside the committed bge
+# rows recomputed in the same run, on a synthetic six-document dataset with stand-in models. Tested: the ladder (each
+# row one change from a committed row), that the runner releases a model after its last row, the extra paired
+# comparisons, the ranking hash a recomputed parent is checked with, and the load-and-score check.
+
+
+def _write_beir_dataset(root):
+    """Six documents, two judged queries (the layout BEIR's archives extract to)."""
+    d = root / "scifact"
+    (d / "qrels").mkdir(parents=True)
+    docs = {"d1": ("Cell division", "Cells divide rapidly during embryonic growth."), "d2": ("Star formation", "Stars form in collapsing molecular clouds."),
+            "d3": ("Vaccines", "Vaccination reduces measles incidence in children."), "d4": ("Diet", "Dietary fibre intake lowers colon cancer risk."),
+            "d5": ("Sleep", "Sleep deprivation impairs memory consolidation."), "d6": ("Exercise", "Aerobic exercise improves cardiac output.")}
+    (d / "corpus.jsonl").write_text("".join(json.dumps({"_id": k, "title": t, "text": x}) + "\n" for k, (t, x) in docs.items()))
+    (d / "queries.jsonl").write_text("".join(json.dumps({"_id": k, "text": x}) + "\n" for k, x in
+                                             {"q1": "do cells divide during growth", "q2": "vaccination and measles in children"}.items()))
+    (d / "qrels" / "test.tsv").write_text("query-id\tcorpus-id\tscore\nq1\td1\t1\nq2\td3\t1\n")
+
+
+@pytest.fixture
+def snowball():
+    pytest.importorskip("snowballstemmer")  # the BEIR analyzer's stemmer
+
+
+def _beir_changed(cfg, parent):
+    a, b = asdict(cfg), asdict(parent)
+    return {k for k in a if k not in {"name", "parent"} and a[k] != b[k]}
+
+
+def test_every_beir_row_is_one_model_away_from_a_committed_bge_row():
+    ladder = beir.models_2026_configs("main")
+    by = {c.name: c for c in ladder}
+    assert [c.name for c in ladder[:4]] == list(beir.MODELS_2026_PARENTS)
+    default = {c.name: c for c in beir.DEFAULT_CONFIGS}
+    for name in beir.MODELS_2026_PARENTS:  # the committed rows' settings; the capped reranker row's parent is hybrid, as in beir_fiqa.json
+        assert _beir_changed(by[name], default[name]) == set()
+    assert by[beir.RERANK_FP32_512].parent == "hybrid@bge-small"
+    assert set(by) - set(beir.MODELS_2026_PARENTS) == {
+        "dense@qwen3-emb-0.6b", "hybrid@qwen3-emb-0.6b", "dense@qwen3-emb-8b", "hybrid@qwen3-emb-8b",
+        "hybrid+mxbai-rerank-base-v2@bge-small/fp32-512/top20", "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "hybrid+qwen3-rerank-0.6b@bge-small/fp32-512/top20", "hybrid+qwen3-rerank-8b@bge-small/bf16-512/top20"}
+    for cfg in ladder[4:]:
+        changed = _beir_changed(cfg, by[cfg.parent])
+        if cfg.reranker:  # the bge row's settings (top 20, max_length 512); Qwen3-Reranker-8B also in bf16
+            assert cfg.parent == beir.RERANK_FP32_512 and (cfg.rerank_top, cfg.max_length) == (20, 512)
+            assert changed == ({"reranker", "precision"} if cfg.precision == "bf16" else {"reranker"}), cfg.name
+        else:
+            assert changed == {"embedder"} and by[cfg.parent].embedder == beir.BGE_SMALL, cfg.name
+    # a new embedder's two rows are next to each other, so the runner releases it after the second
+    for tag in ("qwen3-emb-0.6b", "qwen3-emb-8b"):
+        assert [c.name for c in ladder].index(f"hybrid@{tag}") == [c.name for c in ladder].index(f"dense@{tag}") + 1
+    harrier = [c.name for c in beir.models_2026_configs("harrier")]
+    assert harrier == ["bm25", "dense@bge-small", "hybrid@bge-small", "dense@harrier-27b", "hybrid@harrier-27b"]
+    assert {"models-2026", "models-2026-harrier"} <= set(beir.LADDERS)
+
+
+def test_the_beir_comparisons():
+    pairs = beir.models_2026_comparisons(beir.models_2026_configs("main"))
+    assert ("hybrid@qwen3-emb-8b", "dense@qwen3-emb-8b") in pairs
+    assert ("hybrid+qwen3-rerank-8b@bge-small/bf16-512/top20", "hybrid@bge-small") in pairs
+    assert (beir.RERANK_FP32_512, "hybrid@bge-small") not in pairs  # its parent delta already
+
+
+def test_the_runner_releases_each_model_after_its_last_row():
+    engine = beir.Engine(beir.chunks_from_corpus({"d1": "a b", "d2": "c d"}), device="cpu")
+    engine._embedders.update({"st:a": object(), "st:b": object()})
+    engine._doc_mats.update({"st:a": 1, "st:b": 2})
+    engine._unit_mats.update({"st:a": 1, "st:b": 2})
+    key_x, key_y = engine.reranker_key("x/rerank", "fp32", 512), engine.reranker_key("y/rerank", "bf16", 512)
+    engine._rerankers.update({key_x: object(), key_y: object()})
+    engine.provenance.update({"st:b": {"model": "b"}, key_y: {"model": "y"}})
+    later = [beir.BeirConfig(name="hybrid@a+x", mode="hybrid", embedder="st:a", reranker="x/rerank", max_length=512)]
+    engine.release_unused(later)
+    assert set(engine._embedders) == {"st:a"} and set(engine._doc_mats) == set(engine._unit_mats) == {"st:a"}
+    assert set(engine._rerankers) == {key_x}
+    assert engine.provenance["st:b"] == {"model": "b"} and engine.provenance[key_y] == {"model": "y"}  # what ran stays recorded
+    engine.release_unused([])
+    assert not engine._embedders and not engine._rerankers
+
+
+def test_a_recomputed_parent_is_checked_against_the_committed_rows_and_their_trec_run(tmp_path, snowball):
+    _write_beir_dataset(tmp_path)
+    configs = [beir.BeirConfig(name="bm25", mode="bm25"),
+               beir.BeirConfig(name="dense@hash", mode="dense", embedder="hash", parent="bm25"),
+               beir.BeirConfig(name="hybrid@hash", mode="hybrid", embedder="hash", parent="dense@hash")]
+    first = beir.run(tmp_path, configs, device="cpu", n_boot=50, download=False, root=tmp_path, trec_dir=tmp_path / "trec")
+    bm25 = first["results"][0]
+    assert bm25["ranking_sha256"] == bm25["trec"]["run_sha256"]  # the hash is the written run file's
+    assert bm25["ranking_sha256"] == hashlib.sha256((tmp_path / "trec" / "bm25.run").read_bytes()).hexdigest()
+    committed = tmp_path / "bench" / "results" / "committed.json"
+    committed.parent.mkdir(parents=True)
+    first["results"][1]["retrieval"]["ndcg@10"] = -1.0  # the committed dense row differs
+    committed.write_text(json.dumps(first))
+    blob = beir.run(tmp_path, configs, device="cpu", n_boot=50, download=False, root=tmp_path,
+                    reproduce=("bench/results/committed.json", ("bm25", "dense@hash", "not-run")),
+                    comparisons=[("hybrid@hash", "dense@hash")], header={"models_2026": {"set": "test"}})
+    rep = blob["reproduces"]
+    assert rep["rows"]["bm25"] == {"equal": True, "ranking_equal": True}
+    assert rep["rows"]["dense@hash"]["equal"] is False and rep["rows"]["dense@hash"]["differs"]["ndcg@10"][0] == -1.0
+    assert "not-run" not in rep["rows"] and rep["all"] is False
+    cmp = blob["bootstrap"]["comparisons"]
+    assert [(c["row"], c["other"]) for c in cmp] == [("hybrid@hash", "dense@hash")] and set(cmp[0]) >= {"ndcg@10", "recall@100"}
+    assert blob["models_2026"] == {"set": "test"}
+    assert beir.run(tmp_path, configs, device="cpu", n_boot=50, download=False, root=tmp_path, max_queries=1,
+                    reproduce=("bench/results/committed.json", ("bm25",))).get("reproduces") is None  # a subset reproduces nothing
+
+
+def test_a_checked_engine_records_each_model_check_and_stops_on_a_failure(monkeypatch):
+    monkeypatch.setattr(beir, "get_cross_encoder", lambda name, **kw: _OverlapCrossEncoder(inverted=name == "inverted/rerank"))
+    engine = beir.Engine(beir.chunks_from_corpus({"d1": "a b"}), device="cpu", check_models=True)
+    engine.reranker("some/rerank", "fp32", 512)
+    check = engine.provenance[engine.reranker_key("some/rerank", "fp32", 512)]["load_and_score"]
+    assert check["passed"] is True and check["query"] == models_2026.CHECK_QUERY
+    with pytest.raises(models_2026.ModelCheckFailed):
+        engine.reranker("inverted/rerank", "fp32", 512)
+    unchecked = beir.Engine(beir.chunks_from_corpus({"d1": "a b"}), device="cpu")
+    unchecked.reranker("inverted/rerank", "fp32", 512)  # the committed ladders run as before: no check
+    assert "load_and_score" not in unchecked.provenance[unchecked.reranker_key("inverted/rerank", "fp32", 512)]
+
+
+def test_the_cli_runs_a_models_2026_ladder_checked_and_compared_with_the_committed_file(monkeypatch, tmp_path):
+    seen = {}
+
+    def fake_run(data_dir, configs, **kwargs):
+        seen.update(kwargs, names=[c.name for c in configs])
+        return {"dataset": "BEIR/fiqa", "split": "test", "n_docs": 1, "n_queries": 1, "published": None, "results": []}
+
+    monkeypatch.setattr(beir, "run", fake_run)
+    assert beir.main(["--ladder", "models-2026", "--dataset", "fiqa", "--data-dir", str(tmp_path), "--out", str(tmp_path / "x.json")]) == 0
+    assert seen["check_models"] is True and seen["reproduce"][0] == "bench/results/beir_fiqa.json"
+    assert seen["reproduce"][1] == beir.MODELS_2026_PARENTS and seen["header"]["models_2026"]["set"] == "main"
+    assert ("hybrid@qwen3-emb-0.6b", "dense@qwen3-emb-0.6b") in seen["comparisons"]
+    assert seen["names"] == [c.name for c in beir.models_2026_configs("main")]
+    seen.clear()
+    beir.main(["--ladder", "default", "--data-dir", str(tmp_path), "--out", str(tmp_path / "y.json")])
+    assert "check_models" not in seen and "reproduce" not in seen  # the committed ladders run as before
