@@ -2297,7 +2297,9 @@ would at once ask for routes the public demo does not serve. The demo page (`.fr
 question box, capped at the routes' length limit. Search posts it to `/api/retrieve/` (`SEARCH_K` hits) and lists
 each hit's path, byte range, per-stage scores and a snippet, under the lexical backend, the embedder and the reranker
 the response names; when the response says the server runs without the reranker, a note says so and links the
-reranker's measured gain in the README. Ask posts it to `/api/answer/` (`ANSWER_K` excerpts) and shows the answer
+README's benchmark tables, and Ask shows the same note when the `/health` answer the page read at load says so (a page
+loaded while the API was still starting has no reranker field there, and shows none). Ask posts it to
+`/api/answer/` (`ANSWER_K` excerpts) and shows the answer
 with numbered markers, each linking to the passage it cites (path, cited text, byte range), and the hits. The
 response does not say where in the answer each citation belongs, so the markers follow the answer. An answer route
 response without an answer shows its reason in plain words (an uncited reply apart, labelled unverified), a quota

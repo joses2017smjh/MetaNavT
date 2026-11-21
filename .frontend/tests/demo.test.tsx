@@ -201,10 +201,15 @@ describe("the demo page", () => {
     screen.getByText(
       /lexical ts_rank_cd \(PostgreSQL full-text rank, not BM25\) · embeddings huggingface · reranker BAAI\/bge-reranker-v2-m3 · 42 ms/,
     );
-    assert.equal(screen.queryByText(/Reranker: off on this server/), null);
+    // a boolean, not the element: a failure that prints a jsdom node can exhaust the test runner's memory
+    assert.equal(
+      screen.queryByText(/Reranker: off on this server/) === null,
+      true,
+      "a reranker note is shown",
+    );
   });
 
-  it("says when the server runs without the reranker, and links its measured gain", async () => {
+  it("says when the server runs without the reranker, and links the README's benchmark tables", async () => {
     mockApi(() =>
       json({
         ...RETRIEVED,
@@ -216,12 +221,67 @@ describe("the demo page", () => {
     send("Search");
 
     const note = await screen.findByText(/^Reranker: off on this server/);
+    const link = within(note).getByRole("link", {
+      name: /Neural models on the fixture/,
+    });
+    // the section's own heading: the table sits in a collapsed block, which a link into it would not open
     assert.equal(
-      within(note).getByRole("link").getAttribute("href"),
-      `${REPOSITORY}#bench-neural`,
+      link.getAttribute("href"),
+      `${REPOSITORY}#generated-benchmark-evidence`,
     );
     screen.getByText(/ · reranker off · /);
   });
+
+  it("shows the reranker note on Ask too when /health said the reranker is off", async () => {
+    const calls = mockApi((call: Call) =>
+      call.path === "/health"
+        ? json({ status: "ok", public_demo: true, reranker_loaded: false })
+        : json(answered({ reason: "answers off" })),
+    );
+    render(<HomeSwitch />);
+    await screen.findByLabelText("Question");
+    send("Ask");
+
+    await screen.findByRole("heading", { name: "No answer" });
+    const note = screen.getByText(/^Reranker: off on this server/);
+    assert.equal(
+      within(note).getByRole("link").getAttribute("href"),
+      `${REPOSITORY}#generated-benchmark-evidence`,
+    );
+    assert.deepEqual(
+      calls.map((call) => `${call.method} ${call.path}`),
+      ["GET /health", "POST /api/answer/"], // no extra request: the page read /health once, at load
+    );
+  });
+
+  const noNote: [string, Record<string, unknown>][] = [
+    [
+      "the reranker is loaded",
+      { status: "ok", public_demo: true, reranker_loaded: true },
+    ],
+    [
+      "/health did not say (an API still starting)",
+      { status: "unavailable", public_demo: true },
+    ],
+  ];
+  for (const [when, health] of noNote)
+    it(`shows no reranker note on Ask when ${when}`, async () => {
+      mockApi((call: Call) =>
+        call.path === "/health"
+          ? json(health, health.status === "ok" ? 200 : 503)
+          : json(answered({ reason: "answers off" })),
+      );
+      render(<HomeSwitch />);
+      await screen.findByLabelText("Question");
+      send("Ask");
+
+      await screen.findByRole("heading", { name: "No answer" });
+      assert.equal(
+        screen.queryByText(/^Reranker: off on this server/) === null,
+        true,
+        "a reranker note is shown",
+      );
+    });
 
   it("asks: POST /api/answer/ with k 6, numbering each cited passage, linked to its excerpt", async () => {
     const calls = mockApi(() =>

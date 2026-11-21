@@ -78,18 +78,33 @@ export type Outcome<T> =
   | { ok: true; data: T }
   | { ok: false; failure: RequestFailure };
 
-// Whether the API on this origin runs the public demo: GET /health's public_demo, read from its 503 too (an API that is
-// still starting). Anything else (no API here, a development server's 404 page, a network error, an API from before
-// the flag) means the chat interface, as before.
-export async function isPublicDemo(): Promise<boolean> {
+// What GET /health on this origin says that the page uses: whether the API runs the public demo (public_demo, read
+// from its 503 too: an API that is still starting), and whether its reranker is loaded (reranker_loaded; null when
+// the answer does not say, as a starting API's does not). Anything else (no API here, a development server's 404
+// page, a network error, an API from before the flag) means the chat interface, as before.
+export interface HealthInfo {
+  publicDemo: boolean;
+  rerankerLoaded: boolean | null;
+}
+
+export async function readHealth(): Promise<HealthInfo> {
   try {
     const response = await apiFetch(HEALTH_PATH, {
       headers: { accept: "application/json" },
     });
-    const body = (await response.json()) as { public_demo?: unknown } | null;
-    return body?.public_demo === true;
+    const body = (await response.json()) as {
+      public_demo?: unknown;
+      reranker_loaded?: unknown;
+    } | null;
+    return {
+      publicDemo: body?.public_demo === true,
+      rerankerLoaded:
+        typeof body?.reranker_loaded === "boolean"
+          ? body.reranker_loaded
+          : null,
+    };
   } catch {
-    return false;
+    return { publicDemo: false, rerankerLoaded: null };
   }
 }
 
