@@ -11,7 +11,7 @@ import numpy as np
 
 from app.eval.latency import StageTimer
 from app.retrieval.bm25 import BM25Index
-from app.retrieval.embedders import Embedder, HashEmbedder
+from app.retrieval.embedders import Embedder, HashEmbedder, encode_queries
 from app.retrieval.fuse import RRF_K, rrf_score_map
 from app.retrieval.router import QueryRouter, RouteDecision, RouteType
 from app.retrieval.types import Chunk, RetrievalHit
@@ -133,7 +133,7 @@ class InMemoryHybridIndex:
 
     def search_dense(self, query: str, k: int | None = None, query_vec: np.ndarray | None = None) -> list[tuple[Chunk, float]]:
         k = k or self.retrieve_k
-        qv = query_vec if query_vec is not None else self.embedder.encode([query])[0]
+        qv = query_vec if query_vec is not None else encode_queries(self.embedder, [query])[0]
         scores = dense_scores(qv, self.doc_mat)
         return [(self.chunks[i], float(scores[i])) for i in rank_by_score(scores, k)]
 

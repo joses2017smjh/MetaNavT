@@ -44,6 +44,7 @@ from app.retrieval.cache import SemanticCache
 from app.retrieval.distill import bench_log_triples, write_triples
 from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit
 from app.retrieval.hyde import hyde_embed
+from app.retrieval.rerank import CrossEncoderReranker, cross_encoder_provenance
 
 
 def project_root() -> Path:
@@ -618,12 +619,18 @@ def run_config(
             # parity run sets it.
             "query_instruction": None,
             **({"library": _sklearn_versions()} if cfg.embedder == "tfidf" else {}),
+            # a sentence-transformers embedder's query prompt (the models of QUERY_PROMPT_NAMES; None for bge), dtype
+            # and batch size (M41); the hash and TF-IDF embedders have none, so main.json's rows are unchanged
+            **(index.embedder.provenance() if hasattr(index.embedder, "provenance") else {}),
         },
         "reranker": {
             **model_provenance(cfg.reranker, "reranker"),
             "loaded": payload["reranker_loaded"],
             "device": model_device(rerank_model) if payload["reranker_loaded"] else None,
             **_rerank_settings(cfg, rerank_model if payload["reranker_loaded"] else None),
+            # a loaded cross-encoder's dtype, token cap and default prompt (M41); nothing for the overlap reranker
+            **(cross_encoder_provenance(rerank_model) if payload["reranker_loaded"] and rerank_model is not None
+               and isinstance(getattr(index, "rerank_fn", None), CrossEncoderReranker) else {}),
         },
     }
     fallback = getattr(index, "reranker_fallback", None)

@@ -55,10 +55,10 @@ from app.eval.metrics import mrr_at_k, recall_at_k
 from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
-from app.retrieval.embedders import HashEmbedder
+from app.retrieval.embedders import HashEmbedder, encode_queries
 from app.retrieval.fuse import rrf_score_map
 from app.retrieval.hybrid import dense_scores, rank_by_score, unit_rows
-from app.retrieval.rerank import OverlapReranker, cross_encoder_scores, get_cross_encoder
+from app.retrieval.rerank import OverlapReranker, cross_encoder_provenance, cross_encoder_scores, get_cross_encoder
 from app.retrieval.types import Chunk
 
 SCIFACT_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip"
@@ -97,7 +97,7 @@ class BeirConfig:
     k: int = 100
     rrf_k: int = 60
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
-    precision: str = "fp32"  # reranker weights: fp32 | fp16 (CUDA only)
+    precision: str = "fp32"  # reranker weights: fp32 | fp16 | bf16 (the half precisions on CUDA only)
     max_length: int | None = None  # reranker token cap; None = the model's own
     query_instruction: str | None = None  # prefix added to queries only (bge-v1.5 recommends one)
 
@@ -315,11 +315,14 @@ class Engine:
                     self._embedders[name]._model.to(self.device)
             else:
                 raise ValueError(f"unknown embedder {name!r}")
+            emb = self._embedders[name]
             self.provenance[name] = {
                 **model_provenance(name, "embedder"),
-                "dim": int(self._embedders[name].dim),
-                "device": model_device(getattr(self._embedders[name], "_model", None)),
+                "dim": int(emb.dim),
+                "device": model_device(getattr(emb, "_model", None)),
                 "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used
+                # the query prompt, dtype and batch size of a sentence-transformers embedder (M41)
+                **(emb.provenance() if hasattr(emb, "provenance") else {}),
             }
         return self._embedders[name]
 
@@ -333,11 +336,14 @@ class Engine:
             mat = np.load(cache)
             if mat.shape != (len(self.chunks), emb.dim) or not np.isfinite(mat).all():
                 raise RuntimeError(f"invalid embedding cache {cache}: expected {(len(self.chunks), emb.dim)}, got {mat.shape}")
+            source = "read from the on-disk cache (an earlier run computed them)"
         else:
             mat = emb.encode([c.text for c in self.chunks])
             if cache:
                 cache.parent.mkdir(parents=True, exist_ok=True)
                 np.save(cache, mat)
+            source = "computed in this run"
+        self.provenance[name]["doc_embeddings"] = source
         self._doc_mats[name] = mat
         return mat
 
@@ -359,7 +365,9 @@ class Engine:
                 self._rerankers[key] = OverlapReranker()
                 self.provenance[key] = {**model_provenance("overlap", "reranker"), "loaded": True}
             else:
-                model = get_cross_encoder(name, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device)
+                # raise_errors: a model that does not load stops the run with the reason (never a fallback)
+                model = get_cross_encoder(name, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device,
+                                          raise_errors=True)
                 if model is None:
                     raise RuntimeError(f"reranker {name} not available (set BGE_ALLOW_DOWNLOAD=1 or cache it)")
                 inner = getattr(model, "model", None)
@@ -371,6 +379,8 @@ class Engine:
                     "dtype": str(getattr(inner, "dtype", None)) if inner is not None else None,
                     "max_length": max_length or getattr(model, "max_length", None),
                     "score_scale": "sigmoid probability in [0, 1]",
+                    # M41: the default prompt a causal-LM reranker puts before every pair (Qwen3-Reranker), its token cap
+                    **{k: v for k, v in cross_encoder_provenance(model).items() if k != "dtype"},
                 }
                 self._rerankers[key] = model
         return self._rerankers[key]
@@ -419,7 +429,11 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
         unit = engine.unit_matrix(cfg.embedder)
         with timer.stage("embed"):
-            qv = engine.embedder(cfg.embedder).encode([(cfg.query_instruction or "") + query])[0]
+            embedder = engine.embedder(cfg.embedder)
+            # a config's typed instruction (the bge rows) is prepended as before; otherwise the model's own query
+            # prompt, when it has one (QUERY_PROMPT_NAMES), else the bare query: encode_queries() is encode() then
+            qv = (embedder.encode([cfg.query_instruction + query]) if cfg.query_instruction
+                  else encode_queries(embedder, [query]))[0]
         with timer.stage("dense"):
             # The fixture benchmark's dense ranking (M10): float64 cosine rounded to DENSE_SCORE_DECIMALS,
             # descending, exact ties in corpus order. np.argsort over float32 cosines left ties to the sort
@@ -444,10 +458,10 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
 
 
 def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]], *, trec_dir: Path | None = None, require_trec_eval: bool = False) -> dict[str, Any]:
-    if cfg.precision == "fp16" and cfg.reranker not in {None, "overlap"}:
+    if cfg.precision in {"fp16", "bf16"} and cfg.reranker not in {None, "overlap"}:
         import torch
         if engine.device == "cpu" or not torch.cuda.is_available():
-            raise RuntimeError("fp16 ablations require CUDA; CPU fallback would not measure precision")
+            raise RuntimeError(f"{cfg.precision} ablations require CUDA; CPU fallback would not measure precision")
     build = engine.build(cfg)  # index, embeddings, model loads: reported separately, never inside a query
     first = next(iter(queries.values()))
     retrieve(engine, cfg, first, StageTimer())  # warm-up (CUDA kernels, caches); excluded from the stats
@@ -477,6 +491,8 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
     models = {}
     if cfg.embedder:
         models["embedder"] = {**(engine.provenance.get(cfg.embedder) or {}), "query_instruction": cfg.query_instruction}
+        if cfg.query_instruction and models["embedder"].get("query_prompt_name"):  # the typed instruction replaces the model's prompt
+            models["embedder"].update(query_prompt_name=None, query_prompt=None)
     if cfg.reranker:
         models["reranker"] = engine.provenance.get(engine.reranker_key(cfg.reranker, cfg.precision, cfg.max_length))
     return {
