@@ -120,6 +120,19 @@ bench/results/agent_injection_adaptive_tune/
 !bench/results/file_depth.json
 !bench/results/file_depth.per_query.json
 !bench/results/rrf_sweep_hash.json
+# M41: the current open models beside their bge parents, recomputed in each run: fixture v1 (make bench-models-2026,
+# bench-models-2026-harrier, bench-models-2026-cpu) with their per-question sidecars, and BEIR SciFact and FiQA
+# (make bench-beir-models-2026, bench-beir-fiqa-models-2026 and their -harrier runs)
+!bench/results/models_2026.json
+!bench/results/models_2026.per_query.json
+!bench/results/models_2026_harrier.json
+!bench/results/models_2026_harrier.per_query.json
+!bench/results/models_2026_cpu.json
+!bench/results/models_2026_cpu.per_query.json
+!bench/results/beir_scifact_models_2026.json
+!bench/results/beir_fiqa_models_2026.json
+!bench/results/beir_scifact_models_2026_harrier.json
+!bench/results/beir_fiqa_models_2026_harrier.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

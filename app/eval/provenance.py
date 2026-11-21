@@ -141,6 +141,18 @@ def ollama_model_provenance(model_name: str, role: str, tags: Mapping[str, Mappi
             "parameter_size": details.get("parameter_size"), "size_bytes": entry.get("size")}
 
 
+def cpu_model() -> str | None:
+    """The processor's model name as /proc/cpuinfo gives it, so a CPU latency names the CPU it was measured on (M41);
+    None where there is no /proc/cpuinfo."""
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.lower().startswith("model name") and ":" in line:
+                return line.split(":", 1)[1].strip() or None
+    except OSError:
+        pass
+    return None
+
+
 def device_info(requested: str = "auto") -> dict:
     """torch / CUDA facts for the results header. Works without torch installed."""
     info: dict = {
@@ -148,6 +160,7 @@ def device_info(requested: str = "auto") -> dict:
         "python": platform.python_version(),
         "platform": platform.platform(),
         "cpu_count": os.cpu_count(),
+        "cpu_model": cpu_model(),
     }
     try:
         import torch  # type: ignore

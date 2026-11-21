@@ -55,10 +55,10 @@ from app.eval.metrics import mrr_at_k, recall_at_k
 from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sanitize_path
 from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, mean_ci, paired_delta_ci, resample_indices, settings as bootstrap_settings
 from app.retrieval.bm25 import BM25Index
-from app.retrieval.embedders import HashEmbedder
+from app.retrieval.embedders import HashEmbedder, encode_queries
 from app.retrieval.fuse import rrf_score_map
 from app.retrieval.hybrid import dense_scores, rank_by_score, unit_rows
-from app.retrieval.rerank import OverlapReranker, cross_encoder_scores, get_cross_encoder
+from app.retrieval.rerank import OverlapReranker, cross_encoder_provenance, cross_encoder_scores, get_cross_encoder
 from app.retrieval.types import Chunk
 
 SCIFACT_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip"
@@ -97,7 +97,7 @@ class BeirConfig:
     k: int = 100
     rrf_k: int = 60
     parent: str | None = None  # the row this one is a single change away from (paired delta target)
-    precision: str = "fp32"  # reranker weights: fp32 | fp16 (CUDA only)
+    precision: str = "fp32"  # reranker weights: fp32 | fp16 | bf16 (the half precisions on CUDA only)
     max_length: int | None = None  # reranker token cap; None = the model's own
     query_instruction: str | None = None  # prefix added to queries only (bge-v1.5 recommends one)
 
@@ -125,7 +125,54 @@ BM25_ABLATION_CONFIGS = [
     BeirConfig(name="bm25@k1-1.5-b-0.75", mode="bm25", k1=1.5, b=0.75, parent="bm25"),
     DEFAULT_CONFIGS[1],
 ]
-LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS}
+
+
+def models_2026_configs(which: str = "main") -> list[BeirConfig]:
+    """M41: the current open models (app/eval/models_2026.py) beside the committed bge rows, recomputed in the same run.
+    Parents: bm25, dense@bge-small, hybrid@bge-small and the bge-reranker-v2-m3 row at the settings both committed files
+    have (RERANK_FP32_512: top 20, fp32, max_length 512). An embedder's dense and hybrid rows are paired with
+    bge-small's; a reranker over hybrid@bge-small with the bge reranker row, at its settings (Qwen3-Reranker-8B in
+    bf16). The 512-token cap counts the causal-LM rerankers' chat template too, so their passages get fewer tokens.
+    main: Qwen3-Embedding 0.6B and 8B, four rerankers; harrier: harrier-oss-v1-27b (an 80 GB GPU)."""
+    from app.eval.models_2026 import EMBEDDERS, HARRIER, RERANKERS
+
+    if which not in ("main", "harrier"):
+        raise ValueError(f"unknown models-2026 set {which!r}; expected main or harrier")
+    by = {c.name: c for c in DEFAULT_CONFIGS}
+    embedders = [t for t in EMBEDDERS if t != HARRIER] if which == "main" else [HARRIER]
+    rerankers = list(RERANKERS) if which == "main" else []
+    configs = [replace(by[n]) for n in ("bm25", "dense@bge-small", "hybrid@bge-small")]
+    if rerankers:
+        configs.append(replace(by[RERANK_FP32_512], parent="hybrid@bge-small"))  # as in beir_fiqa.json (its uncapped parent is not run)
+    for tag in embedders:  # a model's rows next to each other: it is released after its last row (Engine.release_unused)
+        configs.append(BeirConfig(name=f"dense@{tag}", mode="dense", embedder=EMBEDDERS[tag], parent="dense@bge-small"))
+        configs.append(BeirConfig(name=f"hybrid@{tag}", mode="hybrid", embedder=EMBEDDERS[tag], parent="hybrid@bge-small"))
+    for tag in rerankers:
+        model, precision = RERANKERS[tag]
+        configs.append(BeirConfig(name=f"hybrid+{tag}@bge-small/{precision}-512/top20", mode="hybrid", embedder=BGE_SMALL, reranker=model,
+                                  rerank_top=20, precision=precision, max_length=512, parent=RERANK_FP32_512))
+    return configs
+
+
+MODELS_2026_LADDERS = {"models-2026": "main", "models-2026-harrier": "harrier"}
+# The committed file each dataset's recomputed parents are compared with (app.eval.models_2026.reproduces).
+COMMITTED_FILES = {"scifact": "bench/results/beir_scifact.json", "fiqa": "bench/results/beir_fiqa.json"}
+MODELS_2026_PARENTS = ("bm25", "dense@bge-small", "hybrid@bge-small", RERANK_FP32_512)
+LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS,
+           **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()}}
+
+
+def models_2026_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
+    """Beside the parent deltas: a new embedder's hybrid row against its own dense row, and each new reranker's row
+    against the unreranked hybrid@bge-small (what the reranker adds, as the bge row's own parent delta shows)."""
+    names = {c.name for c in configs}
+    out = []
+    for c in configs:
+        if c.mode == "hybrid" and not c.reranker and c.name != "hybrid@bge-small" and c.name.replace("hybrid@", "dense@", 1) in names:
+            out.append((c.name, c.name.replace("hybrid@", "dense@", 1)))
+        if c.reranker and c.parent != "hybrid@bge-small" and "hybrid@bge-small" in names:
+            out.append((c.name, "hybrid@bge-small"))
+    return out
 
 
 # ---------------------------------------------------------------- data
@@ -249,6 +296,11 @@ def cross_check_metrics(rankings: dict[str, list[str]], qrels: dict[str, dict[st
     return {"status": "passed", "implementation": "pytrec_eval/trec_eval", "n_queries": len(per_query), "metrics": list(mapping), "max_absolute_difference": maximum}
 
 
+def trec_run_text(cfg: BeirConfig, rankings: dict[str, list[str]]) -> str:
+    """A config's rankings as the TREC run file write_trec_outputs writes; its sha256 is the row's ranking_sha256."""
+    return "".join(f"{qid} Q0 {did} {i + 1} {len(ids) - i} {_slug(cfg.name)}\n" for qid, ids in rankings.items() for i, did in enumerate(ids))
+
+
 def write_trec_outputs(directory: Path, cfg: BeirConfig, rankings: dict[str, list[str]], qrels: dict[str, dict[str, int]]) -> dict:
     directory.mkdir(parents=True, exist_ok=True)
     run_path = directory / f"{_slug(cfg.name)}.run"
@@ -257,7 +309,7 @@ def write_trec_outputs(directory: Path, cfg: BeirConfig, rankings: dict[str, lis
     for qid, ids in rankings.items():
         if len(ids) != len(set(ids)) or any(any(c.isspace() for c in value) for value in [qid, *ids]):
             raise ValueError("TREC ids must be unique per ranking and contain no whitespace")
-    run_path.write_text("".join(f"{qid} Q0 {did} {i + 1} {len(ids) - i} {_slug(cfg.name)}\n" for qid, ids in rankings.items() for i, did in enumerate(ids)))
+    run_path.write_text(trec_run_text(cfg, rankings))
     qrels_path.write_text("".join(f"{qid} 0 {did} {grade}\n" for qid, docs in qrels.items() for did, grade in docs.items()))
     # TREC run files cannot represent a query with zero retrieved documents.
     # Preserve its identity and the original bootstrap order separately.
@@ -280,7 +332,10 @@ def _slug(name: str) -> str:
 class Engine:
     """Shares indexes, embeddings and models across configs; caches doc embeddings on disk."""
 
-    def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto"):
+    def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto", check_models: bool = False):
+        """check_models (M41): every model, once loaded, passes its load-and-score check (app/eval/models_2026.py; recorded
+        in its provenance) or the run stops."""
+        self.check_models = check_models
         self.chunks = chunks
         self.by_id = {c.chunk_id: c for c in chunks}
         self.cache_dir = cache_dir
@@ -315,12 +370,19 @@ class Engine:
                     self._embedders[name]._model.to(self.device)
             else:
                 raise ValueError(f"unknown embedder {name!r}")
+            emb = self._embedders[name]
             self.provenance[name] = {
                 **model_provenance(name, "embedder"),
-                "dim": int(self._embedders[name].dim),
-                "device": model_device(getattr(self._embedders[name], "_model", None)),
+                "dim": int(emb.dim),
+                "device": model_device(getattr(emb, "_model", None)),
                 "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used
+                # the query prompt, dtype and batch size of a sentence-transformers embedder (M41)
+                **(emb.provenance() if hasattr(emb, "provenance") else {}),
             }
+            if self.check_models and name.startswith("st:"):
+                from app.eval.models_2026 import check_embedder
+
+                self.provenance[name]["load_and_score"] = check_embedder(emb)
         return self._embedders[name]
 
     def doc_matrix(self, name: str) -> np.ndarray:
@@ -333,11 +395,14 @@ class Engine:
             mat = np.load(cache)
             if mat.shape != (len(self.chunks), emb.dim) or not np.isfinite(mat).all():
                 raise RuntimeError(f"invalid embedding cache {cache}: expected {(len(self.chunks), emb.dim)}, got {mat.shape}")
+            source = "read from the on-disk cache (an earlier run computed them)"
         else:
             mat = emb.encode([c.text for c in self.chunks])
             if cache:
                 cache.parent.mkdir(parents=True, exist_ok=True)
                 np.save(cache, mat)
+            source = "computed in this run"
+        self.provenance[name]["doc_embeddings"] = source
         self._doc_mats[name] = mat
         return mat
 
@@ -359,7 +424,9 @@ class Engine:
                 self._rerankers[key] = OverlapReranker()
                 self.provenance[key] = {**model_provenance("overlap", "reranker"), "loaded": True}
             else:
-                model = get_cross_encoder(name, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device)
+                # raise_errors: a model that does not load stops the run with the reason (never a fallback)
+                model = get_cross_encoder(name, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device,
+                                          raise_errors=True)
                 if model is None:
                     raise RuntimeError(f"reranker {name} not available (set BGE_ALLOW_DOWNLOAD=1 or cache it)")
                 inner = getattr(model, "model", None)
@@ -371,9 +438,38 @@ class Engine:
                     "dtype": str(getattr(inner, "dtype", None)) if inner is not None else None,
                     "max_length": max_length or getattr(model, "max_length", None),
                     "score_scale": "sigmoid probability in [0, 1]",
+                    # M41: the default prompt a causal-LM reranker puts before every pair (Qwen3-Reranker), its token cap
+                    **{k: v for k, v in cross_encoder_provenance(model).items() if k != "dtype"},
                 }
+                if self.check_models:
+                    from app.eval.models_2026 import check_reranker
+
+                    self.provenance[key]["load_and_score"] = check_reranker(model, name)
                 self._rerankers[key] = model
         return self._rerankers[key]
+
+    def release_unused(self, later: list) -> None:
+        """Drop every model and document matrix that none of the `later` configs uses (their provenance stays), so a
+        ladder of large models never holds them all on the GPU at once; a model's rows run next to each other."""
+        embedders = {c.embedder for c in later if c.mode in {"dense", "hybrid"} and c.embedder}
+        rerankers = {self.reranker_key(c.reranker, c.precision, c.max_length) for c in later if c.reranker}
+        dropped = [n for n in self._embedders if n not in embedders] + [k for k in self._rerankers if k not in rerankers]
+        for name in dropped:
+            self._embedders.pop(name, None)
+            self._doc_mats.pop(name, None)
+            self._unit_mats.pop(name, None)
+            self._rerankers.pop(name, None)
+        if dropped:
+            import gc
+
+            gc.collect()
+            try:
+                import torch
+
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
 
     def rerank(self, cfg, query: str, pairs: list[tuple[Chunk, float]]) -> list[tuple[Chunk, float]]:
         model = self.reranker(cfg.reranker, cfg.precision, cfg.max_length)
@@ -419,7 +515,11 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
         unit = engine.unit_matrix(cfg.embedder)
         with timer.stage("embed"):
-            qv = engine.embedder(cfg.embedder).encode([(cfg.query_instruction or "") + query])[0]
+            embedder = engine.embedder(cfg.embedder)
+            # a config's typed instruction (the bge rows) is prepended as before; otherwise the model's own query
+            # prompt, when it has one (QUERY_PROMPT_NAMES), else the bare query: encode_queries() is encode() then
+            qv = (embedder.encode([cfg.query_instruction + query]) if cfg.query_instruction
+                  else encode_queries(embedder, [query]))[0]
         with timer.stage("dense"):
             # The fixture benchmark's dense ranking (M10): float64 cosine rounded to DENSE_SCORE_DECIMALS,
             # descending, exact ties in corpus order. np.argsort over float32 cosines left ties to the sort
@@ -444,10 +544,10 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
 
 
 def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]], *, trec_dir: Path | None = None, require_trec_eval: bool = False) -> dict[str, Any]:
-    if cfg.precision == "fp16" and cfg.reranker not in {None, "overlap"}:
+    if cfg.precision in {"fp16", "bf16"} and cfg.reranker not in {None, "overlap"}:
         import torch
         if engine.device == "cpu" or not torch.cuda.is_available():
-            raise RuntimeError("fp16 ablations require CUDA; CPU fallback would not measure precision")
+            raise RuntimeError(f"{cfg.precision} ablations require CUDA; CPU fallback would not measure precision")
     build = engine.build(cfg)  # index, embeddings, model loads: reported separately, never inside a query
     first = next(iter(queries.values()))
     retrieve(engine, cfg, first, StageTimer())  # warm-up (CUDA kernels, caches); excluded from the stats
@@ -477,6 +577,8 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
     models = {}
     if cfg.embedder:
         models["embedder"] = {**(engine.provenance.get(cfg.embedder) or {}), "query_instruction": cfg.query_instruction}
+        if cfg.query_instruction and models["embedder"].get("query_prompt_name"):  # the typed instruction replaces the model's prompt
+            models["embedder"].update(query_prompt_name=None, query_prompt=None)
     if cfg.reranker:
         models["reranker"] = engine.provenance.get(engine.reranker_key(cfg.reranker, cfg.precision, cfg.max_length))
     return {
@@ -490,13 +592,27 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         "models": models,
         "metric_cross_check": cross_check_metrics(rankings, qrels, per_query, required=require_trec_eval),
         "trec": write_trec_outputs(trec_dir, cfg, rankings, qrels) if trec_dir is not None else None,
+        # the sha256 of the TREC run file this row's rankings make (trec_run_text), written or not: a committed row's
+        # trec.run_sha256 says whether a recomputed row ranks every query identically (M41)
+        "ranking_sha256": hashlib.sha256(trec_run_text(cfg, rankings).encode("utf-8")).hexdigest(),
         "_per_query": per_query,
     }
 
 
-def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_SEED, n_boot: int = DEFAULT_N_BOOT, *, published: dict | None = PUBLISHED) -> dict:
+def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_SEED, n_boot: int = DEFAULT_N_BOOT, *, published: dict | None = PUBLISHED,
+                      comparisons: list[tuple[str, str]] | None = None) -> dict:
+    """Per row: 95% CIs, the paired delta against bm25 and against its parent. `comparisons` (row, other) adds the same
+    paired delta for other pairs, returned under "comparisons" (M41)."""
     idx = resample_indices(n_queries, n_boot=n_boot, seed=seed)
     by_name = {r["config"]: r for r in results}
+    pairs = []
+    for a, b in comparisons or []:
+        if a in by_name and b in by_name:
+            block: dict[str, Any] = {"row": a, "other": b}
+            for m in CI_METRICS:
+                delta, lo, hi = paired_delta_ci([r[m] for r in by_name[a]["_per_query"]], [r[m] for r in by_name[b]["_per_query"]], idx)
+                block[m] = {"delta": round(delta, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
+            pairs.append(block)
     ref = by_name.get(REFERENCE)
     for row in results:
         pq = row["_per_query"]
@@ -528,7 +644,10 @@ def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_S
             }
     for row in results:
         row.pop("_per_query", None)
-    return bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
+    settings = bootstrap_settings(n_queries, n_boot=n_boot, seed=seed)
+    if pairs:
+        settings["comparisons"] = pairs
+    return settings
 
 
 def measured_parents(configs: list[BeirConfig]) -> list[BeirConfig]:
@@ -554,7 +673,14 @@ def run(
     max_queries: int | None = None,
     trec_dir: Path | None = None,
     require_trec_eval: bool = False,
+    check_models: bool = False,
+    comparisons: list[tuple[str, str]] | None = None,
+    reproduce: tuple[str, tuple[str, ...]] | None = None,
+    header: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """M41: `check_models` (Engine), `comparisons` (attach_confidence), `reproduce` = (committed file, row names): whether
+    those rows, recomputed here, equal the file's (retrieval block; and the ranking, where the committed row wrote a TREC
+    run), recorded whatever the answer; `header` adds fields to the results header."""
     if dataset not in DATASETS:
         raise ValueError(f"unsupported dataset {dataset!r}")
     if configs is not None and not configs:
@@ -575,11 +701,19 @@ def run(
     missing_docs = {did for docs in qrels.values() for did in docs if did not in corpus}
     if missing_docs:
         raise ValueError(f"qrels reference {len(missing_docs)} missing documents")
-    engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device)
-    results = [run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval) for cfg in configs]
+    engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device, check_models=check_models)
+    results = []
+    for i, cfg in enumerate(configs):
+        results.append(run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval))
+        engine.release_unused(configs[i + 1:])
     # A published full-test reference is inapplicable to a query subset.
     published = spec["published"] if split == "test" and len(queries) == full_query_count else None
-    boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot, published=published)
+    boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot, published=published, comparisons=comparisons)
+    reproduced = None
+    if reproduce is not None and len(queries) == full_query_count:
+        from app.eval.models_2026 import reproduces
+
+        reproduced = reproduces(Path(root or Path(__file__).resolve().parents[2]), reproduce[0], results, list(reproduce[1]), extra=_same_ranking)
     zip_path = data_dir / f"{dataset}.zip"
     return {
         "dataset": f"BEIR/{dataset}",
@@ -605,7 +739,15 @@ def run(
         "device": device_info(device),
         "bootstrap": boot,
         "results": results,
+        **(header or {}),
+        **({"reproduces": reproduced} if reproduced is not None else {}),
     }
+
+
+def _same_ranking(row: dict, committed: dict) -> dict:
+    """reproduces() extra: whether a row ranks every query as the committed row's TREC run does (when it wrote one)."""
+    sha = (committed.get("trec") or {}).get("run_sha256")
+    return {"ranking_equal": row.get("ranking_sha256") == sha} if sha else {}
 
 
 def _fmt(block: dict | None, key: str = "mean") -> str:
@@ -661,11 +803,21 @@ def main(argv: list[str] | None = None) -> int:
         configs = [c for c in configs if c.name in wanted]
     if not configs:
         p.error("--only selected no configurations")
-    blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval)
+    m41: dict[str, Any] = {}
+    if args.ladder in MODELS_2026_LADDERS:  # every model must load and rank; the parents' reproduction is recorded
+        from app.eval.models_2026 import header
+
+        names = {c.name for c in configs}
+        m41 = dict(check_models=True, comparisons=models_2026_comparisons(configs),
+                   reproduce=(COMMITTED_FILES[args.dataset], tuple(n for n in MODELS_2026_PARENTS if n in names)),
+                   header={"models_2026": header(MODELS_2026_LADDERS[args.ladder])})
+    blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval, **m41)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2) + "\n")
     print(markdown_table(blob))
+    if blob.get("reproduces"):  # recorded whatever the answer; a parent that differs is not an error
+        print("reproduces", json.dumps(blob["reproduces"]))
     print(f"wrote {out}")
     return 0
 
