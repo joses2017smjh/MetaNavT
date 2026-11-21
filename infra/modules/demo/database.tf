@@ -31,7 +31,7 @@ resource "aws_secretsmanager_secret_version" "db_password" {
 # ANTHROPIC_API_KEY: created empty; the owner stores the key (doc/deploy.md), then sets anthropic_key_stored.
 resource "aws_secretsmanager_secret" "anthropic_api_key" {
   name                    = "${local.name}/anthropic-api-key"
-  description             = "ANTHROPIC_API_KEY of the ${local.name} API (a key with a spend limit set in the Anthropic Console)"
+  description             = "ANTHROPIC_API_KEY of the ${local.name} API (a key of an Anthropic Console workspace with a monthly spend limit)"
   recovery_window_in_days = var.environment == "production" ? 7 : 0
 }
 

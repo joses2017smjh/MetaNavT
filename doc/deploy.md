@@ -7,7 +7,8 @@ script against a fake AWS CLI. [What has not been run](#what-has-not-been-run) l
 prove. Every step below is for the owner, with the owner's credentials.
 
 The demo is the API in public demo mode (`PUBLIC_DEMO=1`; [the reference](engineering-reference.md#public-demo-mode)):
-search over the committed fixture and cited answers from Claude, under per-caller quotas and a daily budget. The same
+search over the committed fixture and cited answers from Claude (production is configured for Claude Haiku 5.5 once
+the owner stores a key: [Claude's cost](#claudes-cost)), under per-caller quotas and a daily budget. The same
 image and settings run on one machine with `docker-compose.prod.yml` (the reference's Production rehearsal), which
 is the cheaper place to try them first.
 
@@ -144,9 +145,11 @@ terraform output -json github_environment_variables \
   | while read -r name value; do gh variable set "$name" --env production --body "$value"; done
 ```
 
-**8. The Anthropic key.** Create a key for this demo only in the Anthropic Console and set a monthly spend limit on
-it: it is the last cap if everything else fails. Store it in the secret the apply created, without it reaching the
-shell history:
+**8. The Anthropic key.** In the Anthropic Console, create a workspace for this demo only, set its monthly spend limit
+($24 for the production profile, as `infra/envs/production/main.tf` notes: [Claude's cost](#claudes-cost)) and create
+the demo's key in that workspace: the limit is the last cap if everything else fails. A Console spend limit is set on
+the organization or on a workspace, not on one key (the claude-api skill's notes on the Admin API, read 2026-11-21).
+Store the key in the secret the apply created, without it reaching the shell history:
 
 ```bash
 umask 077
@@ -234,7 +237,7 @@ Usage-based charges come on top, and this runbook puts no number on them:
 | CloudWatch (alarms, logs ingested and stored), S3 (the web client, the state), data transfer out | per alarm, per GB and per request | check [CloudWatch pricing](https://aws.amazon.com/cloudwatch/pricing/), [S3 pricing](https://aws.amazon.com/s3/pricing/) |
 | Route 53 hosted zone and queries (only with a custom domain) | per zone-month and per query | check [Route 53 pricing](https://aws.amazon.com/route53/pricing/) |
 | WAF CAPTCHA (only with `waf_answer_captcha`) | per challenge attempt | check [WAF pricing](https://aws.amazon.com/waf/pricing/) |
-| Claude (Anthropic API) | at most `ANSWER_DAILY_BUDGET_USD` a day (default $2.00, so at most $62.00 in a 31-day month), each call's cost estimated from the price table dated in `app/answer/claude.py`; the Console spend limit caps it too | the default in `app/api/limits.py` and the deploy contract; the prices in `app/answer/claude.py` (`PRICES_AS_OF`) |
+| Claude (Anthropic API) | at most `ANSWER_DAILY_BUDGET_USD` a day as the app estimates it: production sets $0.75 (the module's default and the contract's is $2.00), each call's cost estimated from the price table dated in `app/answer/claude.py`; the Console spend limit caps it too ([Claude's cost](#claudes-cost), below) | `infra/envs/production/main.tf`; the default in `app/api/limits.py` and the deploy contract; the prices in `app/answer/claude.py` (`PRICES_AS_OF`) |
 
 Staging, while it exists, costs the production rows without ElastiCache and WAF: $84.68 a month at the same prices.
 That is about $0.12 an hour at the same prices, so a deploy test of a few hours costs under a dollar before usage charges.
@@ -253,11 +256,58 @@ What each variable saves (production, at the prices above):
 A NAT gateway, which the public subnets avoid, would add its own hourly and per-GB charges
 ([VPC pricing](https://aws.amazon.com/vpc/pricing/)); this runbook has no read of that price.
 
+### Claude's cost
+
+Production is configured to answer with Claude Haiku 5.5: `answer_model = "claude-haiku-5-5"` and
+`answer_daily_budget_usd = 0.75` in `infra/envs/production/main.tf` (the owner's choice, 2026-11-21), and
+`deploy/prod.env.example` sets the same two values for the Compose rehearsal. Claude is called only once the owner
+has stored a key (step 8); until then answers are off (the route's `answers off`) and search works, so nothing below
+is spent. The module's defaults stay the deploy contract's: `ANSWER_MODEL=claude-opus-5-5` and
+`ANSWER_DAILY_BUDGET_USD=2.00`.
+
+| Claude Haiku 5.5 (`claude-haiku-5-5`) | Price | Source |
+|---|---|---|
+| Input tokens, prompts up to 100K tokens | $0.10 per million input tokens | Anthropic's list price in the claude-api skill's price table, cached 2026-11-03: `PRICES` in `app/answer/claude.py` (`PRICES_AS_OF`) |
+| Output tokens (the model's thinking included), prompts up to 100K tokens | $0.50 per million output tokens | the same table, `PRICES` in `app/answer/claude.py` |
+| Input and output tokens, prompts over 100K tokens | $0.50 per million input tokens and $2.50 per million output tokens | the same table, `HAIKU_LONG_PROMPT` in `app/answer/claude.py` |
+
+`app/answer/claude.py` estimates every call's cost with this table. An answer's prompt is the system prompt, the
+question (at most 500 characters) and at most ten retrieved excerpts of at most 800 characters each: far below 100K
+tokens.
+
+```text
+cost of one answer (USD) = input tokens × 0.10 / 1,000,000 + output tokens × 0.50 / 1,000,000
+answers in a day         ≈ ANSWER_DAILY_BUDGET_USD / cost of one answer
+```
+
+For example, an answer of 3,000 input and 600 output tokens (assumed counts: no answer has been measured in this
+repository) costs 3,000 × $0.10 / 1,000,000 + 600 × $0.50 / 1,000,000 = $0.0003 + $0.0003 = $0.0006 at the prices above,
+so production's daily budget (`infra/envs/production/main.tf`) pays for about $0.75 / $0.0006 = 1,250 such answers a
+day. Longer replies mean fewer; a question repeated while its answer is cached (`ANSWER_CACHE_TTL_SECONDS`) costs
+nothing.
+
+The caps, from the first to the last:
+
+1. Per caller: `ANSWER_LIMIT_PER_MINUTE` and `ANSWER_LIMIT_PER_DAY` (5 and 50 by default), and in front of them the
+   WAF's rate limit on `/api/answer/` (100 requests per IP in 5 minutes).
+2. The daily budget, per UTC day (`app/api/limits.py`). Before each call the app reserves that call's worst case (all
+   of `ANSWER_MAX_TOKENS` as output, the input at a conservative tokens-per-character ratio) and refuses the call when
+   the day's total would pass the budget; afterwards it settles the reservation to the reply's estimated cost. So a
+   day's estimated total stays within $0.75 (`infra/envs/production/main.tf`), which is at most $23.25 in a 31-day
+   month and $69.00 over 92 days (three months; the owner allows about $70, `infra/envs/production/main.tf`). It is
+   an estimate from the price table, not Anthropic's bill.
+3. The last cap: the $24 monthly spend limit (the owner's figure, noted in `infra/envs/production/main.tf`) on the
+   demo's workspace in the Anthropic Console (step 8). A month of the daily budget, a 31-day one too, stays under it,
+   so it is a backstop for whatever the app's estimate gets wrong. Once it is reached the Messages API answers 429
+   (`enforced_spend_limit_reached`, per the claude-api skill's notes on errors), which the answer route reports as
+   `upstream rate limited`, with the hits.
+
 ## Rotating keys
 
-- **The Anthropic key.** Create a new key (with a spend limit) in the Console, store it as in step 8 (it becomes
-  the secret's current value), and deploy again (`gh workflow run deploy.yml -f image_digest=<the digest running
-  now>`): a task reads its secrets when it starts. Then revoke the old key in the Console.
+- **The Anthropic key.** Create a new key in the demo's Console workspace (its spend limit stays), store it as in
+  step 8 (it becomes the secret's current value), and deploy again
+  (`gh workflow run deploy.yml -f image_digest=<the digest running now>`): a task reads its secrets when it starts.
+  Then revoke the old key in the Console.
 - **The database password.** Set `db_password_version = 2` (then 3, and so on) in the environment's module block and
   apply: a new random password is written to RDS and to its secret in the same apply. Deploy again straight after:
   running tasks keep their open connections, but a new connection needs the new password.
@@ -270,9 +320,10 @@ A NAT gateway, which the public subnets avoid, would add its own hourly and per-
 - The account's monthly budget: `monthly_budget_usd` (and `budget_alert_percentages`) in `infra/bootstrap`, then apply
   the bootstrap.
 - The app's daily answer budget: `answer_daily_budget_usd` in the environment's module block, apply, then deploy. Also
-  `answer_limit_per_minute`, `answer_limit_per_day` and `answer_model` (`claude-sonnet-5-5` or `claude-haiku-5-5`
-  cost less per answer).
-- The Anthropic Console's spend limit on the key: in the Console.
+  `answer_limit_per_minute`, `answer_limit_per_day` and `answer_model`: production sets `claude-haiku-5-5`, the
+  cheapest of the three per token; `claude-sonnet-5-5` costs 20 times as much per token and `claude-opus-5-5` 40 times
+  (the price table in `app/answer/claude.py`), so raise the budget with either.
+- The Anthropic Console's spend limit on the demo's workspace: in the Console.
 
 ## Destroy staging or everything
 
@@ -309,7 +360,9 @@ No AWS account exists for this project, so none of this has been seen working ag
   bound the worst case below it: a 5-second retrieval budget plus a 25-second Claude timeout with one retry, which
   tests/engine/test_infra_terraform.py checks; a slower answer ends as the route's "upstream timeout", not a 504);
 - the alarms' metric names and dimensions, and the EventBridge pattern that tells an unasked task stop from a
-  deployment's.
+  deployment's;
+- Claude Haiku 5.5 on the answer route: its token counts and cost per answer (the example under
+  [Claude's cost](#claudes-cost) is assumed, not measured), and the Console's workspace spend limit stopping calls.
 
 ## Check the code locally (no AWS)
 

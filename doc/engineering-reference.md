@@ -2256,7 +2256,11 @@ a transient API failure are not delivered, each with its reason, and the retriev
 request the API rejects as malformed is raised instead: it is a bug, not a degraded answer. Requests use the API
 version the SDK sends by default, which takes no sampling parameters, so none are sent. The default model is
 `claude-opus-5-5` (`ANSWER_MODEL`) with the server-side refusal fallback on; `claude-sonnet-5-5` and
-`claude-haiku-5-5` are one setting away, Haiku without a fallback. There is no prompt caching: the fixed system prompt is far shorter than the minimum
+`claude-haiku-5-5` are one setting away, Haiku without a fallback. The demo is configured to answer with
+`claude-haiku-5-5` once the owner stores an Anthropic key (until then answers are off and search works): the AWS
+production environment (`infra/envs/production/main.tf`) and `deploy/prod.env.example` set it with a smaller daily
+budget, the owner's choice for a cheap demo, while the defaults stay the contract's below
+([Claude's cost](deploy.md#claudes-cost)). There is no prompt caching: the fixed system prompt is far shorter than the minimum
 the API caches, and the excerpts change with every question, so a repeated question is served from the answer cache
 instead. `tests/api/test_answer_claude.py` sends the request through the installed SDK into a mocked transport and
 checks what the API would receive, so a parameter the SDK or the API version does not take fails a test rather than a
@@ -2275,7 +2279,8 @@ models, and evaluating Claude spends API credits.
 The caller is the API key's name when authentication is on, and otherwise the client address behind
 `TRUSTED_PROXY_HOPS` proxies. Each proxy appends the address it received the request from to `X-Forwarded-For`, so
 the client is that many entries from the right, and an entry the client wrote itself is ignored; a test sends a
-spoofed header. The spend limit set on the API key in the Anthropic Console is the last cap if everything else fails.
+spoofed header. The monthly spend limit set in the Anthropic Console on the workspace that holds the API key (Console
+limits apply to an organization or a workspace, not to one key) is the last cap if everything else fails.
 
 The deploy contract, the names the production Compose file and the AWS stack set:
 
@@ -2307,8 +2312,9 @@ Encrypt certificate, `localhost` one from Caddy's own local CA), caps request
 bodies above the api's own `MAX_BODY_BYTES`, adds security headers (HSTS only
 for a public name), and replaces any `X-Forwarded-For` a client sends with the
 address it saw, which is what makes `TRUSTED_PROXY_HOPS=1` hold. The settings
-come from `deploy/prod.env`, a copy of `deploy/prod.env.example` that git and
-the image build ignore; started without it, the stack stops at the missing
+come from `deploy/prod.env`, a copy of `deploy/prod.env.example` (which sets
+the production profile's answer model and daily budget) that git and the image
+build ignore; started without it, the stack stops at the missing
 `POSTGRES_PASSWORD` instead of running on the local app's `.env`.
 
 ```bash
@@ -2334,8 +2340,9 @@ ingress is CloudFront's origin-facing prefix list and whose listener forwards
 only requests that carry CloudFront's header; everything else is the web
 client, from a private S3 bucket. One ECS Fargate service runs the CPU model
 image by digest with the contract above (`TRUSTED_PROXY_HOPS` is two behind
-CloudFront and the ALB), the database password and the Anthropic key from
-Secrets Manager; RDS PostgreSQL and ElastiCache sit in private subnets with no
+CloudFront and the ALB; production is configured for `claude-haiku-5-5` and a
+smaller daily budget, [Claude's cost](deploy.md#claudes-cost)), the database password and the
+Anthropic key from Secrets Manager; RDS PostgreSQL and ElastiCache sit in private subnets with no
 route out. `.github/workflows/deploy.yml` deploys after CI passes on `main`, or
 by hand with an image digest (a rollback): a one-off task runs the migrations
 and the index step, the service moves to the new revision and is waited on
