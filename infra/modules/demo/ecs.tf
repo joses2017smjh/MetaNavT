@@ -13,8 +13,8 @@ locals {
     ANSWER_MODEL             = var.answer_model
     ANSWER_EFFORT            = "low"
     ANSWER_MAX_TOKENS        = "4096"
-    ANSWER_TIMEOUT_SECONDS   = "30"
-    ANSWER_MAX_RETRIES       = "2"
+    ANSWER_TIMEOUT_SECONDS   = "25" # with one retry and the retrieval budget below, an answer ends inside CloudFront's
+    ANSWER_MAX_RETRIES       = "1"  # origin_read_timeout (60 s): 5 + 25 x 2 plus backoff (tests/engine/test_infra_terraform.py)
     ANSWER_DAILY_BUDGET_USD  = format("%.2f", var.answer_daily_budget_usd)
     ANSWER_CACHE_TTL_SECONDS = "86400"
     ANSWER_LIMIT_PER_MINUTE  = tostring(var.answer_limit_per_minute)
@@ -35,6 +35,7 @@ locals {
     PG_CONNECTION_STRING       = "postgresql://${local.db_user}@${aws_db_instance.this.address}:5432/${local.db_name}"
     PSYCOPG2_CONNECTION_STRING = "dbname=${local.db_name} user=${local.db_user} host=${aws_db_instance.this.address} port=5432"
     PGSSLMODE                  = "require" # libpq (psycopg2) and asyncpg both read it
+    RETRIEVE_TIMEOUT_SECONDS   = "5"       # the demo corpus answers in milliseconds; this bounds a hung database
     MODEL_PROVIDER             = "ollama"  # the index step's init_settings() needs a provider; nothing here calls it
     EMBEDDING_PROVIDER         = "huggingface"
     EMBEDDING_MODEL            = "BAAI/bge-small-en-v1.5"

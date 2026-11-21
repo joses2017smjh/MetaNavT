@@ -278,7 +278,7 @@ PLATFORM = {"ENVIRONMENT", "LOG_FORMAT", "PG_CONNECTION_STRING", "PSYCOPG2_CONNE
             "MODEL_PROVIDER", "EMBEDDING_PROVIDER", "EMBEDDING_MODEL", "EMBEDDING_DIM", "RERANKER_MODEL",
             "RERANKER_PRECISION", "RERANKER_MAX_LENGTH", "RERANK_DEPTH", "RERANKER_REQUIRED", "BGE_ALLOW_DOWNLOAD",
             "RETRIEVAL_MODE", "DATA_DIR", "INDEX_ON_START", "INGEST_MAX_REJECTED", "RETRIEVE_K", "RERANK_TOP_N",
-            "ENABLE_ROUTER"}
+            "ENABLE_ROUTER", "RETRIEVE_TIMEOUT_SECONDS"}
 
 
 def test_the_task_sets_every_name_of_the_deploy_contract_and_only_listed_extras():
@@ -306,9 +306,16 @@ def test_the_contracts_fixed_values_are_the_ones_the_task_sets():
     body = values["contract_environment"].strip()[1:-1]
     literal = {name: hcl.strings(hcl.attr(body, name))[0] for name in hcl.object_keys(values["contract_environment"])
                if hcl.attr(body, name).startswith('"')}
-    for name in ("PUBLIC_DEMO", "ANSWER_EFFORT", "ANSWER_MAX_TOKENS", "ANSWER_TIMEOUT_SECONDS", "ANSWER_MAX_RETRIES",
-                 "ANSWER_CACHE_TTL_SECONDS", "MAX_BODY_BYTES"):
+    for name in ("PUBLIC_DEMO", "ANSWER_EFFORT", "ANSWER_MAX_TOKENS", "ANSWER_CACHE_TTL_SECONDS", "MAX_BODY_BYTES"):
         assert literal[name] == contract[name], name
+    # The answer's time bounds are the AWS task's own: CloudFront gives the origin origin_read_timeout seconds, and an
+    # answer is the retrieval budget plus every attempt of the Claude call (the SDK retries a timeout), so the worst
+    # case must end before CloudFront gives up, or the visitor gets a 504 instead of the route's own reason.
+    platform = values["platform_environment"].strip()[1:-1]
+    retrieve = float(hcl.strings(hcl.attr(platform, "RETRIEVE_TIMEOUT_SECONDS"))[0])
+    timeout, retries = float(literal["ANSWER_TIMEOUT_SECONDS"]), int(literal["ANSWER_MAX_RETRIES"])
+    origin = float(hcl.attr(hcl.block(MODULE, "variable", "origin_read_timeout"), "default"))
+    assert retrieve + timeout * (retries + 1) + 5 <= origin, (retrieve, timeout, retries, origin)
     defaults = {name: hcl.attr(hcl.block(MODULE, "variable", name), "default") for name in
                 ("answer_model", "answer_daily_budget_usd", "answer_limit_per_minute", "answer_limit_per_day")}
     assert hcl.strings(defaults["answer_model"]) == [contract["ANSWER_MODEL"]]

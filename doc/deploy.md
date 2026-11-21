@@ -305,8 +305,9 @@ No AWS account exists for this project, so none of this has been seen working ag
 - the GitHub OIDC trust (the token's subject for an environment job), the deploy workflow end to end, the plan job;
 - the app on RDS with `PGSSLMODE=require`, on ElastiCache over `rediss://` (redis-py checks the certificate against
   the image's CA bundle), the model downloads at every task start within the 900-second grace period, the fp32
-  reranker within 4 GB, and answers within CloudFront's 60-second origin timeout (a Claude timeout with retries can
-  exceed it);
+  reranker within 4 GB, and real answer times against CloudFront's 60-second origin timeout (the task's settings
+  bound the worst case below it: a 5-second retrieval budget plus a 25-second Claude timeout with one retry, which
+  tests/engine/test_infra_terraform.py checks; a slower answer ends as the route's "upstream timeout", not a 504);
 - the alarms' metric names and dimensions, and the EventBridge pattern that tells an unasked task stop from a
   deployment's.
 
