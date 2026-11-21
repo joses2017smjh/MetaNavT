@@ -11,11 +11,15 @@ mounts: no chat, agents, code execution, uploads, files, plans or approvals, MCP
 GET /health, the OpenAPI docs and the web client's static files stay where main.py puts them. The router carries the
 same opt-in dependencies as api_router (app/api/security.py): the API key check (invite keys through
 METANAVIT_API_KEYS_FILE) and the per-replica request budget. A body larger than MAX_BODY_BYTES is refused with 413
-before it is read (BodyLimit), and with WEB_ORIGIN set only that origin may call the API from a browser.
+before it is read (BodyLimit), and with WEB_ORIGIN set only that origin may call the API from a browser. With
+ORIGIN_VERIFY_SECRET set (the single host behind CloudFront, doc/deploy.md), a request without CloudFront's
+X-Origin-Verify header is refused with 403 before anything else runs (OriginVerify).
 """
 
 from __future__ import annotations
 
+import hmac
+import ipaddress
 import os
 
 from fastapi import APIRouter, Depends, Request
@@ -112,3 +116,56 @@ class BodyLimit:
 
 class _TooLarge(Exception):
     pass
+
+
+# The header CloudFront adds to every request it sends to the single host (infra/modules/single-host); its value is
+# ORIGIN_VERIFY_SECRET, a random string Terraform keeps in Parameter Store and the host reads at start.
+ORIGIN_VERIFY_HEADER = "x-origin-verify"
+
+
+def origin_verify_secret() -> str:
+    """ORIGIN_VERIFY_SECRET, stripped; empty means no origin check (main.py installs OriginVerify only with a value)."""
+    return os.getenv("ORIGIN_VERIFY_SECRET", "").strip()
+
+
+class OriginVerify:
+    """ASGI middleware: 403 for a request that does not carry X-Origin-Verify with the secret, compared in constant time.
+
+    For an origin that CloudFront reaches with no load balancer in between (the single host): its security group
+    admits only CloudFront's addresses, which every CloudFront distribution shares, so the header is what tells this
+    distribution's requests from another account's. One request passes without it: GET /health from the loopback
+    address, the container's own health check, which Compose, the image's HEALTHCHECK and deploy.sh run inside the
+    container. A request from outside the container, through the published port, never arrives from the loopback
+    address (Docker's port forwarding keeps a remote client's address, and a request from the host itself arrives
+    from the bridge's gateway)."""
+
+    def __init__(self, app, secret: str):
+        secret = (secret or "").strip()
+        if not secret:
+            raise ValueError("OriginVerify needs a value (ORIGIN_VERIFY_SECRET); leave the middleware out instead")
+        self.app, self._secret = app, secret.encode()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket") or self._verified(scope) or self._local_health_check(scope):
+            return await self.app(scope, receive, send)
+        if scope["type"] == "websocket":  # closed before it is accepted: the server answers 403
+            return await send({"type": "websocket.close", "code": 1008})
+        body = b'{"detail":"forbidden"}'
+        await send({"type": "http.response.start", "status": 403,
+                    "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
+        await send({"type": "http.response.body", "body": body})
+
+    def _verified(self, scope) -> bool:
+        values = [value for name, value in scope.get("headers") or [] if name == ORIGIN_VERIFY_HEADER.encode()]
+        # exactly one copy: a second one would be the viewer's own (CloudFront overwrites a viewer's header of this name)
+        return len(values) == 1 and hmac.compare_digest(values[0], self._secret)
+
+    @staticmethod
+    def _local_health_check(scope) -> bool:
+        if scope["type"] != "http" or scope.get("method") != "GET" or scope.get("path") != "/health":
+            return False
+        client = scope.get("client") or (None,)
+        try:
+            return ipaddress.ip_address(client[0]).is_loopback
+        except (TypeError, ValueError):  # no client, or a name such as "testclient"
+            return False

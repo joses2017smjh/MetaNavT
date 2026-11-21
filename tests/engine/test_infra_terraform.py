@@ -281,12 +281,22 @@ PLATFORM = {"ENVIRONMENT", "LOG_FORMAT", "PG_CONNECTION_STRING", "PSYCOPG2_CONNE
             "ENABLE_ROUTER", "RETRIEVE_TIMEOUT_SECONDS"}
 
 
+# The contract's names the ECS task leaves unset, each with its reason.
+NOT_ON_ECS = {
+    # The ALB's listener forwards only requests carrying CloudFront's header (alb.tf), and its health checks of the
+    # tasks carry none, so the app's own check (the single host's) stays off here.
+    "ORIGIN_VERIFY_SECRET",
+}
+
+
 def test_the_task_sets_every_name_of_the_deploy_contract_and_only_listed_extras():
     contract = _contract()
+    assert NOT_ON_ECS <= contract.keys()
     values = _locals(MODULE)
     environment = hcl.object_keys(values["contract_environment"])
     secrets = re.findall(r"\{\s*([A-Z_]+)\s*=", values["contract_secrets"])
-    assert sorted(environment + secrets) == sorted(contract)  # the contract, exactly, between the two
+    assert sorted(environment + secrets) == sorted(contract.keys() - NOT_ON_ECS)  # the contract, exactly, between the two
+    assert not any(name in MODULE for name in NOT_ON_ECS)  # not set anywhere, overrides included
     assert secrets == ["ANTHROPIC_API_KEY"]
     assert set(hcl.object_keys(values["platform_environment"])) == PLATFORM
     assert hcl.object_keys(values["platform_secrets"]) == ["PGPASSWORD"]
