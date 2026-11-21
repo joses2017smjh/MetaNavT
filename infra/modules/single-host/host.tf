@@ -168,7 +168,7 @@ resource "aws_instance" "host" {
     # A deploy stops the api before its one-off migrate container starts (deploy.sh): the two never run side by side.
     precondition {
       condition     = !var.serve_reranker || (local.instance_memory_mib[var.instance_type] >= 4096 && var.api_memory_mib >= 3072)
-      error_message = "serve_reranker = true needs an instance type with 4 GiB or more (c7i-flex.large or m7i-flex.large) and api_memory_mib of 3072 or more: the API's measured peak with the reranker is about 2.7 GB (doc/deploy.md)."
+      error_message = "serve_reranker = true needs an instance type with 4 GiB or more (c7i-flex.large or m7i-flex.large) and api_memory_mib of 3072 or more: the API's measured peak with the reranker is 2719 MiB (bench/results/api_memory_cpu.json)."
     }
   }
 }

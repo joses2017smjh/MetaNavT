@@ -36,8 +36,10 @@ COMPOSE = yaml.safe_load((HOST_FILES / "compose.yml").read_text())
 DEPLOY_SH = HOST_FILES / "deploy.sh"
 PINNED = re.compile(r"[a-z0-9][a-z0-9._/-]*:[\w.-]+@sha256:[0-9a-f]{64}")  # as tests/eval/test_image_build.py
 # Free Tier eligible instance types for accounts opened on or after 2025-07-15 (EC2 User Guide, "Track your Free Tier
-# usage for Amazon EC2", read 2026-11-21).
-FREE_TIER_TYPES = ["t3.micro", "t3.small", "t4g.micro", "t4g.small", "c7i-flex.large", "m7i-flex.large"]
+# usage for Amazon EC2", read 2026-11-21), and t8i.small (x86_64, 2 GiB), which the owner's account lists as eligible in
+# us-west-2 (aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true, 2026-11-21; the t9g types it
+# also lists are ARM).
+FREE_TIER_TYPES = ["t3.micro", "t3.small", "t4g.micro", "t4g.small", "c7i-flex.large", "m7i-flex.large", "t8i.small"]
 
 
 def _resources(kind: str, text: str = MODULE) -> dict[str, str]:
@@ -726,6 +728,22 @@ def test_compose_resolves_the_file_with_the_hosts_three_env_files(tmp_path):
 
 
 # ---- the sizing record: scripts/measure_api_memory.py measures what the host loads -----------------------------------
+
+def test_the_modules_memory_figures_are_the_committed_measurements():
+    """The limits rest on bench/results/api_memory_cpu.json (scripts/measure_api_memory.py): the API's peak without
+    the reranker fits api_memory_mib, and with it the precondition's floor; every figure the module quotes is the
+    record's."""
+    import json
+
+    record = json.loads((ROOT / "bench" / "results" / "api_memory_cpu.json").read_text())
+    without = record["memory_mib"]["after_embedder"]["VmHWM"]
+    with_reranker = record["memory_mib"]["after_reranker"]["VmHWM"]
+    assert without < int(_default("api_memory_mib")) and with_reranker < 3072
+    assert record["working_tree_dirty"] is False and record["device"]["cuda_available"] is False
+    text = (INFRA / "modules" / "single-host" / "variables.tf").read_text() + (INFRA / "modules" / "single-host" / "host.tf").read_text()
+    quoted = re.findall(r"(\d+(?:\.\d+)?) (MiB|s) ", text)
+    assert {(str(without), "MiB"), (str(with_reranker), "MiB"), (f"{record['rerank_seconds']:.2f}", "s")} == set(quoted)
+
 
 def test_the_memory_measurement_loads_the_models_the_host_serves():
     spec = importlib.util.spec_from_file_location("measure_api_memory", ROOT / "scripts" / "measure_api_memory.py")

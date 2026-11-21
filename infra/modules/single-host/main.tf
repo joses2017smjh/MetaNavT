@@ -35,6 +35,7 @@ locals {
     "t3.small"       = 2048
     "c7i-flex.large" = 4096
     "m7i-flex.large" = 8192
+    "t8i.small"      = 2048
   }
 
   # The two SecureString parameters the host reads at every start and deploy (deploy/single-host/deploy.sh): CloudFront's

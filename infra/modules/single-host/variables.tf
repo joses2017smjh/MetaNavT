@@ -37,13 +37,13 @@ variable "image_digest" {
 # ---- The instance ----
 
 variable "instance_type" {
-  description = "EC2 instance type, on demand. A Free plan account may launch only the Free Tier eligible types, for accounts opened on or after 2025-07-15: t3.micro, t3.small, t4g.micro, t4g.small, c7i-flex.large, m7i-flex.large (EC2 User Guide, Track your Free Tier usage, read 2026-11-21). The t4g types are ARM, and the image is x86_64 only."
+  description = "EC2 instance type, on demand. A Free plan account may launch only the Free Tier eligible types, for accounts opened on or after 2025-07-15: t3.micro, t3.small, t4g.micro, t4g.small, c7i-flex.large, m7i-flex.large (EC2 User Guide, Track your Free Tier usage, read 2026-11-21), and t8i.small, which the owner's account lists as eligible in us-west-2 (describe-instance-types with the free-tier-eligible filter, 2026-11-21). The t4g types are ARM, and the image is x86_64 only."
   type        = string
   default     = "t3.small"
 
   validation {
-    condition     = contains(["t3.micro", "t3.small", "t4g.micro", "t4g.small", "c7i-flex.large", "m7i-flex.large"], var.instance_type)
-    error_message = "instance_type: a Free Tier eligible type for accounts opened on or after 2025-07-15: t3.micro, t3.small, t4g.micro, t4g.small, c7i-flex.large or m7i-flex.large."
+    condition     = contains(["t3.micro", "t3.small", "t4g.micro", "t4g.small", "c7i-flex.large", "m7i-flex.large", "t8i.small"], var.instance_type)
+    error_message = "instance_type: a Free Tier eligible type for accounts opened on or after 2025-07-15: t3.micro, t3.small, t4g.micro, t4g.small, c7i-flex.large, m7i-flex.large, or t8i.small (listed eligible in us-west-2)."
   }
 
   validation {
@@ -53,7 +53,7 @@ variable "instance_type" {
 }
 
 variable "serve_reranker" {
-  description = "Serve the bge-reranker-v2-m3 cross-encoder (RERANKER_MODEL=BAAI/bge-reranker-v2-m3), or not (RERANKER_MODEL=none: the fused order of BM25 and bge-small, labelled in every response). Measured with the API's own loaders (doc/deploy.md): the API's peak memory grows from about 0.8 GB to about 2.7 GB with it, and scoring one query's 20 pairs on 2 CPU threads took minutes, far over the retrieval deadline, so it stays off on every instance type allowed here."
+  description = "Serve the bge-reranker-v2-m3 cross-encoder (RERANKER_MODEL=BAAI/bge-reranker-v2-m3), or not (RERANKER_MODEL=none: the fused order of BM25 and bge-small, labelled in every response). Measured with the API's own loaders (bench/results/api_memory_cpu.json): the API's peak grows from 842 MiB to 2719 MiB with it, and one query's 20 pairs took 89.92 s on 2 CPU threads, far over the 5-second retrieval budget, so it stays off on every instance type allowed here."
   type        = bool
   default     = false
 }
@@ -81,7 +81,7 @@ variable "swap_mib" {
 }
 
 variable "api_memory_mib" {
-  description = "Memory limit of the api container, and of the one-off migrate container a deploy runs while the api is stopped, MiB (Compose mem_limit). The API's measured peak without the reranker is about 0.8 GB (doc/deploy.md)."
+  description = "Memory limit of the api container, and of the one-off migrate container a deploy runs while the api is stopped, MiB (Compose mem_limit). The API's measured peak without the reranker: 842 MiB (bench/results/api_memory_cpu.json)."
   type        = number
   default     = 1024
 }
