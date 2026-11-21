@@ -6,8 +6,10 @@ No torch on this machine: stand-in `sentence_transformers` and `torch` modules r
 prompts are the ones the cached models' config_sentence_transformers.json files carry.
 """
 
+import json
 import sys
 import types
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -42,7 +44,8 @@ class _SentenceTransformer:
 
     def __init__(self, name, **kwargs):
         self.name, self.kwargs, self.calls = name, kwargs, []
-        self.prompts = dict(PROMPTS[name])
+        # a hub id, or a directory holding the model's files (a snapshot view): its prompts are in its own config
+        self.prompts = dict(PROMPTS[name]) if name in PROMPTS else json.loads((Path(name) / "config_sentence_transformers.json").read_text())["prompts"]
         self.max_seq_length = 512
 
     def get_sentence_embedding_dimension(self):
@@ -77,7 +80,8 @@ def test_bge_gets_no_prompt_and_no_model_kwargs_so_its_rows_reproduce(st):
     # every call is exactly the one the committed rows made: no prompt, no batch size, no dtype
     assert e._model.calls == [{"texts": queries, **COMMITTED_CALL}] * 4
     assert e.provenance() == {"query_prompt_name": None, "query_prompt": None, "dtype_requested": None, "dtype": "torch.float32",
-                              "batch_size": None, "max_seq_length": 512}
+                              "batch_size": None, "max_seq_length": 512, "snapshot_view": None}
+    assert e._model.name == "BAAI/bge-small-en-v1.5"  # loaded by its hub id, as every committed row
 
 
 def test_a_registered_model_gets_its_prompt_on_queries_only_and_loads_in_bfloat16(st):
@@ -91,10 +95,46 @@ def test_a_registered_model_gets_its_prompt_on_queries_only_and_loads_in_bfloat1
     assert np.array_equal(q, HashEmbedder(dim=16).encode([QWEN_QUERY + queries[0]]))  # the prompt is in front of the query
     assert not np.array_equal(q, e.encode(queries))  # and documents (encode) get none
     assert e.provenance() == {"query_prompt_name": "query", "query_prompt": QWEN_QUERY, "dtype_requested": "auto", "dtype": "torch.bfloat16",
-                              "batch_size": 16, "max_seq_length": 512}
+                              "batch_size": 16, "max_seq_length": 512, "snapshot_view": None}
+    assert e._model.name == "Qwen/Qwen3-Embedding-8B"
 
 
-def test_the_cpu_servable_embedder_is_named_float32_and_harrier_uses_its_web_search_prompt(st):
+@pytest.fixture
+def harrier_snapshot(tmp_path, monkeypatch):
+    """A stand-in for harrier's cached snapshot: its tokenizer_config.json names the image processor the checkpoint does
+    not ship; a weights file and the pooling folder stand for the rest."""
+    snap = tmp_path / "snapshots" / "0c0fc62"
+    (snap / "1_Pooling").mkdir(parents=True)
+    (snap / "1_Pooling" / "config.json").write_text(json.dumps({"pooling_mode_lasttoken": True, "include_prompt": True}))
+    (snap / "tokenizer_config.json").write_text(json.dumps({"processor_class": "Gemma3Processor", "add_bos_token": True, "add_eos_token": True}))
+    (snap / "config_sentence_transformers.json").write_text(json.dumps({"prompts": {k: v for k, v in PROMPTS["microsoft/harrier-oss-v1-27b"].items()}}))
+    (snap / "model-00001-of-00012.safetensors").write_bytes(b"weights")
+    monkeypatch.setattr(emb, "_snapshot_path", lambda name: snap if name == "microsoft/harrier-oss-v1-27b" else pytest.fail(name))
+    return snap
+
+
+def test_harrier_loads_from_a_view_of_its_snapshot_without_the_image_processor_key(st, harrier_snapshot):
+    """sentence-transformers 6.1 reads processor_class Gemma3Processor from harrier's tokenizer_config.json and fails on
+    the image processor the text-only checkpoint lacks; the model loads from a view that drops only that key."""
+    e = SentenceTransformerEmbedder("microsoft/harrier-oss-v1-27b")
+    view = Path(e._model.name)
+    assert view != harrier_snapshot and e._model.kwargs == {"model_kwargs": {"dtype": "auto"}}
+    assert json.loads((view / "tokenizer_config.json").read_text()) == {"add_bos_token": True, "add_eos_token": True}
+    for name in ("model-00001-of-00012.safetensors", "config_sentence_transformers.json", "1_Pooling"):
+        assert (view / name).is_symlink() and (view / name).resolve() == (harrier_snapshot / name).resolve()  # the snapshot's own
+    assert json.loads((harrier_snapshot / "tokenizer_config.json").read_text())["processor_class"] == "Gemma3Processor"  # cache untouched
+    shim = e.provenance()["snapshot_view"]
+    assert shim["file"] == "tokenizer_config.json" and shim["dropped"] == {"processor_class": "Gemma3Processor"}
+    assert e.query_prompt == HARRIER_QUERY  # the prompts still come from the model's own config
+
+
+def test_a_snapshot_view_that_no_longer_applies_raises(st, harrier_snapshot):
+    (harrier_snapshot / "tokenizer_config.json").write_text(json.dumps({"add_eos_token": True}))  # an upstream fix
+    with pytest.raises(RuntimeError, match="no longer applies"):
+        SentenceTransformerEmbedder("microsoft/harrier-oss-v1-27b")
+
+
+def test_the_cpu_servable_embedder_is_named_float32_and_harrier_uses_its_web_search_prompt(st, harrier_snapshot):
     small = SentenceTransformerEmbedder("Qwen/Qwen3-Embedding-0.6B")
     assert small._model.kwargs == {"model_kwargs": {"dtype": "float32"}} and small.provenance()["dtype"] == "torch.float32"
     small.encode_queries(["q"])
