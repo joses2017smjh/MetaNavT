@@ -125,6 +125,8 @@ CI publishes this image to `ghcr.io/joses2017smjh/metanavt` (tags `main` and `sh
 
 **Public demo mode (not deployed yet).** With `PUBLIC_DEMO=1` the API serves only search (`/api/retrieve/`) and cited answers (`/api/answer/`): the chat agents, code execution, uploads, files and approval routes are not mounted, and a test checks the route table. An answer comes from Claude over the retrieved excerpts, with the Messages API's own citations, and is delivered only when it cites one of them. Per-caller quotas, a daily dollar budget reserved before each call, and an answer cache live in Redis; without an API key, Redis or budget left, the route still returns the retrieved hits. Claude's answers are not evaluated in this repository: every committed LLM result used local models. [Public demo mode](doc/engineering-reference.md#public-demo-mode).
 
+**Deploy to AWS (code only, not applied).** Terraform under `infra/` describes the public demo on AWS: CloudFront with a WAF in front of an ALB that admits only CloudFront, one ECS Fargate service running the CPU model image by digest, RDS PostgreSQL and ElastiCache in private subnets, alarms and a monthly budget, and an opt-in staging copy. A deploy workflow runs the migrations and the index step, moves the service to the new image, uploads the web client and smokes the public URL; production waits for the owner's approval. CI checks the Terraform offline. Nothing has been applied: the project has no AWS account yet. [Deploy to AWS](doc/deploy.md).
+
 <a id="android-and-ios-companion-backend"></a>
 
 ## Explore further

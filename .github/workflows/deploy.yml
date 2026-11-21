@@ -1,0 +1,191 @@
+name: Deploy
+
+# The approval-gated deploy of the public demo to AWS (doc/deploy.md; the infrastructure is infra/, applied by the
+# owner). It runs after a CI run on main that passed, which published ghcr.io/<owner>/<repo>:sha-<commit>-ml (CI's
+# image-ml job), or by hand with an image digest: a rollback is a run with the previous digest.
+#   gate        the repository variables, the image's digest, the web client's export from that image
+#   staging     opt-in (repository variable DEPLOY_STAGING=true): migrate/index task, service update, smoke
+#   production  waits for the owner's approval (the production environment's required reviewers), then the same
+# Until the owner sets the repository variables AWS_REGION and AWS_DEPLOY_ROLE_ARN (infra/bootstrap's outputs), the
+# gate prints a notice and the deploy jobs are skipped, so the run stays green before the AWS account exists. Every
+# deploy step is scripts/deploy_ecs.py; the jobs assume infra/bootstrap's deploy role through OIDC (no AWS key here).
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "sha256:<64 hex> of ghcr.io/<owner>/<repo> to deploy (empty: this commit's -ml image). A previous digest rolls back."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never cancelled halfway: a later run waits for the one in progress.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_PAGER: ""
+
+jobs:
+  gate:
+    name: gate (variables, image digest, web client)
+    # After CI: only a successful run for a push to this repository's main (never a pull request's run).
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      enabled: ${{ steps.variables.outputs.enabled }}
+      staging: ${{ steps.variables.outputs.staging }}
+      # not "image": tests/eval/test_image_build.py requires every image key of a workflow to be pinned by digest
+      image_ref: ${{ steps.image.outputs.image }}
+    steps:
+      - name: Repository variables (unset = no AWS account yet = nothing to deploy)
+        id: variables
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          DEPLOY_STAGING: ${{ vars.DEPLOY_STAGING }}
+        run: |
+          if [ -z "$AWS_REGION" ] || [ -z "$AWS_DEPLOY_ROLE_ARN" ]; then
+            echo "::notice title=Deploy skipped::the repository variables AWS_REGION and AWS_DEPLOY_ROLE_ARN are not set (doc/deploy.md, one-time steps): nothing is deployed"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$DEPLOY_STAGING" = "true" ]; then echo "staging=true"; else echo "staging=false"; fi >> "$GITHUB_OUTPUT"
+      - name: The image to deploy, by digest (this commit's -ml image, or the digest given)
+        id: image
+        if: ${{ steps.variables.outputs.enabled == 'true' }}
+        env:
+          INPUT_DIGEST: ${{ inputs.image_digest }}
+          # after CI, the commit CI ran on (github.sha is main's tip when this run starts)
+          COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          if [ -n "$INPUT_DIGEST" ]; then
+            digest="$INPUT_DIGEST"
+          else
+            digest=$(docker buildx imagetools inspect "$repository:sha-$COMMIT-ml" --format '{{json .Manifest}}' | jq -r .digest)
+          fi
+          if ! printf '%s' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+            echo "::error::not an image digest: $digest"
+            exit 1
+          fi
+          image="$repository@$digest"
+          docker pull --platform linux/amd64 "$image"
+          revision=$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")
+          if [ -z "$INPUT_DIGEST" ] && [ "$revision" != "$COMMIT" ]; then
+            echo "::error::$image is labelled revision $revision, not $COMMIT"
+            exit 1
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Deploying $image (revision $revision)" >> "$GITHUB_STEP_SUMMARY"
+      - name: The web client's export, from that image (/app/static)
+        if: ${{ steps.variables.outputs.enabled == 'true' }}
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          container=$(docker create --platform linux/amd64 "$IMAGE")
+          docker cp "$container:/app/static" web
+          docker rm "$container"
+          if [ ! -f web/index.html ]; then
+            echo "::error::$IMAGE has no web client export (/app/static/index.html)"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.variables.outputs.enabled == 'true' }}
+        with:
+          name: web-client
+          path: web
+          if-no-files-found: error
+          retention-days: 7
+
+  staging:
+    name: staging (migrate, update, smoke)
+    needs: gate
+    if: ${{ needs.gate.outputs.enabled == 'true' && needs.gate.outputs.staging == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-client
+          path: web
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: deploy-staging-${{ github.run_id }}
+      - name: Deploy (migrate/index task, service update, web client, smoke)
+        id: deploy
+        env:
+          IMAGE: ${{ needs.gate.outputs.image_ref }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          API_TASK_FAMILY: ${{ vars.API_TASK_FAMILY }}
+          MIGRATE_TASK_FAMILY: ${{ vars.MIGRATE_TASK_FAMILY }}
+          WEB_BUCKET: ${{ vars.WEB_BUCKET }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: python3 scripts/deploy_ecs.py --web-dir web
+
+  production:
+    name: production (approval, migrate, update, smoke)
+    needs: [gate, staging]
+    # After staging when staging is on; straight after the gate when it is off (staging skipped). !cancelled() lets a
+    # skipped staging through, and drops the implicit check that the gate succeeded, so it is asked for here: a gate
+    # that failed after reading the variables must not leave the owner an approval for a deploy with no image.
+    if: ${{ !cancelled() && needs.gate.result == 'success' && needs.gate.outputs.enabled == 'true' && (needs.staging.result == 'success' || needs.staging.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-client
+          path: web
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: deploy-production-${{ github.run_id }}
+      - name: Deploy (migrate/index task, service update, web client, smoke)
+        id: deploy
+        env:
+          IMAGE: ${{ needs.gate.outputs.image_ref }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          API_TASK_FAMILY: ${{ vars.API_TASK_FAMILY }}
+          MIGRATE_TASK_FAMILY: ${{ vars.MIGRATE_TASK_FAMILY }}
+          WEB_BUCKET: ${{ vars.WEB_BUCKET }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: python3 scripts/deploy_ecs.py --web-dir web

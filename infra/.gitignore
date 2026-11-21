@@ -1,0 +1,19 @@
+# Terraform's working directories and any local state stay out of git: the environments keep their state in the S3
+# bucket infra/bootstrap creates, and the bootstrap's own state stays with the owner (doc/deploy.md). The provider lock
+# files (.terraform.lock.hcl) are committed.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+# Variable files carry the owner's values (the budget and alarm emails, the image digest): they are passed on the
+# command line or kept in a local file, never committed.
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
