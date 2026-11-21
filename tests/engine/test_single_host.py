@@ -723,3 +723,18 @@ def test_compose_resolves_the_file_with_the_hosts_three_env_files(tmp_path):
     refused = subprocess.run([*command, *env_files[:4], "config", "--quiet"], capture_output=True, text=True,
                              env=environ, timeout=120)
     assert refused.returncode != 0 and "ORIGIN_VERIFY_SECRET" in refused.stderr
+
+
+# ---- the sizing record: scripts/measure_api_memory.py measures what the host loads -----------------------------------
+
+def test_the_memory_measurement_loads_the_models_the_host_serves():
+    spec = importlib.util.spec_from_file_location("measure_api_memory", ROOT / "scripts" / "measure_api_memory.py")
+    measure = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(measure)  # torch is imported only when it measures
+    env = COMPOSE["x-api-environment"]
+    for name in ("PUBLIC_DEMO", "ENVIRONMENT", "MODEL_PROVIDER", "EMBEDDING_PROVIDER", "EMBEDDING_MODEL", "EMBEDDING_DIM",
+                 "RERANKER_PRECISION", "RERANKER_MAX_LENGTH", "RERANK_DEPTH", "RERANKER_REQUIRED"):
+        assert measure.SETTINGS[name] == env[name], name
+    # the cross-encoder serve_reranker = true would load (main.tf), measured on CPU with CUDA hidden
+    assert measure.SETTINGS["RERANKER_MODEL"] == "BAAI/bge-reranker-v2-m3" in _locals()["reranker_model"]
+    assert measure.SETTINGS["CUDA_VISIBLE_DEVICES"] == ""
