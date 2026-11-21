@@ -309,6 +309,10 @@ describe("the demo page", () => {
       /^Answers are paused: the server cannot reach the store that keeps its quotas and its budget/,
     ],
     [
+      "answer spend limit reached",
+      /^Answers are paused: the demo's Anthropic account has reached its spend limit or run out of credit, so Claude did not answer\. Search still works/,
+    ],
+    [
       "refused (cyber)",
       /^Claude declined to answer this question \(category: cyber\)\.$/,
     ],

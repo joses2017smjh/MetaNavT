@@ -79,6 +79,41 @@ def test_a_rejected_request_is_raised_never_turned_into_a_retrieval_only_answer(
         claude.answer(_sdk((400, error), seen), QUESTION, EXCERPTS, claude.AnswerSettings())
 
 
+# The 400s that say the account cannot pay (claude.UNPAID): a workspace's and an organization's own spend limit, in the
+# words of Anthropic's Rate limits page, and prepaid credit that ran out, as the API words it.
+UNPAID_MESSAGES = [
+    "You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.",
+    "You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.",
+    "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase "
+    "credits.",
+]
+
+
+@pytest.mark.parametrize("message", UNPAID_MESSAGES)
+def test_a_400_saying_the_account_cannot_pay_is_a_reason_that_costs_nothing(message):
+    seen = []
+    error = {"type": "error", "error": {"type": "invalid_request_error", "message": message}, "request_id": "req_1"}
+    result = claude.answer(_sdk((400, error), seen), QUESTION, EXCERPTS, claude.AnswerSettings(model="claude-haiku-5-5"))
+    assert len(seen) == 1  # one call: a 400 is not retried
+    assert not result.delivered and result.reason == claude.UNPAID_REASON == "answer spend limit reached"
+    assert result.text is None and result.citations == [] and result.model == "claude-haiku-5-5"
+    assert result.cost_usd == 0.0  # nothing was billed: the route gives the call's whole reservation back
+
+
+@pytest.mark.parametrize("status, kind, message", [
+    (400, "invalid_request_error", "messages.0.content: Input should be a valid list"),  # a malformed request: a bug
+    (400, "invalid_request_error", "messages.0: You have reached your specified API usage limits"),  # not at the start
+    (400, "permission_error", UNPAID_MESSAGES[2]),  # the words, under another error type
+    (402, "billing_error", "There is an issue with your billing or payment information."),  # a payment problem
+])
+def test_every_other_client_error_is_still_raised(status, kind, message):
+    seen = []
+    error = {"type": "error", "error": {"type": kind, "message": message}}
+    with pytest.raises(anthropic.APIStatusError) as raised:
+        claude.answer(_sdk((status, error), seen), QUESTION, EXCERPTS, claude.AnswerSettings(model="claude-haiku-5-5"))
+    assert raised.value.status_code == status and not claude.unpaid(raised.value)
+
+
 def test_a_transient_failure_is_not_delivered_and_says_why():
     seen = []
     error = {"type": "error", "error": {"type": "overloaded_error", "message": "busy"}}

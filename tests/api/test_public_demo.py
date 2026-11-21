@@ -198,6 +198,50 @@ def test_without_a_key_redis_or_budget_no_call_is_made_and_the_hits_still_come_b
     assert client is None or client.calls == []
 
 
+def _refusing_sdk(kind: str, message: str, calls: list):
+    """The real Anthropic SDK over a transport that answers every call with a 400 of this error type and message."""
+    import anthropic
+    import httpx2
+
+    def handler(request):
+        calls.append(str(request.url))
+        return httpx2.Response(400, json={"type": "error", "error": {"type": kind, "message": message}})
+
+    return anthropic.Anthropic(api_key="test-key", max_retries=0,
+                               http_client=anthropic.DefaultHttpxClient(transport=httpx2.MockTransport(handler)))
+
+
+@pytest.mark.parametrize("message", [
+    "You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.",
+    "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase "
+    "credits.",
+])
+def test_an_account_that_cannot_pay_gets_the_hits_and_a_reason_and_no_spend_is_recorded(message):
+    tc = _client()
+    calls = []
+    tc.app.state.answer["client"] = _refusing_sdk("invalid_request_error", message, calls)
+    limits = tc.app.state.answer["limits"]
+    response = tc.post("/api/answer/", json=Q)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["answer"] is None and body["reason"] == "answer spend limit reached" and len(body["hits"]) == 2
+    assert body["cost_usd_estimate"] == 0.0 and len(calls) == 1
+    assert limits.spent_today_usd() == 0  # the call's reservation was given back: nothing was billed
+    again = tc.post("/api/answer/", json=Q).json()
+    assert again["cached"] is False and len(calls) == 2  # a refusal is not cached: the next ask tries again
+
+
+def test_any_other_400_is_raised_by_the_route_and_its_reservation_stays():
+    tc = _client()
+    calls = []
+    tc.app.state.answer["client"] = _refusing_sdk("invalid_request_error", "max_tokens: Field required", calls)
+    import anthropic
+
+    with pytest.raises(anthropic.BadRequestError):  # a malformed request is a bug: loud, never a reason
+        tc.post("/api/answer/", json=Q)
+    assert len(calls) == 1 and tc.app.state.answer["limits"].spent_today_usd() > 0  # whether it was billed is unknown
+
+
 def test_a_caller_over_its_quota_gets_429_before_anything_is_retrieved():
     tc = _client(per_minute=1)
     assert tc.post("/api/answer/", json=Q).status_code == 200

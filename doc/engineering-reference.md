@@ -2254,7 +2254,11 @@ parses every citation into the document it points at, the cited text and its cha
 byte range in the file from the excerpt's `start_byte`. A reply is delivered only when it ends normally and cites an
 excerpt. A refusal, a reply cut at `max_tokens`, an uncited reply (returned apart as `uncited_reply`, unverified) and
 a transient API failure are not delivered, each with its reason, and the retrieved hits come back on every path. A
-request the API rejects as malformed is raised instead: it is a bug, not a degraded answer. Requests use the API
+request the API rejects as malformed is raised instead: it is a bug, not a degraded answer. The exception is a
+refusal because the account cannot pay, a spend limit someone set or no credit left (`UNPAID` in
+`app/answer/claude.py`, matched on the error's type and the start of its message): that is the reason
+`answer spend limit reached`, with the hits, and the call's budget reservation is given back, since nothing was
+billed. Requests use the API
 version the SDK sends by default, which takes no sampling parameters, so none are sent. The default model is
 `claude-opus-5-5` (`ANSWER_MODEL`) with the server-side refusal fallback on; `claude-sonnet-5-5` and
 `claude-haiku-5-5` are one setting away, Haiku without a fallback. The demo is configured to answer with
@@ -2282,8 +2286,9 @@ The caller is the API key's name when authentication is on, and otherwise the cl
 the client is that many entries from the right, and an entry the client wrote itself is ignored; a test sends a
 spoofed header. The monthly spend limit set in the Anthropic Console on the workspace that holds the API key (Console
 spend limits are set for an organization or a workspace) is the last cap if everything else fails. Once it is
-reached the Messages API refuses each call as an invalid request, which `app/answer/claude.py` raises rather than
-reporting as a reason, so the answer route fails until access resumes ([the runbook](deploy.md#claudes-cost)).
+reached the Messages API refuses each call as an invalid request that says so, which the answer route reports as
+`answer spend limit reached`, with the hits and no spend recorded, until access resumes
+([the runbook](deploy.md#claudes-cost)).
 
 **The demo page.** One static export of the web client serves both modes: its home page asks `GET /health` in the
 browser and renders the demo page when `public_demo` is true, the chat interface otherwise, as before

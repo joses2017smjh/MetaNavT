@@ -9,6 +9,8 @@ returns the retrieved hits; `answer` is null with a `reason` whenever no answer 
   daily budget spent    today's reservations plus this call's worst case are over ANSWER_DAILY_BUDGET_USD
   uncited, refused (...), cut at max_tokens, upstream ...   from app.answer.claude (an uncited reply is returned in
                         `uncited_reply`, unverified: usually that the excerpts do not hold the answer)
+  answer spend limit reached   the API refused the call because the account cannot pay (a spend limit someone set,
+                        or no credit left: app.answer.claude.UNPAID); nothing was billed, so no spend is recorded
 
 Over the caller's quota is a 429 with Retry-After. Claude's answers are not evaluated in this repository.
 """
@@ -151,7 +153,8 @@ async def answer(req: AnswerRequest, request: Request, caller: Caller = Depends(
     try:
         result = await run_in_threadpool(claude.answer, state["client"], req.question, excerpts, settings)
     finally:
-        # a failure before a reply keeps the whole reservation: whether it was billed is unknown
+        # a failure before a reply keeps the whole reservation: whether it was billed is unknown. A refusal because the
+        # account cannot pay (claude.UNPAID) costs 0, so its whole reservation is given back: no spend is recorded.
         actual = result.cost_usd if result is not None else None
         try:
             await run_in_threadpool(limits.settle, reserved, actual)
