@@ -84,6 +84,13 @@ module "demo" {
   deletion_protection = true
   vpc_cidr            = "10.40.0.0/16"
 
+  # The owner's cheap profile (2026-11-21): configured to answer with Claude Haiku 5.5 once the key is stored, under a
+  # daily answer budget of $0.75: at most $23.25 in a 31-day month, under a $24 monthly spend limit in the Anthropic
+  # Console, and $69 over 92 days, within the owner's three-month allowance of about $70 (doc/deploy.md, Claude's
+  # cost). The module's defaults stay the deploy contract's (claude-opus-5-5, 2.00), as docker-compose.prod.yml's do.
+  answer_model            = "claude-haiku-5-5"
+  answer_daily_budget_usd = 0.75
+
   # Set to true, in a pull request, once the key is in the secret (doc/deploy.md, one-time steps).
   anthropic_key_stored = false
 }

@@ -166,7 +166,9 @@ async def health():
     data table cannot be read: a database error is never reported as an empty index. The
     entry names the error's class and the request's id; its text is in the server log.
     Never behind the API key (orchestrator probes must reach it). Both answers say
-    whether authentication and the request budget are on (app/api/security.py).
+    whether the API is in public demo mode (`public_demo`: only the allow-listed routes
+    of app/api/public.py are mounted; the web client reads it to show its demo page)
+    and whether authentication and the request budget are on (app/api/security.py).
     """
     state = getattr(app.state, "retrieval", None)
     # Start-up attempts so far, and whether (and after what wait) another one is coming.
@@ -176,7 +178,8 @@ async def health():
         error = public_startup_error(error, getattr(app.state, "startup_error_id", None)) if error else None
         return JSONResponse(
             status_code=503,
-            content={"status": "unavailable", "error": error, "startup": startup, **security_status()},
+            content={"status": "unavailable", "error": error, "startup": startup, "public_demo": PUBLIC_DEMO,
+                     **security_status()},
         )
     database_error = None
     try:
@@ -225,6 +228,7 @@ async def health():
         "indexing": state.indexing,
         "startup": startup,
         "observability": {"log_format": LOG_FORMAT_USED, "tracing": tracing_status()},
+        "public_demo": PUBLIC_DEMO,
         **security_status(),
     }
     return JSONResponse(status_code=503, content=payload) if device_errors or database_error else payload

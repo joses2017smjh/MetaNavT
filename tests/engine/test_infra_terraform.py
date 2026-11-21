@@ -426,6 +426,62 @@ def test_production_and_staging_call_the_one_module_with_their_differences():
     assert hcl.attr(db, "skip_final_snapshot") == "!var.final_snapshot"
 
 
+# ---- the owner's cheap profile (2026-11-21): Claude Haiku 5.5 under a smaller daily budget ------------------------
+
+CHEAP_MODEL, CHEAP_BUDGET_USD = "claude-haiku-5-5", 0.75
+CONSOLE_LIMIT_USD, THREE_MONTH_ALLOWANCE_USD = 24.0, 70.0  # the Console's monthly spend limit; about $70 in 92 days
+
+
+def test_production_answers_with_the_owners_model_and_budget_and_so_does_the_rehearsal_example():
+    """Production passes the owner's model and daily budget to the module, whose defaults stay the deploy contract's
+    (test_the_contracts_fixed_values_are_the_ones_the_task_sets); staging keeps those defaults; deploy/prod.env.example
+    sets the same two values for the Compose rehearsal."""
+    production = hcl.block(hcl.read_dir(INFRA / "envs" / "production"), "module", "demo")
+    assert hcl.strings(hcl.attr(production, "answer_model")) == [CHEAP_MODEL]
+    assert float(hcl.attr(production, "answer_daily_budget_usd")) == CHEAP_BUDGET_USD
+    staging = hcl.block(hcl.read_dir(INFRA / "envs" / "staging"), "module", "demo")
+    assert hcl.attr(staging, "answer_model") is None and hcl.attr(staging, "answer_daily_budget_usd") is None
+    example = dict(re.findall(r"^([A-Z][A-Z0-9_]*)=(.*)$", (ROOT / "deploy" / "prod.env.example").read_text(), re.M))
+    assert example["ANSWER_MODEL"] == CHEAP_MODEL and float(example["ANSWER_DAILY_BUDGET_USD"]) == CHEAP_BUDGET_USD
+    # a 31-day month of the app's budget stays under the monthly spend limit set in the Anthropic Console, and three
+    # months (92 days) within the owner's allowance (doc/deploy.md, Claude's cost)
+    assert 31 * CHEAP_BUDGET_USD <= CONSOLE_LIMIT_USD and 92 * CHEAP_BUDGET_USD <= THREE_MONTH_ALLOWANCE_USD
+    # the model is in the app's price table, without a server-side fallback, so each call's budget reservation is
+    # priced at its own rates (app.answer.claude.worst_case_usd), not at the dearest listed model's
+    from app.answer import claude
+
+    assert CHEAP_MODEL in claude.PRICES and CHEAP_MODEL not in claude.FALLBACK_MODELS
+
+
+def test_the_runbooks_claude_cost_is_the_apps_price_table_and_the_owners_budget():
+    """doc/deploy.md's Claude's cost: the per-million prices and their date are the ones app/answer/claude.py estimates
+    each call with, and the worked example (an assumed answer of 3,000 input and 600 output tokens) is computed from
+    them, with the production budget."""
+    from app.answer import claude
+
+    text = (ROOT / "doc" / "deploy.md").read_text()
+    section = text.split("### Claude's cost", 1)[1].split("\n## ", 1)[0]
+    rows = {row.split("|")[1].strip(): row.split("|")[2].strip() for row in section.splitlines() if row.startswith("| ")}
+    price, long_prompt = claude.PRICES[CHEAP_MODEL], claude.HAIKU_LONG_PROMPT
+    up_to = f"prompts up to {long_prompt['threshold'] // 1000}K tokens"
+    assert rows[f"Input tokens, {up_to}"] == f"${price['input']:.2f} per million input tokens"
+    assert rows[f"Output tokens (the model's thinking included), {up_to}"] == f"${price['output']:.2f} per million output tokens"
+    assert rows[f"Input and output tokens, prompts over {long_prompt['threshold'] // 1000}K tokens"] == (
+        f"${long_prompt['input']:.2f} per million input tokens and ${long_prompt['output']:.2f} per million output tokens")
+    flat = " ".join(section.split())
+    assert f"the claude-api skill's price table, cached {claude.PRICES_AS_OF}" in flat
+    # the formula, with the prices as plain numbers
+    assert f"input tokens × {price['input']:.2f} / 1,000,000 + output tokens × {price['output']:.2f} / 1,000,000" in flat
+    each = (3000 * price["input"] + 600 * price["output"]) / 1_000_000
+    assert (f"3,000 × ${price['input']:.2f} / 1,000,000 + 600 × ${price['output']:.2f} / 1,000,000 = "
+            f"${3000 * price['input'] / 1e6:.4f} + ${600 * price['output'] / 1e6:.4f} = ${each:.4f}") in flat
+    answers = CHEAP_BUDGET_USD / each
+    assert f"${CHEAP_BUDGET_USD:.2f} / ${each:.4f} = {answers:,.0f}" in flat and 1200 <= answers <= 1300  # about 1,250
+    assert f"within ${CHEAP_BUDGET_USD:.2f}" in flat
+    assert f"${31 * CHEAP_BUDGET_USD:.2f} in a 31-day month and ${92 * CHEAP_BUDGET_USD:.2f} over 92 days" in flat
+    assert f"the ${CONSOLE_LIMIT_USD:.0f} monthly spend limit" in flat
+
+
 def test_every_root_requires_terraform_1_11_and_commits_its_provider_lock():
     for directory in [*ROOTS, "modules/demo"]:
         terraform = hcl.block(hcl.read_dir(INFRA / directory), "terraform")

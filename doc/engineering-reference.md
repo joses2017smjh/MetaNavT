@@ -2046,7 +2046,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
                                               or fail loud
 ```
 
-**Frontend.** Next.js in `.frontend/`. Chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). The plans themselves are rows of `plan_proposals`, read by id on every request, so the replicas on the database that see `DATA_DIR` at the same path on the same filesystem, and a restarted one, serve the same plans and statuses (Shared state across replicas, below); the decision log records every attempt and `GET /api/plans/decisions/recent` reads it back. Every request the page's code makes to the API goes through `apiFetch` (`app/components/ui/chat/hooks/api-key.ts`), which adds the API key the user entered (API access, below). CI's web workflow (`.github/workflows/web.yml`: every push to `main` and every pull request into `main`, as `ci.yml` runs, on `ubuntu-24.04` with Node pinned to one release) installs `.frontend` from its lockfile (`npm ci`), runs its tests (`npm test`: Node's own test runner with jsdom, through `tsx`; `.frontend/tests/`) and builds the static export. The tests render the plans panel and approve a plan against a mocked API, send a chat message and upload a document through the chat section, and check that each request carries the key that was entered, and none when no key was; `.frontend/tests/requests.test.ts` fails on a `fetch` call outside `apiFetch`. The page background is the four-stop radial gradient in `globals.css`.
+**Frontend.** Next.js in `.frontend/`. Against an API in public demo mode its home page is the demo page instead (Public demo mode, under Run it); otherwise chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). The plans themselves are rows of `plan_proposals`, read by id on every request, so the replicas on the database that see `DATA_DIR` at the same path on the same filesystem, and a restarted one, serve the same plans and statuses (Shared state across replicas, below); the decision log records every attempt and `GET /api/plans/decisions/recent` reads it back. Every request the page's code makes to the API goes through `apiFetch` (`app/components/ui/chat/hooks/api-key.ts`), which adds the API key the user entered (API access, below). CI's web workflow (`.github/workflows/web.yml`: every push to `main` and every pull request into `main`, as `ci.yml` runs, on `ubuntu-24.04` with Node pinned to one release) installs `.frontend` from its lockfile (`npm ci`), runs its tests (`npm test`: Node's own test runner with jsdom, through `tsx`; `.frontend/tests/`) and builds the static export. The tests render the plans panel and approve a plan against a mocked API, send a chat message and upload a document through the chat section, check that each request carries the key that was entered, and none when no key was, and drive the home page's switch and the demo page against a mocked public API; `.frontend/tests/requests.test.ts` fails on a `fetch` call outside `apiFetch`. The page background is the four-stop radial gradient in `globals.css`.
 
 **Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text; a `Not found: ...` reply (`get_file_content` asked for a path the index does not hold) is counted apart, as an answer from a working tool. The runner tells these apart by how the returned text starts, so a file whose own text starts with `Error` or `Not found` would be counted the same way; no file of fixture v1 does. The two file-access tools in `app/engine/tools/index_file_access.py` work on the default stack since M30b. `list_available_files` lists the paths of the ingest manifest, the record of the files the index step stored, relative to `DATA_DIR`, filtered by a glob over the whole relative path (so a bare name pattern such as `fusion*` matches only paths that start with `fusion`: not `src/fusion.py`, but a file under a top-level `fusion_x/`, since `*` also matches `/`), at most `MAX_LISTED_FILES` of them in code point order; called without a pattern it lists every file up to that cap, and the model is not told when a list was cut. `get_file_content` reads the file's chunk rows by that relative path with a parameterized query, not with the vector store's metadata filters, which the installed `PGVectorStore` formats into the SQL text, and rebuilds the file from them on their byte offsets, cut after `MAX_CONTENT_CHARS` characters with a note. A whitespace-only stretch the chunker stored no chunk for, such as the blank lines between two top-level Python definitions, does not come back: a line break stands in only where the text before it does not end a line. A database failure gives the model a fixed `Error: ...` text and the reason goes to the API log. `tests/engine/test_index_file_access.py` calls both tools through their `FunctionTool` with only the model's arguments, as the agent does; `tests/database/test_file_access_tools.py` lists the fixture indexed through the served path and fetches every file by its relative path; `tests/database/test_agent_paths_stack.py` drives them through the request route with a scripted model. Before M30b, the run then recorded (at 44d2c5f, replaced by the current file) showed both tools failing: `list_available_files` called without a pattern raised, because its `pattern` default was a pydantic `Field` object rather than a string, and with a pattern it returned an empty list, because it read the `indexed_files` table the served indexer never writes; `get_file_content` passed a plain dict as metadata filters, and the query engine's error came back to the model as text, so only `query_index` returned file content to the model. The current file was recorded after the fixes; its counts, including the calls that failed and the not-found replies, are in the generated rows. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
@@ -2245,7 +2245,8 @@ no chat model, no plan store); a request body over `MAX_BODY_BYTES` is refused w
 `POST /api/answer/`, beside `GET /health`, the OpenAPI docs and the web client's files. `tests/api/test_public_demo.py`
 imports the app in a fresh interpreter, compares its routes with the list, posts to every route of the full API (each
 answers 404) and checks that the chat stack, the agents and the plan routes were never imported. The public retrieve
-route also caps `k` and the query length (`PUBLIC_MAX_K`, `PUBLIC_MAX_QUERY_CHARS`).
+route also caps `k` and the query length (`PUBLIC_MAX_K`, `PUBLIC_MAX_QUERY_CHARS`). `GET /health` says which mode
+runs (`public_demo`), in its answer while the API is still starting too.
 
 **Cited answers.** `POST /api/answer/` (`app/api/routers/answer.py`) retrieves with the served retriever, then sends
 each excerpt to the Messages API as a plain-text document with citations enabled (`app/answer/claude.py`). The API
@@ -2256,7 +2257,11 @@ a transient API failure are not delivered, each with its reason, and the retriev
 request the API rejects as malformed is raised instead: it is a bug, not a degraded answer. Requests use the API
 version the SDK sends by default, which takes no sampling parameters, so none are sent. The default model is
 `claude-opus-5-5` (`ANSWER_MODEL`) with the server-side refusal fallback on; `claude-sonnet-5-5` and
-`claude-haiku-5-5` are one setting away, Haiku without a fallback. There is no prompt caching: the fixed system prompt is far shorter than the minimum
+`claude-haiku-5-5` are one setting away, Haiku without a fallback. The demo is configured to answer with
+`claude-haiku-5-5` once the owner stores an Anthropic key (until then answers are off and search works): the AWS
+production environment (`infra/envs/production/main.tf`) and `deploy/prod.env.example` set it with a smaller daily
+budget, the owner's choice for a cheap demo, while the defaults stay the contract's below
+([Claude's cost](deploy.md#claudes-cost)). There is no prompt caching: the fixed system prompt is far shorter than the minimum
 the API caches, and the excerpts change with every question, so a repeated question is served from the answer cache
 instead. `tests/api/test_answer_claude.py` sends the request through the installed SDK into a mocked transport and
 checks what the API would receive, so a parameter the SDK or the API version does not take fails a test rather than a
@@ -2275,7 +2280,28 @@ models, and evaluating Claude spends API credits.
 The caller is the API key's name when authentication is on, and otherwise the client address behind
 `TRUSTED_PROXY_HOPS` proxies. Each proxy appends the address it received the request from to `X-Forwarded-For`, so
 the client is that many entries from the right, and an entry the client wrote itself is ignored; a test sends a
-spoofed header. The spend limit set on the API key in the Anthropic Console is the last cap if everything else fails.
+spoofed header. The monthly spend limit set in the Anthropic Console on the workspace that holds the API key (Console
+spend limits are set for an organization or a workspace) is the last cap if everything else fails. Once it is
+reached the Messages API refuses each call as an invalid request, which `app/answer/claude.py` raises rather than
+reporting as a reason, so the answer route fails until access resumes ([the runbook](deploy.md#claudes-cost)).
+
+**The demo page.** One static export of the web client serves both modes: its home page asks `GET /health` in the
+browser and renders the demo page when `public_demo` is true, the chat interface otherwise, as before
+(`.frontend/app/components/home-switch.tsx`). Until `/health` answers it renders neither, since the chat interface
+would at once ask for routes the public demo does not serve. The demo page (`.frontend/app/components/demo/`) has one
+question box, capped at the routes' length limit. Search posts it to `/api/retrieve/` (`SEARCH_K` hits) and lists
+each hit's path, byte range, per-stage scores and a snippet, under the lexical backend, the embedder and the reranker
+the response names; when the response says the server runs without the reranker, a note says so and links the
+reranker's measured gain in the README. Ask posts it to `/api/answer/` (`ANSWER_K` excerpts) and shows the answer
+with numbered markers, each linking to the passage it cites (path, cited text, byte range), and the hits. The
+response does not say where in the answer each citation belongs, so the markers follow the answer. An answer route
+response without an answer shows its reason in plain words (an uncited reply apart, labelled unverified), a quota
+refusal its `Retry-After`, and a refused input the length limits. A note says that the answers come from Claude,
+with the model id the response names, and are not evaluated here, and that retrieval is the benchmarked part, with
+links to the repository and the README's benchmark tables. Every request goes to the page's own origin through
+`apiFetch`, and whatever the API returns is rendered as text. `.frontend/tests/demo.test.tsx` checks the switch,
+search, an answer with its citations, each reason, the quota and input refusals and the origin against a mocked API;
+`tests/api/test_public_demo.py` checks that the page's limits and paths are the routes'.
 
 The deploy contract, the names the production Compose file and the AWS stack set:
 
@@ -2307,8 +2333,9 @@ Encrypt certificate, `localhost` one from Caddy's own local CA), caps request
 bodies above the api's own `MAX_BODY_BYTES`, adds security headers (HSTS only
 for a public name), and replaces any `X-Forwarded-For` a client sends with the
 address it saw, which is what makes `TRUSTED_PROXY_HOPS=1` hold. The settings
-come from `deploy/prod.env`, a copy of `deploy/prod.env.example` that git and
-the image build ignore; started without it, the stack stops at the missing
+come from `deploy/prod.env`, a copy of `deploy/prod.env.example` (which sets
+the production profile's answer model and daily budget) that git and the image
+build ignore; started without it, the stack stops at the missing
 `POSTGRES_PASSWORD` instead of running on the local app's `.env`.
 
 ```bash
@@ -2334,8 +2361,9 @@ ingress is CloudFront's origin-facing prefix list and whose listener forwards
 only requests that carry CloudFront's header; everything else is the web
 client, from a private S3 bucket. One ECS Fargate service runs the CPU model
 image by digest with the contract above (`TRUSTED_PROXY_HOPS` is two behind
-CloudFront and the ALB), the database password and the Anthropic key from
-Secrets Manager; RDS PostgreSQL and ElastiCache sit in private subnets with no
+CloudFront and the ALB; production is configured for `claude-haiku-5-5` and a
+smaller daily budget, [Claude's cost](deploy.md#claudes-cost)), the database password and the
+Anthropic key from Secrets Manager; RDS PostgreSQL and ElastiCache sit in private subnets with no
 route out. `.github/workflows/deploy.yml` deploys after CI passes on `main`, or
 by hand with an image digest (a rollback): a one-off task runs the migrations
 and the index step, the service moves to the new revision and is waited on
