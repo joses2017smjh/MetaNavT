@@ -353,6 +353,21 @@ def _rerank_settings(cfg: BenchConfig, model) -> dict[str, Any]:
     }
 
 
+def _check_models(index, cfg: BenchConfig) -> dict[str, Any]:
+    """The load-and-score check of every model this row loaded (app/eval/models_2026.py); raises if one fails."""
+    from app.eval.models_2026 import check_embedder, check_reranker
+
+    out: dict[str, Any] = {}
+    if cfg.embedder.startswith("st:"):
+        out["embedder"] = check_embedder(index.embedder)
+    model = getattr(getattr(index, "rerank_fn", None), "model", None)
+    if cfg.enable_rerank and isinstance(getattr(index, "rerank_fn", None), CrossEncoderReranker):
+        if model is None:  # build_index(require_reranker=True) raised already; this is the belt to its braces
+            raise RuntimeError(f"{cfg.name}: the cross-encoder {cfg.reranker} is not loaded")
+        out["reranker"] = check_reranker(model, cfg.reranker)
+    return out
+
+
 def _generations_path(rel: str) -> Path:
     path = Path(rel)
     return path if path.is_absolute() else project_root() / path
@@ -429,6 +444,77 @@ CATEGORY_DELTAS = {"hybrid+rerank+router": "exact_path", "hybrid+rerank+router+s
                    "hybrid+bge-rerank+router@bge-small": "exact_path", "hybrid+bge-rerank+router+staleness@bge-small": "staleness"}
 SMALL_N = 30
 
+# M41: current open embedders and rerankers on fixture v1 (app/eval/models_2026.py), each one change from a committed
+# bge row of bench/results/neural.json that the same run recomputes: an embedder's dense_only and hybrid rows on
+# bge-small's, a reranker over hybrid@bge-small on bge-reranker-v2-m3's at that row's settings (every fused candidate,
+# the model's own token cap, fp32; Qwen3-Reranker-8B in bf16). `make bench-models-2026` -> models_2026.json;
+# harrier-oss-v1-27b needs an 80 GB GPU, so its rows are their own run and file (`make bench-models-2026-harrier`);
+# `make bench-models-2026-cpu` runs the CPU-servable models on a CPU at the served CPU settings (depth 20, max_length
+# 512, fp32) for their latency. Every model must load and pass its load-and-score check, or the run stops.
+MODELS_2026_PARENTS = ("bm25_only", "dense_only@bge-small", "hybrid@bge-small", "hybrid+bge-rerank@bge-small")
+# The committed rows a run's parents are compared with (app.eval.models_2026.reproduces), by file; a run compares the
+# ones it has. The CPU set's reranked parent is at the served settings, recorded in rerank_depth.json.
+MODELS_2026_REPRODUCE = {"bench/results/neural.json": MODELS_2026_PARENTS,
+                         "bench/results/rerank_depth.json": ("hybrid+bge-rerank@bge-small/fp32-512/top20",)}
+_M = dict(enable_router=False, staleness_tier1=False, **_N)
+
+
+def _models_2026_configs(embedders: tuple[str, ...], rerankers: tuple[str, ...], *, served_cpu: bool = False) -> list[BenchConfig]:
+    """The parents, then dense_only and hybrid per embedder tag, then one reranked row per reranker tag. served_cpu: the
+    reranked rows (the bge parent included) at the served CPU settings, depth 20, max_length 512, fp32."""
+    from app.eval.models_2026 import EMBEDDERS, RERANKERS
+
+    by_name = {c.name: c for c in NEURAL_CONFIGS}
+    parents = [replace(by_name[n]) for n in MODELS_2026_PARENTS if n != "hybrid+bge-rerank@bge-small" or rerankers]
+    served = dict(rerank_depth=20, rerank_max_length=512, rerank_precision="fp32") if served_cpu else {}
+    suffix = "/fp32-512/top20" if served_cpu else ""
+    if served_cpu and rerankers:
+        parents[-1] = replace(parents[-1], name=parents[-1].name + suffix, **served)
+    rerank_parent = "hybrid+bge-rerank@bge-small" + suffix
+    rows = []
+    for tag in embedders:
+        rows.append(BenchConfig(name=f"dense_only@{tag}", mode="dense", embedder=EMBEDDERS[tag], enable_rerank=False,
+                                parent="dense_only@bge-small", **_M))
+        rows.append(BenchConfig(name=f"hybrid@{tag}", mode="hybrid", embedder=EMBEDDERS[tag], enable_rerank=False,
+                                parent="hybrid@bge-small", **_M))
+    for tag in rerankers:
+        model, precision = RERANKERS[tag]
+        settings = served or ({"rerank_precision": precision} if precision != "fp32" else {})
+        rows.append(BenchConfig(name=f"hybrid+{tag}@bge-small{suffix}", mode="hybrid", embedder=BGE_SMALL, reranker=model,
+                                enable_rerank=True, parent=rerank_parent, **settings, **_M))
+    return parents + rows
+
+
+def models_2026_configs(which: str = "main") -> list[BenchConfig]:
+    """main: Qwen3-Embedding 0.6B and 8B, the four rerankers (A40); harrier: harrier-oss-v1-27b (80 GB GPU); cpu: the
+    CPU-servable models at the served CPU settings, for their CPU latency."""
+    from app.eval.models_2026 import CPU_SERVABLE, EMBEDDERS, HARRIER, RERANKERS
+
+    if which == "main":
+        return _models_2026_configs(tuple(t for t in EMBEDDERS if t != HARRIER), tuple(RERANKERS))
+    if which == "harrier":
+        return _models_2026_configs((HARRIER,), ())
+    if which == "cpu":
+        return _models_2026_configs(tuple(t for t in CPU_SERVABLE if t in EMBEDDERS), tuple(t for t in CPU_SERVABLE if t in RERANKERS),
+                                    served_cpu=True)
+    raise ValueError(f"unknown models-2026 set {which!r}; expected main, harrier or cpu")
+
+
+MODELS_2026_SETS = ("main", "harrier", "cpu")
+
+
+def models_2026_comparisons(configs: list[BenchConfig]) -> list[tuple[str, str]]:
+    """Paired comparisons beside the parent deltas: each new embedder's hybrid row against its own dense_only row, and
+    each reranked row against the unreranked hybrid@bge-small (what the reranker adds, as the bge parent's delta shows)."""
+    names = {c.name for c in configs}
+    out = []
+    for c in configs:
+        if c.name.startswith("hybrid@") and c.name != "hybrid@bge-small" and c.name.replace("hybrid@", "dense_only@", 1) in names:
+            out.append((c.name, c.name.replace("hybrid@", "dense_only@", 1)))
+        if c.enable_rerank and c.parent != "hybrid@bge-small" and "hybrid@bge-small" in names:
+            out.append((c.name, "hybrid@bge-small"))
+    return out
+
 
 def run_config(
     cfg: BenchConfig,
@@ -439,9 +525,13 @@ def run_config(
     keep_retrieved: bool = False,
     mtimes: str = "auto",
     probes: list | None = None,
+    check_models: bool = False,
 ) -> dict[str, Any]:
     """Score one config. `mtimes` is where chunk mtimes come from (index_loader.MTIME_MODES).
-    `probes` (app.eval.probes.Probe) are looked up after the gold replay by the cache arm only."""
+    `probes` (app.eval.probes.Probe) are looked up after the gold replay by the cache arm only.
+    `check_models` (M41): a cross-encoder that does not load stops the run instead of falling back to the overlap
+    reranker, and every loaded model passes its load-and-score check (app/eval/models_2026.py) before the row is
+    scored; the check is recorded in the row."""
     gen = load_generations(_generations_path(cfg.generations)) if cfg.generations else None
     prefixes = context_prefixes(gen) if gen is not None and cfg.contextual else None
     hyde_complete = hyde_completion(gen) if gen is not None and cfg.hyde else None
@@ -460,7 +550,9 @@ def run_config(
         rerank_depth=cfg.rerank_depth,
         rerank_precision=cfg.rerank_precision,
         rerank_max_length=cfg.rerank_max_length,
+        require_reranker=check_models,
     )
+    load_and_score = _check_models(index, cfg) if check_models else None
     late = None
     if cfg.late_chunking:
         from app.chunking.late import late_chunk_index
@@ -628,11 +720,14 @@ def run_config(
             "loaded": payload["reranker_loaded"],
             "device": model_device(rerank_model) if payload["reranker_loaded"] else None,
             **_rerank_settings(cfg, rerank_model if payload["reranker_loaded"] else None),
-            # a loaded cross-encoder's dtype, token cap and default prompt (M41); nothing for the overlap reranker
-            **(cross_encoder_provenance(rerank_model) if payload["reranker_loaded"] and rerank_model is not None
+            # a loaded cross-encoder's precision, dtype, token cap and default prompt (M41); nothing for the overlap reranker
+            **({"precision": cfg.rerank_precision or "fp32", **cross_encoder_provenance(rerank_model)}
+               if payload["reranker_loaded"] and rerank_model is not None
                and isinstance(getattr(index, "rerank_fn", None), CrossEncoderReranker) else {}),
         },
     }
+    if load_and_score:
+        payload["load_and_score"] = load_and_score
     fallback = getattr(index, "reranker_fallback", None)
     if fallback:
         payload["reranker_fallback"] = fallback
@@ -879,6 +974,10 @@ def run_bench(
     device: str = "auto",
     frontier: bool = False,
     compare_lists: bool = False,
+    check_models: bool = False,
+    reproduce: dict[str, tuple[str, ...]] | None = None,
+    comparisons: list[tuple[str, str]] | None = None,
+    header: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Score every config on fixture v1.
 
@@ -892,6 +991,9 @@ def run_bench(
     row with a parent. Every ladder (default, neural, frontier, rerank depth)
     gets each row's paired delta vs its parent for every gold category, with the
     questions whose nDCG@10 rose and fell in each slice (attach_confidence).
+    M41: `check_models` (run_config); `reproduce` ({committed file: row names}) records whether those of the rows that
+    this run has, recomputed here, equal the file's (app.eval.models_2026.reproduces; recorded whatever the answer);
+    `comparisons` adds paired row pairs; `header` adds fields to the results header.
     """
     root = root or project_root()
     started = git_state(root)  # before the run writes anything (run_provenance)
@@ -923,7 +1025,12 @@ def run_bench(
     scores_by_config: dict[str, list[dict[str, float]]] = {}
     retrieved_by_config: dict[str, list[list[str]]] = {}
     for cfg in configs:
-        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier or compare_lists, mtimes="manifest", probes=probes)
+        row = run_config(cfg, gold, files_root, n_files=manifest["n_files"], keep_retrieved=frontier or compare_lists, mtimes="manifest", probes=probes,
+                         check_models=check_models)
+        if check_models:  # M41: the row's index (and its models) is garbage now; free it before the next, larger, model loads
+            from app.eval.models_2026 import free_gpu
+
+            free_gpu()
         ingest_reports.append((cfg.chunk_strategy, row.pop("_ingest")))
         triples = row.pop("_triples", [])
         all_triples.extend(triples)
@@ -937,7 +1044,7 @@ def run_bench(
         n_queries=len(gold),
         categories=[q.category for q in gold],
         comparisons=[pair for pair in NEURAL_COMPARISONS + FRONTIER_COMPARISONS + [(_neural_name(a), _neural_name(b)) for a, b in FRONTIER_COMPARISONS]
-                     if set(pair) <= names],
+                     + list(comparisons or []) if set(pair) <= names],
         all_categories=True,  # every slice of every ladder (D04): the router's aggregation slice, not only its target
     )
 
@@ -957,6 +1064,15 @@ def run_bench(
         "bootstrap": boot,
         "results": results,
     }
+    if header:
+        blob.update(header)
+    if reproduce:
+        from app.eval.models_2026 import reproduces
+
+        ran = {row["config"] for row in results}
+        blob["reproduces"] = [reproduces(root, rel, results, [n for n in rows if n in ran]) for rel, rows in reproduce.items()
+                              if any(n in ran for n in rows)]
+        blob["reproduces_all"] = all(block["all"] for block in blob["reproduces"])
     gens = sorted({c.generations for c in configs if c.generations})
     if len(gens) > 1:
         raise ValueError(f"one generations file per run, got {gens}")
@@ -1157,6 +1273,16 @@ def _parse_args(argv: list[str] | None = None):
         action="store_true",
         help="the served reranker settings (depth 20, max_length 512, fp16) one at a time on fixture v1 (needs .[ml] and CUDA) -> --out",
     )
+    p.add_argument(
+        "--models-2026",
+        nargs="?",
+        const="main",
+        default=None,
+        choices=MODELS_2026_SETS,
+        help="M41: current open embedders and rerankers beside their bge parents, recomputed in the run (needs .[ml]): "
+             "main (A40) -> models_2026.json, harrier (80 GB GPU) -> models_2026_harrier.json, cpu (served CPU settings, "
+             "--device cpu) -> models_2026_cpu.json",
+    )
     p.add_argument("--out", type=Path, default=None, help="write only this file (latest.json and the sha file are left alone)")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"], help="recorded in the results header; cpu forces CPU for torch models")
     p.add_argument("--only", default=None, help="comma-separated config names to run (subset of the selected list)")
@@ -1193,6 +1319,11 @@ def main(argv: list[str] | None = None) -> None:
         configs = list(RERANK_DEPTH_CONFIGS)
         if args.out is None:  # never the default bench outputs: latest.json belongs to `make bench`
             args.out = Path("bench/results/rerank_depth.json")
+    elif args.models_2026:
+        configs = models_2026_configs(args.models_2026)
+        if args.out is None:  # never the default bench outputs: latest.json belongs to `make bench`
+            args.out = Path({"main": "bench/results/models_2026.json", "harrier": "bench/results/models_2026_harrier.json",
+                             "cpu": "bench/results/models_2026_cpu.json"}[args.models_2026])
     elif args.neural:
         configs = list(NEURAL_CONFIGS)
     else:
@@ -1207,8 +1338,16 @@ def main(argv: list[str] | None = None) -> None:
         configs = [replace(c, jury=True) for c in configs]
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    blob = run_bench(configs=configs, out=args.out, device=args.device, frontier=args.frontier, compare_lists=args.rerank_depth)
+    m41 = {}
+    if args.models_2026:
+        from app.eval.models_2026 import header as models_2026_header
+
+        m41 = dict(check_models=True, compare_lists=True, comparisons=models_2026_comparisons(configs), reproduce=MODELS_2026_REPRODUCE,
+                   header={"models_2026": models_2026_header(args.models_2026)})
+    blob = run_bench(configs=configs, out=args.out, device=args.device, frontier=args.frontier, **{"compare_lists": args.rerank_depth, **m41})
     print(markdown_table(blob))
+    for block in blob.get("reproduces") or []:  # recorded whatever the answer; a parent that differs is not an error
+        print("reproduces", json.dumps(block))
     print(f"wrote {blob['output']}")
 
 

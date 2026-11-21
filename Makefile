@@ -235,6 +235,22 @@ sweeps:
 bench-neural:   ## fixture v1 with real embedders + the real reranker -> bench/results/neural.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --neural --out bench/results/neural.json
 
+# ---- M41: current open embedders and rerankers beside the committed bge rows (app/eval/models_2026.py) ----
+# Every model must load and pass its load-and-score check, or the run stops and writes nothing; the bge parents are
+# recomputed in the same run, and whether they equal the committed rows is recorded whatever the answer.
+.PHONY: models-2026-check bench-models-2026 bench-models-2026-harrier bench-models-2026-cpu
+models-2026-check: ## load each new model once, read its dtype back and run its load-and-score check (needs .[ml]; MODELS=tag,... for a subset) -> stdout
+	$(PYTHON) -m app.eval.models_2026 --check $(if $(MODELS),--models $(MODELS))
+
+bench-models-2026: ## fixture v1: Qwen3-Embedding 0.6B/8B (dense, hybrid) and mxbai-rerank-base/large-v2, Qwen3-Reranker 0.6B/8B over hybrid@bge-small, each vs its bge parent recomputed in the run (needs .[ml] and a 48 GB GPU) -> bench/results/models_2026.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --models-2026 main --out bench/results/models_2026.json
+
+bench-models-2026-harrier: ## fixture v1: harrier-oss-v1-27b (dense, hybrid) vs bge-small, recomputed in the run (needs .[ml] and an 80 GB GPU) -> bench/results/models_2026_harrier.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --models-2026 harrier --out bench/results/models_2026_harrier.json
+
+bench-models-2026-cpu: ## fixture v1 on the CPU: the CPU-servable models (Qwen3-Embedding-0.6B, mxbai-rerank-base-v2, Qwen3-Reranker-0.6B) at the served CPU settings (depth 20, max_length 512, fp32) vs bge, for their latency (needs .[ml]) -> bench/results/models_2026_cpu.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --models-2026 cpu --device cpu --out bench/results/models_2026_cpu.json
+
 .PHONY: bench-rerank-depth
 bench-rerank-depth: ## fixture v1, bge-small + bge-reranker-v2-m3: every fused candidate -> depth 20 -> max_length 512 -> fp16 (the served settings) -> + router and staleness -> staleness before the rerank, each vs its parent (needs .[ml] and CUDA) -> bench/results/rerank_depth.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --rerank-depth --out bench/results/rerank_depth.json
