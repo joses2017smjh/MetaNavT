@@ -110,7 +110,6 @@ class TfidfEmbedder:
 # exactly as every committed row did (bge-small, bge-base), so those rows reproduce unchanged.
 QUERY_PROMPT_NAMES = {
     "Qwen/Qwen3-Embedding-0.6B": "query",
-    "Qwen/Qwen3-Embedding-4B": "query",
     "Qwen/Qwen3-Embedding-8B": "query",
     "microsoft/harrier-oss-v1-27b": "web_search_query",
 }
@@ -123,7 +122,6 @@ QUERY_PROMPT_NAMES = {
 # have once loaded is read back and recorded with every row (provenance()).
 MODEL_DTYPES = {
     "Qwen/Qwen3-Embedding-0.6B": "float32",
-    "Qwen/Qwen3-Embedding-4B": "auto",
     "Qwen/Qwen3-Embedding-8B": "auto",
     "microsoft/harrier-oss-v1-27b": "auto",
 }

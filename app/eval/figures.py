@@ -531,8 +531,10 @@ def write_from_results(root: Path) -> None:
 # ---- M41: the current open models beside the app's default ones (make figures; app/eval/models_2026.py)
 
 MODELS_2026_FIGURES = ("models-2026-embedders.svg", "models-2026-rerankers.svg")
-# The configuration the app runs by default (app/settings.py and app/engine/retriever.py), marked in both charts. Not "the
-# live demo": a deployment can run another configuration (the free-tier demo runs without the reranker).
+# The app's default configuration, marked in both charts: the embedder its model-backed configurations set
+# (EMBEDDING_MODEL in docker-compose.ml.yml, docker-compose.prod.yml and infra/modules/demo/ecs.tf; the code's own fallback
+# in app/settings.py is bge-large-en-v1.5) and the reranker app/engine/retriever.py defaults to. A deployment can run
+# another configuration, so the charts do not call it the live demo.
 DEFAULT_LABEL = "app's default"
 DEFAULT_NOTE = ("The app's default is bge-small with bge-reranker-v2-m3 (marked app's default); the larger models are measured "
                 "here for the benchmark tables.")

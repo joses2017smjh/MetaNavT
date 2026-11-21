@@ -45,7 +45,7 @@ PGVECTOR_HNSW_FILE = "bench/results/pgvector_hnsw.json"
 PARITY_FILE = "bench/results/parity_shared_chunker.json"  # the run after the served path took the bench chunker; parity.json is the earlier run
 PARITY_NEURAL_FILE = "bench/results/parity_neural.json"  # M17 (A19): bge-small + bge-reranker-v2-m3 through the API, one GPU run
 # M41: the current open models beside the committed bge rows (app/eval/models_2026.py); harrier-oss-v1-27b's rows are their
-# own run on an 80 GB GPU, rendered in the same block as the dataset's main file.
+# own run on a larger GPU (its file names it), rendered in the same block as the dataset's main file.
 MODELS_2026_FILE = "bench/results/models_2026.json"
 MODELS_2026_HARRIER_FILE = "bench/results/models_2026_harrier.json"
 MODELS_2026_CPU_FILE = "bench/results/models_2026_cpu.json"
@@ -2326,13 +2326,13 @@ def models_2026_fixture_table(blob: dict | None, harrier: dict | None = None) ->
     lines += _m41_fixture_rows(blob)
     lines += ["", " ".join(_comparison_lines(blob, "ndcg@10", 3)), "", _reproduction(blob.get("reproduces"))]
     if harrier:
-        lines += ["", f"harrier-oss-v1-27b needs about 54 GB in bfloat16, so its rows are their own run on an 80 GB GPU "
+        lines += ["", f"harrier-oss-v1-27b's rows are their own run on a larger GPU "
                       f"(`make bench-models-2026-harrier`, {_device(harrier)}; results sha {_sha(harrier)}), with the "
                       f"bge-small parents recomputed in that run.", ""]
         lines += _m41_fixture_rows(harrier)
         lines += ["", " ".join(_comparison_lines(harrier, "ndcg@10", 3)), "", _reproduction(harrier.get("reproduces"))]
     else:
-        lines += ["", f"_{MODELS_2026_HARRIER_FILE} is missing; run `make bench-models-2026-harrier` (an 80 GB GPU)._"]
+        lines += ["", f"_{MODELS_2026_HARRIER_FILE} is missing; run `make bench-models-2026-harrier` (a GPU that holds harrier-oss-v1-27b in bfloat16)._"]
     lines += ["", f"Results: [{MODELS_2026_FILE}]({MODELS_2026_FILE})" + (f" · [{MODELS_2026_HARRIER_FILE}]({MODELS_2026_HARRIER_FILE})" if harrier else "")
               + (" (each with its per-question sidecar)." if harrier else " (with its per-question sidecar).")]
     return "\n".join(lines)
@@ -2416,13 +2416,13 @@ def models_2026_beir_table(blob: dict | None, harrier: dict | None, file: str, h
     notes = _comparison_lines(blob, "ndcg@10", 4)
     lines += ["", " ".join(notes + [_doc_embeddings_note(blob)]), "", _reproduction(blob.get("reproduces"))]
     if harrier:
-        lines += ["", f"harrier-oss-v1-27b, its own run on an 80 GB GPU (`{harrier_command}`, {_device(harrier)}; results sha "
+        lines += ["", f"harrier-oss-v1-27b, its own run on a larger GPU (`{harrier_command}`, {_device(harrier)}; results sha "
                       f"{_sha(harrier)}), with the bge-small parents recomputed in that run.", ""]
         lines += _m41_beir_rows(harrier)
         lines += ["", " ".join(_comparison_lines(harrier, "ndcg@10", 4) + [_doc_embeddings_note(harrier)]), "",
                   _reproduction(harrier.get("reproduces"))]
     else:
-        lines += ["", f"_{harrier_file} is missing; run `{harrier_command}` (an 80 GB GPU)._"]
+        lines += ["", f"_{harrier_file} is missing; run `{harrier_command}` (a GPU that holds harrier-oss-v1-27b in bfloat16)._"]
     lines += ["", f"Results: [{file}]({file})" + (f" · [{harrier_file}]({harrier_file})" if harrier else "") + "."]
     return "\n".join(lines)
 

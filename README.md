@@ -304,7 +304,7 @@ The current open embedders and rerankers on fixture v1 (`make bench-models-2026`
 
 `bm25_only`, `dense_only@bge-small`, `hybrid@bge-small` and `hybrid+bge-rerank@bge-small` reproduce bench/results/neural.json (results sha 32972cf, Quadro RTX 8000) in every field of the retrieval block.
 
-harrier-oss-v1-27b needs about 54 GB in bfloat16, so its rows are their own run on an 80 GB GPU (`make bench-models-2026-harrier`, cuda (NVIDIA H100 80GB HBM3), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 9f1da07), with the bge-small parents recomputed in that run.
+harrier-oss-v1-27b's rows are their own run on a larger GPU (`make bench-models-2026-harrier`, cuda (NVIDIA H100 80GB HBM3), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 9f1da07), with the bge-small parents recomputed in that run.
 
 | config | parent | models (revision, weights dtype, prompt) | nDCG@10 [95% CI] | Recall@10 [95% CI] | Recall@50 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ Recall@50 vs parent [95% CI] | top-10 lists that differ from the parent's | wall s |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -432,7 +432,7 @@ The current open models on BEIR SciFact (`make bench-beir-models-2026`): 5183 do
 
 `bm25`, `dense@bge-small`, `hybrid@bge-small` and `hybrid+bge-rerank@bge-small/fp32-512/top20` reproduce bench/results/beir_scifact.json (results sha 32972cf, Quadro RTX 8000) in every field of the retrieval block.
 
-harrier-oss-v1-27b, its own run on an 80 GB GPU (`make bench-beir-models-2026-harrier`, cuda (NVIDIA H100 80GB HBM3), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 9f1da07), with the bge-small parents recomputed in that run.
+harrier-oss-v1-27b, its own run on a larger GPU (`make bench-beir-models-2026-harrier`, cuda (NVIDIA H100 80GB HBM3), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 9f1da07), with the bge-small parents recomputed in that run.
 
 | config | parent | models (revision, weights dtype, prompt) | reranker precision / max_length / depth | nDCG@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ Recall@100 vs parent [95% CI] | p50 / p95 ms | build s |
 |---|---|---|---|---:|---:|---:|---:|---:|---:|
@@ -477,7 +477,7 @@ The current open models on BEIR FiQA (`make bench-beir-fiqa-models-2026`): 57638
 
 `bm25` reproduces bench/results/beir_fiqa.json (results sha 32972cf, Quadro RTX 8000) in every field of the retrieval block, and `bm25` ranks every query exactly as the committed TREC run does; `dense@bge-small`, `hybrid@bge-small` and `hybrid+bge-rerank@bge-small/fp32-512/top20` equal bench/results/beir_fiqa.json (results sha 32972cf, Quadro RTX 8000) in every field of the retrieval block but do NOT rank every query as the committed TREC runs do, so they do not reproduce it exactly.
 
-harrier-oss-v1-27b, its own run on an 80 GB GPU (`make bench-beir-fiqa-models-2026-harrier`, cuda (NVIDIA H200), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 9f1da07), with the bge-small parents recomputed in that run.
+harrier-oss-v1-27b, its own run on a larger GPU (`make bench-beir-fiqa-models-2026-harrier`, cuda (NVIDIA H200), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 9f1da07), with the bge-small parents recomputed in that run.
 
 | config | parent | models (revision, weights dtype, prompt) | reranker precision / max_length / depth | nDCG@10 [95% CI] | Recall@100 [95% CI] | Δ nDCG@10 vs parent [95% CI] | Δ Recall@100 vs parent [95% CI] | p50 / p95 ms | build s |
 |---|---|---|---|---:|---:|---:|---:|---:|---:|
