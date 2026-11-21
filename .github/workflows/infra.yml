@@ -109,7 +109,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
           role-session-name: plan-${{ github.run_id }}
-      - name: terraform plan (-lock=false; the image digest the service runs now, so only the code's changes show)
+      - name: terraform plan (-lock=false; the last apply's image digest, so only the code's changes show)
         if: ${{ steps.variables.outputs.enabled == 'true' }}
         working-directory: infra/envs/production
         env:
@@ -118,14 +118,13 @@ jobs:
         run: |
           set -euo pipefail
           terraform init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
-          if ! outputs=$(terraform output -json github_environment_variables 2>/dev/null); then
+          # The state holds the task definitions as last applied, with that apply's digest; the deploys since then
+          # registered their own revisions, which Terraform does not track. Passing the same digest back keeps those
+          # task definitions out of the plan unless the code changed them.
+          if ! digest=$(terraform output -raw image_digest 2>/dev/null); then
             echo "::notice title=Plan skipped::production has no state yet (not applied): nothing to plan against"
             exit 0
           fi
-          cluster=$(jq -r .ECS_CLUSTER <<<"$outputs")
-          service=$(jq -r .ECS_SERVICE <<<"$outputs")
-          revision=$(aws ecs describe-services --cluster "$cluster" --services "$service" --query 'services[0].taskDefinition' --output text)
-          image=$(aws ecs describe-task-definition --task-definition "$revision" --query "taskDefinition.containerDefinitions[?name=='api'].image | [0]" --output text)
-          export TF_VAR_image_digest="${image##*@}"
+          export TF_VAR_image_digest="$digest"
           if [ -n "$ALERT_EMAIL" ]; then export TF_VAR_alert_email="$ALERT_EMAIL"; fi
           terraform plan -input=false -lock=false -no-color

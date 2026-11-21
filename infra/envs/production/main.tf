@@ -99,3 +99,8 @@ output "anthropic_secret_name" {
 output "github_environment_variables" {
   value = module.demo.github_environment_variables
 }
+
+# The digest of the last apply (the state's): a later plan passes it back, so it shows only the code's changes.
+output "image_digest" {
+  value = var.image_digest
+}

@@ -406,6 +406,7 @@ def test_production_and_staging_call_the_one_module_with_their_differences():
         backend = hcl.block(hcl.block(text, "terraform"), "backend", "s3")
         assert hcl.strings(hcl.attr(backend, "key")) == [f"{env}/terraform.tfstate"]
         assert hcl.attr(backend, "use_lockfile") == "true" and hcl.attr(backend, "bucket") is None  # given at init
+        assert hcl.attr(hcl.block(text, "output", "image_digest"), "value") == "var.image_digest"  # the plan job reads it
         settings[env] = {name: hcl.attr(module, name)
                          for name in ("redis_mode", "enable_waf", "deletion_protection", "final_snapshot")}
     assert settings == {  # None: the module's default

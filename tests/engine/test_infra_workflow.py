@@ -105,6 +105,10 @@ def test_the_plan_job_is_read_only_and_waits_for_the_aws_account():
     assert credentials["with"]["role-to-assume"] == "${{ vars.AWS_PLAN_ROLE_ARN }}"
     (plan,) = [s for s in steps if "terraform plan" in s.get("run", "")]
     assert "terraform plan -input=false -lock=false -no-color" in plan["run"]  # the plan role writes nothing, not even a lock
+    # the digest the state holds (the last apply's), not the one the service runs now: a deploy since the last apply
+    # would otherwise show both task definitions replaced in every plan
+    assert "if ! digest=$(terraform output -raw image_digest 2>/dev/null); then" in plan["run"]
+    assert 'export TF_VAR_image_digest="$digest"' in plan["run"] and "describe-services" not in plan["run"]
     for name in ("infra.yml", "deploy.yml"):
         if (WORKFLOWS / name).exists():
             text = (WORKFLOWS / name).read_text()

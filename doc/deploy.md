@@ -178,7 +178,18 @@ workflow starts by itself. To start it by hand: Actions, Deploy, Run workflow (`
 
 A change to the task definition in Terraform (a variable, the key flag) takes effect at the next deploy: Terraform
 registers the new revision, and the service stays on the deployed one until a deploy starts from the newest. A later
-`terraform apply` needs the digest the service runs now:
+`terraform apply` takes an image digest too. Pass the last apply's, which the state keeps, so the plan shows only your
+change; a newer one also works, and only registers new revisions of both task families (the service stays where the
+last deploy put it). The pull request plan job does the same.
+
+```bash
+terraform apply -var "image_digest=$(terraform output -raw image_digest)"
+```
+
+## Rollback
+
+Run the workflow by hand with the previous digest (its run summary says "Deploying ...@sha256:..."; the API's
+task definition revisions list every digest deployed). The digest the service runs now:
 
 ```bash
 aws ecs describe-task-definition --task-definition "$(aws ecs describe-services --cluster metanavit-production \
@@ -186,10 +197,7 @@ aws ecs describe-task-definition --task-definition "$(aws ecs describe-services 
     --query "taskDefinition.containerDefinitions[?name=='api'].image | [0]" --output text
 ```
 
-## Rollback
-
-Run the workflow by hand with the previous digest (its run summary says "Deploying ...@sha256:..."; the API's
-task definition revisions list every digest deployed):
+Then:
 
 ```bash
 gh workflow run deploy.yml -f image_digest=sha256:<previous digest>
