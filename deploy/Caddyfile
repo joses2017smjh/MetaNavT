@@ -1,0 +1,29 @@
+# Caddy in front of the api in docker-compose.prod.yml, the stack's only published service (ports 80 and 443).
+# DOMAIN (deploy/prod.env) is the site. A public name gets its certificate from Let's Encrypt (the name must resolve
+# to this host, and ports 80 and 443 must reach it); localhost gets one from Caddy's own local CA, for a rehearsal on
+# one machine (curl -k, or trust the root certificate in the caddy_data volume). Plain HTTP is redirected to HTTPS.
+# No access log: Caddy's records request headers, and a request can carry an invite key in X-API-Key.
+
+{$DOMAIN} {
+	# A backstop above the api's own cap (MAX_BODY_BYTES, 8192 bytes by default), on every path: a body over the
+	# api's cap gets the api's own error, and one over this cap never reaches the api. Raise both together.
+	request_body {
+		max_size 16KiB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	# HSTS for a public name only: a browser keeps it per host name, and for localhost it would refuse plain HTTP to
+	# every local development server afterwards.
+	@public not host localhost
+	header @public Strict-Transport-Security "max-age=31536000"
+
+	# Caddy trusts no proxy in front of it (no trusted_proxies), so it replaces any X-Forwarded-For a client sends
+	# with the address it saw: the api trusts exactly that one entry (TRUSTED_PROXY_HOPS=1).
+	reverse_proxy api:8000
+}

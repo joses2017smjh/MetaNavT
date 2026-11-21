@@ -555,7 +555,7 @@ Hard cap on iterations. Unresolvable citation = failed generation. Empty retriev
 
 The same gate is exposed to the web UI as `/api/plans` (propose, list, approve, reject) with the approve/reject panel under the chat; see [How the app is put together](#how-the-app-is-put-together). `app/mcp/server_sdk.py` serves these tools through the official MCP Python SDK; `app/mcp/server.py` is the earlier hand-rolled JSON-RPC server, kept for clients pinned to it.
 
-The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); CI's web workflow (`.github/workflows/web.yml`) runs its tests and that build on every push to `main` and every pull request into `main` (Frontend, under How the app is put together). The Docker frontend stage (`WITH_FRONTEND=1`) is built by the `docker-ml-smoke` CI job together with the CPU real-model stack, once a week and when CI is started by hand with `ml_smoke`, not on every push.
+The Next.js app type-checks and exports statically (`npm run build` in `.frontend/`); CI's web workflow (`.github/workflows/web.yml`) runs its tests and that build on every push to `main` and every pull request into `main` (Frontend, under How the app is put together). The Docker frontend stage (`WITH_FRONTEND=1`) is built together with the CPU real-model stack: by the `image-ml` CI job on every push to `main` and every manual run, and by the `docker-ml-smoke` job once a week and when CI is started by hand with `ml_smoke`; never on a pull request.
 
 <p align="center">
   <img src="../doc/gifs/mcp.gif" alt="propose_move pending, apply_plan blocked, then applied" width="820"/>
@@ -2121,17 +2121,23 @@ or `flake8: noqa` directive, or `ruff: disable[F401]`).
 **Pinned base images.** Every image a build or a CI run pulls is pinned by
 digest: the Dockerfile's `# syntax` frontend and its three `FROM` images, the
 Postgres image of `docker-compose.yml` and of CI's parity job, the optional
-Jaeger image, and the Node image of `.frontend/Dockerfile` (a standalone
+Jaeger image, the Redis and Caddy images of `docker-compose.prod.yml` (whose
+Postgres is `docker-compose.yml`'s), and the Node image of `.frontend/Dockerfile` (a standalone
 Next.js image that no Compose file or CI job builds). Each reference keeps the tag it was looked up from in front of
 the digest (`name:tag@sha256:...`), and a comment beside it names the release
 that tag pointed to on that day, so a tag that moves later does not change the
 build. The digest is the multi-platform index's, so other architectures still
-resolve. `tests/eval/test_image_build.py` fails on a reference without one. To
+resolve. `tests/eval/test_image_build.py` fails on a reference without one,
+except the production rehearsal's api: that is this repository's own CPU model
+image, which CI moves on every push to `main` (`main-ml`), and a deployment
+pins one build with `METANAVIT_IMAGE` (Production rehearsal, below). To
 move to a newer image, look up the tag's current index digest, replace digest
-and comment together (the Postgres image is named in both `docker-compose.yml`
-and `ci.yml`), and let CI rebuild: docker-smoke builds the default image, the
-Node stage is built only with `WITH_FRONTEND=1` (docker-ml-smoke), and no job
-pulls Jaeger (`--profile otel`) or builds `.frontend/Dockerfile`.
+and comment together (the Postgres image is named in `docker-compose.yml`,
+`docker-compose.prod.yml` and `ci.yml`, and `tests/engine/test_prod_compose.py`
+fails while they differ), and let CI rebuild: docker-smoke builds the default image, the
+Node stage is built only with `WITH_FRONTEND=1` (image-ml and docker-ml-smoke), and no job
+pulls Jaeger (`--profile otel`), Redis or Caddy (docker-smoke only resolves
+`docker-compose.prod.yml`), or builds `.frontend/Dockerfile`.
 
 ```bash
 docker buildx imagetools inspect python:3.11-slim     # the "Digest:" line
@@ -2183,11 +2189,13 @@ docker compose down -v   # the table width changes (above)
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build
 ```
 
-CI builds and starts this CPU real-model stack in its `docker-ml-smoke` job
+CI builds and starts this CPU real-model stack in two jobs. `image-ml` builds
+it on every push to `main` and every manual run, smokes it and publishes it
+(Published image, below). `docker-ml-smoke` runs
 once a week (the `schedule` in `.github/workflows/ci.yml`; a scheduled run
 runs that job alone, on `main`) and when the workflow is started by hand with
-`ml_smoke`; a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
-its latency step wrote the file.
+`ml_smoke`; it adds the latency replay over the gold questions, and a run uploads `api_latency_docker_cpu_ml.json` as an artifact when
+its latency step wrote the file. Neither runs on a pull request.
 GitHub turns off the scheduled workflows of a public repository that has had
 no activity for a while (see GitHub's documentation on disabling and enabling
 workflows), so after a quiet spell the schedule has to be switched back on in
@@ -2201,14 +2209,23 @@ uses), starts the stack from that image and runs the same retrieve smoke. On a
 push to `main`, and only then, it pushes the image it smoked to
 `ghcr.io/joses2017smjh/metanavt`, tagged `sha-<commit>` and `main` and labelled
 with the repository and the commit; on a pull request it stops after the smoke.
-The workflow's token is read-only, and only this job may write packages. The
-published image is the default build (the `app` extra, the hash embedder, no
-Next.js export), and its own command only serves: a deployment runs the schema
+That image is the default build (the `app` extra, the hash embedder, no
+Next.js export). The CPU model image comes from the `image-ml` job, which
+starts after `image` on a push to `main` or a manual run, never on a pull
+request: it builds the `api` image as `docker-compose.ml.yml` does (the `ml`
+extra with torch's CPU wheel, and the Next.js export; bge-small and
+bge-reranker-v2-m3 are downloaded at the first start, not stored in the
+image), starts that stack, runs the retrieve smoke with the reranker
+required, imports the app's entry points inside the container (including the
+Anthropic and Redis clients the answer path and the shared limits use), and on
+a push to `main` pushes the image it smoked as `sha-<commit>-ml` and `main-ml`.
+The workflow's token is read-only, and only these two jobs may write packages.
+Each published image's own command only serves: a deployment runs the schema
 migrations (`python -m app.database.migrate`) and the index step
 (`python -m app.engine.ingest`) first, as the command in `docker-compose.yml`
 does. Merges into `main` wait on branch protection, a repository setting: it
 requires every check that reports on every pull request into `main` (the CI
-jobs above except docker-ml-smoke, and the web client build), and auto-merge is
+jobs above except image-ml and docker-ml-smoke, and the web client build), and auto-merge is
 on, so `gh pr merge --auto` merges a pull request once they have passed. The
 path-filtered workflows (mobile app, mobile backend, research agent) are not
 required, because a required check that never reports blocks the merge.
@@ -2275,6 +2292,40 @@ WEB_ORIGIN=https://<site>        the web client's origin (CORS)
 MAX_BODY_BYTES=8192
 the API listens on port 8000; health: GET /health
 ```
+
+**Production rehearsal.** `docker-compose.prod.yml` sets every name of the
+contract above and runs, on one host, the stack a deployment of the public
+demo would run; nothing in this repository starts it on a server. Its api is
+the CPU model image (`main-ml` by default; set `METANAVIT_IMAGE` to a
+`sha-<commit>-ml` tag to run one build) with `PUBLIC_DEMO=1` and the retrieval
+settings of the CPU model stack CI smokes, beside Postgres with pgvector (the
+digest `docker-compose.yml` pins), Redis for the quotas, the budget and the
+answer cache (memory capped, only keys with an expiry evicted, snapshots kept
+in a volume) and Caddy. Caddy is the only service that publishes ports, for
+HTTP and HTTPS: it terminates TLS for `DOMAIN` (a public name gets a Let's
+Encrypt certificate, `localhost` one from Caddy's own local CA), caps request
+bodies above the api's own `MAX_BODY_BYTES`, adds security headers (HSTS only
+for a public name), and replaces any `X-Forwarded-For` a client sends with the
+address it saw, which is what makes `TRUSTED_PROXY_HOPS=1` hold. The settings
+come from `deploy/prod.env`, a copy of `deploy/prod.env.example` that git and
+the image build ignore; started without it, the stack stops at the missing
+`POSTGRES_PASSWORD` instead of running on the local app's `.env`.
+
+```bash
+cp deploy/prod.env.example deploy/prod.env   # set POSTGRES_PASSWORD; ANTHROPIC_API_KEY is optional
+docker compose -f docker-compose.prod.yml --env-file deploy/prod.env up -d --wait
+curl -sk https://localhost/health            # DOMAIN=localhost: Caddy's local CA, hence -k
+```
+
+The first start downloads both models into a volume and embeds the corpus on
+CPU, as the CPU model stack does. Answers need an Anthropic API key in
+`deploy/prod.env`; without one `POST /api/answer/` returns the retrieved hits
+and no answer. Claude's answers are not evaluated in this repository (above).
+CI checks only that the file resolves (`docker compose config`, in the
+docker-smoke job), and `tests/engine/test_prod_compose.py` pins the rest from
+the files: the image pins, Caddy as the only service with published ports, the
+contract's names and defaults as the block above lists them, and no committed
+secret.
 
 **Full application locally** (chat needs Ollama; retrieval does not):
 

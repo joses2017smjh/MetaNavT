@@ -40,6 +40,8 @@ GITHUB_ACTIONS_APP_ID = 15368  # the app that reports Actions jobs; a status wit
 CONDITIONS: dict[str, bool] = {
     "${{ github.event_name != 'schedule' }}": True,
     "${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.ml_smoke) }}": False,
+    # ci.yml's image-ml (the CPU model image): a push to main or a manual run
+    "${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}": False,
 }
 MATRIX_REF = re.compile(r"\$\{\{\s*matrix\.([\w-]+)\s*\}\}")
 

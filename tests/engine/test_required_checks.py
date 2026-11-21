@@ -30,6 +30,14 @@ def test_the_repository_requires_every_always_run_job_and_nothing_path_filtered(
     assert not any("ml smoke" in n for n in names)  # weekly + manual only
 
 
+def test_the_cpu_model_image_job_is_not_required():
+    """image-ml runs on a push to main and by hand, never on a pull request: required, it would block every merge."""
+    ci = rc.yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text())
+    job = ci["jobs"]["image-ml"]
+    assert rc.CONDITIONS[job["if"]] is False
+    assert job["name"] not in rc.required_checks()
+
+
 def _write(root: Path, name: str, text: str) -> None:
     (root / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
     (root / ".github" / "workflows" / name).write_text(text)

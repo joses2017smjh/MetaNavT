@@ -13,11 +13,11 @@ on:
   workflow_dispatch:
     inputs:
       ml_smoke:
-        description: "also build docker-compose.ml.yml (CPU torch + bge-small + bge-reranker) and measure CPU latency"
+        description: "also run docker-ml-smoke: CPU latency of docker-compose.ml.yml (CPU torch + bge-small + bge-reranker) over the gold questions"
         type: boolean
         default: false
 
-# Read-only token for every job; the image job alone adds packages: write, to push to ghcr.io.
+# Read-only token for every job; the two image jobs (image, image-ml) alone add packages: write, to push to ghcr.io.
 permissions:
   contents: read
 
@@ -131,7 +131,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        # the digest docker-compose.yml pins (pg16 = 0.8.7-pg16 on 2026-11-11); refresh both together
+        # the digest docker-compose.yml pins (pg16 = 0.8.7-pg16 on 2026-11-11); refresh it there, in docker-compose.prod.yml and here together
         image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
         env:
           POSTGRES_USER: postgres
@@ -194,13 +194,20 @@ jobs:
   docker-smoke:
     # docker compose up --build, wait for /health (the api container migrates, then indexes
     # bench/corpus/files with the hash embedder, then starts the server), POST one query,
-    # require hits with non-null paths.
+    # require hits with non-null paths. First, a check that docker-compose.prod.yml (the
+    # production rehearsal) resolves with its template settings; that stack is not started in CI.
     name: docker compose smoke
     if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: docker-compose.prod.yml resolves (config only, from deploy/prod.env.example; not started)
+        env:
+          POSTGRES_PASSWORD: config-check-only   # the file requires one and the template leaves it empty; nothing starts
+        run: |
+          docker compose version
+          docker compose -f docker-compose.prod.yml --env-file deploy/prod.env.example config --quiet
       - name: Reproduce the documented setup (.env must not change what the stack runs)
         run: cp .env.example .env
       - name: Build and start the stack
@@ -265,12 +272,76 @@ jobs:
           docker push "$IMAGE:main"
           echo "Pushed $IMAGE_REF and $IMAGE:main: $(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE_REF")" >> "$GITHUB_STEP_SUMMARY"
 
+  image-ml:
+    # The CPU model image: the api image as docker-compose.ml.yml builds it (EXTRAS=app,ml: torch's CPU
+    # wheel and sentence-transformers from requirements/ml.txt; the Next.js export), the image
+    # docker-compose.prod.yml runs. It starts after the image job, so only for a commit whose every
+    # other job passed, and never on a pull request: it downloads about 2.5 GB (CPU torch at build;
+    # bge-small and bge-reranker-v2-m3 at the first start, into the container, not into the image) and
+    # embeds the corpus on CPU, about ten minutes, so it is not a required check
+    # (scripts/required_checks.py). Like the image job it names and labels the image, builds it through
+    # Compose and starts the stack from it; the retrieve smoke here also requires the reranker, then the
+    # app's entry points are imported inside the running container. On a push to main only, it pushes
+    # the image it smoked as ghcr.io/<owner>/<repo>:sha-<commit>-ml and :main-ml; a manual run stops
+    # before the push. A scheduled run skips it (the image job it needs is skipped there).
+    name: image ml (CPU models; build + smoke; push to ghcr.io on main)
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+    needs: [image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Name and label the image (a Compose override over docker-compose.ml.yml; ghcr.io names are lowercase)
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          echo "IMAGE_REF=$image:sha-$GITHUB_SHA-ml" >> "$GITHUB_ENV"
+          echo "COMPOSE_FILE=docker-compose.yml:docker-compose.ml.yml:$RUNNER_TEMP/image.yml" >> "$GITHUB_ENV"
+          printf 'services:\n  api:\n    image: \"%s\"\n    pull_policy: build\n    build:\n      labels:\n        org.opencontainers.image.source: \"%s\"\n        org.opencontainers.image.revision: \"%s\"\n' \
+            "$image:sha-$GITHUB_SHA-ml" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_SHA" > "$RUNNER_TEMP/image.yml"
+          cat "$RUNNER_TEMP/image.yml"
+      - name: Build the CPU model image and start the stack from it (the first start downloads both models)
+        run: docker compose up --build -d --wait --wait-timeout 1800
+      - name: POST /api/retrieve/ against that image (hits with paths; a lexical hit; reranker loaded, nothing degraded)
+        run: python3 scripts/smoke_retrieve.py --require-bm25 --require-reranker
+      - name: The app's entry points import inside that container (served app, public demo, deploy steps, ml extra on CPU, answer clients)
+        # main imports every router of the full API (this stack leaves PUBLIC_DEMO off); app.api.public is
+        # the public demo's surface, with the answer route, app/answer/claude.py and app/api/limits.py;
+        # migrate and ingest are the deploy and index steps; the reranker, the HuggingFace embedder and
+        # torch (the CPU build) come from the ml extra. anthropic and redis (pinned in requirements/app.txt)
+        # are imported only inside the answer path's functions, so they are named here.
+        run: |
+          docker compose exec -T api python -c "import main, app.api.public, app.api.routers.answer, app.answer.claude, app.api.limits, app.database.migrate, app.engine.ingest, app.retrieval.rerank, llama_index.embeddings.huggingface, sentence_transformers, torch, anthropic, redis; assert torch.version.cuda is None; print('imports OK; torch', torch.__version__)"
+      - name: API logs
+        if: always()
+        run: docker compose logs --no-color api | tail -n 150
+      - name: Tear down (the image stays)
+        if: always()
+        run: docker compose down -v
+      - name: Log in to ghcr.io
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Push the smoked image (sha-<commit>-ml, then main-ml)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          docker push "$IMAGE_REF"
+          docker tag "$IMAGE_REF" "$IMAGE:main-ml"
+          docker push "$IMAGE:main-ml"
+          echo "Pushed $IMAGE_REF and $IMAGE:main-ml: $(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE_REF")" >> "$GITHUB_STEP_SUMMARY"
+
   docker-ml-smoke:
     # Weekly (the schedule above) and on a manual run with ml_smoke: builds the CPU real-model
     # stack from the pinned files (requirements/ml.txt, torch's CPU wheel; the Next.js export
     # too), confirms the reranker loads on CPU (/health.reranker.loaded, no degraded components)
-    # and records per-query latency over the 136 gold questions as an artifact. Not part of
-    # every push: it downloads about 2.5 GB (CPU torch, bge-small, bge-reranker-v2-m3).
+    # and records per-query latency over the 136 gold questions as an artifact. image-ml builds
+    # and smokes the same stack on every push to main and every manual run; this job adds the
+    # latency record, and the weekly run catches drift in a week with no push (the models are
+    # downloaded at each first start).
     # docker-compose.gpu.yml has no job: hosted runners have no GPU, so it is built by hand only.
     name: docker compose ml smoke (CPU, weekly + manual)
     if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.ml_smoke) }}
