@@ -2,7 +2,9 @@
 
 doc/deploy.md is outside `make doc-numbers-check`, so its own rule is checked here: every dollar figure names where it
 comes from and when it was read (an AWS pricing page and its date, the table's prices, or the file in this repository
-that sets it), and the monthly subtotal is the sum of its rows. Nothing here reaches the network.
+that sets it: a module under app/, or a Terraform file under infra/ for a setting such as production's daily answer
+budget), and the monthly subtotal is the sum of its rows. Nothing here reaches the network. The figures of Claude's
+cost are also computed from the app's price table in tests/engine/test_infra_terraform.py.
 """
 
 import re
@@ -13,7 +15,7 @@ RUNBOOK = (ROOT / "doc" / "deploy.md").read_text()
 READ_ON = "2026-11-20"
 # A line with a dollar figure must carry one of these: a source with its date, the table's own prices, or a file.
 SOURCED = re.compile(rf"aws\.amazon\.com/[\w/-]+.*{READ_ON}|{READ_ON}.*aws\.amazon\.com|at the prices above|at the same prices"
-                     r"|rows? above|app/[\w/]+\.py")
+                     r"|rows? above|app/[\w/]+\.py|infra/[\w/.-]+\.tf")
 MONEY = re.compile(r"\$\d[\d,]*(?:\.\d+)?")
 
 
