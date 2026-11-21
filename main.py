@@ -37,17 +37,19 @@ from contextlib import asynccontextmanager, suppress
 import uvicorn
 from app.api.errors import install as install_error_answers
 from app.api.errors import public_startup_error
-from app.api.routers import api_router
+from app.api.public import BodyLimit, max_body_bytes, public_api_router, public_demo_enabled
 from app.api.security import GuardedStaticFiles, security_status
 from app.middlewares.frontend import FrontendProxyMiddleware
 from app.observability import configure_logging, new_request_id, report_failure, tracing_status
-from app.settings import init_settings
+from app.settings import init_retrieval_settings, init_settings
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 environment = os.getenv("ENVIRONMENT", "dev")
+# PUBLIC_DEMO=1: only the allow-listed routes of app/api/public.py, no chat model, no plan store, no file mounts
+PUBLIC_DEMO = public_demo_enabled()
 LOG_FORMAT_USED = configure_logging()  # LOG_FORMAT=json -> one JSON object per line
 logger = logging.getLogger("uvicorn")
 
@@ -102,13 +104,14 @@ async def _start_attempt(app: FastAPI, built: dict) -> bool:
     attempt = app.state.startup["attempts"]
     try:
         if not built.get("settings"):
-            init_settings()
+            # the public demo answers through app/answer/claude.py: no chat model, only the embedder retrieval needs
+            init_retrieval_settings() if PUBLIC_DEMO else init_settings()
             built["settings"] = True
         if built.get("retrieval") is None:
             built["retrieval"] = await run_in_threadpool(build_retrieval_state)
             app.state.retrieval = built["retrieval"]
             logger.info(f"Retrieval ready: {built['retrieval'].indexing}")
-        if built.get("plans") is None:
+        if built.get("plans") is None and not PUBLIC_DEMO:  # the public demo has no plan or approval routes
             built["plans"] = await run_in_threadpool(build_plan_store, built["retrieval"].vsm, DATA_DIR)
             app.state.plans = built["plans"]
             logger.info(f"Plan store ready over {DATA_DIR} (plans and decisions in Postgres)")
@@ -259,14 +262,25 @@ def mount_static_files(directory, path, html=False, static_cls=StaticFiles):
         )
 
 
-app.include_router(api_router, prefix="/api")
+if PUBLIC_DEMO:
+    app.include_router(public_api_router(), prefix="/api")
+    app.add_middleware(BodyLimit, limit=max_body_bytes())
+    web_origin = os.getenv("WEB_ORIGIN", "").strip()
+    if web_origin:
+        from fastapi.middleware.cors import CORSMiddleware
 
-# Mounts are not routes of api_router, so its dependencies do not reach them: the
-# guarded class applies the same API key check and request budget to /api/files/*.
-# Mount the data files to serve the file viewer
-mount_static_files(DATA_DIR, "/api/files/data", static_cls=GuardedStaticFiles)
-# Mount the output files from tools
-mount_static_files("output", "/api/files/output", static_cls=GuardedStaticFiles)
+        app.add_middleware(CORSMiddleware, allow_origins=[web_origin], allow_methods=["GET", "POST"],
+                           allow_headers=["content-type", "x-api-key", "authorization"])
+else:
+    from app.api.routers import api_router  # the chat stack is imported only outside the public demo
+
+    app.include_router(api_router, prefix="/api")
+    # Mounts are not routes of api_router, so its dependencies do not reach them: the
+    # guarded class applies the same API key check and request budget to /api/files/*.
+    # Mount the data files to serve the file viewer
+    mount_static_files(DATA_DIR, "/api/files/data", static_cls=GuardedStaticFiles)
+    # Mount the output files from tools
+    mount_static_files("output", "/api/files/output", static_cls=GuardedStaticFiles)
  # Development mode: Use frontend proxy if configured
 if environment == "dev":
     frontend_endpoint = os.getenv("FRONTEND_ENDPOINT")
