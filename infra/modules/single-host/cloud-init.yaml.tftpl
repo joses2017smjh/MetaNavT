@@ -1,0 +1,51 @@
+#cloud-config
+# The single host's first boot (infra/modules/single-host, host.tf: templatefile, then gzip into the user data).
+# cloud-init runs this once per instance: a change to it, to a file it embeds or to a value in it replaces the
+# instance (user_data_replace_on_change), and the new one starts from scratch: the first deploy below runs the
+# migrations and rebuilds the index from the fixture in the image.
+write_files:
+  # deploy/single-host/compose.yml, deploy.sh and metanavit.service as committed; app.env from local.app_env
+  - path: /opt/metanavit/compose.yml
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${compose}
+  - path: /opt/metanavit/deploy.sh
+    owner: root:root
+    permissions: "0700"
+    encoding: b64
+    content: ${deploy}
+  - path: /opt/metanavit/app.env
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${app_env}
+  - path: /etc/systemd/system/metanavit.service
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${unit}
+runcmd:
+  # one script: any command that fails stops the rest (cloud-init's log: /var/log/cloud-init-output.log)
+  - set -eu
+  # the swap file, before anything heavy runs
+  - dd if=/dev/zero of=/swapfile bs=1M count=${swap_mib} status=none
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo "/swapfile none swap defaults 0 0" >> /etc/fstab
+  - sysctl -w vm.swappiness=10
+  - echo "vm.swappiness = 10" > /etc/sysctl.d/90-metanavit.conf
+  # Docker from the Amazon Linux repository, and the Compose plugin pinned by version and sha256
+  - dnf install -y docker
+  - systemctl enable --now docker
+  - mkdir -p /usr/local/lib/docker/cli-plugins
+  - curl -fsSL --retry 5 -o /usr/local/lib/docker/cli-plugins/docker-compose https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64
+  - echo "${compose_sha256}  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum --check --strict
+  - chmod 755 /usr/local/lib/docker/cli-plugins/docker-compose
+  - docker compose version
+  # every later boot: metanavit.service reads the secrets again and starts the stack
+  - systemctl daemon-reload
+  - systemctl enable metanavit.service
+  # the first deploy: pull, migrations and index, the stack, its health checks
+  - /opt/metanavit/deploy.sh ${image_digest}

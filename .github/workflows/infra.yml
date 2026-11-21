@@ -2,21 +2,24 @@ name: Infrastructure
 
 # Terraform under infra/ (doc/deploy.md), checked offline with no AWS credentials: formatting, every root module
 # initialised from its committed provider lock and validated, and tflint with the Terraform and AWS rules
-# (infra/.tflint.hcl). Path-filtered, so it runs only when infra/ or the two workflows change and is never a required
-# check (scripts/required_checks.py leaves path-filtered workflows out). Once the AWS account exists (the repository
-# variables set), a pull request also gets a read-only plan of production from infra/bootstrap's plan role.
+# (infra/.tflint.hcl). Path-filtered, so it runs only when infra/, the single host's files (which its cloud-init
+# embeds) or the deploy workflows change, and is never a required check (scripts/required_checks.py leaves
+# path-filtered workflows out). Once the AWS account exists (the repository variables set), a pull request also gets a
+# read-only plan of production from infra/bootstrap's plan role.
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "infra/**"
+      - "deploy/single-host/**"
       - ".github/workflows/infra.yml"
       - ".github/workflows/deploy.yml"
   push:
     branches: [main]
     paths:
       - "infra/**"
+      - "deploy/single-host/**"
       - ".github/workflows/infra.yml"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
@@ -53,7 +56,7 @@ jobs:
           set -euo pipefail
           export TF_PLUGIN_CACHE_DIR="$RUNNER_TEMP/tf-plugin-cache"
           mkdir -p "$TF_PLUGIN_CACHE_DIR"
-          for root in infra/bootstrap infra/envs/production infra/envs/staging; do
+          for root in infra/bootstrap infra/envs/production infra/envs/single-host infra/envs/staging; do
             echo "::group::$root"
             terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly
             terraform -chdir="$root" validate

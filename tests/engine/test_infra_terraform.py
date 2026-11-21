@@ -24,7 +24,7 @@ _spec.loader.exec_module(hcl)
 
 BOOTSTRAP = hcl.read_dir(INFRA / "bootstrap")
 MODULE = hcl.read_dir(INFRA / "modules" / "demo")
-ROOTS = ["bootstrap", "envs/production", "envs/staging"]  # every root module (each has its own state and lock file)
+ROOTS = ["bootstrap", "envs/production", "envs/single-host", "envs/staging"]  # every root module (own state and lock)
 PINNED = re.compile(r"[a-z0-9][a-z0-9._/-]*:[\w.-]+@sha256:[0-9a-f]{64}")  # as tests/eval/test_image_build.py
 
 
@@ -493,7 +493,7 @@ def test_the_runbooks_claude_cost_is_the_apps_price_table_and_the_owners_budget(
 
 
 def test_every_root_requires_terraform_1_11_and_commits_its_provider_lock():
-    for directory in [*ROOTS, "modules/demo"]:
+    for directory in [*ROOTS, "modules/demo", "modules/single-host"]:
         terraform = hcl.block(hcl.read_dir(INFRA / directory), "terraform")
         assert hcl.strings(hcl.attr(terraform, "required_version")) == [">= 1.11.0"], directory
     for directory in ROOTS:

@@ -20,7 +20,7 @@ _spec = importlib.util.spec_from_file_location("required_checks", ROOT / "script
 required_checks = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(required_checks)
 
-PATHS = ["infra/**", ".github/workflows/infra.yml", ".github/workflows/deploy.yml"]
+PATHS = ["infra/**", "deploy/single-host/**", ".github/workflows/infra.yml", ".github/workflows/deploy.yml"]
 PINNED_ACTION = re.compile(r"[\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+")
 
 
