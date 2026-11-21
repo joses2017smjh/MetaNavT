@@ -154,8 +154,10 @@ jobs:
   production:
     name: production (approval, migrate, update, smoke)
     needs: [gate, staging]
-    # After staging when staging is on; straight after the gate when it is off (staging skipped).
-    if: ${{ !cancelled() && needs.gate.outputs.enabled == 'true' && (needs.staging.result == 'success' || needs.staging.result == 'skipped') }}
+    # After staging when staging is on; straight after the gate when it is off (staging skipped). !cancelled() lets a
+    # skipped staging through, and drops the implicit check that the gate succeeded, so it is asked for here: a gate
+    # that failed after reading the variables must not leave the owner an approval for a deploy with no image.
+    if: ${{ !cancelled() && needs.gate.result == 'success' && needs.gate.outputs.enabled == 'true' && (needs.staging.result == 'success' || needs.staging.result == 'skipped') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     environment:

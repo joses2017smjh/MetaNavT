@@ -62,7 +62,7 @@ def test_production_waits_for_its_environment_and_staging_is_opt_in():
     assert staging["environment"]["name"] == "staging"
     assert production["needs"] == ["gate", "staging"] and staging["needs"] == "gate"
     assert staging["if"] == "${{ needs.gate.outputs.enabled == 'true' && needs.gate.outputs.staging == 'true' }}"
-    assert production["if"] == ("${{ !cancelled() && needs.gate.outputs.enabled == 'true' && "
+    assert production["if"] == ("${{ !cancelled() && needs.gate.result == 'success' && needs.gate.outputs.enabled == 'true' && "
                                 "(needs.staging.result == 'success' || needs.staging.result == 'skipped') }}")
     (variables,) = [s for s in jobs["gate"]["steps"] if s.get("id") == "variables"]
     assert variables["env"]["DEPLOY_STAGING"] == "${{ vars.DEPLOY_STAGING }}"
