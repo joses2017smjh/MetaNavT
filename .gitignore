@@ -20,6 +20,8 @@ config/loaders.yaml
 .pytest_cache/
 idea/
 .env
+# docker-compose.prod.yml's filled-in settings (secrets); deploy/prod.env.example is the committed template
+/deploy/prod.env
 tests/benchmark_tests/results/
 .vendor/
 bench/results/*.triples.jsonl
