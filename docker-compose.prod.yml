@@ -53,8 +53,12 @@ services:
       LOG_FORMAT: json
       PG_CONNECTION_STRING: postgresql://metanavit:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env}@db:5432/metanavit
       PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=metanavit password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env} host=db port=5432
-      # No MODEL_PROVIDER, MODEL or OLLAMA_BASE_URL: under PUBLIC_DEMO the api starts without a chat model
-      # (init_retrieval_settings) and answers through app/answer/claude.py.
+      # The index step in the command below (python -m app.engine.ingest) runs init_settings, which stops without a
+      # provider, so docker-compose.yml's are kept. Nothing calls that model: the Ollama client contacts no server
+      # until a chat call, the api under PUBLIC_DEMO starts without one (init_retrieval_settings) and answers through
+      # app/answer/claude.py, and no OLLAMA_BASE_URL is set because no Ollama runs here.
+      MODEL_PROVIDER: ollama
+      MODEL: qwen2.5:14b
       # retrieval: docker-compose.yml's settings with docker-compose.ml.yml's models on CPU
       EMBEDDING_PROVIDER: huggingface
       EMBEDDING_MODEL: BAAI/bge-small-en-v1.5

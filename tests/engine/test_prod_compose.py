@@ -124,16 +124,19 @@ def test_the_contract_is_the_reference_s():
 def test_the_api_serves_the_retrieval_stack_ci_smokes():
     """docker-compose.yml with docker-compose.ml.yml is the stack CI's image-ml job builds and smokes: the prod api
     keeps every setting of it but the database's address, the log format, the deploy contract's own names (a local
-    stack may set those differently) and the chat model's settings: under PUBLIC_DEMO the api starts without a chat
-    model (init_retrieval_settings), so none is configured."""
+    stack may set those differently) and the Ollama address: no Ollama runs here. The chat provider stays, because the
+    index step the command runs before the server calls init_settings, which stops without one."""
     base = _compose(ROOT / "docker-compose.yml")["services"]["api"]
     ml = _compose(ROOT / "docker-compose.ml.yml")["services"]["api"]
     api = _services()["api"]
     smoked = {**base["environment"], **ml["environment"]}
-    chat = {"MODEL_PROVIDER", "MODEL", "OLLAMA_BASE_URL"}
-    own = {"PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "LOG_FORMAT", "ENVIRONMENT", *chat, *FIXED, *DEFAULTS}
+    own = {"PG_CONNECTION_STRING", "PSYCOPG2_CONNECTION_STRING", "LOG_FORMAT", "ENVIRONMENT", "OLLAMA_BASE_URL",
+           *FIXED, *DEFAULTS}
     assert {k: api["environment"].get(k) for k in smoked.keys() - own} == {k: smoked[k] for k in smoked.keys() - own}
-    assert not chat & api["environment"].keys()
+    assert "OLLAMA_BASE_URL" not in api["environment"]
+    index_step = (ROOT / "app" / "engine" / "ingest.py").read_text().split("def run_index_step", 1)[1].split("\ndef ", 1)[0]
+    if "init_settings()" in index_step:  # it raises without MODEL_PROVIDER, and the container would restart in a loop
+        assert api["environment"]["MODEL_PROVIDER"]
     assert api["command"] == base["command"]  # migrations, the index step, then the server
     assert api["healthcheck"] == {**base["healthcheck"], **ml["healthcheck"]}  # the first start's long grace period
     dockerfile = (ROOT / "Dockerfile").read_text().splitlines()
