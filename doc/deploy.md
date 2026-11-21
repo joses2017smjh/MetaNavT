@@ -48,10 +48,11 @@ The database password is generated during the apply and written to RDS and to it
 arguments: it is in neither the Terraform state nor a plan. The state does hold the header value CloudFront sends to
 the ALB (both resources carry it).
 
-Two limits to know before the first deploy. The web client in S3 is the image's Next.js export, which is the chat
-interface: in public demo mode its chat calls are not served (they answer 404), and a page for `/api/answer/` is not
-part of this work. CloudFront sends only `/api/*` and `/health` to the API, so the OpenAPI pages (`/docs`,
-`/openapi.json`) are not reachable through it.
+The web client in S3 is the image's Next.js export. Its home page reads `public_demo` from `/health` in the browser
+and, from this API, shows the demo page: one question box, search, and cited answers with their reasons in plain
+words ([the reference](engineering-reference.md#public-demo-mode)), not the chat interface, whose routes the public
+API does not serve. One limit to know before the first deploy: CloudFront sends only `/api/*` and `/health` to the
+API, so the OpenAPI pages (`/docs`, `/openapi.json`) are not reachable through it.
 
 ## Two ways to run it
 
@@ -272,8 +273,8 @@ is spent. The module's defaults stay the deploy contract's: `ANSWER_MODEL=claude
 | Input and output tokens, prompts over 100K tokens | $0.50 per million input tokens and $2.50 per million output tokens | the same table, `HAIKU_LONG_PROMPT` in `app/answer/claude.py` |
 
 `app/answer/claude.py` estimates every call's cost with this table. An answer's prompt is the system prompt, the
-question (at most 500 characters) and at most ten retrieved excerpts of at most 800 characters each: far below 100K
-tokens.
+question (at most 500 characters) and at most ten retrieved excerpts of at most 800 characters each (the demo page
+asks for six): far below 100K tokens.
 
 ```text
 cost of one answer (USD) = input tokens × 0.10 / 1,000,000 + output tokens × 0.50 / 1,000,000
@@ -362,7 +363,10 @@ No AWS account exists for this project, so none of this has been seen working ag
 - the alarms' metric names and dimensions, and the EventBridge pattern that tells an unasked task stop from a
   deployment's;
 - Claude Haiku 5.5 on the answer route: its token counts and cost per answer (the example under
-  [Claude's cost](#claudes-cost) is assumed, not measured), and the Console's workspace spend limit stopping calls.
+  [Claude's cost](#claudes-cost) is assumed, not measured), and the Console's workspace spend limit stopping calls;
+- the demo page against the deployed API: its `/health` check through CloudFront, real answers and refusals, and a
+  browser's network panel showing no request to another host (the web tests mock the API and check that the page's
+  own requests stay on its origin; nothing in this repository runs the export in a browser).
 
 ## Check the code locally (no AWS)
 

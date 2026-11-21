@@ -228,6 +228,28 @@ def test_the_public_caps_and_the_body_limit():
     assert ok.status_code == 200 and [h["chunk_id"] for h in ok.json()["hits"]] == ["n1", "n2"]
 
 
+def test_the_web_demo_page_sends_what_the_public_routes_accept():
+    """The web client's demo page (.frontend/app/components/demo/api.ts) caps the question at the routes' length cap,
+    asks for k within each route's cap, and calls only GET /health and the allow-listed routes."""
+    import re
+
+    from app.api.public import PUBLIC_MAX_K, PUBLIC_MAX_QUERY_CHARS
+    from app.api.routers import answer as answer_route
+
+    demo = ROOT / ".frontend" / "app" / "components" / "demo"
+    api = (demo / "api.ts").read_text()
+
+    def constant(name: str):
+        return re.search(rf'^export const {name} = (\d+|"[^"]*");', api, re.M).group(1).strip('"')
+
+    assert int(constant("MAX_QUESTION_CHARS")) == PUBLIC_MAX_QUERY_CHARS == answer_route.MAX_QUESTION_CHARS
+    assert 1 <= int(constant("SEARCH_K")) <= PUBLIC_MAX_K and 1 <= int(constant("ANSWER_K")) <= answer_route.MAX_K
+    assert {constant("RETRIEVE_PATH"), constant("ANSWER_PATH")} == {path for path, _ in PUBLIC_API_ROUTES}
+    assert constant("HEALTH_PATH") == "/health"
+    sources = "".join(path.read_text() for path in sorted(demo.glob("*.ts*")))
+    assert sorted(set(re.findall(r'"(/(?:api|health)[^"]*)"', sources))) == ["/api/answer/", "/api/retrieve/", "/health"]
+
+
 def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
     """The reference's Public demo mode section names the allow-list the app serves, and every variable of its deploy
     contract is one the code reads; the README says the demo is not deployed and its answers are not evaluated."""

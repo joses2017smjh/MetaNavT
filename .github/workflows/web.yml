@@ -1,9 +1,10 @@
 name: Web client
 
 # .frontend, the Next.js page the API serves at / (a static export): install it from its lockfile, run its tests
-# (Node's test runner with jsdom: the plans panel, the chat and the API key field against a mocked API) and build
-# the export, on every push to main and every pull request into main (as ci.yml). The image's own frontend stage
-# (WITH_FRONTEND=1) is built by ci.yml's image-ml and docker-ml-smoke jobs only, never on a pull request.
+# (Node's test runner with jsdom: the plans panel, the chat, the API key field, and the public demo's page and the
+# switch to it, against a mocked API) and build the export, on every push to main and every pull request into main
+# (as ci.yml). The image's own frontend stage (WITH_FRONTEND=1) is built by ci.yml's image-ml and docker-ml-smoke jobs
+# only, never on a pull request.
 
 on:
   push:
