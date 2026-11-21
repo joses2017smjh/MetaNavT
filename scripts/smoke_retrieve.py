@@ -7,6 +7,12 @@ Waits for GET /health to return 200 (up to --timeout seconds), then POSTs
 hit carries a path. Standard library only, so it runs on the CI runner itself;
 the latency summary (--latency) also imports app/eval/provenance.py, which is
 standard library only too, for its provenance and its sanitizer.
+
+With --answer (the public demo, PUBLIC_DEMO=1; scripts/deploy_ecs.py runs it
+after a deploy) it also POSTs the query to /api/answer/ once and requires the
+hits and either an answer that cites them or the reason none was delivered. It
+never requires that Claude answered: no API key, no Redis and a spent daily
+budget are reasons too.
 """
 
 from __future__ import annotations
@@ -66,6 +72,25 @@ def wait_for_health(base: str, timeout: float) -> dict:
     raise SystemExit(f"API not healthy after {timeout:.0f}s; last: {last}")
 
 
+def check_answer(base: str, question: str) -> list[str]:
+    """POST /api/answer/ once; the problems with its response (none: an answer with citations, or a reason)."""
+    status, body = _post(f"{base}/api/answer/", {"question": question, "k": 3})
+    answer, reason, citations = body.get("answer"), body.get("reason"), body.get("citations") or []
+    hits = body.get("hits") or []
+    print(f"POST /api/answer/ -> {status}; delivered={bool(answer)} reason={reason!r} citations={len(citations)} "
+          f"hits={len(hits)} model={body.get('model')} cached={body.get('cached')}")
+    problems = []
+    if status != 200:
+        problems.append(f"answer: status {status}")
+    if not hits:
+        problems.append("answer: no hits")
+    if answer and not citations:
+        problems.append("answer: delivered without a citation")
+    if not answer and not reason:
+        problems.append("answer: neither an answer nor a reason")
+    return problems
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--url", default="http://localhost:8000")
@@ -76,6 +101,8 @@ def main() -> int:
     p.add_argument("--latency", default=None, metavar="GOLD_JSONL", help="replay these questions (k=8) and report p50/p95 of server total and e2e ms")
     p.add_argument("--latency-out", default=None, help="write the latency summary (JSON) here")
     p.add_argument("--post-timeout", type=float, default=60.0, help="seconds to wait for one POST (raise for CPU rerankers)")
+    p.add_argument("--answer", action="store_true",
+                   help="also POST /api/answer/ (public demo) and require an answer with citations or a reason")
     args = p.parse_args()
     global POST_TIMEOUT
     POST_TIMEOUT = args.post_timeout
@@ -110,6 +137,8 @@ def main() -> int:
     accounted = manifest_rows(health.get("indexing") or {})
     if accounted is not None and health.get("n_nodes") != accounted:
         problems.append(f"table has {health.get('n_nodes')} rows but the ingest manifest accounts for {accounted} (stray rows?)")
+    if args.answer:
+        problems += check_answer(args.url.rstrip("/"), args.query)
     if problems:
         print("SMOKE FAILED:", "; ".join(problems))
         return 1
