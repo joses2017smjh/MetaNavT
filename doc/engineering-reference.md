@@ -2327,6 +2327,26 @@ the files: the image pins, Caddy as the only service with published ports, the
 contract's names and defaults as the block above lists them, and no committed
 secret.
 
+**Deploy to AWS.** [The runbook](deploy.md) covers the AWS stack in `infra/`:
+Terraform, code only and not applied (the project has no AWS account yet).
+CloudFront, with a WAF, sends `/api/*` and `/health` to an ALB whose only
+ingress is CloudFront's origin-facing prefix list and whose listener forwards
+only requests that carry CloudFront's header; everything else is the web
+client, from a private S3 bucket. One ECS Fargate service runs the CPU model
+image by digest with the contract above (`TRUSTED_PROXY_HOPS` is two behind
+CloudFront and the ALB), the database password and the Anthropic key from
+Secrets Manager; RDS PostgreSQL and ElastiCache sit in private subnets with no
+route out. `.github/workflows/deploy.yml` deploys after CI passes on `main`, or
+by hand with an image digest (a rollback): a one-off task runs the migrations
+and the index step, the service moves to the new revision and is waited on
+until stable, then the web client is uploaded and the public URL smoked;
+production waits for the owner's approval, and staging is opt-in.
+`.github/workflows/infra.yml` checks the Terraform offline (`terraform fmt`,
+`terraform validate`, tflint with the AWS rules) and, being path-filtered, is
+not a required check. `tests/engine/test_infra_terraform.py` and
+`tests/engine/test_deploy_workflow.py` pin the security facts and the order of
+the deploy.
+
 **Full application locally** (chat needs Ollama; retrieval does not):
 
 ```bash
