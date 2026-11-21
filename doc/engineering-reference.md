@@ -1054,7 +1054,9 @@ the same run recomputes: [fixture](../README.md#bench-models-2026),
 [SciFact](../README.md#bench-beir-models-2026) and
 [FiQA](../README.md#bench-beir-fiqa-models-2026). Nothing here changes what is
 served: the API keeps bge-small and bge-reranker-v2-m3, and a change is the
-owner's decision from these tables.
+owner's decision from these tables. `make figures` draws the same rows as two
+charts, [embedders](figures/models-2026-embedders.svg) and
+[rerankers](figures/models-2026-rerankers.svg), with the served models marked.
 
 **The models.** Embedders: Qwen3-Embedding-0.6B and Qwen3-Embedding-8B
 (Apache-2.0) and microsoft/harrier-oss-v1-27b (MIT), the largest open embedder.

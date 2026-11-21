@@ -525,6 +525,140 @@ def write_from_results(root: Path) -> None:
                 note,  # read from sweeps.json, never typed (it was, and matched the file)
                 hops,
             )
+    write_models_2026_figures(root, out_dir)  # M41: nothing is drawn while its results files are missing
+
+
+# ---- M41: the current open models beside the served ones (make figures; app/eval/models_2026.py)
+
+MODELS_2026_FIGURES = ("models-2026-embedders.svg", "models-2026-rerankers.svg")
+SERVED_NOTE = ("The live demo serves bge-small and bge-reranker-v2-m3 on a CPU (marked served); the larger models are measured "
+               "here for the benchmark tables, not served.")
+VERDICTS = {"above zero": ("▲ above", GOLD), "below zero": ("▼ below", PINK), "covers zero": ("= tie", MUTED)}
+
+
+def _panels_chart(path: Path, title: str, subtitle: list[str], panels: list[dict], footer: str) -> None:
+    """Horizontal nDCG@10 bars on a 0-1 axis, one panel per dataset. Each row: label, bar, 95% interval whisker, the
+    value with its interval, and (for a row that replaces a bge model) the verdict of the paired interval against that
+    row; a served row is outlined and labelled."""
+    w, left, right = 1040, 330, 290
+    plot_w = w - left - right
+    row_h, gap, head = 20, 7, 48
+    top = 70 + 16 * len(subtitle)
+    h = top + sum(head + len(p["rows"]) * (row_h + gap) + 14 for p in panels) + 44
+    font = 'font-family="ui-sans-serif, system-ui, sans-serif"'
+    parts = []
+    y = top
+    for panel in panels:
+        parts.append(f'<text x="32" y="{y + 18}" fill="{TEXT}" {font} font-size="14" font-weight="700">{_esc(panel["title"])}</text>')
+        for g in range(6):  # the axis: 0, 0.2, ... 1.0
+            x = left + plot_w * g / 5
+            parts.append(f'<line x1="{x:.1f}" y1="{y + head - 6}" x2="{x:.1f}" y2="{y + head + len(panel["rows"]) * (row_h + gap) - gap}" '
+                         f'stroke="{GRID}" stroke-width="1"/>')
+            parts.append(f'<text x="{x:.1f}" y="{y + head - 9}" text-anchor="middle" fill="{MUTED}" {font} font-size="10">{g / 5:.1f}</text>')
+        y += head
+        for row in panel["rows"]:
+            ym = y + row_h / 2
+            bw = max(2.0, plot_w * row["value"])
+            outline = f' stroke="{GOLD}" stroke-width="2"' if row.get("served") else ""
+            parts.append(f'<text x="{left - 12}" y="{ym + 4:.1f}" text-anchor="end" fill="{TEXT}" {font} font-size="12">{_esc(row["label"])}</text>')
+            parts.append(f'<rect x="{left}" y="{y}" width="{bw:.1f}" height="{row_h}" rx="3" fill="{row["color"]}"{outline}/>')
+            text = f'{row["value"]:.3f}'
+            if row.get("ci"):
+                lo, hi = row["ci"]
+                x_lo, x_hi = left + plot_w * lo, left + plot_w * hi
+                whisker = f"M{x_lo:.1f},{ym:.1f}H{x_hi:.1f}M{x_lo:.1f},{ym - 5:.1f}V{ym + 5:.1f}M{x_hi:.1f},{ym - 5:.1f}V{ym + 5:.1f}"
+                # a dark halo under a light stroke: the interval reads on a light bar and on the dark panel alike
+                parts.append(f'<path d="{whisker}" stroke="{BG}" stroke-width="4" fill="none"/>'
+                             f'<path d="{whisker}" stroke="{TEXT}" stroke-width="1.6" fill="none"/>')
+                text += f"  [{lo:.3f}, {hi:.3f}]"
+            parts.append(f'<text x="{left + plot_w + 12}" y="{ym + 4:.1f}" fill="{GOLD}" {font} font-size="12" font-weight="600">{_esc(text)}</text>')
+            tag = VERDICTS.get(row.get("verdict") or "")
+            if row.get("served"):
+                tag = ("served", GOLD)
+            if tag:
+                parts.append(f'<text x="{w - 32}" y="{ym + 4:.1f}" text-anchor="end" fill="{tag[1]}" {font} font-size="12" font-weight="700">{_esc(tag[0])}</text>')
+            y += row_h + gap
+        y += 14
+    sub = "".join(f'<text x="32" y="{64 + 16 * i}" fill="{MUTED}" {font} font-size="12">{_esc(line)}</text>' for i, line in enumerate(subtitle))
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" aria-label="{_esc(title)}">
+  <rect width="{w}" height="{h}" fill="{BG}"/>
+  <rect x="12" y="12" width="{w - 24}" height="{h - 24}" rx="16" fill="{PANEL}" stroke="{GRID}"/>
+  <text x="32" y="44" fill="{TEXT}" {font} font-size="18" font-weight="700">{_esc(title)}</text>
+  {sub}
+  {''.join(parts)}
+  <text x="32" y="{h - 26}" fill="{MUTED}" {font} font-size="11">{_esc(footer)}</text>
+</svg>
+'''
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(svg)
+
+
+def _m41_row(blob: dict | None, name: str, label: str, color: str, *, served: bool = False, judged: bool = True) -> dict | None:
+    """A chart row from a results row: nDCG@10, its 95% interval and the verdict of its paired interval against its
+    parent (the bge row it replaces; judged=False for a reference row)."""
+    from app.eval.report import verdict
+
+    row = next((r for r in (blob or {}).get("results", []) if r["config"] == name), None)
+    if row is None:
+        return None
+    ci = (row.get("ci") or {}).get("ndcg@10") or {}
+    parent = (row.get("delta_vs_parent") or row.get("delta_vs_previous") or {}).get("ndcg@10")
+    return {"label": label, "value": row["retrieval"]["ndcg@10"], "ci": (ci["lo"], ci["hi"]) if ci else None, "color": color,
+            "served": served, "verdict": verdict(parent) if judged and parent else None}
+
+
+def _size(blob: dict) -> str:
+    if "n_docs" in blob:
+        return f"{blob['n_docs']} documents, {blob['n_queries']} test queries"
+    return f"{blob['n_gold']} questions over {blob['n_files']} files"
+
+
+def write_models_2026_figures(root: Path, out_dir: Path) -> list[Path]:
+    """The two M41 charts, from the committed results files (nothing is drawn for a file that is missing): nDCG@10 per
+    embedder, and per reranker over hybrid@bge-small, on fixture v1, BEIR SciFact and BEIR FiQA."""
+    from app.eval.models_2026 import EMBEDDERS, HARRIER, RERANKERS
+
+    results = root / "bench" / "results"
+    load = lambda name: json.loads((results / name).read_text()) if (results / name).exists() else None  # noqa: E731
+    datasets = [("fixture v1", load("models_2026.json"), load("models_2026_harrier.json"), "dense_only"),
+                ("BEIR SciFact", load("beir_scifact_models_2026.json"), load("beir_scifact_models_2026_harrier.json"), "dense"),
+                ("BEIR FiQA", load("beir_fiqa_models_2026.json"), load("beir_fiqa_models_2026_harrier.json"), "dense")]
+    datasets = [d for d in datasets if d[1]]
+    if not datasets:
+        return []
+    bm25 = {"fixture v1": "bm25_only"}
+    written = []
+    embed_panels, rerank_panels = [], []
+    for title, blob, harrier, dense in datasets:
+        rows = [_m41_row(blob, bm25.get(title, "bm25"), "bm25 (no embedder)", LOSS, judged=False),
+                _m41_row(blob, f"{dense}@bge-small", "dense · bge-small", BLUE, judged=False),
+                _m41_row(blob, "hybrid@bge-small", "hybrid · bge-small", LAVENDER, served=True, judged=False)]
+        for tag in [t for t in EMBEDDERS if t != HARRIER]:
+            rows += [_m41_row(blob, f"{dense}@{tag}", f"dense · {tag}", BLUE), _m41_row(blob, f"hybrid@{tag}", f"hybrid · {tag}", LAVENDER)]
+        if harrier:
+            rows += [_m41_row(harrier, f"{dense}@{HARRIER}", f"dense · {HARRIER} (own run)", SKY),
+                     _m41_row(harrier, f"hybrid@{HARRIER}", f"hybrid · {HARRIER} (own run)", SKY)]
+        embed_panels.append({"title": f"{title}  ·  {_size(blob)}", "rows": [r for r in rows if r]})
+        beir = "n_docs" in blob
+        suffix = "/fp32-512/top20" if beir else ""
+        rows = [_m41_row(blob, "hybrid@bge-small", "hybrid · bge-small, no reranker", LOSS, judged=False),
+                _m41_row(blob, f"hybrid+bge-rerank@bge-small{suffix}", "+ bge-reranker-v2-m3 (fp32)", GOLD, served=True, judged=False)]
+        for tag, (model, precision) in RERANKERS.items():
+            name = f"hybrid+{tag}@bge-small" + (f"/{precision}-512/top20" if beir else "")
+            rows.append(_m41_row(blob, name, f"+ {tag} ({precision})", SKY if "mxbai" in tag else PINK))
+        how = "the fused top 20 at max_length 512" if beir else "every fused candidate, the model's own token cap"
+        rerank_panels.append({"title": f"{title}  ·  {_size(blob)}  ·  reranks {how}", "rows": [r for r in rows if r]})
+    sources = ", ".join(f"{t}: results sha {b.get('git_sha')}" + (f" (harrier {h.get('git_sha')})" if h else "") for t, b, h, _ in datasets)
+    common = ["nDCG@10 with 95% bootstrap intervals over the queries (whiskers). The tag on a new model's row is its paired interval",
+              "against the bge row it replaces: above or below zero, or a tie when it covers zero; every row is kept, losers included.",
+              SERVED_NOTE]
+    _panels_chart(out_dir / MODELS_2026_FIGURES[0], "Current open embedders beside bge-small  ·  nDCG@10", common, embed_panels,
+                  f"make figures, from {sources}.")
+    written.append(out_dir / MODELS_2026_FIGURES[0])
+    _panels_chart(out_dir / MODELS_2026_FIGURES[1], "Current open rerankers over hybrid@bge-small  ·  nDCG@10", common, rerank_panels,
+                  f"make figures, from {sources}.")
+    written.append(out_dir / MODELS_2026_FIGURES[1])
+    return written
 
 
 def main() -> None:

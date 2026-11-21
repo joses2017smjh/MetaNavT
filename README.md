@@ -24,6 +24,14 @@ Research directories contain near-duplicate configurations, archived results, an
 - **Review changes:** the separate file-operation tools propose plans and require externally signed, single-use approval tokens to apply them.
 - **Measure regressions:** keep deterministic fixture checks, real-model experiments, and external-domain evaluations separate.
 
+**Current open models, measured beside the served ones.**
+
+[![Bar chart of nDCG@10 with intervals on fixture v1, BEIR SciFact and BEIR FiQA for BM25, bge-small (served), Qwen3-Embedding-0.6B and Qwen3-Embedding-8B, dense and hybrid, each new row tagged above, below or tie against the bge-small row it replaces](doc/figures/models-2026-embedders.svg)](#bench-beir-models-2026)
+
+[![Bar chart of nDCG@10 with intervals on the same three datasets for hybrid retrieval with bge-small and no reranker, with bge-reranker-v2-m3 (served), and with mxbai-rerank-base-v2, mxbai-rerank-large-v2, Qwen3-Reranker-0.6B and Qwen3-Reranker-8B, each new reranker tagged above, below or tie against bge-reranker-v2-m3](doc/figures/models-2026-rerankers.svg)](#bench-beir-models-2026)
+
+*Drawn by `make figures` from the committed results files behind the generated tables ([fixture](#bench-models-2026), [SciFact](#bench-beir-models-2026), [FiQA](#bench-beir-fiqa-models-2026), [cost on a CPU](#bench-models-2026-cpu)). The live demo serves bge-small and bge-reranker-v2-m3 on a CPU, marked in both charts; the larger models are measured for the benchmark tables, not served. Fixture v1 is small, so ties are expected there; the BEIR datasets carry the comparison.*
+
 ## Demo walkthroughs
 
 ### Combine exact terms with semantic matches
