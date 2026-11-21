@@ -146,11 +146,13 @@ terraform output -json github_environment_variables \
   | while read -r name value; do gh variable set "$name" --env production --body "$value"; done
 ```
 
-**8. The Anthropic key.** In the Anthropic Console, create a workspace for this demo only, set its monthly spend limit
+**8. The Anthropic key.** In the Anthropic Console, create a workspace for this demo only (not the default
+workspace, whose spend limit may not stop all of its usage), set its monthly spend limit
 ($24 for the production profile, as `infra/envs/production/main.tf` notes: [Claude's cost](#claudes-cost)) and create
-the demo's key in that workspace: the limit is the last cap if everything else fails. A Console spend limit is set on
-the organization or on a workspace, not on one key (the claude-api skill's notes on the Admin API, read 2026-11-21).
-Store the key in the secret the apply created, without it reaching the shell history:
+the demo's key in that workspace: the limit is the last cap if everything else fails. Console spend limits are set
+for the organization or for a workspace; the docs describe none for a single key
+([Rate limits](https://platform.claude.com/docs/en/api/rate-limits#setting-lower-limits-for-workspaces), read
+2026-11-21). Store the key in the secret the apply created, without it reaching the shell history:
 
 ```bash
 umask 077
@@ -299,9 +301,12 @@ The caps, from the first to the last:
    an estimate from the price table, not Anthropic's bill.
 3. The last cap: the $24 monthly spend limit (the owner's figure, noted in `infra/envs/production/main.tf`) on the
    demo's workspace in the Anthropic Console (step 8). A month of the daily budget, a 31-day one too, stays under it,
-   so it is a backstop for whatever the app's estimate gets wrong. Once it is reached the Messages API answers 429
-   (`enforced_spend_limit_reached`, per the claude-api skill's notes on errors), which the answer route reports as
-   `upstream rate limited`, with the hits.
+   so it is a backstop for whatever the app's estimate gets wrong. Once a limit you set is reached, the Messages API
+   answers each call HTTP 400 `invalid_request_error` ("You have reached your specified workspace API usage limits")
+   until access resumes ([Rate limits](https://platform.claude.com/docs/en/api/rate-limits#setting-your-own-spend-limit),
+   read 2026-11-21). `app/answer/claude.py` treats a 400 as a fault, not as a reason, so `/api/answer/` then answers
+   500, without the hits, while search keeps working. Only the usage tier's own monthly cap answers 429
+   (`enforced_spend_limit_reached`), which the route reports as `upstream rate limited`.
 
 ## Rotating keys
 
@@ -363,7 +368,8 @@ No AWS account exists for this project, so none of this has been seen working ag
 - the alarms' metric names and dimensions, and the EventBridge pattern that tells an unasked task stop from a
   deployment's;
 - Claude Haiku 5.5 on the answer route: its token counts and cost per answer (the example under
-  [Claude's cost](#claudes-cost) is assumed, not measured), and the Console's workspace spend limit stopping calls;
+  [Claude's cost](#claudes-cost) is assumed, not measured), and the Console's workspace spend limit stopping calls
+  (and the answer route's 500 then);
 - the demo page against the deployed API: its `/health` check through CloudFront, real answers and refusals, and a
   browser's network panel showing no request to another host (the web tests mock the API and check that the page's
   own requests stay on its origin; nothing in this repository runs the export in a browser).

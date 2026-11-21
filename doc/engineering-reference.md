@@ -2281,7 +2281,9 @@ The caller is the API key's name when authentication is on, and otherwise the cl
 `TRUSTED_PROXY_HOPS` proxies. Each proxy appends the address it received the request from to `X-Forwarded-For`, so
 the client is that many entries from the right, and an entry the client wrote itself is ignored; a test sends a
 spoofed header. The monthly spend limit set in the Anthropic Console on the workspace that holds the API key (Console
-limits apply to an organization or a workspace, not to one key) is the last cap if everything else fails.
+spend limits are set for an organization or a workspace) is the last cap if everything else fails. Once it is
+reached the Messages API refuses each call as an invalid request, which `app/answer/claude.py` raises rather than
+reporting as a reason, so the answer route fails until access resumes ([the runbook](deploy.md#claudes-cost)).
 
 **The demo page.** One static export of the web client serves both modes: its home page asks `GET /health` in the
 browser and renders the demo page when `public_demo` is true, the chat interface otherwise, as before

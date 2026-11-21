@@ -6,7 +6,7 @@ import { MAX_QUESTION_CHARS, type RequestFailure } from "./api";
 const UPSTREAM: Record<string, string> = {
   "upstream timeout": "Claude's API did not answer in time.",
   "upstream rate limited":
-    "Claude's API is turning this server's requests away for now (a rate limit, or the demo's monthly spend limit).",
+    "Claude's API is turning this server's requests away for now (a rate limit, or the account's monthly spend cap).",
   "upstream unreachable": "This server could not reach Claude's API.",
   "upstream overloaded": "Claude's API is overloaded.",
   "upstream unavailable": "Claude's API is unavailable.",

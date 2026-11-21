@@ -319,7 +319,7 @@ describe("the demo page", () => {
     ],
     [
       "upstream rate limited",
-      /^Claude's API is turning this server's requests away for now \(a rate limit, or the demo's monthly spend limit\)\./,
+      /^Claude's API is turning this server's requests away for now \(a rate limit, or the account's monthly spend cap\)\./,
     ],
     [
       "upstream error 529",
