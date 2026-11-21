@@ -30,7 +30,7 @@ def test_hops_figure_is_regenerated_from_sweeps_json(tmp_path):
 
 def test_the_m41_charts_are_what_make_figures_draws_from_the_committed_results(tmp_path):
     """M41: the two model charts the README shows equal `make figures` over the committed results files, byte for byte
-    (the SVG is plain text formatting), mark the served models, state each dataset's size and keep every row."""
+    (the SVG is plain text formatting), mark the app's default configuration, state each dataset's size and keep every row."""
     (tmp_path / "bench" / "results").mkdir(parents=True)
     names = ("models_2026.json", "models_2026_harrier.json", "beir_scifact_models_2026.json", "beir_scifact_models_2026_harrier.json",
              "beir_fiqa_models_2026.json", "beir_fiqa_models_2026_harrier.json")
@@ -46,7 +46,8 @@ def test_the_m41_charts_are_what_make_figures_draws_from_the_committed_results(t
     embedders, rerankers = (p.read_text() for p in written)
     scifact = json.loads((ROOT / "bench" / "results" / "beir_scifact_models_2026.json").read_text())
     assert f"{scifact['n_docs']} documents, {scifact['n_queries']} test queries" in embedders
-    assert embedders.count(">served<") == 3 and rerankers.count(">served<") == 3  # one served row per dataset panel
+    assert embedders.count(">app's default<") == 3 and rerankers.count(">app's default<") == 3  # one default row per dataset panel
+    assert "live demo" not in embedders + rerankers  # a deployment can run another configuration
     assert "▼ below" in embedders and "= tie" in rerankers  # losers and ties stay visible
     fixture = json.loads((ROOT / "bench" / "results" / "models_2026.json").read_text())
     for row in fixture["results"]:

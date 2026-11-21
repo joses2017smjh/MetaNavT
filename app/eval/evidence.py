@@ -43,6 +43,9 @@ FILES = {
     "models_2026_cpu": "bench/results/models_2026_cpu.json",
     "beir_scifact_models_2026": "bench/results/beir_scifact_models_2026.json",
     "beir_fiqa_models_2026": "bench/results/beir_fiqa_models_2026.json",
+    "models_2026_harrier": "bench/results/models_2026_harrier.json",  # harrier-oss-v1-27b: its own runs, on an 80 GB GPU
+    "beir_scifact_models_2026_harrier": "bench/results/beir_scifact_models_2026_harrier.json",
+    "beir_fiqa_models_2026_harrier": "bench/results/beir_fiqa_models_2026_harrier.json",
     "served_scale": "bench/results/served_scale_fiqa.json",
     "pgvector_hnsw": "bench/results/pgvector_hnsw.json",
 }
@@ -731,8 +734,8 @@ def _models_2026_claims(root: Path = ROOT) -> list[dict]:
         rows = [
             ("dense@qwen3-emb-8b", None, f"BEIR {dataset}, Qwen3-Embedding-8B vs bge-small-en-v1.5, dense retrieval, paired delta in nDCG@10",
              f"dense only, on one GPU ({gpu}), Qwen3-Embedding-8B in bfloat16 with its `query` prompt; its hybrid row against "
-             f"hybrid@bge-small is {_ci(hybrid8, 'delta', 4)[0]} {_ci(hybrid8, 'delta', 4)[1]} ({_zero(hybrid8)}); the served embedder is "
-             f"still bge-small; {repro}"),
+             f"hybrid@bge-small is {_ci(hybrid8, 'delta', 4)[0]} {_ci(hybrid8, 'delta', 4)[1]} ({_zero(hybrid8)}); the app's default "
+             f"embedder is still bge-small; {repro}"),
             ("hybrid@qwen3-emb-8b", "dense@qwen3-emb-8b", f"BEIR {dataset}, hybrid RRF minus dense-only, both with Qwen3-Embedding-8B, paired delta in nDCG@10",
              f"fusing BM25 into the dense list (RRF, equal weights) against the same dense list alone, on one GPU ({gpu}); with "
              f"bge-small the same comparison is the committed hybrid row's parent delta; {repro}"),
@@ -741,12 +744,27 @@ def _models_2026_claims(root: Path = ROOT) -> list[dict]:
             name = f"hybrid+{tag}@bge-small/{'bf16' if '8b' in tag else 'fp32'}-512/top20"
             rows.append((name, None, f"BEIR {dataset}, {label} vs bge-reranker-v2-m3 (fp32), both over hybrid@bge-small, paired delta in nDCG@10",
                          f"both rerank the fused top 20 at max_length 512 on one GPU ({gpu}); rerank-stage p50 {rerank_p50(blob, name)} ms "
-                         f"vs {rerank_p50(blob, bge20)} ms per query; not the served precision (fp16 on CUDA); {repro}"))
+                         f"vs {rerank_p50(blob, bge20)} ms per query; not the app's default precision on CUDA (fp16); {repro}"))
         for name, other, claim, not_shown in rows:
             d = delta(blob, name, other)
             if d and (d["lo"] > 0 or d["hi"] < 0):  # an interval that excludes zero supports a claim; one that covers it does not
                 value, ci = _ci(d, "delta", 4)
                 out.append({"claim": claim, "value": value, "ci": ci, "n": n, "command": command, "source": src, "not_shown": not_shown})
+    # harrier-oss-v1-27b, each dataset's own run with bge-small's rows recomputed beside it
+    for key, dataset, command, dense in (("models_2026_harrier", "Fixture v1", "make bench-models-2026-harrier", "dense_only"),
+                                         ("beir_scifact_models_2026_harrier", "BEIR SciFact", "make bench-beir-models-2026-harrier", "dense"),
+                                         ("beir_fiqa_models_2026_harrier", "BEIR FiQA", "make bench-beir-fiqa-models-2026-harrier", "dense")):
+        blob = _load(FILES[key], root)
+        d = delta(blob, f"{dense}@harrier-27b") if blob else None
+        if d and (d["lo"] > 0 or d["hi"] < 0):
+            hybrid = delta(blob, "hybrid@harrier-27b")
+            value, ci = _ci(d, "delta", 4)
+            gpu = (blob.get("device") or {}).get("device_name", "the recorded GPU")
+            out.append({"claim": f"{dataset}, harrier-oss-v1-27b vs bge-small-en-v1.5, dense retrieval, paired delta in nDCG@10", "value": value, "ci": ci,
+                        "n": blob.get("n_queries", blob.get("n_gold")), "command": command, "source": f"{FILES[key]} @ {blob['git_sha']}",
+                        "not_shown": f"dense only, bfloat16 with its `web_search_query` prompt, on one GPU ({gpu}), loaded from a view of its "
+                                     f"snapshot without tokenizer_config.json's processor_class; its hybrid row against hybrid@bge-small is "
+                                     f"{' '.join(_ci(hybrid, 'delta', 4))} ({_zero(hybrid)}); {_reproduced(blob)}"})
     fixture = _load(FILES["models_2026"], root)
     d = delta(fixture, "hybrid@qwen3-emb-0.6b") if fixture else None
     if d and (d["lo"] > 0 or d["hi"] < 0):

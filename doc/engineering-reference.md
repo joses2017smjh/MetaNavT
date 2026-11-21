@@ -1052,11 +1052,11 @@ embedders and rerankers, each row one model away from a committed bge row that
 the same run recomputes: [fixture](../README.md#bench-models-2026),
 [what the CPU-servable ones cost on a CPU](../README.md#bench-models-2026-cpu),
 [SciFact](../README.md#bench-beir-models-2026) and
-[FiQA](../README.md#bench-beir-fiqa-models-2026). Nothing here changes what is
-served: the API keeps bge-small and bge-reranker-v2-m3, and a change is the
-owner's decision from these tables. `make figures` draws the same rows as two
-charts, [embedders](figures/models-2026-embedders.svg) and
-[rerankers](figures/models-2026-rerankers.svg), with the served models marked.
+[FiQA](../README.md#bench-beir-fiqa-models-2026). Nothing here changes the
+app's default: bge-small and bge-reranker-v2-m3, and a change is the owner's
+decision from these tables. `make figures` draws the same rows as two charts,
+[embedders](figures/models-2026-embedders.svg) and
+[rerankers](figures/models-2026-rerankers.svg), with the app's default marked.
 
 **The models.** Embedders: Qwen3-Embedding-0.6B and Qwen3-Embedding-8B
 (Apache-2.0) and microsoft/harrier-oss-v1-27b (MIT), the largest open embedder.
@@ -1130,10 +1130,14 @@ tables, against the row's parent unless it says otherwise.
 - Qwen3-Embedding-0.6B loses to bge-small on the fixture's hybrid row (its
   interval is below zero) and ties on the fixture's dense row and on both SciFact
   rows; on FiQA it is above bge-small with dense and hybrid retrieval.
+- harrier-oss-v1-27b, measured in its own runs on a larger GPU (an H100, and an
+  H200 for FiQA) with bge-small's rows recomputed beside it, is above bge-small on SciFact with dense and with
+  hybrid retrieval; on FiQA both its rows are above bge-small's; on the fixture both its rows are below
+  bge-small's, the largest losses in these tables.
 - Fusing BM25 into a strong dense leg can cost ranking: the hybrid row is below
-  its own dense row on FiQA for both Qwen3 embedders and on SciFact for
-  Qwen3-Embedding-8B. On the fixture hybrid stays above dense for both, as it does
-  on SciFact for Qwen3-Embedding-0.6B.
+  its own dense row on FiQA for both Qwen3 embedders, and on SciFact for
+  Qwen3-Embedding-8B and harrier-oss-v1-27b. On FiQA harrier's hybrid row is below its dense row as well. On the fixture hybrid
+  stays above dense for all three, as it does on SciFact for Qwen3-Embedding-0.6B.
 - Over hybrid@bge-small, against bge-reranker-v2-m3 at its own settings:
   mxbai-rerank-large-v2 is above it on all three datasets; Qwen3-Reranker-8B and
   mxbai-rerank-base-v2 are above it on SciFact and FiQA and tie on the fixture;
@@ -1142,8 +1146,8 @@ tables, against the row's parent unless it says otherwise.
 
 **Do the recomputed parents reproduce the committed rows?** On the fixture they
 reproduce `neural.json` in every field, on an A40 where that file was recorded on
-another GPU, and so do the CPU run's parents (its served-settings reranker row
-reproduces `rerank_depth.json`). On SciFact they equal `beir_scifact.json` in
+another GPU, and so do the CPU run's parents (its reranker row at the app's default
+CPU settings reproduces `rerank_depth.json`). On SciFact they equal `beir_scifact.json` in
 every field of the retrieval block; that file wrote no TREC runs, so rankings are
 not compared. On FiQA they equal `beir_fiqa.json` in every field of the retrieval
 block, and BM25 ranks every query exactly as the committed TREC run does, but the
@@ -1153,17 +1157,20 @@ per-query metric moves. The cause is the GPU, not the code or the cache. The sam
 commit and the same cached document embeddings reproduce every committed FiQA TREC
 run byte for byte on the GPU type that file was recorded on (named in its header),
 and differ in those swaps on an A40, because the bge-small query embedding differs
-in its last bits between the two GPUs (to check, run on each GPU and compare with `bench/results/beir_fiqa_trec`:
+in its last bits between the two GPUs; harrier's FiQA run, on an H200, ranks its three bge parents exactly as the
+committed TREC runs do (to check, run on each GPU and compare with `bench/results/beir_fiqa_trec`:
 `python -m app.eval.beir --dataset fiqa --only bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20 --trec-dir <dir>`). Every paired
 delta of the new FiQA file is between rows of one run, so none depends on it.
 
-**What each costs to serve, where measured.** On a CPU, at the served CPU settings (the fused top 20, max_length 512, fp32) with 8 torch threads on the Intel Xeon Silver processor the results header names, reranking takes a median of 4703.05 ms per question with bge-reranker-v2-m3, 9952.11 ms with mxbai-rerank-base-v2 and 12630.38 ms with Qwen3-Reranker-0.6B.<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_depth; bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_max_length; bench/results/models_2026_cpu.json#/device/threads; bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid+mxbai-rerank-base-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid+qwen3-rerank-0.6b@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms -->
+**What each costs to serve, where measured.** On a CPU, at the app's default CPU settings (the fused top 20, max_length 512, fp32) with 8 torch threads on the Intel Xeon Silver processor the results header names, reranking takes a median of 4703.05 ms per question with bge-reranker-v2-m3, 9952.11 ms with mxbai-rerank-base-v2 and 12630.38 ms with Qwen3-Reranker-0.6B.<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_depth; bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_max_length; bench/results/models_2026_cpu.json#/device/threads; bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid+mxbai-rerank-base-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid+qwen3-rerank-0.6b@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms -->
 Embedding the question and searching the dense index takes a median of 20.32 ms with bge-small and 344.03 ms with Qwen3-Embedding-0.6B.<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid@bge-small]/latency/embed/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid@qwen3-emb-0.6b]/latency/embed/p50_ms -->
 The fixture's chunks are short, so a passage of a few hundred tokens costs more per pair than these.
 
 On the A40, over SciFact's abstracts at the same depth and cap, the rerank stage's median per query is 473.62 ms for bge-reranker-v2-m3, 592.01 ms for mxbai-rerank-base-v2, 1684.18 ms for mxbai-rerank-large-v2 and 774.67 ms for Qwen3-Reranker-0.6B, all in fp32, and 1782.84 ms for Qwen3-Reranker-8B in bf16.<!-- num: bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+mxbai-rerank-base-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+mxbai-rerank-large-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+qwen3-rerank-0.6b@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+qwen3-rerank-8b@bge-small~1bf16-512~1top20]/latency/rerank/p50_ms -->
 Embedding FiQA's corpus took 1027.5 s with Qwen3-Embedding-0.6B and 2264.8 s with Qwen3-Embedding-8B on the A40 (bge-small's document embeddings came from the cache).<!-- num: bench/results/beir_fiqa_models_2026.json#/results/[config=dense@qwen3-emb-0.6b]/build_ms/doc_embeddings_ms|/1000; bench/results/beir_fiqa_models_2026.json#/results/[config=dense@qwen3-emb-8b]/build_ms/doc_embeddings_ms|/1000 -->
-The served models stay bge-small and bge-reranker-v2-m3; which of these the numbers favour for a CPU-served demo or a GPU
+harrier-oss-v1-27b ran on an H100 instead (its files name the GPU): on SciFact it embeds a question and searches in a median of 45.28 ms, against 4.63 ms for bge-small in the same run, and embedding SciFact's corpus took 253.2 s.<!-- num: bench/results/beir_scifact_models_2026_harrier.json#/results/[config=hybrid@harrier-27b]/latency/embed/p50_ms; bench/results/beir_scifact_models_2026_harrier.json#/results/[config=hybrid@bge-small]/latency/embed/p50_ms; bench/results/beir_scifact_models_2026_harrier.json#/results/[config=dense@harrier-27b]/build_ms/doc_embeddings_ms|/1000 -->
+Its FiQA run was on an H200: there a question takes a median of 54.67 ms against 4.92 ms for bge-small, and embedding FiQA's corpus took 1613.5 s.<!-- num: bench/results/beir_fiqa_models_2026_harrier.json#/results/[config=hybrid@harrier-27b]/latency/embed/p50_ms; bench/results/beir_fiqa_models_2026_harrier.json#/results/[config=hybrid@bge-small]/latency/embed/p50_ms; bench/results/beir_fiqa_models_2026_harrier.json#/results/[config=dense@harrier-27b]/build_ms/doc_embeddings_ms|/1000 -->
+The app's default stays bge-small and bge-reranker-v2-m3; which of these the numbers favour for a CPU deployment or a GPU
 host is the owner's decision, from the intervals and the latencies above.
 
 ---

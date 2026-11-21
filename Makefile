@@ -248,7 +248,7 @@ bench-models-2026: ## fixture v1: Qwen3-Embedding 0.6B/8B (dense, hybrid) and mx
 bench-models-2026-harrier: ## fixture v1: harrier-oss-v1-27b (dense, hybrid) vs bge-small, recomputed in the run (needs .[ml] and an 80 GB GPU) -> bench/results/models_2026_harrier.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --models-2026 harrier --out bench/results/models_2026_harrier.json
 
-bench-models-2026-cpu: ## fixture v1 on the CPU: the CPU-servable models (Qwen3-Embedding-0.6B, mxbai-rerank-base-v2, Qwen3-Reranker-0.6B) at the served CPU settings (depth 20, max_length 512, fp32) vs bge, for their latency (needs .[ml]) -> bench/results/models_2026_cpu.json
+bench-models-2026-cpu: ## fixture v1 on the CPU: the CPU-servable models (Qwen3-Embedding-0.6B, mxbai-rerank-base-v2, Qwen3-Reranker-0.6B) at the app's default CPU settings (depth 20, max_length 512, fp32) vs bge, for their latency (needs .[ml]) -> bench/results/models_2026_cpu.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.harness --models-2026 cpu --device cpu --out bench/results/models_2026_cpu.json
 
 .PHONY: bench-rerank-depth

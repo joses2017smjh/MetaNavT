@@ -2245,7 +2245,8 @@ def _m41_models(row: dict) -> str:
     e = m.get("embedder") or {}
     if e.get("neural"):
         prompt = f", query prompt `{e['query_prompt_name']}`" if e.get("query_prompt_name") else ""
-        parts.append(f"{e['model']}@{(e.get('revision') or '?')[:7]} ({_dtype(e.get('dtype'))}{prompt})")
+        view = ", loaded from a snapshot view" if e.get("snapshot_view") else ""  # harrier: SNAPSHOT_VIEWS in app/retrieval/embedders.py
+        parts.append(f"{e['model']}@{(e.get('revision') or '?')[:7]} ({_dtype(e.get('dtype'))}{prompt}{view})")
     r = m.get("reranker") or {}
     if r.get("neural") and r.get("loaded"):
         prompt = f", prompt `{r['default_prompt_name']}`" if r.get("default_prompt_name") else ""
@@ -2358,14 +2359,14 @@ def _stage(row: dict, stage: str) -> str:
 
 
 def models_2026_cpu_table(blob: dict | None) -> str:
-    """M41: the CPU-servable models on a CPU at the served CPU settings (models_2026_cpu.json): what each costs per query."""
+    """M41: the CPU-servable models on a CPU at the app's default CPU settings (models_2026_cpu.json): what each costs per query."""
     if not blob:
         return f"_{MODELS_2026_CPU_FILE} is missing; run `make bench-models-2026-cpu` (needs .[ml]; CPU only)._"
     d = blob.get("device") or {}
     lines = [
         f"What the CPU-servable models cost per query on a CPU (`make bench-models-2026-cpu`; {d.get('cpu_model') or 'CPU model not recorded'}, "
         f"{d.get('threads')} torch threads, torch {d.get('torch')}, sentence-transformers {d.get('sentence_transformers')}; results sha "
-        f"{_sha(blob)}). The reranked rows use the served CPU settings (the fused top 20, max_length 512, fp32), each paired "
+        f"{_sha(blob)}). The reranked rows use the app's default CPU settings (the fused top 20, max_length 512, fp32), each paired "
         f"with bge-reranker-v2-m3 at the same settings, recomputed in the run. Latency is per question after one warm-up "
         f"question: `embed` is the query embedding and the dense search, `rerank` the cross-encoder over the top 20. "
         f"Fixture chunks are short, so a passage of a few hundred tokens costs more per pair than these.",

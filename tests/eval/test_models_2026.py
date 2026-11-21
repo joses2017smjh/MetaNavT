@@ -61,7 +61,7 @@ def test_the_harrier_and_cpu_sets():
     assert set(harrier) == {"bm25_only", "dense_only@bge-small", "hybrid@bge-small", "dense_only@harrier-27b", "hybrid@harrier-27b"}
     assert harrier["hybrid@harrier-27b"].embedder == "st:microsoft/harrier-oss-v1-27b"
     cpu = {c.name: c for c in models_2026_configs("cpu")}
-    served = "hybrid+bge-rerank@bge-small/fp32-512/top20"  # the served CPU settings, as rerank_depth.json's row
+    served = "hybrid+bge-rerank@bge-small/fp32-512/top20"  # the app's default CPU settings, as rerank_depth.json's row
     assert set(cpu) == {"bm25_only", "dense_only@bge-small", "hybrid@bge-small", served, "dense_only@qwen3-emb-0.6b",
                         "hybrid@qwen3-emb-0.6b", "hybrid+mxbai-rerank-base-v2@bge-small/fp32-512/top20",
                         "hybrid+qwen3-rerank-0.6b@bge-small/fp32-512/top20"}

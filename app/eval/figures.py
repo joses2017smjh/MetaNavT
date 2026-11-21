@@ -528,18 +528,21 @@ def write_from_results(root: Path) -> None:
     write_models_2026_figures(root, out_dir)  # M41: nothing is drawn while its results files are missing
 
 
-# ---- M41: the current open models beside the served ones (make figures; app/eval/models_2026.py)
+# ---- M41: the current open models beside the app's default ones (make figures; app/eval/models_2026.py)
 
 MODELS_2026_FIGURES = ("models-2026-embedders.svg", "models-2026-rerankers.svg")
-SERVED_NOTE = ("The live demo serves bge-small and bge-reranker-v2-m3 on a CPU (marked served); the larger models are measured "
-               "here for the benchmark tables, not served.")
+# The configuration the app runs by default (app/settings.py and app/engine/retriever.py), marked in both charts. Not "the
+# live demo": a deployment can run another configuration (the free-tier demo runs without the reranker).
+DEFAULT_LABEL = "app's default"
+DEFAULT_NOTE = ("The app's default is bge-small with bge-reranker-v2-m3 (marked app's default); the larger models are measured "
+                "here for the benchmark tables.")
 VERDICTS = {"above zero": ("▲ above", GOLD), "below zero": ("▼ below", PINK), "covers zero": ("= tie", MUTED)}
 
 
 def _panels_chart(path: Path, title: str, subtitle: list[str], panels: list[dict], footer: str) -> None:
     """Horizontal nDCG@10 bars on a 0-1 axis, one panel per dataset. Each row: label, bar, 95% interval whisker, the
     value with its interval, and (for a row that replaces a bge model) the verdict of the paired interval against that
-    row; a served row is outlined and labelled."""
+    row; the row of the app's default configuration is outlined and labelled."""
     w, left, right = 1040, 330, 290
     plot_w = w - left - right
     row_h, gap, head = 20, 7, 48
@@ -559,7 +562,7 @@ def _panels_chart(path: Path, title: str, subtitle: list[str], panels: list[dict
         for row in panel["rows"]:
             ym = y + row_h / 2
             bw = max(2.0, plot_w * row["value"])
-            outline = f' stroke="{GOLD}" stroke-width="2"' if row.get("served") else ""
+            outline = f' stroke="{GOLD}" stroke-width="2"' if row.get("default") else ""
             parts.append(f'<text x="{left - 12}" y="{ym + 4:.1f}" text-anchor="end" fill="{TEXT}" {font} font-size="12">{_esc(row["label"])}</text>')
             parts.append(f'<rect x="{left}" y="{y}" width="{bw:.1f}" height="{row_h}" rx="3" fill="{row["color"]}"{outline}/>')
             text = f'{row["value"]:.3f}'
@@ -573,8 +576,8 @@ def _panels_chart(path: Path, title: str, subtitle: list[str], panels: list[dict
                 text += f"  [{lo:.3f}, {hi:.3f}]"
             parts.append(f'<text x="{left + plot_w + 12}" y="{ym + 4:.1f}" fill="{GOLD}" {font} font-size="12" font-weight="600">{_esc(text)}</text>')
             tag = VERDICTS.get(row.get("verdict") or "")
-            if row.get("served"):
-                tag = ("served", GOLD)
+            if row.get("default"):
+                tag = (DEFAULT_LABEL, GOLD)
             if tag:
                 parts.append(f'<text x="{w - 32}" y="{ym + 4:.1f}" text-anchor="end" fill="{tag[1]}" {font} font-size="12" font-weight="700">{_esc(tag[0])}</text>')
             y += row_h + gap
@@ -593,7 +596,7 @@ def _panels_chart(path: Path, title: str, subtitle: list[str], panels: list[dict
     path.write_text(svg)
 
 
-def _m41_row(blob: dict | None, name: str, label: str, color: str, *, served: bool = False, judged: bool = True) -> dict | None:
+def _m41_row(blob: dict | None, name: str, label: str, color: str, *, default: bool = False, judged: bool = True) -> dict | None:
     """A chart row from a results row: nDCG@10, its 95% interval and the verdict of its paired interval against its
     parent (the bge row it replaces; judged=False for a reference row)."""
     from app.eval.report import verdict
@@ -604,7 +607,7 @@ def _m41_row(blob: dict | None, name: str, label: str, color: str, *, served: bo
     ci = (row.get("ci") or {}).get("ndcg@10") or {}
     parent = (row.get("delta_vs_parent") or row.get("delta_vs_previous") or {}).get("ndcg@10")
     return {"label": label, "value": row["retrieval"]["ndcg@10"], "ci": (ci["lo"], ci["hi"]) if ci else None, "color": color,
-            "served": served, "verdict": verdict(parent) if judged and parent else None}
+            "default": default, "verdict": verdict(parent) if judged and parent else None}
 
 
 def _size(blob: dict) -> str:
@@ -632,7 +635,7 @@ def write_models_2026_figures(root: Path, out_dir: Path) -> list[Path]:
     for title, blob, harrier, dense in datasets:
         rows = [_m41_row(blob, bm25.get(title, "bm25"), "bm25 (no embedder)", LOSS, judged=False),
                 _m41_row(blob, f"{dense}@bge-small", "dense · bge-small", BLUE, judged=False),
-                _m41_row(blob, "hybrid@bge-small", "hybrid · bge-small", LAVENDER, served=True, judged=False)]
+                _m41_row(blob, "hybrid@bge-small", "hybrid · bge-small", LAVENDER, default=True, judged=False)]
         for tag in [t for t in EMBEDDERS if t != HARRIER]:
             rows += [_m41_row(blob, f"{dense}@{tag}", f"dense · {tag}", BLUE), _m41_row(blob, f"hybrid@{tag}", f"hybrid · {tag}", LAVENDER)]
         if harrier:
@@ -642,21 +645,22 @@ def write_models_2026_figures(root: Path, out_dir: Path) -> list[Path]:
         beir = "n_docs" in blob
         suffix = "/fp32-512/top20" if beir else ""
         rows = [_m41_row(blob, "hybrid@bge-small", "hybrid · bge-small, no reranker", LOSS, judged=False),
-                _m41_row(blob, f"hybrid+bge-rerank@bge-small{suffix}", "+ bge-reranker-v2-m3 (fp32)", GOLD, served=True, judged=False)]
+                _m41_row(blob, f"hybrid+bge-rerank@bge-small{suffix}", "+ bge-reranker-v2-m3 (fp32)", GOLD, default=True, judged=False)]
         for tag, (model, precision) in RERANKERS.items():
             name = f"hybrid+{tag}@bge-small" + (f"/{precision}-512/top20" if beir else "")
             rows.append(_m41_row(blob, name, f"+ {tag} ({precision})", SKY if "mxbai" in tag else PINK))
         how = "the fused top 20 at max_length 512" if beir else "every fused candidate, the model's own token cap"
         rerank_panels.append({"title": f"{title}  ·  {_size(blob)}  ·  reranks {how}", "rows": [r for r in rows if r]})
     sources = ", ".join(f"{t}: results sha {b.get('git_sha')}" + (f" (harrier {h.get('git_sha')})" if h else "") for t, b, h, _ in datasets)
+    rerank_sources = ", ".join(f"{t}: results sha {b.get('git_sha')}" for t, b, _, _ in datasets)  # no harrier rows in that chart
     common = ["nDCG@10 with 95% bootstrap intervals over the queries (whiskers). The tag on a new model's row is its paired interval",
               "against the bge row it replaces: above or below zero, or a tie when it covers zero; every row is kept, losers included.",
-              SERVED_NOTE]
+              DEFAULT_NOTE]
     _panels_chart(out_dir / MODELS_2026_FIGURES[0], "Current open embedders beside bge-small  ·  nDCG@10", common, embed_panels,
                   f"make figures, from {sources}.")
     written.append(out_dir / MODELS_2026_FIGURES[0])
     _panels_chart(out_dir / MODELS_2026_FIGURES[1], "Current open rerankers over hybrid@bge-small  ·  nDCG@10", common, rerank_panels,
-                  f"make figures, from {sources}.")
+                  f"make figures, from {rerank_sources}.")
     written.append(out_dir / MODELS_2026_FIGURES[1])
     return written
 

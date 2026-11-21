@@ -48,7 +48,7 @@ RERANKERS = {  # tag: (model, precision)
     "qwen3-rerank-0.6b": ("Qwen/Qwen3-Reranker-0.6B", "fp32"),
     "qwen3-rerank-8b": ("Qwen/Qwen3-Reranker-8B", "bf16"),
 }
-CPU_SERVABLE = ("qwen3-emb-0.6b", "mxbai-rerank-base-v2", "qwen3-rerank-0.6b")  # the live-demo candidates
+CPU_SERVABLE = ("qwen3-emb-0.6b", "mxbai-rerank-base-v2", "qwen3-rerank-0.6b")  # small enough to serve on a CPU
 HARRIER = "harrier-27b"  # needs an 80 GB GPU: its rows are a separate run and file
 CHECK_MAX_LENGTH = 512  # the token cap the reranker check loads with, so its third pair runs past it
 

@@ -449,7 +449,7 @@ SMALL_N = 30
 # bge-small's, a reranker over hybrid@bge-small on bge-reranker-v2-m3's at that row's settings (every fused candidate,
 # the model's own token cap, fp32; Qwen3-Reranker-8B in bf16). `make bench-models-2026` -> models_2026.json;
 # harrier-oss-v1-27b needs an 80 GB GPU, so its rows are their own run and file (`make bench-models-2026-harrier`);
-# `make bench-models-2026-cpu` runs the CPU-servable models on a CPU at the served CPU settings (depth 20, max_length
+# `make bench-models-2026-cpu` runs the CPU-servable models on a CPU at the app's default CPU settings (depth 20, max_length
 # 512, fp32) for their latency. Every model must load and pass its load-and-score check, or the run stops.
 MODELS_2026_PARENTS = ("bm25_only", "dense_only@bge-small", "hybrid@bge-small", "hybrid+bge-rerank@bge-small")
 # The committed rows a run's parents are compared with (app.eval.models_2026.reproduces), by file; a run compares the
