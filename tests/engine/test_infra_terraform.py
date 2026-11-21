@@ -102,12 +102,17 @@ def test_the_deploy_role_has_only_the_deploy_steps_permissions():
         "ecs:DescribeTaskDefinition", "ecs:RegisterTaskDefinition", "ecs:DescribeServices", "ecs:UpdateService",
         "ecs:RunTask", "ecs:DescribeTasks", "ecs:StopTask", "iam:PassRole", "secretsmanager:DescribeSecret",
         "s3:PutObject", "s3:ListBucket", "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation",
+        # the single host (scripts/deploy_single_host.py)
+        "ssm:SendCommand", "ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ec2:DescribeInstances",
     }
     statements = {hcl.strings(hcl.attr(s, "sid"))[0]: s for s in hcl.nested(policy, "statement")}
     assert all(hcl.attr(s, "effect") is None for s in statements.values())  # Allow only, no Deny to reason about
-    # The only "*" resource: the two task definition calls, which take no resource-level permission.
+    # The only "*" resources: calls that take no resource-level permission (the two task definition calls; the
+    # instance lookup and following a command), none of them a write.
     star = [sid for sid, s in statements.items() if hcl.attr(s, "resources") == '["*"]']
-    assert star == ["TaskDefinitions"]
+    assert star == ["TaskDefinitions", "FindTheHostAndFollowTheCommand"]
+    assert hcl.strings(hcl.attr(statements["FindTheHostAndFollowTheCommand"], "actions")) == [
+        "ec2:DescribeInstances", "ssm:GetCommandInvocation", "ssm:ListCommandInvocations"]
     assert hcl.strings(hcl.attr(statements["RunTheMigrateTask"], "resources")) == ["${local.ecs_arn}:task-definition/${var.project}-*-migrate:*"]
     passed = statements["PassTheTwoTaskRoles"]
     assert hcl.strings(hcl.attr(passed, "resources")) == [
@@ -124,6 +129,28 @@ def test_the_deploy_role_has_only_the_deploy_steps_permissions():
     families = {n: hcl.strings(hcl.attr(b, "family"))[0] for n, b in _resources(MODULE, "aws_ecs_task_definition").items()}
     assert families == {"api": "${local.name}-api", "migrate": "${local.name}-migrate"}
     assert hcl.strings(hcl.attr(_resources(MODULE, "aws_s3_bucket")["web"], "bucket")) == ["${local.name}-web-${local.account_id}"]
+
+
+def test_the_deploy_role_runs_commands_only_on_the_single_host_and_only_the_shell_script_document():
+    policy = hcl.block(BOOTSTRAP, "data", "aws_iam_policy_document", "deploy")
+    statements = {hcl.strings(hcl.attr(s, "sid"))[0]: s for s in hcl.nested(policy, "statement")}
+    sending = [sid for sid, s in statements.items() if "ssm:SendCommand" in hcl.strings(hcl.attr(s, "actions"))]
+    assert sending == ["RunCommandOnTheSingleHost", "OnlyTheShellScriptDocument"]
+    for sid in sending:
+        assert hcl.strings(hcl.attr(statements[sid], "actions")) == ["ssm:SendCommand"]
+    host = statements["RunCommandOnTheSingleHost"]
+    assert hcl.strings(hcl.attr(host, "resources")) == ["arn:${local.partition}:ec2:${var.region}:${local.account_id}:instance/*"]
+    conditions = {hcl.strings(hcl.attr(c, "variable"))[0]: (hcl.strings(hcl.attr(c, "test"))[0], hcl.attr(c, "values"))
+                  for c in hcl.nested(host, "condition")}
+    assert conditions == {"ssm:resourceTag/Project": ("StringEquals", "[var.project]"),
+                          "ssm:resourceTag/Target": ("StringEquals", '["single-host"]')}
+    document = statements["OnlyTheShellScriptDocument"]
+    assert hcl.strings(hcl.attr(document, "resources")) == ["arn:${local.partition}:ssm:${var.region}::document/AWS-RunShellScript"]
+    assert not hcl.nested(document, "condition")
+    # the tags the condition needs are the ones the single host's instance carries
+    single_host = hcl.read_dir(INFRA / "modules" / "single-host")
+    tags = _locals(single_host)["instance_tags"].strip()[1:-1]
+    assert (hcl.attr(tags, "Project"), hcl.attr(tags, "Target")) == ("var.project", '"single-host"')
 
 
 # ---- RDS and Redis are not public ----------------------------------------------------------------------------
