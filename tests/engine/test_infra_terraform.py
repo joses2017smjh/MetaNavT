@@ -406,11 +406,16 @@ def test_production_and_staging_call_the_one_module_with_their_differences():
         backend = hcl.block(hcl.block(text, "terraform"), "backend", "s3")
         assert hcl.strings(hcl.attr(backend, "key")) == [f"{env}/terraform.tfstate"]
         assert hcl.attr(backend, "use_lockfile") == "true" and hcl.attr(backend, "bucket") is None  # given at init
-        settings[env] = {name: hcl.attr(module, name) for name in ("redis_mode", "enable_waf", "deletion_protection")}
-    assert settings == {
-        "production": {"redis_mode": '"elasticache"', "enable_waf": "true", "deletion_protection": "true"},
-        "staging": {"redis_mode": '"sidecar"', "enable_waf": "false", "deletion_protection": "false"},
+        settings[env] = {name: hcl.attr(module, name)
+                         for name in ("redis_mode", "enable_waf", "deletion_protection", "final_snapshot")}
+    assert settings == {  # None: the module's default
+        "production": {"redis_mode": '"elasticache"', "enable_waf": "true", "deletion_protection": "true", "final_snapshot": None},
+        "staging": {"redis_mode": '"sidecar"', "enable_waf": "false", "deletion_protection": "false", "final_snapshot": "false"},
     }
+    assert hcl.attr(hcl.block(MODULE, "variable", "final_snapshot"), "default") == "true"
+    # turning deletion protection off to destroy production does not also skip its final snapshot
+    db = _resources(MODULE, "aws_db_instance")["this"]
+    assert hcl.attr(db, "skip_final_snapshot") == "!var.final_snapshot"
 
 
 def test_every_root_requires_terraform_1_11_and_commits_its_provider_lock():

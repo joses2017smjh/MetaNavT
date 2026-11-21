@@ -2,7 +2,7 @@
 # bill, so by default nothing applies this root and the deploy workflow goes straight to production. To test a deploy
 # here: apply it, set the repository variable DEPLOY_STAGING=true (and add "staging" to the bootstrap's
 # deploy_environments), deploy, then `terraform destroy` it and unset the variable. Smaller than production: Redis as
-# a sidecar instead of ElastiCache, no WAF, no deletion protection.
+# a sidecar instead of ElastiCache, no WAF, no deletion protection and no final snapshot.
 terraform {
   required_version = ">= 1.11.0"
 
@@ -83,6 +83,7 @@ module "demo" {
   redis_mode          = "sidecar"
   enable_waf          = false
   deletion_protection = false
+  final_snapshot      = false
   vpc_cidr            = "10.41.0.0/16"
 
   anthropic_key_stored = false

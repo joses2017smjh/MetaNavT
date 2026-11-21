@@ -119,7 +119,13 @@ variable "db_backup_retention_days" {
 }
 
 variable "deletion_protection" {
-  description = "RDS deletion protection (and a final snapshot on destroy). On in production; turn it off first to destroy."
+  description = "RDS deletion protection. On in production; turn it off (and apply) first to destroy."
+  type        = bool
+  default     = true
+}
+
+variable "final_snapshot" {
+  description = "Keep a final RDS snapshot (<project>-<environment>-final) when the database is destroyed. It stays, and is billed as snapshot storage, until deleted by hand."
   type        = bool
   default     = true
 }
