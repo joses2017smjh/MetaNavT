@@ -194,13 +194,20 @@ jobs:
   docker-smoke:
     # docker compose up --build, wait for /health (the api container migrates, then indexes
     # bench/corpus/files with the hash embedder, then starts the server), POST one query,
-    # require hits with non-null paths.
+    # require hits with non-null paths. First, a check that docker-compose.prod.yml (the
+    # production rehearsal) resolves with its template settings; that stack is not started in CI.
     name: docker compose smoke
     if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: docker-compose.prod.yml resolves (config only, from deploy/prod.env.example; not started)
+        env:
+          POSTGRES_PASSWORD: config-check-only   # the file requires one and the template leaves it empty; nothing starts
+        run: |
+          docker compose version
+          docker compose -f docker-compose.prod.yml --env-file deploy/prod.env.example config --quiet
       - name: Reproduce the documented setup (.env must not change what the stack runs)
         run: cp .env.example .env
       - name: Build and start the stack

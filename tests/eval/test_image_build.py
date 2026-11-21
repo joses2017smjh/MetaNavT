@@ -134,11 +134,20 @@ def _image_references() -> list[tuple[str, str]]:
 
 def test_every_base_image_is_pinned_by_digest():
     """A tag can point at a different image later, so the same commit could build differently. Each reference keeps
-    the tag it was looked up from in front of the digest; doc/engineering-reference.md says how to refresh them."""
+    the tag it was looked up from in front of the digest; doc/engineering-reference.md says how to refresh them.
+
+    One reference is not a base image: docker-compose.prod.yml's api runs this repository's own image, which CI's
+    image-ml job builds from the references pinned here and moves on every push to main (main-ml); a deployment runs
+    one build by setting METANAVIT_IMAGE to its sha-<commit>-ml tag."""
     references = _image_references()
+    own = ("docker-compose.prod.yml", "${METANAVIT_IMAGE:-ghcr.io/joses2017smjh/metanavt:main-ml}")
+    assert own in references
+    references = [reference for reference in references if reference != own]
     names = {ref.split("@")[0].rsplit(":", 1)[0] for _, ref in references}
-    assert {"docker/dockerfile", "node", "alpine", "python", "pgvector/pgvector", "jaegertracing/all-in-one"} <= names
-    assert {name for name, _ in references} >= {"Dockerfile", ".frontend/Dockerfile", "docker-compose.yml", "ci.yml"}
+    assert {"docker/dockerfile", "node", "alpine", "python", "pgvector/pgvector", "jaegertracing/all-in-one",
+            "redis", "caddy"} <= names
+    assert {name for name, _ in references} >= {"Dockerfile", ".frontend/Dockerfile", "docker-compose.yml",
+                                                "docker-compose.prod.yml", "ci.yml"}
     assert [(name, ref) for name, ref in references if not PINNED.fullmatch(ref)] == []
 
 

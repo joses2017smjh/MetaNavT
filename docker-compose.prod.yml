@@ -1,0 +1,155 @@
+# Production rehearsal on one host: the public demo's stack, as a deployment would run it.
+#   cp deploy/prod.env.example deploy/prod.env      # git ignores it; set POSTGRES_PASSWORD (ANTHROPIC_API_KEY is optional)
+#   docker compose -f docker-compose.prod.yml --env-file deploy/prod.env up -d --wait
+#   curl -sk https://localhost/health               # DOMAIN=localhost: a certificate from Caddy's local CA
+# Four services. api: the CPU model image CI's image-ml job publishes, with PUBLIC_DEMO=1 (only GET /health,
+# POST /api/retrieve/, POST /api/answer/, the API docs and the web client are mounted). db: Postgres with pgvector.
+# redis: the shared per-caller limits, the daily answer budget and the answer cache. caddy: the only service that
+# publishes ports (80 and 443): TLS for DOMAIN, a request body cap and security headers (deploy/Caddyfile).
+#
+# Variables come from deploy/prod.env, passed with --env-file; every name interpolated here is listed in
+# deploy/prod.env.example. Without --env-file Compose would read the root .env (the local app's settings), so the two
+# names this file requires, POSTGRES_PASSWORD and DOMAIN, are kept out of .env.example: the stack stops instead of
+# starting on the local settings. The retrieval, embedding and reranker settings are fixed here, equal to
+# docker-compose.yml + docker-compose.ml.yml, the stack CI smokes (tests/engine/test_prod_compose.py). CI checks that
+# this file resolves (the docker-smoke job); it does not start it, and nothing here is deployed.
+name: metanavit-prod
+
+x-logging: &logging
+  # json-file with rotation: a long-running host keeps a bounded amount of log per container
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  api:
+    # The tag image-ml moves on every push to main; set METANAVIT_IMAGE to a sha-<commit>-ml tag to run one build.
+    # The models are not in the image: the first start downloads them into the metanavit_models volume.
+    image: ${METANAVIT_IMAGE:-ghcr.io/joses2017smjh/metanavt:main-ml}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # the public surface (the deploy contract of M40a)
+      PUBLIC_DEMO: "1"
+      REDIS_URL: redis://redis:6379/0
+      TRUSTED_PROXY_HOPS: "1"     # Caddy, which replaces any X-Forwarded-For a client sends with the address it saw
+      WEB_ORIGIN: ${WEB_ORIGIN:-https://${DOMAIN}}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-8192}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}   # empty: no answers; retrieval still works
+      ANSWER_MODEL: ${ANSWER_MODEL:-claude-opus-5-5}
+      ANSWER_EFFORT: ${ANSWER_EFFORT:-low}
+      ANSWER_MAX_TOKENS: ${ANSWER_MAX_TOKENS:-4096}
+      ANSWER_TIMEOUT_SECONDS: ${ANSWER_TIMEOUT_SECONDS:-30}
+      ANSWER_DAILY_BUDGET_USD: ${ANSWER_DAILY_BUDGET_USD:-2.00}
+      ANSWER_CACHE_TTL_SECONDS: ${ANSWER_CACHE_TTL_SECONDS:-86400}
+      ANSWER_LIMIT_PER_MINUTE: ${ANSWER_LIMIT_PER_MINUTE:-5}
+      ANSWER_LIMIT_PER_DAY: ${ANSWER_LIMIT_PER_DAY:-50}
+      ENVIRONMENT: prod           # main.py serves the web client's export at / only outside dev
+      LOG_FORMAT: json
+      PG_CONNECTION_STRING: postgresql://metanavit:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env}@db:5432/metanavit
+      PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=metanavit password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env} host=db port=5432
+      # the chat path's provider: init_settings needs one, but chat is not mounted under PUBLIC_DEMO and no Ollama runs here
+      MODEL_PROVIDER: ollama
+      MODEL: qwen2.5:14b
+      # retrieval: docker-compose.yml's settings with docker-compose.ml.yml's models on CPU
+      EMBEDDING_PROVIDER: huggingface
+      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      EMBEDDING_DIM: "384"
+      RERANKER_MODEL: BAAI/bge-reranker-v2-m3
+      RERANKER_PRECISION: fp32
+      RERANKER_MAX_LENGTH: "512"
+      RERANK_DEPTH: "20"
+      RERANKER_REQUIRED: "true"
+      BGE_ALLOW_DOWNLOAD: "1"
+      RETRIEVAL_MODE: sql
+      DATA_DIR: bench/corpus/files
+      INDEX_ON_START: "false"
+      INGEST_MAX_REJECTED: "0"
+      RETRIEVE_K: "50"
+      RERANK_TOP_N: "8"
+      ENABLE_ROUTER: "true"
+    # docker-compose.yml's three steps: the schema migrations, the index step, then the server
+    command: ["sh", "-c", "python -m app.database.migrate && timeout 900 python -m app.engine.ingest && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
+    volumes:
+      # the Hugging Face cache (the image runs as root): a recreated container reuses the downloaded models
+      - metanavit_models:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 600s   # the first start downloads the models and embeds the corpus on CPU
+    restart: unless-stopped
+    logging: *logging
+
+  db:
+    # the digest docker-compose.yml pins (pg16 = 0.8.7-pg16 on 2026-11-11); refresh it there, here and in ci.yml together
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    environment:
+      POSTGRES_USER: metanavit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/prod.env}
+      POSTGRES_DB: metanavit
+    volumes:
+      - metanavit_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metanavit -d metanavit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *logging
+
+  redis:
+    # 7.2-alpine = 7.2.17-alpine (Alpine 3.22) on 2026-11-20: the last BSD-licensed Redis line, the one Valkey forked
+    # from. The daily spend counter decides the settings: it must not be evicted for space or lost on a restart. Never
+    # allkeys-*: volatile-lru evicts only keys that carry an expiry, least recently used first, so an old cached answer
+    # goes before a counter in use; with nothing left to evict, Redis refuses the write (an error the app sees, never a
+    # silently reset counter). No append-only file; a snapshot every minute with a change, in a volume, so a restart
+    # keeps the counters to within that minute.
+    image: redis:7.2-alpine@sha256:2f66de68111e64c3927859f158f8e666066dae2b97d9f82770a6f37a5aa1c335
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-lru", "--appendonly", "no", "--save", "60", "1"]
+    volumes:
+      - metanavit_redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *logging
+
+  caddy:
+    # 2.11-alpine = 2.11.9-alpine on 2026-11-20. The only service with published ports. Its admin endpoint stays at
+    # the default, localhost:2019 inside this container, which the health check reads and no port publishes.
+    image: caddy:2.11-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/prod.env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # certificates and keys: kept, so a restart does not ask Let's Encrypt again
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  metanavit_pg:
+  metanavit_redis:
+  metanavit_models:
+  caddy_data:
+  caddy_config:
