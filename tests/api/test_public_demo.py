@@ -1,5 +1,6 @@
 """The public demo (PUBLIC_DEMO=1): exactly the allow-listed routes, and the answer route's order of checks."""
 
+import functools
 import json
 import os
 import subprocess
@@ -27,13 +28,16 @@ mounts = [r.path for r in main.app.routes if type(r).__name__ == "Mount"]
 plain = [r.path for r in main.app.routes if getattr(r, "path", None)]
 probe = TestClient(main.app)  # no lifespan: only routing is exercised
 hidden = {p: probe.post(p, json={}).status_code for p in sys.argv[1:]}
+health = probe.get("/health")  # nothing built without the lifespan: the 503 answer
 print(json.dumps({"public": main.PUBLIC_DEMO, "api": api, "mounts": mounts, "paths": plain, "hidden": hidden,
+                  "health": {"status_code": health.status_code, "public_demo": health.json().get("public_demo")},
                   "loaded": sorted(m for m in sys.modules if m.startswith("app."))}))
 """
 # routes of the full API that the public app must not serve (each answers 404 there)
 NOT_PUBLIC = ["/api/chat", "/api/chat/upload", "/api/chat/config", "/api/query/", "/api/plans/", "/api/files/data/x"]
 
 
+@functools.lru_cache(maxsize=None)  # one interpreter per mode for the tests below; they only read the table
 def _app_routes(public: bool) -> dict:
     """main.app's routes, imported in a fresh interpreter with or without PUBLIC_DEMO (main builds at import)."""
     env = {**os.environ, "PUBLIC_DEMO": "1" if public else "", "ENVIRONMENT": "dev", "MODEL_PROVIDER": "ollama",
@@ -63,6 +67,13 @@ def test_without_public_demo_the_full_api_is_mounted():
     assert table["public"] is False and {"/api/chat", "/api/retrieve/", "/api/query/"} <= api
     assert "/api/answer/" not in api  # the answer route exists only in the public demo
     assert table["hidden"]["/api/chat"] != 404
+
+
+def test_health_says_whether_the_api_is_the_public_demo():
+    """GET /health names the mode in its 503 answer too (the 200 one: tests/api/test_retrieve_contract.py): the web
+    client shows its demo page when it is true, and a starting API answers 503."""
+    assert _app_routes(public=True)["health"] == {"status_code": 503, "public_demo": True}
+    assert _app_routes(public=False)["health"] == {"status_code": 503, "public_demo": False}
 
 
 # ---------------------------------------------------------------- the answer route over fakes (no network, no Redis)

@@ -159,6 +159,17 @@ def test_response_and_health_list_degraded_components_and_the_reranker(ready_cli
     assert h["dense_search"] == {"depth": 50, "settings": {"hnsw.ef_search": 100, "hnsw.iterative_scan": "strict_order"}, "pgvector": "0.8.6"}
 
 
+def test_health_says_whether_the_api_is_the_public_demo(ready_client, monkeypatch):
+    """M40c: the 200 answer of /health names the mode (the 503 one: tests/api/test_public_demo.py), from the flag
+    main.py read at import, which decided the routes it mounted."""
+    import main
+
+    assert ready_client.get("/health").json()["public_demo"] is False
+    monkeypatch.setattr(main, "PUBLIC_DEMO", True)
+    health = ready_client.get("/health")
+    assert health.status_code == 200 and health.json()["public_demo"] is True
+
+
 def test_health_names_the_embedding_model_and_its_query_instruction(ready_client):
     """M17 (A19): a results file that copies /health says which model embedded the queries, and how."""
     from app.engine.embeddings import HashEmbedding
