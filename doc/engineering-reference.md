@@ -1045,6 +1045,125 @@ uncapped, fp32 with `max_length` 512 and fp16 at 512<!-- num: bench/results/beir
 depth (20, 50, 100)<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top20]/settings/rerank_top; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top50]/settings/rerank_top; #/results/[config=hybrid+bge-rerank@bge-small~1fp16-512~1top100]/settings/rerank_top -->, each with its own p50/p95; the served configuration is
 chosen from that table in the API section below, not picked up front.
 
+## Current open models, measured beside the committed ones
+
+Fixture v1, BEIR SciFact and BEIR FiQA were measured again with current open
+embedders and rerankers, each row one model away from a committed bge row that
+the same run recomputes: [fixture](../README.md#bench-models-2026),
+[what the CPU-servable ones cost on a CPU](../README.md#bench-models-2026-cpu),
+[SciFact](../README.md#bench-beir-models-2026) and
+[FiQA](../README.md#bench-beir-fiqa-models-2026). Nothing here changes what is
+served: the API keeps bge-small and bge-reranker-v2-m3, and a change is the
+owner's decision from these tables.
+
+**The models.** Embedders: Qwen3-Embedding-0.6B and Qwen3-Embedding-8B
+(Apache-2.0) and microsoft/harrier-oss-v1-27b (MIT), the largest open embedder.
+Rerankers: mxbai-rerank-base-v2 and mxbai-rerank-large-v2 (Apache-2.0), and
+Qwen3-Reranker-0.6B and Qwen3-Reranker-8B (Apache-2.0). EmbeddingGemma is gated
+behind Google's terms and jina-reranker-v3 is licensed for non-commercial use,
+so neither is here. `app/eval/models_2026.py` lists the tags the rows carry, and
+every row records each model's revision.
+
+**How each is called.** Each embedder's own `config_sentence_transformers.json`
+names a query prompt, `query` for Qwen3-Embedding and `web_search_query` for
+harrier, which sentence-transformers puts in front of queries only; documents
+get none (`QUERY_PROMPT_NAMES` and `SentenceTransformerEmbedder.encode_queries`
+in `app/retrieval/embedders.py`). The bge models have no prompt, so their rows
+embed exactly as before, and a registered prompt the model lacks raises instead
+of silently embedding the bare query. The rerankers load as sentence-transformers
+CrossEncoders and score with `.predict(pairs)`, the path the committed bge
+reranker takes. The four new ones are causal language models, which the library
+loads from their own repositories as a text-generation transformer with a logit
+head: the score is the logit of the token `"yes"` minus `"no"` (Qwen3-Reranker) or
+`"1"` minus `"0"` (mxbai-rerank-v2) at the last position of the model's chat template, padded
+on the left, and Qwen3-Reranker puts its default instruction (its `query` prompt)
+into the template. When a token cap truncates a pair, the library writes the
+template's suffix back over the last tokens, so the scoring position survives.
+Every score goes through the sigmoid the bge rows use (`cross_encoder_scores`),
+which keeps each model's order.
+
+**harrier needed one change at load time.** sentence-transformers builds a
+model's processor with transformers' `AutoProcessor`, and harrier's
+`tokenizer_config.json` names `Gemma3Processor`, the image-and-text processor of
+the multimodal Gemma3. The checkpoint is text only and ships no image processor,
+so the model card's own sentence-transformers example does not load on the pinned
+libraries, and the first harrier job stopped at its load-and-score check, as it
+should. `SNAPSHOT_VIEWS` in `app/retrieval/embedders.py` loads it from a temporary
+view of its cached snapshot in which every file is a symlink to the snapshot's
+own except `tokenizer_config.json`, written without that one key. `AutoProcessor`
+then falls back to the model's tokenizer, which still begins every text with
+`<bos>` and ends it with `<eos>`, the position its last-token pooling reads. The
+cache is not edited, the view refuses to apply if that key changes upstream, and
+every harrier row records what the view dropped.
+
+**dtype.** transformers v5 loads a checkpoint in the dtype it was saved in unless
+told otherwise (its `from_pretrained` default is `"auto"`), and every new
+checkpoint is bfloat16, so a row that names no dtype is not float32. Every new
+model names its dtype (`MODEL_DTYPES`): Qwen3-Embedding-0.6B loads in float32, the
+way a CPU would serve it, and the larger embedders in bfloat16. `get_cross_encoder`
+names float32 for the reranker precision `fp32` on every device (the bge
+checkpoints are float32 either way), and Qwen3-Reranker-8B runs in bf16, whose
+coarser scores can tie; a tie keeps the fused order. Every row records the dtype
+read back from the loaded weights, the query prompt's name and text, the encode
+batch size and, for a reranker, its precision, token cap and default prompt.
+
+**A model that loads but cannot rank stops the run.** Before a row uses a model,
+`app/eval/models_2026.py` asks the loaded instance to rank the answer to the
+Qwen3 model cards' example question above an unrelated passage, and a reranker
+also the answer with that passage appended many times, longer than the token cap
+of a capped row, where truncation must keep the template's scoring position.
+Every score must be finite and the answer must win, or the run exits non-zero and
+writes nothing; a cross-encoder that does not load raises with its reason instead
+of falling back to the overlap reranker. The check is recorded in every row. It
+shows that a model can rank, not how well.
+
+**What the rows show.** Fixture v1 is small and its parents' Recall@50 is close
+to the ceiling, so ties are expected there and the BEIR rows carry the
+comparison. Every statement below is the paired interval of the generated
+tables, against the row's parent unless it says otherwise.
+
+- Qwen3-Embedding-8B is above bge-small with dense retrieval on all three
+  datasets, and with hybrid retrieval on the fixture and FiQA; its hybrid row
+  ties on SciFact.
+- Qwen3-Embedding-0.6B loses to bge-small on the fixture's hybrid row (its
+  interval is below zero) and ties on the fixture's dense row and on both SciFact
+  rows; on FiQA it is above bge-small with dense and hybrid retrieval.
+- Fusing BM25 into a strong dense leg can cost ranking: the hybrid row is below
+  its own dense row on FiQA for both Qwen3 embedders and on SciFact for
+  Qwen3-Embedding-8B. On the fixture hybrid stays above dense for both, as it does
+  on SciFact for Qwen3-Embedding-0.6B.
+- Over hybrid@bge-small, against bge-reranker-v2-m3 at its own settings:
+  mxbai-rerank-large-v2 is above it on all three datasets; Qwen3-Reranker-8B and
+  mxbai-rerank-base-v2 are above it on SciFact and FiQA and tie on the fixture;
+  Qwen3-Reranker-0.6B ties on all three. Against the unreranked hybrid, every new
+  reranker is above zero on every dataset.
+
+**Do the recomputed parents reproduce the committed rows?** On the fixture they
+reproduce `neural.json` in every field, on an A40 where that file was recorded on
+another GPU, and so do the CPU run's parents (its served-settings reranker row
+reproduces `rerank_depth.json`). On SciFact they equal `beir_scifact.json` in
+every field of the retrieval block; that file wrote no TREC runs, so rankings are
+not compared. On FiQA they equal `beir_fiqa.json` in every field of the retrieval
+block, and BM25 ranks every query exactly as the committed TREC run does, but the
+dense, hybrid and reranked bge rows do not: in a few queries, two documents whose
+cosine scores are nearly equal swap adjacent places below the top ten, so no
+per-query metric moves. The cause is the GPU, not the code or the cache. The same
+commit and the same cached document embeddings reproduce every committed FiQA TREC
+run byte for byte on the GPU type that file was recorded on (named in its header),
+and differ in those swaps on an A40, because the bge-small query embedding differs
+in its last bits between the two GPUs (to check, run on each GPU and compare with `bench/results/beir_fiqa_trec`:
+`python -m app.eval.beir --dataset fiqa --only bm25,dense@bge-small,hybrid@bge-small,hybrid+bge-rerank@bge-small/fp32-512/top20 --trec-dir <dir>`). Every paired
+delta of the new FiQA file is between rows of one run, so none depends on it.
+
+**What each costs to serve, where measured.** On a CPU, at the served CPU settings (the fused top 20, max_length 512, fp32) with 8 torch threads on the Intel Xeon Silver processor the results header names, reranking takes a median of 4703.05 ms per question with bge-reranker-v2-m3, 9952.11 ms with mxbai-rerank-base-v2 and 12630.38 ms with Qwen3-Reranker-0.6B.<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_depth; bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/settings/rerank_max_length; bench/results/models_2026_cpu.json#/device/threads; bench/results/models_2026_cpu.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid+mxbai-rerank-base-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid+qwen3-rerank-0.6b@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms -->
+Embedding the question and searching the dense index takes a median of 20.32 ms with bge-small and 344.03 ms with Qwen3-Embedding-0.6B.<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid@bge-small]/latency/embed/p50_ms; bench/results/models_2026_cpu.json#/results/[config=hybrid@qwen3-emb-0.6b]/latency/embed/p50_ms -->
+The fixture's chunks are short, so a passage of a few hundred tokens costs more per pair than these.
+
+On the A40, over SciFact's abstracts at the same depth and cap, the rerank stage's median per query is 473.62 ms for bge-reranker-v2-m3, 592.01 ms for mxbai-rerank-base-v2, 1684.18 ms for mxbai-rerank-large-v2 and 774.67 ms for Qwen3-Reranker-0.6B, all in fp32, and 1782.84 ms for Qwen3-Reranker-8B in bf16.<!-- num: bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+mxbai-rerank-base-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+mxbai-rerank-large-v2@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+qwen3-rerank-0.6b@bge-small~1fp32-512~1top20]/latency/rerank/p50_ms; bench/results/beir_scifact_models_2026.json#/results/[config=hybrid+qwen3-rerank-8b@bge-small~1bf16-512~1top20]/latency/rerank/p50_ms -->
+Embedding FiQA's corpus took 1027.5 s with Qwen3-Embedding-0.6B and 2264.8 s with Qwen3-Embedding-8B on the A40 (bge-small's document embeddings came from the cache).<!-- num: bench/results/beir_fiqa_models_2026.json#/results/[config=dense@qwen3-emb-0.6b]/build_ms/doc_embeddings_ms|/1000; bench/results/beir_fiqa_models_2026.json#/results/[config=dense@qwen3-emb-8b]/build_ms/doc_embeddings_ms|/1000 -->
+The served models stay bge-small and bge-reranker-v2-m3; which of these the numbers favour for a CPU-served demo or a GPU
+host is the owner's decision, from the intervals and the latencies above.
+
 ---
 
 ## The API serves the benchmarked pipeline

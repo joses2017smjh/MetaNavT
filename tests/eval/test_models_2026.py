@@ -366,3 +366,112 @@ def test_the_cli_runs_a_models_2026_ladder_checked_and_compared_with_the_committ
     seen.clear()
     beir.main(["--ladder", "default", "--data-dir", str(tmp_path), "--out", str(tmp_path / "y.json")])
     assert "check_models" not in seen and "reproduce" not in seen  # the committed ladders run as before
+
+
+# ---- the README blocks (app/eval/report.py): models, dtypes and prompts, every row with its interval, the reproduction
+
+
+def _m41_row(config, parent=None, embedder=None, reranker=None, ndcg=0.5, delta=None, prompt=None, dtype="torch.float32", beir_row=False):
+    rr_dtype = "torch.bfloat16" if reranker and "8B" in reranker else "torch.float32"
+    row = {"config": config, "wall_ms": 1234.0,
+           "ci": {m: {"mean": ndcg, "lo": round(ndcg - 0.05, 4), "hi": round(ndcg + 0.05, 4)} for m in ("ndcg@10", "recall@10", "recall@50", "recall@100")},
+           "models": {"embedder": {"neural": bool(embedder), "model": embedder or "hash", "revision": "abcdef1234", "dtype": dtype,
+                                   "query_prompt_name": prompt, "doc_embeddings": "computed in this run"},
+                      "reranker": {"neural": bool(reranker), "loaded": bool(reranker), "model": reranker or "overlap", "revision": "fedcba9876",
+                                   "dtype": rr_dtype, "default_prompt_name": "query" if reranker and "Qwen" in reranker else None}},
+           "latency": {"embed": {"p50_ms": 12.5, "p95_ms": 14.0}, "rerank": {"p50_ms": 300.0, "p95_ms": 320.0},
+                       "total": {"p50_ms": 40.0, "p95_ms": 55.0}}}
+    if not embedder:
+        row["models"].pop("embedder") if beir_row else None
+    d = delta or {"delta": -0.0123, "lo": -0.0301, "hi": -0.0011}
+    if beir_row:
+        row.update(parent=parent, settings={"reranker": reranker, "precision": "bf16" if "8B" in (reranker or "") else "fp32", "max_length": 512, "rerank_top": 20},
+                   build_ms={"total_ms": 2500.0})
+        if parent:
+            row["delta_vs_parent"] = {"reference": parent, "ndcg@10": d, "recall@100": {"delta": 0.0, "lo": 0.0, "hi": 0.0}}
+    else:
+        row["settings"] = {"parent": parent}
+        if parent:
+            row["delta_vs_previous"] = {"reference": parent, "ndcg@10": d, "recall@50": {"delta": 0.0, "lo": 0.0, "hi": 0.0}}
+            row["vs_parent"] = {"parent": parent, "n_questions": 136, "n_top10_differs": 7, "n_list_differs": 9}
+    return row
+
+
+DEVICE = {"device": "cuda", "device_name": "NVIDIA A40", "torch": "2.5.1+cu121", "sentence_transformers": "6.1.0"}
+
+
+def test_the_fixture_block_names_each_model_its_dtype_and_prompt_and_keeps_the_losers():
+    from app.eval.report import models_2026_fixture_table
+
+    blob = {"git_sha": "1234567", "device": DEVICE, "results": [
+        _m41_row("bm25_only"),
+        _m41_row("hybrid@bge-small", "dense_only@bge-small", embedder="BAAI/bge-small-en-v1.5"),
+        _m41_row("hybrid@qwen3-emb-8b", "hybrid@bge-small", embedder="Qwen/Qwen3-Embedding-8B", prompt="query", dtype="torch.bfloat16"),
+        _m41_row("hybrid+qwen3-rerank-8b@bge-small", "hybrid+bge-rerank@bge-small", embedder="BAAI/bge-small-en-v1.5", reranker="Qwen/Qwen3-Reranker-8B")],
+        "bootstrap": {"comparisons": [{"row": "hybrid@qwen3-emb-8b", "other": "dense_only@qwen3-emb-8b", "ndcg@10": {"delta": 0.02, "lo": -0.01, "hi": 0.05}}]},
+        "reproduces": [{"file": "bench/results/neural.json", "git_sha": "32972cf", "device": "Quadro RTX 8000",
+                        "rows": {"bm25_only": {"equal": True}, "hybrid+bge-rerank@bge-small": {"equal": False, "differs": {"ndcg@10": [0.8119, 0.8125]}}}}]}
+    text = models_2026_fixture_table(blob, None)
+    assert "cuda (NVIDIA A40)" in text and "results sha 1234567" in text
+    assert "| hybrid@qwen3-emb-8b | hybrid@bge-small | Qwen/Qwen3-Embedding-8B@abcdef1 (bfloat16, query prompt `query`) |" in text
+    assert "Qwen/Qwen3-Reranker-8B@fedcba9 (bfloat16, prompt `query`)" in text and "| bm25_only | — | none (BM25 only) |" in text
+    assert "-0.012 [-0.030, -0.001]" in text and "| 7 / 136 |" in text  # a loser keeps its row and interval
+    assert "`hybrid@qwen3-emb-8b` minus `dense_only@qwen3-emb-8b`: nDCG@10 +0.020 [-0.010, +0.050] (the interval covers zero)." in text
+    assert "`bm25_only` reproduces bench/results/neural.json (results sha 32972cf, Quadro RTX 8000) in every field" in text
+    assert "`hybrid+bge-rerank@bge-small` does NOT reproduce bench/results/neural.json (results sha 32972cf, Quadro RTX 8000): ndcg@10 0.8119 there, 0.8125 here" in text
+    assert "models_2026_harrier.json is missing; run `make bench-models-2026-harrier`" in text
+    assert "models_2026.json is missing" in models_2026_fixture_table(None)
+
+
+def test_the_cpu_block_names_the_cpu_and_its_threads():
+    from app.eval.report import models_2026_cpu_table
+
+    blob = {"git_sha": "1234567", "device": {**DEVICE, "device": "cpu", "cpu_model": "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz", "threads": 8},
+            "results": [_m41_row("hybrid+mxbai-rerank-base-v2@bge-small/fp32-512/top20", "hybrid+bge-rerank@bge-small/fp32-512/top20",
+                                 embedder="BAAI/bge-small-en-v1.5", reranker="mixedbread-ai/mxbai-rerank-base-v2")],
+            "reproduces": []}
+    text = models_2026_cpu_table(blob)
+    assert "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz, 8 torch threads" in text
+    assert "| 12.5 / 14.0 | 300.0 / 320.0 |" in text and "mixedbread-ai/mxbai-rerank-base-v2@fedcba9 (float32)" in text
+    assert "records no reproduction check" in text
+
+
+def test_the_beir_block_says_how_each_parent_reproduced_and_where_document_embeddings_came_from():
+    from app.eval.report import models_2026_beir_table
+
+    blob = {"git_sha": "1234567", "device": DEVICE, "n_docs": 57638, "n_queries": 648, "results": [
+        _m41_row("bm25", beir_row=True),
+        _m41_row("dense@qwen3-emb-0.6b", "dense@bge-small", embedder="Qwen/Qwen3-Embedding-0.6B", prompt="query", beir_row=True)],
+        "reproduces": {"file": "bench/results/beir_fiqa.json", "git_sha": "32972cf", "device": "Quadro RTX 8000",
+                       "rows": {"bm25": {"equal": True, "ranking_equal": True}, "dense@bge-small": {"equal": True, "ranking_equal": False}}}}
+    text = models_2026_beir_table(blob, None, "bench/results/beir_fiqa_models_2026.json", "bench/results/beir_fiqa_models_2026_harrier.json",
+                                  "make bench-beir-fiqa-models-2026", "make bench-beir-fiqa-models-2026-harrier", "FiQA")
+    assert "BEIR FiQA (`make bench-beir-fiqa-models-2026`): 57638 documents, 648 queries" in text
+    assert "`bm25` reproduces bench/results/beir_fiqa.json" in text and "and `bm25` ranks every query exactly as the committed TREC run does" in text
+    assert ("`dense@bge-small` equals bench/results/beir_fiqa.json (results sha 32972cf, Quadro RTX 8000) in every field of the retrieval block "
+            "but does NOT rank every query as the committed TREC run does, so it does not reproduce it exactly") in text
+    assert "Document embeddings computed in this run: Qwen/Qwen3-Embedding-0.6B." in text
+    assert "-0.0123 [-0.0301, -0.0011]" in text and "beir_fiqa_models_2026_harrier.json is missing" in text
+
+
+def test_evidence_rows_only_where_the_interval_excludes_zero(tmp_path):
+    """docs/RESUME_EVIDENCE.md gets an M41 row only where a paired interval excludes zero, losers included."""
+    from app.eval.evidence import FILES, _models_2026_claims
+
+    up, tie, down = {"delta": 0.05, "lo": 0.02, "hi": 0.08}, {"delta": 0.01, "lo": -0.01, "hi": 0.03}, {"delta": -0.04, "lo": -0.06, "hi": -0.02}
+    blob = {"git_sha": "1234567", "n_queries": 300, "device": DEVICE, "reproduces": {"file": "bench/results/beir_scifact.json", "rows": {"bm25": {"equal": True}}},
+            "results": [{"config": "dense@qwen3-emb-8b", "delta_vs_parent": {"ndcg@10": up}},
+                        {"config": "hybrid@qwen3-emb-8b", "delta_vs_parent": {"ndcg@10": tie}},
+                        {"config": "hybrid+qwen3-rerank-8b@bge-small/bf16-512/top20", "delta_vs_parent": {"ndcg@10": tie}},
+                        {"config": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20", "delta_vs_parent": {"ndcg@10": up}}],
+            "bootstrap": {"comparisons": [{"row": "hybrid@qwen3-emb-8b", "other": "dense@qwen3-emb-8b", "ndcg@10": down}]}}
+    path = tmp_path / FILES["beir_scifact_models_2026"]
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(blob))
+    claims = {c["claim"]: c for c in _models_2026_claims(tmp_path)}
+    assert set(claims) == {"BEIR SciFact, Qwen3-Embedding-8B vs bge-small-en-v1.5, dense retrieval, paired delta in nDCG@10",
+                           "BEIR SciFact, hybrid RRF minus dense-only, both with Qwen3-Embedding-8B, paired delta in nDCG@10",
+                           "BEIR SciFact, mxbai-rerank-large-v2 (fp32) vs bge-reranker-v2-m3 (fp32), both over hybrid@bge-small, paired delta in nDCG@10"}
+    loser = claims["BEIR SciFact, hybrid RRF minus dense-only, both with Qwen3-Embedding-8B, paired delta in nDCG@10"]
+    assert (loser["value"], loser["ci"]) == ("-0.0400", "[-0.0600, -0.0200]")  # a loser with its interval below zero stays
+    assert "(the interval covers zero)" in claims["BEIR SciFact, Qwen3-Embedding-8B vs bge-small-en-v1.5, dense retrieval, paired delta in nDCG@10"]["not_shown"]

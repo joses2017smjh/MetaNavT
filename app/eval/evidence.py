@@ -38,6 +38,11 @@ FILES = {
     "rrf_sweep": "bench/results/rrf_sweep.json",
     "hybrid_drops": "bench/results/hybrid_drops_bge_base.json",
     "file_depth": "bench/results/file_depth.json",  # M37: the file-depth rows beside their chunk-cut parents
+    # M41: the current open models beside their bge parents, recomputed in each run
+    "models_2026": "bench/results/models_2026.json",
+    "models_2026_cpu": "bench/results/models_2026_cpu.json",
+    "beir_scifact_models_2026": "bench/results/beir_scifact_models_2026.json",
+    "beir_fiqa_models_2026": "bench/results/beir_fiqa_models_2026.json",
     "served_scale": "bench/results/served_scale_fiqa.json",
     "pgvector_hnsw": "bench/results/pgvector_hnsw.json",
 }
@@ -171,6 +176,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _rrf_sweep_claims(root)
     out += _hybrid_drops_claims(root)
     out += _file_depth_claims(root)
+    out += _models_2026_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -674,6 +680,89 @@ def _file_depth_claims(root: Path = ROOT) -> list[dict]:
                       f"chunks until it holds {k} files), paired",
              "value": value, "ci": ci, "n": blob["n_gold"], "command": "make bench-file-depth",
              "source": f"{FILES['file_depth']} @ {blob['git_sha']}", "not_shown": "; ".join(parts)}]
+
+
+def _reproduced(blob: dict) -> str:
+    """What the run's `reproduces` blocks say about its recomputed bge parents, in a clause."""
+    blocks = blob.get("reproduces")
+    blocks = [blocks] if isinstance(blocks, dict) else list(blocks or [])
+    parts = []
+    for b in blocks:
+        rows = b.get("rows") or {}
+        reordered = [n for n, e in rows.items() if e.get("equal") and e.get("ranking_equal") is False]
+        moved = [n for n, e in rows.items() if not e.get("equal")]
+        if moved:
+            parts.append(f"{len(moved)} of the {len(rows)} recomputed parents do NOT equal {b['file']}")
+        elif reordered:
+            parts.append(f"the recomputed parents equal {b['file']} in every metric, though {len(reordered)} of them order near-tied "
+                         f"documents differently from its TREC runs on this GPU (no metric moves)")
+        else:
+            parts.append(f"the recomputed parents reproduce {b['file']}")
+    return "; ".join(parts) or "no reproduction check recorded"
+
+
+def _models_2026_claims(root: Path = ROOT) -> list[dict]:
+    """M41: the current open models against the committed bge rows they replace, recomputed in the same run; a row only
+    where the paired interval excludes zero (above or below), losers included."""
+    out: list[dict] = []
+
+    def delta(blob: dict, name: str, other: str | None = None) -> dict | None:
+        row = next((r for r in blob.get("results", []) if r["config"] == name), None)
+        if row is None:
+            return None
+        if other is None:
+            return (row.get("delta_vs_parent") or row.get("delta_vs_previous") or {}).get("ndcg@10")
+        return next((c["ndcg@10"] for c in (blob.get("bootstrap") or {}).get("comparisons") or []
+                     if c["row"] == name and c["other"] == other), None)
+
+    def rerank_p50(blob: dict, name: str):
+        row = next((r for r in blob.get("results", []) if r["config"] == name), {})
+        return ((row.get("latency") or {}).get("rerank") or {}).get("p50_ms")
+
+    bge20 = "hybrid+bge-rerank@bge-small/fp32-512/top20"
+    for key, dataset, command in (("beir_scifact_models_2026", "SciFact", "make bench-beir-models-2026"),
+                                  ("beir_fiqa_models_2026", "FiQA", "make bench-beir-fiqa-models-2026")):
+        blob = _load(FILES[key], root)
+        if not blob:
+            continue
+        src, n, gpu = f"{FILES[key]} @ {blob['git_sha']}", blob["n_queries"], (blob.get("device") or {}).get("device_name", "the recorded GPU")
+        repro = _reproduced(blob)
+        hybrid8 = delta(blob, "hybrid@qwen3-emb-8b")
+        rows = [
+            ("dense@qwen3-emb-8b", None, f"BEIR {dataset}, Qwen3-Embedding-8B vs bge-small-en-v1.5, dense retrieval, paired delta in nDCG@10",
+             f"dense only, on one GPU ({gpu}), Qwen3-Embedding-8B in bfloat16 with its `query` prompt; its hybrid row against "
+             f"hybrid@bge-small is {_ci(hybrid8, 'delta', 4)[0]} {_ci(hybrid8, 'delta', 4)[1]} ({_zero(hybrid8)}); the served embedder is "
+             f"still bge-small; {repro}"),
+            ("hybrid@qwen3-emb-8b", "dense@qwen3-emb-8b", f"BEIR {dataset}, hybrid RRF minus dense-only, both with Qwen3-Embedding-8B, paired delta in nDCG@10",
+             f"fusing BM25 into the dense list (RRF, equal weights) against the same dense list alone, on one GPU ({gpu}); with "
+             f"bge-small the same comparison is the committed hybrid row's parent delta; {repro}"),
+        ]
+        for tag, label in (("qwen3-rerank-8b", "Qwen3-Reranker-8B (bf16)"), ("mxbai-rerank-large-v2", "mxbai-rerank-large-v2 (fp32)")):
+            name = f"hybrid+{tag}@bge-small/{'bf16' if '8b' in tag else 'fp32'}-512/top20"
+            rows.append((name, None, f"BEIR {dataset}, {label} vs bge-reranker-v2-m3 (fp32), both over hybrid@bge-small, paired delta in nDCG@10",
+                         f"both rerank the fused top 20 at max_length 512 on one GPU ({gpu}); rerank-stage p50 {rerank_p50(blob, name)} ms "
+                         f"vs {rerank_p50(blob, bge20)} ms per query; not the served precision (fp16 on CUDA); {repro}"))
+        for name, other, claim, not_shown in rows:
+            d = delta(blob, name, other)
+            if d and (d["lo"] > 0 or d["hi"] < 0):  # an interval that excludes zero supports a claim; one that covers it does not
+                value, ci = _ci(d, "delta", 4)
+                out.append({"claim": claim, "value": value, "ci": ci, "n": n, "command": command, "source": src, "not_shown": not_shown})
+    fixture = _load(FILES["models_2026"], root)
+    d = delta(fixture, "hybrid@qwen3-emb-0.6b") if fixture else None
+    if d and (d["lo"] > 0 or d["hi"] < 0):
+        rec = next(r for r in fixture["results"] if r["config"] == "hybrid@qwen3-emb-0.6b")["delta_vs_previous"]["recall@50"]
+        from app.eval.report import verdict
+
+        beir = [(dataset, delta(blob, "hybrid@qwen3-emb-0.6b")) for dataset, blob in
+                (("SciFact", _load(FILES["beir_scifact_models_2026"], root)), ("FiQA", _load(FILES["beir_fiqa_models_2026"], root))) if blob]
+        elsewhere = "; ".join(f"its hybrid row on {name} against hybrid@bge-small: {' '.join(_ci(b, 'delta', 4))} ({verdict(b)})" for name, b in beir if b)
+        value, ci = _ci(d, "delta")
+        out.append({"claim": "Fixture v1, hybrid RRF with Qwen3-Embedding-0.6B (the CPU-servable candidate) vs with bge-small-en-v1.5, paired delta in nDCG@10",
+                    "value": value, "ci": ci, "n": fixture["n_gold"], "command": "make bench-models-2026",
+                    "source": f"{FILES['models_2026']} @ {fixture['git_sha']}",
+                    "not_shown": f"fixture v1 only ({fixture['n_files']} files): Recall@50 rises ({' '.join(_ci(rec, 'delta'))}) while nDCG@10 falls; "
+                                 + (f"{elsewhere}; " if elsewhere else "") + _reproduced(fixture)})
+    return out
 
 
 def _frontier_claims(root: Path = ROOT) -> list[dict]:
