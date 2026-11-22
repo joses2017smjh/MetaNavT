@@ -99,14 +99,14 @@ compose() {
     "$@"
 }
 
-# After a failed step: the image the stack ran before this deploy, started again (nothing on a first deploy).
+# After a failed step: the image the stack ran before this deploy, started again (nothing on a first deploy). Not
+# waited on: the deploy has failed already, and a second wait could outlast Run Command's execution timeout.
 restore() {
   local previous=$1
   [ -n "$previous" ] || return 0
   log "starting the previous image again (${previous#METANAVIT_IMAGE=})" >&2
   printf '%s\n' "$previous" > "$HOME_DIR/image.env"
-  compose up --detach --remove-orphans --wait --wait-timeout "$WAIT_SECONDS" \
-    || log "the previous image is not healthy either" >&2
+  compose up --detach --remove-orphans || log "the previous image did not start either" >&2
 }
 
 deploy() {

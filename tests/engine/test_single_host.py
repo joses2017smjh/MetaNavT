@@ -665,6 +665,7 @@ def test_a_failed_migration_starts_the_previous_image_again_and_fails(host):
     (up,) = [i for i, line in enumerate(calls) if " up --detach" in line]
     assert up > _index(calls, " run --rm -T migrate")
     assert calls[up + 1] == f"  image-env: METANAVIT_IMAGE={OLD}"
+    assert "--wait" not in calls[up]  # started, not waited on: the deploy stays inside Run Command's timeout
     assert (host.home / "image.env").read_text() == f"METANAVIT_IMAGE={OLD}\n"
     assert not any("image prune" in line for line in calls)
 
@@ -684,6 +685,7 @@ def test_a_stack_that_never_turns_healthy_is_rolled_back_to_the_previous_image_a
     ups = [i for i, line in enumerate(calls) if " up --detach" in line]
     assert len(ups) == 2
     assert calls[ups[1] + 1] == f"  image-env: METANAVIT_IMAGE={OLD}"  # the second up: the previous image
+    assert "--wait" not in calls[ups[1]]  # not waited on a second time
     assert (host.home / "image.env").read_text() == f"METANAVIT_IMAGE={OLD}\n"
     assert not any("image prune" in line for line in calls)  # the previous image is kept
 
