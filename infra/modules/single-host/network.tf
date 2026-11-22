@@ -90,7 +90,7 @@ resource "aws_vpc_security_group_egress_rule" "out" {
 resource "aws_network_interface" "host" {
   subnet_id       = aws_subnet.public.id
   security_groups = [aws_security_group.host.id]
-  description     = "${local.name}: the instance's primary interface, with the Elastic IP"
+  description     = "${local.name}: primary interface of the instance, with the Elastic IP"
 
   tags = {
     Name = local.name
