@@ -2438,7 +2438,8 @@ links to the repository and the README's benchmark tables. Every request goes to
 search, an answer with its citations, each reason, the quota and input refusals and the origin against a mocked API;
 `tests/api/test_public_demo.py` checks that the page's limits and paths are the routes'.
 
-The deploy contract, the names the production Compose file and the AWS stack set:
+The deploy contract, the names the production Compose file, the AWS ECS stack and the single host set
+(`ORIGIN_VERIFY_SECRET` on the single host only: the ECS stack's load balancer checks CloudFront's header itself):
 
 ```text
 PUBLIC_DEMO=1                    allow-listed routes only (app/api/public.py)
@@ -2448,9 +2449,12 @@ ANSWER_MODEL=claude-opus-5-5     or claude-sonnet-5-5, claude-haiku-5-5
 ANSWER_EFFORT=low                ANSWER_MAX_TOKENS=4096           ANSWER_TIMEOUT_SECONDS=30   ANSWER_MAX_RETRIES=2
 ANSWER_DAILY_BUDGET_USD=2.00     ANSWER_CACHE_TTL_SECONDS=86400
 ANSWER_LIMIT_PER_MINUTE=5        ANSWER_LIMIT_PER_DAY=50          per caller
-TRUSTED_PROXY_HOPS=1             proxies whose X-Forwarded-For entries are trusted (Caddy: 1; CloudFront and an ALB: 2)
+TRUSTED_PROXY_HOPS=1             proxies whose X-Forwarded-For entries are trusted (Caddy: 1; CloudFront alone: 1;
+                                 CloudFront and an ALB: 2)
 WEB_ORIGIN=https://<site>        the web client's origin (CORS)
 MAX_BODY_BYTES=8192
+ORIGIN_VERIFY_SECRET=<secret>    CloudFront's X-Origin-Verify value: 403 without it, but GET /health from the
+                                 loopback address; unset: no check
 the API listens on port 8000; health: GET /health
 ```
 
@@ -2489,8 +2493,11 @@ the files: the image pins, Caddy as the only service with published ports, the
 contract's names and defaults as the block above lists them, and no committed
 secret.
 
-**Deploy to AWS.** [The runbook](deploy.md) covers the AWS stack in `infra/`:
-Terraform, code only and not applied (the project has no AWS account yet).
+**Deploy to AWS.** [The runbook](deploy.md) covers the AWS stacks in `infra/`:
+Terraform, code only (the owner has applied only the bootstrap). The live demo's target is one Free-plan EC2 host
+behind CloudFront ([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the
+app checks CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
+production-grade target.
 CloudFront, with a WAF, sends `/api/*` and `/health` to an ALB whose only
 ingress is CloudFront's origin-facing prefix list and whose listener forwards
 only requests that carry CloudFront's header; everything else is the web

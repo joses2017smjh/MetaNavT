@@ -1,0 +1,127 @@
+name: Deploy (single host)
+
+# The approval-gated deploy of the live demo to its single host (doc/deploy.md, "The live demo: one host on the AWS
+# Free plan"; infra/envs/single-host, applied by the owner). The repository variable DEPLOY_TARGET picks the stack:
+# single-host runs this workflow, ecs runs .github/workflows/deploy.yml, and unset runs neither (each skips with a
+# notice and stays green). It runs after a CI run on main that passed, which published
+# ghcr.io/<owner>/<repo>:sha-<commit>-ml (CI's image-ml job), or by hand with an image digest: a rollback is a run with
+# the previous digest.
+#   gate    the repository variables, the image's digest (deploy.yml's own steps)
+#   deploy  waits for the owner's approval (the production environment's required reviewers), then assumes
+#           infra/bootstrap's deploy role through OIDC and runs scripts/deploy_single_host.py: /opt/metanavit/deploy.sh
+#           <digest> on the instance through SSM Run Command, followed until it ends, then the smoke of the public URL
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "sha256:<64 hex> of ghcr.io/<owner>/<repo> to deploy (empty: this commit's -ml image). A previous digest rolls back."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# One deploy at a time, never cancelled halfway: a later run waits for the one in progress. A group of its own, not
+# deploy.yml's: both workflows start after every CI run on main, and in one group the run that only skips could
+# replace (cancel) the other's pending deploy.
+concurrency:
+  group: deploy-single-host
+  cancel-in-progress: false
+
+env:
+  AWS_PAGER: ""
+
+jobs:
+  gate:
+    name: gate (variables, image digest)
+    # After CI: only a successful run for a push to this repository's main (never a pull request's run).
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      enabled: ${{ steps.variables.outputs.enabled }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Repository variables (unset = no AWS account yet; DEPLOY_TARGET must be single-host)
+        id: variables
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET }}
+        run: |
+          if [ -z "$AWS_REGION" ] || [ -z "$AWS_DEPLOY_ROLE_ARN" ]; then
+            echo "::notice title=Deploy skipped::the repository variables AWS_REGION and AWS_DEPLOY_ROLE_ARN are not set (doc/deploy.md): nothing is deployed"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [ "$DEPLOY_TARGET" != "single-host" ]; then
+            echo "::notice title=Deploy skipped::the repository variable DEPLOY_TARGET is '$DEPLOY_TARGET', not single-host: this workflow deploys the single host only (ecs: deploy.yml; unset: nothing)"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: The image to deploy, by digest (this commit's -ml image, or the digest given)
+        id: image
+        if: ${{ steps.variables.outputs.enabled == 'true' }}
+        env:
+          INPUT_DIGEST: ${{ inputs.image_digest }}
+          # after CI, the commit CI ran on (github.sha is main's tip when this run starts)
+          COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          if [ -n "$INPUT_DIGEST" ]; then
+            digest="$INPUT_DIGEST"
+          else
+            digest=$(docker buildx imagetools inspect "$repository:sha-$COMMIT-ml" --format '{{json .Manifest}}' | jq -r .digest)
+          fi
+          if ! printf '%s' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+            echo "::error::not an image digest: $digest"
+            exit 1
+          fi
+          image="$repository@$digest"
+          docker pull --platform linux/amd64 "$image"
+          revision=$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")
+          if [ -z "$INPUT_DIGEST" ] && [ "$revision" != "$COMMIT" ]; then
+            echo "::error::$image is labelled revision $revision, not $COMMIT"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Deploying $image (revision $revision) to the single host" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: deploy (approval, Run Command, smoke)
+    needs: gate
+    if: ${{ needs.gate.outputs.enabled == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: deploy-single-host-${{ github.run_id }}
+      - name: Deploy (deploy.sh on the instance through Run Command, then the smoke)
+        id: deploy
+        env:
+          IMAGE_DIGEST: ${{ needs.gate.outputs.digest }}
+          SINGLE_HOST_NAME: ${{ vars.SINGLE_HOST_NAME }}
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+          SERVE_RERANKER: ${{ vars.SERVE_RERANKER }}
+        run: python3 scripts/deploy_single_host.py

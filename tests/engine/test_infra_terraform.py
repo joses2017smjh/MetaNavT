@@ -24,7 +24,7 @@ _spec.loader.exec_module(hcl)
 
 BOOTSTRAP = hcl.read_dir(INFRA / "bootstrap")
 MODULE = hcl.read_dir(INFRA / "modules" / "demo")
-ROOTS = ["bootstrap", "envs/production", "envs/staging"]  # every root module (each has its own state and lock file)
+ROOTS = ["bootstrap", "envs/production", "envs/single-host", "envs/staging"]  # every root module (own state and lock)
 PINNED = re.compile(r"[a-z0-9][a-z0-9._/-]*:[\w.-]+@sha256:[0-9a-f]{64}")  # as tests/eval/test_image_build.py
 
 
@@ -102,12 +102,17 @@ def test_the_deploy_role_has_only_the_deploy_steps_permissions():
         "ecs:DescribeTaskDefinition", "ecs:RegisterTaskDefinition", "ecs:DescribeServices", "ecs:UpdateService",
         "ecs:RunTask", "ecs:DescribeTasks", "ecs:StopTask", "iam:PassRole", "secretsmanager:DescribeSecret",
         "s3:PutObject", "s3:ListBucket", "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation",
+        # the single host (scripts/deploy_single_host.py)
+        "ssm:SendCommand", "ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ec2:DescribeInstances",
     }
     statements = {hcl.strings(hcl.attr(s, "sid"))[0]: s for s in hcl.nested(policy, "statement")}
     assert all(hcl.attr(s, "effect") is None for s in statements.values())  # Allow only, no Deny to reason about
-    # The only "*" resource: the two task definition calls, which take no resource-level permission.
+    # The only "*" resources: calls that take no resource-level permission (the two task definition calls; the
+    # instance lookup and following a command), none of them a write.
     star = [sid for sid, s in statements.items() if hcl.attr(s, "resources") == '["*"]']
-    assert star == ["TaskDefinitions"]
+    assert star == ["TaskDefinitions", "FindTheHostAndFollowTheCommand"]
+    assert hcl.strings(hcl.attr(statements["FindTheHostAndFollowTheCommand"], "actions")) == [
+        "ec2:DescribeInstances", "ssm:GetCommandInvocation", "ssm:ListCommandInvocations"]
     assert hcl.strings(hcl.attr(statements["RunTheMigrateTask"], "resources")) == ["${local.ecs_arn}:task-definition/${var.project}-*-migrate:*"]
     passed = statements["PassTheTwoTaskRoles"]
     assert hcl.strings(hcl.attr(passed, "resources")) == [
@@ -124,6 +129,28 @@ def test_the_deploy_role_has_only_the_deploy_steps_permissions():
     families = {n: hcl.strings(hcl.attr(b, "family"))[0] for n, b in _resources(MODULE, "aws_ecs_task_definition").items()}
     assert families == {"api": "${local.name}-api", "migrate": "${local.name}-migrate"}
     assert hcl.strings(hcl.attr(_resources(MODULE, "aws_s3_bucket")["web"], "bucket")) == ["${local.name}-web-${local.account_id}"]
+
+
+def test_the_deploy_role_runs_commands_only_on_the_single_host_and_only_the_shell_script_document():
+    policy = hcl.block(BOOTSTRAP, "data", "aws_iam_policy_document", "deploy")
+    statements = {hcl.strings(hcl.attr(s, "sid"))[0]: s for s in hcl.nested(policy, "statement")}
+    sending = [sid for sid, s in statements.items() if "ssm:SendCommand" in hcl.strings(hcl.attr(s, "actions"))]
+    assert sending == ["RunCommandOnTheSingleHost", "OnlyTheShellScriptDocument"]
+    for sid in sending:
+        assert hcl.strings(hcl.attr(statements[sid], "actions")) == ["ssm:SendCommand"]
+    host = statements["RunCommandOnTheSingleHost"]
+    assert hcl.strings(hcl.attr(host, "resources")) == ["arn:${local.partition}:ec2:${var.region}:${local.account_id}:instance/*"]
+    conditions = {hcl.strings(hcl.attr(c, "variable"))[0]: (hcl.strings(hcl.attr(c, "test"))[0], hcl.attr(c, "values"))
+                  for c in hcl.nested(host, "condition")}
+    assert conditions == {"ssm:resourceTag/Project": ("StringEquals", "[var.project]"),
+                          "ssm:resourceTag/Target": ("StringEquals", '["single-host"]')}
+    document = statements["OnlyTheShellScriptDocument"]
+    assert hcl.strings(hcl.attr(document, "resources")) == ["arn:${local.partition}:ssm:${var.region}::document/AWS-RunShellScript"]
+    assert not hcl.nested(document, "condition")
+    # the tags the condition needs are the ones the single host's instance carries
+    single_host = hcl.read_dir(INFRA / "modules" / "single-host")
+    tags = _locals(single_host)["instance_tags"].strip()[1:-1]
+    assert (hcl.attr(tags, "Project"), hcl.attr(tags, "Target")) == ("var.project", '"single-host"')
 
 
 # ---- RDS and Redis are not public ----------------------------------------------------------------------------
@@ -281,12 +308,22 @@ PLATFORM = {"ENVIRONMENT", "LOG_FORMAT", "PG_CONNECTION_STRING", "PSYCOPG2_CONNE
             "ENABLE_ROUTER", "RETRIEVE_TIMEOUT_SECONDS"}
 
 
+# The contract's names the ECS task leaves unset, each with its reason.
+NOT_ON_ECS = {
+    # The ALB's listener forwards only requests carrying CloudFront's header (alb.tf), and its health checks of the
+    # tasks carry none, so the app's own check (the single host's) stays off here.
+    "ORIGIN_VERIFY_SECRET",
+}
+
+
 def test_the_task_sets_every_name_of_the_deploy_contract_and_only_listed_extras():
     contract = _contract()
+    assert NOT_ON_ECS <= contract.keys()
     values = _locals(MODULE)
     environment = hcl.object_keys(values["contract_environment"])
     secrets = re.findall(r"\{\s*([A-Z_]+)\s*=", values["contract_secrets"])
-    assert sorted(environment + secrets) == sorted(contract)  # the contract, exactly, between the two
+    assert sorted(environment + secrets) == sorted(contract.keys() - NOT_ON_ECS)  # the contract, exactly, between the two
+    assert not any(name in MODULE for name in NOT_ON_ECS)  # not set anywhere, overrides included
     assert secrets == ["ANTHROPIC_API_KEY"]
     assert set(hcl.object_keys(values["platform_environment"])) == PLATFORM
     assert hcl.object_keys(values["platform_secrets"]) == ["PGPASSWORD"]
@@ -362,7 +399,8 @@ SECRET_PATTERNS = {
 
 def _deploy_files() -> list[Path]:
     files = [p for p in INFRA.rglob("*") if p.is_file() and ".terraform" not in p.parts]
-    files += [ROOT / ".github" / "workflows" / name for name in ("infra.yml", "deploy.yml")]
+    files += [ROOT / ".github" / "workflows" / name for name in ("infra.yml", "deploy.yml", "deploy-single-host.yml")]
+    files += sorted((ROOT / "deploy" / "single-host").iterdir()) + [ROOT / "scripts" / "deploy_single_host.py"]
     return [p for p in files if p.exists()]
 
 
@@ -483,7 +521,7 @@ def test_the_runbooks_claude_cost_is_the_apps_price_table_and_the_owners_budget(
 
 
 def test_every_root_requires_terraform_1_11_and_commits_its_provider_lock():
-    for directory in [*ROOTS, "modules/demo"]:
+    for directory in [*ROOTS, "modules/demo", "modules/single-host"]:
         terraform = hcl.block(hcl.read_dir(INFRA / directory), "terraform")
         assert hcl.strings(hcl.attr(terraform, "required_version")) == [">= 1.11.0"], directory
     for directory in ROOTS:

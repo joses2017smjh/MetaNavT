@@ -170,6 +170,45 @@ data "aws_iam_policy_document" "deploy" {
     actions   = ["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"]
     resources = ["arn:${local.partition}:cloudfront::${local.account_id}:distribution/*"]
   }
+
+  # ---- The single host (infra/envs/single-host; .github/workflows/deploy-single-host.yml) ----
+
+  # Run Command on the instance carrying both tags (infra/modules/single-host sets them), and with one document only:
+  # SendCommand is authorized against the instance and against the document. ssm:resourceTag, not aws:ResourceTag:
+  # with a global condition key, Systems Manager's guide asks for an aws:ViaAWSService statement too.
+  statement {
+    sid       = "RunCommandOnTheSingleHost"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:${local.partition}:ec2:${var.region}:${local.account_id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Project"
+      values   = [var.project]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Target"
+      values   = ["single-host"]
+    }
+  }
+
+  # An AWS-owned document: its ARN has no account id.
+  statement {
+    sid       = "OnlyTheShellScriptDocument"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:${local.partition}:ssm:${var.region}::document/AWS-RunShellScript"]
+  }
+
+  # Neither the instance lookup nor following a command's invocation takes a resource-level permission (the Service
+  # Authorization Reference lists no resource type for them): the workflow finds the instance by its tags and reads
+  # its own command's output.
+  statement {
+    sid       = "FindTheHostAndFollowTheCommand"
+    actions   = ["ec2:DescribeInstances", "ssm:GetCommandInvocation", "ssm:ListCommandInvocations"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "deploy" {

@@ -112,7 +112,10 @@ def test_the_contract_is_the_reference_s():
     section = text.split("### Public demo mode", 1)[1]
     block = section.split("```text", 1)[1].split("```", 1)[0]
     contract = dict(re.findall(r"(?:^|\s)([A-Z][A-Z0-9_]+)=(\S+)", block, re.M))
-    assert contract.keys() == FIXED.keys() | DEFAULTS.keys()
+    # CloudFront's origin header is checked where CloudFront reaches the API directly (the single host); here Caddy is
+    # the only entry, so the rehearsal leaves the check off.
+    assert contract.keys() - {"ORIGIN_VERIFY_SECRET"} == FIXED.keys() | DEFAULTS.keys()
+    assert "ORIGIN_VERIFY_SECRET" not in PROD.read_text()
     for name, value in contract.items():
         if "<" not in value:
             assert (FIXED.get(name) or DEFAULTS.get(name)) == value, name

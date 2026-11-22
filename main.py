@@ -37,7 +37,7 @@ from contextlib import asynccontextmanager, suppress
 import uvicorn
 from app.api.errors import install as install_error_answers
 from app.api.errors import public_startup_error
-from app.api.public import BodyLimit, max_body_bytes, public_api_router, public_demo_enabled
+from app.api.public import BodyLimit, OriginVerify, max_body_bytes, origin_verify_secret, public_api_router, public_demo_enabled
 from app.api.security import GuardedStaticFiles, security_status
 from app.middlewares.frontend import FrontendProxyMiddleware
 from app.observability import configure_logging, new_request_id, report_failure, tracing_status
@@ -306,6 +306,12 @@ if environment == "dev":
 else:
     # Mount the frontend static files (production)
     mount_static_files(STATIC_DIR, "/", html=True)
+
+# The single host behind CloudFront (doc/deploy.md): with ORIGIN_VERIFY_SECRET set, a request without CloudFront's
+# X-Origin-Verify header is refused (403) except GET /health from the loopback address. Added last, so it is the
+# outermost middleware: nothing else runs for a refused request.
+if PUBLIC_DEMO and origin_verify_secret():
+    app.add_middleware(OriginVerify, secret=origin_verify_secret())
 
 if __name__ == "__main__":
     app_host = os.getenv("APP_HOST", "0.0.0.0")

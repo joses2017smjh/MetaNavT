@@ -1,0 +1,22 @@
+# /etc/systemd/system/metanavit.service on the single host (infra/modules/single-host's cloud-init writes it from
+# deploy/single-host/metanavit.service). At every boot: read the secrets from Parameter Store into the root-only
+# /run/metanavit/secrets.env, then `docker compose up -d` on the image the last deploy left (deploy.sh --start). A key
+# stored or rotated in Parameter Store takes effect at the next start: `systemctl restart metanavit`, a reboot or a
+# deploy.
+[Unit]
+Description=MetaNaviT live demo (docker compose in /opt/metanavit)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/metanavit/deploy.sh --start
+# Parameter Store unreachable at boot: try again (the containers Docker restarted keep serving meanwhile)
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

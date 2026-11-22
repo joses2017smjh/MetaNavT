@@ -1,0 +1,156 @@
+# The live demo's stack on one EC2 host behind CloudFront (doc/deploy.md, "The live demo: one host on the AWS Free
+# plan"). infra/modules/single-host embeds this file in the instance's cloud-init, which writes it to
+# /opt/metanavit/compose.yml; /opt/metanavit/deploy.sh (deploy/single-host/deploy.sh) runs it with three env files:
+#   app.env       Terraform's settings, not secret (the module's local.app_env): WEB_ORIGIN, ANSWER_MODEL, the daily
+#                 answer budget, RERANKER_MODEL and the memory limits
+#   image.env     METANAVIT_IMAGE, the image the last deploy started (by digest)
+#   secrets.env   in memory (/run/metanavit) and root-only, written at every start and deploy: CloudFront's header value
+#                 and the optional Anthropic key from Parameter Store, and the Postgres password made on the host
+# Services: api (port 80, CloudFront's only way in: the security group admits only CloudFront's addresses and the app
+# refuses a request without CloudFront's header), db (Postgres with pgvector), redis (quotas, the daily answer budget
+# and the answer cache), and migrate, a one-off the deploy runs while the api is stopped, before it moves to a new
+# image.
+# tests/engine/test_single_host.py pins what can be read here: the images by digest, the deploy contract's names and
+# values, only the api publishing a port, health checks, restarts and memory limits.
+name: metanavit
+
+x-logging: &logging
+  # json-file with rotation: a long-running host keeps a bounded amount of log per container
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api-environment: &api-environment
+  # The deploy contract (doc/engineering-reference.md, Public demo mode): every name it lists.
+  PUBLIC_DEMO: "1"
+  REDIS_URL: redis://redis:6379/0
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}   # empty (no parameter stored): answers off, search works
+  ANSWER_MODEL: ${ANSWER_MODEL:?set in app.env}
+  ANSWER_EFFORT: low
+  ANSWER_MAX_TOKENS: "4096"
+  # With one retry and the retrieval budget below, an answer ends inside CloudFront's origin timeout (60 s):
+  # 5 + 25 x 2 plus backoff, as on the ECS stack.
+  ANSWER_TIMEOUT_SECONDS: "25"
+  ANSWER_MAX_RETRIES: "1"
+  ANSWER_DAILY_BUDGET_USD: ${ANSWER_DAILY_BUDGET_USD:?set in app.env}
+  ANSWER_CACHE_TTL_SECONDS: "86400"
+  ANSWER_LIMIT_PER_MINUTE: "5"
+  ANSWER_LIMIT_PER_DAY: "50"
+  TRUSTED_PROXY_HOPS: "1"   # CloudFront appends the viewer's address to X-Forwarded-For; nothing else is in front
+  WEB_ORIGIN: ${WEB_ORIGIN:?set in app.env}
+  MAX_BODY_BYTES: "8192"
+  ORIGIN_VERIFY_SECRET: ${ORIGIN_VERIFY_SECRET:?read from Parameter Store into secrets.env by deploy.sh}
+  # Beyond the contract, as on the ECS stack (infra/modules/demo, platform_environment): the web client's export at /,
+  # the database, and the CPU models of docker-compose.ml.yml. The index step (the migrate service) runs
+  # init_settings, which needs a chat provider; nothing here calls it.
+  ENVIRONMENT: prod
+  LOG_FORMAT: json
+  PG_CONNECTION_STRING: postgresql://metanavit:${POSTGRES_PASSWORD:?made by deploy.sh}@db:5432/metanavit
+  PSYCOPG2_CONNECTION_STRING: dbname=metanavit user=metanavit password=${POSTGRES_PASSWORD:?made by deploy.sh} host=db port=5432
+  RETRIEVE_TIMEOUT_SECONDS: "5"
+  MODEL_PROVIDER: ollama
+  EMBEDDING_PROVIDER: huggingface
+  EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+  EMBEDDING_DIM: "384"
+  # none: the cross-encoder is not configured and the fused order is served (labelled: reranker_loaded false in every
+  # answer); BAAI/bge-reranker-v2-m3 needs an instance with the memory for it (serve_reranker in Terraform).
+  RERANKER_MODEL: ${RERANKER_MODEL:?set in app.env}
+  RERANKER_PRECISION: fp32
+  RERANKER_MAX_LENGTH: "512"
+  RERANK_DEPTH: "20"
+  RERANKER_REQUIRED: "true"
+  BGE_ALLOW_DOWNLOAD: "1"   # the image carries no weights: the first start downloads them into the models volume
+  RETRIEVAL_MODE: sql
+  DATA_DIR: bench/corpus/files
+  INDEX_ON_START: "false"
+  INGEST_MAX_REJECTED: "0"
+  RETRIEVE_K: "50"
+  RERANK_TOP_N: "8"
+  ENABLE_ROUTER: "true"
+
+services:
+  api:
+    # The CPU model image CI's image-ml job publishes, by digest only (deploy.sh writes it into image.env).
+    image: ${METANAVIT_IMAGE:?set by deploy.sh in image.env}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: *api-environment
+    # The image's own command, with a keep-alive longer than CloudFront's to its origin (5 s), so CloudFront never
+    # sends a request on a connection the API has just closed.
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "75"]
+    ports:
+      - "80:8000"
+    volumes:
+      - models:/root/.cache/huggingface   # the image runs as root; a recreated container reuses the downloaded models
+    healthcheck:
+      # from inside the container (127.0.0.1): the one request the origin check lets through without the header
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 600s   # a first start downloads the models
+    mem_limit: ${API_MEMORY:?set in app.env}
+    restart: unless-stopped
+    logging: *logging
+
+  migrate:
+    # deploy.sh runs it once per deploy (docker compose run --rm migrate) with the new image, after stopping the api:
+    # the two load the embedder, and side by side they do not fit a small host. The schema migrations, then the index
+    # step: the command of the ECS migrate task (infra/modules/demo). Its profile keeps `up` from starting it.
+    profiles: ["deploy"]
+    image: ${METANAVIT_IMAGE:?set by deploy.sh in image.env}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *api-environment
+    command: ["sh", "-c", "python -m app.database.migrate && python -m app.engine.ingest"]
+    volumes:
+      - models:/root/.cache/huggingface
+    healthcheck:
+      disable: true   # the image's HEALTHCHECK probes a server this container does not run
+    mem_limit: ${API_MEMORY:?set in app.env}
+    logging: *logging
+
+  db:
+    # the digest docker-compose.yml pins (pg16 = 0.8.7-pg16 on 2026-11-11); refresh it there, here and in ci.yml together
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    environment:
+      POSTGRES_USER: metanavit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?made by deploy.sh}
+      POSTGRES_DB: metanavit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metanavit -d metanavit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: ${DB_MEMORY:?set in app.env}
+    restart: unless-stopped
+    logging: *logging
+
+  redis:
+    # The digest docker-compose.prod.yml pins (7.2-alpine = 7.2.17-alpine on 2026-11-20), with its settings: the daily
+    # spend counter must not be evicted for space (volatile-lru evicts only keys with an expiry) nor lost on a restart
+    # (a snapshot a minute with a change, in a volume).
+    image: redis:7.2-alpine@sha256:2f66de68111e64c3927859f158f8e666066dae2b97d9f82770a6f37a5aa1c335
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-lru", "--appendonly", "no", "--save", "60", "1"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: ${REDIS_MEMORY:?set in app.env}
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  pgdata:
+  redis:
+  models:
