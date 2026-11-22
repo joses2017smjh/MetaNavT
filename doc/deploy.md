@@ -52,8 +52,8 @@ pgvector and Redis
   bge-reranker-v2-m3 cross-encoder, and every response says `reranker_loaded: false`. The README's benchmark tables
   show what the reranker adds. Measured with the API's own loaders (`scripts/measure_api_memory.py`, recorded in
   `bench/results/api_memory_cpu.json`), on the HPC with the CUDA build of torch, CUDA hidden and 2 threads (an upper
-  bound for the image's CPU wheel): the API process peaks at 842 MiB with the embedder, and at 2,719 MiB once the
-  reranker has scored one query's 20 pairs, which took 89.92 s against a retrieval budget of 5 s
+  bound for the image's CPU wheel): the API process peaks at 847 MiB with the embedder, and at 2,720 MiB once the
+  reranker has scored one query's 20 pairs, which took 98.14 s against a retrieval budget of 5 s
   (`RETRIEVE_TIMEOUT_SECONDS`). So the reranker fits neither 2 GiB beside Postgres nor the deadline; every type
   `instance_type` allows has 2 vCPUs, and none has been measured. The ECS stack's 1-vCPU task inherits the same
   latency: its production profile is not the live demo's.

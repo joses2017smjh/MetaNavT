@@ -53,7 +53,7 @@ variable "instance_type" {
 }
 
 variable "serve_reranker" {
-  description = "Serve the bge-reranker-v2-m3 cross-encoder (RERANKER_MODEL=BAAI/bge-reranker-v2-m3), or not (RERANKER_MODEL=none: the fused order of BM25 and bge-small, labelled in every response). Measured with the API's own loaders (bench/results/api_memory_cpu.json): the API's peak grows from 842 MiB to 2719 MiB with it, and one query's 20 pairs took 89.92 s on 2 CPU threads, far over the 5-second retrieval budget, so it stays off on every instance type allowed here."
+  description = "Serve the bge-reranker-v2-m3 cross-encoder (RERANKER_MODEL=BAAI/bge-reranker-v2-m3), or not (RERANKER_MODEL=none: the fused order of BM25 and bge-small, labelled in every response). Measured with the API's own loaders (bench/results/api_memory_cpu.json): the API's peak grows from 847 MiB to 2720 MiB with it, and one query's 20 pairs took 98.14 s on 2 CPU threads, far over the 5-second retrieval budget, so it stays off on every instance type allowed here."
   type        = bool
   default     = false
 }
@@ -81,7 +81,7 @@ variable "swap_mib" {
 }
 
 variable "api_memory_mib" {
-  description = "Memory limit of the api container, and of the one-off migrate container a deploy runs while the api is stopped, MiB (Compose mem_limit). The API's measured peak without the reranker: 842 MiB (bench/results/api_memory_cpu.json)."
+  description = "Memory limit of the api container, and of the one-off migrate container a deploy runs while the api is stopped, MiB (Compose mem_limit). The API's measured peak without the reranker: 847 MiB (bench/results/api_memory_cpu.json)."
   type        = number
   default     = 1024
 }

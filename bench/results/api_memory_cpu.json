@@ -1,17 +1,17 @@
 {
-  "git_sha": "c746c30",
-  "git_head": "c746c304eb06913767027d0297a424edc68f1ba0",
+  "git_sha": "ed48840",
+  "git_head": "ed48840fb34d1bbad121549de3e5848776178bb0",
   "working_tree_dirty": false,
   "source_sha256": {
     "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "app/answer/__init__.py": "6d1269699877cf9e3f48b39000f8a555abc1679c53792e4388349c856807cb32",
-    "app/answer/claude.py": "9d227040443f266a67e285723274072ed570447717b75b322f296c18a9f608fa",
+    "app/answer/claude.py": "ff1f43ca77a7b969bebd9743d096425f445e329f966d34d560031f7406abb055",
     "app/api/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "app/api/errors.py": "b14f48464d021442208cf94d96668c237afe601904d6bba153469d1891fd90a5",
     "app/api/limits.py": "a18db96a39347d69171cc3c61cce3d3d7e4fec077036680575b2380277de527b",
     "app/api/public.py": "33a93105368fb0602ceab646cd0c9a1f60be4a8741e14034dfa92c0dc537cd1a",
     "app/api/routers/__init__.py": "7c0d2fe8e159f7519a7e570c7f4a0c4ec1dc24f5bd88c0b7b789bdf49a62b962",
-    "app/api/routers/answer.py": "dd6c31fdec9eff164ad5cd9cb399497b9bb3005480565ee5aeaae1cf56a00b71",
+    "app/api/routers/answer.py": "485bccf34a6f4d8d2b87f026e4000b036608a9468580618f77d5f5c3e07d2316",
     "app/api/routers/retrieve.py": "cf2baed86ea4033f328cbe4ee5e2cc5a889d62c264a55b00bc20db3148fb7f0b",
     "app/api/security.py": "38d2daccbf72cba538b27040db9fbbab5346ce07acdced3b9ccb77d8096c4ca4",
     "app/config.py": "edeaa98914ad0c09bd7f0f35ab3ed4931fc51268c0c9cda6bbcd073c3d098b86",
@@ -46,8 +46,8 @@
     "requested": "cpu",
     "python": "3.11.16",
     "platform": "Linux-4.18.0-477.27.1.el8_8.x86_64-x86_64-with-glibc2.28",
-    "cpu_count": 20,
-    "cpu_model": "Intel(R) Xeon(R) CPU E5-2660 v3 @ 2.60GHz",
+    "cpu_count": 24,
+    "cpu_model": "Intel(R) Xeon(R) CPU E5-2670 v3 @ 2.30GHz",
     "torch": "2.5.1+cu121",
     "cuda_available": false,
     "device": "cpu",
@@ -72,26 +72,26 @@
   "threads": 2,
   "memory_mib": {
     "after_import_main": {
-      "VmRSS": 393,
-      "VmHWM": 393,
-      "RssAnon": 278,
-      "RssFile": 116
+      "VmRSS": 400,
+      "VmHWM": 400,
+      "RssAnon": 282,
+      "RssFile": 118
     },
     "after_embedder": {
-      "VmRSS": 775,
-      "VmHWM": 842,
-      "RssAnon": 542,
-      "RssFile": 233
+      "VmRSS": 782,
+      "VmHWM": 847,
+      "RssAnon": 545,
+      "RssFile": 237
     },
     "after_reranker": {
-      "VmRSS": 2299,
-      "VmHWM": 2719,
-      "RssAnon": 906,
-      "RssFile": 1393
+      "VmRSS": 2300,
+      "VmHWM": 2720,
+      "RssAnon": 903,
+      "RssFile": 1397
     }
   },
   "rerank_pairs": 20,
-  "rerank_seconds": 89.92,
+  "rerank_seconds": 98.14,
   "reranker": {
     "model": "BAAI/bge-reranker-v2-m3",
     "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
