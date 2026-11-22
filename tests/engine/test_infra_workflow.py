@@ -20,7 +20,9 @@ _spec = importlib.util.spec_from_file_location("required_checks", ROOT / "script
 required_checks = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(required_checks)
 
-PATHS = ["infra/**", "deploy/single-host/**", ".github/workflows/infra.yml", ".github/workflows/deploy.yml"]
+PATHS = ["infra/**", "deploy/single-host/**", ".github/workflows/infra.yml", ".github/workflows/deploy.yml",
+         ".github/workflows/deploy-single-host.yml"]
+DEPLOY_WORKFLOWS = ("infra.yml", "deploy.yml", "deploy-single-host.yml")
 PINNED_ACTION = re.compile(r"[\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+")
 
 
@@ -51,7 +53,7 @@ def test_it_runs_on_infra_changes_only_and_is_never_a_required_check():
 
 
 def test_every_action_is_pinned_by_commit_sha_with_its_release_beside_it():
-    for name in ("infra.yml", "deploy.yml"):
+    for name in DEPLOY_WORKFLOWS:
         if not (WORKFLOWS / name).exists():
             continue
         uses = _uses_lines(name)
@@ -109,15 +111,15 @@ def test_the_plan_job_is_read_only_and_waits_for_the_aws_account():
     # would otherwise show both task definitions replaced in every plan
     assert "if ! digest=$(terraform output -raw image_digest 2>/dev/null); then" in plan["run"]
     assert 'export TF_VAR_image_digest="$digest"' in plan["run"] and "describe-services" not in plan["run"]
-    for name in ("infra.yml", "deploy.yml"):
+    for name in DEPLOY_WORKFLOWS:
         if (WORKFLOWS / name).exists():
             text = (WORKFLOWS / name).read_text()
             assert "terraform apply" not in text and "terraform destroy" not in text, name
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
-def test_every_run_script_of_the_two_workflows_parses_as_bash():
-    for name in ("infra.yml", "deploy.yml"):
+def test_every_run_script_of_the_deploy_workflows_parses_as_bash():
+    for name in DEPLOY_WORKFLOWS:
         if not (WORKFLOWS / name).exists():
             continue
         workflow, _ = _workflow(name)

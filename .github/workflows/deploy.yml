@@ -7,8 +7,10 @@ name: Deploy
 #   staging     opt-in (repository variable DEPLOY_STAGING=true): migrate/index task, service update, smoke
 #   production  waits for the owner's approval (the production environment's required reviewers), then the same
 # Until the owner sets the repository variables AWS_REGION and AWS_DEPLOY_ROLE_ARN (infra/bootstrap's outputs), the
-# gate prints a notice and the deploy jobs are skipped, so the run stays green before the AWS account exists. Every
-# deploy step is scripts/deploy_ecs.py; the jobs assume infra/bootstrap's deploy role through OIDC (no AWS key here).
+# gate prints a notice and the deploy jobs are skipped, so the run stays green before the AWS account exists. The
+# repository variable DEPLOY_TARGET picks the stack: ecs runs this workflow's jobs, single-host runs
+# .github/workflows/deploy-single-host.yml instead, and unset runs neither (a notice, and green). Every deploy step is
+# scripts/deploy_ecs.py; the jobs assume infra/bootstrap's deploy role through OIDC (no AWS key here).
 
 on:
   workflow_run:
@@ -50,15 +52,19 @@ jobs:
       # not "image": tests/eval/test_image_build.py requires every image key of a workflow to be pinned by digest
       image_ref: ${{ steps.image.outputs.image }}
     steps:
-      - name: Repository variables (unset = no AWS account yet = nothing to deploy)
+      - name: Repository variables (unset = no AWS account yet = nothing to deploy; DEPLOY_TARGET must be ecs)
         id: variables
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
           AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET }}
           DEPLOY_STAGING: ${{ vars.DEPLOY_STAGING }}
         run: |
           if [ -z "$AWS_REGION" ] || [ -z "$AWS_DEPLOY_ROLE_ARN" ]; then
             echo "::notice title=Deploy skipped::the repository variables AWS_REGION and AWS_DEPLOY_ROLE_ARN are not set (doc/deploy.md, one-time steps): nothing is deployed"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [ "$DEPLOY_TARGET" != "ecs" ]; then
+            echo "::notice title=Deploy skipped::the repository variable DEPLOY_TARGET is '$DEPLOY_TARGET', not ecs: this workflow deploys the ECS stack only (single-host: deploy-single-host.yml; unset: nothing)"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"

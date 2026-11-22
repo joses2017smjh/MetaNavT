@@ -399,7 +399,8 @@ SECRET_PATTERNS = {
 
 def _deploy_files() -> list[Path]:
     files = [p for p in INFRA.rglob("*") if p.is_file() and ".terraform" not in p.parts]
-    files += [ROOT / ".github" / "workflows" / name for name in ("infra.yml", "deploy.yml")]
+    files += [ROOT / ".github" / "workflows" / name for name in ("infra.yml", "deploy.yml", "deploy-single-host.yml")]
+    files += sorted((ROOT / "deploy" / "single-host").iterdir()) + [ROOT / "scripts" / "deploy_single_host.py"]
     return [p for p in files if p.exists()]
 
 

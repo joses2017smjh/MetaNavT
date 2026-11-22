@@ -5,7 +5,8 @@ name: Infrastructure
 # (infra/.tflint.hcl). Path-filtered, so it runs only when infra/, the single host's files (which its cloud-init
 # embeds) or the deploy workflows change, and is never a required check (scripts/required_checks.py leaves
 # path-filtered workflows out). Once the AWS account exists (the repository variables set), a pull request also gets a
-# read-only plan of production from infra/bootstrap's plan role.
+# read-only plan, from infra/bootstrap's plan role, of the root the repository variable DEPLOY_TARGET picks:
+# infra/envs/production for ecs, infra/envs/single-host for single-host, none when it is unset.
 
 on:
   pull_request:
@@ -15,6 +16,7 @@ on:
       - "deploy/single-host/**"
       - ".github/workflows/infra.yml"
       - ".github/workflows/deploy.yml"
+      - ".github/workflows/deploy-single-host.yml"
   push:
     branches: [main]
     paths:
@@ -22,6 +24,7 @@ on:
       - "deploy/single-host/**"
       - ".github/workflows/infra.yml"
       - ".github/workflows/deploy.yml"
+      - ".github/workflows/deploy-single-host.yml"
   workflow_dispatch:
 
 permissions:
@@ -77,7 +80,7 @@ jobs:
           tflint --recursive --config "$PWD/.tflint.hcl" --format compact
 
   plan:
-    name: terraform plan, production (read-only; once the AWS account exists)
+    name: terraform plan of the deploy target (read-only; once the AWS account exists)
     if: ${{ github.event_name == 'pull_request' }}
     needs: check
     runs-on: ubuntu-24.04
@@ -86,18 +89,28 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Repository variables (unset = no AWS account yet = no plan)
+      - name: Repository variables (unset = no AWS account yet = no plan; DEPLOY_TARGET picks the root)
         id: variables
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
           AWS_PLAN_ROLE_ARN: ${{ vars.AWS_PLAN_ROLE_ARN }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET }}
         run: |
+          case "$DEPLOY_TARGET" in
+            ecs) root=infra/envs/production ;;
+            single-host) root=infra/envs/single-host ;;
+            *) root="" ;;
+          esac
           if [ -z "$AWS_REGION" ] || [ -z "$AWS_PLAN_ROLE_ARN" ] || [ -z "$TF_STATE_BUCKET" ]; then
             echo "::notice title=Plan skipped::the repository variables AWS_REGION, AWS_PLAN_ROLE_ARN and TF_STATE_BUCKET are not set (doc/deploy.md): no plan"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$root" ]; then
+            echo "::notice title=Plan skipped::the repository variable DEPLOY_TARGET is '$DEPLOY_TARGET', not ecs or single-host: no plan"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "root=$root" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ steps.variables.outputs.enabled == 'true' }}
@@ -114,18 +127,19 @@ jobs:
           role-session-name: plan-${{ github.run_id }}
       - name: terraform plan (-lock=false; the last apply's image digest, so only the code's changes show)
         if: ${{ steps.variables.outputs.enabled == 'true' }}
-        working-directory: infra/envs/production
+        working-directory: ${{ steps.variables.outputs.root }}
         env:
+          TF_ROOT: ${{ steps.variables.outputs.root }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
         run: |
           set -euo pipefail
           terraform init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
-          # The state holds the task definitions as last applied, with that apply's digest; the deploys since then
-          # registered their own revisions, which Terraform does not track. Passing the same digest back keeps those
-          # task definitions out of the plan unless the code changed them.
+          # The state holds what the last apply made from its digest (the ECS task definitions; the single host's
+          # user data); the deploys since then moved past it without Terraform. Passing the same digest back keeps
+          # those out of the plan unless the code changed them.
           if ! digest=$(terraform output -raw image_digest 2>/dev/null); then
-            echo "::notice title=Plan skipped::production has no state yet (not applied): nothing to plan against"
+            echo "::notice title=Plan skipped::$TF_ROOT has no state yet (not applied): nothing to plan against"
             exit 0
           fi
           export TF_VAR_image_digest="$digest"

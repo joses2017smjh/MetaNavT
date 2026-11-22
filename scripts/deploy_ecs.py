@@ -203,12 +203,15 @@ def _get(url: str) -> tuple[int, str]:
         raise DeployError(f"GET {url}: {error.reason}") from error
 
 
-def smoke(public_url: str, run: Callable = subprocess.run, get: Callable = _get) -> None:
+def smoke(public_url: str, run: Callable = subprocess.run, get: Callable = _get, args: list[str] | None = None) -> None:
+    """The web client's page, then scripts/smoke_retrieve.py with `args` (SMOKE_ARGS by default; the single host's
+    deploy, scripts/deploy_single_host.py, passes its own)."""
     status, content_type = get(f"{public_url}/")
     if status != 200 or not content_type.startswith("text/html"):
         raise DeployError(f"GET {public_url}/ -> {status} {content_type}: the web client is not served")
     print(f"GET {public_url}/ -> {status} {content_type}")
-    done = run([sys.executable, str(ROOT / "scripts" / "smoke_retrieve.py"), "--url", public_url, *SMOKE_ARGS])
+    done = run([sys.executable, str(ROOT / "scripts" / "smoke_retrieve.py"), "--url", public_url,
+                *(SMOKE_ARGS if args is None else args)])
     if done.returncode != 0:
         raise DeployError(f"smoke against {public_url} failed (exit {done.returncode})")
 
