@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import ApiKeyField from "./api-key-field";
 import ChatSection from "./chat-section";
-import { isPublicDemo } from "./demo/api";
+import { type HealthInfo, readHealth } from "./demo/api";
 import DemoSection from "./demo/demo-section";
 import PlansPanel from "./plans-panel";
 
@@ -12,25 +12,26 @@ import PlansPanel from "./plans-panel";
 // interface, as before. The check runs in the browser, and neither renders until it has settled: the chat interface
 // would ask at once for its starter questions and the plans list, routes the public demo does not serve.
 export default function HomeSwitch() {
-  const [mode, setMode] = useState<"checking" | "demo" | "chat">("checking");
+  const [health, setHealth] = useState<HealthInfo | null>(null); // null: /health has not answered yet
 
   useEffect(() => {
     let current = true;
-    void isPublicDemo().then((demo) => {
-      if (current) setMode(demo ? "demo" : "chat");
+    void readHealth().then((info) => {
+      if (current) setHealth(info);
     });
     return () => {
       current = false;
     };
   }, []);
 
-  if (mode === "checking")
+  if (health === null)
     return (
       <p role="status" className="rounded-xl bg-white/80 p-4 text-sm">
         Connecting to the API…
       </p>
     );
-  if (mode === "demo") return <DemoSection />;
+  if (health.publicDemo)
+    return <DemoSection rerankerLoaded={health.rerankerLoaded} />;
   return (
     <>
       <ApiKeyField />

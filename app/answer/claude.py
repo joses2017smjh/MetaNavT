@@ -6,7 +6,9 @@ character range in that document (https://platform.claude.com/docs/en/build-with
 delivered only when the reply ends normally and cites at least one document. A refusal, a reply cut at max_tokens, an
 uncited reply, and a transient API failure are not delivered, each under its own reason, and the caller still gets the
 retrieved hits. A request the API rejects as malformed (400) is a bug in this module, not a degraded answer: it is
-raised, never turned into a retrieval-only response.
+raised, never turned into a retrieval-only response. The one exception is the 400 that says the account cannot pay
+for the call (a spend limit someone set is reached, or the prepaid credit ran out; see UNPAID): that is the reason
+"answer spend limit reached", and the call costs nothing.
 
 Requests use API version 2026-10-21 (the anthropic SDK 2.x default): no sampling parameters, documents only in the
 user turn. Claude Opus 5.5 and Claude Sonnet 5.5 run with the server-side refusal fallback (`fallbacks: "default"`);
@@ -236,15 +238,37 @@ def parse(response, excerpts: Sequence[Excerpt]) -> Answer:
 
 
 # Transient failures: the reply is not delivered and the caller gets the retrieved hits with this reason. Anything else
-# the SDK raises (400, 401, 403, 404, a TypeError from a wrong parameter) propagates: it is a configuration or code
-# fault the operator must see, never a quiet retrieval-only answer.
+# the SDK raises (400 but UNPAID's, 401, 403, 404, a TypeError from a wrong parameter) propagates: it is a
+# configuration or code fault the operator must see, never a quiet retrieval-only answer.
 TRANSIENT = {"APITimeoutError": "upstream timeout", "RateLimitError": "upstream rate limited",
              "APIConnectionError": "upstream unreachable", "InternalServerError": "upstream error",
              "OverloadedError": "upstream overloaded", "ServiceUnavailableError": "upstream unavailable"}
 
+# A 400 `invalid_request_error` whose message starts with one of these says the account cannot pay for the call, not
+# that the request is wrong. A spend limit someone set (Anthropic's Rate limits page, read 2026-11-21: "The message
+# starts with `You have reached your specified API usage limits`, or `You have reached your specified workspace API
+# usage limits` for a workspace limit"), or prepaid credit that ran out (the message in the claude-api skill's sign-in
+# notes; sent as a 400 `invalid_request_error`, as anthropics/anthropic-sdk-typescript issue 618 shows, read
+# 2026-11-21: the errors page does not list it). The API did no work, so nothing is billed: the reason comes with a
+# cost of 0, which gives the call's whole budget reservation back. The SDK warns that error wording can change; if it
+# does, these 400s are raised again, the loud side.
+UNPAID_REASON = "answer spend limit reached"
+UNPAID = ("You have reached your specified API usage limits",
+          "You have reached your specified workspace API usage limits",
+          "Your credit balance is too low")
+
+
+def unpaid(exc: BaseException) -> bool:
+    """Whether an exception from the SDK is a 400 that says the account cannot pay (UNPAID), read from the response
+    body's error type and message (the SDK's `type` and `api_message`), never from its formatted text."""
+    message = getattr(exc, "api_message", None)
+    return (getattr(exc, "status_code", None) == 400 and getattr(exc, "type", None) == "invalid_request_error"
+            and isinstance(message, str) and message.startswith(UNPAID))
+
 
 def answer(client, question: str, excerpts: Sequence[Excerpt], settings: AnswerSettings) -> Answer:
-    """Ask Claude; return the parsed Answer, or a not-delivered Answer for a transient failure (see TRANSIENT)."""
+    """Ask Claude; return the parsed Answer, or a not-delivered Answer for a transient failure (see TRANSIENT) or for
+    an account that cannot pay (UNPAID)."""
     request = build_request(question, excerpts, settings)
     create = client.beta.messages.create if "betas" in request else client.messages.create
     try:
@@ -252,6 +276,9 @@ def answer(client, question: str, excerpts: Sequence[Excerpt], settings: AnswerS
     except Exception as exc:  # noqa: BLE001 - classified below; anything not transient is re-raised
         name = type(exc).__name__
         status = getattr(exc, "status_code", None)
+        if unpaid(exc):
+            logger.warning(f"answer: {UNPAID_REASON} ({name}: {getattr(exc, 'api_message', '')[:60]!r})")
+            return Answer(delivered=False, reason=UNPAID_REASON, text=None, model=settings.model, cost_usd=0.0)
         reason = TRANSIENT.get(name) or (f"upstream error {status}" if isinstance(status, int) and status >= 500 else None)
         if reason is None:
             logger.error(f"answer: the Messages API call failed with {name} (status {status}); not a transient failure")

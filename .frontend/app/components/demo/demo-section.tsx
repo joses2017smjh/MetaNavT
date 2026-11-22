@@ -23,7 +23,6 @@ import { failureText, reasonText } from "./text";
 
 const REPOSITORY = "https://github.com/joses2017smjh/MetaNavT";
 const BENCHMARKS = `${REPOSITORY}#generated-benchmark-evidence`;
-const RERANKER_GAIN = `${REPOSITORY}#bench-neural`; // the reranker over the hybrid, measured on the fixture
 const EXAMPLES = [
   "What learning rate did run 47 use?",
   "What encoder did run 40 use?",
@@ -62,7 +61,13 @@ function retrievalLine(data: RetrieveResponse): string {
   return parts.join(" · ");
 }
 
-export default function DemoSection() {
+// rerankerLoaded: GET /health's reranker_loaded as the page read it at load (null: not said). Search reads its own
+// response's instead; Ask's response has no such field.
+export default function DemoSection({
+  rerankerLoaded = null,
+}: {
+  rerankerLoaded?: boolean | null;
+}) {
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState<Action | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -237,16 +242,7 @@ export default function DemoSection() {
           <p className="text-xs text-muted-foreground">
             {retrievalLine(result.data)}
           </p>
-          {!result.data.reranker_loaded && (
-            <p className="text-xs">
-              Reranker: off on this server, so the hits are in the fused order
-              of the lexical and dense lists (a fallback).{" "}
-              <a className="underline" href={RERANKER_GAIN}>
-                What the reranker adds, measured on the fixture
-              </a>
-              .
-            </p>
-          )}
+          {!result.data.reranker_loaded && <RerankerOff />}
           {result.data.degraded?.length > 0 && (
             <p className="text-xs">
               Degraded:{" "}
@@ -260,18 +256,41 @@ export default function DemoSection() {
       )}
 
       {result?.kind === "ask" && (
-        <AnswerView data={result.data} heading={heading} />
+        <AnswerView
+          data={result.data}
+          heading={heading}
+          rerankerOff={rerankerLoaded === false}
+        />
       )}
     </section>
+  );
+}
+
+// A server without the cross-encoder (RERANKER_MODEL=none): the hits keep the fused order, a fallback the README's
+// benchmark tables measure against the reranker (their Neural models on the fixture table, in the section the link
+// opens: the table itself sits in a collapsed block, which a link into it would not open).
+function RerankerOff() {
+  return (
+    <p className="text-xs">
+      Reranker: off on this server, so the hits are in the fused order of the
+      lexical and dense lists (a fallback).{" "}
+      <a className="underline" href={BENCHMARKS}>
+        What the reranker adds: the README’s benchmark tables, Neural models on
+        the fixture
+      </a>
+      .
+    </p>
   );
 }
 
 function AnswerView({
   data,
   heading,
+  rerankerOff,
 }: {
   data: AnswerResponse;
   heading: RefObject<HTMLHeadingElement | null>;
+  rerankerOff: boolean;
 }) {
   const citations = distinct(data.citations ?? []);
   const hitRank = (chunk: string) =>
@@ -356,6 +375,7 @@ function AnswerView({
         </>
       )}
       <h3 className="font-semibold">Retrieved excerpts</h3>
+      {rerankerOff && <RerankerOff />}
       <HitList hits={data.hits} />
     </div>
   );
