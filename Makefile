@@ -218,6 +218,31 @@ bench-agent-injection-adaptive-rescore: ## rebuild the adaptive run's scores, su
 	$(PYTHON) -m app.eval.agent_injection_adaptive --summarize-only --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive_rescore.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
 
 .PHONY: bench-trusted-actions
+# ---- the search policy (M44): app/rl, trained once ----------------------------
+# SEARCH_POLICY_WORK is a directory OUTSIDE the repository: the training corpora, the run directories (checkpoints,
+# curves) and the arm files live there. Only search-policy-eval writes under bench/results.
+.PHONY: search-policy-corpora search-policy-train search-policy-eval search-policy-rescore
+SEARCH_POLICY_WORK ?=
+SEARCH_POLICY_CORPUS_SEEDS ?= 1-32
+SEARCH_POLICY_ALGO ?= grpo
+SEARCH_POLICY_SEED ?= 0
+SEARCH_POLICY_SEEDS ?= 0 1 2
+SEARCH_POLICY_STEPS ?= 300
+SEARCH_POLICY_ARGS ?=
+SEARCH_POLICY_JOBS ?=
+search-policy-corpora: ## M44: the search policy's training corpora, seeded variants written by the fixture's builder (never fixture v1), with the leakage report -> $(SEARCH_POLICY_WORK)/corpora
+	$(PYTHON) -m app.rl.corpora --seeds $(SEARCH_POLICY_CORPUS_SEEDS) --out $(SEARCH_POLICY_WORK)/corpora
+
+search-policy-train: ## M44: one training run of the search policy on a GPU (needs .[ml,rl]): SEARCH_POLICY_SEED, SEARCH_POLICY_ALGO=grpo|ppo, SEARCH_POLICY_ARGS=--resume continues one -> $(SEARCH_POLICY_WORK)/runs/<algo>-seed<seed>
+	$(PYTHON) -m app.rl.train --out $(SEARCH_POLICY_WORK)/runs/$(SEARCH_POLICY_ALGO)-seed$(SEARCH_POLICY_SEED) --corpora $(SEARCH_POLICY_WORK)/corpora --corpus-seeds $(SEARCH_POLICY_CORPUS_SEEDS) --algo $(SEARCH_POLICY_ALGO) --seed $(SEARCH_POLICY_SEED) --steps $(SEARCH_POLICY_STEPS) $(SEARCH_POLICY_ARGS)
+
+search-policy-eval: ## M44: the held-out arms on a GPU (untrained, single-shot RAG, each seed of SEARCH_POLICY_SEEDS), then the results file from them and the training runs (needs .[ml,rl]) -> bench/results/search_policy.json and its two sidecars
+	$(PYTHON) -m app.rl.evaluate --out-dir $(SEARCH_POLICY_WORK)/arms $(foreach s,$(SEARCH_POLICY_SEEDS),--adapter $(SEARCH_POLICY_ALGO)/seed=$(s)=$(SEARCH_POLICY_WORK)/runs/$(SEARCH_POLICY_ALGO)-seed$(s)/best) $(SEARCH_POLICY_ARGS)
+	$(PYTHON) -m app.rl.results --arms $(SEARCH_POLICY_WORK)/arms $(foreach s,$(SEARCH_POLICY_SEEDS),--run $(SEARCH_POLICY_ALGO)/seed=$(s)=$(SEARCH_POLICY_WORK)/runs/$(SEARCH_POLICY_ALGO)-seed$(s)) $(if $(SEARCH_POLICY_JOBS),--jobs $(SEARCH_POLICY_JOBS))
+
+search-policy-rescore: ## recompute bench/results/search_policy.json from its sidecars on a CPU (every episode scored again, every interval redrawn; no model, no torch); exit 1 unless every value equals the file
+	$(PYTHON) -m app.rl.results --check
+
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
 bench-trusted-actions: ## approval-gate regression on temporary fixtures (no LLM); each row names the refusing check -> $(TRUSTED_ACTIONS_OUT)
 	$(PYTHON) -m app.eval.trusted_actions --output $(TRUSTED_ACTIONS_OUT)
