@@ -19,12 +19,20 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the M4 run, linked from the block
+# M42: current open models as generators and judges, in two stages (app/eval/llm_eval.py --judges none, then
+# app/eval/judge_stored.py): one answers file per generator and one judge file per judge, by the model's tag. The
+# committed jury_v2.json rows are printed beside them as parents; nothing of that file is recomputed.
+# An answers file is one generator in one configuration: (model, think, limit). think "off" sends `think: false` with
+# every generation call; a limit is a run over the first N questions only, kept as the record of a configuration that
+# fails (qwen3.5:122b's reasoning at the server's default does not end inside the context) and never judged.
+JURY_V3_ANSWERS = (("qwen3.5:27b", "default", None), ("gemma4:26b", "default", None), ("qwen3.5:122b", "default", 8), ("qwen3.5:122b", "off", None))
+JURY_V3_JUDGES = ("gpt-oss:120b", "gemma4:26b")
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the second run: capability control, controls with neutral lines
 AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # the current run: phrasings scored as any-success, the in-loop answer check
@@ -71,7 +79,8 @@ SOURCES = {
     "bench-pgvector-hnsw": PGVECTOR_HNSW_FILE,
     "bench-parity": f"{PARITY_FILE} and {PARITY_NEURAL_FILE}",
     "api-latency": "bench/results/api_latency_*.json",
-    "bench-jury": JURY_FILE,
+    "bench-jury": f"{JURY_FILE} and bench/results/jury_v3_judge_*.json",
+    "bench-jury-v3": "bench/results/jury_v3_answers_*.json, bench/results/jury_v3_judge_*.json and bench/results/jury_v2.json",
     "agent-injection": f"{AGENT_INJECTION_V2_FILE} and {AGENT_INJECTION_FILE}",
     "agent-injection-v3": AGENT_INJECTION_V3_FILE,
     "agent-injection-adaptive": AGENT_INJECTION_ADAPTIVE_FILE,
@@ -974,10 +983,31 @@ def _jury_sha_note(blob: dict, target: str) -> str:
             f"`{target}-rescore` at sha {rs['checks_git_sha']}{checks}")
 
 
-def jury_v2_table(blob: dict) -> str:
+def _later_judge_note(later: dict | None) -> str | None:
+    """What a judge of another model, added later (M42: a jury_v3 judge file, gated on this file's calibration
+    answers), says about this run's answers: its score beside the generator's own, or that it is no check."""
+    if not later or later.get("status") != "complete" or not later.get("gate"):
+        return None
+    mine = next((a for a in later.get("answer_sets") or [] if a["file"] == JURY_FILE and a.get("summary")), None)
+    if mine is None or mine["summary"]["self_judged"]:
+        return None
+    judge, g, s = later["judge"]["model"], later["gate"], mine["summary"]
+    if not g["passes"]:
+        return (f"A judge of another model added later, {judge}, did not pass the same gate on these calibration answers (kappa {g['kappa']}), "
+                "so it is no check on the score above ([the block below](#bench-jury-v3)).")
+    m = s["mean_correctness"]
+    same = "; ".join(f"it and {other} gave the same verdict on {a['agree']} of the {a['n']} answers both were asked about (kappa {a['kappa']})"
+                     for other, a in (s.get("agreement_with_stored_judges") or {}).items() if other == (mine.get("generator") or {}).get("model"))
+    return (f"A judge of another model added later, {judge}, passed the same gate on these calibration answers (kappa {g['kappa']}) and scores the same "
+            f"{m['n']} answers {m['mean']} [{m['interval']['lo']}, {m['interval']['hi']}]" + (f"; {same}" if same else "")
+            + ". Two judges agreeing is not agreement with the truth ([the block below](#bench-jury-v3)).")
+
+
+def jury_v2_table(blob: dict, later_judges: dict[str, dict | None] | None = None) -> str:
     """M29: the gate reads each judge's correctness verdict against exact match on a calibration set; judge scores of
     the run's answers only for a judge that passed. A file without a calibration set (`make bench-jury` since M29)
-    has the run's own simple-factual answers as its reference, and the block says so."""
+    has the run's own simple-factual answers as its reference, and the block says so. `later_judges` (M42): judge
+    files of other models that labelled this run's stored answers; each adds one sentence under the scores."""
     s, c = blob["summary"], blob["summary"]["checks"]
     gen, judges = blob["models"]["generator"], [j["model"] for j in blob["models"]["judges"]]
     cal = blob.get("calibration") or {}
@@ -1087,6 +1117,7 @@ def jury_v2_table(blob: dict) -> str:
         if gen["model"] in pub:
             lines += ["", f"{gen['model']} scores answers its own weights generated (self-preference risk), and the gate validated it on "
                       "single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers."]
+        lines += [x for note in map(_later_judge_note, (later_judges or {}).values()) if note for x in ("", note)]
         lines += ["", f"Verdict: {s['verdict']}."]
     else:
         lines += ["", f"Verdict: {s['verdict']}. Mean judge scores are in the results file but are not printed here."]
@@ -1103,13 +1134,194 @@ def jury_v2_table(blob: dict) -> str:
     return "\n".join(lines)
 
 
-def jury_table(blob: dict | None) -> str:
+def jury_v3_answers_file(model: str, think: str = "default", limit: int | None = None) -> str:
+    """The name `make bench-jury-v3-answers` gives the file (GENERATOR, THINK, ANSWERS_LIMIT)."""
+    return f"bench/results/jury_v3_answers_{model.replace(':', '-')}{'_think-off' if think == 'off' else ''}{f'_first{limit}' if limit else ''}.json"
+
+
+def jury_v3_answers_label(model: str, think: str = "default", limit: int | None = None) -> str:
+    return model + (", reasoning off" if think == "off" else "") + (f" (first {limit} questions only)" if limit else "")
+
+
+def jury_v3_judge_file(model: str) -> str:
+    return f"bench/results/jury_v3_judge_{model.replace(':', '-')}.json"
+
+
+def _model_cell(block: dict | None) -> str:
+    """`tag (parameters, quantization)` from an Ollama model block, and `, reasoning off` for a generator run that way."""
+    if not block:
+        return "—"
+    extra = ", ".join(str(block[k]) for k in ("parameter_size", "quantization") if block.get(k))
+    return f"{block.get('model')}" + (f" ({extra})" if extra else "") + (", reasoning off" if block.get("think") == "off" else "")
+
+
+def _rate_ci(interval: dict | None, plain: dict | None = None) -> str:
+    """A deterministic-check rate with its bootstrap interval and n (a file without intervals: the rate and n)."""
+    if interval:
+        return f"{interval['rate']} [{interval['lo']}, {interval['hi']}] ({interval['n']})"
+    if plain and plain.get("rate") is not None:
+        return f"{plain['rate']} ({plain['n']})"
+    return "—"
+
+
+def _answers_row(blob: dict, file: str, note: str = "") -> str:
+    c, ci = blob["summary"]["checks"], blob.get("check_intervals") or {}
+    if blob.get("n_gold") and blob["n_gold"] < 136 and not note:  # a limited run says so in its row
+        note = f" (first {blob['n_gold']} questions only)"
+    lat = (blob.get("latency") or {}).get("generate") or {}
+    loaded = (blob.get("ollama") or {}).get("generator_loaded") or {}
+    return (f"| {_model_cell(blob['models']['generator'])}{note} | [{file}]({file}) @ {_sha(blob)} | {(blob.get('device') or {}).get('device_name', '—')} | "
+            f"{loaded.get('context_length', '—')} | {c['uncited_answers']['count']} of {c['uncited_answers']['n']} | {c['abstained']['count']} / {c['abstention_only']['count']} | "
+            f"{_rate_ci(ci.get('cited_in_retrieved'), c['cited_in_retrieved'])} | {_rate_ci(ci.get('values_in_cited_bytes'), c['values_in_cited_bytes'])} | "
+            f"{_rate_ci(ci.get('exact_match_simple_factual'), c['exact_match_simple_factual'])} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |")
+
+
+def _judge_devices(blob: dict) -> str:
+    return ", ".join(dict.fromkeys(str(s.get("device_name")) for s in blob.get("segments") or [])) or "—"
+
+
+def _judge_sha(blob: dict) -> str:
+    """The commits a judge file's verdicts were written at (one per segment), and the rescore's when it has one."""
+    heads = list(dict.fromkeys(f"{(s.get('git_head') or '')[:7]}{' with uncommitted changes' if s.get('working_tree_dirty') else ''}" for s in blob.get("segments") or []))
+    rs = blob.get("rescore") or {}
+    return ", ".join(heads) + (f"; summaries recomputed at {rs['checks_git_sha']}" if rs else "")
+
+
+def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], judges: dict[str, dict | None]) -> str:
+    """M42: each generator's deterministic checks; each judge's gate on the stored calibration answers; a judge's
+    scores of the stored answers only where its gate passed; every model that did not run or could not load named.
+    `answers` is keyed by the configuration (model, think, limit) of JURY_V3_ANSWERS."""
+    have_answers = {m: b for m, b in answers.items() if b}
+    have_judges = {m: b for m, b in judges.items() if b}
+    if not have_answers and not have_judges:
+        return "_No jury_v3 file yet; run `make bench-jury-v3-answers` and `make bench-jury-v3-judge` (they need Ollama)._"
+    first = next(iter(have_judges.values()), None)
+    cal = (first or {}).get("calibration") or {}
+    versions = list(dict.fromkeys(v for v in [(b.get("ollama") or {}).get("version") for b in have_answers.values()]
+                                  + [(b.get("judge") or {}).get("server_version") for b in have_judges.values()] if v))
+    lines = [
+        "Current open-weight models as generators and as judges, in two stages. `make bench-jury-v3-answers GENERATOR=<model>` writes one "
+        "generator's cited answers on fixture v1 with their deterministic checks and no judge. `make bench-jury-v3-judge JUDGE=<model>` gates "
+        "one judge and then labels stored answers"
+        + (f": the gate's reference is the {cal['n']} calibration answers stored in [{cal['file']}]({cal['file']}) (the answers of "
+           f"{(cal.get('generator') or {}).get('model')}, read from the committed file and never regenerated; the judge files record the sha256 "
+           f"of the items, {cal['items_sha256'][:12]})" if cal else "")
+        + f". Models are served by Ollama{' ' + ', '.join(versions) if versions else ''} and pinned by digest in every file. Every call is the committed request "
+        "(temperature 0, seed 0, no `think` key): these models reason before they reply, at the server's default, and the reasoning is "
+        "not part of the reply that is stored and scored. No committed file is rewritten; rows of "
+        f"[{JURY_FILE}]({JURY_FILE}) are repeated below as parents.",
+        "",
+        "Generators: deterministic checks of the answers (no model involved). Rates carry a 95% bootstrap interval over the answers they "
+        "count, then n; the committed run's file has no intervals.",
+        "",
+        "| generator | results file | GPU | context | uncited answers (failed loud) | abstained / NOT IN SOURCES only | cited path in the retrieved set | "
+        "values in the cited bytes | exact match, simple-factual | generation p50 / p95 ms |",
+        "|---|---|---|---:|---:|---:|---|---|---|---:|",
+    ]
+    if committed:
+        lines.append(_answers_row(committed, JURY_FILE, " (committed run)"))
+    for config in answers:
+        blob, file = answers[config], jury_v3_answers_file(*config)
+        lines.append(_answers_row(blob, file) if blob else f"| {jury_v3_answers_label(*config)} | no results file | not run | — | — | — | — | — | — | — |")
+    errors = {jury_v3_answers_label(*c): b.get("generation_errors") for c, b in have_answers.items() if b.get("generation_errors")}
+    if errors:
+        lines += ["", "Generation calls that failed (kept as empty, uncited answers): " + "; ".join(f"{m}: {', '.join(ids)}" for m, ids in errors.items()) + "."]
+    empty = {jury_v3_answers_label(*c): [r["id"] for r in b["rows"] if not r["answer"].strip() and not r["generation"].get("error")] for c, b in have_answers.items()}
+    if any(empty.values()):
+        lines += ["", "Answers that came back empty (the model reasoned until the context was full and never replied; an empty answer is uncited): "
+                  + "; ".join(f"{m}: {len(ids)}" for m, ids in empty.items() if ids) + "."]
+    gate = (committed or {}).get("kappa_gate", (first or {}).get("kappa_gate"))
+    lines += ["", f"Judges: the gate. Cohen's kappa between a judge's correctness verdicts and the exact-match labels of the calibration answers must reach {gate}; "
+              "the interval resamples questions.", "",
+              "| judge | results file | GPU | kappa vs exact match (calibration set) | 95% interval | n | passes gate | verdicts correct / partial / wrong | "
+              "replies empty / unreadable / failed calls |", "|---|---|---|---:|---|---:|:---:|---|---|"]
+    if committed:
+        for block in committed["models"]["judges"]:
+            k = committed["summary"]["kappa"][block["model"]]
+            health = (committed["summary"]["replies"].get(block["model"]) or {}).get("calibration_correctness") or {}
+            lines.append(f"| {_model_cell(block)} (committed run) | [{JURY_FILE}]({JURY_FILE}) @ {_sha(committed)} | {(committed.get('device') or {}).get('device_name', '—')} | "
+                         f"{k['kappa_vs_exact_match_simple_factual']} | [{k['interval']['lo']}, {k['interval']['hi']}] | {k['n']} | {'yes' if k['readme_ok'] else 'no'} | "
+                         f"{_lcpw(k['label_counts'])} | {health.get('empty', '—')} / {health.get('unparsed', '—')} / — of {health.get('n', '—')} |")
+    notes: list[str] = []
+    for model in judges:
+        blob, file = judges[model], jury_v3_judge_file(model)
+        if not blob:
+            lines.append(f"| {model} | no results file | not run | — | — | — | — | — | — |")
+            continue
+        head = f"| {_model_cell(blob['judge'])} | [{file}]({file}) @ {_judge_sha(blob)} | {_judge_devices(blob)} | "
+        g = blob.get("gate")
+        if blob["status"] == "could not load" or not g:
+            lines.append(head + "— | — | — | could not load | — | — |")
+            notes.append(f"{model} could not load ({blob.get('could_not_load')}): no answer was judged, and this is not a gate result.")
+            continue
+        r = g["replies"]
+        ci = f"[{g['interval']['lo']}, {g['interval']['hi']}]" if g.get("interval") else "—"
+        lines.append(head + f"{g['kappa']} | {ci} | {g['n']} | {'yes' if g['passes'] else ('no' if g['complete'] else 'not complete')} | {_lcpw(g['label_counts'])} | "
+                     f"{r['empty']} / {r['unparsed']} / {r['errors']} of {r['n']} |")
+        one = [lab for lab, count in g["label_counts"].items() if count and count == g["n"]]
+        if one:
+            notes.append(f"{model} labelled all {g['n']} calibration answers {one[0]}: its verdicts carry no information about the gold.")
+        if not g["complete"]:
+            notes.append(f"{model} judged {g['n']} of the {blob['calibration']['n']} calibration answers (status {blob['status']}): its gate is not complete and nothing of it is published.")
+    lines += [""] + notes if notes else []
+    scores, unpublished, agreement, pairs = [], [], [], []
+    for model, blob in have_judges.items():
+        g = blob.get("gate")
+        for answer_set in blob.get("answer_sets") or []:
+            s, gen = answer_set.get("summary"), answer_set.get("generator") or {}
+            if not s:
+                continue
+            who = f"{(gen.get('model') or 'stored answers') + (', reasoning off' if gen.get('think') == 'off' else '')} ([{answer_set['file']}]({answer_set['file']}))"
+            pw = s.get("pairwise_llm_vs_extractive")
+            if pw:
+                pairs.append(f"| {model} | {who} | {pw['p_llm_better_mean']} | {pw['position_gap_mean']} | {pw['position_flips']} / {pw['n']} | {pw['n']} |")
+            if not s["publishable"]:
+                if g and g["complete"] and not g["passes"]:
+                    unpublished.append(model)
+                continue
+            m = s["mean_correctness"]
+            note = "the judge's own weights generated these answers (self-preference risk)" if s["self_judged"] else "another model than the generator"
+            scores.append(f"| {who} | {model} | {m['mean']} | [{m['interval']['lo']}, {m['interval']['hi']}] | {m['n']} | {s['abstention_only']['count']} | "
+                          f"{_lcpw(s['label_counts'])} | {s['simple_factual_answers']['agree']} of {s['simple_factual_answers']['n']} | {note} |")
+            for other, a in (s.get("agreement_with_stored_judges") or {}).items():
+                agreement.append(f"On the answers of {answer_set['file']}, {model} and {other} (stored in that file) gave the same verdict on {a['agree']} of the {a['n']} "
+                                 f"answers both were asked about (Cohen's kappa {a['kappa']}).")
+    if scores or committed:
+        lines += ["", "Judge scores of the stored answers, only for a judge that passed the gate (correct 1, partial 0.5, wrong 0; the interval is a bootstrap over the answers):", "",
+                  "| answers of | judge | mean correctness | 95% interval | n | of which wrong by the abstention rule | verdicts correct / partial / wrong | "
+                  "verdict equals exact match, simple-factual | judge and generator |", "|---|---|---:|---|---:|---:|---|---|---|"]
+        if committed:
+            gen = committed["models"]["generator"]["model"]
+            ruled = (committed["summary"].get("abstention_rule") or {}).get("n", 0)
+            for name in committed["summary"].get("publishable_judges") or []:
+                k = committed["summary"]["kappa"][name]
+                own = k.get("simple_factual_answers") or {}
+                lines.append(f"| {gen} ([{JURY_FILE}]({JURY_FILE})) | {name} (committed run) | {k['mean_correctness_all']} | — | {k['n_all']} | {ruled} | — | "
+                             f"{own.get('agree', '—')} of {own.get('n', '—')} | "
+                             + ("the judge's own weights generated these answers (self-preference risk)" if name == gen else "another model than the generator") + " |")
+        lines += scores
+    if agreement:
+        lines += [""] + [" ".join(agreement) + " Agreement between two judges is not agreement with the truth."]
+    for model in dict.fromkeys(unpublished):
+        lines += ["", f"{model} did not pass the gate: its scores of the answers are in its results file and are not printed here."]
+    if pairs:
+        lines += ["", "Position bias, AB/BA swap (the generator's answer against the extractive answer, same judge, both orders; the mean position gap is the share of "
+                  "the verdict explained by order):", "", "| judge | answers of | P(LLM answer better) | mean position gap | order flips | n |", "|---|---|---:|---:|---:|---:|"] + pairs
+    lines += ["", "What this shows and what it does not: the gate's reference is an exact-match label on single-value answers whose wrong class is a planted value "
+              "of the same field, so a pass shows that a judge compares a single-value answer with the gold, not that it judges multi-part, paraphrased or computed "
+              "answers correctly; the answer sets also hold such answers. The M4 composite label is not collected by a judge-only run. Each judge file can be "
+              "re-read without a model: `make bench-jury-v3-check` recomputes every gate and summary from the stored verdicts, and "
+              "`make bench-jury-v3-answers-rescore` recomputes the deterministic checks from the stored answers."]
+    return "\n".join(lines)
+
+
+def jury_table(blob: dict | None, later_judges: dict[str, dict | None] | None = None) -> str:
     """M4: deterministic checks always; judge scores only when a judge passed the kappa gate. A file with a
     `protocol` block (M29 on) renders with jury_v2_table."""
     if not blob:
         return f"_{JURY_FILE} is missing; run `make bench-jury-v2` (needs Ollama)._"
     if "protocol" in blob:
-        return jury_v2_table(blob)
+        return jury_v2_table(blob, later_judges)
     s = blob["summary"]
     c = s["checks"]
     gen = blob["models"]["generator"]
@@ -2467,7 +2679,9 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-pgvector-hnsw": pgvector_hnsw_table(_load(root, PGVECTOR_HNSW_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),
         "api-latency": latency_table(root),
-        "bench-jury": jury_table(_load(root, JURY_FILE)),
+        "bench-jury": jury_table(_load(root, JURY_FILE), {m: _load(root, jury_v3_judge_file(m)) for m in JURY_V3_JUDGES}),
+        "bench-jury-v3": jury_v3_table(_load(root, JURY_FILE), {c: _load(root, jury_v3_answers_file(*c)) for c in JURY_V3_ANSWERS},
+                                       {m: _load(root, jury_v3_judge_file(m)) for m in JURY_V3_JUDGES}),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_V2_FILE), earlier=_load(root, AGENT_INJECTION_FILE)),
         "agent-injection-v3": agent_injection_v3_table(_load(root, AGENT_INJECTION_V3_FILE)),
         "agent-injection-adaptive": agent_injection_adaptive_table(_load(root, AGENT_INJECTION_ADAPTIVE_FILE)),

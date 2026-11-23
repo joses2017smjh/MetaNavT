@@ -270,6 +270,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     jury = _load(FILES["jury"], root)
     if jury and "protocol" in jury:
         out += _jury_v2_claims(jury, FILES["jury"])
+        out += _jury_v3_claims(root)  # M42: current open models as generators and judges, beside the committed run
     elif jury:
         s = jury["summary"]
         c = s["checks"]
@@ -480,6 +481,98 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
     for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
         out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"],
                     "command": cmd, "source": src, "not_shown": "a measure of order bias, not of answer quality"})
+    return out
+
+
+def _jury_v3_claims(root: Path = ROOT) -> list[dict]:
+    """M42: each new generator's deterministic checks with their intervals; each new judge's gate on the calibration
+    answers stored in jury_v2.json (or that it could not load); a judge's score of an answer set only where its gate
+    passed. A model with no results file has no row: the README block names it as not run."""
+    from app.eval.report import JURY_V3_ANSWERS, JURY_V3_JUDGES, jury_v3_answers_file, jury_v3_answers_label, jury_v3_judge_file
+
+    def dirty(flag) -> str:
+        return " with uncommitted changes" if flag is True else ""
+
+    out: list[dict] = []
+    for config in JURY_V3_ANSWERS:
+        (name, think, limit), model = config, jury_v3_answers_label(*config)
+        file = jury_v3_answers_file(*config)
+        blob = _load(file, root)
+        if not blob:
+            continue
+        c, ci = blob["summary"]["checks"], blob.get("check_intervals") or {}
+        cmd = f"make bench-jury-v3-answers GENERATOR={name}" + (" THINK=off" if think == "off" else "") + (f" ANSWERS_LIMIT={limit}" if limit else "")
+        empty = sum(1 for r in blob["rows"] if not r["answer"].strip() and not r["generation"].get("error"))
+        src = f"{file} @ {blob['git_sha']}{dirty(blob.get('working_tree_dirty'))}"
+        reasoning = ("reasoning turned off (`think: false` with every generation call)" if think == "off" else
+                     "the model reasons before it replies and only the reply is scored")
+        one_run = (f"one run on {(blob.get('device') or {}).get('device_name')}, Ollama {(blob.get('ollama') or {}).get('version')}; {reasoning}"
+                   + (f"; the first {limit} questions only" if limit else ""))
+
+        def interval(key: str) -> str:
+            return f"[{ci[key]['lo']}, {ci[key]['hi']}]" if ci.get(key) else "—"
+
+        out += [
+            {"claim": f"Generated answers ({model} via Ollama, fixture v1): answers with no valid citation (failed loud)", "value": f"{c['uncited_answers']['count']} of {c['uncited_answers']['n']}",
+             "ci": "—", "n": c["uncited_answers"]["n"], "command": cmd, "source": src,
+             "not_shown": f"a deterministic check of the citation contract, not answer quality; {_count(len(blob.get('generation_errors') or []), 'generation call')} failed and "
+                          f"{_count(empty, 'answer')} came back empty (the reasoning filled the context), and those count as uncited; {one_run}"},
+            {"claim": f"Generated answers ({model}): every cited path is in the retrieved set (answers with at least one citation)", "value": f"{c['cited_in_retrieved']['rate']}",
+             "ci": interval("cited_in_retrieved"), "n": c["cited_in_retrieved"]["n"], "command": cmd, "source": src,
+             "not_shown": f"abstentions are not counted; the interval is a bootstrap over the answers counted; {one_run}"},
+            {"claim": f"Generated answers ({model}): every number / config value appears in the cited bytes", "value": f"{c['values_in_cited_bytes']['rate']}",
+             "ci": interval("values_in_cited_bytes"), "n": c["values_in_cited_bytes"]["n"], "command": cmd, "source": src,
+             "not_shown": "only answers that state a value are counted; string containment, case-insensitive; a value in a different numeric format, or one the model computed, "
+                          f"counts as missing; {one_run}"},
+            {"claim": f"Generated answers ({model}): exact match vs gold (bounded, numeric-equivalent), simple_factual", "value": f"{c['exact_match_simple_factual']['rate']}",
+             "ci": interval("exact_match_simple_factual"), "n": c["exact_match_simple_factual"]["n"], "command": cmd, "source": src,
+             "not_shown": f"string / numeric match on single-value questions; paraphrased correct answers count as non-matches; {one_run}"},
+        ]
+    for model in JURY_V3_JUDGES:
+        file = jury_v3_judge_file(model)
+        blob = _load(file, root)
+        if not blob:
+            continue
+        cmd = f"make bench-jury-v3-judge JUDGE={model}"
+        heads = ", ".join(dict.fromkeys(f"{(seg.get('git_head') or '')[:7]}{dirty(seg.get('working_tree_dirty'))}" for seg in blob.get("segments") or []))
+        rs = blob.get("rescore") or {}
+        src = f"{file} @ {heads}" + (f" (summaries recomputed at {rs['checks_git_sha']} by `python -m app.eval.judge_stored --rescore`)" if rs else "")
+        devices = ", ".join(dict.fromkeys(str(seg.get("device_name")) for seg in blob.get("segments") or []))
+        gate = blob.get("gate")
+        if blob["status"] == "could not load" or not gate:
+            out.append({"claim": f"Judge {model}: could not load", "value": "not judged", "ci": "—", "n": 0, "command": cmd, "source": src,
+                        "not_shown": f"{blob.get('could_not_load')}; no calibration answer was judged, so this is not a gate result"})
+            continue
+        cal = blob["calibration"]
+        if not gate["complete"]:
+            status = f"the gate is not complete ({gate['n']} of {cal['n']} calibration answers judged); nothing of this judge is published"
+        elif not gate["reference"]["gate_evaluable"]:
+            status = "gate not evaluable: the reference is one class or empty; this judge's scores are not published"
+        else:
+            status = (f"passes the {gate['threshold']} gate; its correctness scores of the stored answers are published" if gate["passes"] else
+                      f"below the {gate['threshold']} gate; this judge's scores are not published")
+        r = gate["replies"]
+        out.append({"claim": f"Judge {model}: Cohen's kappa of its correctness verdicts vs exact-match labels, the calibration answers stored in {cal['file'].rsplit('/', 1)[-1]}",
+                    "value": f"{gate['kappa']}", "ci": f"[{gate['interval']['lo']}, {gate['interval']['hi']}]" if gate.get("interval") else "—", "n": gate["n"],
+                    "command": cmd, "source": src,
+                    "not_shown": f"{status}; the reference is {(cal.get('generator') or {}).get('model')}'s stored answers to the simple-factual questions from retrieved and from planted "
+                                 "contexts, so a pass shows gold comparison on single-value answers, not general correctness; "
+                                 f"{r['empty']} empty, {r['unparsed']} unreadable and {r['errors']} failed replies of {r['n']}; one run on {devices}; {gate['interval_method']}"})
+        for answers in blob.get("answer_sets") or []:
+            block = answers.get("generator") or {}
+            s_, gen = answers.get("summary") or {}, (block.get("model") or "the stored answers") + (", reasoning off," if block.get("think") == "off" else "")
+            if not s_.get("publishable"):
+                continue
+            m = s_["mean_correctness"]
+            whose = ("the judge's own weights generated these answers, so the score carries self-preference risk" if s_["self_judged"] else
+                     "the judge is another model than the generator")
+            agree = "; ".join(f"same verdict as {other} (stored in that file) on {a['agree']} of {a['n']} answers both were asked about, kappa {a['kappa']}"
+                              for other, a in (s_.get("agreement_with_stored_judges") or {}).items())
+            out.append({"claim": f"Judge {model} (passed the gate): mean correctness of {gen}'s answers in {answers['file'].rsplit('/', 1)[-1]} (correct 1, partial 0.5, wrong 0)",
+                        "value": f"{m['mean']}", "ci": f"[{m['interval']['lo']}, {m['interval']['hi']}]", "n": m["n"], "command": cmd, "source": src,
+                        "not_shown": f"{s_['abstention_only']['count']} of the {m['n']} labels come from the abstention rule (wrong), not from the judge; an LLM judge validated only on "
+                                     f"single-value answers, while these answers also include multi-part, comparative, aggregate and path answers; {whose}"
+                                     + (f"; {agree}" if agree else "") + "; the interval is a bootstrap over the answers"})
     return out
 
 

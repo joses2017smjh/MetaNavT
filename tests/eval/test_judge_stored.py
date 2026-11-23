@@ -374,8 +374,162 @@ def test_the_command_gates_and_labels_through_ollama_with_the_committed_request(
     assert "Verdict: kappa >= 0.6 for big:120b" in capsys.readouterr().out
 
 
+def test_a_generator_run_without_reasoning_says_so_everywhere(tmp_path, fake_server, monkeypatch):
+    """`--think off` (M42: a generator whose reasoning fills the context returns empty answers): the request carries
+    `think: false`, the file's generator block and request say so, and the file, the README row and the evidence rows
+    are named for the configuration; a limited run of a failing configuration is labelled as limited and never judged."""
+    from app.agent.generate import OllamaGenerator
+    from app.eval import evidence, llm_eval, report
+    from app.eval.harness import BenchConfig
+
+    OllamaGenerator(model="gen:122b", think=False).complete("p")
+    OllamaGenerator(model="gen:122b").complete("p")
+    assert [b.get("think", "absent") for b in fake_server["posts"]] == [False, "absent"]  # the committed request has no think key
+    cfg = BenchConfig(name="hybrid+router@hash", mode="hybrid", embedder="hash", enable_rerank=False, enable_router=True, staleness_tier1=True, log_triples=False, e2e=False)
+    off = llm_eval.run(config=cfg, generator_model="gen:122b", judge_models=[], limit=7, complete_fn=_generator, think=False)
+    assert off["models"]["generator"]["think"] == "off" and off["ollama"]["request"]["think"] == "false: sent with every generation call"
+    on = llm_eval.run(config=cfg, generator_model="gen:122b", judge_models=[], limit=3, complete_fn=lambda prompt: "")  # reasoned until the context was full
+    assert "think" not in on["models"]["generator"] and on["ollama"]["request"]["think"].startswith("not sent") and on["summary"]["checks"]["uncited_answers"] == {"count": 3, "n": 3}
+    assert report.jury_v3_answers_file("gen:122b", "off") == "bench/results/jury_v3_answers_gen-122b_think-off.json"
+    assert report.jury_v3_answers_file("gen:122b", "default", 3) == "bench/results/jury_v3_answers_gen-122b_first3.json"
+    configs = (("gen:122b", "default", 3), ("gen:122b", "off", None))
+    monkeypatch.setattr(report, "JURY_V3_ANSWERS", configs)
+    monkeypatch.setattr(report, "JURY_V3_JUDGES", ("judge:120b",))
+    (tmp_path / "bench" / "results").mkdir(parents=True)
+    for config, blob in zip(configs, (on, off)):
+        (tmp_path / report.jury_v3_answers_file(*config)).write_text(json.dumps(blob))
+    judged = judge_stored.run(judge_model="judge:120b", answers=[tmp_path / report.jury_v3_answers_file(*configs[1])], out=tmp_path / report.jury_v3_judge_file("judge:120b"),
+                              complete=exact_judge, judge_block={**BLOCK, "model": "judge:120b"})
+    assert judged["answer_sets"][0]["generator"]["think"] == "off"
+    text = report.jury_v3_table(None, dict(zip(configs, (on, off))), {"judge:120b": judged})
+    assert "| gen:122b (first 3 questions only) | [bench/results/jury_v3_answers_gen-122b_first3.json]" in text and "| 3 of 3 |" in text
+    assert "| gen:122b, reasoning off (first 7 questions only) | [bench/results/jury_v3_answers_gen-122b_think-off.json]" in text  # the test's own limit
+    assert "Answers that came back empty (the model reasoned until the context was full and never replied; an empty answer is uncited): gen:122b (first 3 questions only): 3." in text
+    assert "| gen:122b, reasoning off ([" in text.split("Judge scores of the stored answers")[1]
+    rows = evidence._jury_v3_claims(tmp_path)
+    limited = [r for r in rows if r["claim"].startswith("Generated answers (gen:122b (first 3 questions only)")]
+    assert limited[0]["command"] == "make bench-jury-v3-answers GENERATOR=gen:122b ANSWERS_LIMIT=3" and "3 answers came back empty" in limited[0]["not_shown"]
+    without = [r for r in rows if r["claim"].startswith("Generated answers (gen:122b, reasoning off")]
+    assert without[0]["command"] == "make bench-jury-v3-answers GENERATOR=gen:122b THINK=off" and "reasoning turned off" in without[0]["not_shown"]
+    assert [r["claim"] for r in rows if "mean correctness" in r["claim"]][0].startswith("Judge judge:120b (passed the gate): mean correctness of gen:122b, reasoning off,'s answers")
+
+
 def test_the_make_targets_name_the_module():
     makefile = (ROOT / "Makefile").read_text()
     for target in ("bench-judge-stored:", "bench-jury-v3-answers:", "bench-jury-v3-judge:", "bench-jury-v3-check:"):
         assert f"\n{target}" in makefile, target
-    assert "-m app.eval.judge_stored --judge $(JUDGE)" in makefile and "--judges none" in makefile
+    assert "-m app.eval.judge_stored --judge $(JUDGE)" in makefile and "--judges none" in makefile and "--think off" in makefile
+
+
+# ---- the README block and the evidence rows (app/eval/report.py jury_v3_table, app/eval/evidence.py _jury_v3_claims)
+
+def _generator(prompt: str) -> str:
+    """A fake generator: the first source's text with its tag; no citation for the questions about run 41."""
+    tag = re.search(r"Source 1 (\[[^\]]+\])\n(.*?)(?:\n\n|$)", prompt, re.S)
+    return "The value is in the config." if "run 41" in prompt.split("Question:")[-1] else f"{tag.group(2)} {tag.group(1)}"
+
+
+def _answers_blob(model: str = "gen:27b"):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    cfg = BenchConfig(name="hybrid+router@hash", mode="hybrid", embedder="hash", enable_rerank=False, enable_router=True, staleness_tier1=True, log_triples=False, e2e=False)
+    return llm_eval.run(config=cfg, generator_model=model, judge_models=[], limit=7, complete_fn=_generator)
+
+
+@pytest.fixture
+def jury_v3_files(tmp_path, monkeypatch):
+    """A results directory with one generator's answers and three judge files: a judge that passed, the generator
+    judging itself and failing, and a model that could not load; a second generator and a fourth judge have no file."""
+    from app.eval import report
+
+    monkeypatch.setattr(report, "JURY_V3_ANSWERS", (("gen:27b", "default", None), ("gen:122b", "off", None)))
+    monkeypatch.setattr(report, "JURY_V3_JUDGES", ("judge:120b", "gen:27b", "big:1t", "other:9b"))
+    results = tmp_path / "bench" / "results"
+    results.mkdir(parents=True)
+    answers_path = tmp_path / report.jury_v3_answers_file("gen:27b")
+    answers_path.write_text(json.dumps(_answers_blob()))
+    judges = {}
+    for judge, complete in (("judge:120b", exact_judge), ("gen:27b", yes_judge)):
+        out = tmp_path / report.jury_v3_judge_file(judge)
+        judges[judge] = judge_stored.run(judge_model=judge, answers=[JURY_V2, answers_path], out=out, complete=complete, judge_block={**BLOCK, "model": judge})
+
+    def refuses(model):
+        raise judge_stored.CouldNotLoad(f"the Ollama server does not list {model}; it has []")
+
+    monkeypatch.setattr(judge_stored, "ollama_judge_block", refuses)
+    judges["big:1t"] = judge_stored.run(judge_model="big:1t", answers=[JURY_V2], out=tmp_path / report.jury_v3_judge_file("big:1t"))
+    return tmp_path, json.loads(answers_path.read_text()), judges
+
+
+def test_the_readme_block_prints_every_model_and_only_the_scores_the_gate_allows(jury_v3_files):
+    from app.eval import report
+
+    root, answers, judges = jury_v3_files
+    committed = json.loads(JURY_V2.read_text())
+    text = report.render(json.loads((ROOT / "bench" / "results" / "main.json").read_text()), root)["bench-jury-v3"]
+    configs = {("gen:27b", "default", None): answers, ("gen:122b", "off", None): None}
+    assert text == report.jury_v3_table(None, configs, {**judges, "other:9b": None})  # no jury_v2.json under this root
+    text = report.jury_v3_table(committed, configs, {**judges, "other:9b": None})
+    # generators: the committed run as the parent, the new one with intervals, the one without a file named
+    assert "| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 |" in text
+    assert "| gen:27b (first 7 questions only) | [bench/results/jury_v3_answers_gen-27b.json](bench/results/jury_v3_answers_gen-27b.json) @ " in text and "| 2 of 7 | 0 / 0 |" in text
+    assert "| 1.0 [1.0, 1.0] (5) |" in text and "| gen:122b, reasoning off | no results file | not run |" in text
+    assert "Answers that came back empty" not in text and "Generation calls that failed" not in text
+    # the gate: committed judges, the judge that passed, the one that failed, the one that could not load, the one with no file
+    assert "| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.9509 | [0.9036, 0.9876] | 160 | yes |" in text
+    assert "| 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |" in text and "| 0.0 | [0.0, 0.0] | 160 | no | 160 / 0 / 0 |" in text
+    assert "| — | — | — | could not load | — | — |" in text and "big:1t could not load (the Ollama server does not list big:1t" in text
+    assert "| other:9b | no results file | not run |" in text and "gen:27b labelled all 160 calibration answers correct" in text
+    # scores: the committed judge's row and the passed judge's two answer sets; nothing of the failed judge
+    scores = text.split("Judge scores of the stored answers")[1].split("Position bias")[0]
+    assert scores.count("| judge:120b |") == 2 and "| gen:27b | " not in scores.split("did not pass")[0].replace("| gen:27b (", "(")
+    assert "| qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | qwen2.5:7b (committed run) | 0.8881 | — | 134 | 7 |" in scores
+    assert "another model than the generator |" in scores and "gen:27b did not pass the gate: its scores of the answers are in its results file and are not printed here." in scores
+    assert "judge:120b and qwen2.5:7b (stored in that file) gave the same verdict on" in scores and "not agreement with the truth" in scores
+    assert f"| {judges['gen:27b']['answer_sets'][1]['summary']['mean_correctness']['mean']} | [" not in scores  # the failed judge's mean stays in its file
+    # position bias is printed for every judge that compared pairs, passed or not
+    pairs = text.split("Position bias")[1]
+    assert "| judge:120b | gen:27b (" in pairs and "| gen:27b | gen:27b (" in pairs and "| 0.5 | 1.0 | 5 / 5 | 5 |" in pairs
+    assert "make bench-jury-v3-check" in text and "None" not in text
+    assert report.jury_v3_table(None, {("gen:27b", "default", None): None}, {"judge:120b": None}).startswith("_No jury_v3 file yet")
+
+
+def test_a_later_judge_of_another_model_is_named_under_the_committed_score(jury_v3_files):
+    """M38's question, answered in the committed run's own block: what a judge that is not the generator says about
+    the answers the generator scored itself."""
+    from app.eval import report
+
+    _, _, judges = jury_v3_files
+    committed = json.loads(JURY_V2.read_text())
+    passed = judges["judge:120b"]["answer_sets"][0]["summary"]
+    text = report.jury_table(committed, judges)
+    m, a = passed["mean_correctness"], passed["agreement_with_stored_judges"]["qwen2.5:7b"]
+    assert (f"A judge of another model added later, judge:120b, passed the same gate on these calibration answers (kappa 1.0) and scores the same 134 answers "
+            f"{m['mean']} [{m['interval']['lo']}, {m['interval']['hi']}]; it and qwen2.5:7b gave the same verdict on {a['agree']} of the {a['n']} answers both were asked about "
+            f"(kappa {a['kappa']}).") in text
+    assert "A judge of another model added later, gen:27b, did not pass the same gate on these calibration answers (kappa 0.0), so it is no check" in text
+    assert "big:1t" not in text and report.jury_table(committed) == report.jury_table(committed, {"x": None})  # no file, no sentence
+
+
+def test_the_evidence_rows_follow_the_gate(jury_v3_files):
+    from app.eval import evidence
+
+    root, answers, judges = jury_v3_files
+    rows = evidence._jury_v3_claims(root)
+    assert all(r["not_shown"] and r["source"].startswith("bench/results/jury_v3_") for r in rows)
+    gen = [r for r in rows if r["claim"].startswith("Generated answers (gen:27b")]
+    assert len(gen) == 4 and all(r["command"] == "make bench-jury-v3-answers GENERATOR=gen:27b" for r in gen)
+    exact, cited = answers["check_intervals"]["exact_match_simple_factual"], answers["check_intervals"]["cited_in_retrieved"]
+    assert gen[0]["value"] == "2 of 7" and (gen[1]["value"], gen[1]["ci"], gen[1]["n"]) == ("1.0", "[1.0, 1.0]", 5) == (str(cited["rate"]), f"[{cited['lo']}, {cited['hi']}]", cited["n"])
+    assert (gen[3]["value"], gen[3]["ci"], gen[3]["n"]) == (str(exact["rate"]), f"[{exact['lo']}, {exact['hi']}]", 5) and exact["lo"] < exact["hi"]
+    kappas = {r["claim"].split(":")[0] + ":" + r["claim"].split(":")[1]: r for r in rows if "Cohen's kappa" in r["claim"]}
+    assert set(kappas) == {"Judge judge:120b", "Judge gen:27b"} and kappas["Judge judge:120b"]["value"] == "1.0" and kappas["Judge judge:120b"]["ci"] == "[1.0, 1.0]"
+    assert "passes the 0.6 gate" in kappas["Judge judge:120b"]["not_shown"] and "below the 0.6 gate" in kappas["Judge gen:27b"]["not_shown"]
+    assert "the calibration answers stored in jury_v2.json" in kappas["Judge judge:120b"]["claim"] and "qwen2.5:1.5b's stored answers" in kappas["Judge judge:120b"]["not_shown"]
+    not_loaded = [r for r in rows if "could not load" in r["claim"]]
+    assert [r["value"] for r in not_loaded] == ["not judged"] and "not a gate result" in not_loaded[0]["not_shown"]
+    scores = [r for r in rows if "mean correctness" in r["claim"]]
+    assert [r["claim"].split(" (")[0] for r in scores] == ["Judge judge:120b", "Judge judge:120b"]  # one per answer set; none for the judge that failed
+    assert "qwen2.5:7b's answers in jury_v2.json" in scores[0]["claim"] and "same verdict as qwen2.5:7b" in scores[0]["not_shown"]
+    assert scores[1]["n"] == 5 and scores[1]["ci"].startswith("[") and "another model than the generator" in scores[1]["not_shown"]

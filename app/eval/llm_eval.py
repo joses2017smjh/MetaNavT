@@ -64,6 +64,9 @@ context length), and each row stores the extractive answer of its AB/BA pair.
 is a generate-only run (M42): steps 1 to 3, no judge and no calibration set.
 Its answers are judged later, one judge at a time, by app/eval/judge_stored.py,
 which gates each judge on the calibration answers stored in jury_v2.json.
+`--think off` sends `think: false` with every generation call, for a model
+whose reasoning does not end inside the context (its answers are then empty);
+the generator block and `ollama.request` say so.
 
     python -m app.eval.llm_eval --rescore bench/results/jury.json
 
@@ -296,9 +299,12 @@ def run(
     base_url: str | None = None,
     complete_fn=None,
     calibration_generator: str | None = None,
+    think: bool | None = None,
 ) -> dict[str, Any]:
     """Score generated answers. `complete_fn` (prompt -> text) replaces Ollama for tests. With a
-    `calibration_generator`, the gate's reference is the calibration set (CALIBRATION_CONDITIONS) it answers."""
+    `calibration_generator`, the gate's reference is the calibration set (CALIBRATION_CONDITIONS) it answers.
+    `think=False` sends `think: false` with every generation call (M42: a generator whose reasoning does not end
+    inside the context returns empty answers at the server's default); None sends no key, as every committed run."""
     root = root or project_root()
     started = git_state(root)  # before the run writes anything (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
@@ -327,7 +333,7 @@ def run(
     ollama_models = list(dict.fromkeys([generator_model, *judge_models, *([calibration_generator] if calibration_generator else [])]))
     cal_generator = OllamaGenerator(model=calibration_generator, base_url=base_url) if calibration_generator else None
     if complete_fn is not None:
-        generator = OllamaGenerator(model=generator_model, base_url=base_url)
+        generator = OllamaGenerator(model=generator_model, base_url=base_url, think=think)
         generator.complete = complete_fn  # type: ignore[method-assign]
         if cal_generator is not None:
             cal_generator.complete = complete_fn  # type: ignore[method-assign]
@@ -342,7 +348,7 @@ def run(
         undigested = [m for m in ollama_models if not ollama_tag_entry(m, tags).get("digest")]
         if undigested:  # the results would name these weights by tag only
             raise SystemExit(f"Ollama lists no digest for {undigested}; refusing to record weights by tag alone")
-        generator = OllamaGenerator(model=generator_model, base_url=base_url, timeout=float(os.environ.get("OLLAMA_TIMEOUT", "600")))
+        generator = OllamaGenerator(model=generator_model, base_url=base_url, timeout=float(os.environ.get("OLLAMA_TIMEOUT", "600")), think=think)
         judges = [(name, LlmJudge(model=name, name=name)) for name in judge_models]
         pair_fns = {name: (lambda prompt, _m=name: ollama_complete(prompt, model=_m) or "") for name in judge_models}
     heuristic = HeuristicJudge()
@@ -452,12 +458,13 @@ def run(
         "n_gold": len(gold),
         "config": bench_settings(config),
         "models": {
-            "generator": ollama_model_provenance(generator_model, "generator", tags) | {"temperature": 0.0, "seed": 0},
+            "generator": ollama_model_provenance(generator_model, "generator", tags) | {"temperature": 0.0, "seed": 0} | ({} if think is None else {"think": "on" if think else "off"}),
             "judges": [ollama_model_provenance(m, "judge", tags) for m in judge_models],
             "embedder": model_provenance(config.embedder, "embedder"),
             "reranker": model_provenance(config.reranker, "reranker") | {"loaded": bool(getattr(index, "reranker_loaded", False))},
         },
-        "ollama": {"version": ollama_version(base_url) if tags else None, "generator_loaded": generator_loaded, "request": OLLAMA_REQUEST},
+        "ollama": {"version": ollama_version(base_url) if tags else None, "generator_loaded": generator_loaded,
+                   "request": OLLAMA_REQUEST if think is None else OLLAMA_REQUEST | {"think": f"{str(think).lower()}: sent with every generation call"}},
         "kappa_gate": KAPPA_GATE,
         "protocol": {
             "gated_label": GATED_LABEL,
@@ -876,6 +883,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="answer the simple-factual questions again with MODEL from the retrieved and from a planted context; "
                         "those answers become the gate's reference (the calibration set)")
     p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--think", choices=["default", "off"], default="default",
+                   help="off sends `think: false` with every generation call (a reasoning model then answers directly); default sends "
+                        "no key, as every committed run")
     p.add_argument("--embedder", default=DEFAULT_CONFIG.embedder)
     p.add_argument("--reranker", default=DEFAULT_CONFIG.reranker)
     p.add_argument("--no-router", action="store_true")
@@ -902,7 +912,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     judges = [m.strip() for m in args.judges.split(",") if m.strip() and m.strip().lower() != "none"]
     blob = run(root=root, config=config, generator_model=args.generator, judge_models=judges, limit=args.limit,
-               calibration_generator=args.calibration_generator)
+               calibration_generator=args.calibration_generator, think=False if args.think == "off" else None)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2) + "\n")

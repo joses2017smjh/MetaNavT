@@ -338,7 +338,9 @@ ignored file does not; a tracked results file an earlier run rewrote counts too,
 such as `latest.json` after a previous `make bench`, so a re-record starts from a
 clean checkout) and the SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
 ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation,
-ingest-runs, answer-evaluation (`app/eval/llm_eval.py`) and robotics-lookup
+ingest-runs, answer-evaluation (`app/eval/llm_eval.py`, and the judge-only
+`app/eval/judge_stored.py`, whose `segments` list also names the commit and
+tree of each judging run of a resumed file) and robotics-lookup
 (`app/eval/robotics.py evaluate`, next to the `code_sha256` its mixed-run check
 compares) writers record that block, with every `app/` module the process
 imported as the source files. A rescored answer-evaluation file's header describes
@@ -1463,6 +1465,75 @@ version, and a model run refuses to start when a tag has no digest; files
 recorded before that (`jury.json`) name the Ollama models by tag only.
 
 [Current generated bench-jury evidence](../README.md#bench-jury).
+
+### Current open models as generators and judges
+
+The models above are those of the first runs. `make bench-jury-v3-answers` and
+`make bench-jury-v3-judge` measure current open-weight models in two stages, so
+that a judge can be added to answers that already exist, a generator's answers
+survive a judge that fails, and neither committed file is rewritten.
+
+Stage one is the run above with `--judges none`: the same retrieval
+configuration, a cited answer per gold question, the deterministic checks, and
+no judge and no calibration set. Each rate also gets a percentile bootstrap
+interval over the answers it counts (`check_intervals`), each row stores the
+extractive answer of its AB/BA pair, and the header records what every call
+sends and how the server held the generator (`/api/ps`: the size the server
+reports, how much of it is on the GPU, the context length). A generation call
+that fails is kept in its row as an empty answer, which is uncited; five
+failures in a row stop the run with nothing written.
+
+Stage two is `app/eval/judge_stored.py`: one judge over stored answers. The
+judge is first gated on the calibration answers stored in `jury_v2.json`. They
+are read from the committed file and never regenerated; each reference label is
+recomputed and must equal the stored one, and the judge file records the
+SHA-256 of the items the judge was shown. The gate is the one above (Cohen's
+kappa of the correctness verdicts against exact match, the interval over
+questions), so a new judge's kappa is measured on the items the committed
+judges were measured on. The judge then labels stored answers: the rows of an
+answer-evaluation file (`jury_v2.json` itself, which gives the first run's
+answers a judge that is not their generator, and each stage-one file) or a
+JSONL of answers recorded elsewhere (`id`, `question`, `gold`, `answer`,
+`cited_paths`). The rules are the run's: an uncited answer fails loudly and is
+not judged, an answer that is `NOT IN SOURCES` and nothing else is wrong by
+rule, and the AB/BA pair is asked where the row stores an extractive answer.
+The composite label needs the retrieved context and is not collected. Where the
+answers file already stores a judge's verdicts, the summary gives Cohen's kappa
+between the two judges; two judges agreeing is not agreement with the truth.
+
+A judge's score of an answer set may be published only when its gate passed in
+the same file. A model that is not there is not a judge that failed: before any
+item is judged the model is loaded, and the file records `could not load`
+unless the server reports it wholly on the GPU and it answers a warm-up prompt;
+five failed calls in a row stop the run as interrupted, and `--resume`
+continues it, asking only what is missing or failed, and refusing another
+judge (model digest, server version, context length), another calibration set
+or another protocol. The file is written after every phase, and it takes its
+provenance block from `run_provenance` like the other writers
+([CPU benchmark](#cpu-benchmark)), with one entry per judging run in
+`segments`. `make bench-jury-v3-check` recomputes every gate and summary from
+the stored verdicts and the inputs' hashes with no model and no retrieval, and
+`make bench-jury-v3-answers-rescore` recomputes the deterministic checks as
+above, so the run can be re-read on a CPU.
+
+`make bench-judge-stored ANSWERS=<file> JUDGE=<model>` is the same entry point
+as one command for answers recorded elsewhere: it gates the named judge on the
+stored calibration answers and labels the file in the same run, and its output
+says whether the scores may be published.
+
+These models reason before they reply. The request is the committed one, with
+no `think` key, so they do so at the server's default; the server returns the
+reasoning beside the reply, and the files store the reply and the number of
+generated tokens (a judge file also the length of the reasoning), not its
+text. A generator whose reasoning does not end inside the context returns an
+empty answer, which is uncited and counted. For such a model
+`make bench-jury-v3-answers THINK=off` sends `think: false` with every
+generation call; the file, its generator block and every table name that run as
+reasoning off. `ANSWERS_LIMIT` answers the first questions only, as the record
+of a configuration that fails; such a file is named as limited and is never
+judged.
+
+[Current generated bench-jury-v3 evidence](../README.md#bench-jury-v3).
 
 The heuristic token-overlap judge is kept as a labelled column for comparison
 and is never an LLM result. The e2e columns of the older result files
