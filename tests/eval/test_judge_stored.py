@@ -505,9 +505,13 @@ def test_a_later_judge_of_another_model_is_named_under_the_committed_score(jury_
     passed = judges["judge:120b"]["answer_sets"][0]["summary"]
     text = report.jury_table(committed, judges)
     m, a = passed["mean_correctness"], passed["agreement_with_stored_judges"]["qwen2.5:7b"]
+    conf = a["confusion_stored_by_this_judge"]  # rows: qwen2.5:7b's stored label; columns: the later judge's
+    lower = conf["correct"]["partial"] + conf["correct"]["wrong"] + conf["partial"]["wrong"]
+    higher = conf["partial"]["correct"] + conf["wrong"]["correct"] + conf["wrong"]["partial"]
+    assert lower + higher == a["n"] - a["agree"] > 0
     assert (f"A judge of another model added later, judge:120b, passed the same gate on these calibration answers (kappa 1.0) and scores the same 134 answers "
             f"{m['mean']} [{m['interval']['lo']}, {m['interval']['hi']}]; it and qwen2.5:7b gave the same verdict on {a['agree']} of the {a['n']} answers both were asked about "
-            f"(kappa {a['kappa']}).") in text
+            f"(kappa {a['kappa']}); where they differ, judge:120b gave the lower label {lower} times and qwen2.5:7b {higher} time{'' if higher == 1 else 's'}.") in text
     assert "A judge of another model added later, gen:27b, did not pass the same gate on these calibration answers (kappa 0.0), so it is no check" in text
     assert "big:1t" not in text and report.jury_table(committed) == report.jury_table(committed, {"x": None})  # no file, no sentence
 

@@ -31,7 +31,8 @@ JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the 
 # An answers file is one generator in one configuration: (model, think, limit). think "off" sends `think: false` with
 # every generation call; a limit is a run over the first N questions only, kept as the record of a configuration that
 # fails (qwen3.5:122b's reasoning at the server's default does not end inside the context) and never judged.
-JURY_V3_ANSWERS = (("qwen3.5:27b", "default", None), ("gemma4:26b", "default", None), ("qwen3.5:122b", "default", 8), ("qwen3.5:122b", "off", None))
+JURY_V3_ANSWERS = (("gemma4:26b", "default", None), ("qwen3.5:27b", "default", None), ("qwen3.5:27b", "off", None),
+                   ("qwen3.5:122b", "default", 8), ("qwen3.5:122b", "off", None))
 JURY_V3_JUDGES = ("gpt-oss:120b", "gemma4:26b")
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the second run: capability control, controls with neutral lines
@@ -983,6 +984,19 @@ def _jury_sha_note(blob: dict, target: str) -> str:
             f"`{target}-rescore` at sha {rs['checks_git_sha']}{checks}")
 
 
+def _direction(agreement: dict, this: str, other: str) -> str:
+    """Which way two judges' disagreements on the same answers go, from the stored confusion matrix (rows: the stored
+    judge's label; columns: this judge's): how many times each gave the lower label."""
+    conf = agreement.get("confusion_stored_by_this_judge") or {}
+    rank = {"correct": 2, "partial": 1, "wrong": 0}
+    lower = sum(n for a, row in conf.items() for b, n in row.items() if rank[b] < rank[a])
+    higher = sum(n for a, row in conf.items() for b, n in row.items() if rank[b] > rank[a])
+    if not lower + higher:
+        return ""
+    times = lambda n: f"{n} time{'' if n == 1 else 's'}"  # noqa: E731
+    return f"; where they differ, {this} gave the lower label {times(lower)} and {other} {times(higher)}"
+
+
 def _later_judge_note(later: dict | None) -> str | None:
     """What a judge of another model, added later (M42: a jury_v3 judge file, gated on this file's calibration
     answers), says about this run's answers: its score beside the generator's own, or that it is no check."""
@@ -996,7 +1010,7 @@ def _later_judge_note(later: dict | None) -> str | None:
         return (f"A judge of another model added later, {judge}, did not pass the same gate on these calibration answers (kappa {g['kappa']}), "
                 "so it is no check on the score above ([the block below](#bench-jury-v3)).")
     m = s["mean_correctness"]
-    same = "; ".join(f"it and {other} gave the same verdict on {a['agree']} of the {a['n']} answers both were asked about (kappa {a['kappa']})"
+    same = "; ".join(f"it and {other} gave the same verdict on {a['agree']} of the {a['n']} answers both were asked about (kappa {a['kappa']})" + _direction(a, judge, other)
                      for other, a in (s.get("agreement_with_stored_judges") or {}).items() if other == (mine.get("generator") or {}).get("model"))
     return (f"A judge of another model added later, {judge}, passed the same gate on these calibration answers (kappa {g['kappa']}) and scores the same "
             f"{m['n']} answers {m['mean']} [{m['interval']['lo']}, {m['interval']['hi']}]" + (f"; {same}" if same else "")
@@ -1208,7 +1222,8 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
            f"of the items, {cal['items_sha256'][:12]})" if cal else "")
         + f". Models are served by Ollama{' ' + ', '.join(versions) if versions else ''} and pinned by digest in every file. Every call is the committed request "
         "(temperature 0, seed 0, no `think` key): these models reason before they reply, at the server's default, and the reasoning is "
-        "not part of the reply that is stored and scored. No committed file is rewritten; rows of "
+        "not part of the reply that is stored and scored. A generator row marked reasoning off sent `think: false` with every "
+        "generation call instead. No committed file is rewritten; rows of "
         f"[{JURY_FILE}]({JURY_FILE}) are repeated below as parents.",
         "",
         "Generators: deterministic checks of the answers (no model involved). Rates carry a 95% bootstrap interval over the answers they "
@@ -1283,9 +1298,12 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
             note = "the judge's own weights generated these answers (self-preference risk)" if s["self_judged"] else "another model than the generator"
             scores.append(f"| {who} | {model} | {m['mean']} | [{m['interval']['lo']}, {m['interval']['hi']}] | {m['n']} | {s['abstention_only']['count']} | "
                           f"{_lcpw(s['label_counts'])} | {s['simple_factual_answers']['agree']} of {s['simple_factual_answers']['n']} | {note} |")
+            validated = (committed or {}).get("summary", {}).get("publishable_judges") if answer_set["file"] == JURY_FILE else None
             for other, a in (s.get("agreement_with_stored_judges") or {}).items():
+                if validated is not None and other not in validated:  # a stored judge that failed its own gate is no yardstick
+                    continue
                 agreement.append(f"On the answers of {answer_set['file']}, {model} and {other} (stored in that file) gave the same verdict on {a['agree']} of the {a['n']} "
-                                 f"answers both were asked about (Cohen's kappa {a['kappa']}).")
+                                 f"answers both were asked about (Cohen's kappa {a['kappa']}){_direction(a, model, other)}.")
     if scores or committed:
         lines += ["", "Judge scores of the stored answers, only for a judge that passed the gate (correct 1, partial 0.5, wrong 0; the interval is a bootstrap over the answers):", "",
                   "| answers of | judge | mean correctness | 95% interval | n | of which wrong by the abstention rule | verdicts correct / partial / wrong | "

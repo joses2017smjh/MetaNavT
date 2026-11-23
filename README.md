@@ -63,6 +63,8 @@ FiQA has also been run through the served path end to end (the served indexer, P
 
 The generated-answer study is separate from retrieval ranking. Its judge-validity gate is now evaluable: the simple-factual slice is saturated, so each judge's correctness verdicts are checked against exact match on a calibration set, a smaller model answering those questions from retrieved and from planted contexts. qwen2.5:7b passed and its score of the generator's answers is published, with the caveats that it is the generator's own model and was validated on single-value answers only; llama3.1:8b called every calibration answer correct and failed. [Generated table](#bench-jury) · [Answer-evaluation artifact](bench/results/jury_v2.json) · [First run](bench/results/jury.json).
 
+Current open-weight models were then measured in two stages: each generator answers the gold questions with no judge, and each judge is gated on the same stored calibration answers before it labels stored answers. gpt-oss:120b agreed with exact match on every calibration answer and gemma4:26b on all but one, so both passed, and the first run's answers now carry scores from two judges that are not their generator: both score them lower than the generator's own model did, and where a new judge and that model differ, the new judge is almost always the stricter one. [Generated table](#bench-jury-v3) · judge files [gpt-oss:120b](bench/results/jury_v3_judge_gpt-oss-120b.json), [gemma4:26b](bench/results/jury_v3_judge_gemma4-26b.json).
+
 The prompt-injection study is separate again: two local models choose MCP file-tool calls over corpus copies whose answering files carry planted instructions. The current run plants each goal in seven phrasings, five of them AgentDojo's templates, and adds a configuration that puts the structured field check between the answer and the user. Under at least one phrasing the stronger model stated the planted value for every hijack question and seed in every configuration. With the check in the loop the planted value reached the user less often for both models, with no measurable change in utility under attack; every planted value that still got through was stated beside the true value, including answers that gave it as the true value's correction. The one planted-action attempt the run counts, a patch proposal from the weaker model in an episode where no tool result held any of the planted text, was rejected for a missing argument. [Protocol and limits](doc/engineering-reference.md#does-the-agent-follow-instructions-planted-in-files) · [Generated table](#agent-injection-v3) · [Every episode](bench/results/agent_injection_v3_episodes.jsonl).
 
 In the second run, with one phrasing per goal and task, neither model pursued a planted file action. Asked by the user for the same move or patch (a capability control), both models called the write tools and the operator signed their proposals, so where an injected task is offered those tools the zero is not an inability to make the calls; completing the action, which also needs the plan id and the operator's signed token passed on unchanged, was rarer. The stronger model stated the planted value in nearly every hijack episode in every configuration. [Generated table](#agent-injection) · [Every episode](bench/results/agent_injection_v2_episodes.jsonl).
@@ -660,6 +662,10 @@ Judge scores of the run's answers (published because the judge passed the gate; 
 
 qwen2.5:7b scores answers its own weights generated (self-preference risk), and the gate validated it on single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers.
 
+A judge of another model added later, gpt-oss:120b, passed the same gate on these calibration answers (kappa 1.0) and scores the same 134 answers 0.8358 [0.7761, 0.8881]; it and qwen2.5:7b gave the same verdict on 115 of the 127 answers both were asked about (kappa 0.5658); where they differ, gpt-oss:120b gave the lower label 12 times and qwen2.5:7b 0 times. Two judges agreeing is not agreement with the truth ([the block below](#bench-jury-v3)).
+
+A judge of another model added later, gemma4:26b, passed the same gate on these calibration answers (kappa 0.9875) and scores the same 134 answers 0.8321 [0.7687, 0.8881]; it and qwen2.5:7b gave the same verdict on 114 of the 127 answers both were asked about (kappa 0.5294); where they differ, gemma4:26b gave the lower label 12 times and qwen2.5:7b 1 time. Two judges agreeing is not agreement with the truth ([the block below](#bench-jury-v3)).
+
 Verdict: kappa >= 0.6 for qwen2.5:7b: its correctness score may be published.
 
 What the gate shows and what it does not: the reference is an exact-match label, so a negated or hedged answer that still quotes the gold value counts as correct and a correct paraphrase does not; and the calibration set's wrong class is a planted value of the same field, so a pass shows that a judge compares a single-value answer with the gold, not that it judges multi-part, paraphrased or computed answers correctly.
@@ -672,7 +678,39 @@ Earlier record: [bench/results/jury.json](bench/results/jury.json), the first ru
 ### Answer evaluation with current open models
 
 <!-- bench-jury-v3:start (generated by `make bench-table` from bench/results/jury_v3_answers_*.json, bench/results/jury_v3_judge_*.json and bench/results/jury_v2.json; do not edit by hand) -->
-_No jury_v3 file yet; run `make bench-jury-v3-answers` and `make bench-jury-v3-judge` (they need Ollama)._
+Current open-weight models as generators and as judges, in two stages. `make bench-jury-v3-answers GENERATOR=<model>` writes one generator's cited answers on fixture v1 with their deterministic checks and no judge. `make bench-jury-v3-judge JUDGE=<model>` gates one judge and then labels stored answers: the gate's reference is the 160 calibration answers stored in [bench/results/jury_v2.json](bench/results/jury_v2.json) (the answers of qwen2.5:1.5b, read from the committed file and never regenerated; the judge files record the sha256 of the items, 4ecf9a02bbc9). Models are served by Ollama 0.40.16 and pinned by digest in every file. Every call is the committed request (temperature 0, seed 0, no `think` key): these models reason before they reply, at the server's default, and the reasoning is not part of the reply that is stored and scored. A generator row marked reasoning off sent `think: false` with every generation call instead. No committed file is rewritten; rows of [bench/results/jury_v2.json](bench/results/jury_v2.json) are repeated below as parents.
+
+Generators: deterministic checks of the answers (no model involved). Rates carry a 95% bootstrap interval over the answers they count, then n; the committed run's file has no intervals.
+
+| generator | results file | GPU | context | uncited answers (failed loud) | abstained / NOT IN SOURCES only | cited path in the retrieved set | values in the cited bytes | exact match, simple-factual | generation p50 / p95 ms |
+|---|---|---|---:|---:|---:|---|---|---|---:|
+| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | — | 2 of 136 | 8 / 7 | 0.9921 (127) | 0.8804 (92) | 1.0 (80) | 1927.69 / 4885.63 |
+| gemma4:26b | no results file | not run | — | — | — | — | — | — | — |
+| qwen3.5:27b | no results file | not run | — | — | — | — | — | — | — |
+| qwen3.5:27b, reasoning off | no results file | not run | — | — | — | — | — | — | — |
+| qwen3.5:122b (first 8 questions only) | no results file | not run | — | — | — | — | — | — | — |
+| qwen3.5:122b, reasoning off | no results file | not run | — | — | — | — | — | — | — |
+
+Judges: the gate. Cohen's kappa between a judge's correctness verdicts and the exact-match labels of the calibration answers must reach 0.6; the interval resamples questions.
+
+| judge | results file | GPU | kappa vs exact match (calibration set) | 95% interval | n | passes gate | verdicts correct / partial / wrong | replies empty / unreadable / failed calls |
+|---|---|---|---:|---|---:|:---:|---|---|
+| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.9509 | [0.9036, 0.9876] | 160 | yes | 80 / 3 / 77 | 0 / 0 / — of 160 |
+| llama3.1:8b (8.0B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.0 | [0.0, 0.0] | 160 | no | 160 / 0 / 0 | 0 / 0 / — of 160 |
+| gpt-oss:120b (116.8B, MXFP4) | [bench/results/jury_v3_judge_gpt-oss-120b.json](bench/results/jury_v3_judge_gpt-oss-120b.json) @ e7a3247 | NVIDIA H100 80GB HBM3 | 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |
+| gemma4:26b (25.2B, Q4_K_M) | [bench/results/jury_v3_judge_gemma4-26b.json](bench/results/jury_v3_judge_gemma4-26b.json) @ e7a3247 | Quadro RTX 8000 | 0.9875 | [0.9625, 1.0] | 160 | yes | 80 / 0 / 80 | 0 / 0 / 0 of 160 |
+
+Judge scores of the stored answers, only for a judge that passed the gate (correct 1, partial 0.5, wrong 0; the interval is a bootstrap over the answers):
+
+| answers of | judge | mean correctness | 95% interval | n | of which wrong by the abstention rule | verdicts correct / partial / wrong | verdict equals exact match, simple-factual | judge and generator |
+|---|---|---:|---|---:|---:|---|---|---|
+| qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | qwen2.5:7b (committed run) | 0.8881 | — | 134 | 7 | — | 80 of 80 | the judge's own weights generated these answers (self-preference risk) |
+| qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | gpt-oss:120b | 0.8358 | [0.7761, 0.8881] | 134 | 7 | 107 / 10 / 17 | 80 of 80 | another model than the generator |
+| qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | gemma4:26b | 0.8321 | [0.7687, 0.8881] | 134 | 7 | 107 / 9 / 18 | 80 of 80 | another model than the generator |
+
+On the answers of bench/results/jury_v2.json, gpt-oss:120b and qwen2.5:7b (stored in that file) gave the same verdict on 115 of the 127 answers both were asked about (Cohen's kappa 0.5658); where they differ, gpt-oss:120b gave the lower label 12 times and qwen2.5:7b 0 times. On the answers of bench/results/jury_v2.json, gemma4:26b and qwen2.5:7b (stored in that file) gave the same verdict on 114 of the 127 answers both were asked about (Cohen's kappa 0.5294); where they differ, gemma4:26b gave the lower label 12 times and qwen2.5:7b 1 time. Agreement between two judges is not agreement with the truth.
+
+What this shows and what it does not: the gate's reference is an exact-match label on single-value answers whose wrong class is a planted value of the same field, so a pass shows that a judge compares a single-value answer with the gold, not that it judges multi-part, paraphrased or computed answers correctly; the answer sets also hold such answers. The M4 composite label is not collected by a judge-only run. Each judge file can be re-read without a model: `make bench-jury-v3-check` recomputes every gate and summary from the stored verdicts, and `make bench-jury-v3-answers-rescore` recomputes the deterministic checks from the stored answers.
 <!-- bench-jury-v3:end -->
 
 <a id="agent-injection"></a>
