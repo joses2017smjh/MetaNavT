@@ -833,3 +833,105 @@ def test_the_evidence_rows_say_what_the_interval_resamples():
     del blob["summary"]["interval"]  # a file that names no method gets the generic phrase, never "None"
     kappas = [r for r in evidence._jury_v2_claims(blob, "bench/results/jury_v2.json") if "vs exact-match labels" in r["claim"]]
     assert kappas and all(r["not_shown"].endswith("; percentile bootstrap interval") and "None" not in r["not_shown"] for r in kappas)
+
+
+# ---- M42: a generate-only run (answers and deterministic checks; judged later by app/eval/judge_stored.py)
+
+def _without(path, key):
+    """A copy of the results file at `path` without `key`."""
+    blob = json.loads(path.read_text())
+    blob.pop(key)
+    other = path.with_name("older.json")
+    other.write_text(json.dumps(blob))
+    return other
+
+
+def test_a_generate_only_run_has_answers_checks_and_no_jury(tmp_path):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    prompts = []
+
+    def fake(prompt: str) -> str:
+        prompts.append(prompt)
+        return _echo_and_exact_judge(prompt)
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=[], limit=4, complete_fn=fake)
+    assert len(prompts) == 4 and all("Rules:" in p for p in prompts)  # one generation per question and no judge call
+    s = blob["summary"]
+    assert blob["models"]["judges"] == [] and s["kappa"] == {} and s["publishable_judges"] == [] and s["verdict"] == llm_eval.NO_JUDGE_VERDICT
+    assert s["checks"]["exact_match_simple_factual"]["n"] == 4 and set(s["composite"]) == {"heuristic"} and "calibration" not in blob
+    assert all(r["extractive"] and r["correctness"] == {} and r["pairwise_llm_vs_extractive"] == {} for r in blob["rows"])
+    assert blob["ollama"]["request"]["think"].startswith("not sent") and blob["ollama"]["generator_loaded"] == {}  # no server was asked
+    assert "judges none (generate-only)" in llm_eval.markdown_table(blob)
+    ci = blob["check_intervals"]  # each deterministic-check rate with its interval over the answers it counts
+    for key in ("cited_in_retrieved", "values_in_cited_bytes", "values_in_any_evidence", "exact_match_simple_factual"):
+        assert (ci[key]["rate"], ci[key]["n"]) == (s["checks"][key]["rate"], s["checks"][key]["n"]) and ci[key]["lo"] <= ci[key]["rate"] <= ci[key]["hi"]
+    assert ci["uncited_answers"] == {"rate": 0.0, "lo": 0.0, "hi": 0.0, "n": 4} and (ci["seed"], ci["n_boot"]) == (0, 2000)
+    path = tmp_path / "jury_v3_answers_fake-gen.json"
+    path.write_text(json.dumps(blob))
+    again = llm_eval.rescore(path)
+    assert again["summary"] == s and [r["extractive"] for r in again["rows"]] == [r["extractive"] for r in blob["rows"]]
+    assert again["check_intervals"] == ci and "check_intervals" not in llm_eval.rescore(_without(path, "check_intervals"))  # older files keep their shape
+    blob["rows"][0]["extractive"] += " and more"  # the pair's other answer must be the one today's retrieval gives
+    path.write_text(json.dumps(blob))
+    with pytest.raises(SystemExit, match="extractive answer differs"):
+        llm_eval.rescore(path)
+
+
+def test_the_command_takes_none_for_a_generate_only_run(tmp_path, monkeypatch):
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    real, seen = llm_eval.run, {}
+
+    def run(**kwargs):
+        seen.update(kwargs)
+        return real(config=BenchConfig(**HASH_CFG), generator_model=kwargs["generator_model"], judge_models=kwargs["judge_models"], limit=2,
+                    complete_fn=_echo_and_exact_judge)
+
+    monkeypatch.setattr(llm_eval, "run", run)
+    out = tmp_path / "answers.json"
+    assert llm_eval.main(["--out", str(out), "--generator", "gen:27b", "--judges", "none"]) == 0
+    assert seen["judge_models"] == [] and seen["calibration_generator"] is None
+    assert json.loads(out.read_text())["models"]["generator"]["model"] == "gen:27b"
+
+
+def test_the_header_records_how_the_server_held_the_generator(fake_ollama, monkeypatch):
+    """/api/ps while the generator is loaded: its size, how much of it is on the GPU, the context length."""
+    from app.eval import llm_eval, provenance
+    from app.eval.harness import BenchConfig
+
+    listing, url = fake_ollama
+    listing["models"] = [_tag("fake-gen", DIGESTS["fake-gen"])]
+    monkeypatch.setattr(provenance, "_ollama_get", lambda route, base_url, timeout, _real=provenance._ollama_get: (
+        {"models": [{"name": "fake-gen", "digest": DIGESTS["fake-gen"], "size": 17_000, "size_vram": 17_000, "context_length": 8192}]}
+        if route == "/api/ps" else _real(route, base_url, timeout)))
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=[], limit=1, complete_fn=_echo_and_exact_judge, base_url=url)
+    assert blob["ollama"]["generator_loaded"] == {"model": "fake-gen", "digest": DIGESTS["fake-gen"], "size_bytes": 17_000, "size_vram_bytes": 17_000,
+                                                  "context_length": 8192}
+    assert provenance.ollama_loaded("other-model", url) == {}
+
+
+def test_a_failed_generation_call_is_kept_in_its_row_and_five_in_a_row_stop_the_run():
+    """A timeout on one question is that question's failure (an empty answer is uncited, with the error in its row);
+    a generator that is gone must not be recorded as 136 uncited answers."""
+    from app.eval import llm_eval
+    from app.eval.harness import BenchConfig
+
+    def flaky(prompt: str) -> str:
+        if "run 40 use" in prompt.split("Question:")[-1] and "bark" in prompt.split("Question:")[-1]:
+            raise TimeoutError("timed out")
+        return _echo_and_exact_judge(prompt)
+
+    blob = llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=[], limit=5, complete_fn=flaky)
+    assert blob["generation_errors"] == ["q003"]
+    row = next(r for r in blob["rows"] if r["id"] == "q003")
+    assert row["answer"] == "" and row["failed"] == "uncited_answer" and row["generation"] == {"model": "fake-gen", "error": "TimeoutError: timed out"}
+    assert blob["summary"]["checks"]["uncited_answers"] == {"count": 1, "n": 5} and blob["rows"][3]["generation"]["model"] == "fake-gen"
+
+    def gone(prompt: str) -> str:
+        raise ConnectionRefusedError("refused")
+
+    with pytest.raises(SystemExit, match="5 generation calls failed in a row"):
+        llm_eval.run(config=BenchConfig(**HASH_CFG), generator_model="fake-gen", judge_models=[], limit=8, complete_fn=gone)
