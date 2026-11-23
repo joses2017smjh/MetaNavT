@@ -158,8 +158,48 @@ MODELS_2026_LADDERS = {"models-2026": "main", "models-2026-harrier": "harrier"}
 # The committed file each dataset's recomputed parents are compared with (app.eval.models_2026.reproduces).
 COMMITTED_FILES = {"scifact": "bench/results/beir_scifact.json", "fiqa": "bench/results/beir_fiqa.json"}
 MODELS_2026_PARENTS = ("bm25", "dense@bge-small", "hybrid@bge-small", RERANK_FP32_512)
+
+
+def small_reranker_configs(with_students: bool | None = None) -> list[BeirConfig]:
+    """M43: the small rerankers of app/eval/small_rerankers.py over hybrid@bge-small, every one at the served shape (the
+    fused top 20, max_length 512, fp32) and every one paired with the unreranked hybrid row, its parent: the app's
+    default reranker, the teacher, the candidates as published, then the students (a student's `reranker` is its tag;
+    the run resolves it to a verified local checkpoint). with_students None: only once their manifest is committed
+    (bench/distill/students.json), so the zero-shot rows can be measured before any student exists."""
+    from app.eval import small_rerankers as sr
+
+    if with_students is None:
+        with_students = (Path(__file__).resolve().parents[2] / sr.STUDENT_MANIFEST).exists()
+    by = {c.name: c for c in DEFAULT_CONFIGS}
+    configs = [replace(by[sr.PARENT], parent=None)]
+    for tag in [t for t in sr.reranker_tags() if with_students or t not in sr.STUDENTS]:
+        configs.append(BeirConfig(name=sr.row_name(tag), mode="hybrid", embedder=BGE_SMALL, reranker=tag if tag in sr.STUDENTS else sr.model_of(tag),
+                                  rerank_top=sr.SHAPE["rerank_top"], precision=sr.SHAPE["precision"], max_length=sr.SHAPE["max_length"], parent=sr.PARENT))
+    return configs
+
+
+def small_reranker_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
+    """Beside each row's delta against the unreranked hybrid (its parent, the bar): its delta against the app's default
+    reranker and against the teacher, and a student's against the candidate it started from."""
+    from app.eval import small_rerankers as sr
+
+    names = [c.name for c in configs]
+    teacher = sr.row_name(sr.TEACHER_TAG)
+    out = [(n, ref) for n in names for ref in (sr.BGE_ROW, teacher) if n not in (sr.PARENT, ref) and ref in names]
+    out += [(sr.row_name(s), sr.row_name(init)) for s, init in sr.STUDENTS.items() if sr.row_name(s) in names and sr.row_name(init) in names]
+    return out
+
+
+SMALL_RERANKERS_LADDER = "small-rerankers"
+# The committed files a small-rerankers run compares its recomputed rows with: the parent and the app's default reranker
+# with the dataset's first file, the teacher with M41's row of the same name.
+SMALL_RERANKERS_REPRODUCE = {"scifact": (("bench/results/beir_scifact.json", ("hybrid@bge-small", RERANK_FP32_512)),
+                                         ("bench/results/beir_scifact_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",))),
+                             "fiqa": (("bench/results/beir_fiqa.json", ("hybrid@bge-small", RERANK_FP32_512)),
+                                      ("bench/results/beir_fiqa_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",)))}
 LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS,
-           **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()}}
+           **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()},
+           SMALL_RERANKERS_LADDER: small_reranker_configs()}
 
 
 def models_2026_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
@@ -228,14 +268,22 @@ def load_scifact(root: Path, split: str = "test") -> tuple[dict[str, str], dict[
     return load_beir(root, split)
 
 
-def load_beir(root: Path, split: str = "test") -> tuple[dict[str, str], dict[str, str], dict[str, dict[str, int]]]:
-    """Load BEIR JSONL/TSV, retaining positive graded relevance exactly."""
+def load_corpus(root: Path) -> dict[str, str]:
+    """A BEIR corpus alone, {id: title + ' ' + text} in file order. It opens corpus.jsonl and nothing else: the
+    synthetic training queries of M43 are written from documents sampled here, by code that must never read
+    queries.jsonl (it holds the test queries) or the qrels (app/eval/distill_queries.py)."""
     corpus: dict[str, str] = {}
     with (root / "corpus.jsonl").open(encoding="utf-8") as fh:
         for line in fh:
             if line.strip():
                 row = json.loads(line)
                 corpus[str(row["_id"])] = (row.get("title", "") + " " + row.get("text", "")).strip()
+    return corpus
+
+
+def load_beir(root: Path, split: str = "test") -> tuple[dict[str, str], dict[str, str], dict[str, dict[str, int]]]:
+    """Load BEIR JSONL/TSV, retaining positive graded relevance exactly."""
+    corpus = load_corpus(root)
     qrels: dict[str, dict[str, int]] = {}
     with (root / "qrels" / f"{split}.tsv").open(encoding="utf-8") as fh:
         header = fh.readline()
@@ -332,10 +380,14 @@ def _slug(name: str) -> str:
 class Engine:
     """Shares indexes, embeddings and models across configs; caches doc embeddings on disk."""
 
-    def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto", check_models: bool = False):
+    def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto", check_models: bool = False,
+                 resolve_reranker=None):
         """check_models (M41): every model, once loaded, passes its load-and-score check (app/eval/models_2026.py; recorded
-        in its provenance) or the run stops."""
+        in its provenance) or the run stops. resolve_reranker (M43): name -> (what to load, what the row records about
+        it, a check of the loaded model or None); it may raise (a cached revision that is not the pinned one, a
+        student's checkpoint whose sha256 is not the manifest's)."""
         self.check_models = check_models
+        self.resolve_reranker = resolve_reranker
         self.chunks = chunks
         self.by_id = {c.chunk_id: c for c in chunks}
         self.cache_dir = cache_dir
@@ -424,14 +476,17 @@ class Engine:
                 self._rerankers[key] = OverlapReranker()
                 self.provenance[key] = {**model_provenance("overlap", "reranker"), "loaded": True}
             else:
+                source, record, after_load = self.resolve_reranker(name) if self.resolve_reranker else (name, {}, None)
                 # raise_errors: a model that does not load stops the run with the reason (never a fallback)
-                model = get_cross_encoder(name, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device,
+                model = get_cross_encoder(source, precision=precision, max_length=max_length, device=None if self.device == "auto" else self.device,
                                           raise_errors=True)
                 if model is None:
                     raise RuntimeError(f"reranker {name} not available (set BGE_ALLOW_DOWNLOAD=1 or cache it)")
                 inner = getattr(model, "model", None)
                 self.provenance[key] = {
                     **model_provenance(name, "reranker"),
+                    **record,  # M43: a candidate's pinned revision; a student's weights sha256, never its path
+                    **(after_load(model) if after_load else {}),
                     "loaded": True,
                     "device": model_device(model),
                     "precision": precision,
@@ -675,12 +730,16 @@ def run(
     require_trec_eval: bool = False,
     check_models: bool = False,
     comparisons: list[tuple[str, str]] | None = None,
-    reproduce: tuple[str, tuple[str, ...]] | None = None,
+    reproduce: tuple[str, tuple[str, ...]] | tuple[tuple[str, tuple[str, ...]], ...] | None = None,
     header: dict[str, Any] | None = None,
+    resolve_reranker=None,
+    keep_per_query: bool = False,
 ) -> dict[str, Any]:
     """M41: `check_models` (Engine), `comparisons` (attach_confidence), `reproduce` = (committed file, row names): whether
     those rows, recomputed here, equal the file's (retrieval block; and the ranking, where the committed row wrote a TREC
-    run), recorded whatever the answer; `header` adds fields to the results header."""
+    run or recorded its ranking's sha256), recorded whatever the answer; `header` adds fields to the results header.
+    M43: `reproduce` may be several such pairs (a list of blocks is recorded); `resolve_reranker` (Engine);
+    `keep_per_query` returns every row's per-query scores under "_per_query" for the caller's sidecar (per_query_sidecar)."""
     if dataset not in DATASETS:
         raise ValueError(f"unsupported dataset {dataset!r}")
     if configs is not None and not configs:
@@ -701,11 +760,13 @@ def run(
     missing_docs = {did for docs in qrels.values() for did in docs if did not in corpus}
     if missing_docs:
         raise ValueError(f"qrels reference {len(missing_docs)} missing documents")
-    engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device, check_models=check_models)
+    engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device, check_models=check_models,
+                    resolve_reranker=resolve_reranker)
     results = []
     for i, cfg in enumerate(configs):
         results.append(run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval))
         engine.release_unused(configs[i + 1:])
+    per_query = {row["config"]: row["_per_query"] for row in results} if keep_per_query else None  # attach_confidence drops them
     # A published full-test reference is inapplicable to a query subset.
     published = spec["published"] if split == "test" and len(queries) == full_query_count else None
     boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot, published=published, comparisons=comparisons)
@@ -713,7 +774,11 @@ def run(
     if reproduce is not None and len(queries) == full_query_count:
         from app.eval.models_2026 import reproduces
 
-        reproduced = reproduces(Path(root or Path(__file__).resolve().parents[2]), reproduce[0], results, list(reproduce[1]), extra=_same_ranking)
+        repo = Path(root or Path(__file__).resolve().parents[2])
+        if isinstance(reproduce[0], str):
+            reproduced = reproduces(repo, reproduce[0], results, list(reproduce[1]), extra=_same_ranking)
+        else:
+            reproduced = [reproduces(repo, rel, results, list(names), extra=_same_ranking) for rel, names in reproduce]
     zip_path = data_dir / f"{dataset}.zip"
     return {
         "dataset": f"BEIR/{dataset}",
@@ -741,13 +806,31 @@ def run(
         "results": results,
         **(header or {}),
         **({"reproduces": reproduced} if reproduced is not None else {}),
+        **({"_per_query": per_query} if per_query is not None else {}),
     }
 
 
 def _same_ranking(row: dict, committed: dict) -> dict:
-    """reproduces() extra: whether a row ranks every query as the committed row's TREC run does (when it wrote one)."""
-    sha = (committed.get("trec") or {}).get("run_sha256")
+    """reproduces() extra: whether a row ranks every query as the committed row does: its TREC run when it wrote one,
+    else the sha256 of its ranking when it recorded one (rows since M41)."""
+    sha = (committed.get("trec") or {}).get("run_sha256") or committed.get("ranking_sha256")
     return {"ranking_equal": row.get("ranking_sha256") == sha} if sha else {}
+
+
+PER_QUERY_SCHEMA = "beir-per-query-scores-v1"
+PER_QUERY_METRICS = ("ndcg@10", "recall@10", "recall@100", "mrr@10")
+
+
+def per_query_sidecar(blob: dict, per_query: dict[str, list[dict]]) -> dict[str, Any]:
+    """The per-query scores of a BEIR results file, column by column and unrounded, so that every interval and paired
+    delta in it can be recomputed without a model (M43: python -m app.eval.small_rerankers --rescore). Query ids in the
+    run's order (the bootstrap's); nothing else: no ranking, no command, no path."""
+    first = next(iter(per_query.values()))
+    return {"schema": PER_QUERY_SCHEMA,
+            "about": "per-query scores of the results file with the same name (.json), in the run's query order and unrounded",
+            "git_sha": blob.get("git_sha"), "timestamp": blob.get("timestamp"), "dataset": blob.get("dataset"), "split": blob.get("split"),
+            "metrics": list(PER_QUERY_METRICS), "ids": [r["id"] for r in first],
+            "scores": {name: {m: [float(r[m]) for r in rows] for m in PER_QUERY_METRICS} for name, rows in per_query.items()}}
 
 
 def _fmt(block: dict | None, key: str = "mean") -> str:
@@ -792,6 +875,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ladder", choices=tuple(LADDERS), default="default", help="the config list: the default ladder, or bm25-ablation (analyzer only, k1/b only, both)")
     p.add_argument("--only", default=None, help="comma-separated config names (from the chosen ladder)")
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
+    p.add_argument("--checkpoint-dir", type=Path, default=None, help="small-rerankers: where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS)")
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -811,10 +895,22 @@ def main(argv: list[str] | None = None) -> int:
         m41 = dict(check_models=True, comparisons=models_2026_comparisons(configs),
                    reproduce=(COMMITTED_FILES[args.dataset], tuple(n for n in MODELS_2026_PARENTS if n in names)),
                    header={"models_2026": header(MODELS_2026_LADDERS[args.ladder])})
+    if args.ladder == SMALL_RERANKERS_LADDER:  # M43: M41's conventions, each row against the unreranked hybrid, a per-query sidecar
+        from app.eval import small_rerankers as sr
+
+        names = {c.name for c in configs}
+        m41 = dict(check_models=True, comparisons=small_reranker_comparisons(configs), keep_per_query=True,
+                   reproduce=tuple((rel, tuple(n for n in rows if n in names)) for rel, rows in SMALL_RERANKERS_REPRODUCE[args.dataset]),
+                   header={"small_rerankers": sr.header([c.name for c in configs])}, resolve_reranker=sr.resolver(args.checkpoint_dir, root))
     blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval, **m41)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
+    per_query = blob.pop("_per_query", None)
     out.write_text(json.dumps(blob, indent=2) + "\n")
+    if per_query is not None:
+        from app.eval import per_question
+
+        per_question.write(per_question.sidecar_path(out), per_query_sidecar(blob, per_query))
     print(markdown_table(blob))
     if blob.get("reproduces"):  # recorded whatever the answer; a parent that differs is not an error
         print("reproduces", json.dumps(blob["reproduces"]))

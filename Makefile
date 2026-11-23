@@ -287,6 +287,55 @@ bench-beir-models-2026-harrier: ## BEIR SciFact: harrier-oss-v1-27b (dense, hybr
 bench-beir-fiqa-models-2026-harrier: ## BEIR FiQA: harrier-oss-v1-27b (dense, hybrid) vs bge-small (needs .[ml] and an 80 GB GPU) -> bench/results/beir_fiqa_models_2026_harrier.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder models-2026-harrier --dataset fiqa --data-dir $(BEIR_DATA_DIR) --out bench/results/beir_fiqa_models_2026_harrier.json
 
+# ---- M43: small rerankers for the single host, and their label-free distillation (app/eval/small_rerankers.py) ----
+# The bar, the students and their training recipe were declared in that module before any row was measured. The
+# synthetic queries never contain a benchmark query: generation reads documents only, and the filter step, the only one
+# that reads test queries, removes their near-duplicates. DISTILL_WORK is where the uncommitted working files go.
+DISTILL_WORK ?= bench/external/distill
+.PHONY: small-rerankers-check distill-queries distill-queries-filter distill-teacher distill-teacher-merge
+small-rerankers-check: ## load each small reranker at the served shape (top 20, max_length 512, fp32), read its dtype back and run the load-and-score check (needs .[ml]; MODELS=tag,... for a subset; CHECKPOINTS=<dir> for the students) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers --check $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+distill-queries: ## synthetic queries: one prompt per sampled document (every fixture chunk, seeded samples of SciFact and FiQA) to gemma4:12b through Ollama (OLLAMA_BASE_URL); reads documents only; resumes -> $(DISTILL_WORK)/completions.jsonl
+	$(PYTHON) -m app.eval.distill_queries generate --data-dir $(BEIR_DATA_DIR) --work $(DISTILL_WORK)
+
+distill-queries-filter: ## parse the completions, drop repeats and every near-duplicate of a fixture, SciFact or FiQA test query, split by source document (needs .[ml] for bge-small) -> bench/distill/queries.jsonl.gz, completions.jsonl.gz, queries.meta.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_queries filter --data-dir $(BEIR_DATA_DIR) --work $(DISTILL_WORK)
+
+SHARD ?= 0/1
+distill-teacher: ## the teacher (mxbai-rerank-large-v2, fp32, max_length 512) scores each synthetic query's fused top 20 of hybrid@bge-small plus its source document; SHARD=i/n takes every n-th query; resumes (needs .[ml] and a GPU) -> $(DISTILL_WORK)/teacher.shard-i-of-n.jsonl
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_teacher score --data-dir $(BEIR_DATA_DIR) --work $(DISTILL_WORK) --shard $(SHARD)
+
+distill-teacher-merge: ## check that the shards cover every query once, at one clean commit -> bench/distill/teacher_scores.jsonl.gz, teacher_scores.meta.json
+	$(PYTHON) -m app.eval.distill_teacher merge --work $(DISTILL_WORK)
+
+# The rows (app/eval/small_rerankers.py): every reranker over the fused top 20 of hybrid@bge-small at max_length 512 in
+# fp32, paired with the unreranked list (the bar), with bge-reranker-v2-m3 and with the teacher, all in one run; the
+# students' rows appear once bench/distill/students.json is committed and need CHECKPOINTS=<dir>. Each run writes its
+# per-query scores beside the results file; small-rerankers-rescore recomputes every interval from those, with no model.
+.PHONY: bench-small-rerankers bench-beir-small-rerankers bench-beir-fiqa-small-rerankers small-rerankers-rescore small-rerankers-bar
+bench-small-rerankers: ## fixture v1: the small rerankers on the held-out half (the bar), the tune half and all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir> for the students) -> bench/results/small_rerankers.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers --out bench/results/small_rerankers.json $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-beir-small-rerankers: ## BEIR SciFact: the same rows (needs .[ml] and a GPU; CHECKPOINTS=<dir> for the students) -> bench/results/beir_scifact_small_rerankers.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out bench/results/beir_scifact_small_rerankers.json
+
+bench-beir-fiqa-small-rerankers: ## BEIR FiQA: the same rows (needs .[ml] and a GPU; CHECKPOINTS=<dir> for the students) -> bench/results/beir_fiqa_small_rerankers.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out bench/results/beir_fiqa_small_rerankers.json
+
+small-rerankers-rescore: ## recompute every interval and paired delta of the three small-rerankers results files from their per-query sidecars (CPU, no model, no dataset); exit 1 unless all equal the files
+	$(PYTHON) -m app.eval.small_rerankers --rescore
+
+small-rerankers-bar: ## print the quality bar row by row from the three committed files -> stdout
+	$(PYTHON) -m app.eval.small_rerankers --bar
+
+.PHONY: distill-train distill-manifest
+distill-train: ## train one student by the declared recipe: STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir> (needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)/ (not committed)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS)
+
+distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
+	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)
