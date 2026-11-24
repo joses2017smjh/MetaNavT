@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "bench-small-rerankers")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "bench-small-rerankers"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
@@ -53,6 +53,16 @@ BEIR_MODELS_2026_FILE = "bench/results/beir_scifact_models_2026.json"
 BEIR_MODELS_2026_HARRIER_FILE = "bench/results/beir_scifact_models_2026_harrier.json"
 BEIR_FIQA_MODELS_2026_FILE = "bench/results/beir_fiqa_models_2026.json"
 BEIR_FIQA_MODELS_2026_HARRIER_FILE = "bench/results/beir_fiqa_models_2026_harrier.json"
+# M43: small rerankers over hybrid@bge-small at the served shape (app/eval/small_rerankers.py), their indicative CPU cost
+# (scripts/measure_rerank_cpu.py) and the label-free distillation behind the students (bench/distill/).
+SMALL_RERANKERS_FILE = "bench/results/small_rerankers.json"
+BEIR_SMALL_RERANKERS_FILE = "bench/results/beir_scifact_small_rerankers.json"
+BEIR_FIQA_SMALL_RERANKERS_FILE = "bench/results/beir_fiqa_small_rerankers.json"
+SMALL_RERANKERS_CPU_FILE = "bench/results/small_rerankers_cpu.json"
+DISTILL_QUERIES_META = "bench/distill/queries.meta.json"
+DISTILL_SCORES_META = "bench/distill/teacher_scores.meta.json"
+DISTILL_STUDENTS = "bench/distill/students.json"
+SMALL_RERANKERS_FIGURE = "doc/figures/small-rerankers.svg"
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
@@ -78,6 +88,7 @@ SOURCES = {
     "bench-frontier": FRONTIER_FILE,
     "bench-frontier-neural": FRONTIER_NEURAL_FILE,
     "bench-rerank-arms": RERANK_ARMS_FILE,
+    "bench-small-rerankers": f"{SMALL_RERANKERS_FILE}, {BEIR_SMALL_RERANKERS_FILE}, {BEIR_FIQA_SMALL_RERANKERS_FILE}, {SMALL_RERANKERS_CPU_FILE} and bench/distill/",
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -2443,6 +2454,202 @@ def _m41_beir_rows(blob: dict) -> list[str]:
     return lines
 
 
+SMALL_RERANKER_DATASETS = (("fixture", "fixture v1, held-out"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA"))
+BAR_WORDS = {True: "**passes**", False: "no", None: "open"}
+
+
+def _small_reranker_label(tag: str, cpu: dict | None = None) -> str:
+    """A reranker row's first cell: its tag, the model behind it and its size."""
+    from app.eval import small_rerankers as sr
+
+    if tag in sr.STUDENTS:
+        init = sr.CANDIDATES[sr.STUDENTS[tag]]
+        return f"{tag} (distilled from {sr.TEACHER_TAG} into {init['model']}, {init['parameters'] / 1e6:.1f}M parameters)"
+    if tag in sr.CANDIDATES:
+        c = sr.CANDIDATES[tag]
+        return f"{tag} ({c['model']}, {c['parameters'] / 1e6:.1f}M parameters, {c['licence']})"
+    return f"{tag} ({sr.model_of(tag)}, " + ("the app's default reranker)" if tag == "bge-rerank" else "the teacher)")
+
+
+def _distillation_lines(root: Path | None) -> list[str]:
+    """How the students were made, from the committed files of bench/distill/ (nothing when none is there yet)."""
+    queries, scores, students = _load(root, DISTILL_QUERIES_META), _load(root, DISTILL_SCORES_META), _load(root, DISTILL_STUDENTS)
+    if not queries:
+        return [f"_No student yet: {DISTILL_QUERIES_META} is missing (`make distill-queries`, then `make distill-queries-filter`)._"]
+    gen, near = queries["generation"], queries["near_duplicates"]
+    llm = gen["llm"]
+    by = near["by_corpus"]
+    names = {"fixture": "fixture v1", "scifact": "SciFact", "fiqa": "FiQA"}
+    kept = "; ".join(f"{names.get(c, c)}: {b['kept']} queries from {b['source_documents']} documents ({_plural(b['near_duplicates_dropped'], 'near-duplicate')} of a "
+                     f"test query dropped, {_plural(b['repeats_dropped'], 'repeat')})" for c, b in by.items())
+    tests = ", ".join(f"{n} of {names.get(c, c)}" for c, n in near["test_queries"].items())
+    lines = [
+        f"**How the students were made (no label anywhere).** `{llm['model']}` through Ollama {llm.get('ollama_version')} (digest "
+        f"`{(llm.get('revision') or '?')[:12]}`, temperature {llm['options']['temperature']}, seed {llm['options']['seed']}) wrote questions, keyword "
+        f"queries and one-sentence statements from sampled documents, one prompt per document, with no example query in the prompt "
+        f"(`make distill-queries`; generation reads documents only, never a query file or the qrels). Every synthetic query was then compared "
+        f"with every test query ({tests}) and dropped when it matched one after normalisation, or their token-set Jaccard reached "
+        f"{near['rule']['jaccard']}, or the cosine of their bge-small embeddings reached {near['rule']['cosine']} (`make distill-queries-filter`, "
+        f"the only step that reads test queries). Kept: {kept}. The flagged queries, the counts at other thresholds and every raw completion are "
+        f"in [bench/distill/](bench/distill/).",
+        "",
+        *_near_duplicate_lines(near, names),
+    ]
+    if scores:
+        t = scores["teacher"]
+        total = sum(b["lists"] for b in scores["summary"].values())
+        pairs = sum(b["pairs"] for b in scores["summary"].values())
+        first = "; ".join(f"{names.get(c, c)} {b['source_first_with_teacher']} of {b['lists']}" for c, b in scores["summary"].items())
+        lines += ["", f"The teacher, `{t['model']}` ({_dtype(t.get('dtype'))}, max_length {t['max_length']}), scored each query's fused top "
+                      f"{scores['first_stage']['candidates_top']} of `hybrid@bge-small` plus its source document when absent: {total} lists, {pairs} "
+                      f"pairs (`make distill-teacher`; {_and(sorted({s['device'] for s in scores['shards'] if s.get('device')}))}). It ranks the source "
+                      f"document first in {first} lists: a check on the queries, not a label."]
+    if students:
+        for tag, e in students["students"].items():
+            curve = ", ".join(f"{ep['validation_macro']:.3f}" for ep in e["epochs"])
+            lists = sum(e["lists"]["train"].values())
+            lines += ["", f"`{tag}` (attempt {e['attempt']}): `{e['init']['model']}` trained on {lists} lists with the recipe declared before any "
+                          f"row ran ({e['recipe']['epochs']} epochs of MarginMSE on the teacher's logits, learning rate {e['recipe']['learning_rate']}, "
+                          f"{e['recipe']['lists_per_step']} lists a step, fp32, seed {e['recipe']['seed']}; `make distill-train`, "
+                          f"{(e.get('machine') or {}).get('device_name', '?')}). Validation loss on the held-out documents' synthetic queries, "
+                          f"averaged over the three corpora: {e['validation_before_training']['macro']:.3f} before training, then {curve} after each "
+                          f"epoch; epoch {e['chosen_epoch']} was kept. Weights sha256 `{e['weights_sha256'][:16]}`, {e['weights_bytes'] / 1e6:.1f} MB, "
+                          f"not in the repository ([{DISTILL_STUDENTS}]({DISTILL_STUDENTS}))."]
+    return lines
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def _near_duplicate_lines(near: dict, names: dict[str, str]) -> list[str]:
+    """How close the kept synthetic queries come to the test queries, at the thresholds the filter also counted: the
+    rule drops at one cosine and one Jaccard, and what sits just under them was kept (and trained on)."""
+    by = near["by_corpus"]
+    cos = sorted({t for b in by.values() for t in b["at_other_thresholds"]["cosine_at_least"]}, key=float)
+    jac = sorted({t for b in by.values() for t in b["at_other_thresholds"]["jaccard_at_least"]}, key=float)
+    lines = [f"How near the synthetic queries come to a test query: of the queries checked, how many reach each similarity to their nearest test "
+             f"query (bge-small cosine; token-set Jaccard). The rule dropped those at cosine {near['rule']['cosine']} or Jaccard "
+             f"{near['rule']['jaccard']} and above; everything below was kept and trained on.", "",
+             "| corpus | checked | " + " | ".join(f"cosine ≥ {t}" for t in cos) + " | " + " | ".join(f"Jaccard ≥ {t}" for t in jac) + " | dropped |",
+             "|---|---:|" + "---:|" * (len(cos) + len(jac) + 1)]
+    for c, b in by.items():
+        at = b["at_other_thresholds"]
+        lines.append(f"| {names.get(c, c)} | {b['checked']} | " + " | ".join(str(at["cosine_at_least"].get(t, "—")) for t in cos) + " | "
+                     + " | ".join(str(at["jaccard_at_least"].get(t, "—")) for t in jac) + f" | {b['near_duplicates_dropped']} |")
+    fixture = by.get("fixture")
+    if fixture and cos:
+        low = cos[0]
+        lines += ["", f"Fixture v1's gold questions follow a few templates over a small corpus, so the synthetic queries over the same chunks are close "
+                      f"to them: {fixture['at_other_thresholds']['cosine_at_least'][low]} of {fixture['checked']} reach cosine {low}. A student's "
+                      f"fixture rows are read with that in mind; SciFact and FiQA carry the comparison."]
+    return lines
+
+
+def _cpu_cost_lines(cpu: dict | None) -> list[str]:
+    """The indicative CPU table (scripts/measure_rerank_cpu.py): per model and max_length, p50 / p95 per rerank call at
+    each depth and the API process's peak."""
+    if not cpu:
+        return [f"_{SMALL_RERANKERS_CPU_FILE} is missing; run `python scripts/measure_rerank_cpu.py` (needs .[ml]; CPU only)._"]
+    d = cpu["device"]
+    depths = cpu["method"]["depths"]
+    lines = [
+        f"**What they cost on a CPU, indicative only** (`python scripts/measure_rerank_cpu.py`; {d.get('cpu_model') or 'CPU model not recorded'}, "
+        f"{d.get('threads')} torch threads, torch {d.get('torch')}; results sha {_sha(cpu)}). The API process as the single host runs it (the app, "
+        f"bge-small, then the reranker in fp32), one fresh process per model and max_length; each timed call is one rerank of `depth` passages "
+        f"that are all cut at max_length, so a call costs the most its shape can. This is another machine's CPU: it says which shapes are "
+        f"worth trying on the host, not whether a model fits it.",
+        "",
+        "| reranker | max_length | " + " | ".join(f"depth {n}: p50 / p95 ms (calls)" for n in depths) + " | API process: before the reranker / peak, MiB |",
+        "|---|---:|" + "---:|" * len(depths) + "---:|",
+    ]
+    for row in cpu["results"]:
+        by = {s["depth"]: s for s in row["shapes"]}
+        cells = " | ".join(f"{by[n]['p50_ms']} / {by[n]['p95_ms']} ({by[n]['n']})" if n in by else "—" for n in depths)
+        peak = max(s["memory_mib"]["VmHWM"] for s in row["shapes"])
+        lines.append(f"| {row['tag']} | {row['max_length']} | {cells} | {row['memory_mib']['after_embedder']['VmRSS']} / {peak} |")
+    return lines
+
+
+def small_rerankers_table(root: Path | None) -> str:
+    """M43: every small reranker against the unreranked hybrid on the three datasets, the bar, the references, how the
+    students were made and what the models cost on a CPU."""
+    from app.eval import small_rerankers as sr
+
+    table = sr.bar_table(root)
+    if not table["rows"]:
+        return (f"_{SMALL_RERANKERS_FILE} is missing; run `make bench-small-rerankers`, `make bench-beir-small-rerankers` and "
+                f"`make bench-beir-fiqa-small-rerankers` (need .[ml] and a GPU)._")
+    blobs = {d: _load(root, rel) for d, rel in sr.RESULTS.items()}
+    present = [(d, label) for d, label in SMALL_RERANKER_DATASETS if d in table["datasets"]]
+    runs = "; ".join(f"{label}: `{cmd}`, {_device(blobs[d])}, results sha {_sha(blobs[d])}" for (d, label), cmd in
+                     zip(SMALL_RERANKER_DATASETS, ("make bench-small-rerankers", "make bench-beir-small-rerankers", "make bench-beir-fiqa-small-rerankers"))
+                     if blobs.get(d))
+    shape = sr.SHAPE
+    lines = [
+        f"Small rerankers over `{sr.PARENT}` at the shape the single host serves: the fused top {shape['rerank_top']}, max_length "
+        f"{shape['max_length']}, {shape['precision']} ({runs}). The live demo serves no reranker, because bge-reranker-v2-m3 does not fit its "
+        f"host ([bench/results/api_memory_cpu.json](bench/results/api_memory_cpu.json)). **The bar was declared before any row ran** "
+        f"(`app/eval/small_rerankers.py`): a row passes on quality when its paired nDCG@10 delta against the unreranked list has an interval "
+        f"above zero on fixture v1's held-out questions and on SciFact and on FiQA. Every reranked row is judged alike, the app's default "
+        f"reranker and the teacher included, each recomputed in the same run after its load-and-score check. Whether a model fits the host is "
+        f"a second bar, measured on the host itself (`scripts/time_reranker_on_host.py`); nothing here decides it, and no default changed.",
+        "",
+        "| reranker | " + " | ".join(f"{label} (n = {table['datasets'][d]['n']}): nDCG@10 [95% CI] | Δ vs no reranker [95% CI]" for d, label in present)
+        + " | quality bar |",
+        "|---|" + "---:|---:|" * len(present) + ":---:|",
+        f"| none: `{sr.PARENT}` | " + " | ".join(f"{_mean_ci(table['datasets'][d]['parent_ndcg@10'])} | —" for d, _ in present) + " | — |",
+    ]
+    cpu = _load(root, SMALL_RERANKERS_CPU_FILE)
+    for row in table["rows"]:
+        cells = []
+        for d, _ in present:
+            cell = row["datasets"].get(d)
+            cells.append(f"{_mean_ci(cell['ndcg@10'])} | {_delta(cell['vs_parent'], 4)}" if cell else "not run | —")
+        lines.append(f"| {_small_reranker_label(row['tag'], cpu)} | " + " | ".join(cells) + f" | {BAR_WORDS[row['passes']]} |")
+    passing = [r["tag"] for r in table["rows"] if r["passes"]]
+    open_rows = [r["tag"] for r in table["rows"] if r["passes"] is None]
+    lines += ["", (f"Passing the quality bar: {_and([f'`{t}`' for t in passing])}." if passing else "No row passes the quality bar.")
+              + (f" Open (a dataset is not measured yet): {_and([f'`{t}`' for t in open_rows])}." if open_rows else "")
+              + " A row that does not pass ties or loses on at least one of the three; it stays in the table."]
+    lines += ["", "The same rows against the app's default reranker and against the teacher, paired, in the same run (Δ nDCG@10 [95% CI]):", "",
+              "| reranker | " + " | ".join(f"vs bge-reranker-v2-m3, {label}" for _, label in present) + " | "
+              + " | ".join(f"vs the teacher, {label}" for _, label in present) + " |",
+              "|---|" + "---:|" * (2 * len(present))]
+    for row in table["rows"]:
+        bge = " | ".join(_delta((row["datasets"].get(d) or {}).get("vs_bge"), 4) for d, _ in present)
+        teacher = " | ".join(_delta((row["datasets"].get(d) or {}).get("vs_teacher"), 4) for d, _ in present)
+        lines.append(f"| {row['tag']} | {bge} | {teacher} |")
+    for row in table["rows"]:
+        if row["tag"] in sr.STUDENTS and any("vs_init" in c for c in row["datasets"].values()):
+            gains = "; ".join(f"{label} {_delta(row['datasets'][d].get('vs_init'), 4)} ({verdict(row['datasets'][d].get('vs_init'))})"
+                              for d, label in present if d in row["datasets"])
+            lines += ["", f"What distillation added: `{row['tag']}` minus `{sr.STUDENTS[row['tag']]}`, the candidate it started from: {gains}."]
+    lines += ["", *_distillation_lines(root), "", *_cpu_cost_lines(cpu)]
+    if root is None or (Path(root) / SMALL_RERANKERS_FIGURE).exists():
+        lines += ["", f"![Scatter of nDCG@10 against the indicative CPU time of one rerank call for each small reranker on the three datasets, "
+                      f"with the unreranked hybrid as a line]({SMALL_RERANKERS_FIGURE})", "",
+                  "*`make figures`, from the files of this block: quality on the GPU run, time on the CPU run above (indicative).*"]
+    fixture = blobs.get("fixture")
+    notes = []
+    if fixture:
+        notes.append("Fixture: " + _reproduction(fixture.get("reproduces")) + (f" {fixture['not_reproduced_anywhere']}." if fixture.get("not_reproduced_anywhere") else ""))
+    for d, label in (("scifact", "SciFact"), ("fiqa", "FiQA")):
+        if blobs.get(d):
+            notes.append(f"{label}: " + _reproduction(blobs[d].get("reproduces")))
+    lines += ["", "Do the recomputed rows reproduce the committed ones? " + " ".join(notes)]
+    lines += ["", "**What this does not show.** Whether any of these fits the host: the CPU timings are from another machine. Zero-shot quality "
+                  "of the students on a corpus they have not seen: they were trained on synthetic queries over these three corpora, so they "
+                  "have read the documents their test questions are about, though no test question and no label. Quality on the real corpus "
+                  "with the owner's questions: a later bar. "
+                  + (f"The held-out half of the fixture is {len(fixture['split']['held_out_ids'])} questions over a corpus of {fixture['n_files']} files; " if fixture else "")
+                  + "each student is one training run with one seed.",
+              "", "Results: " + " · ".join(f"[{sr.RESULTS[d]}]({sr.RESULTS[d]})" for d, _ in present)
+              + (f" · [{SMALL_RERANKERS_CPU_FILE}]({SMALL_RERANKERS_CPU_FILE})" if cpu else "")
+              + " (each with its per-query sidecar; `make small-rerankers-rescore` recomputes every interval from those on a CPU, with no model)."]
+    return "\n".join(lines)
+
+
 def render(blob: dict, root: Path | None = None) -> dict[str, str]:
     root = root if root is not None else Path(__file__).resolve().parents[2]
     return {
@@ -2474,6 +2681,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-frontier": frontier_table(_load(root, FRONTIER_FILE)),
         "bench-frontier-neural": frontier_table(_load(root, FRONTIER_NEURAL_FILE), FRONTIER_NEURAL_FILE, "make bench-frontier-neural"),
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
+        "bench-small-rerankers": small_rerankers_table(root),
     }
 
 

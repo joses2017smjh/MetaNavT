@@ -46,6 +46,10 @@ FILES = {
     "models_2026_harrier": "bench/results/models_2026_harrier.json",  # harrier-oss-v1-27b: its own runs, on an 80 GB GPU
     "beir_scifact_models_2026_harrier": "bench/results/beir_scifact_models_2026_harrier.json",
     "beir_fiqa_models_2026_harrier": "bench/results/beir_fiqa_models_2026_harrier.json",
+    # M43: small rerankers over hybrid@bge-small at the served shape (fixture held-out, SciFact, FiQA)
+    "small_rerankers": "bench/results/small_rerankers.json",
+    "beir_scifact_small_rerankers": "bench/results/beir_scifact_small_rerankers.json",
+    "beir_fiqa_small_rerankers": "bench/results/beir_fiqa_small_rerankers.json",
     "served_scale": "bench/results/served_scale_fiqa.json",
     "pgvector_hnsw": "bench/results/pgvector_hnsw.json",
 }
@@ -180,6 +184,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _hybrid_drops_claims(root)
     out += _file_depth_claims(root)
     out += _models_2026_claims(root)
+    out += _small_reranker_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -780,6 +785,57 @@ def _models_2026_claims(root: Path = ROOT) -> list[dict]:
                     "source": f"{FILES['models_2026']} @ {fixture['git_sha']}",
                     "not_shown": f"fixture v1 only ({fixture['n_files']} files): Recall@50 rises ({' '.join(_ci(rec, 'delta'))}) while nDCG@10 falls; "
                                  + (f"{elsewhere}; " if elsewhere else "") + _reproduced(fixture)})
+    return out
+
+
+def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
+    """M43: the small rerankers over hybrid@bge-small at the served shape. A row only where the paired interval excludes
+    zero: each student against the unreranked hybrid and against the candidate it started from, and every other
+    reranked row against the unreranked hybrid where it is above zero on all three datasets (it passes the quality bar)
+    or below zero somewhere (a recorded loss). Ties are in the generated table, not here."""
+    from app.eval import small_rerankers as sr
+    from app.eval.report import verdict
+
+    table = sr.bar_table(root)
+    if not table["rows"]:
+        return []
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-small-rerankers", "scifact": "make bench-beir-small-rerankers", "fiqa": "make bench-beir-fiqa-small-rerankers"}
+    out: list[dict] = []
+
+    def what(tag: str) -> str:
+        if tag in sr.STUDENTS:
+            init = sr.CANDIDATES[sr.STUDENTS[tag]]
+            return f"`{tag}` ({init['model']} trained on {sr.TEACHER_TAG}'s scores for synthetic queries, {init['parameters'] / 1e6:.1f}M parameters)"
+        if tag in sr.CANDIDATES:
+            return f"`{tag}` ({sr.CANDIDATES[tag]['model']}, {sr.CANDIDATES[tag]['parameters'] / 1e6:.1f}M parameters, as published)"
+        return f"`{tag}` ({sr.model_of(tag)})"
+
+    for row in table["rows"]:
+        tag, student = row["tag"], row["tag"] in sr.STUDENTS
+        cells = row["datasets"]
+        lost = any(c["vs_parent"] and c["vs_parent"]["hi"] < 0 for c in cells.values())
+        bar = {True: "it passes the quality bar (above zero on all three datasets)", False: "it does not pass the quality bar (a tie or a loss on at least one of the three datasets)",
+               None: "the quality bar is open (a dataset is not measured)"}[row["passes"]]
+        for d, cell in cells.items():
+            meta = table["datasets"][d]
+            src = f"{meta['file']} @ {meta['git_sha']}"
+            block = cell["vs_parent"]
+            shape = (f"the fused top {sr.SHAPE['rerank_top']} at max_length {sr.SHAPE['max_length']}, {sr.SHAPE['precision']}, on one GPU ({meta['device']}); "
+                     f"quality only: whether the model fits the demo's host is measured on the host")
+            others = f"against bge-reranker-v2-m3 in the same run: {' '.join(_ci(cell['vs_bge'], 'delta', 4))} ({verdict(cell['vs_bge'])})" if cell.get("vs_bge") else ""
+            seen = "the student was trained on synthetic queries over this corpus (it has read its documents, never a test query or a label); " if student else ""
+            if block and (block["lo"] > 0 or block["hi"] < 0) and (student or row["passes"] or (lost and block["hi"] < 0)):
+                value, ci = _ci(block, "delta", 4)
+                out.append({"claim": f"{names[d]}, {what(tag)} vs no reranker, both over hybrid@bge-small, paired delta in nDCG@10", "value": value, "ci": ci,
+                            "n": meta["n"], "command": commands[d], "source": src,
+                            "not_shown": f"verdict from the interval: {verdict(block)}; {bar}; {seen}{others}; {shape}"})
+            init = cell.get("vs_init")
+            if student and init and (init["lo"] > 0 or init["hi"] < 0):
+                value, ci = _ci(init, "delta", 4)
+                out.append({"claim": f"{names[d]}, what distillation added: `{tag}` vs `{sr.STUDENTS[tag]}`, the published model it started from, paired delta in nDCG@10",
+                            "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": src,
+                            "not_shown": f"verdict from the interval: {verdict(init)}; same architecture and cost, different weights; {seen}one training run, one seed; {shape}"})
     return out
 
 

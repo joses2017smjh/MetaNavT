@@ -1,0 +1,1882 @@
+{
+  "dataset": "BEIR/scifact",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
+  "zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "expected_zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "files_sha256": {
+    "corpus.jsonl": "dec31c8182f3d744c7d2c09423756fd1d17cbef75808db13ba01cc0aab4d1ac6",
+    "queries.jsonl": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+    "qrels/test.tsv": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+  },
+  "corpus_sha256": "7394141cfad041e3b3cc0925871a7347213f880f40ed68ea27b7eaf351b0b7a1",
+  "runner_sha256": "ad32aa870ab9ead1d73eb51abfde77d7002511e56a2e739d578bbbf8a47fd8ca",
+  "n_docs": 5183,
+  "n_queries": 300,
+  "full_split_queries": 300,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": {
+    "bm25_ndcg@10": 0.6789,
+    "source": "Anserini BEIR (v1.0.0) regression, SciFact, 'flat' BM25: title + text concatenated into one field, Lucene English analyzer (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "url": "https://github.com/castorini/anserini/blob/master/docs/regressions/regressions-beir-v1.0.0-scifact.flat.md",
+    "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "document_text": "title + ' ' + text (same as our rows)"
+  },
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "8374ca0",
+  "git_head": "8374ca004ba4deb195b7ece50899528c2d5b696c",
+  "working_tree_dirty": true,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "ad32aa870ab9ead1d73eb51abfde77d7002511e56a2e739d578bbbf8a47fd8ca",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+    "app/eval/provenance.py": "ef4cd95e4baadb05f13f74167ac9e84f3886672e40bf9ad10fed757104b3056e",
+    "app/eval/small_rerankers.py": "ccaeeb44b0c09431146bdb1878f5c2ed8591c452b2f181ac8a5e7a60af27ce0e",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-23T01:43:30.609357+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --ladder small-rerankers --data-dir <path>/data --out bench/results/beir_scifact_small_rerankers.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "cpu_model": "AMD EPYC 74F3 24-Core Processor",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA A40",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 300,
+    "level": 0.95,
+    "comparisons": [
+      {
+        "row": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.045,
+          "lo": -0.0674,
+          "hi": -0.0228
+        },
+        "recall@10": {
+          "delta": -0.0157,
+          "lo": -0.038,
+          "hi": 0.0043
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": 0.045,
+          "lo": 0.0228,
+          "hi": 0.0674
+        },
+        "recall@10": {
+          "delta": 0.0157,
+          "lo": -0.0043,
+          "hi": 0.038
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0467,
+          "lo": -0.0724,
+          "hi": -0.0218
+        },
+        "recall@10": {
+          "delta": -0.0238,
+          "lo": -0.0519,
+          "hi": 0.0023
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0917,
+          "lo": -0.1211,
+          "hi": -0.0642
+        },
+        "recall@10": {
+          "delta": -0.0394,
+          "lo": -0.0717,
+          "hi": -0.0094
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0427,
+          "lo": -0.0674,
+          "hi": -0.0182
+        },
+        "recall@10": {
+          "delta": -0.0154,
+          "lo": -0.0426,
+          "hi": 0.0097
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0877,
+          "lo": -0.1159,
+          "hi": -0.0601
+        },
+        "recall@10": {
+          "delta": -0.0311,
+          "lo": -0.0606,
+          "hi": -0.0033
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0346,
+          "lo": -0.058,
+          "hi": -0.0109
+        },
+        "recall@10": {
+          "delta": 0.005,
+          "lo": -0.015,
+          "hi": 0.027
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0796,
+          "lo": -0.1084,
+          "hi": -0.0505
+        },
+        "recall@10": {
+          "delta": -0.0107,
+          "lo": -0.0333,
+          "hi": 0.0117
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0079,
+          "lo": -0.0323,
+          "hi": 0.019
+        },
+        "recall@10": {
+          "delta": 0.0087,
+          "lo": -0.0163,
+          "hi": 0.0357
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0529,
+          "lo": -0.0788,
+          "hi": -0.028
+        },
+        "recall@10": {
+          "delta": -0.007,
+          "lo": -0.0257,
+          "hi": 0.0117
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": 0.0161,
+          "lo": -0.0043,
+          "hi": 0.0367
+        },
+        "recall@10": {
+          "delta": 0.009,
+          "lo": -0.0077,
+          "hi": 0.0263
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0289,
+          "lo": -0.0494,
+          "hi": -0.0086
+        },
+        "recall@10": {
+          "delta": -0.0067,
+          "lo": -0.0267,
+          "hi": 0.0133
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+bge-reranker-base@bge-small/fp32-512/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0197,
+          "lo": -0.0383,
+          "hi": -0.0011
+        },
+        "recall@10": {
+          "delta": -0.0044,
+          "lo": -0.0228,
+          "hi": 0.0139
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+bge-reranker-base@bge-small/fp32-512/top20",
+        "other": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0648,
+          "lo": -0.0905,
+          "hi": -0.0409
+        },
+        "recall@10": {
+          "delta": -0.0201,
+          "lo": -0.0448,
+          "hi": 0.0036
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "config": "hybrid@bge-small",
+      "parent": null,
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7379,
+        "recall@10": 0.8596,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7065,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.24,
+          "p95_ms": 2.23,
+          "mean_ms": 1.28
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.39,
+          "p95_ms": 6.47,
+          "mean_ms": 6.36
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.66,
+          "p95_ms": 0.67,
+          "mean_ms": 0.66
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.05,
+          "p95_ms": 0.05,
+          "mean_ms": 0.05
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 8.33,
+          "p95_ms": 9.38,
+          "mean_ms": 8.37
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 13335.27,
+        "embedder_load_ms": 8769.59,
+        "doc_embeddings_ms": 9.68,
+        "total_ms": 22114.54
+      },
+      "wall_ms": 2517.95,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "81ac6433eed3e205774ca2c3ed9e12eded15d8ad6354ec2ba1d1c5719423d58b",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7379,
+          "lo": 0.6935,
+          "hi": 0.7783
+        },
+        "recall@10": {
+          "mean": 0.8596,
+          "lo": 0.82,
+          "hi": 0.895
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7538,
+        "recall@10": 0.8712,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7232,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.48,
+          "p95_ms": 2.56,
+          "mean_ms": 1.52
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.68,
+          "p95_ms": 6.8,
+          "mean_ms": 6.68
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.85,
+          "p95_ms": 0.91,
+          "mean_ms": 0.86
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.06,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 478.71,
+          "p95_ms": 485.86,
+          "mean_ms": 478.35
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 487.95,
+          "p95_ms": 495.3,
+          "mean_ms": 487.5
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 2908.83,
+        "total_ms": 2908.83
+      },
+      "wall_ms": 146322.04,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999968,
+            "score_other": 1.6e-05,
+            "score_answer_long": 0.968841,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "541f6d18f67d9334e0cd7a5024451fe0e39a5472bc5f4e7cd7976c477ced6070",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7538,
+          "lo": 0.7107,
+          "hi": 0.794
+        },
+        "recall@10": {
+          "mean": 0.8712,
+          "lo": 0.8324,
+          "hi": 0.9083
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.0159,
+          "lo": -0.0073,
+          "hi": 0.0402
+        },
+        "recall@10": {
+          "delta": 0.0117,
+          "lo": -0.013,
+          "hi": 0.038
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "mixedbread-ai/mxbai-rerank-large-v2",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7988,
+        "recall@10": 0.8869,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7786,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.6,
+          "p95_ms": 2.72,
+          "mean_ms": 1.66
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.93,
+          "p95_ms": 7.84,
+          "mean_ms": 8.03
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.89,
+          "p95_ms": 1.07,
+          "mean_ms": 1.01
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.07,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 1690.67,
+          "p95_ms": 1711.83,
+          "mean_ms": 1694.4
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 1700.3,
+          "p95_ms": 1721.85,
+          "mean_ms": 1705.18
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 1908.09,
+        "total_ms": 1908.1
+      },
+      "wall_ms": 511622.79,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "mixedbread-ai/mxbai-rerank-large-v2",
+          "revision": "ca7e1ee484c37c0ddd8d178a9a5c33cec575c5e6",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999991,
+            "score_other": 0.003388,
+            "score_answer_long": 0.999971,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "2f1db629bb5a52d96883f51604ba596e0fb653177fd43a6359e5b4db489f7440",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7988,
+          "lo": 0.759,
+          "hi": 0.8373
+        },
+        "recall@10": {
+          "mean": 0.8869,
+          "lo": 0.8488,
+          "hi": 0.9217
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.061,
+          "lo": 0.0322,
+          "hi": 0.0916
+        },
+        "recall@10": {
+          "delta": 0.0273,
+          "lo": 0.0023,
+          "hi": 0.054
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7071,
+        "recall@10": 0.8474,
+        "recall@100": 0.9617,
+        "mrr@10": 0.6721,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.33,
+          "p95_ms": 2.33,
+          "mean_ms": 1.38
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.49,
+          "p95_ms": 6.56,
+          "mean_ms": 6.47
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.77,
+          "p95_ms": 0.8,
+          "mean_ms": 0.77
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.06,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 48.59,
+          "p95_ms": 52.19,
+          "mean_ms": 48.65
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 57.41,
+          "p95_ms": 60.77,
+          "mean_ms": 57.35
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 585.58,
+        "total_ms": 585.58
+      },
+      "wall_ms": 17250.74,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+          "neural": true,
+          "pinned_revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999922,
+            "score_other": 1.6e-05,
+            "score_answer_long": 0.759965,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "7cc9841cff6f608851b5dc8514d11da15972871e50d8b882da5238a77d61f4ec",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7071,
+          "lo": 0.6635,
+          "hi": 0.7497
+        },
+        "recall@10": {
+          "mean": 0.8474,
+          "lo": 0.8052,
+          "hi": 0.8853
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0308,
+          "lo": -0.0595,
+          "hi": -0.0038
+        },
+        "recall@10": {
+          "delta": -0.0121,
+          "lo": -0.0419,
+          "hi": 0.018
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L12-v2",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7111,
+        "recall@10": 0.8558,
+        "recall@100": 0.9617,
+        "mrr@10": 0.6736,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.33,
+          "p95_ms": 2.34,
+          "mean_ms": 1.38
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.52,
+          "p95_ms": 6.59,
+          "mean_ms": 6.5
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.78,
+          "p95_ms": 0.8,
+          "mean_ms": 0.78
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.06,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 80.23,
+          "p95_ms": 83.76,
+          "mean_ms": 79.98
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 89.05,
+          "p95_ms": 92.62,
+          "mean_ms": 88.71
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 766.24,
+        "total_ms": 766.24
+      },
+      "wall_ms": 26659.15,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+          "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+          "neural": true,
+          "pinned_revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999925,
+            "score_other": 1.6e-05,
+            "score_answer_long": 0.982473,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "c5de50a2e0f6967bbf0fad26be104bcb65d9200e0cb8463f95f1dd714cda4b72",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7111,
+          "lo": 0.6665,
+          "hi": 0.7514
+        },
+        "recall@10": {
+          "mean": 0.8558,
+          "lo": 0.8144,
+          "hi": 0.8933
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0267,
+          "lo": -0.0529,
+          "hi": -0.0005
+        },
+        "recall@10": {
+          "delta": -0.0038,
+          "lo": -0.0314,
+          "hi": 0.0248
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "mixedbread-ai/mxbai-rerank-xsmall-v1",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7192,
+        "recall@10": 0.8762,
+        "recall@100": 0.9617,
+        "mrr@10": 0.675,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.44,
+          "p95_ms": 2.51,
+          "mean_ms": 1.49
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.64,
+          "p95_ms": 6.74,
+          "mean_ms": 6.62
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.88,
+          "p95_ms": 0.9,
+          "mean_ms": 0.88
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.07,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 136.1,
+          "p95_ms": 140.3,
+          "mean_ms": 130.15
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 145.2,
+          "p95_ms": 149.7,
+          "mean_ms": 139.23
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 1629.29,
+        "total_ms": 1629.3
+      },
+      "wall_ms": 41835.25,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "mixedbread-ai/mxbai-rerank-xsmall-v1",
+          "revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422",
+          "neural": true,
+          "pinned_revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.964762,
+            "score_other": 0.029743,
+            "score_answer_long": 0.609611,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "c310243e7ea38dada8076180412aed970d88d81849a1d4445d437f9bdb1b4a63",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7192,
+          "lo": 0.6761,
+          "hi": 0.7621
+        },
+        "recall@10": {
+          "mean": 0.8762,
+          "lo": 0.839,
+          "hi": 0.9113
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0187,
+          "lo": -0.0433,
+          "hi": 0.0076
+        },
+        "recall@10": {
+          "delta": 0.0167,
+          "lo": -0.0075,
+          "hi": 0.0408
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "mixedbread-ai/mxbai-rerank-base-v1",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7459,
+        "recall@10": 0.8799,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7118,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.45,
+          "p95_ms": 2.49,
+          "mean_ms": 1.49
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.64,
+          "p95_ms": 6.79,
+          "mean_ms": 6.66
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.85,
+          "p95_ms": 0.9,
+          "mean_ms": 0.88
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.06,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 288.34,
+          "p95_ms": 293.47,
+          "mean_ms": 270.71
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 297.37,
+          "p95_ms": 303.04,
+          "mean_ms": 279.82
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 5070.93,
+        "total_ms": 5070.94
+      },
+      "wall_ms": 84005.78,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "mixedbread-ai/mxbai-rerank-base-v1",
+          "revision": "800f24c113213a187e65bde9db00c15a2bb12738",
+          "neural": true,
+          "pinned_revision": "800f24c113213a187e65bde9db00c15a2bb12738",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.992805,
+            "score_other": 0.003756,
+            "score_answer_long": 0.886997,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "cbe97697cde9693bc096756cb3ff7ea5e91e537c0e470ef2d12d5909396f88ba",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7459,
+          "lo": 0.7027,
+          "hi": 0.7873
+        },
+        "recall@10": {
+          "mean": 0.8799,
+          "lo": 0.8416,
+          "hi": 0.9153
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.0081,
+          "lo": -0.0206,
+          "hi": 0.0378
+        },
+        "recall@10": {
+          "delta": 0.0203,
+          "lo": -0.0072,
+          "hi": 0.05
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "Alibaba-NLP/gte-reranker-modernbert-base",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7699,
+        "recall@10": 0.8802,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7383,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.47,
+          "p95_ms": 2.52,
+          "mean_ms": 1.54
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.62,
+          "p95_ms": 6.71,
+          "mean_ms": 6.61
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.9,
+          "p95_ms": 0.94,
+          "mean_ms": 0.9
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.06,
+          "p95_ms": 0.07,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 249.44,
+          "p95_ms": 253.73,
+          "mean_ms": 240.51
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 258.56,
+          "p95_ms": 263.12,
+          "mean_ms": 249.65
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 1687.99,
+        "total_ms": 1688.0
+      },
+      "wall_ms": 74986.77,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+          "revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+          "neural": true,
+          "pinned_revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.980046,
+            "score_other": 0.199055,
+            "score_answer_long": 0.946022,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "360cd68d203bf150cc678ce0c8c03c90598019d2fe8a3234e3bf1148a677fff8",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7699,
+          "lo": 0.7277,
+          "hi": 0.8093
+        },
+        "recall@10": {
+          "mean": 0.8802,
+          "lo": 0.8403,
+          "hi": 0.9153
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.032,
+          "lo": 0.0029,
+          "hi": 0.0608
+        },
+        "recall@10": {
+          "delta": 0.0207,
+          "lo": -0.0027,
+          "hi": 0.0445
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-reranker-base@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+bge-reranker-base@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-base",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7341,
+        "recall@10": 0.8668,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 1.38,
+          "p95_ms": 2.38,
+          "mean_ms": 1.43
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 6.49,
+          "p95_ms": 6.59,
+          "mean_ms": 6.48
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.81,
+          "p95_ms": 0.85,
+          "mean_ms": 0.82
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.05,
+          "p95_ms": 0.06,
+          "mean_ms": 0.06
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 162.02,
+          "p95_ms": 166.74,
+          "mean_ms": 162.08
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 170.91,
+          "p95_ms": 175.66,
+          "mean_ms": 170.88
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 3689.06,
+        "total_ms": 3689.06
+      },
+      "wall_ms": 51333.96,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-base",
+          "revision": "2cfc18c9415c912f9d8155881c133215df768a70",
+          "neural": true,
+          "pinned_revision": "2cfc18c9415c912f9d8155881c133215df768a70",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999392,
+            "score_other": 3.7e-05,
+            "score_answer_long": 0.999507,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "fea68d6a1923561170e2f25f43ddd7ed4d1f18f11f6c151ee7f240f145055332",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7341,
+          "lo": 0.6927,
+          "hi": 0.7747
+        },
+        "recall@10": {
+          "mean": 0.8668,
+          "lo": 0.8278,
+          "hi": 0.9035
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0038,
+          "lo": -0.0296,
+          "hi": 0.0218
+        },
+        "recall@10": {
+          "delta": 0.0072,
+          "lo": -0.0197,
+          "hi": 0.0346
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    }
+  ],
+  "small_rerankers": {
+    "shape": {
+      "rerank_top": 20,
+      "max_length": 512,
+      "precision": "fp32"
+    },
+    "parent": "hybrid@bge-small",
+    "bar": {
+      "name": "December's quality bar",
+      "passes": "the row's paired nDCG@10 delta against hybrid@bge-small has a 95% interval whose lower end is above zero on fixture v1's held-out questions AND on BEIR SciFact AND on BEIR FiQA",
+      "applies_to": "every reranked row: the candidates, the students, bge-reranker-v2-m3 and the teacher",
+      "interval": "percentile bootstrap over the queries, paired, 2000 resamples, seed 0 (app/eval/stats.py)",
+      "held_out": "fixture v1: the test half of app.eval.rerank_arms.split_questions (alternate inside each category, gold order), as make bench-rrf-sweep uses it; no choice is made on the other (tune) half; BEIR: the test split",
+      "also_reported": "each row's delta against bge-reranker-v2-m3 and against the teacher; a student's against the candidate it started from",
+      "not_decided_here": "the serving bar: added p95 latency and peak memory at the served depth, measured on the host itself; a CPU timing from another machine is indicative only"
+    },
+    "references": {
+      "bge-rerank": "BAAI/bge-reranker-v2-m3",
+      "mxbai-rerank-large-v2": "mixedbread-ai/mxbai-rerank-large-v2"
+    },
+    "candidates": {
+      "minilm-l6": {
+        "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "licence": "apache-2.0",
+        "parameters": 22714113,
+        "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a"
+      },
+      "minilm-l12": {
+        "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+        "licence": "apache-2.0",
+        "parameters": 33360897,
+        "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968"
+      },
+      "mxbai-xsmall-v1": {
+        "model": "mixedbread-ai/mxbai-rerank-xsmall-v1",
+        "licence": "apache-2.0",
+        "parameters": 70830337,
+        "revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422"
+      },
+      "mxbai-base-v1": {
+        "model": "mixedbread-ai/mxbai-rerank-base-v1",
+        "licence": "apache-2.0",
+        "parameters": 184422913,
+        "revision": "800f24c113213a187e65bde9db00c15a2bb12738"
+      },
+      "gte-modernbert-base": {
+        "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+        "licence": "apache-2.0",
+        "parameters": 149605633,
+        "revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c"
+      },
+      "bge-reranker-base": {
+        "model": "BAAI/bge-reranker-base",
+        "licence": "mit",
+        "parameters": 278044931,
+        "revision": "2cfc18c9415c912f9d8155881c133215df768a70"
+      }
+    },
+    "students": {
+      "student-minilm-l6": {
+        "init": "minilm-l6",
+        "attempt": 1
+      },
+      "student-minilm-l12": {
+        "init": "minilm-l12",
+        "attempt": 1
+      }
+    },
+    "rows": [
+      "hybrid@bge-small",
+      "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",
+      "hybrid+minilm-l6@bge-small/fp32-512/top20",
+      "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+      "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+      "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "hybrid+bge-reranker-base@bge-small/fp32-512/top20"
+    ],
+    "load_and_score": "every model first ranks the check's answer above an unrelated passage with the loaded instance, or the run stops (app/eval/models_2026.py)",
+    "served_defaults_changed": false
+  },
+  "reproduces": [
+    {
+      "file": "bench/results/beir_scifact.json",
+      "git_sha": "32972cf",
+      "device": "Quadro RTX 8000",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "hybrid@bge-small": {
+          "equal": true
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "equal": true
+        }
+      },
+      "all": true
+    },
+    {
+      "file": "bench/results/beir_scifact_models_2026.json",
+      "git_sha": "23729b3",
+      "device": "NVIDIA A40",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20": {
+          "equal": true,
+          "ranking_equal": true
+        }
+      },
+      "all": true
+    }
+  ]
+}
