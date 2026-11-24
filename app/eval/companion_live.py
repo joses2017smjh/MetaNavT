@@ -216,8 +216,10 @@ def loaded_models(base_url: str) -> list[dict]:
 
 def preflight_api(api: served_stack.ServedAPI, corpus: set[str]) -> dict:
     """/health ok with nodes indexed, and a retrieve whose every hit path is a corpus path as the gold writes it
-    (relative to the corpus root). Whether the asked file is among the hits is not checked: the served lexical
-    leg does not search paths (doc/engineering-reference.md, parity), and that is part of what is measured."""
+    (relative to the corpus root). Whether the asked file is among the hits is not checked: this query has no
+    path-like token, and the served statement searches file names and paths only on the router's lexical_path
+    route (doc/engineering-reference.md, The API serves the benchmarked pipeline); which files the model's searches
+    find is part of what is measured."""
     n_nodes = (api.health or {}).get("n_nodes") or 0
     if n_nodes <= 0:
         raise SystemExit(f"preflight: {api.label} has no indexed nodes; nothing was measured")

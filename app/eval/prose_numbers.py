@@ -11,6 +11,10 @@ on GitHub that ends the paragraph. A spec is one of
   bench/results/x.json#/a|len    the number of elements of the list or object there
   bench/results/x.json#/a|/1000  the value divided (|/N) or multiplied (|*N) by a constant, for a unit change
   app/x.py:"TEXT {} TEXT"        the number written at {} in the first line of that file the pattern matches
+  bench/results/x.json@SHA#/a    the file as committed at SHA (the full 40-character commit id), read from this
+                                 repository's history with git; a later #/... spec on the line reads it too. For a
+                                 result the prose keeps after its file was re-recorded. A clone without that commit
+                                 (a shallow one: git fetch --unshallow) cannot resolve it, which is a problem.
 
 and the cited number must equal the value as the prose prints it: the value formatted with as many decimals as the
 prose shows (f"{value:.{d}f}"), thousands separators and a leading + aside. A number written as inline code with
@@ -50,7 +54,7 @@ CITATION = re.compile(r"<!--\s*num:(?P<body>.*?)-->")
 # to a letter or digit (H100, 80GB, 7b), except a multiplier x (6x is a number). A ~ or a / in front does not glue:
 # ~1.3 and both numbers of 13/16 count.
 NUMBER = re.compile(r"(?<![\w.@#:+\-=])[+\-]?\d+(?:,\d{3})*(?:\.\d+)?(?!(?!x\b)\w)")
-SPEC = re.compile(r'\s*(?:(?P<file>[\w./\-]+)?(?P<ptr>#[^;|"\s]*)(?:\|(?P<op>len|[/*][0-9.]+))?'
+SPEC = re.compile(r'\s*(?:(?:(?P<file>[\w./\-]+)(?:@(?P<rev>[0-9a-f]{40}))?)?(?P<ptr>#[^;|"\s]*)(?:\|(?P<op>len|[/*][0-9.]+))?'
                   r'|(?P<src>[\w./\-]+):"(?P<pat>(?:[^"\\]|\\.)*)")\s*(?:;|$)')
 NUMERIC_CODE = re.compile(r"`[\d\s.,+\-→/%]+`")
 HTTP_STATUS = {"200", "401", "403", "404", "409", "413", "415", "422", "429", "500", "503", "504"}
@@ -227,7 +231,7 @@ def cited_value(spec: dict, root: Path, last_file: str | None, cache: dict) -> t
             if m:
                 return float(m.group(1).replace("_", "").replace(",", "")), rel
         raise ValueError(f"no line of {rel} matches {pattern!r}")
-    rel = spec.get("file") or last_file
+    rel = (spec["file"] + (f"@{spec['rev']}" if "rev" in spec else "")) if "file" in spec else last_file
     if not rel:
         raise ValueError("a spec without a file must follow one with a file on the same line")
     value = resolve_pointer(_read(root, rel, cache), spec["ptr"])
@@ -251,6 +255,10 @@ def cited_value(spec: dict, root: Path, last_file: str | None, cache: dict) -> t
 
 def _read(root: Path, rel: str, cache: dict, text: bool = False):
     key = (rel, text)
+    if key not in cache and "@" in rel:  # FILE@SHA: the file as committed, from this repository's history
+        name, rev = rel.split("@", 1)
+        raw = _committed(name, rev)
+        cache[key] = raw if text else json.loads(raw)
     if key not in cache:
         path = (root / rel).resolve()
         if root.resolve() not in path.parents:
@@ -260,6 +268,22 @@ def _read(root: Path, rel: str, cache: dict, text: bool = False):
         raw = path.read_text(encoding="utf-8")
         cache[key] = raw if text else json.loads(raw)
     return cache[key]
+
+
+def _committed(name: str, rev: str) -> str:
+    """The text of `name` as committed at `rev`, read with git from the repository this module is in."""
+    import subprocess
+
+    def git(*args):
+        return subprocess.run(["git", "-c", "pack.threads=1", "-C", str(ROOT), *args], capture_output=True, text=True)
+
+    if git("cat-file", "-e", f"{rev}^{{commit}}").returncode != 0:
+        shallow = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
+        raise ValueError(f"commit {rev} is not in this clone's history" + (" (a shallow clone: git fetch --unshallow)" if shallow else ""))
+    shown = git("show", f"{rev}:{name}")
+    if shown.returncode != 0:
+        raise ValueError(f"no file {name} at commit {rev[:7]}")
+    return shown.stdout
 
 
 def matches(prose: str, value: float) -> bool:
