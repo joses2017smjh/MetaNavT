@@ -100,6 +100,15 @@ def test_preflight_stops_when_the_model_refuses_the_companions_request():
     assert checked["returned_fields"] == ["content", "role"] and checked["returned_tool_calls"] is False
 
 
+def test_the_preflight_retrieve_is_not_a_path_lookup():
+    """preflight_api does not require the asked file among the hits: its query has no path-like token, so the router
+    does not send it down lexical_path, the only route on which the served statement searches file names and paths."""
+    from app.retrieval.router import QueryRouter, RouteType
+
+    assert QueryRouter().route(live.PREFLIGHT_QUERY).route != RouteType.LEXICAL_PATH
+    assert "only on the router's lexical_path" in " ".join(live.preflight_api.__doc__.split())
+
+
 def test_publishable_rows_keep_corpus_text_and_scrub_only_rows_naming_this_machine(tmp_path):
     shebang = {"id": "q1", "route": "/api/chat", "response": {"text": "#!/bin/bash\n#SBATCH --gres=gpu:1"}}
     assert live.publishable(shebang, live.local_paths(tmp_path)) == {**shebang, "scrubbed": False}
