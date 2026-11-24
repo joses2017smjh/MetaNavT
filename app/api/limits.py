@@ -11,9 +11,10 @@ Daily budget (ANSWER_DAILY_BUDGET_USD)
     Reserve, then settle. Before a call, the worst case of that call (app.answer.claude.worst_case_usd) is added to the
     day's counter with one INCRBY, in micro-dollars; if the new total is over the budget, the same amount is taken
     back and the call is not made. After the call, the counter is moved by (actual - reserved), so a cheap reply gives
-    back most of its reservation. A call that fails with a timeout keeps its whole reservation (it may have been
-    billed). Concurrent requests cannot overshoot the budget by more than one reservation each, since every
-    reservation is counted before its call starts.
+    back most of its reservation. The counter moved is the one the reservation went to (Reservation.key), so a call
+    reserved before UTC midnight and settled after it is settled on its own day. A call that fails with a timeout
+    keeps its whole reservation (it may have been billed). Concurrent requests cannot overshoot the budget by more
+    than one reservation each, since every reservation is counted before its call starts.
 
 Answer cache (ANSWER_CACHE_TTL_SECONDS)
     A delivered answer is stored under the SHA-256 of the model and the normalised question, for the TTL; a repeat is
@@ -62,6 +63,14 @@ class LimitSettings:
                    cache_ttl_s=int(_number("ANSWER_CACHE_TTL_SECONDS", DEFAULT_CACHE_TTL_S, int)))
 
 
+@dataclass(frozen=True)
+class Reservation:
+    """What reserve() counted: `micros` on the budget counter `key`, the UTC day the call was reserved on."""
+
+    micros: int
+    key: str
+
+
 class Limits:
     """Quotas, budget and cache over a Redis client (redis.Redis, or anything with get/set/incr/incrby/decrby/expire)."""
 
@@ -90,8 +99,8 @@ class Limits:
     def _budget_key(self) -> str:
         return "answer:budget:" + time.strftime("%Y-%m-%d", time.gmtime(self.clock()))
 
-    def reserve(self, usd: float) -> int | None:
-        """Reserve `usd` against today's budget; the reservation in micro-dollars, or None when it does not fit."""
+    def reserve(self, usd: float) -> Reservation | None:
+        """Reserve `usd` against today's budget; the Reservation, or None when it does not fit."""
         micros = max(1, int(usd * MICRO) + 1)
         key = self._budget_key()
         total = int(self.redis.incrby(key, micros))
@@ -100,15 +109,16 @@ class Limits:
         if total > int(self.settings.daily_budget_usd * MICRO):
             self.redis.decrby(key, micros)
             return None
-        return micros
+        return Reservation(micros, key)
 
-    def settle(self, reserved_micros: int, actual_usd: float | None) -> None:
-        """Replace a reservation by the actual cost; None keeps the whole reservation (the cost is unknown)."""
+    def settle(self, reservation: Reservation, actual_usd: float | None) -> None:
+        """Replace a reservation by the actual cost, on the day it was reserved on (its key, not today's: a call can
+        cross UTC midnight); None keeps the whole reservation (the cost is unknown)."""
         if actual_usd is None:
             return
-        delta = int(actual_usd * MICRO) - reserved_micros
+        delta = int(actual_usd * MICRO) - reservation.micros
         if delta:
-            self.redis.incrby(self._budget_key(), delta)
+            self.redis.incrby(reservation.key, delta)
 
     def spent_today_usd(self) -> float:
         return int(self.redis.get(self._budget_key()) or 0) / MICRO

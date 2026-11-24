@@ -68,13 +68,13 @@ def test_the_runbook_covers_the_owners_steps_in_order():
     positions = [RUNBOOK.index(heading) for heading in order]
     assert positions == sorted(positions)
     assert "Required reviewers" in RUNBOOK and "`main` only" in RUNBOOK  # the approval and the branch rule are set by hand
-    assert "**Status: code only, but for the bootstrap.**" in RUNBOOK  # the owner applied only the bootstrap
+    assert "**Status: the single host is applied; the ECS stack is code only.**" in RUNBOOK  # and the bootstrap
 
 
 def test_the_readme_and_the_reference_link_the_runbook():
     readme = " ".join((ROOT / "README.md").read_text().split())
     assert "[Deploy to AWS](doc/deploy.md)" in readme
-    assert "**Public demo mode (not deployed yet).**" in readme  # still true: nothing is applied
+    assert "**Public demo mode (deployed).**" in readme  # the single host serves it (the runbook's first section)
     reference = (ROOT / "doc" / "engineering-reference.md").read_text()
     run_it = reference.split("## Run it", 1)[1].split("## What we are not claiming", 1)[0]
     assert "](deploy.md)" in run_it

@@ -2000,13 +2000,54 @@ sidecar too, never from the machine that rescored.
 
 ---
 
+## A search policy trained with reinforcement learning
+
+`app/rl/` is a Search-R1 style search policy: the model writes `<search>query</search>` and stops, the environment
+appends the top chunks of the in-memory hybrid index (BM25 and bge-small, fused) between `<information>` tags, and
+the model ends with `<answer>VALUE [path]</answer>`. M44 trained it once and scored it on fixture v1's held-out
+questions against the same model untrained and against single-shot RAG (one search with the question, then the
+answer). Every number is in the [generated table](../README.md#search-policy); `make search-policy-rescore`
+recomputes the results file from its two sidecars (every held-out episode, every training curve) on a CPU, with no
+model and no torch.
+
+- **Policy.** `Qwen/Qwen2.5-1.5B-Instruct` (Apache-2.0, checked on the Hugging Face API; the next size up carries a
+  research-only licence) with a LoRA adapter on the attention projections. The base weights stay frozen, and the
+  adapter is the only output of training (it is kept outside the repository with its sha256 sums; the results file
+  records the sums of the adapters it scored).
+- **Training data.** Corpora the fixture's builder writes from other seeds: other run ids, encoder and bark names,
+  every value drawn again, never fixture v1 (`bench/corpus/build.py` takes a Spec; its default rebuilds fixture v1
+  byte for byte, and a test compares every file). A training question whose text equals any fixture question's is
+  dropped, and so is one whose answer is the same string in every corpus; both counts are in the results file.
+  The kept questions share their templates with the test questions: a gain may be a gain on these templates only.
+- **Reward.** Strict exact match (the answer without its citation equals the gold after normalisation), plus half
+  the nDCG@10 of the files the searches showed, minus a tax per search and a penalty for an answer that is empty or
+  does not cite a file it was shown. PLAN.md's jury term is not in it (no jury runs in the loop), and neither is the
+  overlap teacher.
+- **Update.** Each step samples a group of episodes per training question; a question's rewards are normalised
+  inside its group (GRPO's advantage, no critic), and the loss is minus the advantage times the mean log-probability
+  of the tokens the policy wrote, so the retrieved tokens are context only. There is one optimiser step per batch,
+  so the PPO ratio GRPO clips is identically one and nothing is clipped, and there is no KL term: it is a policy
+  gradient with GRPO's baseline, a small loop on transformers and peft rather than the veRL stack PLAN.md names.
+- **Selection and the bar.** Each seed's checkpoint is the one with the best mean reward on the tune half of the
+  fixture; the held-out half was scored once per arm. The bar was written down before training: the paired
+  bootstrap delta in exact match, trained minus untrained, with several seeds read from each question's mean over
+  the seeds.
+
+On the 68<!-- num: bench/results/search_policy.json#/split/n_held_out --> held-out questions, with each question's trained score the mean over the 3<!-- num: bench/results/search_policy.json#/verdicts/0/n_seeds --> seeds, exact match minus the untrained model's is +0.0392 [-0.0049, +0.0931]<!-- num: bench/results/search_policy.json#/verdicts/0/delta; #/verdicts/0/lo; #/verdicts/0/hi -->: the interval covers zero, **a tie** on the bar declared before training, and a tie against single-shot RAG as well.
+
+Secondary to that bar, and not part of its verdict: the mean reward rises by +0.1206 [+0.0480, +0.1987]<!-- num: bench/results/search_policy.json#/verdicts/1/delta; #/verdicts/1/lo; #/verdicts/1/hi --> and the bounded match (the guard column) by +0.0441 [+0.0049, +0.0933]<!-- num: bench/results/search_policy.json#/verdicts/2/delta; #/verdicts/2/lo; #/verdicts/2/hi -->, and what moved is narrow: about half of the reward's rise is fewer uncited or empty answers (0.0882 untrained, 0.0245 trained<!-- num: bench/results/search_policy.json#/results/[config=policy-untrained]/means/uncited_or_empty; #/results/[config=policy-grpo]/means/uncited_or_empty -->), the rest exact match, itself a tie, and the files shown; the trained policy also gets the per-run lookups it missed (exact match on them 0.95 untrained, 1.00 trained<!-- num: bench/results/search_policy.json#/results/[config=policy-untrained]/by_category/simple_factual/em; #/results/[config=policy-grpo]/by_category/simple_factual/em -->), while it still makes one search per question and no arm writes any of the 16<!-- num: bench/results/search_policy.json#/split/held_out_gold_forms/composite --> composite gold answers (a list, a sentence, two values joined) in the gold's own format.
+
+In training, the questions per step whose episodes had unequal rewards, the only ones with a gradient under GRPO's group advantage, fell from 6.1, 6.05 and 6.25<!-- num: bench/results/search_policy.json#/training_runs/0/signal/groups_with_a_reward_spread_first; #/training_runs/1/signal/groups_with_a_reward_spread_first; #/training_runs/2/signal/groups_with_a_reward_spread_first --> of 8<!-- num: bench/results/search_policy.json#/training_runs/0/signal/questions_per_step --> over the first 20<!-- num: bench/results/search_policy.json#/training_runs/0/signal/window --> steps to 0.9, 1.1 and 1.85<!-- num: bench/results/search_policy.json#/training_runs/0/signal/groups_with_a_reward_spread_last; #/training_runs/1/signal/groups_with_a_reward_spread_last; #/training_runs/2/signal/groups_with_a_reward_spread_last --> over the last, as the sampler became nearly deterministic. None of the three runs collapsed by the declared rule, so the PPO fallback did not run; but a longer run of this loop would have had little left to learn from. The tune half, which chose each seed's checkpoint, is in-sample; the held-out half was scored once per arm.
+
+---
+
 ## Prototypes (not evaluated)
 
 This section has two parts. The retrieval prototypes below have a benchmark arm:
 a row in a committed results file with a named parent, a paired bootstrap delta
 and its interval, produced by `make bench-frontier` (CPU stand-ins) and
 `make bench-frontier-neural` (real models). The rest of the section (the
-artifact pipeline, Paper2Code, MATLAB, multimodal pages, Search-R1) runs and is
+artifact pipeline, Paper2Code, MATLAB, multimodal pages) runs and is
 shown in the GIFs but has no measured result on the gold set or on an external
 benchmark, and stays labelled as a prototype. No number is typed here: the
 numbers are in the generated tables this section links to.
@@ -2251,10 +2292,6 @@ _ColPali-style page patches and CLIP / SigLIP images (`app/multimodal/`); no ima
 PDFs are indexed as page images, not smashed-to-text. Patch grid → MaxSim. Tables and figures stay pixels. Storage holds one vector per patch, many times what a single-vector index holds, so this is an available mode, not the default path.
 
 Renders and plots go through CLIP/SigLIP when the model is local, pixel-hash otherwise. One query, three retrievers (text, page, image), fused with RRF.
-
-### Search-R1 / GRPO
-
-_The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in `app/rl/`; nothing is trained. See "What we are not claiming"._
 
 ---
 
@@ -2516,7 +2553,8 @@ models, and evaluating Claude spends API credits.
 - a daily budget in dollars. Each call first reserves its worst case with one atomic increment: all of `max_tokens` as
   output, the input at a conservative tokens-per-character ratio, at the dearest rate that could bill it. The call is
   refused when the day's total would go over. Afterwards the reservation is settled to the reply's cost, from its
-  usage and a price table dated in the code; a timeout keeps the whole reservation;
+  usage and a price table dated in the code, on the reservation's own day: a call that crosses UTC midnight is settled
+  on the day it was reserved on, and the new day's total is not touched; a timeout keeps the whole reservation;
 - an answer cache keyed by the model and the normalised question.
 
 The caller is the API key's name when authentication is on, and otherwise the client address behind
@@ -2604,9 +2642,10 @@ contract's names and defaults as the block above lists them, and no committed
 secret.
 
 **Deploy to AWS.** [The runbook](deploy.md) covers the AWS stacks in `infra/`:
-Terraform, code only (the owner has applied only the bootstrap). The live demo's target is one Free-plan EC2 host
-behind CloudFront ([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the
-app checks CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
+Terraform; the owner has applied the bootstrap and the live demo's single host, not the ECS stack. The live demo is
+one Free-plan EC2 host behind CloudFront
+([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the app checks
+CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
 production-grade target.
 CloudFront, with a WAF, sends `/api/*` and `/health` to an ALB whose only
 ingress is CloudFront's origin-facing prefix list and whose listener forwards
@@ -2651,7 +2690,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **The API is not a hardened multi-replica service.** Authentication is off unless a key is configured, and then each key (the shared `METANAVIT_API_KEY`, or a named key from `METANAVIT_API_KEYS_FILE`) is an identity with no roles: any key may do whatever the API allows. The request budget is counted per process, so it is not a global rate limit. Pending file plans are shared through Postgres, but only by replicas that see `DATA_DIR` at the same path on the same filesystem. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest, except: outside the image setuptools is not pinned (`requirements.txt` and `requirements/dev.txt` leave it unpinned, `dev.txt` leaves pip unpinned too, and the CI jobs' `pip install --no-deps -e .` builds the package with the newest setuptools `[build-system]` allows), and the CUDA packages of the hand-built GPU override are resolved at build time.
 
-**RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
+**The RL search policy is one small training run on synthetic, templated data.** It was trained once (one configuration, three seeds) on corpora the fixture's own builder writes from other seeds, with questions from the same templates as the test questions, one small model and one prompt, and on its declared bar, exact match against the untrained model, the interval covers zero. A result on these templates says nothing about a real research directory or about questions people write. See the [section above](#a-search-policy-trained-with-reinforcement-learning) and [PLAN.md](../PLAN.md) Phase 10.
 
 **The CI table's rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`; it is within noise of plain RRF (see the [ablation table](#the-number)). The real reranker is measured in the [real-models tables](#real-models-and-a-corpus-where-k50-means-something), which are committed artifacts rather than CI output. Until M2 the cross-encoder was called through the wrong API (`compute_score` instead of sentence-transformers' `predict`). In the bench, the weights were never cached, so `get_cross_encoder()` returned nothing and the row fell back to overlap for lack of weights; the first run with weights present raised. In the production retriever the same call was inside a broad `except`, so reranking silently returned the RRF order. No earlier "bge-rerank" number in this repository's history was a cross-encoder result; `reranker_loaded` in the results file is the check.
 
@@ -2669,7 +2708,7 @@ Open items, in priority order (the second is done and keeps its place):
 2. **Per-slice changed-query counts: done.** Every per-category delta of a ladder row records how many of the slice's questions rose and fell (`questions_changed`), and the generated tables print it next to the interval.
 3. **ParadeDB BM25 in the production path**, if that backend is kept (an open decision): no test or results file has run its statement yet. A parity run with it would report its gap next to the `ts_rank_cd` row; the parity job reports that gap with its interval and fails only on a broken API or a fixture that differs from its MANIFEST.
 4. **Injection evaluation, next steps:** larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner. The attacker that rewrites the planted text against each defense is built: in the fourth run, whose only target is the stronger model, no comparison with the fixed phrasings showed a difference after seven rounds ([generated table](../README.md#agent-injection-adaptive)).
-5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, and a search policy trained on questions that are not the test set's templates, with a judge term in its reward (the policy trained once here ties on exact match and still searches once per question).
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 
@@ -2684,7 +2723,7 @@ app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters (measured), conflicts; GraphRAG, HippoRAG PPR (prototypes)
 app/agent/         retrieval loop, Deep Research, move-plan schema
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox (prototype, not evaluated)
-app/rl/            Search-R1 env, reward, GRPO dummy step (prototype, not evaluated)
+app/rl/            Search-R1 env, reward, policy, GRPO training loop, held-out scoring (trained once, M44)
 app/mcp/           filesystem tools + stdio server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images (prototype, not evaluated)
 app/database/      index manager, pgvector, BM25

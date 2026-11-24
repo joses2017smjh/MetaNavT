@@ -10,11 +10,14 @@ Authentication (METANAVIT_API_KEY, METANAVIT_API_KEYS_FILE)
     /api and stays reachable for probes.
     Each key is an identity (Caller.name): the name of its line in the key file,
     or SHARED_KEY_IDENTITY ("shared-key") for METANAVIT_API_KEY, which every
-    holder of that one key shares. The identity is the request budget's key and
-    the actor of a plan decision (app/api/routers/plans.py), whatever the body
-    of the request says. With authentication off there is no identity: the
-    budget counts the client address and a decision's actor is what the client
-    sends.
+    holder of that one key shares. The identity is the request budget's key,
+    the public demo's per-caller answer quota key (caller_identity in
+    app/api/routers/answer.py) and the actor of a plan decision
+    (app/api/routers/plans.py), whatever the body of the request says. With
+    authentication off there is no identity: the budget counts the client
+    address, the answer quota counts the client address behind the trusted
+    proxies (TRUSTED_PROXY_HOPS, app/api/limits.py) and a decision's actor is
+    what the client sends.
     The key file (METANAVIT_API_KEYS_FILE; `python -m app.api.keys add` writes
     it) holds one "name:<SHA-256 of the key, hex>" line per key, never a key.
     The SHA-256 of a presented key is compared with every configured digest
@@ -63,7 +66,7 @@ from fastapi.staticfiles import StaticFiles
 API_KEY_ENV = "METANAVIT_API_KEY"
 API_KEYS_FILE_ENV = "METANAVIT_API_KEYS_FILE"
 SHARED_KEY_IDENTITY = "shared-key"  # the identity of METANAVIT_API_KEY; reserved in the key file
-KEY_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")  # a named key's identity: the decision actor, the budget key
+KEY_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")  # a named key's identity: decision actor, budget, answer quota
 KEYS_UNAVAILABLE = "API keys unavailable (the server log has the reason)"
 RATE_ENV = "RATE_LIMIT_PER_MINUTE"
 BURST_ENV = "RATE_LIMIT_BURST"
@@ -209,7 +212,7 @@ def _identify(presented: str, shared: str | None, named: dict[str, bytes]) -> st
 
 
 async def require_api_key(request: Request) -> Caller:
-    """Router dependency: who is calling (Caller), for the request budget and the plan routes.
+    """Router dependency: who is calling (Caller), for the request budget, the plan routes and the answer route's quota.
 
     Open (no key configured): no identity; the budget counts the client address.
     Keys configured: 401 unless the request carries one of them; 503 when the key file cannot be used. The key itself

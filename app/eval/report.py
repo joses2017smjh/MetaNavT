@@ -19,9 +19,10 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
+SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: the RL search policy, trained once
 FRONTIER_FILE = "bench/results/frontier.json"
 FRONTIER_NEURAL_FILE = "bench/results/frontier_neural.json"
 JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the M4 run, linked from the block
@@ -88,6 +89,7 @@ SOURCES = {
     "bench-frontier": FRONTIER_FILE,
     "bench-frontier-neural": FRONTIER_NEURAL_FILE,
     "bench-rerank-arms": RERANK_ARMS_FILE,
+    "search-policy": SEARCH_POLICY_FILE,
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -2475,6 +2477,105 @@ def rerank_arms_table(blob: dict | None) -> str:
     return "\n".join(lines)
 
 
+def _outcome(block: dict | None) -> str:
+    """A paired delta's interval as the bar reads it: win, tie or loss."""
+    return {"above zero": "win", "covers zero": "tie", "below zero": "loss"}.get(verdict(block), "—") if block else "—"
+
+
+def _interval_words(word: str) -> str:
+    """'covers zero' -> 'covers zero', 'above zero' -> 'is above zero': the verdict word inside a sentence."""
+    return word if word == "covers zero" else f"is {word}"
+
+
+def search_policy_table(blob: dict | None) -> str:
+    """M44: the search policy trained once, against the same model untrained and against single-shot RAG."""
+    if not blob:
+        return f"_{SEARCH_POLICY_FILE} is missing; run `make search-policy-train` and `make search-policy-eval` (a GPU and the `rl` extra)._"
+    rows = {row["config"]: row for row in blob["results"]}
+    runs = blob.get("training_runs") or []
+    leak = blob.get("leakage") or {}
+    split = blob["split"]
+    forms = split["held_out_gold_forms"]
+    algo = blob.get("algorithm") or {}
+    produced = blob.get("episodes_generated_at") or {}
+    dirty = sorted(name for name, at in produced.items() if at.get("working_tree_dirty"))
+    commits = ", ".join(sorted({at.get("git_sha") or "?" for at in produced.values()}))
+    lib = blob.get("libraries") or {}
+    lines = [
+        f"The search policy of `app/rl` (Search-R1 style: the model writes `<search>` and `<answer>`, the environment answers a search with "
+        f"`<information>`), trained once and scored (`make search-policy-train`, `make search-policy-eval`; results sha {_sha(blob)}, episodes "
+        f"generated at {commits}{' (with uncommitted changes: ' + ', '.join(dirty) + ')' if dirty else ''}). Policy model: `{blob['model']['name']}` (licence {blob['licence']['model']}, revision "
+        f"`{(blob['model'].get('revision') or '?')[:12]}`) with a LoRA adapter; {blob.get('gpu')}, {blob.get('precision')}, torch "
+        f"{(blob.get('device') or {}).get('torch')}, transformers {lib.get('transformers')}, peft {lib.get('peft')}. Environment: "
+        f"{blob['environment']['index']}; at most {max(blob['environment']['max_searches'].values())} searches per question, "
+        f"{blob.get('information_chunks_per_search')} chunks shown per search, {blob.get('max_new_tokens_per_piece')} new tokens per piece. "
+        f"Every arm is the same model, prompt and environment on fixture v1's {split['n_held_out']} held-out questions, decoded greedily; "
+        f"intervals are paired bootstrap intervals over those questions. Exact match is strict: the answer without its citation equals the "
+        f"gold answer after normalisation (numbers compared as numbers).",
+        "",
+        "| arm | exact match [95% CI] | Δ vs untrained [95% CI] | outcome | Δ vs single-shot RAG [95% CI] | outcome | reward [95% CI] | "
+        "Δ reward vs untrained [95% CI] | bounded match (guard) | searches per question | uncited or empty | answer length (chars) |",
+        "|---|---:|---:|:---:|---:|:---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    labels = {"single_shot": "one search with the question, then the answer", "untrained": "the model under the prompt",
+              "trained": "trained, one seed", "trained, mean of seeds": "trained, each question's mean over the seeds"}
+    for name, row in rows.items():
+        vs_u = next((b for b in row.get("deltas") or [] if b["reference"] == "policy-untrained"), None)
+        vs_s = next((b for b in row.get("deltas") or [] if b["reference"] == "single-shot-rag"), None)
+        m = row["means"]
+        lines.append(
+            f"| `{name}` ({labels.get(row.get('kind'), row.get('kind'))}) | {_ci(row, 'em', 4)} | {_delta4((vs_u or {}).get('em'))} | "
+            f"{_outcome((vs_u or {}).get('em'))} | {_delta4((vs_s or {}).get('em'))} | {_outcome((vs_s or {}).get('em'))} | {_ci(row, 'reward', 4)} | "
+            f"{_delta4((vs_u or {}).get('reward'))} | {_ci(row, 'em_bounded', 4)} | {m['n_search']:.2f} | {m['uncited_or_empty']:.3f} | {m['answer_chars']:.1f} |")
+    primary = next((v for v in blob.get("verdicts") or [] if v.get("primary")), None)
+    if primary:
+        others = [v for v in blob["verdicts"] if v["config"] == primary["config"] and not v["primary"]]
+        said = "; ".join(f"{v['metric'].replace('em_bounded', 'bounded match').replace('em', 'exact match')} against `{v['reference']}` "
+                         f"{v['delta']:+.4f} [{v['lo']:+.4f}, {v['hi']:+.4f}], a {v['outcome']}" for v in others)
+        seeds = f"the mean of {primary['n_seeds']} training seeds" if primary["n_seeds"] > 1 else "one training seed"
+        lines += ["", f"The bar, declared before training: {blob['bar']['primary']} of the trained policy minus the untrained one, on the held-out "
+                      f"questions; {blob['bar']['reading']}. Result (`{primary['config']}`, {seeds}): {primary['delta']:+.4f} "
+                      f"[{primary['lo']:+.4f}, {primary['hi']:+.4f}], **a {primary['outcome']}** (the interval {_interval_words(primary['interval'])}). Secondary to the bar, not part of its verdict: {said}."]
+    form_rows = [name for name in rows if rows[name].get("kind") != "trained" or len([r for r in rows.values() if r.get("kind") == "trained"]) == 1]
+    form_text = "; ".join(f"`{name}` {rows[name]['by_gold_form'].get('single_value', {}).get('em', 0):.4f} on single values and "
+                          f"{rows[name]['by_gold_form'].get('composite', {}).get('em', 0):.4f} on composite ones" for name in form_rows)
+    lines += ["", f"Of the {split['n_held_out']} held-out gold answers {forms.get('single_value', 0)} are single values (a number, a name, a path) and "
+                  f"{forms.get('composite', 0)} are composite (a list, a sentence, two values joined), which strict exact match credits only in the "
+                  f"gold's own format. Exact match by form: {form_text}."]
+    if runs:
+        parts = []
+        for run in runs:
+            c = run["collapse"]
+            g = run.get("signal") or {}
+            spread = ""
+            if g.get("groups_with_a_reward_spread_first") is not None and g.get("nll_sampled_first") is not None:
+                spread = (f"; per step, {g['groups_with_a_reward_spread_first']:.1f} of its {g['questions_per_step']} questions had episodes with "
+                          f"unequal rewards (a gradient) over the first {g['window']} steps and {g['groups_with_a_reward_spread_last']:.1f} over the "
+                          f"last {g['window']}, and the sampler's NLL per policy token went from {g['nll_sampled_first']:.3f} to {g['nll_sampled_last']:.3f}")
+            parts.append(f"`{run['name']}`: {c['n_steps']} steps; mean episode reward {c['reward_first']:+.4f} over the first {c['window']} steps and "
+                         f"{c['reward_last']:+.4f} over the last {c['window']} (exact match {c['em_first']:.4f} to {c['em_last']:.4f}); "
+                         f"{'collapsed by the declared rule (' + '; '.join(c['reasons']) + ')' if c['collapsed'] else 'not collapsed by the declared rule'}{spread}; "
+                         f"tune-half mean reward {run['tune_reward_untrained']:+.4f} before training, {run['tune_reward_selected']:+.4f} at the selected step "
+                         f"{run['selected_step']}")
+        jury = blob["reward"]["jury_term"]
+        jury = "No jury term: " + jury[len("none: "):] if jury.startswith("none: ") else f"Jury term: {jury}"
+        lines += ["", f"Training ({algo.get('label')}; {algo.get('not')}). Reward: `{blob['reward']['formula']}`. {jury}. "
+                      + " ".join(p + "." for p in parts)]
+    if leak:
+        lines += ["", f"Training questions: {leak['n_corpora']} corpora written by the fixture's builder from other seeds (run ids, encoder and bark names "
+                      f"and every value drawn again; none of fixture v1's), {leak['n_questions_built']} questions built; {leak['n_dropped_same_text_as_a_fixture_question']} "
+                      f"dropped because their text equals a fixture question's and {leak['n_dropped_constant_answer']} more because their answer is the same "
+                      f"string in every corpus; {leak['n_kept']} kept, {leak['n_kept_with_a_fixture_question_text']} of them with a fixture question's text. "
+                      f"The kept questions share their templates with the test questions; {leak.get('n_held_out_questions_whose_template_is_not_trained', 0)} "
+                      f"of the {split['n_held_out']} held-out questions come from a template with no training question."]
+    lines += ["", "What this does not show: " + " ".join(blob.get("does_not_show") or [])]
+    sidecars = blob.get("sidecars") or {}
+    lines += ["", f"Results: [{SEARCH_POLICY_FILE}]({SEARCH_POLICY_FILE}) · every episode: [{sidecars.get('rollouts')}]({sidecars.get('rollouts')}) · "
+                  f"training curves: [{sidecars.get('training')}]({sidecars.get('training')}). `make search-policy-rescore` scores every stored "
+                  f"episode again and recomputes each number above on a CPU, with no model."]
+    return "\n".join(lines)
+
+
 def _mean(block: dict | None) -> str:
     return "n/a" if not block or block.get("mean") is None else f"{block['mean']:.3f}"
 
@@ -2832,6 +2933,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-frontier": frontier_table(_load(root, FRONTIER_FILE)),
         "bench-frontier-neural": frontier_table(_load(root, FRONTIER_NEURAL_FILE), FRONTIER_NEURAL_FILE, "make bench-frontier-neural"),
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
+        "search-policy": search_policy_table(_load(root, SEARCH_POLICY_FILE)),
     }
 
 

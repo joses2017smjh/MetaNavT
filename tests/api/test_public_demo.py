@@ -184,6 +184,25 @@ def test_a_cited_answer_is_delivered_then_served_from_the_cache():
     assert 0 < state["limits"].spent_today_usd() < 0.01  # settled at the reply's cost, not the worst case
 
 
+def test_a_reply_after_utc_midnight_is_settled_on_the_day_its_call_reserved():
+    tc = _client()
+    state = tc.app.state.answer
+    limits, client = state["limits"], state["client"]
+    now = [(1_800_000_000 // 86_400 + 1) * 86_400 - 1.0]  # one second before UTC midnight
+    limits.clock = lambda: now[0]
+    reply = client.create
+
+    def late_reply(**kwargs):
+        now[0] += 2  # the reply comes back on the next UTC day
+        return reply(**kwargs)
+
+    client.create = late_reply
+    assert tc.post("/api/answer/", json=Q).json()["answer"] == "Run 47 used 3e-4"
+    assert limits.spent_today_usd() == 0  # the new day starts at zero, not below it
+    now[0] -= 2
+    assert 0 < limits.spent_today_usd() < 0.01  # the old day keeps the reply's cost, not the worst case
+
+
 @pytest.mark.parametrize("kwargs, reason", [
     ({"client": None}, "answers off"),
     ({"redis": None}, "limits unavailable"),
@@ -259,6 +278,34 @@ def test_a_spoofed_forwarded_for_does_not_buy_a_new_quota(monkeypatch):
     assert (one.status_code, two.status_code, other.status_code) == (200, 429, 200)
 
 
+# A wrong TRUSTED_PROXY_HOPS, pinned both ways (the default is not changed). The test client's peer address stands in
+# for the one proxy in front of the API, which appends the address it received each request from.
+
+
+def test_too_few_trusted_hops_put_every_caller_on_the_proxys_quota(monkeypatch):
+    """TRUSTED_PROXY_HOPS=0 behind one proxy: X-Forwarded-For is ignored and every caller is the proxy's address, so
+    all callers share one quota."""
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "0")
+    tc = _client(per_minute=1)
+    one = tc.post("/api/answer/", json=Q, headers={"x-forwarded-for": "203.0.113.9"})
+    other = tc.post("/api/answer/", json={"question": "again"}, headers={"x-forwarded-for": "203.0.113.10"})
+    assert (one.status_code, other.status_code) == (200, 429)  # another client, refused on the first one's quota
+
+
+def test_too_many_trusted_hops_let_a_client_choose_its_quota_key(monkeypatch):
+    """TRUSTED_PROXY_HOPS=2 behind one proxy: the entry read as the client's is one the client wrote itself, so each
+    made-up address buys a new quota; a client that writes none has too few entries and falls back to the proxy's
+    address, which every such client shares."""
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+    tc = _client(per_minute=1)
+    spoofed = [tc.post("/api/answer/", json={"question": f"question {n}"},
+                       headers={"x-forwarded-for": f"6.6.6.{n}, 203.0.113.9"}).status_code for n in (1, 2, 3)]
+    assert spoofed == [200, 200, 200]  # one client, three quotas
+    honest = [tc.post("/api/answer/", json={"question": f"from {address}"},
+                      headers={"x-forwarded-for": address}).status_code for address in ("203.0.113.10", "203.0.113.11")]
+    assert honest == [200, 429]  # two clients that wrote no header share the proxy's quota
+
+
 def test_the_public_caps_and_the_body_limit():
     tc = _client()
     assert tc.post("/api/retrieve/", json={"query": "run 47", "k": 11}).status_code == 422
@@ -296,7 +343,8 @@ def test_the_web_demo_page_sends_what_the_public_routes_accept():
 
 def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
     """The reference's Public demo mode section names the allow-list the app serves, and every variable of its deploy
-    contract is one the code reads; the README says the demo is not deployed and its answers are not evaluated."""
+    contract is one the code reads; the README says the demo is deployed on one host behind CloudFront with answers off
+    until the owner stores a key, and that its answers are not evaluated."""
     import re
 
     text = (ROOT / "doc" / "engineering-reference.md").read_text()
@@ -313,5 +361,7 @@ def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
     unread = sorted(n for n in names if f'"{n}"' not in sources)
     assert unread == [], unread
     readme = " ".join((ROOT / "README.md").read_text().split())
-    assert "**Public demo mode (not deployed yet).**" in readme
+    assert ("**Public demo mode (deployed).** It is deployed as a public demo on one host behind CloudFront, "
+            "with answers switched off until the owner stores an Anthropic API key") in readme
+    assert "not deployed" not in readme
     assert "Claude's answers are not evaluated in this repository" in readme

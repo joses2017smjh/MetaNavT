@@ -2,10 +2,11 @@
 
 A status cell states a measured verdict as "`<row>` <verdict> vs `<reference>`" (more than one reference may follow
 the same row: "`<row>` below zero vs `<a>` and covers zero vs `<b>`"), with the verdict word read off the paired
-bootstrap interval of nDCG@10 the way the generated tables read it (app.eval.report.verdict). Every such claim must
-equal the verdict of that row against that reference in one of the results files below, and every evaluated
-prototype arm of frontier.json, frontier_neural.json and rerank_arms.json must have its claim, so a recorded loser
-cannot drop out of the plan. The item and status columns type no number: the numbers are in the generated tables
+bootstrap interval of nDCG@10 the way the generated tables read it (app.eval.report.verdict); for the search policy
+(search_policy.json, M44) the verdict is that of exact match, the metric of the bar declared before it was trained.
+Every such claim must equal the verdict of that row against that reference in one of the results files below, and
+every evaluated prototype arm of frontier.json, frontier_neural.json and rerank_arms.json, and the search policy's
+headline row against each of its references, must have its claim, so a recorded loser cannot drop out of the plan. The item and status columns type no number: the numbers are in the generated tables
 the cells link to, except a served default written as "`SETTING` (default N)", which must equal the default in the
 served code. This test reads the code's defaults as text: CI's eval job does not install llama_index, which
 app/engine/retriever.py imports.
@@ -20,6 +21,7 @@ from app.eval.report import verdict
 ROOT = Path(__file__).resolve().parents[2]
 VERDICT_FILES = ("bench/results/main.json", "bench/results/neural.json", "bench/results/frontier.json",
                  "bench/results/frontier_neural.json", "bench/results/rerank_arms.json")
+SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: its verdicts are of exact match (`em`), not nDCG@10
 CLAIM = re.compile(r"`([^`]+)` ((?:(?:above zero|covers zero|below zero) vs `[^`]+`(?:,? and |, )?)+)")
 SUB = re.compile(r"(above zero|covers zero|below zero) vs `([^`]+)`")
 DEFAULT = re.compile(r"`([A-Z][A-Z0-9_]+)` \(default (\d+)\)")
@@ -63,7 +65,14 @@ def recorded_verdicts(root: Path = ROOT) -> dict[tuple[str, str], set[str]]:
             dp = row.get("delta_vs_previous") or {}
             if dp.get("reference"):
                 out.setdefault((row["config"], dp["reference"]), set()).add(verdict(dp.get("ndcg@10")))
+    for v in search_policy_verdicts(root):
+        out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
     return out
+
+
+def search_policy_verdicts(root: Path = ROOT) -> list[dict]:
+    """The search policy's verdicts in exact match: its headline row (the seed mean) against each reference."""
+    return [v for v in json.loads((root / SEARCH_POLICY_FILE).read_text())["verdicts"] if v["metric"] == "em"]
 
 
 def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
@@ -84,6 +93,7 @@ def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
         for row in blob[scope]["results"]:
             if row["config"] not in parents:
                 pairs |= {(row["config"], block["reference"]) for block in row.get("deltas") or []}
+    pairs |= {(v["config"], v["reference"]) for v in search_policy_verdicts(root)}
     return pairs
 
 
