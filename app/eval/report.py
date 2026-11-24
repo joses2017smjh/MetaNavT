@@ -1336,6 +1336,7 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
             notes.append(f"{model} judged {g['n']} of the {blob['calibration']['n']} calibration answers (status {blob['status']}): its gate is not complete and nothing of it is published.")
     lines += [""] + notes if notes else []
     scores, unpublished, agreement, pairs = [], [], [], []
+    no_pairs: dict[str, int] = {}  # judge -> answer sets that store an extractive answer and have no AB/BA pairs in its file
     for model, blob in have_judges.items():
         g = blob.get("gate")
         for answer_set in blob.get("answer_sets") or []:
@@ -1344,6 +1345,8 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
                 continue
             who = f"{(gen.get('model') or 'stored answers') + (', reasoning off' if gen.get('think') == 'off' else '')} ([{answer_set['file']}]({answer_set['file']}))"
             pw = s.get("pairwise_llm_vs_extractive")
+            if not pw and not s.get("pairs_not_collected"):
+                no_pairs[model] = no_pairs.get(model, 0) + 1
             if pw:
                 pairs.append(f"| {model} | {who} | {pw['p_llm_better_mean']} | {pw['position_gap_mean']} | {pw['position_flips']} / {pw['n']} | {pw['n']} |")
             if not s["publishable"]:
@@ -1374,6 +1377,9 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
                              f"{own.get('agree', '—')} of {own.get('n', '—')} | "
                              + ("the judge's own weights generated these answers (self-preference risk)" if name == gen else "another model than the generator") + " |")
         lines += scores
+        if len(scores) > 1:
+            lines += ["", "Each interval is over one answer set's own answers under one judge: the table does not test a difference between two generators "
+                      "or between two judges (no paired interval)."]
     if agreement:
         lines += [""] + [" ".join(agreement) + " Agreement between two judges is not agreement with the truth."]
     for model in dict.fromkeys(unpublished):
@@ -1381,6 +1387,9 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
     if pairs:
         lines += ["", "Position bias, AB/BA swap (the generator's answer against the extractive answer, same judge, both orders; the mean position gap is the share of "
                   "the verdict explained by order):", "", "| judge | answers of | P(LLM answer better) | mean position gap | order flips | n |", "|---|---|---:|---:|---:|---:|"] + pairs
+    if no_pairs:
+        lines += ["", "The AB/BA pairs are not in these files for " + "; ".join(f"{m} on {n} answer set{'' if n == 1 else 's'} that store an extractive answer"
+                                                                      for m, n in no_pairs.items()) + ": position bias is not measured there."]
     lines += ["", "What this shows and what it does not: the gate's reference is an exact-match label on single-value answers whose wrong class is a planted value "
               "of the same field, so a pass shows that a judge compares a single-value answer with the gold, not that it judges multi-part, paraphrased or computed "
               "answers correctly; the answer sets also hold such answers. The M4 composite label is not collected by a judge-only run. Each judge file can be "

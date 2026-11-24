@@ -466,7 +466,7 @@ def test_a_generator_run_without_reasoning_says_so_everywhere(tmp_path, fake_ser
     assert limited[0]["command"] == "make bench-jury-v3-answers GENERATOR=gen:122b ANSWERS_LIMIT=3" and "3 answers came back empty" in limited[0]["not_shown"]
     without = [r for r in rows if r["claim"].startswith("Generated answers (gen:122b, reasoning off")]
     assert without[0]["command"] == "make bench-jury-v3-answers GENERATOR=gen:122b THINK=off" and "reasoning turned off" in without[0]["not_shown"]
-    assert [r["claim"] for r in rows if "mean correctness" in r["claim"]][0].startswith("Judge judge:120b (passed the gate): mean correctness of gen:122b, reasoning off,'s answers")
+    assert [r["claim"] for r in rows if "mean correctness" in r["claim"]][0].startswith("Judge judge:120b (passed the gate): mean correctness of the answers of gen:122b with reasoning off in")
 
 
 def test_the_make_targets_name_the_module():
@@ -548,6 +548,14 @@ def test_the_readme_block_prints_every_model_and_only_the_scores_the_gate_allows
     pairs = text.split("Position bias")[1]
     assert "| judge:120b | gen:27b (" in pairs and "| gen:27b | gen:27b (" in pairs and "| 0.5 | 1.0 | 5 / 5 | 5 |" in pairs
     assert "make bench-jury-v3-check" in text and "None" not in text
+    assert "the table does not test a difference between two generators or between two judges (no paired interval)" in text
+    assert "The AB/BA pairs are not in these files" not in text  # every set that stores an extractive answer has its pairs
+    no_pairs = json.loads(json.dumps(judges))
+    for s in no_pairs["judge:120b"]["answer_sets"]:
+        if not s["summary"]["pairs_not_collected"]:
+            s["summary"]["pairwise_llm_vs_extractive"] = None  # as a segment run with --no-pairs leaves it
+    text = report.jury_v3_table(committed, configs, {**no_pairs, "other:9b": None})
+    assert "The AB/BA pairs are not in these files for judge:120b on 1 answer set that store an extractive answer: position bias is not measured there." in text
     assert report.jury_v3_table(None, {("gen:27b", "default", None): None}, {"judge:120b": None}).startswith("_No jury_v3 file yet")
 
 
@@ -615,5 +623,6 @@ def test_the_evidence_rows_follow_the_gate(jury_v3_files):
     assert [r["value"] for r in not_loaded] == ["not judged"] and "not a gate result" in not_loaded[0]["not_shown"]
     scores = [r for r in rows if "mean correctness" in r["claim"]]
     assert [r["claim"].split(" (")[0] for r in scores] == ["Judge judge:120b", "Judge judge:120b"]  # one per answer set; none for the judge that failed
-    assert "qwen2.5:7b's answers in jury_v2.json" in scores[0]["claim"] and "same verdict as qwen2.5:7b" in scores[0]["not_shown"]
+    assert "the answers of qwen2.5:7b in jury_v2.json" in scores[0]["claim"] and "same verdict as qwen2.5:7b" in scores[0]["not_shown"]
+    assert all("not a paired test against another generator or judge" in r["not_shown"] for r in scores)
     assert scores[1]["n"] == 5 and scores[1]["ci"].startswith("[") and "another model than the generator" in scores[1]["not_shown"]
