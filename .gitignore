@@ -71,6 +71,10 @@ bench/results/*.json
 !bench/results/robotics_file_lookup_revalidated_2026-10-07.json
 !bench/results/robotics_chunking.json
 !bench/results/robotics_multiquery.json
+# the search policy trained once (M44): the results file and its two sidecars (make search-policy-eval; make search-policy-rescore recomputes it)
+!bench/results/search_policy.json
+!bench/results/search_policy.rollouts.json
+!bench/results/search_policy.training.json
 
 # editable install metadata
 *.egg-info/
