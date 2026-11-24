@@ -330,8 +330,8 @@ small-rerankers-bar: ## print the quality bar row by row from the three committe
 	$(PYTHON) -m app.eval.small_rerankers --bar
 
 .PHONY: distill-train distill-manifest
-distill-train: ## train one student by the declared recipe: STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir> (needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)/ (not committed)
-	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS)
+distill-train: ## train one student by the declared recipe: STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir>; TRAIN_MICRO=n accumulates over chunks of n lists for a GPU under 16 GB (needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)/ (not committed)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO))
 
 distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
 	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)

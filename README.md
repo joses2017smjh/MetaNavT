@@ -1142,6 +1142,8 @@ How near the synthetic queries come to a test query: of the queries checked, how
 
 Fixture v1's gold questions follow a few templates over a small corpus, so the synthetic queries over the same chunks are close to them: 390 of 779 reach cosine 0.80. A student's fixture rows are read with that in mind; SciFact and FiQA carry the comparison.
 
+The teacher, `mixedbread-ai/mxbai-rerank-large-v2` (float32, max_length 512), scored each query's fused top 20 of `hybrid@bge-small` plus its source document when absent: 10622 lists, 212735 pairs (`make distill-teacher`; NVIDIA A40 and NVIDIA GeForce RTX 2080 Ti). It ranks the source document first in FiQA 4850 of 5399; fixture v1 523 of 733; SciFact 4467 of 4490 lists: a check on the queries, not a label.
+
 **What they cost on a CPU, indicative only** (`python scripts/measure_rerank_cpu.py`; Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz, 2 torch threads, torch 2.5.1+cu121; results sha 8374ca0). The API process as the single host runs it (the app, bge-small, then the reranker in fp32), one fresh process per model and max_length; each timed call is one rerank of `depth` passages that are all cut at max_length, so a call costs the most its shape can. This is another machine's CPU: it says which shapes are worth trying on the host, not whether a model fits it.
 
 | reranker | max_length | depth 5: p50 / p95 ms (calls) | depth 10: p50 / p95 ms (calls) | depth 20: p50 / p95 ms (calls) | API process: before the reranker / peak, MiB |

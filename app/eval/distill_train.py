@@ -43,6 +43,7 @@ from app.eval.small_rerankers import ATTEMPT, CANDIDATES, RECIPE, STUDENT_MANIFE
 TRAINING_FILE = "training.json"
 REFERENCE_LISTS = 3  # fixture validation lists whose student logits are recorded: the fixture is in the repository
 REFERENCE_TOLERANCE = 1e-3  # a reload on another device may differ in the last bits, not in the third decimal
+VALIDATION_LISTS = 32  # lists per no-gradient forward pass when validating (a memory setting, like micro_lists)
 
 
 def margin_mse(student: Sequence[float], teacher: Sequence[float]) -> float:
@@ -103,6 +104,16 @@ def build_lists(queries: Sequence[dict], scores: Sequence[dict], texts: dict[str
     return out
 
 
+def micro_chunks(n_lists: int, micro_lists: int | None) -> list[tuple[int, int]]:
+    """(start, end) of each micro-batch of one optimizer step of `n_lists` lists: the whole step at once when
+    micro_lists is None or not smaller. A memory setting, never a hyper-parameter: the gradients of a step's chunks are
+    accumulated and the optimizer steps once per RECIPE["lists_per_step"] lists either way."""
+    size = n_lists if not micro_lists or micro_lists >= n_lists else int(micro_lists)
+    if size < 1:
+        raise ValueError(f"micro_lists must be 1 or more, not {micro_lists}")
+    return [(start, min(start + size, n_lists)) for start in range(0, n_lists, size)]
+
+
 def choose_epoch(validation: Sequence[float]) -> int:
     """The 1-based epoch with the lowest validation loss; ties go to the earlier epoch."""
     return int(np.argmin(np.asarray(validation, dtype=np.float64))) + 1
@@ -122,7 +133,7 @@ def _forward(model, pairs):
     return scores.squeeze(-1) if scores.ndim > 1 else scores
 
 
-def _validate(model, lists: dict[str, list[dict]], batch_lists: int = 32) -> dict[str, float]:
+def _validate(model, lists: dict[str, list[dict]], batch_lists: int = VALIDATION_LISTS) -> dict[str, float]:
     """Mean MarginMSE of the model on each corpus's validation lists (no gradient)."""
     import torch
 
@@ -143,9 +154,11 @@ def _validate(model, lists: dict[str, list[dict]], batch_lists: int = 32) -> dic
 
 
 def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str | None = None, max_steps: int | None = None,
-          log=print) -> tuple[Any, dict[str, Any]]:
+          micro_lists: int | None = None, log=print) -> tuple[Any, dict[str, Any]]:
     """(the student CrossEncoder holding the chosen epoch's weights, the training record). max_steps cuts every epoch
-    short for a smoke run, which the record says and `manifest` refuses."""
+    short for a smoke run, which the record says and `manifest` refuses. micro_lists splits each step's lists into
+    chunks whose gradients are accumulated before the one optimizer step (a GPU with less memory; recorded); it also
+    caps the lists of a validation forward pass."""
     import torch
 
     from app.eval.models_2026 import ModelCheckFailed, check_reranker
@@ -172,7 +185,8 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
                                   lr=RECIPE["learning_rate"], betas=(0.9, 0.999))
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: lr_factor(step, total, RECIPE["warmup_fraction"]))
     sampler = MixedSampler(sizes, seed)
-    before = _validate(model, val_lists)
+    val_batch = min(VALIDATION_LISTS, micro_lists) if micro_lists else VALIDATION_LISTS
+    before = _validate(model, val_lists, val_batch)
     log(f"epoch 0 validation {json.dumps({c: round(v, 4) for c, v in before.items()})} macro {macro_validation(before):.4f}")
     epochs, best_state, first_step_check = [], None, None
     drawn = {c: 0 for c in sizes}
@@ -186,33 +200,38 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
                 corpus, i = sampler.draw()
                 drawn[corpus] += 1
                 batch.append(train_lists[corpus][i])
-            logits = _forward(model, [(r["query"], t) for r in batch for t in r["texts"]]).float()
-            losses, at = [], 0
-            for r in batch:
-                n = len(r["texts"])
-                d = logits[at: at + n] - torch.tensor(r["scores"], dtype=torch.float32, device=logits.device)
-                diff = d[:, None] - d[None, :]
-                losses.append((diff ** 2).sum() / (n * (n - 1)) if n > 1 else diff.sum() * 0.0)
-                at += n
-            loss = torch.stack(losses).mean()
-            if first_step_check is None:  # the torch loss of the first step against the numpy definition above
-                rows, at = [], 0
-                for r in batch:
-                    rows.append(margin_mse(logits[at: at + len(r["texts"])].detach().cpu().numpy(), r["scores"]))
-                    at += len(r["texts"])
-                first_step_check = {"torch": float(loss.item()), "numpy": float(np.mean(rows))}
+            optimizer.zero_grad(set_to_none=True)
+            step_loss, numpy_rows = 0.0, []
+            for start, end in micro_chunks(len(batch), micro_lists):  # one chunk, the whole step, unless micro_lists
+                chunk = batch[start:end]
+                logits = _forward(model, [(r["query"], t) for r in chunk for t in r["texts"]]).float()
+                losses, at = [], 0
+                for r in chunk:
+                    n = len(r["texts"])
+                    d = logits[at: at + n] - torch.tensor(r["scores"], dtype=torch.float32, device=logits.device)
+                    diff = d[:, None] - d[None, :]
+                    losses.append((diff ** 2).sum() / (n * (n - 1)) if n > 1 else diff.sum() * 0.0)
+                    at += n
+                part = torch.stack(losses).sum() / len(batch)  # divided by the step's lists: the chunks add up to its mean
+                if not torch.isfinite(part):
+                    raise RuntimeError(f"the loss is not finite at epoch {epoch}")
+                if first_step_check is None:
+                    at = 0
+                    for r in chunk:
+                        numpy_rows.append(margin_mse(logits[at: at + len(r["texts"])].detach().cpu().numpy(), r["scores"]))
+                        at += len(r["texts"])
+                part.backward()
+                step_loss += float(part.item())
+                pairs_seen += at
+            if first_step_check is None:  # the sum of the tensors backward() ran on against the numpy definition above
+                first_step_check = {"torch": step_loss, "numpy": float(np.mean(numpy_rows)), "chunks": len(micro_chunks(len(batch), micro_lists))}
                 if abs(first_step_check["torch"] - first_step_check["numpy"]) > 1e-3 * max(1.0, first_step_check["numpy"]):
                     raise RuntimeError(f"the training loss is not the declared MarginMSE: {first_step_check}")
-            if not torch.isfinite(loss):
-                raise RuntimeError(f"the loss is not finite at epoch {epoch}")
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), RECIPE["max_grad_norm"])
             optimizer.step()
             scheduler.step()
-            running.append(float(loss.item()))
-            pairs_seen += at
-        val = _validate(model, val_lists)
+            running.append(step_loss)
+        val = _validate(model, val_lists, val_batch)
         macro = macro_validation(val)
         epochs.append({"epoch": epoch, "train_loss": round(float(np.mean(running)), 6), "validation_loss": {c: round(v, 6) for c, v in val.items()},
                        "validation_macro": round(macro, 6), "pairs": pairs_seen, "seconds": round(time.perf_counter() - t0, 1)})
@@ -226,6 +245,8 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
     record = {
         "student": student, "attempt": ATTEMPT, "init": {"tag": STUDENTS[student], **init, "load_and_score": init_check},
         "recipe": RECIPE, "smoke_run_max_steps": max_steps,
+        "memory": {"micro_lists": micro_lists, "validation_lists": val_batch,
+                   "note": "how a step's lists were split for the GPU's memory; the optimizer steps once per lists_per_step lists either way"},
         "lists": {"train": sizes, "validation": {c: len(rows) for c, rows in val_lists.items()},
                   "pairs_train": {c: sum(len(r["texts"]) for r in rows) for c, rows in train_lists.items()}},
         "steps_per_epoch": steps_per_epoch, "steps": total, "lists_drawn": drawn,
@@ -313,6 +334,7 @@ def _parse_args(argv: list[str] | None):
     p.add_argument("--scores", type=Path, default=root / "bench" / "distill" / SCORES_FILE)
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     p.add_argument("--max-steps", type=int, default=None, help="train: cut every epoch to this many steps (a smoke run; never recorded in the manifest)")
+    p.add_argument("--micro-lists", type=int, default=None, help="train: accumulate gradients over chunks of this many lists (a GPU with less memory; recorded)")
     p.add_argument("--out", type=Path, default=root / STUDENT_MANIFEST, help="manifest: the committed file")
     return p.parse_args(argv)
 
@@ -337,7 +359,8 @@ def main(argv: list[str] | None = None) -> int:
     queries, scores = read_jsonl(args.queries), read_jsonl(args.scores)
     texts = {c: corpus_texts(c, root, args.data_dir) for c in sorted({q["corpus"] for q in queries})}
     lists = build_lists(queries, scores, texts)
-    model, record = train(args.student, lists, device=None if args.device == "auto" else args.device, max_steps=args.max_steps)
+    model, record = train(args.student, lists, device=None if args.device == "auto" else args.device, max_steps=args.max_steps,
+                          micro_lists=args.micro_lists)
     directory = args.checkpoint_dir / args.student
     files = save_checkpoint(model, directory)
     from app.retrieval.rerank import get_cross_encoder

@@ -121,3 +121,26 @@ def test_the_training_module_sets_no_hyper_parameter_of_its_own():
     source = (ROOT / "app" / "eval" / "distill_train.py").read_text()
     for key in ("learning_rate", "weight_decay", "epochs", "lists_per_step", "warmup_fraction", "max_grad_norm", "max_length", "seed"):
         assert f'RECIPE["{key}"]' in source, key  # read from the declaration, where a test pins it
+
+
+def test_micro_batches_cover_a_step_in_order_and_their_losses_add_up_to_the_steps_mean():
+    """A GPU with less memory splits each step's lists into chunks and accumulates their gradients: the chunks must
+    cover the step's lists once, in order, and each chunk's summed list losses divided by the step's list count must add
+    up to the mean the declared recipe optimizes (the optimizer still steps once per lists_per_step lists)."""
+    step = RECIPE["lists_per_step"]
+    assert tr.micro_chunks(step, None) == [(0, step)] == tr.micro_chunks(step, step) == tr.micro_chunks(step, 99)
+    assert tr.micro_chunks(8, 2) == [(0, 2), (2, 4), (4, 6), (6, 8)]
+    assert tr.micro_chunks(8, 3) == [(0, 3), (3, 6), (6, 8)]
+    with pytest.raises(ValueError):
+        tr.micro_chunks(8, -1)
+    rng = np.random.RandomState(0)
+    list_losses = [tr.margin_mse(rng.normal(size=21), rng.normal(size=21)) for _ in range(step)]
+    for micro in (None, 1, 2, 3, 5):
+        parts = [sum(list_losses[a:b]) / step for a, b in tr.micro_chunks(step, micro)]
+        assert sum(parts) == pytest.approx(float(np.mean(list_losses)), rel=1e-12)
+
+
+def test_the_memory_settings_are_recorded_not_declared():
+    source = (ROOT / "app" / "eval" / "distill_train.py").read_text()
+    assert '"micro_lists": micro_lists' in source and '"validation_lists": val_batch' in source  # in training.json
+    assert "micro_lists" not in RECIPE and "validation_lists" not in RECIPE  # never part of the recipe

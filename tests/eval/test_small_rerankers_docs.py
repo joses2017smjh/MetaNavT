@@ -74,3 +74,20 @@ def test_evidence_rows_only_where_an_interval_excludes_zero():
     for row in table["rows"]:
         if row["passes"]:  # a passing row has its three rows
             assert sum(f"`{row['tag']}`" in c["claim"] for c in claims) >= 3, row["tag"]
+
+
+def test_the_generic_sidecar_check_rescores_these_files_and_catches_a_changed_interval():
+    """tests/eval/test_per_question.py checks every committed sidecar with per_question.differences: the small-rerankers
+    sidecars carry their own schemas, so that check hands them to the same recomputation as make small-rerankers-rescore."""
+    from app.eval.per_question import differences, sidecar_path
+
+    for rel in sr.RESULTS.values():
+        path = ROOT / rel
+        blob, side = json.loads(path.read_text()), json.loads(sidecar_path(path).read_text())
+        assert differences(blob, side) == [], rel
+        scope = blob["held_out"] if "held_out" in blob else blob
+        row = next(r for r in scope["results"] if r.get("deltas") or r.get("delta_vs_parent"))
+        block = row["deltas"][0] if row.get("deltas") else row["delta_vs_parent"]
+        block["ndcg@10"]["lo"] = round(block["ndcg@10"]["lo"] - 0.01, 4)
+        assert differences(blob, side), rel  # a hand-edited interval is caught
+    assert differences({"results": []}, {"schema": "something-else"}) == ["sidecar schema 'something-else', expected 'per-question-scores-v1'"]
