@@ -225,7 +225,26 @@ def test_the_readme_block_states_the_verdict_the_guard_columns_and_what_is_not_s
     for v in tie["verdicts"]:
         if v["primary"]:
             v.update({"delta": 0.0147, "lo": -0.0441, "hi": 0.0735, "interval": "covers zero", "outcome": "tie"})
-    assert "+0.0147 [-0.0441, +0.0735], **a tie** (the interval is covers zero)" in search_policy_table(tie)
+    assert "+0.0147 [-0.0441, +0.0735], **a tie** (the interval covers zero)" in search_policy_table(tie)
+    assert "**a win** (the interval is above zero)" in text and "No jury term: PLAN.md" in text
+    assert "had episodes with unequal rewards" not in text  # the scripted curves carry no spread or NLL: nothing is printed
+
+
+def test_the_signal_left_in_a_run_is_read_off_its_curve_and_printed_beside_the_collapse_rule(world):
+    from app.eval.report import search_policy_table
+
+    curve = [{"step": i, "loss": 0.1, "reward": 0.5, "em": 0.5, "answered": 1.0, "rollout_s": 1.0, "update_s": 1.0,
+              "groups_with_a_reward_spread": 6 if i < 20 else 1, "nll_sampled": 0.25 if i < 20 else 0.03} for i in range(60)]
+    assert R.signal(curve, {"questions_per_step": 8}) == {"window": 20, "questions_per_step": 8, "groups_with_a_reward_spread_first": 6.0,
+                                                          "groups_with_a_reward_spread_last": 1.0, "nll_sampled_first": 0.25, "nll_sampled_last": 0.03}
+    assert R.signal(curve[:5], {})["groups_with_a_reward_spread_last"] == 6.0 and R.signal([{"step": 0}], {})["nll_sampled_first"] is None
+    training = json.loads(json.dumps(world["training"]))
+    training["runs"]["policy-grpo/seed=0"]["curve"] = curve
+    training["runs"]["policy-grpo/seed=0"]["config"]["questions_per_step"] = 8
+    blob = {**_blob(world), **json.loads(json.dumps(R.compute(world["rollouts"], training, world["gold"])))}
+    assert next(r for r in blob["training_runs"] if r["name"] == "policy-grpo/seed=0")["signal"]["groups_with_a_reward_spread_last"] == 1.0
+    assert ("per step, 6.0 of its 8 questions had episodes with unequal rewards (a gradient) over the first 20 steps and 1.0 over the last 20, "
+            "and the sampler's NLL per policy token went from 0.250 to 0.030") in search_policy_table(blob)
 
 
 def test_training_corpora_are_rebuilt_from_their_seeds_and_a_run_on_other_corpora_is_named(world):

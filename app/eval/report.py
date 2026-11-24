@@ -2135,6 +2135,11 @@ def _outcome(block: dict | None) -> str:
     return {"above zero": "win", "covers zero": "tie", "below zero": "loss"}.get(verdict(block), "—") if block else "—"
 
 
+def _interval_words(word: str) -> str:
+    """'covers zero' -> 'covers zero', 'above zero' -> 'is above zero': the verdict word inside a sentence."""
+    return word if word == "covers zero" else f"is {word}"
+
+
 def search_policy_table(blob: dict | None) -> str:
     """M44: the search policy trained once, against the same model untrained and against single-shot RAG."""
     if not blob:
@@ -2183,7 +2188,7 @@ def search_policy_table(blob: dict | None) -> str:
         seeds = f"the mean of {primary['n_seeds']} training seeds" if primary["n_seeds"] > 1 else "one training seed"
         lines += ["", f"The bar, declared before training: {blob['bar']['primary']} of the trained policy minus the untrained one, on the held-out "
                       f"questions; {blob['bar']['reading']}. Result (`{primary['config']}`, {seeds}): {primary['delta']:+.4f} "
-                      f"[{primary['lo']:+.4f}, {primary['hi']:+.4f}], **a {primary['outcome']}** (the interval is {primary['interval']}). Also: {said}."]
+                      f"[{primary['lo']:+.4f}, {primary['hi']:+.4f}], **a {primary['outcome']}** (the interval {_interval_words(primary['interval'])}). Also: {said}."]
     form_rows = [name for name in rows if rows[name].get("kind") != "trained" or len([r for r in rows.values() if r.get("kind") == "trained"]) == 1]
     form_text = "; ".join(f"`{name}` {rows[name]['by_gold_form'].get('single_value', {}).get('em', 0):.4f} on single values and "
                           f"{rows[name]['by_gold_form'].get('composite', {}).get('em', 0):.4f} on composite ones" for name in form_rows)
@@ -2194,12 +2199,20 @@ def search_policy_table(blob: dict | None) -> str:
         parts = []
         for run in runs:
             c = run["collapse"]
+            g = run.get("signal") or {}
+            spread = ""
+            if g.get("groups_with_a_reward_spread_first") is not None and g.get("nll_sampled_first") is not None:
+                spread = (f"; per step, {g['groups_with_a_reward_spread_first']:.1f} of its {g['questions_per_step']} questions had episodes with "
+                          f"unequal rewards (a gradient) over the first {g['window']} steps and {g['groups_with_a_reward_spread_last']:.1f} over the "
+                          f"last {g['window']}, and the sampler's NLL per policy token went from {g['nll_sampled_first']:.3f} to {g['nll_sampled_last']:.3f}")
             parts.append(f"`{run['name']}`: {c['n_steps']} steps; mean episode reward {c['reward_first']:+.4f} over the first {c['window']} steps and "
                          f"{c['reward_last']:+.4f} over the last {c['window']} (exact match {c['em_first']:.4f} to {c['em_last']:.4f}); "
-                         f"{'collapsed by the declared rule (' + '; '.join(c['reasons']) + ')' if c['collapsed'] else 'not collapsed by the declared rule'}; "
+                         f"{'collapsed by the declared rule (' + '; '.join(c['reasons']) + ')' if c['collapsed'] else 'not collapsed by the declared rule'}{spread}; "
                          f"tune-half mean reward {run['tune_reward_untrained']:+.4f} before training, {run['tune_reward_selected']:+.4f} at the selected step "
                          f"{run['selected_step']}")
-        lines += ["", f"Training ({algo.get('label')}; {algo.get('not')}). Reward: `{blob['reward']['formula']}`; {blob['reward']['jury_term']}. "
+        jury = blob["reward"]["jury_term"]
+        jury = "No jury term: " + jury[len("none: "):] if jury.startswith("none: ") else f"Jury term: {jury}"
+        lines += ["", f"Training ({algo.get('label')}; {algo.get('not')}). Reward: `{blob['reward']['formula']}`. {jury}. "
                       + " ".join(p + "." for p in parts)]
     if leak:
         lines += ["", f"Training questions: {leak['n_corpora']} corpora written by the fixture's builder from other seeds (run ids, encoder and bark names "

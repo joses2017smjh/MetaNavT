@@ -182,6 +182,23 @@ def collapse(curve: Sequence[dict]) -> dict:
     return {**out, "collapsed": bool(reasons), "reasons": reasons}
 
 
+def signal(curve: Sequence[dict], config: dict) -> dict:
+    """How much learning signal a run had left, over its first and last COLLAPSE_WINDOW steps: per step, how many of
+    its questions had a group of episodes whose rewards were not all equal (a group of equal rewards has zero
+    advantage and no gradient), and the sampler's negative log-likelihood per policy token (near zero: it writes
+    nearly the same episode every time). Not part of the collapse rule; reported beside it."""
+    w = COLLAPSE_WINDOW
+    first, last = curve[:w], curve[-w:]
+
+    def mean(rows: Sequence[dict], key: str) -> float | None:
+        return _round(sum(float(r[key]) for r in rows) / len(rows)) if rows and all(key in r for r in rows) else None
+
+    return {"window": w, "questions_per_step": config.get("questions_per_step"),
+            "groups_with_a_reward_spread_first": mean(first, "groups_with_a_reward_spread"),
+            "groups_with_a_reward_spread_last": mean(last, "groups_with_a_reward_spread"),
+            "nll_sampled_first": mean(first, "nll_sampled"), "nll_sampled_last": mean(last, "nll_sampled")}
+
+
 def trained_family(name: str) -> str:
     """policy-grpo/seed=0 -> policy-grpo: the row a family's seeds are averaged into."""
     return name.split("/seed=")[0]
@@ -248,6 +265,7 @@ def compute(rollouts: dict, training: dict, gold_list: Sequence[GoldQuestion]) -
                      "tune_reward_untrained": untrained_tune["reward"] if untrained_tune else None,
                      "tune_reward_selected": next((e["reward"] for e in tune if e["step"] == step), None),
                      "collapse": collapse(run["curve"]),
+                     "signal": signal(run["curve"], run["config"]),
                      "seconds": {"rollouts": _round(sum(r["rollout_s"] for r in run["curve"]), 1), "updates": _round(sum(r["update_s"] for r in run["curve"]), 1),
                                  "tune_scoring": _round(sum(e.get("seconds", 0.0) for e in tune), 1)}})
     seeds = sorted({s for run in training["runs"].values() for s in run["config"]["corpus_seeds"]})
