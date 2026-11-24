@@ -1,0 +1,2169 @@
+{
+  "git_sha": "d74b047",
+  "git_head": "d74b04758d49cc458ac249f73bb9a6eec183261a",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/agent/__init__.py": "b0d3045af83a80e8fa46c8fde1dcc3744d8a9f244c66d7d2ea1e20e70743a998",
+    "app/agent/corrective.py": "62a3d9979c077b1e4853d59b56b0093c3c4e8657d3c0af9ef65cfc9c48f76c99",
+    "app/agent/decompose.py": "88983a4c974786c2b6b28cc675718136b838fde2d0176d36962e177a5851f77e",
+    "app/agent/deep_research.py": "79d5a92fc700f918d356c0672324ccbea04db56b1e83cb186b8c18e612d73546",
+    "app/agent/retrieval_loop.py": "b5af513800fa0ab9df52e49fab40930356d09767495741b0627214eb9be19f1d",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/corpus.py": "2b2c52dbd98d36656ae38ccd7b7b7d49bd2e6897e252a4b76fd0928276b950fa",
+    "app/eval/frontier_llm.py": "0a293b29abb342dcec7e67442b2df3d19bf9226558429448d7e34cbb1d4a28ef",
+    "app/eval/gold.py": "3f286b1a62c2f7ba5724089c46f1891b08fec992d379ece329f0a47ce6618517",
+    "app/eval/harness.py": "9c60f37faa38144ec089aaba1776cda6e362cdb0d91f92682ab6d34ee0446498",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/judge.py": "7442a58aaee1e526dd0f381359ceb063cc27ea08bd567cedbb6e514aabde5510",
+    "app/eval/jury.py": "1aa881fa2051dfd2e945706b158854aea1a70b3b10af23c3151ea675c19b1e8d",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/per_question.py": "1c7d732f7e6954a5748e4bc6bbd2047db98aeb908a9f9f7dcebe4645510b51c8",
+    "app/eval/probes.py": "f85c9fe0cd427c75551af5fcfe2639375ba7316c36331c1b437cb09be320bb41",
+    "app/eval/provenance.py": "ef4cd95e4baadb05f13f74167ac9e84f3886672e40bf9ad10fed757104b3056e",
+    "app/eval/ragas_metrics.py": "8b3809e47d36673b7a0cf014490d6ef5105176877ee70949404622c24d380da2",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/report.py": "905081cbbf0e53df29c79383574abd8b9a9e108e902dcce537e28bc9da753ff9",
+    "app/eval/rerank_arms.py": "9075617fb0f212b8088b429d133ba5dd1bc9ae694000a83d33245b3cb5c078e4",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/graph/__init__.py": "65052777718d171f92bd51f5773712749c5f62983120169036aeb1ada05ac12b",
+    "app/graph/conflicts.py": "8e5053d77aabb1f5715bb9a52ccc234cfbaf48f3e0571ebd5a7b1b30df12705d",
+    "app/graph/file_graph.py": "fcfbb24a2089194d7e902a9bdf03615d1105dacfc8b62635c869507511982dd4",
+    "app/graph/graphrag.py": "8d042c623a77b0a54aac472f8adfc1c9dfb38c9976d6a297d4864d17fdbe2c8f",
+    "app/graph/hipporag.py": "56b1c37b3837270654cd2712af295ff81bd83b0b37a69e966632096cc5519e18",
+    "app/graph/staleness.py": "e05adb3f012a7d1403f5cee77837147bf136c0a854419d24c410056ce958ae53",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/adaptive.py": "e08b5d1964ff6ad2f7b05e7d3275d22931d0f527cf61023647fc72a1dce785ac",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/cache.py": "65fbfced92240e00b0df98c07670e3f0ce015cad86fc8604c6866089a11807f5",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/distill.py": "0714f9ef5b4422c9f63a56e76924b3a9d3fc83e3204d1d56e6af07c6c37549de",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/hyde.py": "e0f81e2283a3411317e692531bb6bdd49db4f40468d378ed63fec0266b62db4b",
+    "app/retrieval/rankgpt.py": "33b88cb9db9f694008ad6c50dfe9bc1dfd8eb11c058e02e48caf07cf794776c1",
+    "app/retrieval/rerank.py": "d01bce8812dd36006e9bf5d6d365443c372c1835f8e04385941284f4de3c7f69",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2",
+    "app/rl/__init__.py": "b1fa69f4311cf8d7ffdb7c7e723977609c9d1220e3e6420c4c3566f22a9b71a2",
+    "app/rl/corpora.py": "b8c43b9ab3551f3235ad91b8ee432e8ea5066aad58a6350821f47d7bdcb025b6",
+    "app/rl/episode.py": "efbb2464939f1cb9a4783a687cd25f46893e4ee03e2c3f12d1eeaeca5b70d1c6",
+    "app/rl/grpo.py": "4fe8ac526370d5c813db639b4976f5ab73c1ebb6cbc22f5c5889f506393ec400",
+    "app/rl/results.py": "addb9aab35a16c3f64ce308964b461a0f9009176336a1fba9af9d27de7699750",
+    "app/rl/reward.py": "8ba518f393c9f8993b2d45623bf4dccd3df4f03458b6211d246a09052455a1a3",
+    "app/rl/search_r1.py": "8989e59c0ec88b4f833a5bc3e0139b190e4411ddf8ddf46b1e13478105802934"
+  },
+  "timestamp": "2026-11-24T02:31:26.046249+00:00",
+  "command": "python -m app.rl.results --arms <path>/arms --run grpo/seed=0=<path>/grpo-seed0 --run grpo/seed=1=<path>/grpo-seed1 --run grpo/seed=2=<path>/grpo-seed2 --jobs <path>/jobs.json",
+  "what": "M44: the Search-R1 style search policy of app/rl, trained once with a LoRA adapter and scored on fixture v1's held-out questions against the same model untrained and against single-shot RAG",
+  "episodes_generated_at": {
+    "policy-grpo/seed=0": {
+      "git_sha": "ffe4978",
+      "working_tree_dirty": false,
+      "timestamp": "2026-11-24T01:26:31.559951+00:00"
+    },
+    "policy-grpo/seed=1": {
+      "git_sha": "ffe4978",
+      "working_tree_dirty": false,
+      "timestamp": "2026-11-24T02:15:34.399205+00:00"
+    },
+    "policy-grpo/seed=2": {
+      "git_sha": "ffe4978",
+      "working_tree_dirty": false,
+      "timestamp": "2026-11-24T02:24:10.885689+00:00"
+    },
+    "policy-untrained": {
+      "git_sha": "ffe4978",
+      "working_tree_dirty": false,
+      "timestamp": "2026-11-24T00:20:15.876519+00:00"
+    },
+    "single-shot-rag": {
+      "git_sha": "ffe4978",
+      "working_tree_dirty": false,
+      "timestamp": "2026-11-24T00:20:26.469202+00:00"
+    }
+  },
+  "model": {
+    "name": "Qwen/Qwen2.5-1.5B-Instruct",
+    "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+  },
+  "embedder": {
+    "name": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "query_prompt_name": null,
+    "query_prompt": null,
+    "dtype_requested": null,
+    "dtype": "torch.float32",
+    "batch_size": null,
+    "max_seq_length": 512,
+    "snapshot_view": null
+  },
+  "libraries": {
+    "transformers": "5.17.0",
+    "peft": "0.22.0"
+  },
+  "gpu": "NVIDIA A40",
+  "precision": "bf16",
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "gold_sha256": "06c2421220fa2569c87cfa5fc57902476da06ac28f9ea41a5320623d64e984de",
+  "n_files": 61,
+  "n_chunks": 71,
+  "decoding": "greedy (argmax; no temperature, top-k, top-p or repetition penalty)",
+  "max_new_tokens_per_piece": 48,
+  "information_chunks_per_search": 4,
+  "device": {
+    "requested": "cuda",
+    "device": "cuda",
+    "device_name": "NVIDIA A40",
+    "cuda_available": true,
+    "torch": "2.5.1+cu121",
+    "python": "3.11.16",
+    "sentence_transformers": "6.1.0"
+  },
+  "licence": {
+    "model": "apache-2.0",
+    "source": "Hugging Face API (<path>/models<id>: tag license:apache-2.0, card licence apache-2.0), read 2026-11-22",
+    "skipped": "Qwen/Qwen2.5-3B-Instruct, the size PLAN.md Phase 10 names: licence `other` (qwen-research, non-commercial)"
+  },
+  "environment": {
+    "index": "the in-memory hybrid index over the question's corpus: BM25 and bge-small lists fused with RRF, no router, no reranker (the benchmark's hybrid@bge-small construction)",
+    "max_searches": {
+      "policy-grpo/seed=0": 3,
+      "policy-grpo/seed=1": 3,
+      "policy-grpo/seed=2": 3,
+      "policy-untrained": 3,
+      "single-shot-rag": 1
+    },
+    "prompt_sha256": {
+      "policy-grpo/seed=0": "dc9b715a73dc8cdd5a89d4fd7d9f0e07143ee1d972115390fcf76475247fa394",
+      "policy-grpo/seed=1": "dc9b715a73dc8cdd5a89d4fd7d9f0e07143ee1d972115390fcf76475247fa394",
+      "policy-grpo/seed=2": "dc9b715a73dc8cdd5a89d4fd7d9f0e07143ee1d972115390fcf76475247fa394",
+      "policy-untrained": "dc9b715a73dc8cdd5a89d4fd7d9f0e07143ee1d972115390fcf76475247fa394",
+      "single-shot-rag": "04c3a447238a4174fd4651a0b62053cf7c6770a991ce542440aa3d50f21d57b1"
+    }
+  },
+  "reward": {
+    "formula": "R = 1.0 * em + 0.5 * nDCG@10(files shown, in order of first appearance; gold paths) - 0.1 * n_search - 1.0 * uncited_or_empty",
+    "jury_term": "none: PLAN.md Phase 10's 0.3 * jury vote is not in this reward (no jury runs in the loop)",
+    "overlap_teacher": "not used",
+    "em": "strict: the answer with its bracketed citations removed equals the gold answer after normalisation (lower case, whitespace collapsed, surrounding quotes and a final full stop dropped, standalone numbers compared as numbers)",
+    "em_bounded": "guard column, never the reward: app.eval.judge.exact_match_label(bounded=True) is \"correct\" for the answer without its citations (the gold is somewhere in it, not inside a longer number or word); it credits a verbose answer and a list of candidates",
+    "cited": "a bracketed path in the answer is one of the files this episode's searches showed",
+    "uncited_or_empty": "no <answer>, an answer with no value outside its citations, or not cited",
+    "n_search": "searches the environment ran, the single-shot arm's own search included"
+  },
+  "bar": {
+    "declared": "before the first training run (milestone notes, 2026-11-22, section 1)",
+    "questions": "fixture v1's held-out half: the `test` half of app.eval.rerank_arms.split_questions, the half rrf_sweep holds out",
+    "comparison": "trained policy minus untrained policy, same model, prompt, environment and questions, greedy decoding",
+    "primary": "the paired bootstrap delta in exact match (`em`)",
+    "secondary": "the same delta in mean reward; and both again against single-shot RAG",
+    "reading": "a 95% interval above zero is a win, one that covers zero is a tie, one below zero is a loss",
+    "seeds": "with several training seeds a question's trained score is the mean over the seeds (exact match in thirds), and the verdict is read from that row; every seed's own delta is in the table",
+    "checkpoint": "per seed, the saved checkpoint with the highest mean reward on the TUNE half, greedy; a tie goes to the earliest step; step 0 is not eligible",
+    "collapse": "a run has collapsed when its loss is not finite, or fewer than 0.5 of the last 20 steps' episodes hold an answer, or the mean episode reward of its last 20 steps is more than 0.1 below that of its first 20; a collapsed GRPO run is followed by one PPO-clip run"
+  },
+  "algorithm": {
+    "name": "grpo",
+    "label": "a policy gradient with GRPO's group-normalised advantage: per question, the group's mean reward is the baseline and its standard deviation the scale; no critic",
+    "not": "one optimiser step per batch of episodes, so the PPO ratio GRPO clips is identically 1 and nothing is clipped; no KL term; not the veRL stack PLAN.md names, a small loop on transformers and peft",
+    "loss": "minus the advantage times the mean log-probability of the tokens the policy wrote; the prompt and every <information> block are context only"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 68,
+    "level": 0.95
+  },
+  "split": {
+    "rule": "alternate train / test inside each category, gold order (app.eval.rerank_arms.split_questions)",
+    "tune_ids": [
+      "q001",
+      "q003",
+      "q005",
+      "q007",
+      "q009",
+      "q011",
+      "q013",
+      "q015",
+      "q017",
+      "q019",
+      "q021",
+      "q023",
+      "q025",
+      "q027",
+      "q029",
+      "q031",
+      "q033",
+      "q035",
+      "q037",
+      "q039",
+      "q041",
+      "q043",
+      "q045",
+      "q047",
+      "q049",
+      "q051",
+      "q053",
+      "q055",
+      "q057",
+      "q059",
+      "q061",
+      "q063",
+      "q065",
+      "q067",
+      "q069",
+      "q071",
+      "q073",
+      "q075",
+      "q077",
+      "q079",
+      "q081",
+      "q083",
+      "q085",
+      "q087",
+      "q089",
+      "q091",
+      "q093",
+      "q095",
+      "q097",
+      "q099",
+      "q101",
+      "q103",
+      "q105",
+      "q107",
+      "q109",
+      "q111",
+      "q113",
+      "q115",
+      "q117",
+      "q119",
+      "q121",
+      "q123",
+      "q125",
+      "q127",
+      "q129",
+      "q131",
+      "q133",
+      "q135"
+    ],
+    "held_out_ids": [
+      "q002",
+      "q004",
+      "q006",
+      "q008",
+      "q010",
+      "q012",
+      "q014",
+      "q016",
+      "q018",
+      "q020",
+      "q022",
+      "q024",
+      "q026",
+      "q028",
+      "q030",
+      "q032",
+      "q034",
+      "q036",
+      "q038",
+      "q040",
+      "q042",
+      "q044",
+      "q046",
+      "q048",
+      "q050",
+      "q052",
+      "q054",
+      "q056",
+      "q058",
+      "q060",
+      "q062",
+      "q064",
+      "q066",
+      "q068",
+      "q070",
+      "q072",
+      "q074",
+      "q076",
+      "q078",
+      "q080",
+      "q082",
+      "q084",
+      "q086",
+      "q088",
+      "q090",
+      "q092",
+      "q094",
+      "q096",
+      "q098",
+      "q100",
+      "q102",
+      "q104",
+      "q106",
+      "q108",
+      "q110",
+      "q112",
+      "q114",
+      "q116",
+      "q118",
+      "q120",
+      "q122",
+      "q124",
+      "q126",
+      "q128",
+      "q130",
+      "q132",
+      "q134",
+      "q136"
+    ],
+    "n_held_out": 68,
+    "held_out_gold_forms": {
+      "composite": 16,
+      "single_value": 52,
+      "rule": "single_value: one token with no comma or semicolon; composite: anything else"
+    }
+  },
+  "results": [
+    {
+      "config": "single-shot-rag",
+      "n": 68,
+      "ci": {
+        "em": {
+          "mean": 0.6176,
+          "lo": 0.5,
+          "hi": 0.721
+        },
+        "reward": {
+          "mean": 0.7205,
+          "lo": 0.5243,
+          "hi": 0.8952
+        },
+        "em_bounded": {
+          "mean": 0.6176,
+          "lo": 0.5,
+          "hi": 0.721
+        }
+      },
+      "means": {
+        "ndcg@10": 0.641,
+        "n_search": 1.0,
+        "uncited_or_empty": 0.1176,
+        "answered": 0.9706,
+        "cited": 0.8824,
+        "answer_chars": 7.3235
+      },
+      "stop": {
+        "answer": 66,
+        "no_tag": 2
+      },
+      "by_category": {
+        "aggregation": {
+          "n": 5,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.1466
+        },
+        "comparative": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1387
+        },
+        "conditional": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.0216
+        },
+        "exact_path": {
+          "n": 4,
+          "em": 0.25,
+          "em_bounded": 0.25,
+          "reward": -0.225
+        },
+        "multi_hop": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.6135
+        },
+        "semantic": {
+          "n": 3,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.3689
+        },
+        "simple_factual": {
+          "n": 40,
+          "em": 1.0,
+          "em_bounded": 1.0,
+          "reward": 1.291
+        },
+        "staleness": {
+          "n": 4,
+          "em": 0.25,
+          "em_bounded": 0.25,
+          "reward": 0.4766
+        }
+      },
+      "by_gold_form": {
+        "composite": {
+          "n": 16,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.2512
+        },
+        "single_value": {
+          "n": 52,
+          "em": 0.8077,
+          "em_bounded": 0.8077,
+          "reward": 1.0195
+        }
+      },
+      "kind": "single_shot",
+      "deltas": []
+    },
+    {
+      "config": "policy-untrained",
+      "n": 68,
+      "ci": {
+        "em": {
+          "mean": 0.6176,
+          "lo": 0.5,
+          "hi": 0.7353
+        },
+        "reward": {
+          "mean": 0.7736,
+          "lo": 0.585,
+          "hi": 0.9418
+        },
+        "em_bounded": {
+          "mean": 0.6176,
+          "lo": 0.5,
+          "hi": 0.7353
+        }
+      },
+      "means": {
+        "ndcg@10": 0.6883,
+        "n_search": 1.0,
+        "uncited_or_empty": 0.0882,
+        "answered": 0.9853,
+        "cited": 0.9118,
+        "answer_chars": 6.3235
+      },
+      "stop": {
+        "answer": 67,
+        "no_tag": 1
+      },
+      "by_category": {
+        "aggregation": {
+          "n": 5,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.0339
+        },
+        "comparative": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.177
+        },
+        "conditional": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.093
+        },
+        "exact_path": {
+          "n": 4,
+          "em": 0.25,
+          "em_bounded": 0.25,
+          "reward": -0.35
+        },
+        "multi_hop": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.0839
+        },
+        "semantic": {
+          "n": 3,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.4333
+        },
+        "simple_factual": {
+          "n": 40,
+          "em": 0.95,
+          "em_bounded": 0.95,
+          "reward": 1.2738
+        },
+        "staleness": {
+          "n": 4,
+          "em": 0.75,
+          "em_bounded": 0.75,
+          "reward": 0.8593
+        }
+      },
+      "by_gold_form": {
+        "composite": {
+          "n": 16,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.1558
+        },
+        "single_value": {
+          "n": 52,
+          "em": 0.8077,
+          "em_bounded": 0.8077,
+          "reward": 1.0596
+        }
+      },
+      "kind": "untrained",
+      "deltas": [
+        {
+          "reference": "single-shot-rag",
+          "em": {
+            "delta": 0.0,
+            "lo": -0.0588,
+            "hi": 0.0588
+          },
+          "reward": {
+            "delta": 0.0531,
+            "lo": -0.0291,
+            "hi": 0.1359
+          },
+          "em_bounded": {
+            "delta": 0.0,
+            "lo": -0.0588,
+            "hi": 0.0588
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 2,
+              "down": 2
+            },
+            "em_bounded": {
+              "up": 2,
+              "down": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "config": "policy-grpo",
+      "n": 68,
+      "ci": {
+        "em": {
+          "mean": 0.6569,
+          "lo": 0.5441,
+          "hi": 0.7647
+        },
+        "reward": {
+          "mean": 0.8942,
+          "lo": 0.7459,
+          "hi": 1.029
+        },
+        "em_bounded": {
+          "mean": 0.6618,
+          "lo": 0.549,
+          "hi": 0.7696
+        }
+      },
+      "means": {
+        "ndcg@10": 0.7237,
+        "n_search": 1.0,
+        "uncited_or_empty": 0.0245,
+        "answered": 0.9902,
+        "cited": 0.9755,
+        "answer_chars": 6.9363
+      },
+      "by_category": {
+        "aggregation": {
+          "n": 5,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1206
+        },
+        "comparative": {
+          "n": 4,
+          "em": 0.0833,
+          "em_bounded": 0.0833,
+          "reward": 0.2465
+        },
+        "conditional": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1924
+        },
+        "exact_path": {
+          "n": 4,
+          "em": 0.3333,
+          "em_bounded": 0.4167,
+          "reward": 0.1917
+        },
+        "multi_hop": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.0461
+        },
+        "semantic": {
+          "n": 3,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1034
+        },
+        "simple_factual": {
+          "n": 40,
+          "em": 1.0,
+          "em_bounded": 1.0,
+          "reward": 1.3291
+        },
+        "staleness": {
+          "n": 4,
+          "em": 0.75,
+          "em_bounded": 0.75,
+          "reward": 1.0055
+        }
+      },
+      "by_gold_form": {
+        "composite": {
+          "n": 16,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1396
+        },
+        "single_value": {
+          "n": 52,
+          "em": 0.859,
+          "em_bounded": 0.8654,
+          "reward": 1.1264
+        }
+      },
+      "kind": "trained, mean of seeds",
+      "seeds": [
+        "policy-grpo/seed=0",
+        "policy-grpo/seed=1",
+        "policy-grpo/seed=2"
+      ],
+      "deltas": [
+        {
+          "reference": "policy-untrained",
+          "em": {
+            "delta": 0.0392,
+            "lo": -0.0049,
+            "hi": 0.0931
+          },
+          "reward": {
+            "delta": 0.1206,
+            "lo": 0.048,
+            "hi": 0.1987
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0049,
+            "hi": 0.0933
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 4,
+              "down": 1
+            },
+            "em_bounded": {
+              "up": 4,
+              "down": 0
+            }
+          }
+        },
+        {
+          "reference": "single-shot-rag",
+          "em": {
+            "delta": 0.0392,
+            "lo": 0.0,
+            "hi": 0.0882
+          },
+          "reward": {
+            "delta": 0.1737,
+            "lo": 0.0965,
+            "hi": 0.2592
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0049,
+            "hi": 0.0931
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 4,
+              "down": 1
+            },
+            "em_bounded": {
+              "up": 4,
+              "down": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "config": "policy-grpo/seed=0",
+      "n": 68,
+      "ci": {
+        "em": {
+          "mean": 0.6471,
+          "lo": 0.5294,
+          "hi": 0.7647
+        },
+        "reward": {
+          "mean": 0.855,
+          "lo": 0.6976,
+          "hi": 0.9986
+        },
+        "em_bounded": {
+          "mean": 0.6618,
+          "lo": 0.5441,
+          "hi": 0.7647
+        }
+      },
+      "means": {
+        "ndcg@10": 0.7042,
+        "n_search": 1.0,
+        "uncited_or_empty": 0.0441,
+        "answered": 0.9706,
+        "cited": 0.9559,
+        "answer_chars": 7.0441
+      },
+      "stop": {
+        "answer": 66,
+        "no_tag": 2
+      },
+      "by_category": {
+        "aggregation": {
+          "n": 5,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.0534
+        },
+        "comparative": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1717
+        },
+        "conditional": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.0599
+        },
+        "exact_path": {
+          "n": 4,
+          "em": 0.25,
+          "em_bounded": 0.5,
+          "reward": 0.15
+        },
+        "multi_hop": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.1135
+        },
+        "semantic": {
+          "n": 3,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": -0.0355
+        },
+        "simple_factual": {
+          "n": 40,
+          "em": 1.0,
+          "em_bounded": 1.0,
+          "reward": 1.3212
+        },
+        "staleness": {
+          "n": 4,
+          "em": 0.75,
+          "em_bounded": 0.75,
+          "reward": 1.015
+        }
+      },
+      "by_gold_form": {
+        "composite": {
+          "n": 16,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.0479
+        },
+        "single_value": {
+          "n": 52,
+          "em": 0.8462,
+          "em_bounded": 0.8654,
+          "reward": 1.1034
+        }
+      },
+      "kind": "trained",
+      "deltas": [
+        {
+          "reference": "policy-untrained",
+          "em": {
+            "delta": 0.0294,
+            "lo": -0.0294,
+            "hi": 0.0882
+          },
+          "reward": {
+            "delta": 0.0815,
+            "lo": -0.0068,
+            "hi": 0.1748
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 3,
+              "down": 1
+            },
+            "em_bounded": {
+              "up": 3,
+              "down": 0
+            }
+          }
+        },
+        {
+          "reference": "single-shot-rag",
+          "em": {
+            "delta": 0.0294,
+            "lo": -0.0294,
+            "hi": 0.0882
+          },
+          "reward": {
+            "delta": 0.1346,
+            "lo": 0.0532,
+            "hi": 0.2251
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 3,
+              "down": 1
+            },
+            "em_bounded": {
+              "up": 3,
+              "down": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "config": "policy-grpo/seed=1",
+      "n": 68,
+      "ci": {
+        "em": {
+          "mean": 0.6618,
+          "lo": 0.5441,
+          "hi": 0.7647
+        },
+        "reward": {
+          "mean": 0.9223,
+          "lo": 0.7812,
+          "hi": 1.052
+        },
+        "em_bounded": {
+          "mean": 0.6618,
+          "lo": 0.5441,
+          "hi": 0.7647
+        }
+      },
+      "means": {
+        "ndcg@10": 0.7505,
+        "n_search": 1.0,
+        "uncited_or_empty": 0.0147,
+        "answered": 1.0,
+        "cited": 0.9853,
+        "answer_chars": 6.3676
+      },
+      "stop": {
+        "answer": 68
+      },
+      "by_category": {
+        "aggregation": {
+          "n": 5,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1518
+        },
+        "comparative": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1793
+        },
+        "conditional": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.338
+        },
+        "exact_path": {
+          "n": 4,
+          "em": 0.5,
+          "em_bounded": 0.5,
+          "reward": 0.3375
+        },
+        "multi_hop": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1188
+        },
+        "semantic": {
+          "n": 3,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1311
+        },
+        "simple_factual": {
+          "n": 40,
+          "em": 1.0,
+          "em_bounded": 1.0,
+          "reward": 1.333
+        },
+        "staleness": {
+          "n": 4,
+          "em": 0.75,
+          "em_bounded": 0.75,
+          "reward": 1.0875
+        }
+      },
+      "by_gold_form": {
+        "composite": {
+          "n": 16,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.2086
+        },
+        "single_value": {
+          "n": 52,
+          "em": 0.8654,
+          "em_bounded": 0.8654,
+          "reward": 1.1419
+        }
+      },
+      "kind": "trained",
+      "deltas": [
+        {
+          "reference": "policy-untrained",
+          "em": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "reward": {
+            "delta": 0.1487,
+            "lo": 0.0756,
+            "hi": 0.2289
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 3,
+              "down": 0
+            },
+            "em_bounded": {
+              "up": 3,
+              "down": 0
+            }
+          }
+        },
+        {
+          "reference": "single-shot-rag",
+          "em": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "reward": {
+            "delta": 0.2018,
+            "lo": 0.1178,
+            "hi": 0.2972
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 3,
+              "down": 0
+            },
+            "em_bounded": {
+              "up": 3,
+              "down": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "config": "policy-grpo/seed=2",
+      "n": 68,
+      "ci": {
+        "em": {
+          "mean": 0.6618,
+          "lo": 0.5441,
+          "hi": 0.7647
+        },
+        "reward": {
+          "mean": 0.9053,
+          "lo": 0.748,
+          "hi": 1.0413
+        },
+        "em_bounded": {
+          "mean": 0.6618,
+          "lo": 0.5441,
+          "hi": 0.7647
+        }
+      },
+      "means": {
+        "ndcg@10": 0.7165,
+        "n_search": 1.0,
+        "uncited_or_empty": 0.0147,
+        "answered": 1.0,
+        "cited": 0.9853,
+        "answer_chars": 7.3971
+      },
+      "stop": {
+        "answer": 68
+      },
+      "by_category": {
+        "aggregation": {
+          "n": 5,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1567
+        },
+        "comparative": {
+          "n": 4,
+          "em": 0.25,
+          "em_bounded": 0.25,
+          "reward": 0.3887
+        },
+        "conditional": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1794
+        },
+        "exact_path": {
+          "n": 4,
+          "em": 0.25,
+          "em_bounded": 0.25,
+          "reward": 0.0875
+        },
+        "multi_hop": {
+          "n": 4,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1331
+        },
+        "semantic": {
+          "n": 3,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.2145
+        },
+        "simple_factual": {
+          "n": 40,
+          "em": 1.0,
+          "em_bounded": 1.0,
+          "reward": 1.333
+        },
+        "staleness": {
+          "n": 4,
+          "em": 0.75,
+          "em_bounded": 0.75,
+          "reward": 0.9141
+        }
+      },
+      "by_gold_form": {
+        "composite": {
+          "n": 16,
+          "em": 0.0,
+          "em_bounded": 0.0,
+          "reward": 0.1624
+        },
+        "single_value": {
+          "n": 52,
+          "em": 0.8654,
+          "em_bounded": 0.8654,
+          "reward": 1.1339
+        }
+      },
+      "kind": "trained",
+      "deltas": [
+        {
+          "reference": "policy-untrained",
+          "em": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "reward": {
+            "delta": 0.1317,
+            "lo": 0.0602,
+            "hi": 0.2125
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.1029
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 3,
+              "down": 0
+            },
+            "em_bounded": {
+              "up": 3,
+              "down": 0
+            }
+          }
+        },
+        {
+          "reference": "single-shot-rag",
+          "em": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.0882
+          },
+          "reward": {
+            "delta": 0.1848,
+            "lo": 0.106,
+            "hi": 0.2687
+          },
+          "em_bounded": {
+            "delta": 0.0441,
+            "lo": 0.0,
+            "hi": 0.0882
+          },
+          "n_questions_changed": {
+            "em": {
+              "up": 3,
+              "down": 0
+            },
+            "em_bounded": {
+              "up": 3,
+              "down": 0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "verdicts": [
+    {
+      "config": "policy-grpo",
+      "reference": "policy-untrained",
+      "metric": "em",
+      "delta": 0.0392,
+      "lo": -0.0049,
+      "hi": 0.0931,
+      "interval": "covers zero",
+      "outcome": "tie",
+      "primary": true,
+      "n_seeds": 3
+    },
+    {
+      "config": "policy-grpo",
+      "reference": "policy-untrained",
+      "metric": "reward",
+      "delta": 0.1206,
+      "lo": 0.048,
+      "hi": 0.1987,
+      "interval": "above zero",
+      "outcome": "win",
+      "primary": false,
+      "n_seeds": 3
+    },
+    {
+      "config": "policy-grpo",
+      "reference": "policy-untrained",
+      "metric": "em_bounded",
+      "delta": 0.0441,
+      "lo": 0.0049,
+      "hi": 0.0933,
+      "interval": "above zero",
+      "outcome": "win",
+      "primary": false,
+      "n_seeds": 3
+    },
+    {
+      "config": "policy-grpo",
+      "reference": "single-shot-rag",
+      "metric": "em",
+      "delta": 0.0392,
+      "lo": 0.0,
+      "hi": 0.0882,
+      "interval": "covers zero",
+      "outcome": "tie",
+      "primary": false,
+      "n_seeds": 3
+    },
+    {
+      "config": "policy-grpo",
+      "reference": "single-shot-rag",
+      "metric": "reward",
+      "delta": 0.1737,
+      "lo": 0.0965,
+      "hi": 0.2592,
+      "interval": "above zero",
+      "outcome": "win",
+      "primary": false,
+      "n_seeds": 3
+    },
+    {
+      "config": "policy-grpo",
+      "reference": "single-shot-rag",
+      "metric": "em_bounded",
+      "delta": 0.0441,
+      "lo": 0.0049,
+      "hi": 0.0931,
+      "interval": "above zero",
+      "outcome": "win",
+      "primary": false,
+      "n_seeds": 3
+    }
+  ],
+  "training_runs": [
+    {
+      "name": "policy-grpo/seed=0",
+      "selected_step": 150,
+      "tune": [
+        {
+          "step": 0,
+          "reward": 0.789166,
+          "em": 0.691176,
+          "n_search": 0.970588,
+          "uncited_or_empty": 0.132353
+        },
+        {
+          "step": 50,
+          "reward": 0.928628,
+          "em": 0.691176,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        },
+        {
+          "step": 100,
+          "reward": 0.96292,
+          "em": 0.720588,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 150,
+          "reward": 0.99695,
+          "em": 0.735294,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        },
+        {
+          "step": 200,
+          "reward": 0.951333,
+          "em": 0.720588,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.029412
+        },
+        {
+          "step": 250,
+          "reward": 0.953589,
+          "em": 0.705882,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 300,
+          "reward": 0.957478,
+          "em": 0.705882,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        }
+      ],
+      "tune_reward_untrained": 0.789166,
+      "tune_reward_selected": 0.99695,
+      "collapse": {
+        "n_steps": 300,
+        "loss_finite": true,
+        "reward_first": 0.6327,
+        "reward_last": 0.9181,
+        "answered_last": 0.9992,
+        "em_first": 0.5609,
+        "em_last": 0.6523,
+        "window": 20,
+        "collapsed": false,
+        "reasons": []
+      },
+      "signal": {
+        "window": 20,
+        "questions_per_step": 8,
+        "groups_with_a_reward_spread_first": 6.1,
+        "groups_with_a_reward_spread_last": 0.9,
+        "nll_sampled_first": 0.2134,
+        "nll_sampled_last": 0.0316
+      },
+      "seconds": {
+        "rollouts": 1602.7,
+        "updates": 451.9,
+        "tune_scoring": 57.3
+      }
+    },
+    {
+      "name": "policy-grpo/seed=1",
+      "selected_step": 200,
+      "tune": [
+        {
+          "step": 0,
+          "reward": 0.789166,
+          "em": 0.691176,
+          "n_search": 0.970588,
+          "uncited_or_empty": 0.132353
+        },
+        {
+          "step": 50,
+          "reward": 0.951936,
+          "em": 0.705882,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        },
+        {
+          "step": 100,
+          "reward": 0.971038,
+          "em": 0.720588,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 150,
+          "reward": 0.968761,
+          "em": 0.720588,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 200,
+          "reward": 0.985981,
+          "em": 0.705882,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 250,
+          "reward": 0.985749,
+          "em": 0.691176,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        },
+        {
+          "step": 300,
+          "reward": 0.984959,
+          "em": 0.691176,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        }
+      ],
+      "tune_reward_untrained": 0.789166,
+      "tune_reward_selected": 0.985981,
+      "collapse": {
+        "n_steps": 300,
+        "loss_finite": true,
+        "reward_first": 0.6611,
+        "reward_last": 1.0267,
+        "answered_last": 1.0,
+        "em_first": 0.5633,
+        "em_last": 0.6945,
+        "window": 20,
+        "collapsed": false,
+        "reasons": []
+      },
+      "signal": {
+        "window": 20,
+        "questions_per_step": 8,
+        "groups_with_a_reward_spread_first": 6.05,
+        "groups_with_a_reward_spread_last": 1.1,
+        "nll_sampled_first": 0.2043,
+        "nll_sampled_last": 0.0263
+      },
+      "seconds": {
+        "rollouts": 1644.0,
+        "updates": 682.0,
+        "tune_scoring": 52.2
+      }
+    },
+    {
+      "name": "policy-grpo/seed=2",
+      "selected_step": 150,
+      "tune": [
+        {
+          "step": 0,
+          "reward": 0.789166,
+          "em": 0.691176,
+          "n_search": 0.970588,
+          "uncited_or_empty": 0.132353
+        },
+        {
+          "step": 50,
+          "reward": 0.91369,
+          "em": 0.691176,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 100,
+          "reward": 0.930014,
+          "em": 0.705882,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 150,
+          "reward": 0.984995,
+          "em": 0.720588,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        },
+        {
+          "step": 200,
+          "reward": 0.98165,
+          "em": 0.691176,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.0
+        },
+        {
+          "step": 250,
+          "reward": 0.969075,
+          "em": 0.705882,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        },
+        {
+          "step": 300,
+          "reward": 0.958869,
+          "em": 0.691176,
+          "n_search": 1.0,
+          "uncited_or_empty": 0.014706
+        }
+      ],
+      "tune_reward_untrained": 0.789166,
+      "tune_reward_selected": 0.984995,
+      "collapse": {
+        "n_steps": 300,
+        "loss_finite": true,
+        "reward_first": 0.5943,
+        "reward_last": 0.9346,
+        "answered_last": 1.0,
+        "em_first": 0.5398,
+        "em_last": 0.6234,
+        "window": 20,
+        "collapsed": false,
+        "reasons": []
+      },
+      "signal": {
+        "window": 20,
+        "questions_per_step": 8,
+        "groups_with_a_reward_spread_first": 6.25,
+        "groups_with_a_reward_spread_last": 1.85,
+        "nll_sampled_first": 0.2574,
+        "nll_sampled_last": 0.0352
+      },
+      "seconds": {
+        "rollouts": 1632.8,
+        "updates": 633.6,
+        "tune_scoring": 51.4
+      }
+    }
+  ],
+  "training_corpora": {
+    "command": "python -m app.rl.corpora --seeds <seeds> --out <a directory outside the repository>",
+    "seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32
+    ],
+    "rebuilt_from_seeds": [
+      {
+        "seed": 1,
+        "corpus_sha256": "c63c263ecdd4634451bf430fac2b7327059cc6616923f270cdab7356f9af8133",
+        "gold_sha256": "61832a05125d820d21b2da0a349ae65bc30e7e187c7292789ae9e33c2dcde93a",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 2,
+        "corpus_sha256": "0ed5c239184f7b932a51eba6568163c86ebaeda45d84e04a7125cb754603fc5b",
+        "gold_sha256": "14463c5a418eb462bde1fe1092493249fb7e6335cc18b6a6ada2872862059c1b",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 3,
+        "corpus_sha256": "5456bc2658b50699d8b35e108f65ea9cacddcf5ae65c4760e9d580c1e0be464d",
+        "gold_sha256": "3c2395b2a005b50d120335b83cd1ae5c61f21b1ae996a702646034ce3283b7c1",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 4,
+        "corpus_sha256": "8f6e6cb52914248509bab3875634a91008ef574882ad23372a261106f7e2ff29",
+        "gold_sha256": "ea8719c42f872759dae1fe372c485b61e650764f276a9bb3403fd53f8ed9420b",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 5,
+        "corpus_sha256": "07d0f1b6a2b1e0179968fd1d43a68ae15df662f1ca862b20a0e734a52ae0bcbf",
+        "gold_sha256": "c32b0232ae69862b37052a24adb8c246d4ea1c8ae2df2d9bbe30004725cd8b43",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 6,
+        "corpus_sha256": "ba743947644098b9fd976e1b88aa65052bef35ac49814dbef5889e480cb29667",
+        "gold_sha256": "b07bdeb6f2dfba5954c7a1f0e6dede86fb39bc852d89de2917b65e3e38525a8e",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 7,
+        "corpus_sha256": "2fb7197124e56650fd780ac43c79a2336107c21f149b603d35e4caaa45b9eb36",
+        "gold_sha256": "d6b554eb1cba52ade5f34494222dcdd6cc6818d7960fce47eb0a0ade1b33cbf7",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 8,
+        "corpus_sha256": "87a7a95b76761612c2299a77c64825a964a3acfc441fa2f9334c78dc7f92f118",
+        "gold_sha256": "9afc7d5f741ab86afc55ac52929b2dfd8ae2fdd06202015dcd27edcd741fa2d5",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 9,
+        "corpus_sha256": "381306198d2e7949f32c0cc95e385692ce6cb817d79a1ad17b6b6aac75a9afee",
+        "gold_sha256": "92c1ea8d9b4c8e720fb16d079e2744fca0eb07928dd2ed4680938271ee8b3afe",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 10,
+        "corpus_sha256": "0710fe1ea180d5d9b2fff2380b9ab2c323289ba2820a1e028051754b241cbd4d",
+        "gold_sha256": "69efc29e967ef1e3c4b924d8bb58a57e34b74426258c64e3e3ac2fc93ffe41ce",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 11,
+        "corpus_sha256": "1bc23cdf08a940f7c8ecee470d3c60b0f5be794b58e2f93078db093ff325f5d0",
+        "gold_sha256": "2886d85cf11c78b465cf5cfc67fb8cee6be8ad56c25c80fcaba32267de3e4987",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 12,
+        "corpus_sha256": "f0c1f3613d8918ee521ad61557fbf771c295dbb944a0e56b195bc1dc61a22471",
+        "gold_sha256": "46f5662c60afb0ae6e1a743415549bb3d1b6117517539a32f933997dee9ef659",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 13,
+        "corpus_sha256": "5127ae7c9b803a9591ec15583d7756d6360c0f807951fe0a1ff474bf61a14c27",
+        "gold_sha256": "a463f7f6ae44bfeae7fb224c0dab6be2b9d59f7c57001f1984e70035ea8d49b4",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 14,
+        "corpus_sha256": "8d0d232213f60df7f940417b0af1374e2452c667fbc8a342246bbe80ec398c3f",
+        "gold_sha256": "68435d1ebc3609dc1ae1631a3213d8db673c36ad1d8c10e6cd108a4fb1808da7",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 15,
+        "corpus_sha256": "d7108c9786d9dedf4c4d67fc9e13afddf29fc2ee6acb3d1d5c7495c72a1eba13",
+        "gold_sha256": "7a97b07e3c970bdfb90991b2a233c067d74e8ae7a4cc16b005f02a143d40edee",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 16,
+        "corpus_sha256": "df8a72fed91ae52c9b6e47c882c78abefe1c38de9413c3b7ba6d6056a005ba05",
+        "gold_sha256": "ea7d6be6f5f65876563de38ad5ff0c1d8d68de8eb0767d96539422fffddbdc86",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 17,
+        "corpus_sha256": "9e871f30690801de5c342eb8cfdcf7c8b4e1e1cf36fe7bdd46851f671e1b31db",
+        "gold_sha256": "909d326aeac142d9cbcc78e0bd082ee3896616751717ac69e8fd20776d468b33",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 18,
+        "corpus_sha256": "9318cbb05993b15c00289ee7b6e19ac55980804665252cfa24e5e2911a464259",
+        "gold_sha256": "1ec33bb76634dc27df7e244b4c3e96deec4c2fff4d834b9b3fe07abae112126d",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 19,
+        "corpus_sha256": "92f95e663ba21e5bc027983edd8774f70da1dcde5f9670d4f81ef5817a448661",
+        "gold_sha256": "5df3ea2dc2839e18b3548e2c0aa2984787f89e42e9e25f6269e96fb09afe59a8",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 20,
+        "corpus_sha256": "88cf7774646dddc3211125fc10c22ce7ab494b9c3ec7e0f6c9ad5e667c729761",
+        "gold_sha256": "1993bd419fa84bf078dca47ce6597ca2ff7f0c75f4d5ce23102152807f6ffbfe",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 21,
+        "corpus_sha256": "22620664a4f1b1b6126c185e140a369c3de7d16a2c445f87cb99c7bf423acfd5",
+        "gold_sha256": "47b26a766c457663e7540bc25a7335ee2934f9137384766aa2fb9fbe3657e758",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 22,
+        "corpus_sha256": "d2832e56f70f3296274e6c0cbda676d39ac1a406b33da8bbec366e681f5ba50f",
+        "gold_sha256": "f7c39b9f39a4b3de795181f5e8326e67dee6f1d355a50fdad9b727cd0030085f",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 23,
+        "corpus_sha256": "3ab087510615c14408716d8879121bd605e580acb3d661f061086e0f30d46756",
+        "gold_sha256": "ec75ee36e286d63ca6c12a8b5d5b39022859752df08494804cdf5c0939693b90",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 24,
+        "corpus_sha256": "7312b81508fa4b7a1d06e1ed2191f686fb63428152f0c475871d88a694a64fdb",
+        "gold_sha256": "0b64097e9f4d87cba86005f5ded45ca0c2ce57acd4d20948ba916a2a3609c562",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 25,
+        "corpus_sha256": "815df76d630aceb905985bdc4dd2ff1d7ac71f9820dcea34a6eeec0a67732f97",
+        "gold_sha256": "c013804937a68e2176dd34ad8ba433d31f7a96e087e8d9bca660b41a838b2776",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 26,
+        "corpus_sha256": "b092fa1c17e43e264c0798faca3a43632b8862e958f4a81fc7d97d388dcac56d",
+        "gold_sha256": "b76c31838c7f0ef62caeb909e8e6aa73947c6ad27706ab425c07d1940d321233",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 27,
+        "corpus_sha256": "76272cee6696247bd2ceb77c9a927e3d78b6978ae90c952943623ec1f4308d97",
+        "gold_sha256": "90a0110644d0e4a17a61699e64833d951d9f18726ac0c36ff80f4f414ebec9f3",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 28,
+        "corpus_sha256": "7e6f50ba0c46cc7fab19df8b31e5fe6f3bcfa1cf241c5d52520f60f27afd0122",
+        "gold_sha256": "689845a09fd91d1c528f2d3c2edcc20185b1738d360a242022072ab9a4d28d65",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 29,
+        "corpus_sha256": "597e4bca3eff2ea29eb7cd548cb76bc2d4ff1414be90947021254a53602143cd",
+        "gold_sha256": "46b38f79aba1e7c266af1920ef6c0fbd8f734ebbd56e3624bac88f677efe2960",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 30,
+        "corpus_sha256": "c912e1da9ba16e303919d11beca5b2a94b837f29f20f5a7677a80b8546fe3e42",
+        "gold_sha256": "167a1813a1fd6b14bfe516f9b8904d29c4582915f8b4bbc0ff5207e088c53d7a",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 31,
+        "corpus_sha256": "ca898f0e0b22e9a8d4a1b313ca313f871c657ad51c0fce750f8c270c4c24b156",
+        "gold_sha256": "acb7e268a4586d5c9f8f02ee269e82fe913253026a5fbcbeedc8c6d268a04ae7",
+        "n_files": 61,
+        "n_gold": 136
+      },
+      {
+        "seed": 32,
+        "corpus_sha256": "29a01a04e0f8ece7189b7e537fc4e2984556ad5663d57d7f01915a881e3c930c",
+        "gold_sha256": "f33579380f603bb3d5e4e43d977280c46b13842e87d52a32adf9cfa774988ac6",
+        "n_files": 61,
+        "n_gold": 136
+      }
+    ],
+    "runs_whose_recorded_corpora_differ": []
+  },
+  "leakage": {
+    "seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32
+    ],
+    "n_corpora": 32,
+    "n_questions_built": 4352,
+    "rule_a": "dropped: normalised text (lower case, whitespace collapsed) equals a fixture v1 question's, tune or held-out half",
+    "rule_b": "dropped: the answer is a constant of the builder, the same string for every corpus (it would teach a held-out gold string under strict exact match); counted after rule (a)",
+    "n_dropped_same_text_as_a_fixture_question": 740,
+    "dropped_same_text_by_template": {
+      "aggregation.ablations_listed": 32,
+      "aggregation.average_pairs": 32,
+      "aggregation.runs_3_pairs": 32,
+      "aggregation.runs_fusion_on": 32,
+      "aggregation.runs_learning_rate": 4,
+      "aggregation.unique_barks": 32,
+      "comparative.best_encoder": 32,
+      "comparative.highest_rmse_run": 32,
+      "comparative.lowest_ablation": 32,
+      "comparative.lowest_rmse_run": 32,
+      "conditional.encoder_fusion_on_1_pair": 32,
+      "exact_path.locate_paper_draft": 32,
+      "exact_path.read_fusion_src": 32,
+      "exact_path.show_ablation_csv": 32,
+      "multi_hop.best_run_checkpoint": 32,
+      "multi_hop.best_run_slurm_and_encoder": 32,
+      "multi_hop.first_2_pair_run_beating_baseline": 32,
+      "multi_hop.trellis_source_and_runs": 32,
+      "semantic.fusion_module": 32,
+      "semantic.fusion_on_vs_off": 32,
+      "semantic.slurm_scripts": 32,
+      "semantic.trellis_helper": 32,
+      "staleness.paper_headline_rmse": 32,
+      "staleness.paper_says_fusion_helps": 32
+    },
+    "n_constant_answer_questions_built": 384,
+    "n_dropped_constant_answer": 96,
+    "dropped_constant_answer_by_template": {
+      "exact_path.flag_in_slurm_script": 32,
+      "multi_hop.fusion_module_in_headline_run": 32,
+      "semantic.baseline_number": 32
+    },
+    "n_kept": 3516,
+    "kept_by_category": {
+      "aggregation": 156,
+      "comparative": 128,
+      "conditional": 224,
+      "exact_path": 128,
+      "multi_hop": 96,
+      "semantic": 32,
+      "simple_factual": 2560,
+      "staleness": 192
+    },
+    "kept_by_template": {
+      "aggregation.runs_bark": 32,
+      "aggregation.runs_beat_baseline": 32,
+      "aggregation.runs_headline_encoder": 32,
+      "aggregation.runs_learning_rate": 28,
+      "aggregation.runs_third_encoder": 32,
+      "comparative.compare_two_runs": 32,
+      "comparative.fusion_on_vs_off_headline_encoder": 32,
+      "comparative.run_vs_baseline": 32,
+      "comparative.worse_ablation": 32,
+      "conditional.barks_headline_encoder_3_pairs": 32,
+      "conditional.fusion_on_bark_runs": 32,
+      "conditional.headline_encoder_fusion_beats_baseline": 32,
+      "conditional.lr_bark_3_pairs": 32,
+      "conditional.lr_headline_encoder_fusion_on": 32,
+      "conditional.lr_second_encoder_fusion_off": 32,
+      "conditional.rmse_third_encoder_fusion_on": 32,
+      "exact_path.config_file_name": 32,
+      "exact_path.find_slurm": 32,
+      "exact_path.log_path": 32,
+      "exact_path.open_config": 32,
+      "multi_hop.ablation_table_and_rmse": 32,
+      "multi_hop.best_run_bark_and_config": 32,
+      "multi_hop.paper_draft_and_rmse": 32,
+      "semantic.encoder_loaded": 32,
+      "simple.bark": 512,
+      "simple.encoder": 512,
+      "simple.lr": 512,
+      "simple.pairs": 512,
+      "simple.rmse": 512,
+      "staleness.current_encoder_and_lr": 32,
+      "staleness.current_lr": 32,
+      "staleness.current_lr_named_encoder": 32,
+      "staleness.current_rmse": 32,
+      "staleness.fusion_currently_on": 32,
+      "staleness.resume_headline_run_lr": 32
+    },
+    "n_kept_with_a_fixture_question_text": 0,
+    "variant_run_ids_also_in_fixture_v1": [],
+    "kept_answers_equal_to_a_fixture_answer": {
+      "note": "a kept training answer that is also some fixture answer: short values a corpus must be read for (a pair count, a learning rate, yes / no); none is a phrase",
+      "n_questions": 1077,
+      "answers": {
+        "0.0521": 3,
+        "0.053": 2,
+        "0.0533": 1,
+        "0.0542": 4,
+        "0.0548": 5,
+        "0.0555": 2,
+        "0.0559": 3,
+        "0.0564": 1,
+        "0.0568": 3,
+        "0.0571": 3,
+        "0.0588": 4,
+        "0.0595": 1,
+        "0.0612": 5,
+        "0.064": 3,
+        "0.072": 1,
+        "1": 90,
+        "1e-03": 61,
+        "1e-03, 1e-04": 2,
+        "1e-04": 70,
+        "1e-4": 15,
+        "2": 204,
+        "2e-04": 64,
+        "3": 283,
+        "3e-04": 62,
+        "3e-4": 10,
+        "4": 25,
+        "5": 22,
+        "5e-04": 76,
+        "6": 9,
+        "8": 5,
+        "9": 9,
+        "yes": 29
+      },
+      "longest_in_words": 2
+    },
+    "fixture_templates_without_a_training_question": [
+      "aggregation.ablations_listed",
+      "aggregation.average_pairs",
+      "aggregation.runs_3_pairs",
+      "aggregation.runs_fusion_on",
+      "aggregation.unique_barks",
+      "comparative.best_encoder",
+      "comparative.highest_rmse_run",
+      "comparative.lowest_ablation",
+      "comparative.lowest_rmse_run",
+      "conditional.encoder_fusion_on_1_pair",
+      "exact_path.flag_in_slurm_script",
+      "exact_path.locate_paper_draft",
+      "exact_path.read_fusion_src",
+      "exact_path.show_ablation_csv",
+      "multi_hop.best_run_checkpoint",
+      "multi_hop.best_run_slurm_and_encoder",
+      "multi_hop.first_2_pair_run_beating_baseline",
+      "multi_hop.fusion_module_in_headline_run",
+      "multi_hop.trellis_source_and_runs",
+      "semantic.baseline_number",
+      "semantic.fusion_module",
+      "semantic.fusion_on_vs_off",
+      "semantic.slurm_scripts",
+      "semantic.trellis_helper",
+      "staleness.paper_headline_rmse",
+      "staleness.paper_says_fusion_helps"
+    ],
+    "fixture_questions_whose_template_is_not_trained": [
+      "q087",
+      "q089",
+      "q090",
+      "q091",
+      "q093",
+      "q097",
+      "q099",
+      "q101",
+      "q102",
+      "q104",
+      "q108",
+      "q109",
+      "q110",
+      "q112",
+      "q114",
+      "q117",
+      "q121",
+      "q125",
+      "q126",
+      "q127",
+      "q130",
+      "q131",
+      "q133",
+      "q134",
+      "q135",
+      "q136"
+    ],
+    "templates_shared_with_fixture_v1": "every kept training question is built from a template that also builds fixture v1 questions: same wording, other run ids, names and values",
+    "held_out_questions_whose_template_is_not_trained": [
+      "q090",
+      "q102",
+      "q104",
+      "q108",
+      "q110",
+      "q112",
+      "q114",
+      "q126",
+      "q130",
+      "q134",
+      "q136"
+    ],
+    "n_held_out_questions_whose_template_is_not_trained": 11
+  },
+  "stored_scores_differ_from_rescored": [],
+  "does_not_show": [
+    "Synthetic corpora: training and test corpora come from one builder (bench/corpus/build.py); nothing here is a real research directory.",
+    "Templated questions: every training question is built from a template that also builds test questions (same wording, other run ids, names and values), so a gain may be a gain on these templates only. The test questions whose template had no training question are listed under `leakage`.",
+    "One small model (Qwen2.5-1.5B-Instruct with a LoRA adapter) and one prompt: no model sweep, no prompt sweep.",
+    "One test corpus of 61 files and 68 held-out questions, 40 of them the per-run lookups; the tune half of the same corpus chose the checkpoint.",
+    "Strict exact match can move on answer format alone; `em_bounded` and the answer length are the guard columns, and composite gold answers (a list, a sentence, two values joined by a semicolon) are counted apart from single values.",
+    "No jury term in the reward, and no judge of answer quality beyond exact match.",
+    "Greedy decoding on one GPU type: the episodes are stored, and every number is recomputed from them, but regenerating them on other hardware may not reproduce every token."
+  ],
+  "slurm_jobs": [
+    {
+      "id": 22136977,
+      "name": "m44-setup",
+      "what": "setup: training venv, licence check, model download, CPU check of the LoRA wrap",
+      "partition": "share",
+      "gpu": null,
+      "n_gpus": 0,
+      "elapsed": "00:01:27",
+      "gpu_hours": 0.0,
+      "state": "COMPLETED",
+      "start": "2026-11-22T16:28:33"
+    },
+    {
+      "id": 22137069,
+      "name": "m44-pilot",
+      "what": "pilot (training questions only): lr 5e-5 and 2e-4, 30 steps each",
+      "partition": "ampere",
+      "gpu": "NVIDIA A40",
+      "n_gpus": 1,
+      "elapsed": "00:10:32",
+      "gpu_hours": 0.176,
+      "state": "COMPLETED",
+      "start": "2026-11-22T17:11:18"
+    },
+    {
+      "id": 22137077,
+      "name": "m44-pilot-rtx",
+      "what": "pilot on RTX 8000 (training questions only): out of GPU memory in step 6, the fix followed",
+      "partition": "gpu",
+      "gpu": "Quadro RTX 8000",
+      "n_gpus": 1,
+      "elapsed": "00:06:40",
+      "gpu_hours": 0.111,
+      "state": "FAILED",
+      "start": "2026-11-22T17:03:47"
+    },
+    {
+      "id": 22137144,
+      "name": "m44-pilot-rtx",
+      "what": "pilot on RTX 8000: a new test failed on the node, nothing trained",
+      "partition": "gpu",
+      "gpu": "Quadro RTX 8000",
+      "n_gpus": 1,
+      "elapsed": "00:00:38",
+      "gpu_hours": 0.011,
+      "state": "FAILED",
+      "start": "2026-11-22T17:13:14"
+    },
+    {
+      "id": 22137174,
+      "name": "m44-pilot-rtx",
+      "what": "pilot on RTX 8000 (training questions only): lr 1e-4, 25 steps",
+      "partition": "gpu",
+      "gpu": "Quadro RTX 8000",
+      "n_gpus": 1,
+      "elapsed": "00:18:27",
+      "gpu_hours": 0.307,
+      "state": "COMPLETED",
+      "start": "2026-11-22T17:17:17"
+    },
+    {
+      "id": 22142397,
+      "name": "m44-smoke",
+      "what": "RTX 8000 smoke, cancelled after about a minute (the CPU smoke had passed)",
+      "partition": "gpu",
+      "gpu": "Quadro RTX 8000",
+      "n_gpus": 1,
+      "elapsed": "00:01:09",
+      "gpu_hours": 0.019,
+      "state": "CANCELLED",
+      "start": "2026-11-23T15:57:57"
+    },
+    {
+      "id": 22142407,
+      "name": "m44-cpu-smoke",
+      "what": "CPU smoke of the training and scoring commands with a tiny random model (no result)",
+      "partition": "eecs",
+      "gpu": null,
+      "n_gpus": 0,
+      "elapsed": "00:03:44",
+      "gpu_hours": 0.0,
+      "state": "COMPLETED",
+      "start": "2026-11-23T15:52:57"
+    },
+    {
+      "id": 22142427,
+      "name": "m44-eval",
+      "what": "held-out arms: policy-untrained, single-shot-rag",
+      "partition": "ampere",
+      "gpu": "NVIDIA A40",
+      "n_gpus": 1,
+      "elapsed": "00:01:01",
+      "gpu_hours": 0.017,
+      "state": "COMPLETED",
+      "start": "2026-11-23T16:19:27"
+    },
+    {
+      "id": 22142428,
+      "name": "m44-train",
+      "what": "training run grpo/seed=0 and its held-out arm",
+      "partition": "ampere",
+      "gpu": "NVIDIA A40",
+      "n_gpus": 1,
+      "elapsed": "00:36:45",
+      "gpu_hours": 0.613,
+      "state": "COMPLETED",
+      "start": "2026-11-23T16:49:47"
+    },
+    {
+      "id": 22142430,
+      "name": "m44-train",
+      "what": "training run grpo/seed=1 and its held-out arm",
+      "partition": "ampere",
+      "gpu": "NVIDIA A40",
+      "n_gpus": 1,
+      "elapsed": "00:40:57",
+      "gpu_hours": 0.682,
+      "state": "COMPLETED",
+      "start": "2026-11-23T17:34:38"
+    },
+    {
+      "id": 22142432,
+      "name": "m44-train",
+      "what": "training run grpo/seed=2 and its held-out arm",
+      "partition": "ampere",
+      "gpu": "NVIDIA A40",
+      "n_gpus": 1,
+      "elapsed": "00:40:17",
+      "gpu_hours": 0.671,
+      "state": "COMPLETED",
+      "start": "2026-11-23T17:43:55"
+    },
+    {
+      "id": 22142694,
+      "name": "m44-assemble",
+      "what": "dry run of the assembly with seed 0 only (not committed)",
+      "partition": "eecs",
+      "gpu": null,
+      "n_gpus": 0,
+      "elapsed": "00:00:10",
+      "gpu_hours": 0.0,
+      "state": "COMPLETED",
+      "start": "2026-11-23T17:29:58"
+    }
+  ],
+  "sidecars": {
+    "rollouts": "bench/results/search_policy.rollouts.json",
+    "training": "bench/results/search_policy.training.json"
+  }
+}

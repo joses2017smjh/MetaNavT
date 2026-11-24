@@ -100,6 +100,19 @@ class SearchR1Env:
         result = self.index.retrieve(query)
         return format_information(result.hits), result.paths
 
+    def search_shown(self, query: str, *, n: int = 4, query_vec=None) -> tuple[str, list[str]]:
+        """The information block for one query and the files it shows: the files of its `n` chunks, in order. An
+        episode's reward counts these as retrieved (app/rl/episode.py), not the files of every fused candidate, which
+        the policy never saw. `query_vec` is the query's embedding when the caller encoded a batch of queries."""
+        if not query.strip():
+            return "(empty query: no results)", []
+        hits = self.index.retrieve(query, query_vec=query_vec).hits[:n]
+        paths: list[str] = []
+        for hit in hits:
+            if hit.chunk.path not in paths:
+                paths.append(hit.chunk.path)
+        return format_information(hits, n=n), paths
+
     def rollout(self, question: str, policy: Callable[[str], str] | None = None) -> Trajectory:
         """One trajectory. Default policy: one search, then extractive answer."""
         if policy is None:
