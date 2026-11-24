@@ -703,8 +703,8 @@ Judges: the gate. Cohen's kappa between a judge's correctness verdicts and the e
 |---|---|---|---:|---|---:|:---:|---|---|
 | qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.9509 | [0.9036, 0.9876] | 160 | yes | 80 / 3 / 77 | 0 / 0 / — of 160 |
 | llama3.1:8b (8.0B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.0 | [0.0, 0.0] | 160 | no | 160 / 0 / 0 | 0 / 0 / — of 160 |
-| gpt-oss:120b (116.8B, MXFP4) | [bench/results/jury_v3_judge_gpt-oss-120b.json](bench/results/jury_v3_judge_gpt-oss-120b.json) @ e7a3247 | NVIDIA H100 80GB HBM3 | 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |
-| gemma4:26b (25.2B, Q4_K_M) | [bench/results/jury_v3_judge_gemma4-26b.json](bench/results/jury_v3_judge_gemma4-26b.json) @ e7a3247 | Quadro RTX 8000 | 0.9875 | [0.9625, 1.0] | 160 | yes | 80 / 0 / 80 | 0 / 0 / 0 of 160 |
+| gpt-oss:120b (116.8B, MXFP4) | [bench/results/jury_v3_judge_gpt-oss-120b.json](bench/results/jury_v3_judge_gpt-oss-120b.json) @ e7a3247, f6d27c1 | NVIDIA H100 80GB HBM3 | 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |
+| gemma4:26b (25.2B, Q4_K_M) | [bench/results/jury_v3_judge_gemma4-26b.json](bench/results/jury_v3_judge_gemma4-26b.json) @ e7a3247, f6d27c1 | Quadro RTX 8000 | 0.9875 | [0.9625, 1.0] | 160 | yes | 80 / 0 / 80 | 0 / 0 / 0 of 160 |
 
 Judge scores of the stored answers, only for a judge that passed the gate (correct 1, partial 0.5, wrong 0; the interval is a bootstrap over the answers):
 
@@ -712,7 +712,15 @@ Judge scores of the stored answers, only for a judge that passed the gate (corre
 |---|---|---:|---|---:|---:|---|---|---|
 | qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | qwen2.5:7b (committed run) | 0.8881 | — | 134 | 7 | — | 80 of 80 | the judge's own weights generated these answers (self-preference risk) |
 | qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | gpt-oss:120b | 0.8358 | [0.7761, 0.8881] | 134 | 7 | 107 / 10 / 17 | 80 of 80 | another model than the generator |
+| gemma4:26b ([bench/results/jury_v3_answers_gemma4-26b.json](bench/results/jury_v3_answers_gemma4-26b.json)) | gpt-oss:120b | 0.8963 | [0.8444, 0.9407] | 135 | 3 | 118 / 6 / 11 | 79 of 79 | another model than the generator |
+| qwen3.5:122b, reasoning off ([bench/results/jury_v3_answers_qwen3.5-122b_think-off.json](bench/results/jury_v3_answers_qwen3.5-122b_think-off.json)) | gpt-oss:120b | 0.8787 | [0.8271, 0.9301] | 136 | 2 | 117 / 5 / 14 | 80 of 80 | another model than the generator |
+| qwen3.5:27b ([bench/results/jury_v3_answers_qwen3.5-27b.json](bench/results/jury_v3_answers_qwen3.5-27b.json)) | gpt-oss:120b | 0.9222 | [0.8741, 0.963] | 135 | 3 | 123 / 3 / 9 | 80 of 80 | another model than the generator |
+| qwen3.5:27b, reasoning off ([bench/results/jury_v3_answers_qwen3.5-27b_think-off.json](bench/results/jury_v3_answers_qwen3.5-27b_think-off.json)) | gpt-oss:120b | 0.9007 | [0.8529, 0.9449] | 136 | 2 | 120 / 5 / 11 | 80 of 80 | another model than the generator |
 | qwen2.5:7b ([bench/results/jury_v2.json](bench/results/jury_v2.json)) | gemma4:26b | 0.8321 | [0.7687, 0.8881] | 134 | 7 | 107 / 9 / 18 | 80 of 80 | another model than the generator |
+| gemma4:26b ([bench/results/jury_v3_answers_gemma4-26b.json](bench/results/jury_v3_answers_gemma4-26b.json)) | gemma4:26b | 0.9037 | [0.8556, 0.9445] | 135 | 3 | 120 / 4 / 11 | 79 of 79 | the judge's own weights generated these answers (self-preference risk) |
+| qwen3.5:122b, reasoning off ([bench/results/jury_v3_answers_qwen3.5-122b_think-off.json](bench/results/jury_v3_answers_qwen3.5-122b_think-off.json)) | gemma4:26b | 0.8971 | [0.8492, 0.9412] | 136 | 2 | 119 / 6 / 11 | 80 of 80 | another model than the generator |
+| qwen3.5:27b ([bench/results/jury_v3_answers_qwen3.5-27b.json](bench/results/jury_v3_answers_qwen3.5-27b.json)) | gemma4:26b | 0.9259 | [0.8778, 0.9667] | 135 | 3 | 123 / 4 / 8 | 80 of 80 | another model than the generator |
+| qwen3.5:27b, reasoning off ([bench/results/jury_v3_answers_qwen3.5-27b_think-off.json](bench/results/jury_v3_answers_qwen3.5-27b_think-off.json)) | gemma4:26b | 0.8934 | [0.8419, 0.9412] | 136 | 2 | 119 / 5 / 12 | 80 of 80 | another model than the generator |
 
 On the answers of bench/results/jury_v2.json, gpt-oss:120b and qwen2.5:7b (stored in that file) gave the same verdict on 115 of the 127 answers both were asked about (Cohen's kappa 0.5658); where they differ, gpt-oss:120b gave the lower label 12 times and qwen2.5:7b 0 times. On the answers of bench/results/jury_v2.json, gemma4:26b and qwen2.5:7b (stored in that file) gave the same verdict on 114 of the 127 answers both were asked about (Cohen's kappa 0.5294); where they differ, gemma4:26b gave the lower label 12 times and qwen2.5:7b 1 time. Agreement between two judges is not agreement with the truth.
 
