@@ -142,3 +142,71 @@ def test_the_request_route_row_counts_not_found_replies_apart_from_failures_when
     clean = request_row(write({"tool_calls_raised": {}, "tool_calls_returned_error_text": {}}))
     assert "the causes are described" not in clean["not_shown"]
     assert request is not None
+
+
+def _chat_rows(root):
+    rows = [r for r in claims(root) if r["command"] == "make chat-route-smoke"]
+    return (next(r for r in rows if "POST /api/chat (" in r["claim"]), next(r for r in rows if "/api/chat/request" in r["claim"]))
+
+
+def _write_chat(tmp_path, blob):
+    root = tmp_path / str(len(list(tmp_path.iterdir())))
+    target = root / FILES["chat_route_smoke"]
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(blob))
+    return root
+
+
+def test_the_chat_rows_say_how_the_unanswered_requests_ended(tmp_path):
+    """Requests the routes did not answer are counted from the rows by how they ended, and only when there are some."""
+    if not (ROOT / FILES["chat_route_smoke"]).exists():
+        pytest.skip("bench/results/chat_route_smoke.json not recorded yet")
+    blob = json.loads((ROOT / FILES["chat_route_smoke"]).read_text())
+    every = json.loads(json.dumps(blob))
+    for row in every["rows"]:
+        row["answered"] = True
+    for row in _chat_rows(_write_chat(tmp_path, every)):
+        assert "not answered" not in row["value"], row["value"]
+        assert "unanswered ones included" not in row["not_shown"] and "not in the file" not in row["not_shown"]
+    some = json.loads(json.dumps(blob))
+    for row in some["rows"]:
+        row["answered"] = True
+    for route in ("/api/chat", "/api/chat/request"):
+        first, second = [r for r in some["rows"] if r["route"] == route][:2]
+        first.update(answered=False, http_status=None, answer="", tools=None, error="ReadTimeout")
+        second.update(answered=False, http_status=200, answer="", errors=[] if route == "/api/chat" else None)
+    stream, request = _chat_rows(_write_chat(tmp_path, some))
+    said = (f"(not answered: 1 got no response within the runner's {some['request_timeout_s']:g} s limit, 1 returned HTTP 200 "
+            "with no text and no error line; see doc/engineering-reference.md, Backend)")
+    assert said in stream["value"] and said in request["value"]
+    assert "over every request, the unanswered ones included" in stream["not_shown"]
+    assert "the tool calls of a request that got no response are not in the file (1 here)" in request["not_shown"]
+
+
+def test_the_backend_paragraph_on_unanswered_chat_requests_holds_for_the_file():
+    """doc/engineering-reference.md (Backend) describes the chat smoke's unanswered requests exactly when the file has
+    some, and what it says of them is what the rows and the header show."""
+    if not (ROOT / FILES["chat_route_smoke"]).exists():
+        pytest.skip("bench/results/chat_route_smoke.json not recorded yet")
+    blob = json.loads((ROOT / FILES["chat_route_smoke"]).read_text())
+    text = " ".join((ROOT / "doc" / "engineering-reference.md").read_text().split())
+    rows = blob["rows"]
+    unanswered = [i for i, r in enumerate(rows) if not r["answered"]]
+    assert ("Not every request in the current file was answered" in text) == bool(unanswered)
+    if not unanswered:
+        return
+    # "On the non-streaming route one request got no response within the runner's limit, so the tool calls it made
+    # are not in the file. Every request after it, on both routes, came back as HTTP 200 with no text and no error
+    # line once the chat LLM's request timeout had passed."
+    no_response = [i for i, r in enumerate(rows) if r["http_status"] is None]
+    assert len(no_response) == 1 and rows[no_response[0]]["route"] == "/api/chat/request"
+    assert rows[no_response[0]]["tools"] is None
+    after = rows[no_response[0] + 1:]
+    assert unanswered == no_response + list(range(no_response[0] + 1, len(rows)))
+    assert {r["route"] for r in after} == {"/api/chat", "/api/chat/request"}
+    timeout = blob["chat_llm"]["request_timeout_s"]
+    assert all(r["http_status"] == 200 and r["answer"] == "" and not r.get("errors") and r["ttfb_s"] >= timeout
+               for r in after)
+    # "The chat LLM is built without a limit on the tokens it generates"
+    assert "num_predict" not in blob["chat_llm"]["additional_kwargs"]
+    assert "LLM_MAX_TOKENS" not in blob["chat_llm"]["set_in_api_environment"]

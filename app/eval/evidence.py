@@ -344,11 +344,27 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
     def by_name(counts: dict | None) -> str:
         return ", ".join(f"{name} {count}" for name, count in (counts or {}).items()) or "none"
 
+    def unanswered(route: str) -> list[dict]:
+        return [r for r in blob.get("rows") or [] if r.get("route") == route and not r.get("answered")]
+
+    def why_not(route: str) -> str:
+        """How the route's unanswered requests ended, counted from the rows; nothing when every request was answered."""
+        rows = unanswered(route)
+        if not rows:
+            return ""
+        no_response = sum(r.get("http_status") is None for r in rows)
+        empty = sum(r.get("http_status") == 200 and not r.get("answer") and not r.get("errors") for r in rows)
+        parts = ([f"{no_response} got no response within the runner's {blob['request_timeout_s']:g} s limit"] if no_response else []) + \
+                ([f"{empty} returned HTTP 200 with no text and no error line"] if empty else []) + \
+                ([f"{len(rows) - no_response - empty} returned an HTTP error or an error line"] if len(rows) - no_response - empty else [])
+        return f" (not answered: {', '.join(parts)}; see doc/engineering-reference.md, Backend)"
+
     stream = blob["summary"].get("/api/chat")
     if stream:
+        over = ", over every request, the unanswered ones included" if unanswered("/api/chat") else ""
         out.append({"claim": f"Chat route POST /api/chat (the web UI's streaming route), {model} through Ollama on the default stack: requests answered (HTTP 200, text, no error line)",
-                    "value": f"{stream['answered']} of {stream['n']}", "ci": "—", "n": stream["n"], "command": cmd, "source": src,
-                    "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}); tool calls are not visible on this route"})
+                    "value": f"{stream['answered']} of {stream['n']}{why_not('/api/chat')}", "ci": "—", "n": stream["n"], "command": cmd, "source": src,
+                    "not_shown": f"{common}; {stated(stream)}; the route sends nothing until the agent run is over (median time to the first byte {stream['ttfb_s']['p50']} s on {gpu}{over}); tool calls are not visible on this route"})
     request = blob["summary"].get("/api/chat/request")
     if request:
         # Files recorded before the runner counted "Not found: ..." replies have no such field: nothing is said.
@@ -358,15 +374,18 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
                           "is not counted as failed" if counts_not_found else "")
         failed = any((request.get(k) or {}) for k in ("tool_calls_raised", "tool_calls_returned_error_text"))
         causes = "; the causes are described in doc/engineering-reference.md (Backend)" if failed else ""
+        unrecorded = sum(r.get("tools") is None for r in unanswered("/api/chat/request"))
+        unrecorded_note = (f"; the tool calls of a request that got no response are not in the file ({unrecorded} here), so "
+                           f"the counts leave them out" if unrecorded else "")
         out.append({"claim": f"Chat route POST /api/chat/request (non-streaming), {model} through Ollama on the default stack: requests answered; tool calls by name, and the calls that failed",
-                    "value": (f"{request['answered']} of {request['n']}; tool calls: {by_name(request.get('tool_calls'))}; "
+                    "value": (f"{request['answered']} of {request['n']}{why_not('/api/chat/request')}; tool calls: {by_name(request.get('tool_calls'))}; "
                               f"flagged as errors: {by_name(request.get('tool_calls_raised'))}; returned an error text: "
                               f"{by_name(request.get('tool_calls_returned_error_text'))}{not_found_value}; "
                               f"code tool calls: {request['code_tool_calls']}"),
                     "ci": "—", "n": request["n"], "command": cmd, "source": src,
                     "not_shown": (f"{common}; {stated(request)}; a call flagged as an error raised inside the tool or named a tool that does not exist; an error "
                                   f"text is an 'Error: ...' string a tool returned without the flag{not_found_note}; a call that returned "
-                                  f"an empty list is not counted as failed{causes}")})
+                                  f"an empty list is not counted as failed{unrecorded_note}{causes}")})
     return out
 
 

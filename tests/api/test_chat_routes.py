@@ -277,6 +277,31 @@ def test_a_tool_that_raises_reaches_no_body_by_its_text_only_by_its_class_and_th
     assert [(tool["tool_name"], tool["is_error"]) for tool in tools] == [("query_index", True)]
 
 
+# ---------------------------------------------------------------- a model call that fails (M39)
+
+
+def test_a_model_call_that_times_out_comes_back_as_an_empty_answer_with_http_200(client, monkeypatch, caplog):
+    """What doc/engineering-reference.md (Backend) says of the chat smoke's unanswered requests: the routes return a
+    failed model call as HTTP 200 with no text, no error line and no tool call, and log nothing about it, which is why
+    the smoke runner counts a request as answered only when it carries text. A change that reports the failure
+    instead changes that sentence with this test."""
+    import httpx
+
+    class TimingOut(ScriptedToolLLM):
+        async def astream_chat_with_tools(self, *args, **kwargs):
+            raise httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(Settings, "_llm", TimingOut(PLAN))
+    caplog.set_level(logging.INFO)
+    streamed = _chat(client)
+    assert streamed.status_code == 200, streamed.text
+    assert [part.strip() if isinstance(part, str) else part for part in _stream(streamed)] == ["", []]
+    resp = client.post("/api/chat/request", json={"messages": [{"role": "user", "content": QUESTION}]})
+    assert resp.status_code == 200, resp.text
+    assert (resp.json()["result"]["content"], resp.json()["tools"]) == ("", [])
+    assert not [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR or "timed out" in r.getMessage()]
+
+
 # ---------------------------------------------------------------- GET /api/query/
 
 
