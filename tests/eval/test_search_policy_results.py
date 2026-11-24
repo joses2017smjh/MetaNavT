@@ -231,6 +231,7 @@ def test_the_readme_block_states_the_verdict_the_guard_columns_and_what_is_not_s
             v.update({"delta": 0.0147, "lo": -0.0441, "hi": 0.0735, "interval": "covers zero", "outcome": "tie"})
     assert "+0.0147 [-0.0441, +0.0735], **a tie** (the interval covers zero)" in search_policy_table(tie)
     assert "**a win** (the interval is above zero)" in text and "No jury term: PLAN.md" in text
+    assert "Secondary to the bar, not part of its verdict: reward against `policy-untrained`" in text  # the other comparisons are labelled as such
     assert "had episodes with unequal rewards" not in text  # the scripted curves carry no spread or NLL: nothing is printed
 
 

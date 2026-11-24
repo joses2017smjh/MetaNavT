@@ -2188,7 +2188,7 @@ def search_policy_table(blob: dict | None) -> str:
         seeds = f"the mean of {primary['n_seeds']} training seeds" if primary["n_seeds"] > 1 else "one training seed"
         lines += ["", f"The bar, declared before training: {blob['bar']['primary']} of the trained policy minus the untrained one, on the held-out "
                       f"questions; {blob['bar']['reading']}. Result (`{primary['config']}`, {seeds}): {primary['delta']:+.4f} "
-                      f"[{primary['lo']:+.4f}, {primary['hi']:+.4f}], **a {primary['outcome']}** (the interval {_interval_words(primary['interval'])}). Also: {said}."]
+                      f"[{primary['lo']:+.4f}, {primary['hi']:+.4f}], **a {primary['outcome']}** (the interval {_interval_words(primary['interval'])}). Secondary to the bar, not part of its verdict: {said}."]
     form_rows = [name for name in rows if rows[name].get("kind") != "trained" or len([r for r in rows.values() if r.get("kind") == "trained"]) == 1]
     form_text = "; ".join(f"`{name}` {rows[name]['by_gold_form'].get('single_value', {}).get('em', 0):.4f} on single values and "
                           f"{rows[name]['by_gold_form'].get('composite', {}).get('em', 0):.4f} on composite ones" for name in form_rows)
