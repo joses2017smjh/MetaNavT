@@ -303,8 +303,8 @@ distill-queries-filter: ## parse the completions, drop repeats and every near-du
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_queries filter --data-dir $(BEIR_DATA_DIR) --work $(DISTILL_WORK)
 
 SHARD ?= 0/1
-distill-teacher: ## the teacher (mxbai-rerank-large-v2, fp32, max_length 512) scores each synthetic query's fused top 20 of hybrid@bge-small plus its source document; SHARD=i/n takes every n-th query; resumes (needs .[ml] and a GPU) -> $(DISTILL_WORK)/teacher.shard-i-of-n.jsonl
-	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_teacher score --data-dir $(BEIR_DATA_DIR) --work $(DISTILL_WORK) --shard $(SHARD)
+distill-teacher: ## the teacher (mxbai-rerank-large-v2, fp32, max_length 512) scores each synthetic query's fused top 20 of hybrid@bge-small plus its source document; SHARD=i/n takes every n-th query; TEACHER_BATCH=n for a GPU under 16 GB; resumes (needs .[ml] and a GPU) -> $(DISTILL_WORK)/teacher.shard-i-of-n.jsonl
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_teacher score --data-dir $(BEIR_DATA_DIR) --work $(DISTILL_WORK) --shard $(SHARD) $(if $(TEACHER_BATCH),--batch-size $(TEACHER_BATCH))
 
 distill-teacher-merge: ## check that the shards cover every query once, at one clean commit -> bench/distill/teacher_scores.jsonl.gz, teacher_scores.meta.json
 	$(PYTHON) -m app.eval.distill_teacher merge --work $(DISTILL_WORK)

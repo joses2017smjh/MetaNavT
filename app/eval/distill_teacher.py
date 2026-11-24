@@ -44,8 +44,8 @@ CANDIDATES_TOP = SHAPE["rerank_top"]  # the served depth: the fused top 20
 FIRST_STAGE = "hybrid@bge-small"
 BGE_SMALL = "st:BAAI/bge-small-en-v1.5"
 FIXTURE_RETRIEVE_K = 50  # the fixture rows fuse the top 50 chunks of each leg (neural.json); the BEIR rows the top 100 documents
-TEACHER_BATCH = 64  # pairs per forward pass; predict() sorts a block's pairs by length first
-BLOCK = 400  # lists scored per predict() call, then written: what an interrupted shard loses at most
+TEACHER_BATCH = 64  # pairs per forward pass (predict() sorts a block's pairs by length first); --batch-size lowers it for a small GPU
+BLOCK = 64  # lists scored per predict() call, then written: what an interrupted shard loses at most (about 1,300 pairs)
 SCORES_FILE, SCORES_META = "teacher_scores.jsonl.gz", "teacher_scores.meta.json"
 
 
@@ -134,7 +134,8 @@ def score_block(model, lists: Sequence[tuple[str, list[str]]], batch_size: int =
     return out
 
 
-def score_shard(queries: Sequence[dict], stages: dict[str, Any], model, out_path: Path, *, block: int = BLOCK) -> dict[str, int]:
+def score_shard(queries: Sequence[dict], stages: dict[str, Any], model, out_path: Path, *, block: int = BLOCK,
+                batch_size: int = TEACHER_BATCH) -> dict[str, int]:
     """Append one line per query of `queries` not yet in `out_path`: its candidates and the teacher's logits."""
     done = {r["id"] for r in read_jsonl(out_path)} if out_path.exists() else set()
     todo = [q for q in queries if q["id"] not in done]
@@ -148,7 +149,7 @@ def score_shard(queries: Sequence[dict], stages: dict[str, Any], model, out_path
                 ids, rank = candidate_list(stage, q["query"], q["doc_id"])
                 rows.append({"id": q["id"], "corpus": q["corpus"], "candidates": ids, "source_rank": rank})
                 lists.append((q["query"], [stage.texts[i] for i in ids]))
-            for row, scores in zip(rows, score_block(model, lists)):
+            for row, scores in zip(rows, score_block(model, lists, batch_size)):
                 fh.write(json.dumps({**row, "scores": scores}, ensure_ascii=False) + "\n")
                 pairs += len(scores)
             fh.flush()
@@ -191,6 +192,7 @@ def _parse_args(argv: list[str] | None):
     p.add_argument("--queries", type=Path, default=root / "bench" / "distill" / QUERIES_FILE)
     p.add_argument("--out-dir", type=Path, default=root / "bench" / "distill", help="merge: where the committed file goes")
     p.add_argument("--shard", default="0/1", help="score: i/n, every n-th query by id starting at i")
+    p.add_argument("--batch-size", type=int, default=TEACHER_BATCH, help="score: pairs per forward pass (a memory setting; recorded with every run)")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     return p.parse_args(argv)
 
@@ -216,16 +218,16 @@ def main(argv: list[str] | None = None) -> int:
                                   device=None if args.device == "auto" else args.device, raise_errors=True)
         teacher = {**model_provenance(TEACHER_MODEL, "teacher"), "precision": SHAPE["precision"], "max_length": SHAPE["max_length"],
                    "device": model_device(model), **cross_encoder_provenance(model), "load_and_score": check_reranker(model, TEACHER_MODEL),
-                   "scores": "raw logits (no activation)", "batch_size": TEACHER_BATCH}
+                   "scores": "raw logits (no activation)"}
         built = time.perf_counter() - t0
-        counts = score_shard(mine, stages, model, out_path)
+        counts = score_shard(mine, stages, model, out_path, batch_size=args.batch_size)
         provenance = run_provenance(root=root, started=started)
         device = device_info(args.device)
         # a shard that ran out of time is submitted again: every run that wrote lines is listed, and merge refuses
         # shards whose runs were not all at one clean commit
         earlier = json.loads(meta_path.read_text())["runs"] if meta_path.exists() else []
         run = {"git_head": provenance["git_head"], "working_tree_dirty": provenance["working_tree_dirty"],
-               "timestamp": datetime.now(timezone.utc).isoformat(), "device": device.get("device_name"), **counts,
+               "timestamp": datetime.now(timezone.utc).isoformat(), "device": device.get("device_name"), "batch_size": args.batch_size, **counts,
                "build_seconds": round(built, 1), "score_seconds": round(time.perf_counter() - t0 - built, 1)}
         meta = {"git_sha": git_sha(root), **provenance, "timestamp": run["timestamp"],
                 "command": command_line(), "device": device, "shard": [i, n], "queries_sha256": queries_sha,
@@ -270,7 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             "shards": [{"shard": s["shard"], "device": s["device"].get("device_name"), "cpu_model": s["device"].get("cpu_model"), "torch": s["device"].get("torch"),
                         "sentence_transformers": s["device"].get("sentence_transformers"), "lists": len(per_shard[s["shard"][0]]),
                         "pairs": sum(len(r["scores"]) for r in per_shard[s["shard"][0]]),
-                        "runs": [{k: r[k] for k in ("timestamp", "device", "scored", "pairs", "score_seconds")} for r in s["runs"]]} for s in shards],
+                        "runs": [{k: r.get(k) for k in ("timestamp", "device", "batch_size", "scored", "pairs", "score_seconds")} for r in s["runs"]]} for s in shards],
             "summary": summarise(ordered),
             "labels": "none: a list carries where the source document ranked and what the teacher said, never a relevance judgment"}
     (args.out_dir / SCORES_META).write_text(json.dumps(meta, indent=2) + "\n")

@@ -21,10 +21,11 @@ class _Teacher:
     """A stand-in CrossEncoder: the raw logit is the number of query tokens in the text, minus 2."""
 
     def __init__(self):
-        self.calls = 0
+        self.calls, self.batch_sizes = 0, []
 
     def predict(self, pairs, batch_size=32, show_progress_bar=False, activation_fn=None):
         self.calls += 1
+        self.batch_sizes.append(batch_size)
         raw = [float(len(set(tokenize(q)) & set(tokenize(t))) - 2) for q, t in pairs]
         return [activation_fn(x) for x in raw] if activation_fn else [0.5 for _ in raw]
 
@@ -73,8 +74,8 @@ def test_a_shard_scores_every_list_once_and_resumes(tmp_path):
     teacher = _Teacher()
     counts = dt.score_shard(queries[:7], {"fixture": _Stage()}, teacher, out, block=3)
     assert counts == {"already_done": 0, "scored": 7, "pairs": 7 * 20} and teacher.calls == 3  # blocks of 3 lists
-    counts = dt.score_shard(queries, {"fixture": _Stage()}, teacher, out, block=10)
-    assert counts["already_done"] == 7 and counts["scored"] == 18
+    counts = dt.score_shard(queries, {"fixture": _Stage()}, teacher, out, block=10, batch_size=16)
+    assert counts["already_done"] == 7 and counts["scored"] == 18 and teacher.batch_sizes[-1] == 16 and teacher.batch_sizes[0] == dt.TEACHER_BATCH
     rows = dt.read_jsonl(out)
     assert [r["id"] for r in rows] == [q["id"] for q in queries]
     first = rows[0]
@@ -128,7 +129,7 @@ def _shard(work, i, n, rows, *, head="a" * 40, dirty=False, queries_sha="s"):
     path, meta = dt._shard_paths(work, (i, n))
     path.write_text("".join(json.dumps(r) + "\n" for r in rows))
     run = {"git_head": head, "working_tree_dirty": dirty, "timestamp": f"2026-11-22T0{i}:00:00+00:00", "device": "NVIDIA A40",
-           "already_done": 0, "scored": len(rows), "pairs": sum(len(r["scores"]) for r in rows), "build_seconds": 1.0, "score_seconds": 2.0}
+           "batch_size": 64, "already_done": 0, "scored": len(rows), "pairs": sum(len(r["scores"]) for r in rows), "build_seconds": 1.0, "score_seconds": 2.0}
     meta.write_text(json.dumps({"git_sha": head[:7], "git_head": head, "working_tree_dirty": dirty, "source_sha256": {}, "timestamp": run["timestamp"],
                                 "command": f"python -m app.eval.distill_teacher score --shard {i}/{n}", "device": {"device_name": "NVIDIA A40"},
                                 "shard": [i, n], "queries_sha256": queries_sha, "n_queries": len(rows), "runs": [run],
