@@ -1,7 +1,8 @@
 # Deploy the public demo to AWS
 
-**Status: code only, but for the bootstrap.** The owner's account exists (the Free plan) and the owner applied
-`infra/bootstrap` on 2026-11-21; no environment is applied and no deploy has run. The Terraform is checked offline
+**Status: the single host is applied; the ECS stack is code only.** The owner's account exists (the Free plan). On
+2026-11-21 the owner applied `infra/bootstrap` and the live demo's single host (`infra/envs/single-host`), whose
+first boot deployed the image; the ECS stack is not applied. The Terraform is checked offline
 (`terraform validate`, `terraform fmt`, tflint with the AWS rules) and by tests that read it; the deploy workflows are
 checked by tests that run their scripts against a fake AWS CLI. [What has not been run](#what-has-not-been-run) and
 [what only an apply can prove](#what-only-an-apply-can-prove) list what only the account can prove. Every step below

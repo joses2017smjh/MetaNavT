@@ -68,7 +68,7 @@ def test_the_runbook_covers_the_owners_steps_in_order():
     positions = [RUNBOOK.index(heading) for heading in order]
     assert positions == sorted(positions)
     assert "Required reviewers" in RUNBOOK and "`main` only" in RUNBOOK  # the approval and the branch rule are set by hand
-    assert "**Status: code only, but for the bootstrap.**" in RUNBOOK  # the owner applied only the bootstrap
+    assert "**Status: the single host is applied; the ECS stack is code only.**" in RUNBOOK  # and the bootstrap
 
 
 def test_the_readme_and_the_reference_link_the_runbook():
