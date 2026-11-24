@@ -645,35 +645,61 @@ def _rrf_sweep_claims(root: Path = ROOT) -> list[dict]:
              "not_shown": f"verdict from the interval: {verdict(block)}; {stays}; {chosen}; {tail}"}]
 
 
+def _share_words(share: float) -> str:
+    """A fraction as words, so the evidence table types no number the results file does not hold."""
+    if share > 1.1:
+        return "more than all"
+    if share >= 0.9:
+        return "nearly all"
+    if share > 0.6:
+        return "most"
+    if share >= 0.4:
+        return "about half"
+    return "some" if share > 0.1 else "little"
+
+
 def _search_policy_claims(root: Path = ROOT) -> list[dict]:
-    """The search policy trained once (M44), against the same model untrained and against single-shot RAG on the
-    held-out half: a row for each comparison of its headline row (each question's mean over the seeds) whose paired
-    interval excludes zero, losses included; an interval that covers zero supports no claim and gets no row. Every
-    row names the declared bar's own verdict, so a row on another metric cannot stand in for it."""
+    """The search policy trained once (M44): one row, the bar declared before training (exact match, its headline row,
+    each question's mean over the seeds, minus the same model untrained), whatever its verdict. The other comparisons
+    stay in the results file, the README block and the engineering reference; this table carries the declared bar
+    only, and its "not shown" cell says in words what the mean reward did and how much of that was citing (read from
+    the file: the change in the uncited-or-empty rate times its weight in the reward formula, over the reward's
+    delta)."""
+    import re
+
     blob = _load(FILES["search_policy"], root)
     if not blob:
         return []
     primary = next(v for v in blob["verdicts"] if v["primary"])
+    by = {(v["config"], v["reference"], v["metric"]): v for v in blob["verdicts"]}
+    rows = {r["config"]: r for r in blob["results"]}
     model = blob["model"]["name"].split("/")[-1]
     seeds = f"each question's mean over {primary['n_seeds']} training seeds" if primary["n_seeds"] > 1 else "one training seed"
-    names = {"em": "exact match", "reward": "mean reward", "em_bounded": "bounded exact match (a guard column)"}
-    refs = {"policy-untrained": "the same model untrained under the same prompt", "single-shot-rag": "single-shot RAG with the same model"}
-    bar = (f"the declared bar is exact match against the untrained model: {primary['delta']:+.4f} [{primary['lo']:+.4f}, {primary['hi']:+.4f}], "
-           f"a {primary['outcome']}")
-    out = []
-    for v in blob["verdicts"]:
-        if v["config"] != primary["config"] or v["metric"] == "em_bounded" or v["interval"] == "covers zero":
-            continue
-        reward = ("; the reward also pays for citing a file that was shown and for the files shown (half their nDCG@10), and charges per search"
-                  if v["metric"] == "reward" else "")
-        out.append({"claim": f"Fixture v1 held-out half, search policy trained with GRPO ({model} + LoRA, {seeds}) minus {refs[v['reference']]}, "
-                             f"paired delta in {names[v['metric']]}",
-                    "value": f"{v['delta']:+.4f}", "ci": f"[{v['lo']:+.4f}, {v['hi']:+.4f}]", "n": blob["split"]["n_held_out"],
-                    "command": "make search-policy-eval", "source": f"{FILES['search_policy']} @ {blob['git_sha']}",
-                    "not_shown": (f"verdict from the interval: {v['interval']} ({v['outcome']}); {bar}{reward}; training corpora and questions come "
-                                  "from the fixture's own builder and templates (other seeds, no fixture question text), so it holds for "
-                                  "these templates; one small model, one prompt, greedy decoding on one GPU type")})
-    return out
+    words = [f"verdict from the interval: {primary['interval']}, a {primary['outcome']} on the bar declared before training"]
+    single = by.get((primary["config"], "single-shot-rag", "em"))
+    if single:
+        words.append(f"against single-shot RAG with the same model, exact match is a {single['outcome']} too"
+                     if single["outcome"] == primary["outcome"] else f"against single-shot RAG with the same model, exact match is a {single['outcome']}")
+    reward = by.get((primary["config"], primary["reference"], "reward"))
+    if reward:
+        if reward["interval"] == "covers zero":
+            words.append("secondary to the bar, the mean reward did not move measurably (its interval covers zero)")
+        else:
+            moved = "rose" if reward["delta"] > 0 else "fell"
+            said = f"secondary to the bar, the mean reward {moved}, with an interval {reward['interval']}"
+            weight = re.search(r"- ([0-9.]+) \* uncited_or_empty", blob["reward"]["formula"])
+            trained, untrained = rows.get(primary["config"]), rows.get(primary["reference"])
+            if moved == "rose" and weight and trained and untrained:
+                part = float(weight.group(1)) * (untrained["means"]["uncited_or_empty"] - trained["means"]["uncited_or_empty"])
+                if part > 0:
+                    said += f", {_share_words(part / reward['delta'])} of it from fewer uncited or empty answers"
+            words.append(said)
+    words.append("training corpora and questions come from the fixture's own builder and templates (other seeds, no fixture question text), "
+                 "so it holds for these templates; one small model, one prompt, greedy decoding on one GPU type")
+    return [{"claim": (f"Fixture v1 held-out half, search policy trained with GRPO ({model} + LoRA, {seeds}) minus the same model untrained "
+                       "under the same prompt, paired delta in exact match (the bar declared before training)"),
+             "value": f"{primary['delta']:+.4f}", "ci": f"[{primary['lo']:+.4f}, {primary['hi']:+.4f}]", "n": blob["split"]["n_held_out"],
+             "command": "make search-policy-eval", "source": f"{FILES['search_policy']} @ {blob['git_sha']}", "not_shown": "; ".join(words)}]
 
 
 def _hybrid_drops_claims(root: Path = ROOT) -> list[dict]:
@@ -1062,7 +1088,7 @@ QA = '''## Likely interview questions, with honest answers
 
 **Why is the parity gap reported and not gated?** The API and the in-memory bench now index the same chunks with the same embeddings, so the dense half must match, and a live-database test requires it to match exactly on every gold question. The lexical halves differ by design (Postgres full-text with ts_rank_cd and ties broken by row id, against Okapi BM25), so the end-to-end nDCG@10 gap is a measured difference, not a defect: the parity job reports it with its paired interval and fails only when the API is broken or the fixture on disk differs from its MANIFEST.
 
-**What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. Paper2Code, the MATLAB checkpoint and multimodal pages run in demos but have no measured result; the engineering reference keeps them under "Prototypes (not evaluated)". The RL search policy was trained once and scored against the same model untrained and against single-shot RAG on held-out questions, with the bar declared before training; its verdict is in the README's search-policy table, and the rows above carry only its comparisons whose interval excludes zero. The retrieval prototypes (GraphRAG community routing, HippoRAG PPR, hop expansion, HyDE, multi-query, decomposition, corrective and adaptive retrieval, the chunking variants) are benchmark arms: each has a row above with its parent, a paired interval, the verdict that interval supports and the stand-ins it ran on. An arm whose interval covers zero is reported as no measured effect, and an arm that lost stays in the table.
+**What is a prototype here versus production?** The measured, served pipeline is hybrid retrieval, the router, staleness Tier 1, the reranker configuration chosen from the SciFact sweep, and the approval-gated file plans. Paper2Code, the MATLAB checkpoint and multimodal pages run in demos but have no measured result; the engineering reference keeps them under "Prototypes (not evaluated)". The RL search policy was trained once and scored against the same model untrained and against single-shot RAG on held-out questions, with the bar declared before training; the row above is the verdict of that bar, and its other comparisons are in the README's search-policy table, labelled as secondary to it. The retrieval prototypes (GraphRAG community routing, HippoRAG PPR, hop expansion, HyDE, multi-query, decomposition, corrective and adaptive retrieval, the chunking variants) are benchmark arms: each has a row above with its parent, a paired interval, the verdict that interval supports and the stand-ins it ran on. An arm whose interval covers zero is reported as no measured effect, and an arm that lost stays in the table.
 
 **Why did the router's number change?** The earlier README compared the routed row against plain RRF, which credited the reranker's share of the gain to the router. Against its real parent, the reranked hybrid, the router is a tie overall and a gain on the exact-path slice with n = 8. The generated table prints the honest pair.
 
