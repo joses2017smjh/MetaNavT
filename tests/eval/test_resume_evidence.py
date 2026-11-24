@@ -244,3 +244,28 @@ def test_the_injection_rows_lead_with_the_current_run_and_keep_the_others_labell
         assert all(c["source"].startswith(f"bench/results/{results} @ ") for c, r in zip(rows, runs) if r == run)
     assert "no defense: hijack questions in which at least one phrasing put the planted value" in rows[0]["claim"]
     assert "the structured answer check in the loop minus no defense, the planted value delivered" in rows[1]["claim"]
+
+
+def test_search_policy_rows_are_its_comparisons_whose_interval_excludes_zero_and_each_names_the_bar(tmp_path):
+    """M44: an interval that covers zero supports no claim and gets no row; a loss gets its row like a win; every row
+    says what the declared bar (exact match against the untrained model) gave, so a reward row cannot stand in for it."""
+    import json
+
+    from app.eval.evidence import _search_policy_claims
+
+    def verdict(metric, reference, lo, hi, primary=False):
+        word = "above zero" if lo > 0 else "below zero" if hi < 0 else "covers zero"
+        return {"config": "policy-grpo", "reference": reference, "metric": metric, "delta": round((lo + hi) / 2, 4), "lo": lo, "hi": hi,
+                "interval": word, "outcome": {"above zero": "win", "covers zero": "tie", "below zero": "loss"}[word], "primary": primary, "n_seeds": 3}
+
+    blob = {"git_sha": "abc1234", "model": {"name": "Qwen/Qwen2.5-1.5B-Instruct"}, "split": {"n_held_out": 68}, "verdicts": [
+        verdict("em", "policy-untrained", -0.02, 0.08, primary=True), verdict("reward", "policy-untrained", 0.01, 0.15),
+        verdict("em_bounded", "policy-untrained", 0.01, 0.1), verdict("em", "single-shot-rag", -0.1, -0.01), verdict("reward", "single-shot-rag", -0.05, 0.2)]}
+    (tmp_path / "bench" / "results").mkdir(parents=True)
+    (tmp_path / "bench" / "results" / "search_policy.json").write_text(json.dumps(blob))
+    rows = _search_policy_claims(tmp_path)
+    assert [(r["claim"].split(" minus ")[1].split(",")[0], r["claim"].rsplit(" in ", 1)[1]) for r in rows] == [
+        ("the same model untrained under the same prompt", "mean reward"), ("single-shot RAG with the same model", "exact match")]
+    assert all("the declared bar is exact match against the untrained model: +0.0300 [-0.0200, +0.0800], a tie" in r["not_shown"] for r in rows)
+    assert "(loss)" in rows[1]["not_shown"] and "each question's mean over 3 training seeds" in rows[0]["claim"] and rows[0]["n"] == 68
+    assert _search_policy_claims(tmp_path / "nowhere") == []
