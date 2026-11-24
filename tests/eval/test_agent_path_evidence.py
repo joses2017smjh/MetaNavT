@@ -181,6 +181,14 @@ def test_the_chat_rows_say_how_the_unanswered_requests_ended(tmp_path):
     assert said in stream["value"] and said in request["value"]
     assert "over every request, the unanswered ones included" in stream["not_shown"]
     assert "the tool calls of a request that got no response are not in the file (1 here)" in request["not_shown"]
+    # a failed run answered as an HTTP error (the routes since M39's fix), and a stream that carries an error line
+    third, fourth = [r for r in some["rows"] if r["route"] == "/api/chat"][2:4]
+    third.update(answered=False, http_status=500, answer="", detail="Error in chat engine")
+    fourth.update(answered=False, http_status=200, answer="", errors=["boom"])
+    stream, _ = _chat_rows(_write_chat(tmp_path, some))
+    assert ("(not answered: 1 got no response within the runner's " + f"{some['request_timeout_s']:g} s limit, 1 returned "
+            "HTTP 500, 1 returned HTTP 200 with no text and no error line, 1 returned HTTP 200 with an error line; see "
+            "doc/engineering-reference.md, Backend)") in stream["value"]
 
 
 # The chat smoke committed before M39's fix (run at 50e9ee2): the reference describes it as history.
@@ -244,5 +252,11 @@ def test_the_backend_paragraph_says_how_the_current_chat_file_went_once_it_is_a_
         return
     unanswered = [r for r in blob["rows"] if not r["answered"]]
     assert (every in text) == (not unanswered) and (some in text) == bool(unanswered)
+    if unanswered:
+        # "on the streaming route one request came back as HTTP 500 with the route's fixed text, after more than the
+        # chat LLM's request timeout"
+        assert "on the streaming route one request came back as HTTP 500 with the route's fixed text" in text
+        assert [(r["route"], r["http_status"], r.get("detail")) for r in unanswered] == [("/api/chat", 500, "Error in chat engine")]
+        assert unanswered[0]["total_s"] >= blob["chat_llm"]["request_timeout_s"]
     # the recording after the fix ran with the output-token cap
     assert "num_predict" in blob["chat_llm"]["additional_kwargs"]

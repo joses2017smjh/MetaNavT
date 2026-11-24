@@ -354,9 +354,12 @@ def _chat_route_claims(root: Path = ROOT) -> list[dict]:
             return ""
         no_response = sum(r.get("http_status") is None for r in rows)
         empty = sum(r.get("http_status") == 200 and not r.get("answer") and not r.get("errors") for r in rows)
+        error_line = sum(r.get("http_status") == 200 and bool(r.get("errors")) for r in rows)
+        statuses = sorted({r["http_status"] for r in rows if r.get("http_status") not in (None, 200)})
         parts = ([f"{no_response} got no response within the runner's {blob['request_timeout_s']:g} s limit"] if no_response else []) + \
+                [f"{sum(r.get('http_status') == code for r in rows)} returned HTTP {code}" for code in statuses] + \
                 ([f"{empty} returned HTTP 200 with no text and no error line"] if empty else []) + \
-                ([f"{len(rows) - no_response - empty} returned an HTTP error or an error line"] if len(rows) - no_response - empty else [])
+                ([f"{error_line} returned HTTP 200 with an error line"] if error_line else [])
         return f" (not answered: {', '.join(parts)}; see doc/engineering-reference.md, Backend)"
 
     stream = blob["summary"].get("/api/chat")
