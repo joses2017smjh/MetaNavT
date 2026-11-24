@@ -1514,7 +1514,28 @@ provenance block from `run_provenance` like the other writers
 `segments`. `make bench-jury-v3-check` recomputes every gate and summary from
 the stored verdicts and the inputs' hashes with no model and no retrieval, and
 `make bench-jury-v3-answers-rescore` recomputes the deterministic checks as
-above, so the run can be re-read on a CPU.
+above, so the run can be re-read on a CPU. A judge file grows in segments: a
+later `--resume` run that names more answer files keeps the gate's verdicts and
+every verdict already stored, asks only about the new answers, and adds a
+`segments` entry with its commit, GPU and time. Every file also states what its
+numbers do not show (`does_not_show`): for an answers file, correctness beyond
+exact match, grounding beyond string containment, the model's reasoning,
+variance between runs and machines, and anything beyond fixture v1; for a judge
+file, judging beyond single-value answers, freedom from self-preference where a
+judge scores its own generator, truth where judges agree, grounding in the
+retrieved context, quality from the AB/BA pairs, variance, and the judge's
+reasoning.
+
+Self-preference. The first run's answers were scored by the generator's own
+model; a judge of another model family that passes the same gate is the check
+on that score. Under the committed score the README block states, from the
+files, where that score sits against each such judge's interval, whether every
+judge gives the exact-match label on the simple-factual answers (where they
+agree, the scores part only on answers no gate validated), and which way the
+disagreements go. A one-way direction fits self-preference and also fits a judge
+that is lenient with any generator's answers; only the generator's model judging
+other generators' answers of those kinds would tell the two apart, and the block
+says whether such a file exists.
 
 `make bench-judge-stored ANSWERS=<file> JUDGE=<model>` is the same entry point
 as one command for answers recorded elsewhere: it gates the named judge on the
@@ -2626,7 +2647,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 Open items, in priority order (the second is done and keeps its place):
 
-1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers, and the judge that passed is the generator's own model. Multi-part, paraphrased and computed answers need human labels or a fixture v2 slice (v1 stays frozen), and a judge from another model family would remove the self-preference caveat.
+1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers. Judges of other model families have since passed it and score the first run's answers lower than the generator's own model, and the scores part on the multi-part, comparative, aggregate and path answers ([generated](../README.md#bench-jury)). Those answers need human labels or a fixture v2 slice (v1 stays frozen), and the generator's model judging other generators' answers would show whether it is lenient in general or favours its own.
 2. **Per-slice changed-query counts: done.** Every per-category delta of a ladder row records how many of the slice's questions rose and fell (`questions_changed`), and the generated tables print it next to the interval.
 3. **ParadeDB BM25 in the production path**, if that backend is kept (an open decision): no test or results file has run its statement yet. A parity run with it would report its gap next to the `ts_rank_cd` row; the parity job reports that gap with its interval and fails only on a broken API or a fixture that differs from its MANIFEST.
 4. **Injection evaluation, next steps:** larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner. The attacker that rewrites the planted text against each defense is built: in the fourth run, whose only target is the stronger model, no comparison with the fixed phrasings showed a difference after seven rounds ([generated table](../README.md#agent-injection-adaptive)).

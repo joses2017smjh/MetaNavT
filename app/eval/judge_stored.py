@@ -32,7 +32,8 @@ judge that fails, and answers recorded elsewhere (the served Claude answers) are
    context length), the same calibration items and the same protocol, or it refuses.
 
 A judge's scores of an answer set may be published only if its gate passed in this file (`gate.passes`); the
-summary says so either way. A judge that is not there is not a judge that failed: before any item is judged the
+summary says so either way. The file states what its numbers do not show (`does_not_show`, DOES_NOT_SHOW: text, not a
+measurement, kept outside `protocol` so that a file written before it existed can still be resumed). A judge that is not there is not a judge that failed: before any item is judged the
 model is loaded, and the run stops with `status: could not load` unless the server reports it wholly on the GPU and
 a warm-up prompt returns; five calls failing in a row stop the run as `interrupted`. Empty and unreadable replies
 are counted per phase (an unreadable reply reads as partial, as in llm_eval).
@@ -109,6 +110,23 @@ FAILED_KINDS = {"uncited_answer": "a substantive answer with no citation: failed
                 "no_answer": "an empty answer (nothing was delivered): counted, not judged"}
 NOT_COLLECTED = {"composite": "the M4 composite label (faithfulness, relevancy and groundedness with the retrieved context) is "
                               "never gated or published and needs the retrieved chunks: not collected by a judge-only run"}
+# What a judge file's numbers do not show, written into every file (run, rescore).
+DOES_NOT_SHOW = (
+    "that the judge is right on every kind of answer: the gate's reference is an exact-match label on single-value answers "
+    "whose wrong class is a planted value of the same field, so a pass shows that the judge compares a single-value answer "
+    "with the gold, not that it judges multi-part, paraphrased or computed answers correctly",
+    "an unbiased score where the judge's own weights generated the answers: such an answer set is marked `self_judged` "
+    "(self-preference risk)",
+    "the truth where two judges agree: `agreement_with_stored_judges` is agreement between judges",
+    "grounding in the retrieved context: the correctness prompt shows the question, the gold answer and the answer only, "
+    "and the M4 composite label is not collected",
+    "which answer is better: the AB/BA pairs compare an answer with its row's extractive answer in both orders to measure "
+    "position bias, not quality",
+    "variance between runs or machines: one verdict per item at temperature 0 and seed 0; `segments` name the commit, GPU "
+    "and time of each run that added verdicts, and a model whose prompt template carries the date may reply otherwise on "
+    "another day",
+    "the judge's reasoning: a verdict stores the reply and the length of the reasoning the server returned, not the reasoning",
+)
 
 
 class CouldNotLoad(RuntimeError):
@@ -525,6 +543,7 @@ def run(*, judge_model: str, answers: Sequence[Path], out: Path, root: Path | No
         "command": command_line(),
         "device": device_info("auto"),
         "what": "one judge over stored answers, gated on stored calibration answers in this file (app/eval/judge_stored.py)",
+        "does_not_show": list(DOES_NOT_SHOW),
         "kappa_gate": KAPPA_GATE,
         "protocol": _protocol(),
         "judge": judge_block or {"role": "judge", "model": judge_model, "backend": "callable"},
@@ -706,6 +725,9 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
                        "checks_git_sha": git_sha(root), "command": command_line(), "timestamp": datetime.now(timezone.utc).isoformat(),
                        "what": "gate and summaries recomputed from the stored verdicts, the calibration items and the answers files read again; every verdict untouched"}
     blob.update(git_sha=blob["rescore"]["checks_git_sha"], command=blob["rescore"]["command"], **run_provenance(root=root, started=started))
+    if "does_not_show" not in blob:  # a file judged before the field existed: it goes where run() writes it
+        blob = {k: v for key, value in blob.items() for k, v in ([(key, value), ("does_not_show", None)] if key == "what" else [(key, value)])}
+    blob["does_not_show"] = list(DOES_NOT_SHOW)
     return summarize(blob)
 
 

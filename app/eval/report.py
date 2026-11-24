@@ -984,13 +984,19 @@ def _jury_sha_note(blob: dict, target: str) -> str:
             f"`{target}-rescore` at sha {rs['checks_git_sha']}{checks}")
 
 
-def _direction(agreement: dict, this: str, other: str) -> str:
-    """Which way two judges' disagreements on the same answers go, from the stored confusion matrix (rows: the stored
-    judge's label; columns: this judge's): how many times each gave the lower label."""
+def _lower_higher(agreement: dict) -> tuple[int, int]:
+    """From the stored confusion matrix (rows: the stored judge's label; columns: this judge's): how many times this
+    judge gave the lower label, and how many times the stored judge did."""
     conf = agreement.get("confusion_stored_by_this_judge") or {}
     rank = {"correct": 2, "partial": 1, "wrong": 0}
     lower = sum(n for a, row in conf.items() for b, n in row.items() if rank[b] < rank[a])
     higher = sum(n for a, row in conf.items() for b, n in row.items() if rank[b] > rank[a])
+    return lower, higher
+
+
+def _direction(agreement: dict, this: str, other: str) -> str:
+    """Which way two judges' disagreements on the same answers go: how many times each gave the lower label."""
+    lower, higher = _lower_higher(agreement)
     if not lower + higher:
         return ""
     times = lambda n: f"{n} time{'' if n == 1 else 's'}"  # noqa: E731
@@ -1015,6 +1021,49 @@ def _later_judge_note(later: dict | None) -> str | None:
     return (f"A judge of another model added later, {judge}, passed the same gate on these calibration answers (kappa {g['kappa']}) and scores the same "
             f"{m['n']} answers {m['mean']} [{m['interval']['lo']}, {m['interval']['hi']}]" + (f"; {same}" if same else "")
             + ". Two judges agreeing is not agreement with the truth ([the block below](#bench-jury-v3)).")
+
+
+def _independent_judges_note(blob: dict, later_judges: dict[str, dict | None] | None) -> str | None:
+    """What the later judges of other models that passed the gate show about the score the generator's own model gave
+    its answers (M42): where that score sits against each of their intervals, whether every judge gives the exact-match
+    label on the simple-factual answers, and which way the disagreements go. None without such a judge."""
+    s, gen = blob["summary"], blob["models"]["generator"]["model"]
+    own = (s.get("kappa") or {}).get(gen)
+    if not own or gen not in (s.get("publishable_judges") or []):
+        return None
+    others = []
+    for later in (later_judges or {}).values():
+        if not later or later.get("status") != "complete" or not (later.get("gate") or {}).get("passes"):
+            continue
+        mine = next((a for a in later.get("answer_sets") or [] if a["file"] == JURY_FILE and a.get("summary")), None)
+        if mine and mine["summary"]["publishable"] and not mine["summary"]["self_judged"]:
+            others.append((later["judge"]["model"], mine["summary"]))
+    if not others:
+        return None
+    score = own["mean_correctness_all"]
+
+    def where(m: dict) -> str:
+        lo, hi = m["interval"]["lo"], m["interval"]["hi"]
+        return ("above" if score > hi else "at the upper bound of" if score == hi else "below" if score < lo
+                else "at the lower bound of" if score == lo else "inside")
+
+    text = (f"What the judges of other models show: {gen} scored its own answers {score}; "
+            + "; ".join(f"{name} scores them {sm['mean_correctness']['mean']} [{sm['mean_correctness']['interval']['lo']}, "
+                        f"{sm['mean_correctness']['interval']['hi']}], so {score} is {where(sm['mean_correctness'])} that interval" for name, sm in others) + ".")
+    sf = [(own.get("simple_factual_answers") or {})] + [sm["simple_factual_answers"] for _, sm in others]
+    if all(x.get("n") and x.get("agree") == x.get("n") for x in sf):
+        text += (f" Each of these judges, {gen} included, gives the exact-match label on every simple-factual answer, so the scores differ on the "
+                 "other answers (multi-part, comparative, aggregate and path), where no gate validated any judge.")
+    directions = [_lower_higher(a) for _, sm in others if (a := (sm.get("agreement_with_stored_judges") or {}).get(gen))]
+    if directions and all(lower > higher for lower, higher in directions):
+        text += (f" Where {'it differs' if len(directions) == 1 else 'each of them differs'} from {gen}, {'it' if len(directions) == 1 else 'each'} gave "
+                 f"the lower label more often than {gen} did (the counts are above): {gen} is the more lenient judge of these answers.")
+        if not (later_judges or {}).get(gen):
+            text += (f" That fits self-preference, and it also fits a judge that is lenient with any generator's answers; {gen} has not judged "
+                     "the other generators' answers here, which would tell the two apart.")
+    elif directions:
+        text += f" Their disagreements with {gen} do not all go one way (the counts are above)."
+    return text
 
 
 def jury_v2_table(blob: dict, later_judges: dict[str, dict | None] | None = None) -> str:
@@ -1132,6 +1181,8 @@ def jury_v2_table(blob: dict, later_judges: dict[str, dict | None] | None = None
             lines += ["", f"{gen['model']} scores answers its own weights generated (self-preference risk), and the gate validated it on "
                       "single-value answers only; the run's answers also include multi-part, comparative, aggregate and path answers."]
         lines += [x for note in map(_later_judge_note, (later_judges or {}).values()) if note for x in ("", note)]
+        independent = _independent_judges_note(blob, later_judges)
+        lines += ["", independent] if independent else []
         lines += ["", f"Verdict: {s['verdict']}."]
     else:
         lines += ["", f"Verdict: {s['verdict']}. Mean judge scores are in the results file but are not printed here."]
@@ -1245,6 +1296,9 @@ def jury_v3_table(committed: dict | None, answers: dict[tuple, dict | None], jud
     if any(empty.values()):
         lines += ["", "Answers that came back empty (the model reasoned until the context was full and never replied; an empty answer is uncited): "
                   + "; ".join(f"{m}: {len(ids)}" for m, ids in empty.items() if ids) + "."]
+    if have_answers:
+        lines += ["", "Generation times depend on the GPU named in each row and on how that run's server was started (its thread count is not "
+                  "recorded in the files): they do not compare the models."]
     gate = (committed or {}).get("kappa_gate", (first or {}).get("kappa_gate"))
     lines += ["", f"Judges: the gate. Cohen's kappa between a judge's correctness verdicts and the exact-match labels of the calibration answers must reach {gate}; "
               "the interval resamples questions.", "",

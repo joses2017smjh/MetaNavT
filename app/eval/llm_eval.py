@@ -66,7 +66,9 @@ Its answers are judged later, one judge at a time, by app/eval/judge_stored.py,
 which gates each judge on the calibration answers stored in jury_v2.json.
 `--think off` sends `think: false` with every generation call, for a model
 whose reasoning does not end inside the context (its answers are then empty);
-the generator block and `ollama.request` say so.
+the generator block and `ollama.request` say so. A generate-only file states
+what its numbers do not show (`does_not_show`), and a rescore adds that list
+to such a file written before it existed.
 
     python -m app.eval.llm_eval --rescore bench/results/jury.json
 
@@ -161,6 +163,21 @@ ABSTENTION_RULE = (f"an answer that is {NOT_IN_SOURCES} and nothing else, to a q
 OLLAMA_REQUEST = {"route": "/api/generate", "stream": False, "options": {"temperature": 0.0, "seed": 0},
                   "think": "not sent: the server's default for the model", "num_ctx": "not sent: the server's context length"}
 NO_JUDGE_VERDICT = "no judge in this run: the answers and their deterministic checks only"
+# What a generate-only file's numbers do not show (M42), written by run() and by a rescore of such a file.
+GENERATE_ONLY_DOES_NOT_SHOW = (
+    "whether the answers are correct beyond exact match on the simple-factual questions: no judge labelled them in this file; "
+    "a judge's verdicts on them are in that judge's own file (app/eval/judge_stored.py), publishable only where that judge "
+    "passed its gate",
+    "that a stated value is grounded: the value checks are case-insensitive string containment in the cited bytes and in all "
+    "retrieved bytes, so a value written in another numeric format counts as missing, a value the model computed is missing "
+    "by design, and a value that appears there for another reason counts as found",
+    "the model's reasoning: where the model reasoned before it replied (`ollama.request`), only the reply is stored and "
+    "checked; a reply whose reasoning reached the server's context length (`ollama.generator_loaded`) is empty or cut short, "
+    "and an empty one counts as uncited",
+    "variance between runs or machines: one run at temperature 0 and seed 0 on the GPU in `device`; latency also depends on "
+    "how the server was started (its thread count is not recorded here), so it is not comparable across files",
+    "anything beyond fixture v1: a synthetic corpus and its gold questions, with the one retrieval configuration in `config`",
+)
 # A generation call that fails (a timeout, a server error) is that question's failure: the row keeps the error and an
 # empty answer, which is uncited. This many in a row mean the generator is gone, and the run stops and writes nothing.
 MAX_GENERATION_ERRORS_IN_A_ROW = 5
@@ -472,6 +489,7 @@ def run(
             "reference": REFERENCE_LABELS,
             "abstention_rule": ABSTENTION_RULE,
         },
+        **({} if judge_models else {"does_not_show": list(GENERATE_ONLY_DOES_NOT_SHOW)}),
         "latency": timer.summary(),
         "wall_s": wall_s,
         "generation_errors": [r["id"] for r in rows if r["generation"].get("error")],  # calls that failed: empty answers, uncited
@@ -814,12 +832,16 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     if isinstance(blob.get("device"), dict):  # the generating run's machine, written out again: no host name, no paths
         blob["device"] = scrub({k: v for k, v in blob["device"].items() if k != "hostname"})
     checks = run_provenance(root=root, started=started)  # the rescore's own block, right after git_sha as run() writes it
+    # A generate-only file from M42 on states what it does not show, after `protocol` as run() writes it; others keep their shape.
+    does_not_show = list(GENERATE_ONLY_DOES_NOT_SHOW) if not blob["models"]["judges"] and "check_intervals" in blob else None
     out: dict[str, Any] = {}
     for key, value in blob.items():
-        if key not in checks:
+        if key not in checks and not (key == "does_not_show" and does_not_show):
             out[key] = value
         if key == "git_sha":
             out.update(checks)
+        if key == "protocol" and does_not_show:
+            out["does_not_show"] = does_not_show
     return out
 
 

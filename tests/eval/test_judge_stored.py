@@ -117,6 +117,8 @@ def test_a_validated_judge_scores_the_stored_answers_and_a_failed_one_is_not_pub
     assert rows["q001"]["pairwise"]["raw"] == ["A", "A"] and "pairwise" not in rows["q003"]
     assert s["publishable"] and not s["self_judged"] and "may be published" in out["verdict"]
     assert out["protocol"]["not_collected"]["composite"] and out["calibration"]["items_sha256"] == judge_stored.load_calibration(ROOT)["items_sha256"]
+    assert out["does_not_show"] == list(judge_stored.DOES_NOT_SHOW) and "does_not_show" not in out["protocol"]
+    assert list(out).index("does_not_show") == list(out).index("what") + 1
     assert "| fake-judge | 1.0 | [1.0, 1.0] | 160 |" in judge_stored.markdown_table(out)
 
     failed = _run(tmp_path, yes_judge, name="yes.json")
@@ -157,6 +159,29 @@ def test_a_judge_that_stops_answering_interrupts_the_run_and_resume_finishes_it(
     assert not set(asked) & set(calls[:40])  # nothing that had a verdict was asked again
     assert [s["resumed"] for s in done["segments"]] == [False, True] and done["segments"][1]["calls"] == len(asked)
     assert judge_stored.check(tmp_path / "out.json") == []
+
+
+def test_a_later_segment_adds_an_answer_set_to_a_complete_file_without_asking_the_gate_again(tmp_path):
+    """M42's stage 2 in segments: a judge file that is complete (gate and one answer set) is resumed with a second
+    answer set; the gate's verdicts are kept and not asked again, the earlier set is untouched, the new set is judged,
+    and a file written before `does_not_show` existed gains it (outside the protocol, so the resume is allowed)."""
+    out = _run(tmp_path, exact_judge, answers=[FIXTURE])
+    blob = json.loads((tmp_path / "out.json").read_text())
+    blob.pop("does_not_show")  # as the files judged before the field existed
+    (tmp_path / "out.json").write_text(json.dumps(blob))
+    asked = []
+
+    def counting(prompt: str) -> str:
+        asked.append(prompt)
+        return exact_judge(prompt)
+
+    done = _run(tmp_path, counting, answers=[FIXTURE, JURY_V2], resume=True)
+    assert done["status"] == "complete" and done["does_not_show"] == list(judge_stored.DOES_NOT_SHOW)
+    v2 = done["answer_sets"][1]["summary"]
+    assert done["gate"] == out["gate"] and len(asked) == v2["n_judged"] - v2["abstention_only"]["count"]  # the new set only: no gate call, no pair
+    assert [s["file"] for s in done["answer_sets"]] == ["tests/eval/fixtures/stored_answers.jsonl", "bench/results/jury_v2.json"]
+    assert done["answer_sets"][0]["rows"] == out["answer_sets"][0]["rows"] and v2["complete"] and v2["pairs_not_collected"]
+    assert [s["resumed"] for s in done["segments"]] == [False, True] and judge_stored.check(tmp_path / "out.json") == []
 
 
 def test_resume_refuses_another_judge_and_changed_answers(tmp_path):
@@ -205,6 +230,7 @@ def test_rescore_rereads_the_inputs_and_keeps_every_verdict(tmp_path):
     for row in older["answer_sets"][0]["rows"]:
         row.pop("stored_verdicts", None)  # as a version without the field wrote it
     del older["answer_sets"][0]["summary"]["agreement_with_stored_judges"]
+    del older["does_not_show"]
     out_path.write_text(json.dumps(older))
     assert judge_stored.check(out_path)  # differs from what today's code gives
     assert judge_stored.main(["--rescore", str(out_path)]) == 0
@@ -213,6 +239,7 @@ def test_rescore_rereads_the_inputs_and_keeps_every_verdict(tmp_path):
     assert [s["summary"] for s in again["answer_sets"]] == [s["summary"] for s in blob["answer_sets"]]
     assert [r.get("correctness") for s in again["answer_sets"] for r in s["rows"]] == [r.get("correctness") for s in blob["answer_sets"] for r in s["rows"]]
     assert again["rescore"]["rows_git_sha"] == blob["git_sha"] and again["rescore"]["rows_timestamp"] == blob["timestamp"] and "no model" not in again["rescore"]["what"]
+    assert again["does_not_show"] == list(judge_stored.DOES_NOT_SHOW) and list(again).index("does_not_show") == list(again).index("what") + 1
     again["answer_sets"][1]["sha256"] = "0" * 64
     out_path.write_text(json.dumps(again))
     with pytest.raises(SystemExit, match="changed since it was judged"):
@@ -476,6 +503,7 @@ def test_the_readme_block_prints_every_model_and_only_the_scores_the_gate_allows
     assert "| gen:27b (first 7 questions only) | [bench/results/jury_v3_answers_gen-27b.json](bench/results/jury_v3_answers_gen-27b.json) @ " in text and "| 2 of 7 | 0 / 0 |" in text
     assert "| 1.0 [1.0, 1.0] (5) |" in text and "| gen:122b, reasoning off | no results file | not run |" in text
     assert "Answers that came back empty" not in text and "Generation calls that failed" not in text
+    assert "Generation times depend on the GPU named in each row" in text and "they do not compare the models" in text
     # the gate: committed judges, the judge that passed, the one that failed, the one that could not load, the one with no file
     assert "| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.9509 | [0.9036, 0.9876] | 160 | yes |" in text
     assert "| 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |" in text and "| 0.0 | [0.0, 0.0] | 160 | no | 160 / 0 / 0 |" in text
@@ -514,6 +542,20 @@ def test_a_later_judge_of_another_model_is_named_under_the_committed_score(jury_
             f"(kappa {a['kappa']}); where they differ, judge:120b gave the lower label {lower} times and qwen2.5:7b {higher} time{'' if higher == 1 else 's'}.") in text
     assert "A judge of another model added later, gen:27b, did not pass the same gate on these calibration answers (kappa 0.0), so it is no check" in text
     assert "big:1t" not in text and report.jury_table(committed) == report.jury_table(committed, {"x": None})  # no file, no sentence
+    # what the judges of other models show about the self-judged score, computed from the files
+    score = committed["summary"]["kappa"]["qwen2.5:7b"]["mean_correctness_all"]
+    lo, hi = m["interval"]["lo"], m["interval"]["hi"]
+    where = "above" if score > hi else "at the upper bound of" if score == hi else "below" if score < lo else "at the lower bound of" if score == lo else "inside"
+    note = next(x for x in text.split("\n\n") if x.startswith("What the judges of other models show:"))
+    assert note.startswith(f"What the judges of other models show: qwen2.5:7b scored its own answers {score}; judge:120b scores them {m['mean']} [{lo}, {hi}], "
+                           f"so {score} is {where} that interval.")
+    assert "gen:27b" not in note and "big:1t" not in note  # only a judge that passed its gate and is not the generator
+    assert "gives the exact-match label on every simple-factual answer" in note
+    assert lower > higher and "Where it differs from qwen2.5:7b, it gave the lower label more often than qwen2.5:7b did (the counts are above): qwen2.5:7b is the more lenient judge" in note
+    assert "qwen2.5:7b has not judged the other generators' answers here, which would tell the two apart." in note
+    later_own = {**judges, "qwen2.5:7b": {"status": "complete"}}  # a later file of the generator's own model: the open question goes
+    assert "has not judged" not in report.jury_table(committed, later_own) and "What the judges of other models show:" in report.jury_table(committed, later_own)
+    assert "What the judges of other models show:" not in report.jury_table(committed, {"gen:27b": judges["gen:27b"]})  # a failed judge shows nothing
 
 
 def test_the_evidence_rows_follow_the_gate(jury_v3_files):

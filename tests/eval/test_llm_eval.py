@@ -304,6 +304,7 @@ def test_rescore_recomputes_checks_from_stored_answers(tmp_path):
     path = tmp_path / "jury.json"
     path.write_text(json.dumps(blob))
     out = llm_eval.rescore(path)
+    assert "does_not_show" not in blob and "does_not_show" not in out  # a run with judges keeps its shape (the list is a generate-only file's)
     assert out["summary"]["checks"] == blob["summary"]["checks"]  # same code, same answers: same checks
     assert out["summary"]["kappa"] == blob["summary"]["kappa"]
     assert [r["judges"] for r in out["rows"]] == [r["judges"] for r in blob["rows"]]
@@ -873,6 +874,13 @@ def test_a_generate_only_run_has_answers_checks_and_no_jury(tmp_path):
     again = llm_eval.rescore(path)
     assert again["summary"] == s and [r["extractive"] for r in again["rows"]] == [r["extractive"] for r in blob["rows"]]
     assert again["check_intervals"] == ci and "check_intervals" not in llm_eval.rescore(_without(path, "check_intervals"))  # older files keep their shape
+    # The file says what it does not show, after the protocol; a rescore adds the list to a file written before it existed.
+    assert blob["does_not_show"] == list(llm_eval.GENERATE_ONLY_DOES_NOT_SHOW) and any("no judge" in t for t in blob["does_not_show"])
+    keys = list(blob)
+    assert keys.index("does_not_show") == keys.index("protocol") + 1 and again["does_not_show"] == blob["does_not_show"]
+    added = llm_eval.rescore(_without(path, "does_not_show"))
+    assert added["does_not_show"] == blob["does_not_show"] and list(added).index("does_not_show") == list(added).index("protocol") + 1
+    assert "does_not_show" not in llm_eval.rescore(_without(_without(path, "does_not_show"), "check_intervals"))
     blob["rows"][0]["extractive"] += " and more"  # the pair's other answer must be the one today's retrieval gives
     path.write_text(json.dumps(blob))
     with pytest.raises(SystemExit, match="extractive answer differs"):

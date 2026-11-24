@@ -1,0 +1,694 @@
+{
+  "git_sha": "d404575",
+  "git_head": "d40457518eccdafb80e84d66aef461a192404343",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/agent/__init__.py": "b0d3045af83a80e8fa46c8fde1dcc3744d8a9f244c66d7d2ea1e20e70743a998",
+    "app/agent/citation_verify.py": "7b0f8a038d3b6c9433487eba27489a90bb11cb84b1920d2a02b53a1d6ea07f34",
+    "app/agent/corrective.py": "62a3d9979c077b1e4853d59b56b0093c3c4e8657d3c0af9ef65cfc9c48f76c99",
+    "app/agent/decompose.py": "88983a4c974786c2b6b28cc675718136b838fde2d0176d36962e177a5851f77e",
+    "app/agent/deep_research.py": "79d5a92fc700f918d356c0672324ccbea04db56b1e83cb186b8c18e612d73546",
+    "app/agent/generate.py": "c26c5b1e464d1f084900d513b90e3e27d23c001b704da2a9fa15a2d81edd0015",
+    "app/agent/retrieval_loop.py": "b5af513800fa0ab9df52e49fab40930356d09767495741b0627214eb9be19f1d",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/corpus.py": "2b2c52dbd98d36656ae38ccd7b7b7d49bd2e6897e252a4b76fd0928276b950fa",
+    "app/eval/frontier_llm.py": "0a293b29abb342dcec7e67442b2df3d19bf9226558429448d7e34cbb1d4a28ef",
+    "app/eval/gold.py": "3f286b1a62c2f7ba5724089c46f1891b08fec992d379ece329f0a47ce6618517",
+    "app/eval/harness.py": "9c60f37faa38144ec089aaba1776cda6e362cdb0d91f92682ab6d34ee0446498",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/judge.py": "64780ec6e52b247de212fd7430bcbd84e834b1b9ed4587a639e9e3bb6a14607c",
+    "app/eval/jury.py": "1aa881fa2051dfd2e945706b158854aea1a70b3b10af23c3151ea675c19b1e8d",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/llm_eval.py": "88c5b9739d6c987019fafa90f1bf8b5f967a55e5601cc3e27f03e6a56e90156a",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/per_question.py": "1c7d732f7e6954a5748e4bc6bbd2047db98aeb908a9f9f7dcebe4645510b51c8",
+    "app/eval/probes.py": "f85c9fe0cd427c75551af5fcfe2639375ba7316c36331c1b437cb09be320bb41",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/ragas_metrics.py": "8b3809e47d36673b7a0cf014490d6ef5105176877ee70949404622c24d380da2",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/graph/__init__.py": "65052777718d171f92bd51f5773712749c5f62983120169036aeb1ada05ac12b",
+    "app/graph/conflicts.py": "8e5053d77aabb1f5715bb9a52ccc234cfbaf48f3e0571ebd5a7b1b30df12705d",
+    "app/graph/file_graph.py": "fcfbb24a2089194d7e902a9bdf03615d1105dacfc8b62635c869507511982dd4",
+    "app/graph/graphrag.py": "8d042c623a77b0a54aac472f8adfc1c9dfb38c9976d6a297d4864d17fdbe2c8f",
+    "app/graph/hipporag.py": "56b1c37b3837270654cd2712af295ff81bd83b0b37a69e966632096cc5519e18",
+    "app/graph/staleness.py": "e05adb3f012a7d1403f5cee77837147bf136c0a854419d24c410056ce958ae53",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/adaptive.py": "e08b5d1964ff6ad2f7b05e7d3275d22931d0f527cf61023647fc72a1dce785ac",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/cache.py": "65fbfced92240e00b0df98c07670e3f0ce015cad86fc8604c6866089a11807f5",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/distill.py": "0714f9ef5b4422c9f63a56e76924b3a9d3fc83e3204d1d56e6af07c6c37549de",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/hyde.py": "e0f81e2283a3411317e692531bb6bdd49db4f40468d378ed63fec0266b62db4b",
+    "app/retrieval/rerank.py": "d01bce8812dd36006e9bf5d6d365443c372c1835f8e04385941284f4de3c7f69",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-23T01:31:15.477031+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --out bench/results/jury_v3_answers_qwen3.5-122b_first8.json --generator qwen3.5:122b --judges none --limit 8",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.53.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 224,
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8480CL",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA H100 80GB HBM3",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "n_gold": 8,
+  "config": {
+    "name": "hybrid+bge-rerank+router+staleness@bge-small-en-v1.5",
+    "embedder": "st:BAAI/bge-small-en-v1.5",
+    "retrieve_k": 50,
+    "rerank_n": 8,
+    "enable_router": true,
+    "enable_rerank": true,
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "chunk_strategy": "auto",
+    "mode": "hybrid",
+    "graph_hops": 0,
+    "staleness_tier1": true,
+    "e2e": false,
+    "log_triples": false,
+    "jury": false,
+    "hipporag": false,
+    "multi_query": false,
+    "hyde": false,
+    "decompose": false,
+    "corrective": false,
+    "adaptive": false,
+    "graphrag": false,
+    "contextual": false,
+    "late_chunking": false,
+    "parent": null
+  },
+  "models": {
+    "generator": {
+      "role": "generator",
+      "model": "qwen3.5:122b",
+      "revision": "8b9d11d807c57feb1e2ecb0d6cbf40334c37dcc3523bed5540af4f927f112a37",
+      "neural": true,
+      "backend": "ollama",
+      "family": "qwen35moe",
+      "quantization": "Q4_K_M",
+      "parameter_size": "125.1B",
+      "size_bytes": 81370036360,
+      "temperature": 0.0,
+      "seed": 0
+    },
+    "judges": [],
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "neural": true
+    },
+    "reranker": {
+      "role": "reranker",
+      "model": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "neural": true,
+      "loaded": true
+    }
+  },
+  "ollama": {
+    "version": "0.40.16",
+    "generator_loaded": {
+      "model": "qwen3.5:122b",
+      "digest": "8b9d11d807c57feb1e2ecb0d6cbf40334c37dcc3523bed5540af4f927f112a37",
+      "size_bytes": 79613961173,
+      "size_vram_bytes": 79613961173,
+      "context_length": 16384
+    },
+    "request": {
+      "route": "/api/generate",
+      "stream": false,
+      "options": {
+        "temperature": 0.0,
+        "seed": 0
+      },
+      "think": "not sent: the server's default for the model",
+      "num_ctx": "not sent: the server's context length"
+    }
+  },
+  "kappa_gate": 0.6,
+  "protocol": {
+    "gated_label": "correctness verdict (app/eval/judge.py correctness_prompt: question, gold, answer; no retrieved context)",
+    "correctness_prompt": "Question: {question}\nGold answer: {gold}\nAnswer: {answer}\nDoes the answer give the gold answer? Judge only that, and accept another wording or number format (7e-6 is 0.000007); ignore style, length and sources.\ncorrect: the answer gives the gold answer.\npartial: the gold answer has several parts and the answer gives some of them.\nwrong: the answer gives something else, or no answer (NOT IN SOURCES gives no answer).\nReply JSON {\"label\": \"correct\" | \"partial\" | \"wrong\"}.",
+    "reference": "exact_match_label, bounded (the gold may not sit inside a longer number or word)",
+    "abstention_rule": "an answer that is NOT IN SOURCES and nothing else, to a question with a gold answer, is wrong by rule: no judge is asked, and the row is left out of kappa"
+  },
+  "latency": {
+    "generate": {
+      "n": 8,
+      "p50_ms": 13070.39,
+      "p95_ms": 86192.03,
+      "mean_ms": 27520.83
+    }
+  },
+  "wall_s": 220.8,
+  "generation_errors": [],
+  "check_intervals": {
+    "method": "percentile bootstrap over the answers each rate counts",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "level": 0.95,
+    "uncited_answers": {
+      "rate": 0.125,
+      "lo": 0.0,
+      "hi": 0.375,
+      "n": 8
+    },
+    "cited_in_retrieved": {
+      "rate": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 7
+    },
+    "values_in_cited_bytes": {
+      "rate": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 7
+    },
+    "values_in_any_evidence": {
+      "rate": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 7
+    },
+    "exact_match_simple_factual": {
+      "rate": 1.0,
+      "lo": 1.0,
+      "hi": 1.0,
+      "n": 7
+    }
+  },
+  "summary": {
+    "n": 8,
+    "n_judged": 7,
+    "n_simple_factual": 7,
+    "checks": {
+      "uncited_answers": {
+        "count": 1,
+        "n": 8
+      },
+      "abstained": {
+        "count": 0,
+        "n": 8
+      },
+      "abstention_only": {
+        "count": 0,
+        "n": 8
+      },
+      "cited_in_retrieved": {
+        "rate": 1.0,
+        "n": 7
+      },
+      "values_in_cited_bytes": {
+        "rate": 1.0,
+        "n": 7
+      },
+      "values_in_any_evidence": {
+        "rate": 1.0,
+        "n": 7
+      },
+      "exact_match_simple_factual": {
+        "rate": 1.0,
+        "n": 7
+      }
+    },
+    "gated_label": "correctness verdict (app/eval/judge.py correctness_prompt: question, gold, answer; no retrieved context)",
+    "reference": {
+      "labels": "exact_match_label, bounded (the gold may not sit inside a longer number or word)",
+      "source": "simple_factual",
+      "n": 7,
+      "label_counts": {
+        "correct": 7,
+        "partial": 0,
+        "wrong": 0
+      },
+      "single_class": true,
+      "gate_evaluable": false,
+      "left_out_abstention_only": 0,
+      "label_counts_with_abstentions": {
+        "correct": 7,
+        "partial": 0,
+        "wrong": 0
+      }
+    },
+    "kappa": {},
+    "interval": {
+      "method": "percentile bootstrap over the simple-factual questions: each resample draws questions with replacement and keeps a drawn question's reference answers together",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "level": 0.95,
+      "gate_reads": "the point estimate"
+    },
+    "composite": {
+      "heuristic": {
+        "kappa_vs_exact_match_simple_factual": 0.0,
+        "n": 7,
+        "label_counts": {
+          "correct": 3,
+          "partial": 2,
+          "wrong": 2
+        },
+        "mean_score_all": 0.5714,
+        "abstentions_labelled_correct": [],
+        "heuristic": true
+      }
+    },
+    "abstention_rule": {
+      "rule": "an answer that is NOT IN SOURCES and nothing else, to a question with a gold answer, is wrong by rule: no judge is asked, and the row is left out of kappa",
+      "label": "wrong",
+      "n": 0,
+      "ids": []
+    },
+    "replies": {},
+    "judge_agreement": null,
+    "pairwise_llm_vs_extractive": {},
+    "publishable_judges": [],
+    "verdict": "no judge in this run: the answers and their deterministic checks only"
+  },
+  "rows": [
+    {
+      "id": "q001",
+      "category": "simple_factual",
+      "question": "what learning rate did run 40 use",
+      "gold": "1e-04",
+      "retrieved_paths": [
+        "configs/run_040.yaml",
+        "logs/run_040.out",
+        "logs/run_044.out",
+        "paper/draft_v2.md",
+        "logs/run_041.out",
+        "configs/run_041.yaml",
+        "logs/run_043.out",
+        "configs/run_044.yaml"
+      ],
+      "answer": "Run 40 used a learning rate of 0.0001 [configs/run_040.yaml:0-249].",
+      "extractive": "[configs/run_040.yaml] # run 40 config (CURRENT)\nrun_id: 40\nencoder: resnet50\nfusion: false\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0612\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[logs/run_040.out] Slurm job for run 40\nencoder=resnet50 fusion=False num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0612\nfinished status=SUCCESS\nconfig=configs/run_040.yaml\n[logs/run_044.out] Slurm job for run 44\nencoder=clip fusion=True num_pairs=3\nbark_type=maple learning_rate=0.0002\n[epoch 10] val_rmse=0.0595\nfinished status=SUCCESS\nconfig=configs/run_044.yaml\n[paper/draft_v2.md] Learning rate is 3.0e-4.",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 9.983,
+        "eval_count": 1282,
+        "prompt_eval_count": 969,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 1,
+        "unknown_citations": [],
+        "n_values": 2,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.5,
+          "relevancy": 0.5714,
+          "groundedness": 0.0,
+          "label": "wrong",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    },
+    {
+      "id": "q002",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 40 use",
+      "gold": "2",
+      "retrieved_paths": [
+        "configs/run_040.yaml",
+        "paper/draft_v2.md",
+        "results/ablation.csv",
+        "configs/run_042.yaml",
+        "configs/run_041.yaml",
+        "logs/run_040.out",
+        "configs/run_043.yaml",
+        "configs/run_046.yaml"
+      ],
+      "answer": "Run 40 used 2 stereo pairs [configs/run_040.yaml:0-249].",
+      "extractive": "[configs/run_040.yaml] # run 40 config (CURRENT)\nrun_id: 40\nencoder: resnet50\nfusion: false\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0612\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[paper/draft_v1.md] We find that stereo fusion does **not** help.\n[paper/draft_v2.md] Stereo fusion **does** help.\n[results/ablation.csv] ablation,encoder,fusion,val_rmse,run_id\r\nfusion_off_resnet,resnet50,False,0.0612,40\n\nConflicting sources in the retrieved set \u2014 address explicitly, do not silently pick one:\n- paper_claim conclusion: does help, does not help (paper/draft_v1.md; paper/draft_v2.md)",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 10.683,
+        "eval_count": 1374,
+        "prompt_eval_count": 991,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 1,
+        "unknown_citations": [],
+        "n_values": 1,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.6667,
+          "relevancy": 0.375,
+          "groundedness": 1.0,
+          "label": "correct",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    },
+    {
+      "id": "q003",
+      "category": "simple_factual",
+      "question": "what bark type did run 40 use",
+      "gold": "oak",
+      "retrieved_paths": [
+        "configs/run_040.yaml",
+        "logs/run_040.out",
+        "paper/draft_v2.md",
+        "logs/run_041.out",
+        "logs/run_044.out",
+        "configs/run_041.yaml",
+        "logs/run_045.out",
+        "logs/run_043.out"
+      ],
+      "answer": "",
+      "extractive": "[configs/run_040.yaml] # run 40 config (CURRENT)\nrun_id: 40\nencoder: resnet50\nfusion: false\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0612\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[logs/run_040.out] Slurm job for run 40\nencoder=resnet50 fusion=False num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0612\nfinished status=SUCCESS\nconfig=configs/run_040.yaml\n[paper/draft_v2.md] Bark type for that run\nis birch.\n[logs/run_041.out] Slurm job for run 41\nencoder=resnet50 fusion=True num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0588\nfinished status=SUCCESS\nconfig=configs/run_041.yaml",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 120.158,
+        "eval_count": 15450,
+        "prompt_eval_count": 934,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": true,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": null,
+        "n_citations": 0,
+        "unknown_citations": [],
+        "n_values": 0,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 0.0,
+        "exact_match_label": "wrong",
+        "exact_match": false
+      },
+      "judges": {},
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {},
+      "failed": "uncited_answer"
+    },
+    {
+      "id": "q004",
+      "category": "simple_factual",
+      "question": "what encoder did run 40 use",
+      "gold": "resnet50",
+      "retrieved_paths": [
+        "configs/run_040.yaml",
+        "logs/run_040.out",
+        "logs/run_041.out",
+        "logs/run_044.out",
+        "src/dinov2_encoder.py",
+        "logs/run_043.out",
+        "configs/run_041.yaml",
+        "logs/run_042.out"
+      ],
+      "answer": "Run 40 used the resnet50 encoder [configs/run_040.yaml:0-249].",
+      "extractive": "[configs/run_040.yaml] # run 40 config (CURRENT)\nrun_id: 40\nencoder: resnet50\nfusion: false\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0612\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[logs/run_040.out] Slurm job for run 40\nencoder=resnet50 fusion=False num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0612\nfinished status=SUCCESS\nconfig=configs/run_040.yaml\n[logs/run_041.out] Slurm job for run 41\nencoder=resnet50 fusion=True num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0588\nfinished status=SUCCESS\nconfig=configs/run_041.yaml\n[logs/run_044.out] Slurm job for run 44\nencoder=clip fusion=True num_pairs=3\nbark_type=maple learning_rate=0.0002\n[epoch 10] val_rmse=0.0595\nfinished status=SUCCESS\nconfig=configs/run_044.yaml",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 12.407,
+        "eval_count": 1549,
+        "prompt_eval_count": 874,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 1,
+        "unknown_citations": [],
+        "n_values": 2,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.6667,
+          "relevancy": 0.3333,
+          "groundedness": 1.0,
+          "label": "correct",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    },
+    {
+      "id": "q005",
+      "category": "simple_factual",
+      "question": "what was val RMSE for run 40",
+      "gold": "0.0612",
+      "retrieved_paths": [
+        "configs/run_040.yaml",
+        "logs/run_040.out",
+        "logs/run_044.out",
+        "logs/run_041.out",
+        "paper/draft_v2.md",
+        "logs/run_043.out",
+        "configs/run_041.yaml",
+        "checkpoints/run_047.ckpt.meta.json"
+      ],
+      "answer": "The val RMSE for run 40 was 0.0612 [configs/run_040.yaml:0-249].",
+      "extractive": "[configs/run_040.yaml] # run 40 config (CURRENT)\nrun_id: 40\nencoder: resnet50\nfusion: false\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0612\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[logs/run_040.out] Slurm job for run 40\nencoder=resnet50 fusion=False num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0612\nfinished status=SUCCESS\nconfig=configs/run_040.yaml\n[logs/run_044.out] Slurm job for run 44\nencoder=clip fusion=True num_pairs=3\nbark_type=maple learning_rate=0.0002\n[epoch 10] val_rmse=0.0595\nfinished status=SUCCESS\nconfig=configs/run_044.yaml\n[logs/run_041.out] Slurm job for run 41\nencoder=resnet50 fusion=True num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0588\nfinished status=SUCCESS\nconfig=configs/run_041.yaml",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 11.247,
+        "eval_count": 1413,
+        "prompt_eval_count": 943,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 1,
+        "unknown_citations": [],
+        "n_values": 2,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.75,
+          "relevancy": 0.8571,
+          "groundedness": 0.0,
+          "label": "partial",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    },
+    {
+      "id": "q006",
+      "category": "simple_factual",
+      "question": "what learning rate did run 41 use",
+      "gold": "1e-04",
+      "retrieved_paths": [
+        "configs/run_041.yaml",
+        "logs/run_041.out",
+        "configs/run_055.yaml",
+        "logs/run_044.out",
+        "configs/run_040.yaml",
+        "logs/run_040.out",
+        "logs/run_042.out",
+        "configs/run_042.yaml"
+      ],
+      "answer": "Run 41 used a learning rate of 0.0001 [configs/run_041.yaml:0-248].",
+      "extractive": "[configs/run_041.yaml] # run 41 config (CURRENT)\nrun_id: 41\nencoder: resnet50\nfusion: true\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0588\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[logs/run_041.out] Slurm job for run 41\nencoder=resnet50 fusion=True num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0588\nfinished status=SUCCESS\nconfig=configs/run_041.yaml\n[configs/run_055.yaml] # run 55 config (CURRENT)\nrun_id: 55\nencoder: dinov2\nfusion: false\nnum_pairs: 3\nbark_type: oak\nlearning_rate: 0.0003\nval_rmse: 0.0555\nseed: 41\nbaseline_rmse: 0.055\nrender:\n[logs/run_044.out] Slurm job for run 44\nencoder=clip fusion=True num_pairs=3\nbark_type=maple learning_rate=0.0002\n[epoch 10] val_rmse=0.0595\nfinished status=SUCCESS\nconfig=configs/run_044.yaml",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 13.734,
+        "eval_count": 1741,
+        "prompt_eval_count": 980,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 1,
+        "unknown_citations": [],
+        "n_values": 2,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.25,
+          "relevancy": 0.5714,
+          "groundedness": 0.0,
+          "label": "wrong",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    },
+    {
+      "id": "q007",
+      "category": "simple_factual",
+      "question": "how many stereo pairs did run 41 use",
+      "gold": "2",
+      "retrieved_paths": [
+        "configs/run_041.yaml",
+        "paper/draft_v2.md",
+        "results/ablation.csv",
+        "configs/run_055.yaml",
+        "logs/run_041.out",
+        "configs/run_042.yaml",
+        "configs/run_046.yaml",
+        "configs/run_047.yaml"
+      ],
+      "answer": "Run 41 used 2 stereo pairs [configs/run_041.yaml:0-248].",
+      "extractive": "[configs/run_041.yaml] # run 41 config (CURRENT)\nrun_id: 41\nencoder: resnet50\nfusion: true\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0588\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[paper/draft_v1.md] We find that stereo fusion does **not** help.\n[paper/draft_v2.md] Stereo fusion **does** help.\n[results/ablation.csv] ablation,encoder,fusion,val_rmse,run_id\r\nfusion_on_resnet,resnet50,True,0.0588,41\n\nConflicting sources in the retrieved set \u2014 address explicitly, do not silently pick one:\n- paper_claim conclusion: does help, does not help (paper/draft_v1.md; paper/draft_v2.md)",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 18.842,
+        "eval_count": 2407,
+        "prompt_eval_count": 998,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 1,
+        "unknown_citations": [],
+        "n_values": 1,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.6667,
+          "relevancy": 0.375,
+          "groundedness": 1.0,
+          "label": "correct",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    },
+    {
+      "id": "q008",
+      "category": "simple_factual",
+      "question": "what bark type did run 41 use",
+      "gold": "oak",
+      "retrieved_paths": [
+        "configs/run_041.yaml",
+        "logs/run_041.out",
+        "configs/run_055.yaml",
+        "logs/run_040.out",
+        "configs/run_040.yaml",
+        "logs/run_044.out",
+        "paper/draft_v2.md",
+        "configs/run_042.yaml"
+      ],
+      "answer": "Run 41 used the oak bark type [configs/run_041.yaml:0-248]. The log output also specifies bark_type=oak for run 41 [logs/run_041.out:0-176].",
+      "extractive": "[configs/run_041.yaml] # run 41 config (CURRENT)\nrun_id: 41\nencoder: resnet50\nfusion: true\nnum_pairs: 2\nbark_type: oak\nlearning_rate: 0.0001\nval_rmse: 0.0588\nseed: 7\nbaseline_rmse: 0.055\nrender:\n[logs/run_041.out] Slurm job for run 41\nencoder=resnet50 fusion=True num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0588\nfinished status=SUCCESS\nconfig=configs/run_041.yaml\n[configs/run_055.yaml] # run 55 config (CURRENT)\nrun_id: 55\nencoder: dinov2\nfusion: false\nnum_pairs: 3\nbark_type: oak\nlearning_rate: 0.0003\nval_rmse: 0.0555\nseed: 41\nbaseline_rmse: 0.055\nrender:\n[logs/run_040.out] Slurm job for run 40\nencoder=resnet50 fusion=False num_pairs=2\nbark_type=oak learning_rate=0.0001\n[epoch 10] val_rmse=0.0612\nfinished status=SUCCESS\nconfig=configs/run_040.yaml",
+      "generation": {
+        "model": "qwen3.5:122b",
+        "seconds": 23.113,
+        "eval_count": 2966,
+        "prompt_eval_count": 1013,
+        "load_seconds": 0.001
+      },
+      "checks": {
+        "uncited": false,
+        "abstained": false,
+        "abstention_only": false,
+        "cited_in_retrieved": true,
+        "n_citations": 2,
+        "unknown_citations": [],
+        "n_values": 2,
+        "values_in_cited_bytes": true,
+        "values_not_in_cited_bytes": [],
+        "values_in_any_evidence": true,
+        "verification_ratio_cited": 1.0,
+        "exact_match_label": "correct",
+        "exact_match": true
+      },
+      "judges": {
+        "heuristic": {
+          "faithfulness": 0.5,
+          "relevancy": 0.4286,
+          "groundedness": 1.0,
+          "label": "partial",
+          "seconds": 0.0
+        }
+      },
+      "correctness": {},
+      "pairwise_llm_vs_extractive": {}
+    }
+  ]
+}
