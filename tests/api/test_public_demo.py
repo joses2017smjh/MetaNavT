@@ -315,7 +315,8 @@ def test_the_web_demo_page_sends_what_the_public_routes_accept():
 
 def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
     """The reference's Public demo mode section names the allow-list the app serves, and every variable of its deploy
-    contract is one the code reads; the README says the demo is not deployed and its answers are not evaluated."""
+    contract is one the code reads; the README says the demo is deployed on one host behind CloudFront with answers off
+    until the owner stores a key, and that its answers are not evaluated."""
     import re
 
     text = (ROOT / "doc" / "engineering-reference.md").read_text()
@@ -332,5 +333,7 @@ def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
     unread = sorted(n for n in names if f'"{n}"' not in sources)
     assert unread == [], unread
     readme = " ".join((ROOT / "README.md").read_text().split())
-    assert "**Public demo mode (not deployed yet).**" in readme
+    assert ("**Public demo mode (deployed).** It is deployed as a public demo on one host behind CloudFront, with answers "
+            "switched off until the owner stores an Anthropic API key") in readme
+    assert "not deployed" not in readme
     assert "Claude's answers are not evaluated in this repository" in readme
