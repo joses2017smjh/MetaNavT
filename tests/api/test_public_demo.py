@@ -184,6 +184,25 @@ def test_a_cited_answer_is_delivered_then_served_from_the_cache():
     assert 0 < state["limits"].spent_today_usd() < 0.01  # settled at the reply's cost, not the worst case
 
 
+def test_a_reply_after_utc_midnight_is_settled_on_the_day_its_call_reserved():
+    tc = _client()
+    state = tc.app.state.answer
+    limits, client = state["limits"], state["client"]
+    now = [(1_800_000_000 // 86_400 + 1) * 86_400 - 1.0]  # one second before UTC midnight
+    limits.clock = lambda: now[0]
+    reply = client.create
+
+    def late_reply(**kwargs):
+        now[0] += 2  # the reply comes back on the next UTC day
+        return reply(**kwargs)
+
+    client.create = late_reply
+    assert tc.post("/api/answer/", json=Q).json()["answer"] == "Run 47 used 3e-4"
+    assert limits.spent_today_usd() == 0  # the new day starts at zero, not below it
+    now[0] -= 2
+    assert 0 < limits.spent_today_usd() < 0.01  # the old day keeps the reply's cost, not the worst case
+
+
 @pytest.mark.parametrize("kwargs, reason", [
     ({"client": None}, "answers off"),
     ({"redis": None}, "limits unavailable"),

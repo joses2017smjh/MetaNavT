@@ -2406,7 +2406,8 @@ models, and evaluating Claude spends API credits.
 - a daily budget in dollars. Each call first reserves its worst case with one atomic increment: all of `max_tokens` as
   output, the input at a conservative tokens-per-character ratio, at the dearest rate that could bill it. The call is
   refused when the day's total would go over. Afterwards the reservation is settled to the reply's cost, from its
-  usage and a price table dated in the code; a timeout keeps the whole reservation;
+  usage and a price table dated in the code, on the reservation's own day: a call that crosses UTC midnight is settled
+  on the day it was reserved on, and the new day's total is not touched; a timeout keeps the whole reservation;
 - an answer cache keyed by the model and the normalised question.
 
 The caller is the API key's name when authentication is on, and otherwise the client address behind
