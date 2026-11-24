@@ -5,6 +5,12 @@ from typing import Dict, Optional
 from llama_index.core.multi_modal_llms import MultiModalLLM
 from llama_index.core.settings import Settings
 
+# The most tokens one Ollama chat call may generate (num_predict) when LLM_MAX_TOKENS is not set. Without a cap a call
+# can generate until the server is stopped: one did in the chat smoke committed in c9b4acd, and Ollama, which serves
+# one request at a time, made every later request wait behind it. The largest call of that run that ended on its own
+# generated a few hundred tokens.
+DEFAULT_LLM_MAX_TOKENS = 2048
+
 
 def embedding_device(model=None) -> Optional[str]:
     """Actual loaded embedding weights, not the requested env value."""
@@ -157,14 +163,16 @@ def init_ollama():
         os.getenv("OLLAMA_REQUEST_TIMEOUT", DEFAULT_REQUEST_TIMEOUT)
     )
     temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-    max_tokens = os.getenv("LLM_MAX_TOKENS")
+    max_tokens = int(os.getenv("LLM_MAX_TOKENS") or DEFAULT_LLM_MAX_TOKENS)
+    if max_tokens <= 0:  # Ollama reads a negative num_predict as no limit
+        raise ValueError(f"LLM_MAX_TOKENS must be a positive number of tokens, not {max_tokens}")
 
     Settings.llm = Ollama(
         model=os.getenv("MODEL", "qwen2.5:14b"),
         base_url=base_url,
         temperature=temperature,
         request_timeout=request_timeout,
-        additional_kwargs={"num_predict": int(max_tokens)} if max_tokens else {},
+        additional_kwargs={"num_predict": max_tokens},
     )
     # The Ollama object does not contact the server until a chat call is made, so
     # retrieval works with Ollama down; only chat needs it.

@@ -10,6 +10,8 @@ Default features:
     - Multi Agent Handoff
     - Step Increments
 """
+import asyncio
+import contextlib
 from abc import ABCMeta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union, cast
 import logging
@@ -745,14 +747,26 @@ class AgentWorkflow(Workflow, PromptMixin, metaclass=AgentWorkflowMeta):
             StopEvent: lambda ev: self._handle_stop_event_event(ev, final_result_holder),
         }
 
-        async for event in handler.stream_events():
-            if hasattr(event, "current_agent_name"):
-                 current_agent = await self._handle_agent_transition_event(event, current_agent)
-            
-            handler_func = event_handlers.get(type(event))
-            if handler_func:
-                await handler_func(event)
-        
+        try:
+            async for event in handler.stream_events():
+                if hasattr(event, "current_agent_name"):
+                     current_agent = await self._handle_agent_transition_event(event, current_agent)
+
+                handler_func = event_handlers.get(type(event))
+                if handler_func:
+                    await handler_func(event)
+            # The run's own outcome. A step that raised (a model call that failed or timed out) raises here: the event
+            # stream alone ends as if the run had finished, and the chat routes used to answer such a run with an
+            # empty 200 (the chat smoke committed in c9b4acd).
+            await handler
+        except asyncio.CancelledError:
+            # The caller gave up (the chat routes cancel on a client disconnect): stop the run, which cancels the step
+            # in flight and with it the model call, so the model server stops generating for nobody.
+            await handler.cancel_run()
+            with contextlib.suppress(BaseException):
+                await asyncio.wait_for(handler, timeout=5)
+            raise
+
         response = "".join(streamed_response_parts)
         final_result_obj = final_result_holder[0] if final_result_holder else None
 
