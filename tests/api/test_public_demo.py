@@ -361,7 +361,7 @@ def test_the_docs_state_the_allow_list_and_the_deploy_contract_the_code_reads():
     unread = sorted(n for n in names if f'"{n}"' not in sources)
     assert unread == [], unread
     readme = " ".join((ROOT / "README.md").read_text().split())
-    assert ("**Public demo mode (deployed).** It is deployed as a public demo on one host behind CloudFront, with answers "
-            "switched off until the owner stores an Anthropic API key") in readme
+    assert ("**Public demo mode (deployed).** It is deployed as a public demo on one host behind CloudFront, "
+            "with answers switched off until the owner stores an Anthropic API key") in readme
     assert "not deployed" not in readme
     assert "Claude's answers are not evaluated in this repository" in readme

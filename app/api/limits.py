@@ -13,8 +13,8 @@ Daily budget (ANSWER_DAILY_BUDGET_USD)
     back and the call is not made. After the call, the counter is moved by (actual - reserved), so a cheap reply gives
     back most of its reservation. The counter moved is the one the reservation went to (Reservation.key), so a call
     reserved before UTC midnight and settled after it is settled on its own day. A call that fails with a timeout
-    keeps its whole reservation (it may have been billed). Concurrent requests cannot overshoot the budget by more than one reservation each, since every
-    reservation is counted before its call starts.
+    keeps its whole reservation (it may have been billed). Concurrent requests cannot overshoot the budget by more
+    than one reservation each, since every reservation is counted before its call starts.
 
 Answer cache (ANSWER_CACHE_TTL_SECONDS)
     A delivered answer is stored under the SHA-256 of the model and the normalised question, for the TTL; a repeat is
