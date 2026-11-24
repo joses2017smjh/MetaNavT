@@ -115,6 +115,47 @@ bench-jury-v2:  ## M29: qwen2.5:7b answers + a calibration set from qwen2.5:1.5b
 bench-jury-v2-rescore: ## recompute the deterministic checks + summary of bench/results/jury_v2.json, calibration set included, from its stored answers (no model call)
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore bench/results/jury_v2.json
 
+# ---- M42: current open models as generators and judges, in two stages (app/eval/judge_stored.py) ----
+# Stage 1, one run per generator: answers and deterministic checks, no judge. Stage 2, one run per judge: the judge is
+# gated on the calibration answers stored in jury_v2.json (never regenerated), then labels jury_v2's stored answers
+# and each generator's. Both need an Ollama server at OLLAMA_BASE_URL that has the models; stage 1 also needs .[ml].
+# Nothing here rewrites jury.json or jury_v2.json.
+.PHONY: bench-jury-v3-answers bench-jury-v3-answers-rescore bench-jury-v3-judge bench-jury-v3-check bench-judge-stored
+# GENERATOR: the Ollama model that answers. THINK=off sends `think: false` with every generation call, for a model
+# whose reasoning does not end inside the context (file suffix _think-off). ANSWERS_LIMIT=N answers the first N
+# questions only (file suffix _firstN): a record of a configuration that fails, never judged.
+GENERATOR ?= qwen3.5:27b
+THINK ?= default
+ANSWERS_LIMIT ?=
+jury_v3_answers_out = bench/results/jury_v3_answers_$(subst :,-,$(GENERATOR))$(if $(filter off,$(THINK)),_think-off)$(if $(ANSWERS_LIMIT),_first$(ANSWERS_LIMIT)).json
+jury_v3_answers_all = $(sort $(wildcard bench/results/jury_v3_answers_*.json))
+jury_v3_answers_full = $(filter-out $(wildcard bench/results/jury_v3_answers_*_first*.json),$(jury_v3_answers_all))
+jury_v3_judge = bench/results/jury_v3_judge_$(subst :,-,$(1)).json
+bench-jury-v3-answers: ## M42 stage 1: GENERATOR's cited answers + deterministic checks on fixture v1, no judge (needs Ollama + .[ml]; THINK=off, ANSWERS_LIMIT=N) -> bench/results/jury_v3_answers_<generator>[_think-off][_firstN].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out $(jury_v3_answers_out) --generator $(GENERATOR) --judges none $(if $(filter off,$(THINK)),--think off) $(if $(ANSWERS_LIMIT),--limit $(ANSWERS_LIMIT))
+
+bench-jury-v3-answers-rescore: ## recompute the deterministic checks + summary of every jury_v3 answers file present from its stored answers (no LLM call; needs .[ml])
+	for f in $(jury_v3_answers_all); do BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore $$f || exit 1; done
+
+# JUDGE: the Ollama model that judges. ANSWERS: comma-separated files (answer-evaluation files or JSONL of stored
+# answers: id, question, gold, answer, cited_paths). JUDGED: the file written. JUDGE_FLAGS=--resume continues one.
+JUDGE ?= gpt-oss:120b
+ANSWERS ?=
+JUDGED ?= $(basename $(firstword $(subst $(comma), ,$(ANSWERS))))_judged_by_$(subst :,-,$(JUDGE)).json
+JUDGE_FLAGS ?=
+comma := ,
+empty :=
+space := $(empty) $(empty)
+bench-judge-stored: ## judge stored answers with a judge validated in the same run: JUDGE is gated on jury_v2.json's stored calibration answers, then labels ANSWERS (needs Ollama) -> JUDGED
+	@test -n "$(ANSWERS)" || { echo "set ANSWERS to the stored-answers file(s), comma-separated (JSONL: id, question, gold, answer, cited_paths)"; exit 2; }
+	$(PYTHON) -m app.eval.judge_stored --judge $(JUDGE) --answers $(ANSWERS) --out $(JUDGED) $(JUDGE_FLAGS)
+
+bench-jury-v3-judge: ## M42 stage 2: JUDGE over jury_v2.json's stored answers and every full jury_v3 answers file present (needs Ollama) -> bench/results/jury_v3_judge_<judge>.json
+	$(PYTHON) -m app.eval.judge_stored --judge $(JUDGE) --answers $(subst $(space),$(comma),$(strip bench/results/jury_v2.json $(jury_v3_answers_full))) --out $(call jury_v3_judge,$(JUDGE)) $(JUDGE_FLAGS)
+
+bench-jury-v3-check: ## recompute the gate and every summary of each jury_v3 judge file present from its stored verdicts and its inputs' hashes (no model call, no retrieval); exit 1 if anything differs
+	for f in $(sort $(wildcard bench/results/jury_v3_judge_*.json)); do $(PYTHON) -m app.eval.judge_stored --check $$f || exit 1; done
+
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
 

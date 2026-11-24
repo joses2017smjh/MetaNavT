@@ -272,6 +272,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     jury = _load(FILES["jury"], root)
     if jury and "protocol" in jury:
         out += _jury_v2_claims(jury, FILES["jury"])
+        out += _jury_v3_claims(root)  # M42: current open models as generators and judges, beside the committed run
     elif jury:
         s = jury["summary"]
         c = s["checks"]
@@ -504,6 +505,130 @@ def _jury_v2_claims(blob: dict, file: str) -> list[dict]:
     for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
         out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"],
                     "command": cmd, "source": src, "not_shown": "a measure of order bias, not of answer quality"})
+    return out
+
+
+def _jury_v3_claims(root: Path = ROOT) -> list[dict]:
+    """M42: each new generator's deterministic checks with their intervals; each new judge's gate on the calibration
+    answers stored in jury_v2.json (or that it could not load); a judge's score of an answer set only where its gate
+    passed. A model with no results file has no row: the README block names it as not run."""
+    from app.eval.report import JURY_V3_ANSWERS, JURY_V3_JUDGES, jury_v3_answers_file, jury_v3_answers_label, jury_v3_judge_file
+
+    def dirty(flag) -> str:
+        return " with uncommitted changes" if flag is True else ""
+
+    out: list[dict] = []
+    for config in JURY_V3_ANSWERS:
+        (name, think, limit), model = config, jury_v3_answers_label(*config)
+        file = jury_v3_answers_file(*config)
+        blob = _load(file, root)
+        if not blob:
+            continue
+        c, ci = blob["summary"]["checks"], blob.get("check_intervals") or {}
+        cmd = f"make bench-jury-v3-answers GENERATOR={name}" + (" THINK=off" if think == "off" else "") + (f" ANSWERS_LIMIT={limit}" if limit else "")
+        empty = sum(1 for r in blob["rows"] if not r["answer"].strip() and not r["generation"].get("error"))
+        rs = blob.get("rescore") or {}
+        src = (f"{file} @ {blob['git_sha']}{dirty(blob.get('working_tree_dirty'))}"
+               + (f" (answers generated at {rs['rows_git_sha']}{dirty(rs.get('rows_working_tree_dirty'))}, checks recomputed by "
+                  "`make bench-jury-v3-answers-rescore`)" if rs else ""))
+        reasoning = ("reasoning turned off (`think: false` with every generation call)" if think == "off" else
+                     "the model reasons before it replies and only the reply is scored")
+        one_run = (f"one run on {(blob.get('device') or {}).get('device_name')}, Ollama {(blob.get('ollama') or {}).get('version')}; {reasoning}"
+                   + (f"; the first {limit} questions only" if limit else ""))
+
+        def interval(key: str) -> str:
+            return f"[{ci[key]['lo']}, {ci[key]['hi']}]" if ci.get(key) else "—"
+
+        out += [
+            {"claim": f"Generated answers ({model} via Ollama, fixture v1): answers with no valid citation (failed loud)", "value": f"{c['uncited_answers']['count']} of {c['uncited_answers']['n']}",
+             "ci": "—", "n": c["uncited_answers"]["n"], "command": cmd, "source": src,
+             "not_shown": f"a deterministic check of the citation contract, not answer quality; {_count(len(blob.get('generation_errors') or []), 'generation call')} failed and "
+                          f"{_count(empty, 'answer')} came back empty (the reasoning filled the context), and those count as uncited; {one_run}"},
+            {"claim": f"Generated answers ({model}): every cited path is in the retrieved set (answers with at least one citation)", "value": f"{c['cited_in_retrieved']['rate']}",
+             "ci": interval("cited_in_retrieved"), "n": c["cited_in_retrieved"]["n"], "command": cmd, "source": src,
+             "not_shown": f"abstentions are not counted; the interval is a bootstrap over the answers counted; {one_run}"},
+            {"claim": f"Generated answers ({model}): every number / config value appears in the cited bytes", "value": f"{c['values_in_cited_bytes']['rate']}",
+             "ci": interval("values_in_cited_bytes"), "n": c["values_in_cited_bytes"]["n"], "command": cmd, "source": src,
+             "not_shown": "only answers that state a value are counted; string containment, case-insensitive; a value in a different numeric format, or one the model computed, "
+                          f"counts as missing; {one_run}"},
+            {"claim": f"Generated answers ({model}): exact match vs gold (bounded, numeric-equivalent), simple_factual", "value": f"{c['exact_match_simple_factual']['rate']}",
+             "ci": interval("exact_match_simple_factual"), "n": c["exact_match_simple_factual"]["n"], "command": cmd, "source": src,
+             "not_shown": f"string / numeric match on single-value questions; paraphrased correct answers count as non-matches; {one_run}"},
+        ]
+    for model in JURY_V3_JUDGES:
+        file = jury_v3_judge_file(model)
+        blob = _load(file, root)
+        if not blob:
+            continue
+        cmd = f"make bench-jury-v3-judge JUDGE={model}"
+        heads = ", ".join(dict.fromkeys(f"{(seg.get('git_head') or '')[:7]}{dirty(seg.get('working_tree_dirty'))}" for seg in blob.get("segments") or []))
+        rs = blob.get("rescore") or {}
+        src = f"{file} @ {heads}" + (f" (summaries recomputed at {rs['checks_git_sha']} by `python -m app.eval.judge_stored --rescore`)" if rs else "")
+        devices = ", ".join(dict.fromkeys(str(seg.get("device_name")) for seg in blob.get("segments") or []))
+        gate = blob.get("gate")
+        if blob["status"] == "could not load" or not gate:
+            out.append({"claim": f"Judge {model}: could not load", "value": "not judged", "ci": "—", "n": 0, "command": cmd, "source": src,
+                        "not_shown": f"{blob.get('could_not_load')}; no calibration answer was judged, so this is not a gate result"})
+            continue
+        cal = blob["calibration"]
+        if not gate["complete"]:
+            status = f"the gate is not complete ({gate['n']} of {cal['n']} calibration answers judged); nothing of this judge is published"
+        elif not gate["reference"]["gate_evaluable"]:
+            status = "gate not evaluable: the reference is one class or empty; this judge's scores are not published"
+        else:
+            status = (f"passes the {gate['threshold']} gate; its correctness scores of the stored answers are published" if gate["passes"] else
+                      f"below the {gate['threshold']} gate; this judge's scores are not published")
+        r = gate["replies"]
+        out.append({"claim": f"Judge {model}: Cohen's kappa of its correctness verdicts vs exact-match labels, the calibration answers stored in {cal['file'].rsplit('/', 1)[-1]}",
+                    "value": f"{gate['kappa']}", "ci": f"[{gate['interval']['lo']}, {gate['interval']['hi']}]" if gate.get("interval") else "—", "n": gate["n"],
+                    "command": cmd, "source": src,
+                    "not_shown": f"{status}; the reference is {(cal.get('generator') or {}).get('model')}'s stored answers to the simple-factual questions from retrieved and from planted "
+                                 "contexts, so a pass shows gold comparison on single-value answers, not general correctness; "
+                                 f"{r['empty']} empty, {r['unparsed']} unreadable and {r['errors']} failed replies of {r['n']}; one run on {devices}; {gate['interval_method']}"})
+        for answers in blob.get("answer_sets") or []:
+            block = answers.get("generator") or {}
+            s_, gen = answers.get("summary") or {}, (block.get("model") or "the stored answers") + (" with reasoning off" if block.get("think") == "off" else "")
+            if not s_.get("publishable"):
+                continue
+            m = s_["mean_correctness"]
+            whose = ("the judge's own weights generated these answers, so the score carries self-preference risk" if s_["self_judged"] else
+                     "the judge is another model than the generator")
+            agree = "; ".join(f"same verdict as {other} (stored in that file) on {a['agree']} of {a['n']} answers both were asked about, kappa {a['kappa']}"
+                              for other, a in (s_.get("agreement_with_stored_judges") or {}).items())
+            out.append({"claim": f"Judge {model} (passed the gate): mean correctness of the answers of {gen} in {answers['file'].rsplit('/', 1)[-1]} (correct 1, partial 0.5, wrong 0)",
+                        "value": f"{m['mean']}", "ci": f"[{m['interval']['lo']}, {m['interval']['hi']}]", "n": m["n"], "command": cmd, "source": src,
+                        "not_shown": f"{s_['abstention_only']['count']} of the {m['n']} labels come from the abstention rule (wrong), not from the judge; an LLM judge validated only on "
+                                     f"single-value answers, while these answers also include multi-part, comparative, aggregate and path answers; {whose}"
+                                     + (f"; {agree}" if agree else "") + "; the interval is a bootstrap over this set's answers, not a paired test against another generator or judge"})
+    out += _self_preference_claims(root)
+    return out
+
+
+def _self_preference_claims(root: Path = ROOT) -> list[dict]:
+    """M42: the committed generator's model as a judge of the other generators' answers too: its lead over each
+    independent judge on its own answers minus its lead on the others' (app/eval/judge_stored.self_preference)."""
+    from app.eval.judge_stored import self_preference
+    from app.eval.report import JURY_FILE, JURY_V3_JUDGES, jury_v3_judge_file
+
+    committed = _load(JURY_FILE, root)
+    if not committed:
+        return []
+    gen = committed["models"]["generator"]["model"]
+    file = jury_v3_judge_file(gen)
+    mine = _load(file, root)
+    if not mine or mine.get("status") != "complete" or not (mine.get("gate") or {}).get("passes"):
+        return []
+    sp = self_preference(mine, [_load(jury_v3_judge_file(m), root) for m in JURY_V3_JUDGES if m != gen])
+    heads = ", ".join(dict.fromkeys((s_.get("git_head") or "")[:7] for s_ in mine.get("segments") or []))
+    out = []
+    for name, r in ((sp or {}).get("by_independent_judge") or {}).items():
+        d, o, x = r["difference"], r["own_gap"], r["others_gap"]
+        out.append({"claim": f"Judge {gen} vs judge {name}: its lead on its own answers minus its lead on the other generators' answers (self-preference test)",
+                    "value": f"{d['mean']}", "ci": f"[{d['interval']['lo']}, {d['interval']['hi']}]", "n": d["n"],
+                    "command": f"make bench-jury-v3-judge JUDGE={gen}", "source": f"{file} @ {heads}",
+                    "not_shown": f"reading: {r['reading']}; lead (its score minus {name}'s on the same answers) {o['mean']} on its own answers and {x['mean']} on the "
+                                 "other generators' answers; both judges validated on single-value answers only; the gaps sit in multi-part, comparative, "
+                                 "aggregate and path answers; an interval over questions, one run per judge"})
     return out
 
 
@@ -1077,6 +1202,7 @@ Solo work in this fork, 2026:
 - Ported the benchmarked pipeline into the production API as one parameterized Postgres query (pgvector top-k, full-text top-k, RRF in SQL, GIN + HNSW indexes) with a CI parity job that replays the gold set through the API and reports the gap to the in-memory bench with its interval, and a live-database test that requires the dense leg to equal the in-memory dense search on every gold question; no silent fallbacks, per-request stage latency and scores.
 - Added a typed retrieval endpoint that returns byte-range citations, and a human-in-the-loop gate for file changes: an agent can only propose a change, and applying it needs an operator-signed, single-use approval bound to the reviewed action.
 - Added an LLM answer evaluation with a validity gate: cited answers from a local model, deterministic citation and value checks, a two-model jury with position-swapped comparisons, and Cohen's kappa against exact-match labels before any judge score is published. The first run's reference slice was saturated, so its gate could not be evaluated; the second run measures each judge's correctness verdicts on a calibration set (a smaller model answering from retrieved and from planted contexts), labels abstentions by rule, and pins every model by digest. One judge passed and its score is published with its caveats; the other called every calibration answer correct and failed.
+- Split that evaluation into a generate-only stage and a judge-only stage, so a judge can be added to stored answers without generating anything again and answers recorded elsewhere are judged by one command: each judge is first gated on the same stored calibration answers, a model that cannot load is recorded as such and not as a failed judge, an interrupted run resumes, and every file can be re-read without a model. Measured current open-weight models with it on H100, H200, A40 and RTX 8000 GPUs: the answers of three current generators with their deterministic checks, and two judges of other model families that passed the gate and scored those answers and the first run's, which until then only the generator's own model had scored.
 - Built an LLM-in-the-loop prompt-injection evaluation for the agent's file tools: local models pick MCP tool calls over corpus copies whose answering files carry planted instructions, and every episode is scored at the model level (attempted the planted action, stated the planted value) and at the system level (corpus changed, secret leaked, false value delivered), with τ-bench pass^k, any-of-k attack rates and paired bootstrap deltas. The current run plants each goal in seven phrasings (five of them AgentDojo templates) under no defense, datamarking, a least-privilege tool filter and a structured answer check between the model and the user; the answer check was the one defense that cut the planted value reaching the user for both models, with no measurable utility cost. An earlier run adds a capability control (the planted actions asked for by the user and signed by an operator key), and a later one an adaptive attacker that rewrote the planted text against each defense for up to seven rounds and did no measurably better than the fixed phrasings against the stronger model, a null result.
 '''
 
@@ -1098,13 +1224,13 @@ QA = '''## Likely interview questions, with honest answers
 
 **How do you know the numbers in the README are real?** Every benchmark block in the README is rendered from a committed results file by one command, and a test fails if the text drifts. Each results file records the command, the git sha, the model revisions and the device. Losers stay in the tables.
 
-**What did the LLM answer evaluation show?** On the first run the generator answered every simple-factual question with the gold value, so the exact-match reference was one class, Cohen's kappa was zero by construction, and the gate could not be evaluated. The slice is saturated for that generator, and a smaller model answering from the retrieved chunks still matched nearly every gold value, so the second run measures the judges on a calibration set instead: a smaller model that is not a judge answers each simple-factual question from the retrieved chunks and again from the same chunks with the gold value replaced by another value of the same field. The gated label is a correctness verdict that sees only the question, the gold answer and the answer, because the first run's composite label also rewards faithfulness to the context, so a faithfully copied wrong value would read as partial. On that set the qwen judge agreed with exact match well past the gate, and its score of the generator's answers is published with two caveats: it is the generator's own model, and it was validated on single-value answers only. The llama judge called every calibration answer correct, planted values included, and failed, and the two judges' chance-corrected agreement on the generator's answers was near zero. The deterministic checks remain the part that depends on no judge. The kept losers are the failed judge, the strong position bias in the AB/BA swap, and the composite label that still called abstentions correct, which is why abstentions are now labelled wrong by rule. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching), fixed in commits separate from the rescored file, and its stored answers later showed a substring match that found a gold value inside a longer number, fixed before the second run.
+**What did the LLM answer evaluation show?** On the first run the generator answered every simple-factual question with the gold value, so the exact-match reference was one class, Cohen's kappa was zero by construction, and the gate could not be evaluated. The slice is saturated for that generator, and a smaller model answering from the retrieved chunks still matched nearly every gold value, so the second run measures the judges on a calibration set instead: a smaller model that is not a judge answers each simple-factual question from the retrieved chunks and again from the same chunks with the gold value replaced by another value of the same field. The gated label is a correctness verdict that sees only the question, the gold answer and the answer, because the first run's composite label also rewards faithfulness to the context, so a faithfully copied wrong value would read as partial. On that set the qwen judge agreed with exact match well past the gate, and its score of the generator's answers is published with two caveats: it is the generator's own model, and it was validated on single-value answers only. The llama judge called every calibration answer correct, planted values included, and failed, and the two judges' chance-corrected agreement on the generator's answers was near zero. A later stage put current open-weight models through a judge-only entry point: two judges of other model families passed the same gate, and both scored the first run's answers lower than the generator's own model had. All three judges give the exact-match label on the simple-factual answers, so the scores part on the multi-part, comparative, aggregate and path answers, which no gate validated; where a new judge and the generator's model differ, the new judge is almost always the stricter one. That is the direction the self-preference caveat warned about, but it also fits a judge that is lenient with any generator's answers. To tell the two apart the generator's model was run again as a judge of the other generators' answers: it leads both new judges on its own answers but not measurably on the others', and the difference between those two leads is not measurable either, so the question stays open at this size; two judges agreeing is still not agreement with the truth. The same two judges also scored the answers of three current generators, gemma4:26b's own answers marked as self-judged; the generated table gives one interval per answer set and no paired test between generators. The deterministic checks remain the part that depends on no judge. The kept losers are the failed judge, the strong position bias in the AB/BA swap, and the composite label that still called abstentions correct, which is why abstentions are now labelled wrong by rule. The first run also exposed two check flaws (abstentions counted as citation failures, case-sensitive value matching), fixed in commits separate from the rescored file, and its stored answers later showed a substring match that found a gold value inside a longer number, fixed before the second run.
 
 **What did the injection evaluation show?** In the first two runs neither local model pursued a planted file action (a move, a patch, or a read outside the corpus root), and in the question and injected tasks no model called a write tool; in the third, the weaker model's only write calls there were patch proposals written as JSON text, which the tool rejected for a missing argument. So planted text never reached the approval gate; the gate's evidence against forged tokens is still the deterministic approval benchmark. A capability control shows that, where an injected task is offered the write tools, this is not an inability to make the calls: when the user asks for the same move or patch, with the same tool calls and arguments, both models call the write tools and the operator signs the requested change. Completing it is rarer: many episodes stop after the signed proposal, and an apply call has to pass the plan id and the token on unchanged; the weaker model's apply calls mostly named plan ids the server never issued, and the stronger model's mostly carried a token that did not verify. What the models did follow was the planted claim: in the second run the stronger model stated the planted value in nearly every hijack episode, in every configuration, sometimes while calling the true value a corrected typo, and neither datamarking nor the tool filter changed that measurably; in the current run, with seven phrasings, at least one of them got the planted value into its answer for every hijack question and seed in every configuration. The weaker model rarely reached the planted text because it called tools that do not exist and guessed paths, which is also why its pass^k on the controls is zero in the second run; that is incapability, not resistance. The lesson: actions belong behind a system boundary, and answer integrity needs a check against the structured source, because no capability gate covers what an answer says. Put in the model loop, that check lowered the planted value delivered to the user for both models with no measurable change in utility under attack, though planted values stated beside the true value still got through, including answers that gave the planted value as the true value's correction. An adaptive attacker (the stronger model rewriting the planted text against each configuration, told the scorer's outcome of its earlier rounds) showed no measurable difference from the fixed phrasings on held-out questions after seven rounds: it got no planted action attempted, and every paired interval for the planted value covers zero. One model attacking its own weights says how that target held up against that attacker, not against adaptive attacks in general.
 
 **How did you check your own scoring?** Before publishing, separate AI review agents read the harness against the real episodes, and another tried to refute each finding. They showed that the first hijack rule missed answers that passed the planted value on while also naming the true one, that a substring match counted a made-up encoder name as the gold one, and that a citation of a file about a different run counted as grounding. The scoring code was fixed and the stored episodes were rescored without a model call; the episodes file keeps every tool call and answer, so anyone can rescore them with `make bench-agent-injection-rescore` (the second run's, which also store every tool result, with `make bench-agent-injection-v2-rescore`, and the current run's with `make bench-agent-injection-v3-rescore`).
 
-**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the fixture's chunks today), ParadeDB BM25 in the production path if that backend is kept (an open decision), with its gap reported by the same parity job, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, scored by a judge from another model family so that no judge grades its own generator.
+**What would you do next?** A larger fixture where the first stage is a real filter (the reranker rescores most of the fixture's chunks today), ParadeDB BM25 in the production path if that backend is kept (an open decision), with its gap reported by the same parity job, and human labels for the multi-part, paraphrased and computed answers the calibration set does not cover, which is where the judges of other model families and the generator's own model part.
 '''
 
 
