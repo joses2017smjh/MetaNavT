@@ -1533,9 +1533,27 @@ files, where that score sits against each such judge's interval, whether every
 judge gives the exact-match label on the simple-factual answers (where they
 agree, the scores part only on answers no gate validated), and which way the
 disagreements go. A one-way direction fits self-preference and also fits a judge
-that is lenient with any generator's answers; only the generator's model judging
-other generators' answers of those kinds would tell the two apart, and the block
-says whether such a file exists.
+that is lenient with any generator's answers. To tell the two apart, the
+generator's own model (qwen2.5:7b, on the server and weights of its committed
+verdicts) is run as one more judge file: gated again on the same calibration
+answers, then judging its own answers and the other generators'. For each judge
+of another model that passed the gate, its lead is its score minus that judge's
+on the same answers; per gold question, the lead on its own answer minus the mean
+lead on the other generators' answers to that question gives a difference with a
+bootstrap interval over questions. The reading was fixed before that run: a
+difference above zero is self-preference; a difference that covers zero while it
+also leads on the other generators' answers is leniency; a difference that covers
+zero otherwise means the intervals cannot tell; a difference below zero is no
+self-preference. The README block under the committed score states which, from
+the files (`app/eval/judge_stored.py` `self_preference`).
+
+Two choices of models. The brief named the 31B Gemma model as the backup judge; the
+model store holds gemma4:26b and gemma4:12b, the tags the download job pulled,
+and with the project's disk over its quota no other model was downloaded, so
+gemma4:26b is the second judge. qwen3.5:122b was not run with its default
+reasoning on every question: on the first questions its reasoning filled the
+context and the reply came back empty (the limited file of the first questions
+records it), so its full run sends `think: false`.
 
 `make bench-judge-stored ANSWERS=<file> JUDGE=<model>` is the same entry point
 as one command for answers recorded elsewhere: it gates the named judge on the
@@ -2647,7 +2665,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 Open items, in priority order (the second is done and keeps its place):
 
-1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers. Judges of other model families have since passed it and score the first run's answers lower than the generator's own model, and the scores part on the multi-part, comparative, aggregate and path answers ([generated](../README.md#bench-jury)). Those answers need human labels or a fixture v2 slice (v1 stays frozen), and the generator's model judging other generators' answers would show whether it is lenient in general or favours its own.
+1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers. Judges of other model families have since passed it and score the first run's answers lower than the generator's own model, and the scores part on the multi-part, comparative, aggregate and path answers ([generated](../README.md#bench-jury)). Those answers need human labels or a fixture v2 slice (v1 stays frozen). The generator's model has since judged the other generators' answers too; whether it favours its own or is lenient in general stays open at this size ([generated](../README.md#bench-jury)), and more questions of those kinds would narrow it.
 2. **Per-slice changed-query counts: done.** Every per-category delta of a ladder row records how many of the slice's questions rose and fell (`questions_changed`), and the generated tables print it next to the interval.
 3. **ParadeDB BM25 in the production path**, if that backend is kept (an open decision): no test or results file has run its statement yet. A parity run with it would report its gap next to the `ts_rank_cd` row; the parity job reports that gap with its interval and fails only on a broken API or a fixture that differs from its MANIFEST.
 4. **Injection evaluation, next steps:** larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner. The attacker that rewrites the planted text against each defense is built: in the fourth run, whose only target is the stronger model, no comparison with the fixed phrasings showed a difference after seven rounds ([generated table](../README.md#agent-injection-adaptive)).

@@ -33,7 +33,7 @@ JURY_FILE = "bench/results/jury_v2.json"  # M29; bench/results/jury.json is the 
 # fails (qwen3.5:122b's reasoning at the server's default does not end inside the context) and never judged.
 JURY_V3_ANSWERS = (("gemma4:26b", "default", None), ("qwen3.5:27b", "default", None), ("qwen3.5:27b", "off", None),
                    ("qwen3.5:122b", "default", 8), ("qwen3.5:122b", "off", None))
-JURY_V3_JUDGES = ("gpt-oss:120b", "gemma4:26b")
+JURY_V3_JUDGES = ("gpt-oss:120b", "gemma4:26b", "qwen2.5:7b")  # the last: the committed judge on the other generators' answers
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the second run: capability control, controls with neutral lines
 AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # the current run: phrasings scored as any-success, the in-loop answer check
@@ -1066,6 +1066,56 @@ def _independent_judges_note(blob: dict, later_judges: dict[str, dict | None] | 
     return text
 
 
+_READING = {
+    "self-preference": "its lead is larger on its own answers: self-preference",
+    "leniency": "it leads by a similar amount on the other generators' answers, and the intervals show no larger lead on its own: leniency, not self-preference",
+    "cannot tell": "the intervals cannot tell self-preference from leniency",
+    "no self-preference": "its lead is smaller on its own answers: no self-preference",
+}
+
+
+def _self_preference_note(blob: dict, later_judges: dict[str, dict | None] | None) -> str | None:
+    """M42: what a later file of the generator's own model, judging the other generators' answers too, shows about the
+    committed self-judged score (app/eval/judge_stored.self_preference), and whether that run reproduces the verdicts
+    stored for its own answers. None without such a file."""
+    from app.eval.judge_stored import self_preference
+
+    gen = blob["models"]["generator"]["model"]
+    mine = (later_judges or {}).get(gen)
+    if not mine or mine.get("status") != "complete":
+        return None
+    file = jury_v3_judge_file(gen)
+    g = mine.get("gate") or {}
+    if not g.get("passes"):
+        return (f"{gen} was also run as a judge of the other generators' answers ([{file}]({file})), but it did not pass the gate in that "
+                f"run (kappa {g.get('kappa')}), so that run does not tell self-preference from leniency.")
+    sp = self_preference(mine, [b for m, b in (later_judges or {}).items() if m != gen and b])
+    if not sp:
+        return None
+    own_set = next((s for s in mine["answer_sets"] if s["file"] == JURY_FILE and s.get("summary")), None)
+    stored = ((own_set or {}).get("summary") or {}).get("agreement_with_stored_judges", {}).get(gen)
+    text = (f"Self-preference or leniency? {gen} was then run as a judge of the other generators' answers as well "
+            f"([{file}]({file}); kappa {g['kappa']} [{g['interval']['lo']}, {g['interval']['hi']}] on the same calibration answers in that run"
+            + (f"; on its own answers it repeated its stored verdict on {stored['agree']} of {stored['n']} (kappa {stored['kappa']})" if stored else "")
+            + "). Its lead over a judge of another model is its score minus that judge's on the same answers.")
+    for name, r_ in sp["by_independent_judge"].items():
+        o, x, d = r_["own_gap"], r_["others_gap"], r_["difference"]
+        own_above = o["interval"]["lo"] > 0
+        others_unmeasured = x["interval"]["lo"] <= 0 <= x["interval"]["hi"]
+        reading = (f"its lead is above zero on its own answers and not measurable on the other generators', but the difference between the two is "
+                   f"not measurable either, so {_READING['cannot tell'].replace('the intervals', 'the intervals still')}"
+                   if r_["reading"] == "cannot tell" and own_above and others_unmeasured else _READING[r_["reading"]])
+        text += (f" Against {name}: {o['mean']} [{o['interval']['lo']}, {o['interval']['hi']}] on its own answers, {x['mean']} "
+                 f"[{x['interval']['lo']}, {x['interval']['hi']}] on the other generators' answers, a difference of {d['mean']} "
+                 f"[{d['interval']['lo']}, {d['interval']['hi']}] over {d['n']} questions"
+                 + (" (the interval reaches zero)" if d["interval"]["lo"] == 0 < d["interval"]["hi"] else "") + f": {reading}"
+                 + (", and it is also more lenient than that judge with the other generators' answers" if r_["also_lenient_with_others"] else "") + ".")
+    readings = {r_["reading"] for r_ in sp["by_independent_judge"].values()}
+    if len(readings) > 1:
+        text += " The two judges of other models do not give the same reading."
+    return text + " Intervals are bootstrap intervals over questions."
+
+
 def jury_v2_table(blob: dict, later_judges: dict[str, dict | None] | None = None) -> str:
     """M29: the gate reads each judge's correctness verdict against exact match on a calibration set; judge scores of
     the run's answers only for a judge that passed. A file without a calibration set (`make bench-jury` since M29)
@@ -1183,6 +1233,8 @@ def jury_v2_table(blob: dict, later_judges: dict[str, dict | None] | None = None
         lines += [x for note in map(_later_judge_note, (later_judges or {}).values()) if note for x in ("", note)]
         independent = _independent_judges_note(blob, later_judges)
         lines += ["", independent] if independent else []
+        preference = _self_preference_note(blob, later_judges)
+        lines += ["", preference] if preference else []
         lines += ["", f"Verdict: {s['verdict']}."]
     else:
         lines += ["", f"Verdict: {s['verdict']}. Mean judge scores are in the results file but are not printed here."]

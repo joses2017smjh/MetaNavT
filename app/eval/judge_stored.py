@@ -501,6 +501,84 @@ def summarize(blob: dict) -> dict:
     return blob
 
 
+# ---- self-preference or leniency (M42): a judge on its own generator's answers and on other generators' --------
+
+SELF_PREFERENCE_METHOD = (
+    "for each independent judge I that passed its gate: per answer judged by both (verdicts by the judge in both files; "
+    "rule-labelled and failed rows left out), gap = score of the judge under test - score of I (correct 1, partial 0.5, "
+    "wrong 0); own = the answer set the judge's own weights generated, others = every other answer set it judged, pooled; "
+    "per gold question, own_q = the gap on its own answer and other_q = the mean gap over the other sets' answers, and "
+    "d_q = own_q - other_q where a question has both; means with percentile bootstrap 95% intervals over questions. "
+    "Reading: d above 0 = self-preference; d covering 0 with the others' gap above 0 = leniency; d covering 0 otherwise = "
+    "the intervals cannot tell; d below 0 = no self-preference")
+
+
+def _gap_stats(values: Sequence[float]) -> dict[str, Any]:
+    if not values:
+        return {"mean": None, "interval": None, "n": 0}
+    mean, lo, hi = mean_ci(values, resample_indices(len(values), DEFAULT_N_BOOT, DEFAULT_SEED))
+    # + 0.0: a bound below zero by less than the rounding prints as 0.0, not -0.0 (it still does not lie above zero)
+    return {"mean": round(mean, 4) + 0.0, "interval": {"lo": round(lo, 4) + 0.0, "hi": round(hi, 4) + 0.0}, "n": len(values)}
+
+
+def _judged_scores(answer_set: dict) -> dict[str, float]:
+    """Row id -> score of the rows a judge itself labelled (not by rule, not failed)."""
+    return {r["id"]: label_to_score(r["correctness"]["label"]) for r in answer_set.get("rows") or []
+            if not r.get("failed") and (r.get("correctness") or {}).get("by") == "judge"}
+
+
+def self_preference(judge_file: dict, independent: Sequence[dict]) -> dict[str, Any] | None:
+    """Does the judge of `judge_file` favour the answers its own weights generated, or is it lenient with any
+    generator's? Compared, per independent judge file that passed its gate, on the answers both judged
+    (SELF_PREFERENCE_METHOD). None when the judge file has no complete answer set of its own generator or none of
+    another generator. The judge's own gate is part of the result: a judge that failed it in this file answers nothing."""
+    me = (judge_file.get("judge") or {}).get("model")
+    sets = [s for s in judge_file.get("answer_sets") or [] if s.get("summary")]
+    own = [s for s in sets if s["summary"].get("self_judged")]
+    others = [s for s in sets if not s["summary"].get("self_judged") and (s.get("generator") or {}).get("model")]
+    if not own or not others:
+        return None
+    gate = judge_file.get("gate") or {}
+    out: dict[str, Any] = {"judge": me, "gate_passes": bool(gate.get("passes")), "own_files": [s["file"] for s in own],
+                           "other_files": [s["file"] for s in others], "method": SELF_PREFERENCE_METHOD, "by_independent_judge": {}}
+    for ref in independent:
+        if not ref or ref.get("status") != "complete" or not (ref.get("gate") or {}).get("passes"):
+            continue
+        name = ref["judge"]["model"]
+        if name == me:
+            continue
+        theirs = {s["file"]: _judged_scores(s) for s in ref.get("answer_sets") or []}
+
+        def gaps(sets_: Sequence[dict]) -> dict[str, list[float]]:
+            per_q: dict[str, list[float]] = {}
+            for s in sets_:
+                mine, ref_scores = _judged_scores(s), theirs.get(s["file"]) or {}
+                for qid in mine.keys() & ref_scores.keys():
+                    per_q.setdefault(qid, []).append(mine[qid] - ref_scores[qid])
+            return per_q
+
+        own_q = {q: sum(v) / len(v) for q, v in gaps(own).items()}
+        other_q = {q: sum(v) / len(v) for q, v in gaps(others).items()}
+        if not own_q or not other_q:
+            continue
+        both = sorted(own_q.keys() & other_q.keys())
+        own_gap, other_gap = _gap_stats([own_q[q] for q in sorted(own_q)]), _gap_stats([other_q[q] for q in sorted(other_q)])
+        d = _gap_stats([own_q[q] - other_q[q] for q in both])
+        lo, hi = (d["interval"] or {}).get("lo"), (d["interval"] or {}).get("hi")
+        others_above = (other_gap["interval"] or {}).get("lo", 0) > 0
+        if d["n"] and lo > 0:
+            reading = "self-preference"
+        elif d["n"] and hi < 0:
+            reading = "no self-preference"
+        elif others_above:
+            reading = "leniency"
+        else:
+            reading = "cannot tell"
+        out["by_independent_judge"][name] = {"own_gap": own_gap, "others_gap": other_gap, "difference": d, "reading": reading,
+                                             "also_lenient_with_others": reading == "self-preference" and others_above}
+    return out if out["by_independent_judge"] else None
+
+
 # ---- the run -----------------------------------------------------------------------------------------------------
 
 def _protocol() -> dict[str, Any]:

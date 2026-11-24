@@ -626,3 +626,113 @@ def test_the_evidence_rows_follow_the_gate(jury_v3_files):
     assert "the answers of qwen2.5:7b in jury_v2.json" in scores[0]["claim"] and "same verdict as qwen2.5:7b" in scores[0]["not_shown"]
     assert all("not a paired test against another generator or judge" in r["not_shown"] for r in scores)
     assert scores[1]["n"] == 5 and scores[1]["ci"].startswith("[") and "another model than the generator" in scores[1]["not_shown"]
+
+
+# ---- self-preference or leniency: the generator's own model judging the other generators' answers too ----------
+
+def _sp_file(judge: str, sets: dict[str, tuple[str, dict[str, str]]], passes: bool = True) -> dict:
+    """A minimal judge file: `sets` maps answers file -> (generator, {question id: label}); every label by the judge."""
+    return {"judge": {"model": judge}, "status": "complete", "gate": {"passes": passes, "kappa": 0.9 if passes else 0.1, "interval": {"lo": 0.8, "hi": 1.0}},
+            "answer_sets": [{"file": f, "generator": {"model": gen},
+                             "rows": [{"id": q, "correctness": {"label": lab, "by": "judge"}} for q, lab in labels.items()],
+                             "summary": {"self_judged": gen == judge}} for f, (gen, labels) in sets.items()]}
+
+
+def test_self_preference_reads_the_gap_on_its_own_answers_against_the_gap_on_others():
+    qs = [f"q{i:03d}" for i in range(1, 41)]
+    strict = {q: "wrong" for q in qs}
+    lenient = {q: "correct" for q in qs}
+    ref = _sp_file("ref:120b", {"own.json": ("me:7b", strict), "a.json": ("a:27b", strict), "b.json": ("b:122b", strict)})
+    # lenient on its own answers only: self-preference
+    sp = judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", lenient), "a.json": ("a:27b", strict), "b.json": ("b:122b", strict)}), [ref])
+    r = sp["by_independent_judge"]["ref:120b"]
+    assert sp["own_files"] == ["own.json"] and sp["other_files"] == ["a.json", "b.json"] and sp["gate_passes"]
+    assert (r["own_gap"]["mean"], r["others_gap"]["mean"], r["difference"]["mean"], r["difference"]["n"]) == (1.0, 0.0, 1.0, 40)
+    assert r["reading"] == "self-preference" and not r["also_lenient_with_others"]
+    # lenient with everyone's answers alike: leniency
+    r = judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", lenient), "a.json": ("a:27b", lenient), "b.json": ("b:122b", lenient)}), [ref])["by_independent_judge"]["ref:120b"]
+    assert (r["own_gap"]["mean"], r["others_gap"]["mean"], r["difference"]["mean"], r["reading"]) == (1.0, 1.0, 0.0, "leniency")
+    # no difference anywhere: the intervals cannot tell
+    r = judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", strict), "a.json": ("a:27b", strict)}), [ref])["by_independent_judge"]["ref:120b"]
+    assert r["reading"] == "cannot tell" and r["difference"]["interval"] == {"lo": 0.0, "hi": 0.0}
+    # stricter on its own answers than the reference is: no self-preference
+    r = judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", strict), "a.json": ("a:27b", lenient)}), [ref])["by_independent_judge"]["ref:120b"]
+    assert r["reading"] == "no self-preference" and r["difference"]["mean"] == -1.0
+    # half the questions lenient on its own answers, lenient on every other answer: also lenient with others
+    half = {q: ("correct" if i % 2 else "wrong") for i, q in enumerate(qs)}
+    r = judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", lenient), "a.json": ("a:27b", half)}), [ref])["by_independent_judge"]["ref:120b"]
+    assert r["reading"] == "self-preference" and r["also_lenient_with_others"]
+    # a lead above zero on its own answers, none measurable on the others', and a difference that covers zero
+    own_some = {q: ("correct" if i < 4 else "wrong") for i, q in enumerate(qs)}
+    mixed_me = {q: ("correct" if 4 <= i < 8 else "wrong") for i, q in enumerate(qs)}
+    mixed_ref = {q: ("correct" if 8 <= i < 12 else "wrong") for i, q in enumerate(qs)}
+    me = _sp_file("me:7b", {"own.json": ("me:7b", own_some), "a.json": ("a:27b", mixed_me)})
+    ref_mixed = _sp_file("ref:120b", {"own.json": ("me:7b", strict), "a.json": ("a:27b", mixed_ref)})
+    r = judge_stored.self_preference(me, [ref_mixed])["by_independent_judge"]["ref:120b"]
+    assert r["own_gap"]["interval"]["lo"] > 0 and r["others_gap"]["interval"]["lo"] < 0 < r["others_gap"]["interval"]["hi"]
+    assert r["difference"]["interval"]["lo"] < 0 < r["difference"]["interval"]["hi"] and r["reading"] == "cannot tell"
+    # a reference judge that failed its gate, or one with the same model, is no yardstick; without other sets, no result
+    failed_ref = _sp_file("bad:8b", {"own.json": ("me:7b", strict), "a.json": ("a:27b", strict)}, passes=False)
+    assert judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", lenient), "a.json": ("a:27b", strict)}), [failed_ref]) is None
+    assert judge_stored.self_preference(_sp_file("me:7b", {"own.json": ("me:7b", lenient)}), [ref]) is None
+    # rule-labelled rows are not the judge's verdicts and stay out
+    me = _sp_file("me:7b", {"own.json": ("me:7b", lenient), "a.json": ("a:27b", strict)})
+    me["answer_sets"][0]["rows"][0]["correctness"]["by"] = "rule"
+    assert judge_stored.self_preference(me, [ref])["by_independent_judge"]["ref:120b"]["own_gap"]["n"] == 39
+
+
+def test_the_committed_judge_on_other_generators_answers_is_read_under_the_committed_score(jury_v3_files):
+    """With a later file of the generator's own model that judged the other generators' answers too, the README states
+    what it shows, whichever way it comes out, and the evidence page has the difference with its interval."""
+    from app.eval import evidence, report
+
+    root, _, judges = jury_v3_files
+    committed = json.loads(JURY_V2.read_text())
+    assert "Self-preference or leniency?" not in report.jury_table(committed, judges)  # no file of qwen2.5:7b yet
+    same = json.loads(json.dumps(judges["judge:120b"]))  # qwen2.5:7b giving judge:120b's verdicts: no gap anywhere
+    same["judge"]["model"] = "qwen2.5:7b"
+    for s in same["answer_sets"]:
+        s["summary"]["self_judged"] = (s.get("generator") or {}).get("model") == "qwen2.5:7b"
+    text = report.jury_table(committed, {**judges, "qwen2.5:7b": same})
+    note = next(x for x in text.split("\n\n") if x.startswith("Self-preference or leniency?"))
+    sp = judge_stored.self_preference(same, [judges["judge:120b"]])
+    r = sp["by_independent_judge"]["judge:120b"]
+    assert r["reading"] == "cannot tell" and r["difference"]["mean"] == 0.0
+    assert "Against judge:120b: 0.0 [0.0, 0.0] on its own answers, 0.0 [0.0, 0.0] on the other generators' answers" in note
+    assert "the intervals cannot tell self-preference from leniency." in note and "has not judged" not in text
+    assert "on its own answers it repeated its stored verdict on" in note and "gen:27b" not in note  # a judge that failed its gate is no yardstick
+    lenient_own, strict_ref = json.loads(json.dumps(same)), json.loads(json.dumps(judges["judge:120b"]))
+    for blob, label in ((lenient_own, "correct"), (strict_ref, "wrong")):  # the two judges part on its own answers only
+        for row in blob["answer_sets"][0]["rows"]:
+            if (row.get("correctness") or {}).get("by") == "judge":
+                row["correctness"]["label"] = label
+    note = next(x for x in report.jury_table(committed, {**judges, "judge:120b": strict_ref, "qwen2.5:7b": lenient_own}).split("\n\n")
+                if x.startswith("Self-preference or leniency?"))
+    assert "its lead is larger on its own answers: self-preference." in note
+    failed = {**same, "gate": {**same["gate"], "passes": False, "kappa": 0.1}}
+    assert "did not pass the gate in that run (kappa 0.1), so that run does not tell self-preference from leniency." in report.jury_table(committed, {**judges, "qwen2.5:7b": failed})
+    # the evidence row: written once the file is on disk under its name
+    (root / "bench" / "results" / "jury_v2.json").write_text(JURY_V2.read_text())
+    assert evidence._self_preference_claims(root) == []  # no file of qwen2.5:7b on disk
+    (root / report.jury_v3_judge_file("qwen2.5:7b")).write_text(json.dumps(lenient_own))
+    (root / report.jury_v3_judge_file("judge:120b")).write_text(json.dumps(strict_ref))
+    rows = evidence._self_preference_claims(root)
+    assert [r_["claim"].split(":")[0] for r_ in rows] == ["Judge qwen2.5"] and "reading: self-preference" in rows[0]["not_shown"]
+    assert rows[0]["command"] == "make bench-jury-v3-judge JUDGE=qwen2.5:7b" and rows[0]["ci"].startswith("[")
+
+
+def test_the_note_says_when_the_lead_is_above_zero_on_its_own_answers_only():
+    from app.eval import report
+
+    committed = json.loads(JURY_V2.read_text())
+    qs = [f"q{i:03d}" for i in range(1, 41)]
+    own_some = {q: ("correct" if i < 4 else "wrong") for i, q in enumerate(qs)}
+    mixed_me = {q: ("correct" if 4 <= i < 8 else "wrong") for i, q in enumerate(qs)}
+    mixed_ref = {q: ("correct" if 8 <= i < 12 else "wrong") for i, q in enumerate(qs)}
+    me = _sp_file("qwen2.5:7b", {report.JURY_FILE: ("qwen2.5:7b", own_some), "a.json": ("a:27b", mixed_me)})
+    ref = _sp_file("ref:120b", {report.JURY_FILE: ("qwen2.5:7b", {q: "wrong" for q in qs}), "a.json": ("a:27b", mixed_ref)})
+    note = report._self_preference_note(committed, {"ref:120b": ref, "qwen2.5:7b": me})
+    assert note.startswith("Self-preference or leniency? qwen2.5:7b was then run as a judge of the other generators' answers as well")
+    assert ("its lead is above zero on its own answers and not measurable on the other generators', but the difference between the two is not "
+            "measurable either, so the intervals still cannot tell self-preference from leniency.") in note
+    assert report._self_preference_note(committed, {"ref:120b": ref}) is None  # no file of the generator's own model
