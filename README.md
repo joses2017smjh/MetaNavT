@@ -705,7 +705,7 @@ Judges: the gate. Cohen's kappa between a judge's correctness verdicts and the e
 |---|---|---|---:|---|---:|:---:|---|---|
 | qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.9509 | [0.9036, 0.9876] | 160 | yes | 80 / 3 / 77 | 0 / 0 / — of 160 |
 | llama3.1:8b (8.0B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 | Tesla V100-SXM3-32GB | 0.0 | [0.0, 0.0] | 160 | no | 160 / 0 / 0 | 0 / 0 / — of 160 |
-| gpt-oss:120b (116.8B, MXFP4) | [bench/results/jury_v3_judge_gpt-oss-120b.json](bench/results/jury_v3_judge_gpt-oss-120b.json) @ e7a3247, f6d27c1 | NVIDIA H100 80GB HBM3 | 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |
+| gpt-oss:120b (116.8B, MXFP4) | [bench/results/jury_v3_judge_gpt-oss-120b.json](bench/results/jury_v3_judge_gpt-oss-120b.json) @ e7a3247, f6d27c1, ff4fd6c | NVIDIA H100 80GB HBM3 | 1.0 | [1.0, 1.0] | 160 | yes | 79 / 0 / 81 | 0 / 0 / 0 of 160 |
 | gemma4:26b (25.2B, Q4_K_M) | [bench/results/jury_v3_judge_gemma4-26b.json](bench/results/jury_v3_judge_gemma4-26b.json) @ e7a3247, f6d27c1 | Quadro RTX 8000 | 0.9875 | [0.9625, 1.0] | 160 | yes | 80 / 0 / 80 | 0 / 0 / 0 of 160 |
 | qwen2.5:7b (7.6B, Q4_K_M) | [bench/results/jury_v3_judge_qwen2.5-7b.json](bench/results/jury_v3_judge_qwen2.5-7b.json) @ a213b0d | Quadro RTX 8000 | 0.9509 | [0.9036, 0.9876] | 160 | yes | 80 / 3 / 77 | 0 / 0 / 0 of 160 |
 
@@ -734,7 +734,16 @@ Each interval is over one answer set's own answers under one judge: the table do
 
 On the answers of bench/results/jury_v2.json, gpt-oss:120b and qwen2.5:7b (stored in that file) gave the same verdict on 115 of the 127 answers both were asked about (Cohen's kappa 0.5658); where they differ, gpt-oss:120b gave the lower label 12 times and qwen2.5:7b 0 times. On the answers of bench/results/jury_v2.json, gemma4:26b and qwen2.5:7b (stored in that file) gave the same verdict on 114 of the 127 answers both were asked about (Cohen's kappa 0.5294); where they differ, gemma4:26b gave the lower label 12 times and qwen2.5:7b 1 time. On the answers of bench/results/jury_v2.json, qwen2.5:7b and qwen2.5:7b (stored in that file) gave the same verdict on 126 of the 127 answers both were asked about (Cohen's kappa 0.9492); where they differ, qwen2.5:7b gave the lower label 1 time and qwen2.5:7b 0 times. Agreement between two judges is not agreement with the truth.
 
-The AB/BA pairs are not in these files for gpt-oss:120b on 4 answer sets that store an extractive answer; gemma4:26b on 4 answer sets that store an extractive answer; qwen2.5:7b on 4 answer sets that store an extractive answer: position bias is not measured there.
+Position bias, AB/BA swap (the generator's answer against the extractive answer, same judge, both orders; the mean position gap is the share of the verdict explained by order):
+
+| judge | answers of | P(LLM answer better) | mean position gap | order flips | n |
+|---|---|---:|---:|---:|---:|
+| gpt-oss:120b | gemma4:26b ([bench/results/jury_v3_answers_gemma4-26b.json](bench/results/jury_v3_answers_gemma4-26b.json)) | 0.2148 | 0.2667 | 38 / 135 | 135 |
+| gpt-oss:120b | qwen3.5:122b, reasoning off ([bench/results/jury_v3_answers_qwen3.5-122b_think-off.json](bench/results/jury_v3_answers_qwen3.5-122b_think-off.json)) | 0.1875 | 0.1838 | 26 / 136 | 136 |
+| gpt-oss:120b | qwen3.5:27b ([bench/results/jury_v3_answers_qwen3.5-27b.json](bench/results/jury_v3_answers_qwen3.5-27b.json)) | 0.1981 | 0.2407 | 33 / 135 | 135 |
+| gpt-oss:120b | qwen3.5:27b, reasoning off ([bench/results/jury_v3_answers_qwen3.5-27b_think-off.json](bench/results/jury_v3_answers_qwen3.5-27b_think-off.json)) | 0.204 | 0.2022 | 30 / 136 | 136 |
+
+The AB/BA pairs are not in these files for gemma4:26b on 4 answer sets that store an extractive answer; qwen2.5:7b on 4 answer sets that store an extractive answer: position bias is not measured there.
 
 What this shows and what it does not: the gate's reference is an exact-match label on single-value answers whose wrong class is a planted value of the same field, so a pass shows that a judge compares a single-value answer with the gold, not that it judges multi-part, paraphrased or computed answers correctly; the answer sets also hold such answers. The M4 composite label is not collected by a judge-only run. Each judge file can be re-read without a model: `make bench-jury-v3-check` recomputes every gate and summary from the stored verdicts, and `make bench-jury-v3-answers-rescore` recomputes the deterministic checks from the stored answers.
 <!-- bench-jury-v3:end -->
