@@ -503,7 +503,10 @@ def _jury_v3_claims(root: Path = ROOT) -> list[dict]:
         c, ci = blob["summary"]["checks"], blob.get("check_intervals") or {}
         cmd = f"make bench-jury-v3-answers GENERATOR={name}" + (" THINK=off" if think == "off" else "") + (f" ANSWERS_LIMIT={limit}" if limit else "")
         empty = sum(1 for r in blob["rows"] if not r["answer"].strip() and not r["generation"].get("error"))
-        src = f"{file} @ {blob['git_sha']}{dirty(blob.get('working_tree_dirty'))}"
+        rs = blob.get("rescore") or {}
+        src = (f"{file} @ {blob['git_sha']}{dirty(blob.get('working_tree_dirty'))}"
+               + (f" (answers generated at {rs['rows_git_sha']}{dirty(rs.get('rows_working_tree_dirty'))}, checks recomputed by "
+                  "`make bench-jury-v3-answers-rescore`)" if rs else ""))
         reasoning = ("reasoning turned off (`think: false` with every generation call)" if think == "off" else
                      "the model reasons before it replies and only the reply is scored")
         one_run = (f"one run on {(blob.get('device') or {}).get('device_name')}, Ollama {(blob.get('ollama') or {}).get('version')}; {reasoning}"

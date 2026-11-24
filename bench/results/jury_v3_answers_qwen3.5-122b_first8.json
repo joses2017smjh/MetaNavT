@@ -1,6 +1,6 @@
 {
-  "git_sha": "d404575",
-  "git_head": "d40457518eccdafb80e84d66aef461a192404343",
+  "git_sha": "17d4938",
+  "git_head": "17d49386d34ccf029276fc1f53d0b6d4ef7829ac",
   "working_tree_dirty": false,
   "source_sha256": {
     "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -26,7 +26,7 @@
     "app/eval/judge.py": "64780ec6e52b247de212fd7430bcbd84e834b1b9ed4587a639e9e3bb6a14607c",
     "app/eval/jury.py": "1aa881fa2051dfd2e945706b158854aea1a70b3b10af23c3151ea675c19b1e8d",
     "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
-    "app/eval/llm_eval.py": "88c5b9739d6c987019fafa90f1bf8b5f967a55e5601cc3e27f03e6a56e90156a",
+    "app/eval/llm_eval.py": "f39aa602f87026d418a758d3e3535af28ebd8ca62576d24e1a8bc102763edba2",
     "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
     "app/eval/per_question.py": "1c7d732f7e6954a5748e4bc6bbd2047db98aeb908a9f9f7dcebe4645510b51c8",
     "app/eval/probes.py": "f85c9fe0cd427c75551af5fcfe2639375ba7316c36331c1b437cb09be320bb41",
@@ -55,7 +55,7 @@
     "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
   },
   "timestamp": "2026-11-23T01:31:15.477031+00:00",
-  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --out bench/results/jury_v3_answers_qwen3.5-122b_first8.json --generator qwen3.5:122b --judges none --limit 8",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES= python -m app.eval.llm_eval --rescore bench/results/jury_v3_answers_qwen3.5-122b_first8.json",
   "device": {
     "requested": "auto",
     "python": "3.11.16",
@@ -153,6 +153,13 @@
     "reference": "exact_match_label, bounded (the gold may not sit inside a longer number or word)",
     "abstention_rule": "an answer that is NOT IN SOURCES and nothing else, to a question with a gold answer, is wrong by rule: no judge is asked, and the row is left out of kappa"
   },
+  "does_not_show": [
+    "whether the answers are correct beyond exact match on the simple-factual questions: no judge labelled them in this file; a judge's verdicts on them are in that judge's own file (app/eval/judge_stored.py), publishable only where that judge passed its gate",
+    "that a stated value is grounded: the value checks are case-insensitive string containment in the cited bytes and in all retrieved bytes, so a value written in another numeric format counts as missing, a value the model computed is missing by design, and a value that appears there for another reason counts as found",
+    "the model's reasoning: where the model reasoned before it replied (`ollama.request`), only the reply is stored and checked; a reply whose reasoning reached the server's context length (`ollama.generator_loaded`) is empty or cut short, and an empty one counts as uncited",
+    "variance between runs or machines: one run at temperature 0 and seed 0 on the GPU in `device`; latency also depends on how the server was started (its thread count is not recorded here), so it is not comparable across files",
+    "anything beyond fixture v1: a synthetic corpus and its gold questions, with the one retrieval configuration in `config`"
+  ],
   "latency": {
     "generate": {
       "n": 8,
@@ -690,5 +697,68 @@
       "correctness": {},
       "pairwise_llm_vs_extractive": {}
     }
-  ]
+  ],
+  "rescore": {
+    "rows_git_sha": "d404575",
+    "rows_git_head": "d40457518eccdafb80e84d66aef461a192404343",
+    "rows_working_tree_dirty": false,
+    "rows_source_sha256": {
+      "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "app/agent/__init__.py": "b0d3045af83a80e8fa46c8fde1dcc3744d8a9f244c66d7d2ea1e20e70743a998",
+      "app/agent/citation_verify.py": "7b0f8a038d3b6c9433487eba27489a90bb11cb84b1920d2a02b53a1d6ea07f34",
+      "app/agent/corrective.py": "62a3d9979c077b1e4853d59b56b0093c3c4e8657d3c0af9ef65cfc9c48f76c99",
+      "app/agent/decompose.py": "88983a4c974786c2b6b28cc675718136b838fde2d0176d36962e177a5851f77e",
+      "app/agent/deep_research.py": "79d5a92fc700f918d356c0672324ccbea04db56b1e83cb186b8c18e612d73546",
+      "app/agent/generate.py": "c26c5b1e464d1f084900d513b90e3e27d23c001b704da2a9fa15a2d81edd0015",
+      "app/agent/retrieval_loop.py": "b5af513800fa0ab9df52e49fab40930356d09767495741b0627214eb9be19f1d",
+      "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+      "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+      "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+      "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+      "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+      "app/eval/corpus.py": "2b2c52dbd98d36656ae38ccd7b7b7d49bd2e6897e252a4b76fd0928276b950fa",
+      "app/eval/frontier_llm.py": "0a293b29abb342dcec7e67442b2df3d19bf9226558429448d7e34cbb1d4a28ef",
+      "app/eval/gold.py": "3f286b1a62c2f7ba5724089c46f1891b08fec992d379ece329f0a47ce6618517",
+      "app/eval/harness.py": "9c60f37faa38144ec089aaba1776cda6e362cdb0d91f92682ab6d34ee0446498",
+      "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+      "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+      "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+      "app/eval/judge.py": "64780ec6e52b247de212fd7430bcbd84e834b1b9ed4587a639e9e3bb6a14607c",
+      "app/eval/jury.py": "1aa881fa2051dfd2e945706b158854aea1a70b3b10af23c3151ea675c19b1e8d",
+      "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+      "app/eval/llm_eval.py": "88c5b9739d6c987019fafa90f1bf8b5f967a55e5601cc3e27f03e6a56e90156a",
+      "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+      "app/eval/per_question.py": "1c7d732f7e6954a5748e4bc6bbd2047db98aeb908a9f9f7dcebe4645510b51c8",
+      "app/eval/probes.py": "f85c9fe0cd427c75551af5fcfe2639375ba7316c36331c1b437cb09be320bb41",
+      "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+      "app/eval/ragas_metrics.py": "8b3809e47d36673b7a0cf014490d6ef5105176877ee70949404622c24d380da2",
+      "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+      "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+      "app/graph/__init__.py": "65052777718d171f92bd51f5773712749c5f62983120169036aeb1ada05ac12b",
+      "app/graph/conflicts.py": "8e5053d77aabb1f5715bb9a52ccc234cfbaf48f3e0571ebd5a7b1b30df12705d",
+      "app/graph/file_graph.py": "fcfbb24a2089194d7e902a9bdf03615d1105dacfc8b62635c869507511982dd4",
+      "app/graph/graphrag.py": "8d042c623a77b0a54aac472f8adfc1c9dfb38c9976d6a297d4864d17fdbe2c8f",
+      "app/graph/hipporag.py": "56b1c37b3837270654cd2712af295ff81bd83b0b37a69e966632096cc5519e18",
+      "app/graph/staleness.py": "e05adb3f012a7d1403f5cee77837147bf136c0a854419d24c410056ce958ae53",
+      "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+      "app/retrieval/adaptive.py": "e08b5d1964ff6ad2f7b05e7d3275d22931d0f527cf61023647fc72a1dce785ac",
+      "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+      "app/retrieval/cache.py": "65fbfced92240e00b0df98c07670e3f0ce015cad86fc8604c6866089a11807f5",
+      "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+      "app/retrieval/distill.py": "0714f9ef5b4422c9f63a56e76924b3a9d3fc83e3204d1d56e6af07c6c37549de",
+      "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+      "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+      "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+      "app/retrieval/hyde.py": "e0f81e2283a3411317e692531bb6bdd49db4f40468d378ed63fec0266b62db4b",
+      "app/retrieval/rerank.py": "d01bce8812dd36006e9bf5d6d365443c372c1835f8e04385941284f4de3c7f69",
+      "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+      "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+    },
+    "rows_command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_eval --out bench/results/jury_v3_answers_qwen3.5-122b_first8.json --generator qwen3.5:122b --judges none --limit 8",
+    "rows_timestamp": "2026-11-23T01:31:15.477031+00:00",
+    "checks_git_sha": "17d4938",
+    "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES= python -m app.eval.llm_eval --rescore bench/results/jury_v3_answers_qwen3.5-122b_first8.json",
+    "timestamp": "2026-11-24T00:25:01.983464+00:00",
+    "what": "deterministic checks and summary recomputed from the stored answers and judge labels; generation, judge labels and pairwise verdicts untouched"
+  }
 }

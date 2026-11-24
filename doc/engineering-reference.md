@@ -1517,8 +1517,8 @@ the stored verdicts and the inputs' hashes with no model and no retrieval, and
 above, so the run can be re-read on a CPU. A judge file grows in segments: a
 later `--resume` run that names more answer files keeps the gate's verdicts and
 every verdict already stored, asks only about the new answers, and adds a
-`segments` entry with its commit, GPU and time. Every file also states what its
-numbers do not show (`does_not_show`): for an answers file, correctness beyond
+`segments` entry with its commit, GPU and time. Every file of the two stages
+also states what its numbers do not show (`does_not_show`): for an answers file, correctness beyond
 exact match, grounding beyond string containment, the model's reasoning,
 variance between runs and machines, and anything beyond fixture v1; for a judge
 file, judging beyond single-value answers, freedom from self-preference where a

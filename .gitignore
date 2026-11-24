@@ -71,6 +71,8 @@ bench/results/*.json
 # bench-jury-v3-judge), each holding its gate verdicts and every verdict on the stored answers
 !bench/results/jury_v3_answers_*.json
 !bench/results/jury_v3_judge_*.json
+# `make bench-judge-stored ANSWERS=<file>`'s default output beside its answers (e.g. the recorded Claude answers)
+!bench/results/*_judged_by_*.json
 !bench/results/robotics_file_lookup_2026-10-07.json
 !bench/results/robotics_file_lookup_revalidated_2026-10-07.json
 !bench/results/robotics_chunking.json

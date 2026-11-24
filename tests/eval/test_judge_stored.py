@@ -401,6 +401,34 @@ def test_the_command_gates_and_labels_through_ollama_with_the_committed_request(
     assert "Verdict: kappa >= 0.6 for big:120b" in capsys.readouterr().out
 
 
+def test_the_make_target_judges_a_stored_answers_file_in_one_command(tmp_path, fake_server):
+    """The addendum's one command, run as the owner will run it on the recorded Claude answers: `make
+    bench-judge-stored ANSWERS=<JSONL>` against an Ollama server (a fake one here) gates the judge on the stored
+    calibration answers and labels the file, in one results file that says whether its scores may be published."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+
+    if not shutil.which("make"):
+        pytest.skip("make is not installed")
+    fake_server["tags"] = [_tag("big:120b")]
+    fake_server["ps"] = [_loaded("big:120b")]
+    fake_server["reply"] = lambda body: {"response": exact_judge(body["prompt"]) if "Gold answer" in body["prompt"] or "Which is better" in body["prompt"] else '{"label": "correct"}',
+                                         "eval_count": 40}
+    out = tmp_path / "stored_answers_judged_by_big-120b.json"
+    proc = subprocess.run(["make", "-s", "bench-judge-stored", f"PYTHON={sys.executable}", "JUDGE=big:120b",
+                           "ANSWERS=tests/eval/fixtures/stored_answers.jsonl", f"JUDGED={out}"],
+                          cwd=ROOT, env=dict(os.environ), capture_output=True, text=True, timeout=600)
+    assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
+    blob = json.loads(out.read_text())
+    assert blob["status"] == "complete" and blob["judge"]["model"] == "big:120b" and blob["gate"]["passes"] and blob["gate"]["n"] == 160
+    answers = blob["answer_sets"][0]
+    assert answers["file"] == "tests/eval/fixtures/stored_answers.jsonl" and answers["summary"]["publishable"] and answers["summary"]["complete"]
+    assert blob["does_not_show"] == list(judge_stored.DOES_NOT_SHOW) and "Verdict: kappa >= 0.6 for big:120b" in proc.stdout
+    assert judge_stored.check(out) == []
+
+
 def test_a_generator_run_without_reasoning_says_so_everywhere(tmp_path, fake_server, monkeypatch):
     """`--think off` (M42: a generator whose reasoning fills the context returns empty answers): the request carries
     `think: false`, the file's generator block and request say so, and the file, the README row and the evidence rows
@@ -499,7 +527,7 @@ def test_the_readme_block_prints_every_model_and_only_the_scores_the_gate_allows
     assert text == report.jury_v3_table(None, configs, {**judges, "other:9b": None})  # no jury_v2.json under this root
     text = report.jury_v3_table(committed, configs, {**judges, "other:9b": None})
     # generators: the committed run as the parent, the new one with intervals, the one without a file named
-    assert "| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 |" in text
+    assert "| qwen2.5:7b (7.6B, Q4_K_M) (committed run) | [bench/results/jury_v2.json](bench/results/jury_v2.json) @ 3601901 (answers generated at 01b70f7) |" in text  # a rescored file names both commits
     assert "| gen:27b (first 7 questions only) | [bench/results/jury_v3_answers_gen-27b.json](bench/results/jury_v3_answers_gen-27b.json) @ " in text and "| 2 of 7 | 0 / 0 |" in text
     assert "| 1.0 [1.0, 1.0] (5) |" in text and "| gen:122b, reasoning off | no results file | not run |" in text
     assert "Answers that came back empty" not in text and "Generation calls that failed" not in text
@@ -556,6 +584,16 @@ def test_a_later_judge_of_another_model_is_named_under_the_committed_score(jury_
     later_own = {**judges, "qwen2.5:7b": {"status": "complete"}}  # a later file of the generator's own model: the open question goes
     assert "has not judged" not in report.jury_table(committed, later_own) and "What the judges of other models show:" in report.jury_table(committed, later_own)
     assert "What the judges of other models show:" not in report.jury_table(committed, {"gen:27b": judges["gen:27b"]})  # a failed judge shows nothing
+    # a judge file on disk that JURY_V3_JUDGES does not name is read too, by the model it records: a file of the
+    # generator's own model removes the "has not judged" sentence from the rendered block
+    root, _, _ = jury_v3_files
+    own = json.loads((root / report.jury_v3_judge_file("judge:120b")).read_text())
+    own["judge"]["model"] = "qwen2.5:7b"
+    (root / "bench" / "results" / "jury_v3_judge_qwen2.5-7b.json").write_text(json.dumps(own))
+    (root / "bench" / "results" / "jury_v2.json").write_text(JURY_V2.read_text())
+    assert set(report._jury_v3_judges(root)) == {"judge:120b", "gen:27b", "big:1t", "other:9b", "qwen2.5:7b"} and report._jury_v3_judges(root)["other:9b"] is None
+    rendered = report.render(json.loads((ROOT / "bench" / "results" / "main.json").read_text()), root)["bench-jury"]
+    assert "What the judges of other models show:" in rendered and "has not judged" not in rendered
 
 
 def test_the_evidence_rows_follow_the_gate(jury_v3_files):

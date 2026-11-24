@@ -1235,7 +1235,9 @@ def _answers_row(blob: dict, file: str, note: str = "") -> str:
         note = f" (first {blob['n_gold']} questions only)"
     lat = (blob.get("latency") or {}).get("generate") or {}
     loaded = (blob.get("ollama") or {}).get("generator_loaded") or {}
-    return (f"| {_model_cell(blob['models']['generator'])}{note} | [{file}]({file}) @ {_sha(blob)} | {(blob.get('device') or {}).get('device_name', '—')} | "
+    rs = blob.get("rescore") or {}  # a rescored file: the commit that generated the answers as well
+    made = f" (answers generated at {rs['rows_git_sha']}{' with uncommitted changes' if rs.get('rows_working_tree_dirty') is True else ''})" if rs else ""
+    return (f"| {_model_cell(blob['models']['generator'])}{note} | [{file}]({file}) @ {_sha(blob)}{made} | {(blob.get('device') or {}).get('device_name', '—')} | "
             f"{loaded.get('context_length', '—')} | {c['uncited_answers']['count']} of {c['uncited_answers']['n']} | {c['abstained']['count']} / {c['abstention_only']['count']} | "
             f"{_rate_ci(ci.get('cited_in_retrieved'), c['cited_in_retrieved'])} | {_rate_ci(ci.get('values_in_cited_bytes'), c['values_in_cited_bytes'])} | "
             f"{_rate_ci(ci.get('exact_match_simple_factual'), c['exact_match_simple_factual'])} | {lat.get('p50_ms', '—')} / {lat.get('p95_ms', '—')} |")
@@ -2416,6 +2418,16 @@ def _mean(block: dict | None) -> str:
     return "n/a" if not block or block.get("mean") is None else f"{block['mean']:.3f}"
 
 
+def _jury_v3_judges(root: Path | None) -> dict[str, dict | None]:
+    """The jury_v3 judge files: each judge of JURY_V3_JUDGES (None where it has no file), then any other judge file
+    present, by the judge model it records, so that no judge file on disk is left out of the blocks."""
+    out = {m: _load(root, jury_v3_judge_file(m)) for m in JURY_V3_JUDGES}
+    for path in sorted((root / "bench" / "results").glob("jury_v3_judge_*.json")) if root is not None else []:
+        blob = json.loads(path.read_text())
+        out.setdefault((blob.get("judge") or {}).get("model") or path.stem, blob)
+    return out
+
+
 def _load(root: Path | None, rel: str) -> dict | None:
     if root is None:
         return None
@@ -2751,9 +2763,8 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-pgvector-hnsw": pgvector_hnsw_table(_load(root, PGVECTOR_HNSW_FILE)),
         "bench-parity": parity_table(_load(root, PARITY_FILE), _load(root, PARITY_NEURAL_FILE)),
         "api-latency": latency_table(root),
-        "bench-jury": jury_table(_load(root, JURY_FILE), {m: _load(root, jury_v3_judge_file(m)) for m in JURY_V3_JUDGES}),
-        "bench-jury-v3": jury_v3_table(_load(root, JURY_FILE), {c: _load(root, jury_v3_answers_file(*c)) for c in JURY_V3_ANSWERS},
-                                       {m: _load(root, jury_v3_judge_file(m)) for m in JURY_V3_JUDGES}),
+        "bench-jury": jury_table(_load(root, JURY_FILE), _jury_v3_judges(root)),
+        "bench-jury-v3": jury_v3_table(_load(root, JURY_FILE), {c: _load(root, jury_v3_answers_file(*c)) for c in JURY_V3_ANSWERS}, _jury_v3_judges(root)),
         "agent-injection": agent_injection_table(_load(root, AGENT_INJECTION_V2_FILE), earlier=_load(root, AGENT_INJECTION_FILE)),
         "agent-injection-v3": agent_injection_v3_table(_load(root, AGENT_INJECTION_V3_FILE)),
         "agent-injection-adaptive": agent_injection_adaptive_table(_load(root, AGENT_INJECTION_ADAPTIVE_FILE)),
