@@ -278,6 +278,34 @@ def test_a_spoofed_forwarded_for_does_not_buy_a_new_quota(monkeypatch):
     assert (one.status_code, two.status_code, other.status_code) == (200, 429, 200)
 
 
+# A wrong TRUSTED_PROXY_HOPS, pinned both ways (the default is not changed). The test client's peer address stands in
+# for the one proxy in front of the API, which appends the address it received each request from.
+
+
+def test_too_few_trusted_hops_put_every_caller_on_the_proxys_quota(monkeypatch):
+    """TRUSTED_PROXY_HOPS=0 behind one proxy: X-Forwarded-For is ignored and every caller is the proxy's address, so
+    all callers share one quota."""
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "0")
+    tc = _client(per_minute=1)
+    one = tc.post("/api/answer/", json=Q, headers={"x-forwarded-for": "203.0.113.9"})
+    other = tc.post("/api/answer/", json={"question": "again"}, headers={"x-forwarded-for": "203.0.113.10"})
+    assert (one.status_code, other.status_code) == (200, 429)  # another client, refused on the first one's quota
+
+
+def test_too_many_trusted_hops_let_a_client_choose_its_quota_key(monkeypatch):
+    """TRUSTED_PROXY_HOPS=2 behind one proxy: the entry read as the client's is one the client wrote itself, so each
+    made-up address buys a new quota; a client that writes none has too few entries and falls back to the proxy's
+    address, which every such client shares."""
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+    tc = _client(per_minute=1)
+    spoofed = [tc.post("/api/answer/", json={"question": f"question {n}"},
+                       headers={"x-forwarded-for": f"6.6.6.{n}, 203.0.113.9"}).status_code for n in (1, 2, 3)]
+    assert spoofed == [200, 200, 200]  # one client, three quotas
+    honest = [tc.post("/api/answer/", json={"question": f"from {address}"},
+                      headers={"x-forwarded-for": address}).status_code for address in ("203.0.113.10", "203.0.113.11")]
+    assert honest == [200, 429]  # two clients that wrote no header share the proxy's quota
+
+
 def test_the_public_caps_and_the_body_limit():
     tc = _client()
     assert tc.post("/api/retrieve/", json={"query": "run 47", "k": 11}).status_code == 422
