@@ -161,12 +161,10 @@ class HeuristicJudge:
         return PointwiseVerdict(faith, rel, ground, label, {"backend": self.name})
 
 
-def ollama_complete(
-    prompt: str,
-    *,
-    model: str | None = None,
-    temperature: float = 0.0,
-) -> str | None:
+def ollama_payload(prompt: str, *, model: str | None = None, temperature: float = 0.0) -> tuple[dict, str | None]:
+    """(reply payload, error): one POST to Ollama's /api/generate with the request every judge call sends. The payload
+    is {} when the call failed, and `error` then says how (a timeout, a refused connection, an HTTP error), so a caller
+    can tell a judge that is not there from one that replied with nothing (app/eval/judge_stored.py)."""
     model = model or os.environ.get("JUDGE_MODEL", "qwen2.5:7b")
     url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/generate"
     # Same option keys as app/agent/generate.OllamaGenerator: a different num_ctx would
@@ -180,9 +178,19 @@ def ollama_complete(
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=float(os.environ.get("OLLAMA_TIMEOUT", "600"))) as resp:
             payload = json.loads(resp.read().decode())
-        return payload.get("response") or payload.get("text")
-    except Exception:
-        return None
+    except Exception as e:  # noqa: BLE001 - reported to the caller, which counts it
+        return {}, f"{type(e).__name__}: {e}"
+    return (payload, None) if isinstance(payload, dict) else ({}, "the reply is not a JSON object")
+
+
+def ollama_complete(
+    prompt: str,
+    *,
+    model: str | None = None,
+    temperature: float = 0.0,
+) -> str | None:
+    payload, _ = ollama_payload(prompt, model=model, temperature=temperature)
+    return payload.get("response") or payload.get("text")
 
 
 class LlmJudge:

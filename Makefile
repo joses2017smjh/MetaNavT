@@ -115,6 +115,47 @@ bench-jury-v2:  ## M29: qwen2.5:7b answers + a calibration set from qwen2.5:1.5b
 bench-jury-v2-rescore: ## recompute the deterministic checks + summary of bench/results/jury_v2.json, calibration set included, from its stored answers (no model call)
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore bench/results/jury_v2.json
 
+# ---- M42: current open models as generators and judges, in two stages (app/eval/judge_stored.py) ----
+# Stage 1, one run per generator: answers and deterministic checks, no judge. Stage 2, one run per judge: the judge is
+# gated on the calibration answers stored in jury_v2.json (never regenerated), then labels jury_v2's stored answers
+# and each generator's. Both need an Ollama server at OLLAMA_BASE_URL that has the models; stage 1 also needs .[ml].
+# Nothing here rewrites jury.json or jury_v2.json.
+.PHONY: bench-jury-v3-answers bench-jury-v3-answers-rescore bench-jury-v3-judge bench-jury-v3-check bench-judge-stored
+# GENERATOR: the Ollama model that answers. THINK=off sends `think: false` with every generation call, for a model
+# whose reasoning does not end inside the context (file suffix _think-off). ANSWERS_LIMIT=N answers the first N
+# questions only (file suffix _firstN): a record of a configuration that fails, never judged.
+GENERATOR ?= qwen3.5:27b
+THINK ?= default
+ANSWERS_LIMIT ?=
+jury_v3_answers_out = bench/results/jury_v3_answers_$(subst :,-,$(GENERATOR))$(if $(filter off,$(THINK)),_think-off)$(if $(ANSWERS_LIMIT),_first$(ANSWERS_LIMIT)).json
+jury_v3_answers_all = $(sort $(wildcard bench/results/jury_v3_answers_*.json))
+jury_v3_answers_full = $(filter-out $(wildcard bench/results/jury_v3_answers_*_first*.json),$(jury_v3_answers_all))
+jury_v3_judge = bench/results/jury_v3_judge_$(subst :,-,$(1)).json
+bench-jury-v3-answers: ## M42 stage 1: GENERATOR's cited answers + deterministic checks on fixture v1, no judge (needs Ollama + .[ml]; THINK=off, ANSWERS_LIMIT=N) -> bench/results/jury_v3_answers_<generator>[_think-off][_firstN].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --out $(jury_v3_answers_out) --generator $(GENERATOR) --judges none $(if $(filter off,$(THINK)),--think off) $(if $(ANSWERS_LIMIT),--limit $(ANSWERS_LIMIT))
+
+bench-jury-v3-answers-rescore: ## recompute the deterministic checks + summary of every jury_v3 answers file present from its stored answers (no LLM call; needs .[ml])
+	for f in $(jury_v3_answers_all); do BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_eval --rescore $$f || exit 1; done
+
+# JUDGE: the Ollama model that judges. ANSWERS: comma-separated files (answer-evaluation files or JSONL of stored
+# answers: id, question, gold, answer, cited_paths). JUDGED: the file written. JUDGE_FLAGS=--resume continues one.
+JUDGE ?= gpt-oss:120b
+ANSWERS ?=
+JUDGED ?= $(basename $(firstword $(subst $(comma), ,$(ANSWERS))))_judged_by_$(subst :,-,$(JUDGE)).json
+JUDGE_FLAGS ?=
+comma := ,
+empty :=
+space := $(empty) $(empty)
+bench-judge-stored: ## judge stored answers with a judge validated in the same run: JUDGE is gated on jury_v2.json's stored calibration answers, then labels ANSWERS (needs Ollama) -> JUDGED
+	@test -n "$(ANSWERS)" || { echo "set ANSWERS to the stored-answers file(s), comma-separated (JSONL: id, question, gold, answer, cited_paths)"; exit 2; }
+	$(PYTHON) -m app.eval.judge_stored --judge $(JUDGE) --answers $(ANSWERS) --out $(JUDGED) $(JUDGE_FLAGS)
+
+bench-jury-v3-judge: ## M42 stage 2: JUDGE over jury_v2.json's stored answers and every full jury_v3 answers file present (needs Ollama) -> bench/results/jury_v3_judge_<judge>.json
+	$(PYTHON) -m app.eval.judge_stored --judge $(JUDGE) --answers $(subst $(space),$(comma),$(strip bench/results/jury_v2.json $(jury_v3_answers_full))) --out $(call jury_v3_judge,$(JUDGE)) $(JUDGE_FLAGS)
+
+bench-jury-v3-check: ## recompute the gate and every summary of each jury_v3 judge file present from its stored verdicts and its inputs' hashes (no model call, no retrieval); exit 1 if anything differs
+	for f in $(sort $(wildcard bench/results/jury_v3_judge_*.json)); do $(PYTHON) -m app.eval.judge_stored --check $$f || exit 1; done
+
 bench-jury-heuristic: ## the pre-M4 jury columns on the hash table (heuristic judge; not for the README)
 	$(PYTHON) -m app.eval.harness --jury
 
@@ -218,6 +259,31 @@ bench-agent-injection-adaptive-rescore: ## rebuild the adaptive run's scores, su
 	$(PYTHON) -m app.eval.agent_injection_adaptive --summarize-only --models $(ADAPTIVE_MODELS) --out bench/results/agent_injection_adaptive_rescore.json --episodes bench/results/agent_injection_adaptive_episodes.jsonl
 
 .PHONY: bench-trusted-actions
+# ---- the search policy (M44): app/rl, trained once ----------------------------
+# SEARCH_POLICY_WORK is a directory OUTSIDE the repository: the training corpora, the run directories (checkpoints,
+# curves) and the arm files live there. Only search-policy-eval writes under bench/results.
+.PHONY: search-policy-corpora search-policy-train search-policy-eval search-policy-rescore
+SEARCH_POLICY_WORK ?=
+SEARCH_POLICY_CORPUS_SEEDS ?= 1-32
+SEARCH_POLICY_ALGO ?= grpo
+SEARCH_POLICY_SEED ?= 0
+SEARCH_POLICY_SEEDS ?= 0 1 2
+SEARCH_POLICY_STEPS ?= 300
+SEARCH_POLICY_ARGS ?=
+SEARCH_POLICY_JOBS ?=
+search-policy-corpora: ## M44: the search policy's training corpora, seeded variants written by the fixture's builder (never fixture v1), with the leakage report -> $(SEARCH_POLICY_WORK)/corpora
+	$(PYTHON) -m app.rl.corpora --seeds $(SEARCH_POLICY_CORPUS_SEEDS) --out $(SEARCH_POLICY_WORK)/corpora
+
+search-policy-train: ## M44: one training run of the search policy on a GPU (needs .[ml,rl]): SEARCH_POLICY_SEED, SEARCH_POLICY_ALGO=grpo|ppo, SEARCH_POLICY_ARGS=--resume continues one -> $(SEARCH_POLICY_WORK)/runs/<algo>-seed<seed>
+	$(PYTHON) -m app.rl.train --out $(SEARCH_POLICY_WORK)/runs/$(SEARCH_POLICY_ALGO)-seed$(SEARCH_POLICY_SEED) --corpora $(SEARCH_POLICY_WORK)/corpora --corpus-seeds $(SEARCH_POLICY_CORPUS_SEEDS) --algo $(SEARCH_POLICY_ALGO) --seed $(SEARCH_POLICY_SEED) --steps $(SEARCH_POLICY_STEPS) $(SEARCH_POLICY_ARGS)
+
+search-policy-eval: ## M44: the held-out arms on a GPU (untrained, single-shot RAG, each seed of SEARCH_POLICY_SEEDS), then the results file from them and the training runs (needs .[ml,rl]) -> bench/results/search_policy.json and its two sidecars
+	$(PYTHON) -m app.rl.evaluate --out-dir $(SEARCH_POLICY_WORK)/arms $(foreach s,$(SEARCH_POLICY_SEEDS),--adapter $(SEARCH_POLICY_ALGO)/seed=$(s)=$(SEARCH_POLICY_WORK)/runs/$(SEARCH_POLICY_ALGO)-seed$(s)/best) $(SEARCH_POLICY_ARGS)
+	$(PYTHON) -m app.rl.results --arms $(SEARCH_POLICY_WORK)/arms $(foreach s,$(SEARCH_POLICY_SEEDS),--run $(SEARCH_POLICY_ALGO)/seed=$(s)=$(SEARCH_POLICY_WORK)/runs/$(SEARCH_POLICY_ALGO)-seed$(s)) $(if $(SEARCH_POLICY_JOBS),--jobs $(SEARCH_POLICY_JOBS))
+
+search-policy-rescore: ## recompute bench/results/search_policy.json from its sidecars on a CPU (every episode scored again, every interval redrawn; no model, no torch); exit 1 unless every value equals the file
+	$(PYTHON) -m app.rl.results --check
+
 TRUSTED_ACTIONS_OUT ?= bench/results/trusted_actions_v2.json
 bench-trusted-actions: ## approval-gate regression on temporary fixtures (no LLM); each row names the refusing check -> $(TRUSTED_ACTIONS_OUT)
 	$(PYTHON) -m app.eval.trusted_actions --output $(TRUSTED_ACTIONS_OUT)

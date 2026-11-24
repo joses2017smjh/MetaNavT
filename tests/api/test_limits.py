@@ -1,6 +1,8 @@
 """Shared quotas, the daily budget and the answer cache (app/api/limits.py) over an in-memory Redis stand-in, and the
 client address behind trusted proxies."""
 
+import time
+
 import pytest
 
 from app.api.limits import MICRO, LimitSettings, Limits, client_address
@@ -85,6 +87,26 @@ def test_the_budget_reserves_before_the_call_and_settles_after(clock):
     assert lim.spent_today_usd() == pytest.approx(0.55, abs=1e-5)
     clock.t += 86_400  # a new UTC day starts from zero
     assert lim.spent_today_usd() == 0 and lim.reserve(0.9) is not None
+
+
+def _budget_day(t):
+    return "answer:budget:" + time.strftime("%Y-%m-%d", time.gmtime(t))
+
+
+@pytest.mark.parametrize("actual_usd, old_day_usd", [
+    (0.05, 0.05),  # a reply: the old day ends at its cost
+    (None, 0.60),  # a timeout: the whole reservation stays, as before, on the day it was counted
+])
+def test_a_call_that_crosses_utc_midnight_is_settled_on_the_day_it_reserved(clock, actual_usd, old_day_usd):
+    clock.t = (clock.t // 86_400 + 1) * 86_400 - 1  # one second before UTC midnight
+    lim = limits(clock, daily_budget_usd=1.0)
+    old_day = _budget_day(clock.t)
+    reservation = lim.reserve(0.60)
+    clock.t += 2  # the reply comes back on the next UTC day
+    lim.settle(reservation, actual_usd)
+    assert _budget_day(clock.t) not in lim.redis.data  # the new day's counter is untouched: it starts at zero
+    assert lim.spent_today_usd() == 0
+    assert int(lim.redis.data[old_day]) / MICRO == pytest.approx(old_day_usd, abs=1e-5)
 
 
 def test_concurrent_reservations_cannot_overshoot_the_budget(clock):

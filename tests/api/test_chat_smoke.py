@@ -86,6 +86,10 @@ def test_the_runner_reads_the_file_tools_own_reply_texts():
     assert files.LIST_FAILED.startswith(smoke.ERROR_TEXT_PREFIX) and files.READ_FAILED.startswith(smoke.ERROR_TEXT_PREFIX)
     # the results file records the hash of the code the file tools run
     assert {"app/engine/tools/index_file_access.py", "app/database/vector_store_manager.py"} <= set(smoke.SOURCES)
+    # and of the query_index description the model reads (query_engine.py), and of what a reply and a failure look
+    # like on the wire: the routes' failure answer (errors.py), the stream (vercel_response.py), the bodies (models.py)
+    assert {"app/engine/tools/query_engine.py", "app/api/errors.py", "app/api/routers/vercel_response.py",
+            "app/api/routers/models.py"} <= set(smoke.SOURCES)
 
 
 def test_no_fixture_file_starts_the_way_a_failed_or_not_found_reply_does():
@@ -146,6 +150,10 @@ def test_chat_llm_settings_are_read_back_and_nothing_leaks_into_the_process(monk
     assert settings["class"] == "Ollama" and settings["model"] == "qwen2.5:7b"
     assert settings["request_timeout_s"] == DEFAULT_REQUEST_TIMEOUT and settings["set_in_api_environment"] == []
     assert isinstance(settings["temperature"], float)
+    # the output-token cap the run records: the default when the API's environment does not set LLM_MAX_TOKENS
+    from app.settings import DEFAULT_LLM_MAX_TOKENS
+
+    assert settings["additional_kwargs"] == {"num_predict": DEFAULT_LLM_MAX_TOKENS}
     assert Settings._llm is before and "MODEL" not in os.environ
 
 

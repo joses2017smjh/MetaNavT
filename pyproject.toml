@@ -80,6 +80,15 @@ ml = [
 distill = [
     "lightgbm>=4.5,<5",
 ]
+# The search policy's training and scoring on a GPU (app/rl/train.py, app/rl/evaluate.py): a causal LM with a LoRA
+# adapter, next to the `ml` extra's torch and sentence-transformers. No pinned file: bench/results/search_policy.json
+# records the versions its run used. Recomputing that file from its sidecars (`make search-policy-rescore`) needs
+# none of this, only `eval`.
+rl = [
+    "transformers>=5",
+    "peft>=0.22,<1",
+    "accelerate>=1",
+]
 # Tooling only: `make lock` (pip-tools) and `make lint` (ruff). Never needed at run time.
 dev = [
     "pip-tools>=7.4",

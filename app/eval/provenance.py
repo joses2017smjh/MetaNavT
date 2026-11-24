@@ -126,6 +126,17 @@ def ollama_version(base_url: str | None = None, timeout: float = 10.0) -> str | 
     return _ollama_get("/api/version", base_url, timeout).get("version")
 
 
+def ollama_loaded(model_name: str, base_url: str | None = None, timeout: float = 10.0) -> dict:
+    """How the server holds `model_name` right now, from /api/ps: its size in memory, how much of it is on the GPU
+    and the context length it was loaded with ({} when the server does not list it as loaded). A model whose
+    `size_vram_bytes` is below its `size_bytes` runs partly on the CPU."""
+    for entry in _ollama_get("/api/ps", base_url, timeout).get("models") or []:
+        if model_name in (entry.get("name"), entry.get("model")) or f"{model_name}:latest" in (entry.get("name"), entry.get("model")):
+            return {"model": model_name, "digest": entry.get("digest"), "size_bytes": entry.get("size"),
+                    "size_vram_bytes": entry.get("size_vram"), "context_length": entry.get("context_length")}
+    return {}
+
+
 def ollama_tag_entry(model_name: str, tags: Mapping[str, Mapping]) -> Mapping:
     """The /api/tags entry Ollama resolves `model_name` to ({} when it is not listed); a bare name means name:latest."""
     return tags.get(model_name) or ({} if ":" in model_name else tags.get(f"{model_name}:latest")) or {}

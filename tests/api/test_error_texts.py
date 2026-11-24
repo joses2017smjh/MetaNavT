@@ -103,6 +103,8 @@ def test_chat_engine_failure_is_a_fixed_text_and_an_id(client, monkeypatch, capl
 
     monkeypatch.setattr(chat_router, "get_chat_engine", _raise)
     assert_public(_chat(client), 500, "Error in chat engine", caplog)  # was "Error in chat engine: <the driver's text>"
+    # the non-streaming route answers its own failures the same way since M39 (before, it caught nothing)
+    assert_public(_chat(client, "/api/chat/request"), 500, "Error in chat engine", caplog)
 
 
 def test_a_failure_while_the_chat_answer_streams_names_the_id_not_the_error(client, monkeypatch, caplog):
@@ -129,12 +131,10 @@ def test_a_failure_while_the_chat_answer_streams_names_the_id_not_the_error(clie
 
 
 def test_an_exception_no_route_catches_is_a_fixed_500_with_an_id(client, monkeypatch, caplog):
-    from app.api.routers import chat as chat_router
     from app.api.routers import query as query_router
 
-    monkeypatch.setattr(chat_router, "get_chat_engine", _raise)
     monkeypatch.setattr(query_router, "get_query_engine", _raise)
-    assert_public(_chat(client, "/api/chat/request"), 500, "internal error", caplog)  # was Starlette's bare text
+    # was Starlette's bare text; /api/chat/request was the other example until M39 gave it its own failure answer
     assert_public(client.get("/api/query/", params={"query": "q"}), 500, "internal error", caplog)
 
 

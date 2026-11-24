@@ -338,7 +338,9 @@ ignored file does not; a tracked results file an earlier run rewrote counts too,
 such as `latest.json` after a previous `make bench`, so a re-record starts from a
 clean checkout) and the SHA-256 of the source files that ran (`source_sha256`). The harness (every fixture
 ladder), parity, BEIR, rerank-arms, RRF-sweep, hybrid-drops, sweeps, LLM-generation,
-ingest-runs, answer-evaluation (`app/eval/llm_eval.py`) and robotics-lookup
+ingest-runs, answer-evaluation (`app/eval/llm_eval.py`, and the judge-only
+`app/eval/judge_stored.py`, whose `segments` list also names the commit and
+tree of each judging run of a resumed file) and robotics-lookup
 (`app/eval/robotics.py evaluate`, next to the `code_sha256` its mixed-run check
 compares) writers record that block, with every `app/` module the process
 imported as the source files. A rescored answer-evaluation file's header describes
@@ -1590,6 +1592,114 @@ recorded before that (`jury.json`) name the Ollama models by tag only.
 
 [Current generated bench-jury evidence](../README.md#bench-jury).
 
+### Current open models as generators and judges
+
+The models above are those of the first runs. `make bench-jury-v3-answers` and
+`make bench-jury-v3-judge` measure current open-weight models in two stages, so
+that a judge can be added to answers that already exist, a generator's answers
+survive a judge that fails, and neither committed file is rewritten.
+
+Stage one is the run above with `--judges none`: the same retrieval
+configuration, a cited answer per gold question, the deterministic checks, and
+no judge and no calibration set. Each rate also gets a percentile bootstrap
+interval over the answers it counts (`check_intervals`), each row stores the
+extractive answer of its AB/BA pair, and the header records what every call
+sends and how the server held the generator (`/api/ps`: the size the server
+reports, how much of it is on the GPU, the context length). A generation call
+that fails is kept in its row as an empty answer, which is uncited; five
+failures in a row stop the run with nothing written.
+
+Stage two is `app/eval/judge_stored.py`: one judge over stored answers. The
+judge is first gated on the calibration answers stored in `jury_v2.json`. They
+are read from the committed file and never regenerated; each reference label is
+recomputed and must equal the stored one, and the judge file records the
+SHA-256 of the items the judge was shown. The gate is the one above (Cohen's
+kappa of the correctness verdicts against exact match, the interval over
+questions), so a new judge's kappa is measured on the items the committed
+judges were measured on. The judge then labels stored answers: the rows of an
+answer-evaluation file (`jury_v2.json` itself, which gives the first run's
+answers a judge that is not their generator, and each stage-one file) or a
+JSONL of answers recorded elsewhere (`id`, `question`, `gold`, `answer`,
+`cited_paths`). The rules are the run's: an uncited answer fails loudly and is
+not judged, an answer that is `NOT IN SOURCES` and nothing else is wrong by
+rule, and the AB/BA pair is asked where the row stores an extractive answer.
+The composite label needs the retrieved context and is not collected. Where the
+answers file already stores a judge's verdicts, the summary gives Cohen's kappa
+between the two judges; two judges agreeing is not agreement with the truth.
+
+A judge's score of an answer set may be published only when its gate passed in
+the same file. A model that is not there is not a judge that failed: before any
+item is judged the model is loaded, and the file records `could not load`
+unless the server reports it wholly on the GPU and it answers a warm-up prompt;
+five failed calls in a row stop the run as interrupted, and `--resume`
+continues it, asking only what is missing or failed, and refusing another
+judge (model digest, server version, context length), another calibration set
+or another protocol. The file is written after every phase, and it takes its
+provenance block from `run_provenance` like the other writers
+([CPU benchmark](#cpu-benchmark)), with one entry per judging run in
+`segments`. `make bench-jury-v3-check` recomputes every gate and summary from
+the stored verdicts and the inputs' hashes with no model and no retrieval, and
+`make bench-jury-v3-answers-rescore` recomputes the deterministic checks as
+above, so the run can be re-read on a CPU. A judge file grows in segments: a
+later `--resume` run that names more answer files keeps the gate's verdicts and
+every verdict already stored, asks only about the new answers, and adds a
+`segments` entry with its commit, GPU and time. Every file of the two stages
+also states what its numbers do not show (`does_not_show`): for an answers file, correctness beyond
+exact match, grounding beyond string containment, the model's reasoning,
+variance between runs and machines, and anything beyond fixture v1; for a judge
+file, judging beyond single-value answers, freedom from self-preference where a
+judge scores its own generator, truth where judges agree, grounding in the
+retrieved context, quality from the AB/BA pairs, variance, and the judge's
+reasoning.
+
+Self-preference. The first run's answers were scored by the generator's own
+model; a judge of another model family that passes the same gate is the check
+on that score. Under the committed score the README block states, from the
+files, where that score sits against each such judge's interval, whether every
+judge gives the exact-match label on the simple-factual answers (where they
+agree, the scores part only on answers no gate validated), and which way the
+disagreements go. A one-way direction fits self-preference and also fits a judge
+that is lenient with any generator's answers. To tell the two apart, the
+generator's own model (qwen2.5:7b, on the server and weights of its committed
+verdicts) is run as one more judge file: gated again on the same calibration
+answers, then judging its own answers and the other generators'. For each judge
+of another model that passed the gate, its lead is its score minus that judge's
+on the same answers; per gold question, the lead on its own answer minus the mean
+lead on the other generators' answers to that question gives a difference with a
+bootstrap interval over questions. The reading was fixed before that run: a
+difference above zero is self-preference; a difference that covers zero while it
+also leads on the other generators' answers is leniency; a difference that covers
+zero otherwise means the intervals cannot tell; a difference below zero is no
+self-preference. The README block under the committed score states which, from
+the files (`app/eval/judge_stored.py` `self_preference`).
+
+Two choices of models. The brief named the 31B Gemma model as the backup judge; the
+model store holds gemma4:26b and gemma4:12b, the tags the download job pulled,
+and with the project's disk over its quota no other model was downloaded, so
+gemma4:26b is the second judge. qwen3.5:122b was not run with its default
+reasoning on every question: on the first questions its reasoning filled the
+context and the reply came back empty (the limited file of the first questions
+records it), so its full run sends `think: false`.
+
+`make bench-judge-stored ANSWERS=<file> JUDGE=<model>` is the same entry point
+as one command for answers recorded elsewhere: it gates the named judge on the
+stored calibration answers and labels the file in the same run, and its output
+says whether the scores may be published.
+
+These models reason before they reply. The request is the committed one, with
+no `think` key, so they do so at the server's default; the server returns the
+reasoning beside the reply, and the files store the reply and the number of
+generated tokens (a judge file also the length of the reasoning), not its
+text. A generator whose reasoning does not end inside the context returns an
+empty answer, which is uncited and counted. For such a model
+`make bench-jury-v3-answers THINK=off` sends `think: false` with every
+generation call; the file, its generator block and every table name that run as
+reasoning off. `ANSWERS_LIMIT` answers the first questions only, as the record
+of a configuration that fails; such a file is named as limited and is never
+judged.
+
+[Current generated bench-jury-v3 evidence](../README.md#bench-jury-v3).
+
 The heuristic token-overlap judge is kept as a labelled column for comparison
 and is never an LLM result. The e2e columns of the older result files
 (faithfulness, answer relevancy) are the same heuristic and are not on this
@@ -2016,13 +2126,54 @@ sidecar too, never from the machine that rescored.
 
 ---
 
+## A search policy trained with reinforcement learning
+
+`app/rl/` is a Search-R1 style search policy: the model writes `<search>query</search>` and stops, the environment
+appends the top chunks of the in-memory hybrid index (BM25 and bge-small, fused) between `<information>` tags, and
+the model ends with `<answer>VALUE [path]</answer>`. M44 trained it once and scored it on fixture v1's held-out
+questions against the same model untrained and against single-shot RAG (one search with the question, then the
+answer). Every number is in the [generated table](../README.md#search-policy); `make search-policy-rescore`
+recomputes the results file from its two sidecars (every held-out episode, every training curve) on a CPU, with no
+model and no torch.
+
+- **Policy.** `Qwen/Qwen2.5-1.5B-Instruct` (Apache-2.0, checked on the Hugging Face API; the next size up carries a
+  research-only licence) with a LoRA adapter on the attention projections. The base weights stay frozen, and the
+  adapter is the only output of training (it is kept outside the repository with its sha256 sums; the results file
+  records the sums of the adapters it scored).
+- **Training data.** Corpora the fixture's builder writes from other seeds: other run ids, encoder and bark names,
+  every value drawn again, never fixture v1 (`bench/corpus/build.py` takes a Spec; its default rebuilds fixture v1
+  byte for byte, and a test compares every file). A training question whose text equals any fixture question's is
+  dropped, and so is one whose answer is the same string in every corpus; both counts are in the results file.
+  The kept questions share their templates with the test questions: a gain may be a gain on these templates only.
+- **Reward.** Strict exact match (the answer without its citation equals the gold after normalisation), plus half
+  the nDCG@10 of the files the searches showed, minus a tax per search and a penalty for an answer that is empty or
+  does not cite a file it was shown. PLAN.md's jury term is not in it (no jury runs in the loop), and neither is the
+  overlap teacher.
+- **Update.** Each step samples a group of episodes per training question; a question's rewards are normalised
+  inside its group (GRPO's advantage, no critic), and the loss is minus the advantage times the mean log-probability
+  of the tokens the policy wrote, so the retrieved tokens are context only. There is one optimiser step per batch,
+  so the PPO ratio GRPO clips is identically one and nothing is clipped, and there is no KL term: it is a policy
+  gradient with GRPO's baseline, a small loop on transformers and peft rather than the veRL stack PLAN.md names.
+- **Selection and the bar.** Each seed's checkpoint is the one with the best mean reward on the tune half of the
+  fixture; the held-out half was scored once per arm. The bar was written down before training: the paired
+  bootstrap delta in exact match, trained minus untrained, with several seeds read from each question's mean over
+  the seeds.
+
+On the 68<!-- num: bench/results/search_policy.json#/split/n_held_out --> held-out questions, with each question's trained score the mean over the 3<!-- num: bench/results/search_policy.json#/verdicts/0/n_seeds --> seeds, exact match minus the untrained model's is +0.0392 [-0.0049, +0.0931]<!-- num: bench/results/search_policy.json#/verdicts/0/delta; #/verdicts/0/lo; #/verdicts/0/hi -->: the interval covers zero, **a tie** on the bar declared before training, and a tie against single-shot RAG as well.
+
+Secondary to that bar, and not part of its verdict: the mean reward rises by +0.1206 [+0.0480, +0.1987]<!-- num: bench/results/search_policy.json#/verdicts/1/delta; #/verdicts/1/lo; #/verdicts/1/hi --> and the bounded match (the guard column) by +0.0441 [+0.0049, +0.0933]<!-- num: bench/results/search_policy.json#/verdicts/2/delta; #/verdicts/2/lo; #/verdicts/2/hi -->, and what moved is narrow: about half of the reward's rise is fewer uncited or empty answers (0.0882 untrained, 0.0245 trained<!-- num: bench/results/search_policy.json#/results/[config=policy-untrained]/means/uncited_or_empty; #/results/[config=policy-grpo]/means/uncited_or_empty -->), the rest exact match, itself a tie, and the files shown; the trained policy also gets the per-run lookups it missed (exact match on them 0.95 untrained, 1.00 trained<!-- num: bench/results/search_policy.json#/results/[config=policy-untrained]/by_category/simple_factual/em; #/results/[config=policy-grpo]/by_category/simple_factual/em -->), while it still makes one search per question and no arm writes any of the 16<!-- num: bench/results/search_policy.json#/split/held_out_gold_forms/composite --> composite gold answers (a list, a sentence, two values joined) in the gold's own format.
+
+In training, the questions per step whose episodes had unequal rewards, the only ones with a gradient under GRPO's group advantage, fell from 6.1, 6.05 and 6.25<!-- num: bench/results/search_policy.json#/training_runs/0/signal/groups_with_a_reward_spread_first; #/training_runs/1/signal/groups_with_a_reward_spread_first; #/training_runs/2/signal/groups_with_a_reward_spread_first --> of 8<!-- num: bench/results/search_policy.json#/training_runs/0/signal/questions_per_step --> over the first 20<!-- num: bench/results/search_policy.json#/training_runs/0/signal/window --> steps to 0.9, 1.1 and 1.85<!-- num: bench/results/search_policy.json#/training_runs/0/signal/groups_with_a_reward_spread_last; #/training_runs/1/signal/groups_with_a_reward_spread_last; #/training_runs/2/signal/groups_with_a_reward_spread_last --> over the last, as the sampler became nearly deterministic. None of the three runs collapsed by the declared rule, so the PPO fallback did not run; but a longer run of this loop would have had little left to learn from. The tune half, which chose each seed's checkpoint, is in-sample; the held-out half was scored once per arm.
+
+---
+
 ## Prototypes (not evaluated)
 
 This section has two parts. The retrieval prototypes below have a benchmark arm:
 a row in a committed results file with a named parent, a paired bootstrap delta
 and its interval, produced by `make bench-frontier` (CPU stand-ins) and
 `make bench-frontier-neural` (real models). The rest of the section (the
-artifact pipeline, Paper2Code, MATLAB, multimodal pages, Search-R1) runs and is
+artifact pipeline, Paper2Code, MATLAB, multimodal pages) runs and is
 shown in the GIFs but has no measured result on the gold set or on an external
 benchmark, and stays labelled as a prototype. No number is typed here: the
 numbers are in the generated tables this section links to.
@@ -2268,10 +2419,6 @@ PDFs are indexed as page images, not smashed-to-text. Patch grid → MaxSim. Tab
 
 Renders and plots go through CLIP/SigLIP when the model is local, pixel-hash otherwise. One query, three retrievers (text, page, image), fused with RRF.
 
-### Search-R1 / GRPO
-
-_The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in `app/rl/`; nothing is trained. See "What we are not claiming"._
-
 ---
 
 ## How the app is put together
@@ -2302,7 +2449,7 @@ _The environment, reward, retrieved-token mask and a CPU dummy GRPO step live in
 
 **Frontend.** Next.js in `.frontend/`. Against an API in public demo mode its home page is the demo page instead (Public demo mode, under Run it); otherwise chat, and a file-plans panel (`app/components/plans-panel.tsx`) that lists proposed moves and approves or rejects them through `POST /api/plans/{id}/approve` and `/reject`; nothing moves until that click, and every decision is logged in Postgres (`plan_decisions`). The plans themselves are rows of `plan_proposals`, read by id on every request, so the replicas on the database that see `DATA_DIR` at the same path on the same filesystem, and a restarted one, serve the same plans and statuses (Shared state across replicas, below); the decision log records every attempt and `GET /api/plans/decisions/recent` reads it back. Every request the page's code makes to the API goes through `apiFetch` (`app/components/ui/chat/hooks/api-key.ts`), which adds the API key the user entered (API access, below). CI's web workflow (`.github/workflows/web.yml`: every push to `main` and every pull request into `main`, as `ci.yml` runs, on `ubuntu-24.04` with Node pinned to one release) installs `.frontend` from its lockfile (`npm ci`), runs its tests (`npm test`: Node's own test runner with jsdom, through `tsx`; `.frontend/tests/`) and builds the static export. The tests render the plans panel and approve a plan against a mocked API, send a chat message and upload a document through the chat section, check that each request carries the key that was entered, and none when no key was, and drive the home page's switch and the demo page against a mocked public API; `.frontend/tests/requests.test.ts` fails on a `fetch` call outside `apiFetch`. The page background is the four-stop radial gradient in `globals.css`.
 
-**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text; a `Not found: ...` reply (`get_file_content` asked for a path the index does not hold) is counted apart, as an answer from a working tool. The runner tells these apart by how the returned text starts, so a file whose own text starts with `Error` or `Not found` would be counted the same way; no file of fixture v1 does. The two file-access tools in `app/engine/tools/index_file_access.py` work on the default stack since M30b. `list_available_files` lists the paths of the ingest manifest, the record of the files the index step stored, relative to `DATA_DIR`, filtered by a glob over the whole relative path (so a bare name pattern such as `fusion*` matches only paths that start with `fusion`: not `src/fusion.py`, but a file under a top-level `fusion_x/`, since `*` also matches `/`), at most `MAX_LISTED_FILES` of them in code point order; called without a pattern it lists every file up to that cap, and the model is not told when a list was cut. `get_file_content` reads the file's chunk rows by that relative path with a parameterized query, not with the vector store's metadata filters, which the installed `PGVectorStore` formats into the SQL text, and rebuilds the file from them on their byte offsets, cut after `MAX_CONTENT_CHARS` characters with a note. A whitespace-only stretch the chunker stored no chunk for, such as the blank lines between two top-level Python definitions, does not come back: a line break stands in only where the text before it does not end a line. A database failure gives the model a fixed `Error: ...` text and the reason goes to the API log. `tests/engine/test_index_file_access.py` calls both tools through their `FunctionTool` with only the model's arguments, as the agent does; `tests/database/test_file_access_tools.py` lists the fixture indexed through the served path and fetches every file by its relative path; `tests/database/test_agent_paths_stack.py` drives them through the request route with a scripted model. Before M30b, the run then recorded (at 44d2c5f, replaced by the current file) showed both tools failing: `list_available_files` called without a pattern raised, because its `pattern` default was a pydantic `Field` object rather than a string, and with a pattern it returned an empty list, because it read the `indexed_files` table the served indexer never writes; `get_file_content` passed a plain dict as metadata filters, and the query engine's error came back to the model as text, so only `query_index` returned file content to the model. The current file was recorded after the fixes; its counts, including the calls that failed and the not-found replies, are in the generated rows. Retrieval is now hybrid + loop, not a single dense `top_k`.
+**Backend.** FastAPI in `app/`. Chat and retrieve routers, LlamaIndex engine, specialized tools (file access, artifacts, and Python exec when it is switched on; see Python execution in chat below). Agents hand off through a task router. The tool list is read from `config/tools.yaml` at the repository root whatever the working directory. Each chat request records its tool calls in a registry of its own (a context variable, started when the request builds its engine), and the INFO log line for a tool call gives the tool's name and the size of its output, not the output. `tests/api/test_chat_routes.py` sends chat messages (streamed and not) and a query through the real routes and the agent workflow with mock models (a scripted function-calling `MockLLM`, `MockEmbedding`) and an in-memory index: no network, GPU or database. It checks that the routes run, not answer quality. `make chat-route-smoke` runs both chat routes with a real model: it starts the API with the default Compose stack's settings (hash embeddings, no reranker, a database created on `PG_TEST_DSN`) and code execution off (`ENABLE_PYTHON_EXEC=false`, no API key), sends the first gold question of each category to `POST /api/chat` and `POST /api/chat/request` through a local Ollama model, and records the status, the time to the first byte and in total, the answer and the tool calls in `bench/results/chat_route_smoke.json`. It is a smoke run of the routes, not an answer-quality measurement. Each tool call is recorded with the size of the text the model got back and whether it failed: flagged as an error (the tool raised, or the model named a tool that does not exist) or returning an `Error: ...` text; a `Not found: ...` reply (`get_file_content` asked for a path the index does not hold) is counted apart, as an answer from a working tool. The runner tells these apart by how the returned text starts, so a file whose own text starts with `Error` or `Not found` would be counted the same way; no file of fixture v1 does. The two file-access tools in `app/engine/tools/index_file_access.py` work on the default stack since M30b. `list_available_files` lists the paths of the ingest manifest, the record of the files the index step stored, relative to `DATA_DIR`, filtered by a glob over the whole relative path (so a bare name pattern such as `fusion*` matches only paths that start with `fusion`: not `src/fusion.py`, but a file under a top-level `fusion_x/`, since `*` also matches `/`), at most `MAX_LISTED_FILES` of them in code point order; called without a pattern it lists every file up to that cap, and the model is not told when a list was cut. `get_file_content` reads the file's chunk rows by that relative path with a parameterized query, not with the vector store's metadata filters, which the installed `PGVectorStore` formats into the SQL text, and rebuilds the file from them on their byte offsets, cut after `MAX_CONTENT_CHARS` characters with a note. A whitespace-only stretch the chunker stored no chunk for, such as the blank lines between two top-level Python definitions, does not come back: a line break stands in only where the text before it does not end a line. A database failure gives the model a fixed `Error: ...` text and the reason goes to the API log. `tests/engine/test_index_file_access.py` calls both tools through their `FunctionTool` with only the model's arguments, as the agent does; `tests/database/test_file_access_tools.py` lists the fixture indexed through the served path and fetches every file by its relative path; `tests/database/test_agent_paths_stack.py` drives them through the request route with a scripted model. Before M30b, the run then recorded (at 44d2c5f, replaced by the current file) showed both tools failing: `list_available_files` called without a pattern raised, because its `pattern` default was a pydantic `Field` object rather than a string, and with a pattern it returned an empty list, because it read the `indexed_files` table the served indexer never writes; `get_file_content` passed a plain dict as metadata filters, and the query engine's error came back to the model as text, so only `query_index` returned file content to the model. The current file was recorded after the fixes; its counts, including the calls that failed and the not-found replies, are in the generated rows. In the recording committed in c9b4acd (run at 50e9ee2) not every request was answered: `POST /api/chat` answered 4 of 8<!-- num: bench/results/chat_route_smoke.json@c9b4acd7f3f178bbb79ec1fd65209a7f47609a80#/summary/~1api~1chat/answered; #/summary/~1api~1chat/n --> and `POST /api/chat/request` 3<!-- num: bench/results/chat_route_smoke.json@c9b4acd7f3f178bbb79ec1fd65209a7f47609a80#/summary/~1api~1chat~1request/answered --> of 8<!-- num: bench/results/chat_route_smoke.json@c9b4acd7f3f178bbb79ec1fd65209a7f47609a80#/summary/~1api~1chat~1request/n -->. On the non-streaming route one request got no response within the runner's limit, so the tool calls it made are not in that file. The job's Ollama log, quoted in c9b4acd's commit message (the log is not in the repository), shows that request's last model call still generating when the run was stopped: the chat LLM then had no limit on the tokens it generates (`chat_llm.additional_kwargs` in that file is empty), and Ollama, which serves one request at a time, held every later request behind it. Every request after it, on both routes, came back as HTTP 200 with no text and no error line once the chat LLM's request timeout had passed: the agent wrapper (`AgentWorkflow.achat`) read only the run's event stream, which ends as if the run had finished when a step raises, so the routes answered a failed model call as an empty 200 and logged nothing. M39's fix followed in 0c48029. The Ollama chat model's output is capped by `LLM_MAX_TOKENS`, by default 2048<!-- num: app/settings.py:"DEFAULT_LLM_MAX_TOKENS = {}" --> tokens (`DEFAULT_LLM_MAX_TOKENS` in `app/settings.py`; `tests/engine/test_chat_llm_cap.py` checks that the agent's streamed call sends it). `achat` awaits the run's outcome, so a failed model call makes both routes answer 500 with the fixed text and the request id, the reason logged under that id (`tests/api/test_chat_routes.py`). A route whose client disconnects stops the run, and with it the model call in flight, and answers 499<!-- num: app/api/routers/chat.py:"CLIENT_CLOSED_REQUEST = {}" --> (the same test file calls the routes with a request that reports a disconnect). The runner still counts a request as answered only when it carries text. In the current file, recorded after the fix, not every request was answered: on the streaming route one request came back as HTTP 500 with the route's fixed text, after more than the chat LLM's request timeout, and the generated rows count it. Retrieval is now hybrid + loop, not a single dense `top_k`.
 
 **Database.** PostgreSQL with pgvector (dense) and Postgres full text, `ts_rank_cd` (lexical; ParadeDB BM25 only with `LEXICAL_BACKEND=paradedb`, which no test or results file has run). Connection pooling in `DatabaseManager`: a `ThreadedConnectionPool` (requests run in worker threads; the `SimpleConnectionPool` it replaced is not for use across threads, and unsynchronised it let concurrent callers hold more connections than its maximum) sized by `PG_POOL_MIN` and `PG_POOL_MAX` (defaults in `app/database/db_base_manager.py`), where a caller that finds every connection out waits up to `PG_POOL_WAIT_SECONDS` for one instead of failing at once with "connection pool exhausted" (`tests/database/test_pool.py`: more threads running the hybrid statement than the pool holds). Each replica holds its own pool, so the database sees up to `PG_POOL_MAX` connections per replica besides the ones opened outside it (the ingest lock, a plan decision, `PGVectorStore`'s own engine); with many replicas a pooler in front of Postgres keeps that number down. The per-statement search settings on `VectorStoreManager`; the vector table and its indexes are schema migrations (below). The `ensure_halfvec` / `ensure_binary` helpers, which had no caller and ran their DDL inline, were removed with the rest of the inline DDL; a halfvec or bit column would be a new migration (the scale run measures both copies on its own task-local table, [pgvector knobs](#pgvector-knobs-on-a-trade-off-curve)).
 
@@ -2532,7 +2679,8 @@ models, and evaluating Claude spends API credits.
 - a daily budget in dollars. Each call first reserves its worst case with one atomic increment: all of `max_tokens` as
   output, the input at a conservative tokens-per-character ratio, at the dearest rate that could bill it. The call is
   refused when the day's total would go over. Afterwards the reservation is settled to the reply's cost, from its
-  usage and a price table dated in the code; a timeout keeps the whole reservation;
+  usage and a price table dated in the code, on the reservation's own day: a call that crosses UTC midnight is settled
+  on the day it was reserved on, and the new day's total is not touched; a timeout keeps the whole reservation;
 - an answer cache keyed by the model and the normalised question.
 
 The caller is the API key's name when authentication is on, and otherwise the client address behind
@@ -2620,9 +2768,10 @@ contract's names and defaults as the block above lists them, and no committed
 secret.
 
 **Deploy to AWS.** [The runbook](deploy.md) covers the AWS stacks in `infra/`:
-Terraform, code only (the owner has applied only the bootstrap). The live demo's target is one Free-plan EC2 host
-behind CloudFront ([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the
-app checks CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
+Terraform; the owner has applied the bootstrap and the live demo's single host, not the ECS stack. The live demo is
+one Free-plan EC2 host behind CloudFront
+([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the app checks
+CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
 production-grade target.
 CloudFront, with a WAF, sends `/api/*` and `/health` to an ALB whose only
 ingress is CloudFront's origin-facing prefix list and whose listener forwards
@@ -2667,7 +2816,7 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 **The API is not a hardened multi-replica service.** Authentication is off unless a key is configured, and then each key (the shared `METANAVIT_API_KEY`, or a named key from `METANAVIT_API_KEYS_FILE`) is an identity with no roles: any key may do whatever the API allows. The request budget is counted per process, so it is not a global rate limit. Pending file plans are shared through Postgres, but only by replicas that see `DATA_DIR` at the same path on the same filesystem. Schema migrations cover every Postgres table and index, applied by a deploy step, with no down-migrations; the ParadeDB files have never run. Installs are pinned for every profile `make lock` writes, the image's `ml` and `otel` extras included, and the base images by digest, except: outside the image setuptools is not pinned (`requirements.txt` and `requirements/dev.txt` leave it unpinned, `dev.txt` leaves pip unpinned too, and the CI jobs' `pip install --no-deps -e .` builds the package with the newest setuptools `[build-system]` allows), and the CUDA packages of the hand-built GPU override are resolved at build time.
 
-**RL search policy (Search-R1 / GRPO) is not GPU-trained.** The env, reward, retrieved-token mask, and a CPU dummy GRPO step live in `app/rl/`. veRL + Qwen is still a training run. See [PLAN.md](../PLAN.md) Phase 10.
+**The RL search policy is one small training run on synthetic, templated data.** It was trained once (one configuration, three seeds) on corpora the fixture's own builder writes from other seeds, with questions from the same templates as the test questions, one small model and one prompt, and on its declared bar, exact match against the untrained model, the interval covers zero. A result on these templates says nothing about a real research directory or about questions people write. See the [section above](#a-search-policy-trained-with-reinforcement-learning) and [PLAN.md](../PLAN.md) Phase 10.
 
 **The CI table's rerank row is the overlap teacher**, not `BAAI/bge-reranker-v2-m3`; it is within noise of plain RRF (see the [ablation table](#the-number)). The real reranker is measured in the [real-models tables](#real-models-and-a-corpus-where-k50-means-something), which are committed artifacts rather than CI output. Until M2 the cross-encoder was called through the wrong API (`compute_score` instead of sentence-transformers' `predict`). In the bench, the weights were never cached, so `get_cross_encoder()` returned nothing and the row fell back to overlap for lack of weights; the first run with weights present raised. In the production retriever the same call was inside a broad `except`, so reranking silently returned the RRF order. No earlier "bge-rerank" number in this repository's history was a cross-encoder result; `reranker_loaded` in the results file is the check.
 
@@ -2681,11 +2830,11 @@ To freeze *your* capstone tree: snapshot the directory, hash `MANIFEST.json`, dr
 
 Open items, in priority order (the second is done and keeps its place):
 
-1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers, and the judge that passed is the generator's own model. Multi-part, paraphrased and computed answers need human labels or a fixture v2 slice (v1 stays frozen), and a judge from another model family would remove the self-preference caveat.
+1. **Judge validity beyond single values.** The gate is evaluable since `jury_v2.json`, but its calibration set validates a judge only on single-value answers. Judges of other model families have since passed it and score the first run's answers lower than the generator's own model, and the scores part on the multi-part, comparative, aggregate and path answers ([generated](../README.md#bench-jury)). Those answers need human labels or a fixture v2 slice (v1 stays frozen). The generator's model has since judged the other generators' answers too; whether it favours its own or is lenient in general stays open at this size ([generated](../README.md#bench-jury)), and more questions of those kinds would narrow it.
 2. **Per-slice changed-query counts: done.** Every per-category delta of a ladder row records how many of the slice's questions rose and fell (`questions_changed`), and the generated tables print it next to the interval.
 3. **ParadeDB BM25 in the production path**, if that backend is kept (an open decision): no test or results file has run its statement yet. A parity run with it would report its gap next to the `ts_rank_cd` row; the parity job reports that gap with its interval and fails only on a broken API or a fixture that differs from its MANIFEST.
 4. **Injection evaluation, next steps:** larger models, and a CaMeL-style quarantined reader that extracts the requested field so planted text never reaches the planner. The attacker that rewrites the planted text against each defense is built: in the fourth run, whose only target is the stronger model, no comparison with the fixed phrasings showed a difference after seven rounds ([generated table](../README.md#agent-injection-adaptive)).
-5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, GPU Search-R1 / GRPO with `app/rl/reward.py`.
+5. Optional: a distilled student that keeps up with the cross-encoder it imitates (`make bench-rerank-arms` fits two on the cross-encoder's scores; both are below it on held-out questions), a listwise prompt that more replies answer with a full permutation, and a search policy trained on questions that are not the test set's templates, with a judge term in its reward (the policy trained once here ties on exact match and still searches once per question).
 
 Full citations and abort conditions: [PLAN.md](../PLAN.md).
 
@@ -2700,7 +2849,7 @@ app/chunking/      structure-aware, late, contextual
 app/graph/         file graph, version clusters (measured), conflicts; GraphRAG, HippoRAG PPR (prototypes)
 app/agent/         retrieval loop, Deep Research, move-plan schema
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox (prototype, not evaluated)
-app/rl/            Search-R1 env, reward, GRPO dummy step (prototype, not evaluated)
+app/rl/            Search-R1 env, reward, policy, GRPO training loop, held-out scoring (trained once, M44)
 app/mcp/           filesystem tools + stdio server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images (prototype, not evaluated)
 app/database/      index manager, pgvector, BM25
