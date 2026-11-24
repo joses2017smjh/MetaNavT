@@ -183,30 +183,66 @@ def test_the_chat_rows_say_how_the_unanswered_requests_ended(tmp_path):
     assert "the tool calls of a request that got no response are not in the file (1 here)" in request["not_shown"]
 
 
-def test_the_backend_paragraph_on_unanswered_chat_requests_holds_for_the_file():
-    """doc/engineering-reference.md (Backend) describes the chat smoke's unanswered requests exactly when the file has
-    some, and what it says of them is what the rows and the header show."""
-    if not (ROOT / FILES["chat_route_smoke"]).exists():
-        pytest.skip("bench/results/chat_route_smoke.json not recorded yet")
-    blob = json.loads((ROOT / FILES["chat_route_smoke"]).read_text())
-    text = " ".join((ROOT / "doc" / "engineering-reference.md").read_text().split())
-    rows = blob["rows"]
-    unanswered = [i for i, r in enumerate(rows) if not r["answered"]]
-    assert ("Not every request in the current file was answered" in text) == bool(unanswered)
-    if not unanswered:
-        return
+# The chat smoke committed before M39's fix (run at 50e9ee2): the reference describes it as history.
+CHAT_BEFORE_FIX = "c9b4acd7f3f178bbb79ec1fd65209a7f47609a80"
+
+
+def _chat_file_at(sha: str) -> dict:
+    if shutil.which("git") is None or _git("rev-parse", "--is-inside-work-tree").stdout.strip() != "true":
+        pytest.skip("not a git checkout: the committed file cannot be read")
+    if _git("cat-file", "-e", f"{sha}^{{commit}}").returncode != 0:
+        if _git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            pytest.skip(f"shallow clone without commit {sha[:7]}: fetch the full history (git fetch --unshallow)")
+        pytest.fail(f"commit {sha} is not in this repository's history")
+    shown = _git("show", f"{sha}:{FILES['chat_route_smoke']}")
+    assert shown.returncode == 0, shown.stderr
+    return json.loads(shown.stdout)
+
+
+def _backend() -> str:
+    return " ".join((ROOT / "doc" / "engineering-reference.md").read_text().split())
+
+
+def test_the_backend_paragraph_on_the_chat_smoke_before_the_fix_holds_for_that_file():
+    """doc/engineering-reference.md (Backend) describes the recording committed in c9b4acd; what it says of the
+    unanswered requests is what that file's rows and header show (its counts are cited, and checked, by
+    app/eval/prose_numbers.py)."""
+    old = _chat_file_at(CHAT_BEFORE_FIX)
+    text = _backend()
+    assert "In the recording committed in c9b4acd (run at 50e9ee2) not every request was answered" in text
+    assert old["git_head"].startswith("50e9ee2")
+    rows = old["rows"]
     # "On the non-streaming route one request got no response within the runner's limit, so the tool calls it made
-    # are not in the file. Every request after it, on both routes, came back as HTTP 200 with no text and no error
-    # line once the chat LLM's request timeout had passed."
+    # are not in that file."
     no_response = [i for i, r in enumerate(rows) if r["http_status"] is None]
     assert len(no_response) == 1 and rows[no_response[0]]["route"] == "/api/chat/request"
     assert rows[no_response[0]]["tools"] is None
+    # "Every request after it, on both routes, came back as HTTP 200 with no text and no error line once the chat
+    # LLM's request timeout had passed"
     after = rows[no_response[0] + 1:]
-    assert unanswered == no_response + list(range(no_response[0] + 1, len(rows)))
+    assert [i for i, r in enumerate(rows) if not r["answered"]] == no_response + list(range(no_response[0] + 1, len(rows)))
     assert {r["route"] for r in after} == {"/api/chat", "/api/chat/request"}
-    timeout = blob["chat_llm"]["request_timeout_s"]
+    timeout = old["chat_llm"]["request_timeout_s"]
     assert all(r["http_status"] == 200 and r["answer"] == "" and not r.get("errors") and r["ttfb_s"] >= timeout
                for r in after)
-    # "The chat LLM is built without a limit on the tokens it generates"
-    assert "num_predict" not in blob["chat_llm"]["additional_kwargs"]
-    assert "LLM_MAX_TOKENS" not in blob["chat_llm"]["set_in_api_environment"]
+    # "the chat LLM then had no limit on the tokens it generates (`chat_llm.additional_kwargs` in that file is empty)"
+    assert old["chat_llm"]["additional_kwargs"] == {}
+    assert "LLM_MAX_TOKENS" not in old["chat_llm"]["set_in_api_environment"]
+
+
+def test_the_backend_paragraph_says_how_the_current_chat_file_went_once_it_is_a_newer_recording():
+    """While the committed file is still the one from before the fix, the history above describes it. Once it is a
+    newer recording, Backend says whether every request was answered, and the generated rows give the counts."""
+    if not (ROOT / FILES["chat_route_smoke"]).exists():
+        pytest.skip("bench/results/chat_route_smoke.json not recorded yet")
+    blob = json.loads((ROOT / FILES["chat_route_smoke"]).read_text())
+    text = _backend()
+    every = "The current file, recorded after the fix, answered every request on both routes"
+    some = "In the current file, recorded after the fix, not every request was answered"
+    if blob == _chat_file_at(CHAT_BEFORE_FIX):
+        assert every not in text and some not in text
+        return
+    unanswered = [r for r in blob["rows"] if not r["answered"]]
+    assert (every in text) == (not unanswered) and (some in text) == bool(unanswered)
+    # the recording after the fix ran with the output-token cap
+    assert "num_predict" in blob["chat_llm"]["additional_kwargs"]

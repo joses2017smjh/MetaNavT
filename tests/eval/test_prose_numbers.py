@@ -71,6 +71,31 @@ def test_a_citation_that_does_not_resolve_fails(tmp_path):
     assert any("cannot read a spec" in p for p in _problems("5,633<!-- num: bench/r.json n_docs -->\n", root))
 
 
+# M39: the chat smoke recorded at 50e9ee2 and committed here, before the chat-path fix and its re-record
+C9B4ACD = "c9b4acd7f3f178bbb79ec1fd65209a7f47609a80"
+
+
+def test_a_citation_reads_a_file_as_committed_at_a_commit(tmp_path):
+    """FILE@SHA reads the file from the repository's history (here the chat smoke file before its re-record), whatever
+    root the working-tree files come from; a #/... spec after it on the line reads the same commit's file."""
+    import subprocess
+
+    import pytest
+
+    if subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{C9B4ACD}^{{commit}}"], capture_output=True).returncode:
+        if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True,
+                          text=True).stdout.strip() == "true":
+            pytest.skip("shallow clone without the commit (git fetch --unshallow)")
+        pytest.fail(f"commit {C9B4ACD} is not in this repository's history")
+    spec = f"bench/results/chat_route_smoke.json@{C9B4ACD}#/summary/~1api~1chat/answered"
+    assert _problems(f"It answered 4<!-- num: {spec} --> of 8<!-- num: #/summary/~1api~1chat/n -->.\n", tmp_path) == []
+    assert any("differs from its source" in p for p in _problems(f"It answered 5<!-- num: {spec} -->.\n", tmp_path))
+    for bad in (spec.replace(C9B4ACD, "0" * 40), spec.replace("chat_route_smoke", "no_such_file")):
+        problems = _problems(f"It answered 4<!-- num: {bad} -->.\n", tmp_path)
+        assert problems and "does not resolve" in problems[0], (bad, problems)
+    assert any("cannot read a spec" in p for p in _problems(f"4<!-- num: {spec.replace(C9B4ACD, C9B4ACD[:7])} -->\n", tmp_path))
+
+
 def test_every_number_is_cited_or_classified(tmp_path):
     root = _root(tmp_path)
     uncited = _problems("The gate held 97 of the questions.\n", root)

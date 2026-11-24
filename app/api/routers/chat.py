@@ -9,8 +9,12 @@ Features:
 - Event handling
 - Error tracking
 """
+import asyncio
+import contextlib
 import logging
-from fastapi import APIRouter, BackgroundTasks, Request, status
+from typing import Awaitable, TypeVar
+
+from fastapi import APIRouter, BackgroundTasks, Request, Response, status
 from llama_index.core.llms import MessageRole
 
 from app.api.errors import failure
@@ -30,6 +34,42 @@ from app.engine.query_filter import generate_filters
 chat_router = r = APIRouter()
 
 logger = logging.getLogger("uvicorn")
+
+# How often a chat route checks, while the agent runs, whether its client is still there (seconds).
+DISCONNECT_POLL_S = 0.5
+# The answer to a request whose client went away before the agent run ended; nobody reads it (nginx's code for this).
+CLIENT_CLOSED_REQUEST = 499
+DETAIL = "Error in chat engine"
+T = TypeVar("T")
+
+
+class ClientDisconnected(Exception):
+    """The client went away before the agent run ended; the run was stopped."""
+
+
+async def until_disconnected(request: Request, run: Awaitable[T], poll_s: float = DISCONNECT_POLL_S) -> T:
+    """Await `run` (the agent's achat) unless the client disconnects first: then cancel it, which stops the workflow
+    and the model call in flight (AgentWorkflow.achat), and raise ClientDisconnected. Before, the run went on after its
+    client had left, and Ollama, which serves one request at a time, made later requests wait behind it."""
+    task = asyncio.ensure_future(run)
+    try:
+        while True:
+            done, _ = await asyncio.wait({task}, timeout=poll_s)
+            if done:
+                return task.result()  # a failed run raises here
+            if await request.is_disconnected():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+                raise ClientDisconnected()
+    finally:
+        if not task.done():
+            task.cancel()
+
+
+def _gone(route: str) -> Response:
+    logger.info("%s: the client disconnected before the answer; the agent run was stopped", route)
+    return Response(status_code=CLIENT_CLOSED_REQUEST)
 
 @r.post("")
 async def chat(
@@ -75,7 +115,7 @@ async def chat(
             
         # Stream response using Vercel's streaming response
         # (Returns response chunks incrementally)
-        response = await chat_engine.achat(last_message_content, messages)
+        response = await until_disconnected(request, chat_engine.achat(last_message_content, messages))
 
         #logger.info(f"Streaming response: {response.response} and {response.source_nodes}\nType: {type(response)}")
         response.is_dummy_stream = True
@@ -87,15 +127,19 @@ async def chat(
             background_tasks=background_tasks,
         )
         
+    except ClientDisconnected:
+        return _gone("POST /api/chat")
     except Exception as e:
-        # The fixed text and the request id; the exception (a model server's or a database's error) goes to the log.
-        raise failure(e, "chat engine", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in chat engine",
+        # The fixed text and the request id; the exception (a model server's or a database's error, a model call that
+        # timed out) goes to the log.
+        raise failure(e, "chat engine", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=DETAIL,
                       log=logger, traceback=True) from e
 
 
 # non-streaming endpoint for testing
 @r.post("/request")
 async def chat_request(
+    request: Request,
     data: ChatData,
 ) -> Result:
     last_message_content = data.get_last_message_content()
@@ -108,9 +152,16 @@ async def chat_request(
         f"Creating chat engine with filters: {str(filters)}",
     )
 
-    chat_engine = get_chat_engine(filters=filters, params=params)
-
-    response = await chat_engine.achat(last_message_content, messages)
+    try:
+        chat_engine = get_chat_engine(filters=filters, params=params)
+        response = await until_disconnected(request, chat_engine.achat(last_message_content, messages))
+    except ClientDisconnected:
+        return _gone("POST /api/chat/request")
+    except Exception as e:
+        # As POST /api/chat: a failed run is a 500 with the fixed text and the request id, logged under that id; it
+        # used to come back as HTTP 200 with no text (the chat smoke committed in c9b4acd).
+        raise failure(e, "chat engine", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=DETAIL,
+                      log=logger, traceback=True) from e
     return Result(
         result=Message(role=MessageRole.ASSISTANT, content=response.response),
         nodes=SourceNodes.from_source_nodes(response.source_nodes),

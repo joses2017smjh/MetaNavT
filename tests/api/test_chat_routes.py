@@ -280,26 +280,66 @@ def test_a_tool_that_raises_reaches_no_body_by_its_text_only_by_its_class_and_th
 # ---------------------------------------------------------------- a model call that fails (M39)
 
 
-def test_a_model_call_that_times_out_comes_back_as_an_empty_answer_with_http_200(client, monkeypatch, caplog):
-    """What doc/engineering-reference.md (Backend) says of the chat smoke's unanswered requests: the routes return a
-    failed model call as HTTP 200 with no text, no error line and no tool call, and log nothing about it, which is why
-    the smoke runner counts a request as answered only when it carries text. A change that reports the failure
-    instead changes that sentence with this test."""
+def test_a_model_call_that_times_out_is_a_500_with_the_fixed_text_and_the_request_id_on_both_routes(client, monkeypatch, caplog):
+    """What doc/engineering-reference.md (Backend) says of a failed model call since M39's fix: both routes answer 500
+    with the fixed text and the request id, and the failure is logged under that id. Before the fix (the chat smoke
+    committed in c9b4acd) the agent wrapper read only the run's event stream, which ends as if the run had finished,
+    so both routes answered HTTP 200 with no text, no error line and nothing in the log."""
     import httpx
 
     class TimingOut(ScriptedToolLLM):
         async def astream_chat_with_tools(self, *args, **kwargs):
-            raise httpx.ReadTimeout("timed out")
+            raise httpx.ReadTimeout("model server timed out")
 
     monkeypatch.setattr(Settings, "_llm", TimingOut(PLAN))
     caplog.set_level(logging.INFO)
-    streamed = _chat(client)
-    assert streamed.status_code == 200, streamed.text
-    assert [part.strip() if isinstance(part, str) else part for part in _stream(streamed)] == ["", []]
-    resp = client.post("/api/chat/request", json={"messages": [{"role": "user", "content": QUESTION}]})
-    assert resp.status_code == 200, resp.text
-    assert (resp.json()["result"]["content"], resp.json()["tools"]) == ("", [])
-    assert not [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR or "timed out" in r.getMessage()]
+    for path in ("/api/chat", "/api/chat/request"):
+        resp = client.post(path, json={"messages": [{"role": "user", "content": QUESTION}]})
+        assert resp.status_code == 500, (path, resp.status_code, resp.text)
+        request_id = resp.headers["x-request-id"]
+        assert resp.json() == {"detail": "Error in chat engine", "request_id": request_id}
+        # the full reason goes to the log under that id (the workflow names the step whose model call failed)
+        logged = [r.getMessage() for r in caplog.records if request_id in r.getMessage()]
+        assert any("chat engine failed" in line and "run_agent_step" in line and "model server timed out" in line
+                   for line in logged), caplog.text
+
+
+def test_a_client_that_disconnects_stops_the_agent_run_and_the_model_call(client, monkeypatch):
+    """The route races the agent run against the client: when the client is gone the run is cancelled, and with it the
+    model call in flight (for Ollama, the streamed request it is generating for), and the route answers 499. TestClient
+    cannot drop a connection, so the route function is called with a request that reports a disconnect."""
+    import asyncio
+
+    from app.api.routers import chat as chat_routes
+    from app.api.routers.models import ChatData
+
+    started, cancelled = [], []
+
+    class Generating(ScriptedToolLLM):
+        async def astream_chat_with_tools(self, *args, **kwargs):
+            started.append(True)
+            try:
+                await asyncio.sleep(3600)  # a call that does not end on its own
+            except asyncio.CancelledError:
+                cancelled.append(True)
+                raise
+
+    class Gone:
+        async def is_disconnected(self):
+            return bool(started)  # the client leaves once the model call has started
+
+    monkeypatch.setattr(Settings, "_llm", Generating(PLAN))
+    monkeypatch.setattr(chat_routes, "DISCONNECT_POLL_S", 0.05)
+    data = ChatData(messages=[{"role": "user", "content": QUESTION}])
+
+    calls = {"POST /api/chat/request": lambda: chat_routes.chat_request(request=Gone(), data=data),
+             "POST /api/chat": lambda: chat_routes.chat(request=Gone(), data=data, background_tasks=None)}
+    for route, call in calls.items():
+        started.clear()
+        cancelled.clear()
+        resp = asyncio.run(asyncio.wait_for(call(), timeout=30))
+        assert resp.status_code == chat_routes.CLIENT_CLOSED_REQUEST, route
+        assert started and cancelled, f"{route}: the model call was not cancelled"
 
 
 # ---------------------------------------------------------------- GET /api/query/
