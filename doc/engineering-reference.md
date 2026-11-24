@@ -2443,7 +2443,8 @@ models, and evaluating Claude spends API credits.
 - a daily budget in dollars. Each call first reserves its worst case with one atomic increment: all of `max_tokens` as
   output, the input at a conservative tokens-per-character ratio, at the dearest rate that could bill it. The call is
   refused when the day's total would go over. Afterwards the reservation is settled to the reply's cost, from its
-  usage and a price table dated in the code; a timeout keeps the whole reservation;
+  usage and a price table dated in the code, on the reservation's own day: a call that crosses UTC midnight is settled
+  on the day it was reserved on, and the new day's total is not touched; a timeout keeps the whole reservation;
 - an answer cache keyed by the model and the normalised question.
 
 The caller is the API key's name when authentication is on, and otherwise the client address behind
@@ -2531,9 +2532,10 @@ contract's names and defaults as the block above lists them, and no committed
 secret.
 
 **Deploy to AWS.** [The runbook](deploy.md) covers the AWS stacks in `infra/`:
-Terraform, code only (the owner has applied only the bootstrap). The live demo's target is one Free-plan EC2 host
-behind CloudFront ([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the
-app checks CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
+Terraform; the owner has applied the bootstrap and the live demo's single host, not the ECS stack. The live demo is
+one Free-plan EC2 host behind CloudFront
+([the runbook's first section](deploy.md#the-live-demo-one-host-on-the-aws-free-plan)), where the app checks
+CloudFront's header itself (`ORIGIN_VERIFY_SECRET`) and the reranker is off; the ECS stack below is the
 production-grade target.
 CloudFront, with a WAF, sends `/api/*` and `/health` to an ALB whose only
 ingress is CloudFront's origin-facing prefix list and whose listener forwards
