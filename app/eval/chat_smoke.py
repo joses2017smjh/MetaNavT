@@ -64,7 +64,9 @@ ERROR_CHARS = 200
 QUESTION_RULE = "the first gold question of each category of bench/gold/questions.jsonl, in file order"
 SOURCES = ("app/eval/chat_smoke.py", "app/eval/served_stack.py", "app/api/routers/chat.py", "app/engine/engine.py",
            "app/engine/agents/file_access_agent.py", "app/engine/agents/multi_agent_workflow.py", "app/settings.py",
-           "config/tools.yaml", "main.py", "app/engine/tools/index_file_access.py", "app/database/vector_store_manager.py")
+           "config/tools.yaml", "main.py", "app/engine/tools/index_file_access.py", "app/database/vector_store_manager.py",
+           "app/engine/tools/query_engine.py", "app/api/errors.py", "app/api/routers/vercel_response.py",
+           "app/api/routers/models.py")
 SCOPE = ("POST /api/chat and POST /api/chat/request of main:app with a local Ollama model, on the default stack "
          "(hash embeddings, ts_rank_cd, no reranker) over fixture v1, code execution off. One request per question "
          "and route, one at a time, after a warm-up. A smoke run of the routes: status, latency, tool calls; not an "
