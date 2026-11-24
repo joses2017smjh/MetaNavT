@@ -2,6 +2,8 @@
 and every number in those rows comes from the results file."""
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -9,6 +11,12 @@ import pytest
 from app.eval.evidence import FILES, claims
 
 ROOT = Path(__file__).resolve().parents[2]
+# B14: the served lexical_path route gets the benchmark's path lookup (a path list in the served SQL statement)
+B14 = "c445848f995451dcab522a43c235920b8c37f89c"
+
+
+def _git(*args):
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
 
 
 @pytest.mark.parametrize("key,command", [("companion_live", "make bench-companion-live"),
@@ -40,6 +48,27 @@ def test_every_row_names_the_fallback_retrieval(key, command):
         pytest.skip(f"{FILES[key]} not recorded yet")
     for row in rows:
         assert all(label in row["not_shown"] for label in ("hash embeddings", "ts_rank_cd", "no reranker")), row["claim"]
+
+
+def test_the_companion_rows_say_where_paths_are_searched_and_the_run_had_that_code():
+    """The rows say the served retrieval searches file names and paths only on the router's lexical_path route. That
+    holds for the code since B14, so the recorded run's commit must contain B14 (a recording from before it had no
+    path list). A shallow clone without the commits is a skip (CI's eval job fetches the full history)."""
+    if not (ROOT / FILES["companion_live"]).exists():
+        pytest.skip("bench/results/companion_live.json not recorded yet")
+    rows = [r for r in claims() if r["command"] == "make bench-companion-live"]
+    said = "file names and paths are searched only for a search with a path-like token, the router's lexical_path route"
+    assert rows and all(said in r["not_shown"] for r in rows)
+    head = json.loads((ROOT / FILES["companion_live"]).read_text())["git_head"]
+    if shutil.which("git") is None or _git("rev-parse", "--is-inside-work-tree").stdout.strip() != "true":
+        pytest.skip("not a git checkout: the recorded commit cannot be read")
+    for sha in (B14, head):
+        if _git("cat-file", "-e", f"{sha}^{{commit}}").returncode != 0:
+            if _git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+                pytest.skip(f"shallow clone without commit {sha[:7]}: fetch the full history (git fetch --unshallow)")
+            pytest.fail(f"commit {sha} is not in this repository's history")
+    assert _git("merge-base", "--is-ancestor", B14, head).returncode == 0, \
+        f"{FILES['companion_live']} was recorded at {head[:7]}, before B14: its served retrieval had no path list"
 
 
 def test_the_citation_row_counts_the_answers_the_companion_blocked_for_citing(tmp_path):

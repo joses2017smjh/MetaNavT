@@ -381,8 +381,8 @@ def _companion_live_claims(root: Path = ROOT) -> list[dict]:
     model = blob["model"]
     gold = blob["summary"]["gold"]["overall"]
     stack = ("the served retrieval is the default stack's stand-ins (hash embeddings, Postgres ts_rank_cd instead of BM25, no "
-             "reranker; its lexical leg does not search paths); one trial per question at temperature 0 with no seed; "
-             "synthetic fixture questions")
+             "reranker; file names and paths are searched only for a search with a path-like token, the router's "
+             "lexical_path route); one trial per question at temperature 0 with no seed; synthetic fixture questions")
     out = [{"claim": f"Research companion, live mode ({model} through Ollama), every fixture v1 gold question: outcome",
             "value": "; ".join(f"{k} {v}" for k, v in gold["status"].items()), "ci": "—", "n": gold["n"],
             "command": cmd, "source": src,

@@ -45,6 +45,6 @@
     "model": "qwen2.5:7b",
     "model_digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
     "ollama_version": "0.34.3",
-    "git_head": "1687252affff80cf29fa1f8be2f06cef7a6e7a8c"
+    "git_head": "50e9ee222a135324b9b5b0c2cc17dcde6b89e1dc"
   }
 }
