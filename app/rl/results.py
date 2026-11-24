@@ -103,7 +103,9 @@ def gold_form(answer: str) -> str:
 
 
 def _round(value: float, digits: int = 4) -> float:
-    return round(float(value), digits)
+    """Rounded, and never -0.0: a bootstrap bound that is float noise below zero (deltas of seed means are multiples of
+    a third of 1/n) would print as "-0.0000"."""
+    return round(float(value), digits) + 0.0
 
 
 def _ci(values: Sequence[float], idx) -> dict:

@@ -180,6 +180,10 @@ def test_check_recomputes_the_file_from_its_sidecars_and_reports_a_changed_episo
     assert R.check(path, root=tmp_path) == ["policy-grpo/seed=1: the scored adapter is step 100, the tune half selects step 50"]
 
 
+def test_a_rounded_value_is_never_negative_zero():
+    assert str(R._round(-1e-17)) == "0.0" and R._round(-0.00004) == 0.0 and R._round(-0.00005, 4) == -0.0001 and R._round(0.12345) == 0.1235
+
+
 def test_gold_forms_and_the_declared_texts():
     assert R.gold_form("1e-04") == R.gold_form("configs/run_047.yaml") == R.gold_form("yes") == "single_value"
     assert R.gold_form("46, 47, 48") == R.gold_form("dinov2; 3e-4") == R.gold_form("file src/fusion.py") == R.gold_form("baseline val RMSE") == "composite"
