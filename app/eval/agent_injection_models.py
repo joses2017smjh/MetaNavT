@@ -327,3 +327,73 @@ BAR = {
         ],
     },
 }
+
+
+# ---- the rules BAR declares, as code: markers, the probe's decisions and the request they give ----------------------
+
+def reasoning_markers_in(text: str | None) -> list[str]:
+    """The listed reasoning markers (BAR["reasoning"]["markers"]) that occur in `text`, matched by their text."""
+    return [m for m in BAR["reasoning"]["markers"] if m in (text or "")]
+
+
+def unparsed_forms_in(text: str | None) -> list[str]:
+    """The listed tool-call forms (BAR["tool_calls"]["unparsed_markers"]) that occur in `text`. In a stored answer or
+    draft every one is unparsed: text from which text_tool_call recovered a call is stored as a call, not an answer."""
+    return [m for m in BAR["tool_calls"]["unparsed_markers"] if m in (text or "")]
+
+
+def detector(call: dict) -> bool:
+    """BAR's reasoning detector on one probe call record: non-empty message.thinking, or a listed marker in the content."""
+    return bool(call.get("thinking_chars")) or bool(call.get("reasoning_markers"))
+
+
+def reasoning_decision(calls: list[dict]) -> dict:
+    """BAR's reasoning table on one model's probe calls (each with `request` "A" or "B", `thinking_chars`,
+    `reasoning_markers` and `done_reason`): the case, the think setting it gives (None: cannot run) and its label."""
+    a = [c for c in calls if c["request"] == "A"]
+    b = [c for c in calls if c["request"] == "B"]
+    if not a or not b:
+        raise ValueError("the reasoning table needs probe calls of both requests")
+    a_clean, b_fired = not any(detector(c) for c in a), any(detector(c) for c in b)
+    if a_clean:
+        case = "a" if b_fired else "a'"
+    elif all(c.get("done_reason") == "stop" for c in b):
+        case = "b"
+    else:
+        case = "c"
+    row = next(r for r in BAR["reasoning"]["decision"] if r["case"] == case)
+    return {"case": case, "think": row["think"], "label": row["label"], "a_calls": len(a),
+            "a_detector_positive": sum(detector(c) for c in a), "b_calls": len(b),
+            "b_detector_positive": sum(detector(c) for c in b),
+            "b_length_stops": sum(c.get("done_reason") == "length" for c in b)}
+
+
+def chosen_request_label(think: str | None) -> str | None:
+    """The probe request whose calls the speed and parser rules read: A for think off, B for the model default."""
+    return {"off": "A", "default": "B"}.get(think or "")
+
+
+def speed_decisions(wall_s: float, calls: list[dict]) -> dict:
+    """BAR's workers and shard-split rules on the chosen request's probe batch (run through 8 workers): s_call, the
+    longest single call, the workers, H and the split."""
+    rules, split = BAR["request"], BAR["shard_split"]
+    s_call = wall_s / len(calls)
+    longest = max(c["wall_s"] for c in calls)
+    hours = s_call * split["mean_turns"] * split["episodes_per_question"] / 3600
+    jobs = ("one" if hours <= split["one_job_max_h"] else "two" if hours <= split["two_jobs_max_h"] else "four")
+    return {"s_call": round(s_call, 3), "calls": len(calls), "wall_s": round(wall_s, 1), "longest_call_s": longest,
+            "workers": rules["workers_reduced"] if longest > rules["longest_call_limit_s"] else rules["workers"],
+            "h_per_question": round(hours, 3), "split": jobs}
+
+
+def request_for(probe_model: dict) -> dict | None:
+    """The request block BAR's rules give one model from its committed probe record (None when it cannot run): what
+    every one of its shards' segments must have recorded."""
+    think = probe_model["decisions"]["reasoning"]["think"]
+    if think is None:
+        return None
+    rules = BAR["request"]
+    return {"think": think, "num_predict": rules["num_predict"], "temperature": rules["temperature"],
+            "max_turns": rules["max_turns"], "workers": probe_model["decisions"]["speed"]["workers"],
+            "chat_timeout_s": float(rules["chat_timeout_s"]), "server_context": rules["server_context"],
+            "num_parallel": rules["num_parallel"]}

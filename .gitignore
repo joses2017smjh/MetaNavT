@@ -105,6 +105,13 @@ bench/external/
 !bench/results/agent_injection_v3.json
 !bench/results/agent_injection_v3_episodes.meta.json
 bench/results/agent_injection_v3_shards/
+# M50, the 2026 open models as the agent under the protocol of agent_injection_v3 (make bench-agent-injection-v3-2026-merge
+# of the shards of make bench-agent-injection-v3-2026-shard), its probe and its comparison file; shards stay untracked
+!bench/results/agent_injection_v3_models_2026.json
+!bench/results/agent_injection_v3_models_2026_episodes.meta.json
+!bench/results/agent_injection_v3_models_2026_probe.json
+!bench/results/agent_injection_v3_models_2026_compare.json
+bench/results/agent_injection_v3_models_2026_shards/
 # the adaptive attacker on the held-out questions (make bench-agent-injection-adaptive, or its shards merged by
 # make bench-agent-injection-adaptive-merge); shards and the tuning runs on the training questions stay untracked
 !bench/results/agent_injection_adaptive.json

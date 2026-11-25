@@ -1,4 +1,4 @@
-.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-agent-injection-adaptive bench-agent-injection-adaptive-tune bench-agent-injection-adaptive-shard bench-agent-injection-adaptive-merge bench-agent-injection-adaptive-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index bench-served-scale
+.PHONY: install install-app install-ml install-locked lint lock-check test test-eval test-unit bench bench-compare bench-gate bench-check bench-baseline bench-agent-injection bench-agent-injection-rescore bench-agent-injection-scores bench-agent-injection-v2 bench-agent-injection-v2-rescore bench-agent-injection-v3 bench-agent-injection-v3-shard bench-agent-injection-v3-merge bench-agent-injection-v3-rescore bench-agent-injection-v3-2026-probe bench-agent-injection-v3-2026-shard bench-agent-injection-v3-2026-merge bench-agent-injection-v3-2026-rescore bench-agent-injection-adaptive bench-agent-injection-adaptive-tune bench-agent-injection-adaptive-shard bench-agent-injection-adaptive-merge bench-agent-injection-adaptive-rescore bench-jury-rescore bench-jury-heuristic bench-table bench-table-write bench-table-check evidence evidence-check bench-jury bench-frontier bench-neural bench-beir bench-beir-bm25-ablation bench-beir-rerank-cap bench-beir-fiqa parity explain-sql freeze-corpus sweeps figures matlab-demo demo-data gifs demos lock docker-smoke bench-frontier-neural bench-rerank-arms ingest-runs fixture-mtimes probes frontier-generations explain-sql-synthetic migrate migrate-check bench-jury-v2 bench-jury-v2-rescore ingest-scale index bench-served-scale
 
 PYTHON ?= python3
 ROBOTICS_SNAPSHOT ?= bench/robotics/2026-10-07
@@ -237,6 +237,23 @@ bench-agent-injection-v3-merge: ## merge the shards in bench/results/agent_injec
 
 bench-agent-injection-v3-rescore: ## rebuild agent_injection_v3's scores and summary from its committed episodes -> bench/results/agent_injection_v3_rescore.json, not tracked, to compare with agent_injection_v3.json (no model call)
 	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(AGENT_MODELS) --k 4 --out bench/results/agent_injection_v3_rescore.json --episodes bench/results/agent_injection_v3_episodes.jsonl
+
+# M50: agent_injection_v3's protocol with the 2026 open models as the agent, under the bar declared before any of its model
+# calls (BAR in app/eval/agent_injection_models.py; --bar m50). The probe decides the request by BAR's tables; shards
+# print operational counts only (--no-summary), so the first rates are the merge's. Shards and the rescore stay untracked.
+MODELS_2026 ?= qwen3.5:27b,gemma4:26b
+bench-agent-injection-v3-2026-probe: ## M50's probe of one model, PROBE_MODEL=... (PROBE_PRIOR=<earlier probe file> keeps its models, PROBE_SERVER_LOG=<the job's Ollama log>) -> bench/results/agent_injection_v3_models_2026_probe.json (needs Ollama 0.40.16)
+	$(PYTHON) -m app.eval.agent_injection_probe --model $(PROBE_MODEL) --out bench/results/agent_injection_v3_models_2026_probe.json $(if $(PROBE_PRIOR),--prior $(PROBE_PRIOR)) $(if $(PROBE_SERVER_LOG),--server-log $(PROBE_SERVER_LOG))
+
+bench-agent-injection-v3-2026-shard: ## one M50 shard, SHARD=name SHARD_MODELS=... SHARD_QUESTIONS=q011,... THINK=off|default (the probe's decision; SHARD_FLAGS=--resume, --defenses, --workers) -> bench/results/agent_injection_v3_models_2026_shards/, not tracked; operational counts only (needs Ollama 0.40.16)
+	$(if $(THINK),,$(error set THINK to the probe's decision: off or default))
+	$(PYTHON) -m app.eval.agent_injection --benchmark agent_injection_v3 --models $(SHARD_MODELS) $(if $(SHARD_QUESTIONS),--questions $(SHARD_QUESTIONS)) --k 4 --think $(THINK) --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/$(SHARD).json --episodes bench/results/agent_injection_v3_models_2026_shards/$(SHARD)_episodes.jsonl $(SHARD_FLAGS)
+
+bench-agent-injection-v3-2026-merge: ## merge the M50 shards in bench/results/agent_injection_v3_models_2026_shards/ in a fixed order and score them -> bench/results/agent_injection_v3_models_2026.json and its episodes (no model call)
+	$(PYTHON) -m app.eval.agent_injection --merge $(sort $(wildcard bench/results/agent_injection_v3_models_2026_shards/*_episodes.jsonl)) --models $(MODELS_2026) --k 4 --bar m50 --out bench/results/agent_injection_v3_models_2026.json --episodes bench/results/agent_injection_v3_models_2026_episodes.jsonl
+
+bench-agent-injection-v3-2026-rescore: ## rebuild the M50 file's scores and summary from its committed episodes -> bench/results/agent_injection_v3_models_2026_rescore.json, not tracked (no model call)
+	$(PYTHON) -m app.eval.agent_injection --summarize-only --models $(MODELS_2026) --k 4 --bar m50 --out bench/results/agent_injection_v3_models_2026_rescore.json --episodes bench/results/agent_injection_v3_models_2026_episodes.jsonl
 
 # agent_injection_adaptive (D20): an attacker model rewrites the planted text round by round against each configuration,
 # from the scorer's outcome on its earlier rounds. Its instructions are tuned on the training questions (the tune target,

@@ -97,6 +97,7 @@ the answer_check configuration lets it block anything in the episode loop.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import os
@@ -714,36 +715,72 @@ def text_tool_call(content: str) -> dict | None:
     return None
 
 
+class Interrupted(Exception):
+    """The run was told to stop (SIGINT, as `timeout -s INT` sends at a job's limit) before a chat call: the episode is
+    written as an error row, which --resume runs again."""
+
+
+INTERRUPTED = "Interrupted"
+
+
 class OllamaChat:
-    """POST /api/chat with native tools; returns the message plus token counts."""
+    """POST /api/chat with native tools; returns the message plus token counts, why generation stopped (done_reason),
+    the length of the reasoning text the server returned apart from the reply (message.thinking) and the call's wall
+    time. `think` is sent only when it is not None (the committed request has no think key; False asks a thinking model
+    for no reasoning). Once `stop` is set, no further attempt is made."""
 
     def __init__(self, model: str, base_url: str | None = None, *, temperature: float = 0.7,
-                 num_predict: int = 384, timeout: float = 300.0, retries: int = 2):
+                 num_predict: int = 384, timeout: float = 300.0, retries: int = 2, think: bool | None = None,
+                 stop: threading.Event | None = None):
         self.model = model
         self.base_url = (base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
         self.temperature, self.num_predict = temperature, num_predict
         self.timeout, self.retries = timeout, retries
+        self.think, self.stop = think, stop
 
-    def __call__(self, messages: list[dict], tools: list[dict], seed: int) -> dict:
+    def body(self, messages: list[dict], tools: list[dict], seed: int) -> dict:
         body = {"model": self.model, "messages": messages, "tools": tools, "stream": False,
                 "options": {"temperature": self.temperature, "seed": seed, "num_predict": self.num_predict}}
-        data = json.dumps(body).encode()
+        if self.think is not None:
+            body["think"] = self.think
+        return body
+
+    def __call__(self, messages: list[dict], tools: list[dict], seed: int) -> dict:
+        data = json.dumps(self.body(messages, tools, seed)).encode()
         for attempt in range(self.retries + 1):
+            if self.stop is not None and self.stop.is_set():
+                raise Interrupted("the run was stopped before this call")
+            started = time.monotonic()
             try:
                 req = urllib.request.Request(f"{self.base_url}/api/chat", data=data,
                                              headers={"content-type": "application/json"})
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     out = json.load(resp)
-                return {"message": out.get("message", {}), "prompt_tokens": out.get("prompt_eval_count", 0),
-                        "output_tokens": out.get("eval_count", 0)}
+                message = out.get("message", {})
+                return {"message": message, "prompt_tokens": out.get("prompt_eval_count", 0),
+                        "output_tokens": out.get("eval_count", 0), "done_reason": out.get("done_reason"),
+                        "thinking_chars": len(message.get("thinking") or ""),
+                        "wall_s": round(time.monotonic() - started, 3)}
             except (urllib.error.URLError, TimeoutError, ConnectionError):
-                if attempt == self.retries:
+                if attempt == self.retries or (self.stop is not None and self.stop.is_set()):
                     raise
                 time.sleep(2.0 * (attempt + 1))
         raise RuntimeError("unreachable")
 
 
 ChatFn = Callable[[list[dict], list[dict], int], dict]
+
+
+def stoppable(chat: ChatFn, stop: threading.Event) -> ChatFn:
+    """`chat`, checking `stop` before each call: once it is set, the episode ends with Interrupted at its next call (a
+    call already sent finishes first), whatever chat function the run was given. The wrapper carries the chat
+    function's name and attributes (functools.wraps)."""
+    @functools.wraps(chat)
+    def call(messages: list[dict], tools: list[dict], seed: int) -> dict:
+        if stop.is_set():
+            raise Interrupted("the run was stopped before this call")
+        return chat(messages, tools, seed)
+    return call
 
 
 def exposed_tools(task: Task, defense: str) -> tuple[str, ...]:
@@ -768,6 +805,10 @@ def run_episode(chat: ChatFn, env: TaskEnv, defense: str, seed: int, max_turns: 
     mark = exposure_mark(task)
     saw_appended = False
     answer, prompt_tokens, output_tokens, turns = None, 0, 0, 0
+    # per call: reasoning text the server returned apart from the reply, calls stopped at num_predict, the largest
+    # prompt and the slowest call (counted and reported, never asserted: a capped answer is a result)
+    calls_stats = {"thinking_chars": 0, "thinking_calls": 0, "length_stops": 0, "max_call_prompt_tokens": 0,
+                   "max_call_wall_s": 0.0}
     checked = defense == ANSWER_CHECK
     drafts: list[dict] = []
     if checked:
@@ -775,9 +816,16 @@ def run_episode(chat: ChatFn, env: TaskEnv, defense: str, seed: int, max_turns: 
         vocabulary = field_vocabulary(env.files, task.field)
     started = time.time()
     for turns in range(1, max_turns + 1):
+        sent = time.time()
         out = chat(messages, schemas, seed)
         prompt_tokens += int(out.get("prompt_tokens") or 0)
         output_tokens += int(out.get("output_tokens") or 0)
+        thinking = int(out.get("thinking_chars") or 0)
+        calls_stats["thinking_chars"] += thinking
+        calls_stats["thinking_calls"] += thinking > 0
+        calls_stats["length_stops"] += out.get("done_reason") == "length"
+        calls_stats["max_call_prompt_tokens"] = max(calls_stats["max_call_prompt_tokens"], int(out.get("prompt_tokens") or 0))
+        calls_stats["max_call_wall_s"] = max(calls_stats["max_call_wall_s"], round(float(out.get("wall_s", time.time() - sent)), 3))
         message = out["message"]
         tool_calls = message.get("tool_calls") or []
         recovered = False
@@ -840,7 +888,7 @@ def run_episode(chat: ChatFn, env: TaskEnv, defense: str, seed: int, max_turns: 
     check = {"answer_check": {"drafts": drafts, "withheld": bool(drafts) and answer is None}} if checked else {}
     return env.publishable({"answer": answer, **check, "turns": turns, "tool_calls": calls, "exposed": saw_appended,
                             "corpus_changed": changed, "corpus_diff": diff, "prompt_tokens": prompt_tokens,
-                            "output_tokens": output_tokens, "wall_s": round(time.time() - started, 3)})
+                            "output_tokens": output_tokens, "wall_s": round(time.time() - started, 3), **calls_stats})
 
 
 _SUPERSCRIPT = str.maketrans("\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079\u207b", "0123456789-")
@@ -1404,6 +1452,21 @@ def summarize(tasks: Sequence[Task], episodes: Sequence[dict], k: int, n_boot: i
     return summary
 
 
+def values(per_task: dict[str, list[dict]], subset: Sequence[Task], key: str, unit: str) -> dict[str, float]:
+    """One model and configuration's episodes (per task id) reduced to one value per unit, in task order: per question
+    ("questions": each task's rate of `key` over its episodes, the question's tasks averaged), per task ("tasks"), or
+    any-success over a question's phrasings seed by seed ("any", ANY_SUCCESS_RULE). Tasks without episodes are left
+    out. _sweep_paired_deltas pairs these values; the M50 compare module (agent_injection_models) reads them too."""
+    present = [t for t in subset if t.task_id in per_task]
+    if unit == "any":
+        return dict(zip(dict.fromkeys(t.gold_id for t in present), any_phrasing(present, per_task, key)))
+    grouped: dict[str, list[float]] = {}
+    for t in present:
+        rate = sum(bool(e["score"].get(key)) for e in per_task[t.task_id]) / len(per_task[t.task_id])
+        grouped.setdefault(t.gold_id if unit == "questions" else t.task_id, []).append(rate)
+    return {u: float(np.mean(v)) for u, v in grouped.items()}
+
+
 def _sweep_paired_deltas(tasks: Sequence[Task], episodes: Sequence[dict], n_boot: int, seed: int,
                          defenses: Sequence[str]) -> dict:
     """agent_injection_v3: each configuration minus `none` within a model, on the same units. The planted value in an
@@ -1425,16 +1488,6 @@ def _sweep_paired_deltas(tasks: Sequence[Task], episodes: Sequence[dict], n_boot
         ("utility_under_attack", "success_clean", injected, "questions"),
         ("injected_success", "success", injected, "questions"),
     )
-
-    def values(per_task: dict[str, list[dict]], subset: Sequence[Task], key: str, unit: str) -> dict[str, float]:
-        present = [t for t in subset if t.task_id in per_task]
-        if unit == "any":
-            return dict(zip(dict.fromkeys(t.gold_id for t in present), any_phrasing(present, per_task, key)))
-        grouped: dict[str, list[float]] = {}
-        for t in present:
-            rate = sum(bool(e["score"].get(key)) for e in per_task[t.task_id]) / len(per_task[t.task_id])
-            grouped.setdefault(t.gold_id if unit == "questions" else t.task_id, []).append(rate)
-        return {u: float(np.mean(v)) for u, v in grouped.items()}
 
     out: dict[str, dict] = {}
     for model in sorted({ep["model"] for ep in episodes}):
@@ -1507,6 +1560,10 @@ def _ollama_info(base_url: str, models: Sequence[str]) -> dict:
     except (urllib.error.URLError, OSError, ValueError) as exc:
         info["error"] = f"{type(exc).__name__}: {exc}"
         return info
+    for m in models:  # what the server serves the model with: its Modelfile parameters, capabilities, renderer, parser
+        shown = _ollama_show(base_url, m)
+        if shown and m in tags:
+            info["models"][m].update(shown)
     try:
         with urllib.request.urlopen(f"{base_url}/api/ps", timeout=10) as r:
             loaded = {m.get("name"): m for m in json.load(r).get("models", [])}
@@ -1515,6 +1572,24 @@ def _ollama_info(base_url: str, models: Sequence[str]) -> dict:
     except (urllib.error.URLError, OSError, ValueError, AttributeError):
         info["running"] = None
     return info
+
+
+def _ollama_show(base_url: str, model: str) -> dict | None:
+    """/api/show's facts about how the server runs a model (None when the server does not answer): its Modelfile
+    parameters (the sampling defaults a request does not override), capabilities, and the renderer and parser that
+    newer servers name in place of a template; a fact the server does not report is None."""
+    try:
+        req = urllib.request.Request(f"{base_url}/api/show", data=json.dumps({"model": model}).encode(),
+                                     headers={"content-type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            shown = json.load(r)
+    except Exception:  # an older server, or none: the record keeps the rest
+        return None
+    if not isinstance(shown, dict) or "error" in shown:
+        return None
+    details = shown.get("details") or {}
+    return {"parameters": shown.get("parameters"), "capabilities": shown.get("capabilities"),
+            "renderer": shown.get("renderer"), "parser": shown.get("parser"), "family": details.get("family")}
 
 
 def _gpu() -> str | None:
@@ -1541,13 +1616,74 @@ def _episode_key(row: dict) -> tuple:
     return (row["model"], row["defense"], row["task_id"], row["trial"])
 
 
+# The request the committed runs sent, as a request block reads it: a segment without a block ran with it (its server
+# context and slot count were the server's own defaults, not set by the run).
+COMMITTED_REQUEST = {"think": "default", "num_predict": 384, "temperature": 0.7, "max_turns": 6, "workers": 8,
+                     "chat_timeout_s": 300.0, "server_context": None, "num_parallel": None}
+THINK_CHOICES = ("default", "off")  # default: no think key (the committed request); off: think false
+
+
+def _env_int(name: str) -> int | None:
+    value = os.environ.get(name, "").strip()
+    return int(value) if value.isdigit() else None
+
+
+def request_block(*, think: str = "default", num_predict: int = 384, temperature: float = 0.7, max_turns: int = 6,
+                  workers: int = 8, chat_timeout: float = 300.0) -> dict:
+    """What a run sends and how it queues, written into each segment: the think setting, num_predict, temperature,
+    max_turns, client workers, the chat timeout, and the server's context and slot count as the job pinned them
+    (OLLAMA_CONTEXT_LENGTH and OLLAMA_NUM_PARALLEL, exported to the server and to this process; None when unset, which
+    leaves them to the server)."""
+    if think not in THINK_CHOICES:
+        raise ValueError(f"think must be one of {THINK_CHOICES}, not {think!r}")
+    return {"think": think, "num_predict": num_predict, "temperature": temperature, "max_turns": max_turns,
+            "workers": workers, "chat_timeout_s": float(chat_timeout),
+            "server_context": _env_int("OLLAMA_CONTEXT_LENGTH"), "num_parallel": _env_int("OLLAMA_NUM_PARALLEL")}
+
+
+def segment_request(segment: dict) -> dict:
+    """A segment's request block; one written before blocks existed ran the committed request."""
+    return segment.get("request") or COMMITTED_REQUEST
+
+
+def file_counts(episodes_path: Path) -> tuple[int, int]:
+    """(episodes, error rows) in an episodes file as it stands: what a segment leaves behind, read from the file."""
+    rows = errors = 0
+    if Path(episodes_path).exists():
+        for line in Path(episodes_path).read_text().splitlines():
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:  # a line torn by a kill counts as neither
+                continue
+            rows += 1
+            errors += bool(row.get("error"))
+    return rows, errors
+
+
+def check_pins(base_url: str, pins: dict[str, str], models: Sequence[str]) -> None:
+    """Refuse to run a model whose digest on the server (/api/tags, never a hash of the manifest file) is not the pinned
+    one."""
+    with urllib.request.urlopen(f"{base_url}/api/tags", timeout=30) as r:
+        tags = {m["name"]: m.get("digest") for m in json.load(r).get("models", [])}
+    wrong = {m: tags.get(m) for m in models if m in pins and tags.get(m) != pins[m]}
+    if wrong:
+        raise SystemExit(f"refusing to run: the server's digests {wrong} are not the pinned ones")
+
+
 def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int = 4, temperature: float = 0.7,
         base_url: str | None = None, workers: int = 8, max_turns: int = 6, episodes_path: Path = DEFAULT_EPISODES,
         resume: bool = False, limit_tasks: int | None = None, chat_factory: Callable[[str], ChatFn] | None = None,
         log: Callable[[str], None] = print, benchmark: str = BENCHMARK,
-        questions: Sequence[str] | None = None) -> tuple[list[Task], list[dict]]:
+        questions: Sequence[str] | None = None, think: str = "default", num_predict: int = 384,
+        chat_timeout: float = 300.0, pins: dict[str, str] | None = None) -> tuple[list[Task], list[dict]]:
     """Generate episodes. `questions` (gold ids) or `limit_tasks` (the first N) keep some questions' tasks: a shard
-    of a run split across processes (merge_shards), or a smoke run."""
+    of a run split across processes (merge_shards), or a smoke run. Each segment records its request block
+    (request_block); a resumed run refuses one that differs from the segments before it. `pins` (model -> digest) makes
+    the run refuse a model the server holds at another digest, before the first episode.
+
+    A KeyboardInterrupt (SIGINT, which `timeout -s INT` sends at a job's limit) stops the run: queued episodes are
+    cancelled, episodes in flight end at their next chat call as error rows (Interrupted, which --resume runs again),
+    and the segment is recorded with its end, the server after it, and the episodes and error rows the file holds."""
     from app.eval.index_loader import mtime_provenance
 
     if resume and sidecar(episodes_path).exists() and episodes_benchmark(episodes_path) != benchmark:
@@ -1556,6 +1692,16 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
     unknown = set(defenses) - set(BENCHMARK_DEFENSES[benchmark])
     if unknown:
         raise ValueError(f"{benchmark} has no configuration {sorted(unknown)}; it runs {BENCHMARK_DEFENSES[benchmark]}")
+    request = request_block(think=think, num_predict=num_predict, temperature=temperature, max_turns=max_turns,
+                            workers=workers, chat_timeout=chat_timeout)
+    meta_path = sidecar(episodes_path)
+    if resume and meta_path.exists():
+        stored = {json.dumps(segment_request(seg), sort_keys=True) for seg in json.loads(meta_path.read_text())["segments"]}
+        if stored != {json.dumps(request, sort_keys=True)}:
+            raise ValueError(f"{episodes_path} was generated with another request ({sorted(stored)}); this run's is "
+                             f"{json.dumps(request, sort_keys=True)}")
+    if pins and chat_factory is None:
+        check_pins(factory_url(base_url), pins, models)
     tasks = build_tasks(benchmark=benchmark)
     if limit_tasks:
         keep = {gold_id for gold_id, *_ in USER_TASKS[:limit_tasks]}
@@ -1565,8 +1711,11 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
         if missing:
             raise ValueError(f"no question {sorted(missing)} in USER_TASKS")
         tasks = [t for t in tasks if t.gold_id in set(questions)]
-    factory = chat_factory or (lambda m: OllamaChat(m, base_url, temperature=temperature))
-    chats = {m: factory(m) for m in models}
+    stop = threading.Event()
+    factory = chat_factory or (lambda m: OllamaChat(m, base_url, temperature=temperature, num_predict=num_predict,
+                                                    timeout=chat_timeout, think=False if think == "off" else None,
+                                                    stop=stop))
+    chats = {m: stoppable(factory(m), stop) for m in models}
     done: dict[tuple, dict] = {}
     if resume and episodes_path.exists():
         lines = episodes_path.read_text().splitlines()
@@ -1589,7 +1738,6 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
     jobs = [(m, d, t, trial) for trial in range(k) for t in tasks for d in defenses for m in models
             if (m, d, t.task_id, trial) not in done]
     log(f"{len(tasks)} tasks x {len(defenses)} configs x {len(models)} models x k={k}: {len(jobs)} episodes to run, {len(done)} resumed")
-    meta_path = sidecar(episodes_path)
     # written before the first episode and rewritten when the segment ends; a resumed run appends a segment
     meta = (json.loads(meta_path.read_text()) if resume and meta_path.exists()
             else {"benchmark": benchmark, "reconstructed": False, "segments": []})
@@ -1598,7 +1746,8 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
                "git_head": prov["git_head"], "working_tree_dirty": prov["working_tree_dirty"],
                "module_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "command": command_line(),
                "corpus_mtimes": mtime_provenance(CORPUS, "manifest", base=ROOT),
-               "device": {"gpu": _gpu()}, "ollama": _ollama_info(factory_url(base_url), models) if chat_factory is None else None}
+               "device": {"gpu": _gpu()}, "ollama": _ollama_info(factory_url(base_url), models) if chat_factory is None else None,
+               "models": list(models), "request": request}
     meta["segments"].append(segment)
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
     started = time.time()
@@ -1625,18 +1774,25 @@ def run(models: Sequence[str], *, defenses: Sequence[str] | None = None, k: int 
                 fh.write(json.dumps(row, ensure_ascii=False) + "\n")
         return row
 
+    pool = ThreadPoolExecutor(max_workers=workers)
     try:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [pool.submit(one, job) for job in jobs]
-            for i, fut in enumerate(as_completed(futures), 1):
-                rows.append(fut.result())
-                if i % 50 == 0 or i == len(futures):
-                    log(f"  {i}/{len(futures)} episodes")
+        futures = [pool.submit(one, job) for job in jobs]
+        for i, fut in enumerate(as_completed(futures), 1):
+            rows.append(fut.result())
+            if i % 50 == 0 or i == len(futures):
+                log(f"  {i}/{len(futures)} episodes")
+    except KeyboardInterrupt:
+        stop.set()
+        segment["interrupted"] = True
+        log("stop requested: queued episodes cancelled; episodes in flight end at their next call (Interrupted)")
+        pool.shutdown(wait=True, cancel_futures=True)
     finally:
+        pool.shutdown(wait=True)
         for env in envs.values():
             env.close()
+        after, errors_after = file_counts(episodes_path)
         segment.update(finished_utc=provenance()["run_at_utc"], wall_s=round(time.time() - started, 1),
-                       episodes_after=len(rows))
+                       episodes_after=after, errors_after=errors_after)
         if chat_factory is None:  # the server as the segment leaves it, with the context each loaded model ran with
             segment["ollama_after"] = _ollama_info(factory_url(base_url), models)
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
@@ -1680,6 +1836,7 @@ def merge_shards(shards: Sequence[Path], episodes_path: Path, models: Sequence[s
     defense_rank = {d: i for i, d in enumerate(defenses if defenses is not None else BENCHMARK_DEFENSES[benchmark])}
     model_rank = {m: i for i, m in enumerate(models)}
     rows, owner, segments, files = [], {}, [], []
+    requests: dict[str, tuple[str, str]] = {}  # model -> (its request block, the shard that first set it)
     for path in shards:
         meta = json.loads(sidecar(path).read_text())
         shard_rows = [json.loads(line) for line in path.read_text().splitlines()]
@@ -1688,6 +1845,14 @@ def merge_shards(shards: Sequence[Path], episodes_path: Path, models: Sequence[s
             if row_key in owner:
                 raise ValueError(f"{row_key} is in both {owner[row_key]} and {path.name}")
             owner[row_key] = path.name
+        # every shard of one model must have run with one request (a segment without a block ran the committed one)
+        for model in sorted({row["model"] for row in shard_rows}):
+            for segment in meta["segments"]:
+                block = json.dumps(segment_request(segment), sort_keys=True)
+                first = requests.setdefault(model, (block, path.name))
+                if first[0] != block:
+                    raise ValueError(f"the request blocks of {model} differ: {first[1]} ran {first[0]}, "
+                                     f"{path.name} ran {block}")
         rows += shard_rows
         segments += [{**segment, "shard": path.name} for segment in meta["segments"]]
         files.append({"file": path.name, "episodes_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -1717,13 +1882,14 @@ def task_rows(tasks: Sequence[Task], benchmark: str) -> list[dict]:
 
 
 def run_config(tasks: Sequence[Task], *, benchmark: str, models: Sequence[str], k: int, temperature: float,
-               max_turns: int) -> dict:
-    """The settings a report records; agent_injection_v2 adds what its tasks and copies changed."""
+               max_turns: int, num_predict: int = 384, requests: dict[str, dict] | None = None) -> dict:
+    """The settings a report records; agent_injection_v2 adds what its tasks and copies changed. A run whose segments
+    recorded request blocks (requests, one per model) adds them and each model's think setting."""
     from app.eval.index_loader import mtime_provenance
 
     config: dict[str, Any] = {
         "models": list(models), "defenses": list(BENCHMARK_DEFENSES[benchmark]), "k": k, "temperature": temperature,
-        "seeds": list(range(k)), "max_turns": max_turns, "num_predict": 384, "embedder": "hash",
+        "seeds": list(range(k)), "max_turns": max_turns, "num_predict": num_predict, "embedder": "hash",
         "read_tools": list(READ_TOOLS), "write_tools": list(WRITE_TOOLS), "goals": list(GOALS),
         "styles": list(STYLES), "n_user_tasks": len(USER_TASKS), "datamark": MARK,
         "system_prompt": BASE_PROMPT, "spotlight_prompt": SPOTLIGHT_PROMPT,
@@ -1757,12 +1923,26 @@ def run_config(tasks: Sequence[Task], *, benchmark: str, models: Sequence[str], 
         })
     if benchmark != BENCHMARK_V1:
         config.update({"benchmark": benchmark, "corpus_mtimes": mtime_provenance(CORPUS, "manifest", base=ROOT)})
+    if requests:
+        config["think"] = {m: requests[m]["think"] for m in models if m in requests}
+        config["request"] = {m: requests[m] for m in models if m in requests}
     return config
+
+
+def requests_by_model(generated: dict | None) -> dict[str, dict] | None:
+    """Each model's request block, read from the segments that generated its episodes (None when no segment recorded
+    one: the committed runs, whose config stays as they wrote it)."""
+    out: dict[str, dict] = {}
+    for segment in (generated or {}).get("segments") or []:
+        if "request" in segment:
+            for model in segment.get("models") or []:
+                out.setdefault(model, segment["request"])
+    return out or None
 
 
 def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str], k: int, temperature: float,
            base_url: str, wall_s: float, episodes_path: Path, max_turns: int, benchmark: str = BENCHMARK,
-           prov: dict | None = None) -> dict:
+           prov: dict | None = None, requests: dict[str, dict] | None = None) -> dict:
     """The results file. `prov` is the commit and tree the process started from (main() takes it first): a run's own
     new files under bench/results would make the tree look dirty by the time the summary is written."""
     errors = [r for r in rows if r.get("error")]
@@ -1807,7 +1987,8 @@ def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str]
         "ollama": _ollama_info(base_url, models),
         "episodes_generated_by": json.loads(sidecar(episodes_path).read_text()) if sidecar(episodes_path).exists() else None,
         "config": run_config(tasks, benchmark=benchmark, models=models, k=k, temperature=temperature,
-                             max_turns=max_turns),
+                             max_turns=max_turns, requests=requests,
+                             num_predict=_common(requests, "num_predict", 384)),
         "tasks": task_rows(tasks, benchmark),
         "n_episodes": len(rows),
         "n_episode_errors": len(errors),
@@ -1820,6 +2001,15 @@ def report(tasks: Sequence[Task], rows: Sequence[dict], *, models: Sequence[str]
         "episodes_sha256": hashlib.sha256(episodes_path.read_bytes()).hexdigest() if episodes_path.exists() else None,
         "wall_s": round(wall_s, 1),
     }
+
+
+def _common(requests: dict[str, dict] | None, key: str, default: Any) -> Any:
+    """The value every model's request block gives `key` (the default without blocks); blocks that differ are refused
+    before a report is written, so one value is left."""
+    found = {json.dumps(block.get(key)) for block in (requests or {}).values()}
+    if len(found) > 1:
+        raise ValueError(f"the models' requests differ in {key}: {sorted(found)}")
+    return json.loads(found.pop()) if found else default
 
 
 def generating_process(generated: dict | None, merged: bool = False, server: str = "ollama") -> dict:
@@ -1838,6 +2028,49 @@ def generating_process(generated: dict | None, merged: bool = False, server: str
     walls = [seg.get("wall_s") for seg in segments]
     out["wall_s"] = round(sum(walls), 1) if walls and all(w is not None for w in walls) else None
     return out
+
+
+def operational_counts(rows: Sequence[dict]) -> dict:
+    """What a shard reports while no rate may be read (--no-summary): per model, episodes, error rows (Interrupted ones
+    apart), calls stopped at the cap, calls that returned reasoning text, tool calls recovered from text, and stored
+    answers or drafts that hold a listed reasoning marker or an unparsed tool-call form (the lists M50 declared,
+    agent_injection_models.BAR). No score is read."""
+    from app.eval.agent_injection_models import reasoning_markers_in, unparsed_forms_in
+
+    out: dict[str, dict] = {}
+    for row in rows:
+        block = out.setdefault(row["model"], {"episodes": 0, "error_rows": 0, "interrupted_rows": 0, "length_stops": 0,
+                                              "thinking_calls": 0, "tool_calls_recovered_from_text": 0,
+                                              "texts_with_reasoning_markers": 0, "texts_with_unparsed_call_forms": 0})
+        block["episodes"] += 1
+        error = row.get("error") or ""
+        block["error_rows"] += bool(error)
+        block["interrupted_rows"] += error.startswith(INTERRUPTED)
+        block["length_stops"] += int(row.get("length_stops") or 0)
+        block["thinking_calls"] += int(row.get("thinking_calls") or 0)
+        block["tool_calls_recovered_from_text"] += sum(bool(c.get("recovered_from_text")) for c in row.get("tool_calls") or [])
+        texts = [row.get("answer") or ""] + [d.get("answer") or "" for d in (row.get("answer_check") or {}).get("drafts") or []]
+        block["texts_with_reasoning_markers"] += sum(bool(reasoning_markers_in(t)) for t in texts)
+        block["texts_with_unparsed_call_forms"] += sum(bool(unparsed_forms_in(t)) for t in texts)
+    return out
+
+
+def print_operational_counts(episodes_path: Path) -> int:
+    """Print operational_counts of an episodes file and the state of its last segment; 3 when that segment was stopped
+    (resume it), else 0."""
+    rows = []
+    for line in Path(episodes_path).read_text().splitlines():
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    meta = json.loads(sidecar(episodes_path).read_text())
+    last = meta["segments"][-1] if meta.get("segments") else {}
+    print(f"{episodes_path.name}: {len(rows)} episodes; {len(meta.get('segments') or [])} segments; last segment "
+          f"{'stopped (resume it)' if last.get('interrupted') else 'finished'}; no rate is computed (--no-summary)")
+    for model, block in operational_counts(rows).items():
+        print(f"  {model}: " + ", ".join(f"{k} {v}" for k, v in block.items()))
+    return 3 if last.get("interrupted") else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1864,14 +2097,42 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--write-scores", type=Path, default=None, metavar="PATH",
                    help="write every stored episode's current score (key and score, no answer or tool call) to PATH "
                         "and a .meta.json beside it, then exit; no model call, --out is not written")
+    p.add_argument("--think", choices=THINK_CHOICES, default="default",
+                   help="default: no think key in the request (the committed request); off: think false")
+    p.add_argument("--num-predict", type=int, default=384, help="the generation cap per chat call (committed: 384)")
+    p.add_argument("--chat-timeout", type=float, default=300.0, help="seconds per chat call (committed: 300)")
+    p.add_argument("--no-summary", action="store_true",
+                   help="write the episodes and their sidecar (or, with --merge, the merged episodes) and print only "
+                        "operational counts (episodes, error rows, calls stopped at the cap, reasoning calls, recovered "
+                        "and unparsed tool calls): no rate is computed and --out is not written")
+    p.add_argument("--bar", choices=("m50",), default=None,
+                   help="m50: a run under M50's declared bar (app.eval.agent_injection_models.BAR): a new run refuses a "
+                        "model the server holds at another digest than BAR pins, and a report copies BAR as `bar`")
     args = p.parse_args(argv)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     started, prov = time.time(), provenance()
+    bar = None
+    if args.bar == "m50":  # imported here: agent_injection_models imports this module
+        from app.eval.agent_injection_models import BAR as bar
     offline = bool(args.summarize_only or args.write_scores or args.merge)
     if args.merge:
         if args.episodes.exists():
             raise SystemExit(f"{args.episodes} exists; the merge writes it, so move it away")
         merge_shards(args.merge, args.episodes, models)
+    if args.no_summary:
+        if not args.merge:
+            if args.summarize_only or args.write_scores:
+                raise SystemExit("--no-summary writes episodes: it goes with a new run or --merge")
+            if not args.resume and args.episodes.exists():
+                raise SystemExit(f"{args.episodes} exists; pass --resume to continue it or move it away")
+            run(models, k=args.k, temperature=args.temperature, base_url=args.base_url, workers=args.workers,
+                max_turns=args.max_turns, episodes_path=args.episodes, resume=args.resume,
+                limit_tasks=args.limit_tasks, benchmark=args.benchmark or BENCHMARK,
+                questions=args.questions.split(",") if args.questions else None,
+                defenses=args.defenses.split(",") if args.defenses else None, think=args.think,
+                num_predict=args.num_predict, chat_timeout=args.chat_timeout,
+                pins=bar["models"]["digests"] if bar else None)
+        return print_operational_counts(args.episodes)
     if offline:
         benchmark = episodes_benchmark(args.episodes)
         if args.benchmark not in (None, benchmark):
@@ -1885,7 +2146,12 @@ def main(argv: list[str] | None = None) -> int:
                           workers=args.workers, max_turns=args.max_turns, episodes_path=args.episodes,
                           resume=args.resume, limit_tasks=args.limit_tasks, benchmark=benchmark,
                           questions=args.questions.split(",") if args.questions else None,
-                          defenses=args.defenses.split(",") if args.defenses else None)
+                          defenses=args.defenses.split(",") if args.defenses else None, think=args.think,
+                          num_predict=args.num_predict, chat_timeout=args.chat_timeout,
+                          pins=bar["models"]["digests"] if bar else None)
+        segments = json.loads(sidecar(args.episodes).read_text()).get("segments") or [{}]
+        if segments[-1].get("interrupted"):
+            return print_operational_counts(args.episodes)  # a stopped run is resumed, not summarized
     # Scores always come from the current scoring code, so rows resumed from an
     # earlier process (or an older scoring version) are scored like the rest.
     rows = rescore(tasks, rows)
@@ -1896,11 +2162,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.summarize_only or args.merge:
         seen = {r["model"] for r in rows}
         models = [m for m in models if m in seen] + sorted(seen - set(models))
+    meta_path = sidecar(args.episodes)
+    requests = requests_by_model(json.loads(meta_path.read_text()) if meta_path.exists() else None)
     blob = report(tasks, rows, models=models, k=args.k, temperature=args.temperature, base_url=args.base_url,
                   wall_s=time.time() - started, episodes_path=args.episodes, max_turns=args.max_turns,
-                  benchmark=benchmark, prov=prov)
+                  benchmark=benchmark, prov=prov, requests=requests)
     if args.summarize_only or args.merge:
         blob.update(generating_process(blob.get("episodes_generated_by"), merged=bool(args.merge)))
+    if bar is not None:
+        blob["bar"] = bar
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(blob, indent=2, ensure_ascii=False) + "\n")
     print(f"wrote {args.out} ({blob['n_episodes']} episodes, {blob['n_episode_errors']} errors)")
