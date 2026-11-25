@@ -1313,6 +1313,49 @@ their test questions are about, though no test question and no label. Quality
 on the real corpus with the owner's hand-written questions: a later bar, on a
 CPU, from these committed files. Each student is one training run with one seed.
 
+## Late interaction (ColBERT MaxSim), measured
+
+`app/multimodal/late_interaction.py` has scored ColPali-style page patches by
+MaxSim since the multimodal prototype, but no text model produced token vectors
+and no results file scored it. This section measures text MaxSim against the
+default path, `hybrid@bge-small`, with two ColBERT checkpoints at their saved
+settings: answerdotai/answerai-colbert-small-v1, the size of bge-small, and
+colbert-ir/colbertv2.0, the original ColBERTv2 checkpoint. The rows are in
+[the generated block](../README.md#bench-late-interaction). Nothing here changes
+a default.
+
+**Two roles, one bar, declared before any row ran.** In role (a) the MaxSim leg
+replaces bge-small's dense leg and BM25 is kept; in role (b) MaxSim reranks the
+fused top twenty. `app/eval/late_interaction.py` holds the bar as constants,
+pinned by a test, in a commit that `make late-interaction-bar` checks is an
+ancestor of every results file: a model passes in a role when its paired nDCG@10
+delta against `hybrid@bge-small` is above zero on fixture v1's held-out
+questions and on BEIR SciFact and on BEIR FiQA. The scoring is exhaustive MaxSim
+in float64 over every document's token vectors (`maxsim_scores`, the arithmetic
+of `maxsim`, batched): the exact score that PLAID-style search approximates, not
+an index.
+
+**No named model passes in either role**, so the plan's row is "measured, not
+adopted" and the MaxSim code stays as a measured, tested option off the default
+path. The closest is answerai-colbert-small as a reranker, above the unreranked list on FiQA by +0.0473 [+0.0327, +0.0619] but covering zero on the fixture and on SciFact.<!-- num: bench/results/beir_fiqa_late_interaction.json#/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/delta_vs_parent/ndcg@10/hi -->
+Its card says that as a reranker it "vastly outperforms cross-encoders its
+size", and against the MiniLM-L12 cross-encoder that holds on all three
+datasets, read with two caveats declared before the run: that comparator was
+chosen while its weak rows were known, and it reads a longer budget of query
+plus document. Outside the bar, the stretch model GTE-ModernColBERT's MaxSim
+leg alone is above bge-small's dense leg on all three datasets, yet fused with
+BM25 it covers zero on each; the verdict is unchanged.
+
+**What it costs.** The index holds one vector per token. On FiQA, answerai-colbert-small's uncompressed token index at its saved length is 31.724 times the size of bge-small's one float32 vector per document in fp32, and 15.862 times in fp16; the multimodal module carried an unmeasured estimate before.<!-- num: bench/results/beir_fiqa_late_interaction.json#/late_interaction/legs/mv:answerai-colbert-small/store/ratio_to_bge_small/fp32; #/late_interaction/legs/mv:answerai-colbert-small/store/ratio_to_bge_small/fp16 -->
+On the share node's Xeon Silver with two torch threads, reranking twenty passages on the fly took a median of 4464.6 ms against 7967.1 ms for the MiniLM-L12 cross-encoder on the same CPU model: indicative only, another machine, not the serving bar.<!-- num: bench/results/late_interaction_cpu.json#/results/[tag=answerai-colbert-small]/shapes/3/p50_ms; bench/results/small_rerankers_cpu.json#/results/3/shapes/[depth=20]/p50_ms -->
+
+**What this does not show.** A PLAID or compressed index; a served path (there
+is no pgvector MaxSim); equivalence where an interval covers zero; BEIR results
+free of selection, since the models were chosen knowing their published BEIR
+scores; a level field, since fusion, depth and budget were set around
+bge-small. The full list is in each results file's header and under the
+generated block.
+
 ## The API serves the benchmarked pipeline
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
@@ -2861,7 +2904,8 @@ app/agent/         retrieval loop, Deep Research, move-plan schema
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox (prototype, not evaluated)
 app/rl/            Search-R1 env, reward, policy, GRPO training loop, held-out scoring (trained once, M44)
 app/mcp/           filesystem tools + stdio server
-app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images (prototype, not evaluated)
+app/multimodal/    MaxSim (text: measured, see "Late interaction (ColBERT MaxSim), measured"); ColPali-style pages,
+                   CLIP/SigLIP images (prototype, not evaluated)
 app/database/      index manager, pgvector, BM25
 app/engine/        LlamaIndex agents, loaders, sandbox
 .frontend/         Next.js UI
