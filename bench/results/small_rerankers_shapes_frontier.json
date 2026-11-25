@@ -1,0 +1,3733 @@
+{
+  "git_sha": "475cc85",
+  "git_head": "475cc858cac8476c6d56696e1077f83e36ea0a77",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/per_question.py": "04fd21dd79390d0ae457cdd5924a25f57309c96538fc90e2615465ad130df689",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/small_rerankers.py": "723f7f81c64d37bb77ff7a44bea32ce4e4364efbb1624ada88479165d206bc79",
+    "app/eval/small_rerankers_shapes.py": "d354aa0c6cf3e6b93d091591ae5f2c2c25df9e38109b9c29ea8bd70f0e3638c9",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2"
+  },
+  "timestamp": "2026-11-25T21:13:50.181245+00:00",
+  "command": "python -m app.eval.small_rerankers_shapes --frontier",
+  "label": "M51: quality x indicative CPU cost per cell, and the answer per family (CPU, from committed files only)",
+  "inputs_sha256": {
+    "bench/results/small_rerankers_shapes.json": "1c1ca52bced70ae17a5465f5171bae93f450505a5b9b94927d527e5d5ce38d24",
+    "bench/results/beir_scifact_small_rerankers_shapes.json": "f7c5918f83a5d784d360c3060921f0e77bee91adc7fa52af2b171a090c1953d7",
+    "bench/results/beir_fiqa_small_rerankers_shapes.json": "55f351e9764b285e984969764f88b13a268d78054bdaf921992876570f3ab368",
+    "bench/results/small_rerankers_shapes.per_query.json": "b329341555d2890b9e69997c38bd2afa217250ce7054fbd1f2769a985431f0c5",
+    "bench/results/beir_scifact_small_rerankers_shapes.per_query.json": "7387a58ae0cfcc93434deadab8cc6cadc69ab82ce343431a4f9620cfe59711de",
+    "bench/results/beir_fiqa_small_rerankers_shapes.per_query.json": "39a5ef5c8d6fdb145d3c48eb6e34ca9109915d1c5d319b4db6c2f2452f0b7ec3",
+    "bench/results/small_rerankers_cpu.json": "8c8c6a7f497c5cbcd433926487cb245cbc43f6fe14f28795c2fbaf510fd05215",
+    "infra/modules/single-host/variables.tf": "fe4a7519c081dde9825496147ceb0455c2424d76f58eec1814a46b4f9e049b5f",
+    "bench/results/small_rerankers_shapes_exposure.json": "c0d0777c7df71ac9f1484b19df45c5e8a0705b78b958b3d14fbc1014327f2e2d",
+    "bench/results/small_rerankers.json": "ff257de7dae5f09af7eb1b0ae28dff9a9d4a5d2157e0ed0dafbbb2f9f508b0be",
+    "bench/results/beir_scifact_small_rerankers.json": "5a776948de3fad0c834aff4e6f4a40eb98698d61c5114e34899eb14cfcf41652",
+    "bench/results/beir_fiqa_small_rerankers.json": "acd1f78dc020bab44a6f24702c355f9e691e167605aacc093b64f80226a1b343"
+  },
+  "devices": {
+    "fixture": "NVIDIA GeForce RTX 2080 Ti",
+    "scifact": "NVIDIA GeForce RTX 2080 Ti",
+    "fiqa": "NVIDIA GeForce RTX 2080 Ti"
+  },
+  "limit_mib": 1024,
+  "bands": {
+    "under-indicative-budget": [
+      "hybrid+minilm-l6@bge-small/fp32-256/top5",
+      "hybrid+minilm-l6@bge-small/fp32-256/top10",
+      "hybrid+minilm-l12@bge-small/fp32-256/top5",
+      "hybrid+student-minilm-l6@bge-small/fp32-256/top5",
+      "hybrid+student-minilm-l6@bge-small/fp32-256/top10",
+      "hybrid+student-minilm-l12@bge-small/fp32-256/top5"
+    ],
+    "borderline": [
+      "hybrid+minilm-l6@bge-small/fp32-256/top20",
+      "hybrid+minilm-l6@bge-small/fp32-512/top5",
+      "hybrid+minilm-l6@bge-small/fp32-512/top10",
+      "hybrid+minilm-l12@bge-small/fp32-256/top10",
+      "hybrid+minilm-l12@bge-small/fp32-512/top5",
+      "hybrid+student-minilm-l6@bge-small/fp32-256/top20",
+      "hybrid+student-minilm-l6@bge-small/fp32-512/top5",
+      "hybrid+student-minilm-l6@bge-small/fp32-512/top10",
+      "hybrid+student-minilm-l12@bge-small/fp32-256/top10",
+      "hybrid+student-minilm-l12@bge-small/fp32-512/top5"
+    ],
+    "over-budget": [
+      "hybrid+minilm-l6@bge-small/fp32-512/top20",
+      "hybrid+minilm-l12@bge-small/fp32-256/top20",
+      "hybrid+minilm-l12@bge-small/fp32-512/top10",
+      "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "hybrid+student-minilm-l6@bge-small/fp32-512/top20",
+      "hybrid+student-minilm-l12@bge-small/fp32-256/top20",
+      "hybrid+student-minilm-l12@bge-small/fp32-512/top10",
+      "hybrid+student-minilm-l12@bge-small/fp32-512/top20",
+      "hybrid+gte-modernbert-base@bge-small/fp32-256/top5",
+      "hybrid+gte-modernbert-base@bge-small/fp32-256/top10",
+      "hybrid+gte-modernbert-base@bge-small/fp32-256/top20",
+      "hybrid+gte-modernbert-base@bge-small/fp32-512/top5",
+      "hybrid+gte-modernbert-base@bge-small/fp32-512/top10",
+      "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "hybrid+bge-rerank@bge-small/fp32-256/top5",
+      "hybrid+bge-rerank@bge-small/fp32-256/top10",
+      "hybrid+bge-rerank@bge-small/fp32-256/top20",
+      "hybrid+bge-rerank@bge-small/fp32-512/top5",
+      "hybrid+bge-rerank@bge-small/fp32-512/top10",
+      "hybrid+bge-rerank@bge-small/fp32-512/top20"
+    ]
+  },
+  "settings": {
+    "ci95": "the stored 95% intervals of the three files (2000 resamples, seed 0)",
+    "adjusted": {
+      "n_boot": 20000,
+      "seed": 0,
+      "rng": "numpy.random.RandomState.randint (app.eval.stats.resample_indices)",
+      "level": "1 - 0.05/k",
+      "percentiles": "100 * (0.05/k) / 2 and 100 * (1 - (0.05/k) / 2), np.percentile linear interpolation",
+      "matrix": "its own index matrix per dataset (fixture: drawn over the 68 held-out queries)",
+      "rounding": "4 decimals; read with the same rule (lo > 0 on the stored value)",
+      "families": {
+        "F1": {
+          "k": 6,
+          "alpha": 0.008333333333333333,
+          "percentiles": [
+            0.4167,
+            99.5833
+          ]
+        },
+        "F2": {
+          "k": 16,
+          "alpha": 0.003125,
+          "percentiles": [
+            0.1562,
+            99.8438
+          ]
+        }
+      }
+    },
+    "sensitivity": {
+      "permutation": {
+        "draws": 20000,
+        "seed": 0,
+        "statistic": "mean paired nDCG@10 difference",
+        "p_value": "two-sided, (1 + #{|mean of sign-flipped differences| >= |observed|}) / (1 + draws)"
+      },
+      "exposure_excluded": "the SciFact and FiQA test queries with no relevant document among the students' source documents"
+    },
+    "exposure_excluded_interval": "95%, 2000 resamples, seed 0, over the unexposed queries"
+  },
+  "answers": {
+    "F1": {
+      "answer": "NOT SHOWN at this n",
+      "cells": [],
+      "k": 6,
+      "percentiles": [
+        0.4167,
+        99.5833
+      ]
+    },
+    "F2": {
+      "answer": "NOT SHOWN at this n",
+      "cells": [],
+      "k": 16,
+      "percentiles": [
+        0.1562,
+        99.8438
+      ]
+    }
+  },
+  "headline": {
+    "family": "F1",
+    "answer": "NOT SHOWN at this n",
+    "cells": []
+  },
+  "family_control": "each family controls its own family-wise error at 5%; the families are not jointly controlled",
+  "cells": [
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-256/top5",
+      "tag": "minilm-l6",
+      "depth": 5,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 457.2,
+        "p95_ms": 461.4,
+        "peak_mib": 853,
+        "n": 30
+      },
+      "families": [
+        "F1",
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0112,
+            "lo": -0.0513,
+            "hi": 0.0317
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": -0.0112,
+              "lo": -0.0667,
+              "hi": 0.0444
+            },
+            "F2": {
+              "delta": -0.0112,
+              "lo": -0.0733,
+              "hi": 0.0526
+            }
+          },
+          "sign_flip_p": 0.59767,
+          "vs_20_512": {
+            "delta": 0.0048,
+            "lo": -0.0438,
+            "hi": 0.0481
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 123,
+          "ranking_digest": "5c3784680604d662cf3bedbbac94f0c4db7d745ace68898f3818d67c641a1a92",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0268,
+            "lo": -0.0459,
+            "hi": -0.008
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F1": {
+              "delta": -0.0268,
+              "lo": -0.0519,
+              "hi": -0.0027
+            },
+            "F2": {
+              "delta": -0.0268,
+              "lo": -0.0555,
+              "hi": -0.0
+            }
+          },
+          "sign_flip_p": 0.00415,
+          "vs_20_512": {
+            "delta": 0.0039,
+            "lo": -0.0167,
+            "hi": 0.0237
+          },
+          "truncated_pairs": {
+            "total": 1304,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 277,
+          "ranking_digest": "8fa07f0f5a523e9383633d8710158b32e3ef578df88b5992b39c49ddd05a9cae",
+          "n_queries_ranked_unlike_512": 184
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0065,
+            "lo": -0.0038,
+            "hi": 0.0163
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0065,
+              "lo": -0.007,
+              "hi": 0.0206
+            },
+            "F2": {
+              "delta": 0.0065,
+              "lo": -0.0086,
+              "hi": 0.0223
+            }
+          },
+          "sign_flip_p": 0.21009,
+          "vs_20_512": {
+            "delta": -0.0057,
+            "lo": -0.0191,
+            "hi": 0.0067
+          },
+          "truncated_pairs": {
+            "total": 1656,
+            "queries_with_any": 620
+          },
+          "n_top10_differs_from_parent": 622,
+          "ranking_digest": "8a90face3aa95a67c5cb37fdd8f06620bc1461c59a2da1bd56c7317dcf45f1d4",
+          "n_queries_ranked_unlike_512": 339
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-256/top10",
+      "tag": "minilm-l6",
+      "depth": 10,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 892.8,
+        "p95_ms": 899.2,
+        "peak_mib": 894,
+        "n": 30
+      },
+      "families": [
+        "F1",
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0349,
+            "lo": -0.079,
+            "hi": 0.0091
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": -0.0349,
+              "lo": -0.0933,
+              "hi": 0.0233
+            },
+            "F2": {
+              "delta": -0.0349,
+              "lo": -0.1009,
+              "hi": 0.0327
+            }
+          },
+          "sign_flip_p": 0.11809,
+          "vs_20_512": {
+            "delta": -0.0189,
+            "lo": -0.0645,
+            "hi": 0.015
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "c7f88b46cbacf171de621be12c5226c704516861c719d3d02a977f21bb94254c",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0307,
+            "lo": -0.0541,
+            "hi": -0.0058
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F1": {
+              "delta": -0.0307,
+              "lo": -0.0627,
+              "hi": 0.0013
+            },
+            "F2": {
+              "delta": -0.0307,
+              "lo": -0.0665,
+              "hi": 0.0051
+            }
+          },
+          "sign_flip_p": 0.0122,
+          "vs_20_512": {
+            "delta": 0.0001,
+            "lo": -0.0168,
+            "hi": 0.017
+          },
+          "truncated_pairs": {
+            "total": 2627,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "2b8d53626155999d65c89d6c5134ee2a001ede7e0c3b669504e75ec373b0153c",
+          "n_queries_ranked_unlike_512": 296
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0036,
+            "lo": -0.0075,
+            "hi": 0.0147
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0036,
+              "lo": -0.0116,
+              "hi": 0.0187
+            },
+            "F2": {
+              "delta": 0.0036,
+              "lo": -0.0133,
+              "hi": 0.0204
+            }
+          },
+          "sign_flip_p": 0.53157,
+          "vs_20_512": {
+            "delta": -0.0086,
+            "lo": -0.0207,
+            "hi": 0.0023
+          },
+          "truncated_pairs": {
+            "total": 3282,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "71691894f1cbd960bd96294dc931c3c098692f3ffff14d80b0508c5e469ebd15",
+          "n_queries_ranked_unlike_512": 586
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-256/top20",
+      "tag": "minilm-l6",
+      "depth": 20,
+      "max_length": 256,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1794.4,
+        "p95_ms": 1815.1,
+        "peak_mib": 995,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.016,
+            "lo": -0.0703,
+            "hi": 0.044
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.016,
+              "lo": -0.099,
+              "hi": 0.0757
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "fd79da5667ce713999cca320313b9372fc7e756051e69a4a7c5bba4c0dc3baf3",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0413,
+            "lo": -0.0692,
+            "hi": -0.0111
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0413,
+              "lo": -0.0852,
+              "hi": 0.0017
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0105,
+            "lo": -0.0253,
+            "hi": 0.005
+          },
+          "truncated_pairs": {
+            "total": 5237,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "5ea2cdf5c4ed170561626b171b5eb3e2521e40356357599ca4cc8fb953cb5524",
+          "n_queries_ranked_unlike_512": 300
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0115,
+            "lo": -0.0039,
+            "hi": 0.0271
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0115,
+              "lo": -0.0121,
+              "hi": 0.0357
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0007,
+            "lo": -0.009,
+            "hi": 0.0068
+          },
+          "truncated_pairs": {
+            "total": 6398,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "38b8c9de8fdd0917419473aece76a834d8911d3ce4047bbe43088438255582df",
+          "n_queries_ranked_unlike_512": 644
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-512/top5",
+      "tag": "minilm-l6",
+      "depth": 5,
+      "max_length": 512,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1024.4,
+        "p95_ms": 1035.4,
+        "peak_mib": 900,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0112,
+            "lo": -0.0513,
+            "hi": 0.0317
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0112,
+              "lo": -0.0733,
+              "hi": 0.0526
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0048,
+            "lo": -0.0438,
+            "hi": 0.0481
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 123,
+          "ranking_digest": "5c3784680604d662cf3bedbbac94f0c4db7d745ace68898f3818d67c641a1a92"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0254,
+            "lo": -0.0434,
+            "hi": -0.008
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0254,
+              "lo": -0.0531,
+              "hi": 0.0007
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0054,
+            "lo": -0.0118,
+            "hi": 0.0217
+          },
+          "truncated_pairs": {
+            "total": 245,
+            "queries_with_any": 143
+          },
+          "n_top10_differs_from_parent": 276,
+          "ranking_digest": "dea2b39c8cb47f78fc89e4cf66c922bbb92429cf7520fb65af1644b12813ee5b"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0067,
+            "lo": -0.0033,
+            "hi": 0.0166
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0067,
+              "lo": -0.0083,
+              "hi": 0.0218
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0055,
+            "lo": -0.0173,
+            "hi": 0.0059
+          },
+          "truncated_pairs": {
+            "total": 465,
+            "queries_with_any": 334
+          },
+          "n_top10_differs_from_parent": 619,
+          "ranking_digest": "a25cfeab82a31a03e3399516906dd513cce5cee9932ce3c47ae1fc292ff00c03"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-512/top10",
+      "tag": "minilm-l6",
+      "depth": 10,
+      "max_length": 512,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 2019.8,
+        "p95_ms": 2038.6,
+        "peak_mib": 979,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0349,
+            "lo": -0.079,
+            "hi": 0.0091
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0349,
+              "lo": -0.1009,
+              "hi": 0.0327
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0189,
+            "lo": -0.0645,
+            "hi": 0.015
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "c7f88b46cbacf171de621be12c5226c704516861c719d3d02a977f21bb94254c"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0261,
+            "lo": -0.0489,
+            "hi": -0.0034
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0261,
+              "lo": -0.0597,
+              "hi": 0.0061
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0047,
+            "lo": -0.0069,
+            "hi": 0.0159
+          },
+          "truncated_pairs": {
+            "total": 503,
+            "queries_with_any": 199
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "c38ef66ed5491aff29a13a359a2acc84e6c146b4feeee1b6b6468f2a06f62cdb"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0048,
+            "lo": -0.0063,
+            "hi": 0.0158
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0048,
+              "lo": -0.0118,
+              "hi": 0.021
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0074,
+            "lo": -0.0179,
+            "hi": 0.0021
+          },
+          "truncated_pairs": {
+            "total": 1013,
+            "queries_with_any": 507
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "66159a3300f4842f18d3c169d181062754ede4a7f88ecd2b1fb22d6324c847d2"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+      "tag": "minilm-l6",
+      "depth": 20,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 4033.0,
+        "p95_ms": 4037.2,
+        "peak_mib": 1144,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.016,
+            "lo": -0.0703,
+            "hi": 0.044
+          },
+          "verdict": "tie",
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "fd79da5667ce713999cca320313b9372fc7e756051e69a4a7c5bba4c0dc3baf3"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0308,
+            "lo": -0.0595,
+            "hi": -0.0038
+          },
+          "verdict": "loss",
+          "truncated_pairs": {
+            "total": 1003,
+            "queries_with_any": 243
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "fe594f135b3eae625e1c60782d7dec0672fb067b139a7e850a89927309d5a9a8"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0122,
+            "lo": -0.003,
+            "hi": 0.0275
+          },
+          "verdict": "tie",
+          "truncated_pairs": {
+            "total": 1999,
+            "queries_with_any": 612
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "51a297715916b598a7e953fd97aa20283bef2b1d50ef1a9487efd64b8d11620b"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-256/top5",
+      "tag": "minilm-l12",
+      "depth": 5,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 896.0,
+        "p95_ms": 901.0,
+        "peak_mib": 885,
+        "n": 30
+      },
+      "families": [
+        "F1",
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0607,
+            "lo": -0.1061,
+            "hi": -0.0138
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F1": {
+              "delta": -0.0607,
+              "lo": -0.1225,
+              "hi": 0.0026
+            },
+            "F2": {
+              "delta": -0.0607,
+              "lo": -0.1308,
+              "hi": 0.0112
+            }
+          },
+          "sign_flip_p": 0.01215,
+          "vs_20_512": {
+            "delta": 0.0109,
+            "lo": -0.0346,
+            "hi": 0.051
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 125,
+          "ranking_digest": "121db6f09812ef9d1ecf693263c5d437e5c7c62c142672d8bfef68aacad8fe56",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.026,
+            "lo": -0.0444,
+            "hi": -0.0072
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F1": {
+              "delta": -0.026,
+              "lo": -0.0516,
+              "hi": -0.0011
+            },
+            "F2": {
+              "delta": -0.026,
+              "lo": -0.0544,
+              "hi": 0.0017
+            }
+          },
+          "sign_flip_p": 0.00685,
+          "vs_20_512": {
+            "delta": 0.0007,
+            "lo": -0.0203,
+            "hi": 0.019
+          },
+          "truncated_pairs": {
+            "total": 1304,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 278,
+          "ranking_digest": "0ad51347749aec407cad51552c7ba45384e5bfcabf71951d55833c06e3395d57",
+          "n_queries_ranked_unlike_512": 182
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0067,
+            "lo": -0.003,
+            "hi": 0.0166
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0067,
+              "lo": -0.0063,
+              "hi": 0.0205
+            },
+            "F2": {
+              "delta": 0.0067,
+              "lo": -0.0079,
+              "hi": 0.022
+            }
+          },
+          "sign_flip_p": 0.18074,
+          "vs_20_512": {
+            "delta": -0.0113,
+            "lo": -0.0252,
+            "hi": 0.002
+          },
+          "truncated_pairs": {
+            "total": 1656,
+            "queries_with_any": 620
+          },
+          "n_top10_differs_from_parent": 617,
+          "ranking_digest": "9273df5bd58a99ff0a13c063011a9101c256fc1bf311c9a6f2bcb37126225e7c",
+          "n_queries_ranked_unlike_512": 346
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-256/top10",
+      "tag": "minilm-l12",
+      "depth": 10,
+      "max_length": 256,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1785.8,
+        "p95_ms": 1813.5,
+        "peak_mib": 943,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0794,
+            "lo": -0.129,
+            "hi": -0.0257
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0794,
+              "lo": -0.1525,
+              "hi": -0.0047
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0078,
+            "lo": -0.0437,
+            "hi": 0.0219
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 132,
+          "ranking_digest": "93d849fe5453a053aac6d932360c8e57f2b4313f7a38d788694bc55adb4fbeaa",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0231,
+            "lo": -0.046,
+            "hi": 0.002
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0231,
+              "lo": -0.0598,
+              "hi": 0.0127
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0037,
+            "lo": -0.013,
+            "hi": 0.0195
+          },
+          "truncated_pairs": {
+            "total": 2627,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "c2ec13e100ac12afd39e82c71b47f165622c91668174919ad5781921e48fd66e",
+          "n_queries_ranked_unlike_512": 290
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0058,
+            "lo": -0.0049,
+            "hi": 0.0162
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0058,
+              "lo": -0.0103,
+              "hi": 0.0226
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0122,
+            "lo": -0.0246,
+            "hi": -0.0011
+          },
+          "truncated_pairs": {
+            "total": 3282,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "fed5778e595e74ca481a658120d38fec337e6f9782dfb53fde3cf51392e8ed7e",
+          "n_queries_ranked_unlike_512": 588
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-256/top20",
+      "tag": "minilm-l12",
+      "depth": 20,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 3525.8,
+        "p95_ms": 3560.2,
+        "peak_mib": 1048,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0716,
+            "lo": -0.1288,
+            "hi": -0.0094
+          },
+          "verdict": "loss",
+          "vs_20_512": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "6ded1be9abaaa68eb4a7a716a0d243fbe642cba8d6a6b523553224bf155e12f6",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0307,
+            "lo": -0.0588,
+            "hi": -0.0006
+          },
+          "verdict": "loss",
+          "vs_20_512": {
+            "delta": -0.004,
+            "lo": -0.0179,
+            "hi": 0.0101
+          },
+          "truncated_pairs": {
+            "total": 5237,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "3d1741b8c42ea428b40160c210e0e0e5df78352bd936f34d8cbce4910cc198ce",
+          "n_queries_ranked_unlike_512": 300
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0166,
+            "lo": 0.0018,
+            "hi": 0.0317
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0014,
+            "lo": -0.0081,
+            "hi": 0.005
+          },
+          "truncated_pairs": {
+            "total": 6398,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "1ecbfcb15a3f7dc0871b89618f45e75f4ad11c5092fd970e255c0fd76050bfdf",
+          "n_queries_ranked_unlike_512": 646
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top5",
+      "tag": "minilm-l12",
+      "depth": 5,
+      "max_length": 512,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1989.6,
+        "p95_ms": 1995.0,
+        "peak_mib": 922,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0607,
+            "lo": -0.1061,
+            "hi": -0.0138
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0607,
+              "lo": -0.1308,
+              "hi": 0.0112
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0109,
+            "lo": -0.0346,
+            "hi": 0.051
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 125,
+          "ranking_digest": "121db6f09812ef9d1ecf693263c5d437e5c7c62c142672d8bfef68aacad8fe56"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0251,
+            "lo": -0.0423,
+            "hi": -0.0082
+          },
+          "verdict": "loss",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0251,
+              "lo": -0.051,
+              "hi": -0.0005
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0016,
+            "lo": -0.0165,
+            "hi": 0.0182
+          },
+          "truncated_pairs": {
+            "total": 245,
+            "queries_with_any": 143
+          },
+          "n_top10_differs_from_parent": 271,
+          "ranking_digest": "fbf38adf5ca421b729a4d60a1274c9631ce3914960c10d69d82fde117d7725e6"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0061,
+            "lo": -0.0032,
+            "hi": 0.0154
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0061,
+              "lo": -0.008,
+              "hi": 0.0205
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.012,
+            "lo": -0.0244,
+            "hi": -0.0006
+          },
+          "truncated_pairs": {
+            "total": 465,
+            "queries_with_any": 334
+          },
+          "n_top10_differs_from_parent": 615,
+          "ranking_digest": "df8c4244e47eb81d5f7f2128c40a9c1952cbadd45345f62b8cfb9f6721742eda"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top10",
+      "tag": "minilm-l12",
+      "depth": 10,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 4003.8,
+        "p95_ms": 4031.9,
+        "peak_mib": 1050,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0794,
+            "lo": -0.129,
+            "hi": -0.0257
+          },
+          "verdict": "loss",
+          "vs_20_512": {
+            "delta": -0.0078,
+            "lo": -0.0437,
+            "hi": 0.0219
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 132,
+          "ranking_digest": "93d849fe5453a053aac6d932360c8e57f2b4313f7a38d788694bc55adb4fbeaa"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0242,
+            "lo": -0.0461,
+            "hi": -0.0021
+          },
+          "verdict": "loss",
+          "vs_20_512": {
+            "delta": 0.0025,
+            "lo": -0.0092,
+            "hi": 0.0132
+          },
+          "truncated_pairs": {
+            "total": 503,
+            "queries_with_any": 199
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "425d716b2d27f93abb27cb0f4bca98e701b1674c94096cff286f4acc3a56ed28"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0066,
+            "lo": -0.0039,
+            "hi": 0.0175
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0114,
+            "lo": -0.0224,
+            "hi": -0.0015
+          },
+          "truncated_pairs": {
+            "total": 1013,
+            "queries_with_any": 507
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "406e5fabfed2f956251dfcbac3826fc32b090c88a54f019b122037c9ab7cb30b"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "tag": "minilm-l12",
+      "depth": 20,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 7967.1,
+        "p95_ms": 7975.8,
+        "peak_mib": 1187,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": -0.0716,
+            "lo": -0.1288,
+            "hi": -0.0094
+          },
+          "verdict": "loss",
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "6ded1be9abaaa68eb4a7a716a0d243fbe642cba8d6a6b523553224bf155e12f6"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0267,
+            "lo": -0.0529,
+            "hi": -0.0005
+          },
+          "verdict": "loss",
+          "truncated_pairs": {
+            "total": 1003,
+            "queries_with_any": 243
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "7835a609cf7dcdd2e7396a182845a0de4fa7b311ac73ec3950a81a0890638a64"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.018,
+            "lo": 0.003,
+            "hi": 0.0331
+          },
+          "verdict": "win",
+          "truncated_pairs": {
+            "total": 1999,
+            "queries_with_any": 612
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "9cedd60611a0de6cb5ecd234bff1d62d8ca360447424e91d3b1d19ac9da60218"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-256/top5",
+      "tag": "student-minilm-l6",
+      "depth": 5,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 443.5,
+        "p95_ms": 447.1,
+        "peak_mib": 879,
+        "n": 30
+      },
+      "families": [
+        "F1",
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0668,
+            "lo": 0.0319,
+            "hi": 0.1053
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0668,
+              "lo": 0.0185,
+              "hi": 0.1202
+            },
+            "F2": {
+              "delta": 0.0668,
+              "lo": 0.0139,
+              "hi": 0.1271
+            }
+          },
+          "sign_flip_p": 0.00075,
+          "vs_20_512": {
+            "delta": -0.0477,
+            "lo": -0.1017,
+            "hi": -0.0033
+          },
+          "vs_init": {
+            "delta": 0.078,
+            "lo": 0.0382,
+            "hi": 0.12
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 119,
+          "ranking_digest": "f67e4afba1407da39b35a94016f8c1b657c5911a1b51a5ae27e9db22959b3d3b",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.015,
+            "lo": -0.0336,
+            "hi": 0.0028
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": -0.015,
+              "lo": -0.0399,
+              "hi": 0.0097
+            },
+            "F2": {
+              "delta": -0.015,
+              "lo": -0.0431,
+              "hi": 0.0126
+            }
+          },
+          "sign_flip_p": 0.11814,
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0163,
+            "lo": -0.0393,
+            "hi": 0.0074
+          },
+          "vs_20_512": {
+            "delta": -0.0268,
+            "lo": -0.0518,
+            "hi": -0.0041
+          },
+          "vs_init": {
+            "delta": 0.0118,
+            "lo": -0.0014,
+            "hi": 0.024
+          },
+          "truncated_pairs": {
+            "total": 1304,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 275,
+          "ranking_digest": "265df9ff3ef0ce13ec5c8c15bf3f4b9c37aa92e19a41b737659ee739d9ae3531",
+          "n_queries_ranked_unlike_512": 185
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0121,
+            "lo": 0.0019,
+            "hi": 0.0223
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0121,
+              "lo": -0.0013,
+              "hi": 0.0262
+            },
+            "F2": {
+              "delta": 0.0121,
+              "lo": -0.0029,
+              "hi": 0.0278
+            }
+          },
+          "sign_flip_p": 0.0186,
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0143,
+            "lo": 0.0035,
+            "hi": 0.0254
+          },
+          "vs_20_512": {
+            "delta": -0.0211,
+            "lo": -0.0357,
+            "hi": -0.0079
+          },
+          "vs_init": {
+            "delta": 0.0056,
+            "lo": 0.0002,
+            "hi": 0.0112
+          },
+          "truncated_pairs": {
+            "total": 1656,
+            "queries_with_any": 620
+          },
+          "n_top10_differs_from_parent": 620,
+          "ranking_digest": "e303fa5719fa018b5ef0e928592fddc53cd950a5b2102fd3bf5e93453d1b1113",
+          "n_queries_ranked_unlike_512": 341
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-256/top10",
+      "tag": "student-minilm-l6",
+      "depth": 10,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 871.0,
+        "p95_ms": 874.7,
+        "peak_mib": 896,
+        "n": 30
+      },
+      "families": [
+        "F1",
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0866,
+            "lo": 0.0433,
+            "hi": 0.1306
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0866,
+              "lo": 0.0317,
+              "hi": 0.146
+            },
+            "F2": {
+              "delta": 0.0866,
+              "lo": 0.026,
+              "hi": 0.1542
+            }
+          },
+          "sign_flip_p": 0.0003,
+          "vs_20_512": {
+            "delta": -0.0278,
+            "lo": -0.0782,
+            "hi": 0.0128
+          },
+          "vs_init": {
+            "delta": 0.1215,
+            "lo": 0.0833,
+            "hi": 0.1596
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "2d364e93cfeeb91d68b1c614bceea4e1e381998ec1f52ce743728819d02a4bc7",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0119,
+            "lo": -0.0338,
+            "hi": 0.0101
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": -0.0119,
+              "lo": -0.0411,
+              "hi": 0.0176
+            },
+            "F2": {
+              "delta": -0.0119,
+              "lo": -0.0443,
+              "hi": 0.0207
+            }
+          },
+          "sign_flip_p": 0.29624,
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0156,
+            "lo": -0.0425,
+            "hi": 0.011
+          },
+          "vs_20_512": {
+            "delta": -0.0237,
+            "lo": -0.045,
+            "hi": -0.0035
+          },
+          "vs_init": {
+            "delta": 0.0188,
+            "lo": 0.004,
+            "hi": 0.0339
+          },
+          "truncated_pairs": {
+            "total": 2627,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "3187d7e7b3f871d50249a1b81fd94b81197f5d01393e04b51bc6c35973ce101b",
+          "n_queries_ranked_unlike_512": 293
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0082,
+            "lo": -0.0028,
+            "hi": 0.0193
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0082,
+              "lo": -0.0065,
+              "hi": 0.0231
+            },
+            "F2": {
+              "delta": 0.0082,
+              "lo": -0.0081,
+              "hi": 0.0248
+            }
+          },
+          "sign_flip_p": 0.14964,
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0101,
+            "lo": -0.0021,
+            "hi": 0.0217
+          },
+          "vs_20_512": {
+            "delta": -0.025,
+            "lo": -0.0389,
+            "hi": -0.0128
+          },
+          "vs_init": {
+            "delta": 0.0046,
+            "lo": -0.0022,
+            "hi": 0.0117
+          },
+          "truncated_pairs": {
+            "total": 3282,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "98114580a1b76d69abee0005a587d76ca3fa641101583ea269a92fe9d64403b9",
+          "n_queries_ranked_unlike_512": 578
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-256/top20",
+      "tag": "student-minilm-l6",
+      "depth": 20,
+      "max_length": 256,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1758.9,
+        "p95_ms": 1770.5,
+        "peak_mib": 1019,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.1145,
+            "lo": 0.06,
+            "hi": 0.1755
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.1145,
+              "lo": 0.0334,
+              "hi": 0.2094
+            }
+          },
+          "vs_20_512": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "vs_init": {
+            "delta": 0.1305,
+            "lo": 0.0884,
+            "hi": 0.1701
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "02ff484c003e5e7381fbba3752f429386cd9c3e121fe647fc20b518250e11446",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0138,
+            "lo": -0.0399,
+            "hi": 0.0133
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0138,
+              "lo": -0.054,
+              "hi": 0.0261
+            }
+          },
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0193,
+            "lo": -0.0494,
+            "hi": 0.0112
+          },
+          "vs_20_512": {
+            "delta": -0.0256,
+            "lo": -0.0451,
+            "hi": -0.0078
+          },
+          "vs_init": {
+            "delta": 0.0275,
+            "lo": 0.0085,
+            "hi": 0.0475
+          },
+          "truncated_pairs": {
+            "total": 5237,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "92465060728547f3a838a4b5a3bbd5f8a044ea966b2fd155ae389fbf5b37374d",
+          "n_queries_ranked_unlike_512": 300
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0257,
+            "lo": 0.0104,
+            "hi": 0.0408
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0257,
+              "lo": 0.0028,
+              "hi": 0.0486
+            }
+          },
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0291,
+            "lo": 0.0131,
+            "hi": 0.0445
+          },
+          "vs_20_512": {
+            "delta": -0.0075,
+            "lo": -0.0162,
+            "hi": 0.0004
+          },
+          "vs_init": {
+            "delta": 0.0142,
+            "lo": 0.0055,
+            "hi": 0.0236
+          },
+          "truncated_pairs": {
+            "total": 6398,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "291193185a76c3da8f761ccc35984395d1b218ca7ede9f363ee7c80a7cf00f3a",
+          "n_queries_ranked_unlike_512": 644
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-512/top5",
+      "tag": "student-minilm-l6",
+      "depth": 5,
+      "max_length": 512,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 993.4,
+        "p95_ms": 1027.8,
+        "peak_mib": 892,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0668,
+            "lo": 0.0319,
+            "hi": 0.1053
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0668,
+              "lo": 0.0139,
+              "hi": 0.1271
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0477,
+            "lo": -0.1017,
+            "hi": -0.0033
+          },
+          "vs_init": {
+            "delta": 0.078,
+            "lo": 0.0382,
+            "hi": 0.12
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 119,
+          "ranking_digest": "f67e4afba1407da39b35a94016f8c1b657c5911a1b51a5ae27e9db22959b3d3b"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0036,
+            "lo": -0.0201,
+            "hi": 0.0135
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0036,
+              "lo": -0.0275,
+              "hi": 0.0213
+            }
+          },
+          "exposure_excluded": {
+            "n": 222,
+            "delta": 0.0011,
+            "lo": -0.0184,
+            "hi": 0.021
+          },
+          "vs_20_512": {
+            "delta": -0.0154,
+            "lo": -0.0366,
+            "hi": 0.0034
+          },
+          "vs_init": {
+            "delta": 0.0218,
+            "lo": 0.0062,
+            "hi": 0.037
+          },
+          "truncated_pairs": {
+            "total": 245,
+            "queries_with_any": 143
+          },
+          "n_top10_differs_from_parent": 272,
+          "ranking_digest": "de3d42d28adbf346857e1eb08adb545eacb55c61a71b15adc359fbdcbe35c890"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0188,
+            "lo": 0.0091,
+            "hi": 0.0284
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0188,
+              "lo": 0.0045,
+              "hi": 0.0336
+            }
+          },
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0199,
+            "lo": 0.0098,
+            "hi": 0.0302
+          },
+          "vs_20_512": {
+            "delta": -0.0144,
+            "lo": -0.0274,
+            "hi": -0.0024
+          },
+          "vs_init": {
+            "delta": 0.0121,
+            "lo": 0.0054,
+            "hi": 0.0185
+          },
+          "truncated_pairs": {
+            "total": 465,
+            "queries_with_any": 334
+          },
+          "n_top10_differs_from_parent": 613,
+          "ranking_digest": "491fa57d3f5cd145203ba9986be8275be227506a56e5233bb9c322aa5f3fa30b"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-512/top10",
+      "tag": "student-minilm-l6",
+      "depth": 10,
+      "max_length": 512,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1978.0,
+        "p95_ms": 1989.6,
+        "peak_mib": 985,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0866,
+            "lo": 0.0433,
+            "hi": 0.1306
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0866,
+              "lo": 0.026,
+              "hi": 0.1542
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0278,
+            "lo": -0.0782,
+            "hi": 0.0128
+          },
+          "vs_init": {
+            "delta": 0.1215,
+            "lo": 0.0833,
+            "hi": 0.1596
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "2d364e93cfeeb91d68b1c614bceea4e1e381998ec1f52ce743728819d02a4bc7"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0028,
+            "lo": -0.0176,
+            "hi": 0.024
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0028,
+              "lo": -0.0263,
+              "hi": 0.034
+            }
+          },
+          "exposure_excluded": {
+            "n": 222,
+            "delta": 0.0063,
+            "lo": -0.0184,
+            "hi": 0.031
+          },
+          "vs_20_512": {
+            "delta": -0.009,
+            "lo": -0.0258,
+            "hi": 0.0056
+          },
+          "vs_init": {
+            "delta": 0.0289,
+            "lo": 0.0119,
+            "hi": 0.0469
+          },
+          "truncated_pairs": {
+            "total": 503,
+            "queries_with_any": 199
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "57677eb84179092de6a3c5daf1218cb9897ca16f413ff95f9a1a8af8a073e111"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0162,
+            "lo": 0.0059,
+            "hi": 0.0265
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0162,
+              "lo": 0.0005,
+              "hi": 0.0315
+            }
+          },
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.017,
+            "lo": 0.0059,
+            "hi": 0.0278
+          },
+          "vs_20_512": {
+            "delta": -0.017,
+            "lo": -0.0286,
+            "hi": -0.0064
+          },
+          "vs_init": {
+            "delta": 0.0114,
+            "lo": 0.0033,
+            "hi": 0.0188
+          },
+          "truncated_pairs": {
+            "total": 1013,
+            "queries_with_any": 507
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "0c339d1d557200d336173e7629c12273bf45e5bd6df710ffb876b303343dcf54"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-512/top20",
+      "tag": "student-minilm-l6",
+      "depth": 20,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 3968.1,
+        "p95_ms": 3974.2,
+        "peak_mib": 1105,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.1145,
+            "lo": 0.06,
+            "hi": 0.1755
+          },
+          "verdict": "win",
+          "vs_init": {
+            "delta": 0.1305,
+            "lo": 0.0884,
+            "hi": 0.1701
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "02ff484c003e5e7381fbba3752f429386cd9c3e121fe647fc20b518250e11446"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0118,
+            "lo": -0.0144,
+            "hi": 0.0396
+          },
+          "verdict": "tie",
+          "vs_init": {
+            "delta": 0.0426,
+            "lo": 0.0204,
+            "hi": 0.0665
+          },
+          "truncated_pairs": {
+            "total": 1003,
+            "queries_with_any": 243
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "246a4ac3b6b8f05ccc0558c2b213b6f00bb2eec450d5f605ba8a3a5a80abc4e2"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0332,
+            "lo": 0.0183,
+            "hi": 0.0485
+          },
+          "verdict": "win",
+          "vs_init": {
+            "delta": 0.021,
+            "lo": 0.0112,
+            "hi": 0.03
+          },
+          "truncated_pairs": {
+            "total": 1999,
+            "queries_with_any": 612
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "73ef3978cafa6b152abe18c4859ea192bdc628c2bda6ef9506b098bfafea5e32"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-256/top5",
+      "tag": "student-minilm-l12",
+      "depth": 5,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 875.4,
+        "p95_ms": 880.4,
+        "peak_mib": 905,
+        "n": 30
+      },
+      "families": [
+        "F1",
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0755,
+            "lo": 0.0429,
+            "hi": 0.1122
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0755,
+              "lo": 0.0294,
+              "hi": 0.1267
+            },
+            "F2": {
+              "delta": 0.0755,
+              "lo": 0.0251,
+              "hi": 0.1343
+            }
+          },
+          "sign_flip_p": 0.0001,
+          "vs_20_512": {
+            "delta": -0.0191,
+            "lo": -0.0717,
+            "hi": 0.0263
+          },
+          "vs_init": {
+            "delta": 0.1362,
+            "lo": 0.0947,
+            "hi": 0.1791
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 121,
+          "ranking_digest": "d6723ecf91dacd48a7147da81a0b936cfdbd478567e432b7271af2e902985183",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.014,
+            "lo": -0.0324,
+            "hi": 0.0044
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F1": {
+              "delta": -0.014,
+              "lo": -0.0388,
+              "hi": 0.0103
+            },
+            "F2": {
+              "delta": -0.014,
+              "lo": -0.0416,
+              "hi": 0.0131
+            }
+          },
+          "sign_flip_p": 0.13894,
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0112,
+            "lo": -0.0332,
+            "hi": 0.0115
+          },
+          "vs_20_512": {
+            "delta": -0.0325,
+            "lo": -0.0576,
+            "hi": -0.0101
+          },
+          "vs_init": {
+            "delta": 0.012,
+            "lo": -0.0021,
+            "hi": 0.0262
+          },
+          "truncated_pairs": {
+            "total": 1304,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 271,
+          "ranking_digest": "f316e7c288ea787a15be875fee0c5ccc11846e80881a9c6703bd59eb9936d4f9",
+          "n_queries_ranked_unlike_512": 177
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0185,
+            "lo": 0.0092,
+            "hi": 0.0282
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F1": {
+              "delta": 0.0185,
+              "lo": 0.0062,
+              "hi": 0.0314
+            },
+            "F2": {
+              "delta": 0.0185,
+              "lo": 0.0047,
+              "hi": 0.0327
+            }
+          },
+          "sign_flip_p": 5e-05,
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0194,
+            "lo": 0.0098,
+            "hi": 0.0294
+          },
+          "vs_20_512": {
+            "delta": -0.0289,
+            "lo": -0.0429,
+            "hi": -0.0162
+          },
+          "vs_init": {
+            "delta": 0.0118,
+            "lo": 0.0061,
+            "hi": 0.0175
+          },
+          "truncated_pairs": {
+            "total": 1656,
+            "queries_with_any": 620
+          },
+          "n_top10_differs_from_parent": 618,
+          "ranking_digest": "626e47dffe6aa2ce7747d69051ebc7581904e396f17bf5382a6b262b6f435e05",
+          "n_queries_ranked_unlike_512": 319
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-256/top10",
+      "tag": "student-minilm-l12",
+      "depth": 10,
+      "max_length": 256,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1750.7,
+        "p95_ms": 1764.6,
+        "peak_mib": 950,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0839,
+            "lo": 0.0458,
+            "hi": 0.1248
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0839,
+              "lo": 0.025,
+              "hi": 0.149
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0107,
+            "lo": -0.0584,
+            "hi": 0.0274
+          },
+          "vs_init": {
+            "delta": 0.1633,
+            "lo": 0.1183,
+            "hi": 0.2082
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "5d84cc166ec4ae4f85bce2069008ea25f0dde60e132860ced3352235bf90491a",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0097,
+            "lo": -0.0311,
+            "hi": 0.0125
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": -0.0097,
+              "lo": -0.0421,
+              "hi": 0.0245
+            }
+          },
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.007,
+            "lo": -0.0324,
+            "hi": 0.0203
+          },
+          "vs_20_512": {
+            "delta": -0.0281,
+            "lo": -0.0509,
+            "hi": -0.0069
+          },
+          "vs_init": {
+            "delta": 0.0134,
+            "lo": -0.0031,
+            "hi": 0.0299
+          },
+          "truncated_pairs": {
+            "total": 2627,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "d88d5818d92691b9125227d0462073f96bf03be4fc0db0b4779fcfbef631cb42",
+          "n_queries_ranked_unlike_512": 295
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0175,
+            "lo": 0.007,
+            "hi": 0.0276
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0175,
+              "lo": 0.0022,
+              "hi": 0.0336
+            }
+          },
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0183,
+            "lo": 0.0071,
+            "hi": 0.0293
+          },
+          "vs_20_512": {
+            "delta": -0.0299,
+            "lo": -0.0433,
+            "hi": -0.0184
+          },
+          "vs_init": {
+            "delta": 0.0117,
+            "lo": 0.0048,
+            "hi": 0.0191
+          },
+          "truncated_pairs": {
+            "total": 3282,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "01edbbe1420fb9e3b43ec9a3dce7178a74d7836f9224fc87ac895a43375dfde8",
+          "n_queries_ranked_unlike_512": 563
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-256/top20",
+      "tag": "student-minilm-l12",
+      "depth": 20,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 3460.3,
+        "p95_ms": 3485.4,
+        "peak_mib": 1040,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0946,
+            "lo": 0.0424,
+            "hi": 0.1502
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "vs_init": {
+            "delta": 0.1662,
+            "lo": 0.1135,
+            "hi": 0.2165
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "72a44b17bc693af8a87c0ad4fb12fb65244c65f837d5ab7e0765a5e04661d676",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0097,
+            "lo": -0.0357,
+            "hi": 0.019
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0282,
+            "lo": -0.0486,
+            "hi": -0.0089
+          },
+          "vs_init": {
+            "delta": 0.021,
+            "lo": 0.0001,
+            "hi": 0.0425
+          },
+          "truncated_pairs": {
+            "total": 5237,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "c931564a4003dd7e3eec6da6784eadd129e1e9371cbbe97b678acb49b4867ddb",
+          "n_queries_ranked_unlike_512": 300
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0387,
+            "lo": 0.0244,
+            "hi": 0.0533
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0087,
+            "lo": -0.0165,
+            "hi": -0.0014
+          },
+          "vs_init": {
+            "delta": 0.0221,
+            "lo": 0.0135,
+            "hi": 0.0308
+          },
+          "truncated_pairs": {
+            "total": 6398,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "fc8eb6eb60504571a3623ada6f814276af05cf1bf2a85b5c64e0ee89fba0bfff",
+          "n_queries_ranked_unlike_512": 645
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-512/top5",
+      "tag": "student-minilm-l12",
+      "depth": 5,
+      "max_length": 512,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1967.8,
+        "p95_ms": 1984.5,
+        "peak_mib": 956,
+        "n": 30
+      },
+      "families": [
+        "F2"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0755,
+            "lo": 0.0429,
+            "hi": 0.1122
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0755,
+              "lo": 0.0251,
+              "hi": 0.1343
+            }
+          },
+          "vs_20_512": {
+            "delta": -0.0191,
+            "lo": -0.0717,
+            "hi": 0.0263
+          },
+          "vs_init": {
+            "delta": 0.1362,
+            "lo": 0.0947,
+            "hi": 0.1791
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 121,
+          "ranking_digest": "d6723ecf91dacd48a7147da81a0b936cfdbd478567e432b7271af2e902985183"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.001,
+            "lo": -0.015,
+            "hi": 0.0171
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F2": {
+              "delta": 0.001,
+              "lo": -0.0225,
+              "hi": 0.0255
+            }
+          },
+          "exposure_excluded": {
+            "n": 222,
+            "delta": 0.0035,
+            "lo": -0.0154,
+            "hi": 0.0232
+          },
+          "vs_20_512": {
+            "delta": -0.0175,
+            "lo": -0.0393,
+            "hi": 0.001
+          },
+          "vs_init": {
+            "delta": 0.0261,
+            "lo": 0.0105,
+            "hi": 0.0408
+          },
+          "truncated_pairs": {
+            "total": 245,
+            "queries_with_any": 143
+          },
+          "n_top10_differs_from_parent": 258,
+          "ranking_digest": "833c47066f8dc21843366350593d61a343419f826595d341a60e8b62a0bbe78c"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0241,
+            "lo": 0.015,
+            "hi": 0.0335
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F2": {
+              "delta": 0.0241,
+              "lo": 0.0112,
+              "hi": 0.0382
+            }
+          },
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0252,
+            "lo": 0.0158,
+            "hi": 0.0348
+          },
+          "vs_20_512": {
+            "delta": -0.0233,
+            "lo": -0.0361,
+            "hi": -0.0116
+          },
+          "vs_init": {
+            "delta": 0.018,
+            "lo": 0.011,
+            "hi": 0.0247
+          },
+          "truncated_pairs": {
+            "total": 465,
+            "queries_with_any": 334
+          },
+          "n_top10_differs_from_parent": 606,
+          "ranking_digest": "09fe2804ff422d79b82b66e6faf7bf252bc896f83154026324cb8ca02046d24d"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-512/top10",
+      "tag": "student-minilm-l12",
+      "depth": 10,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 3932.7,
+        "p95_ms": 3950.8,
+        "peak_mib": 1046,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0839,
+            "lo": 0.0458,
+            "hi": 0.1248
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0107,
+            "lo": -0.0584,
+            "hi": 0.0274
+          },
+          "vs_init": {
+            "delta": 0.1633,
+            "lo": 0.1183,
+            "hi": 0.2082
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "5d84cc166ec4ae4f85bce2069008ea25f0dde60e132860ced3352235bf90491a"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0089,
+            "lo": -0.0113,
+            "hi": 0.0297
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0096,
+            "lo": -0.0284,
+            "hi": 0.0057
+          },
+          "vs_init": {
+            "delta": 0.0331,
+            "lo": 0.0156,
+            "hi": 0.0498
+          },
+          "truncated_pairs": {
+            "total": 503,
+            "queries_with_any": 199
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "a93f87f9e48834dcb6f51a7ef21b643edb4641a10e484f4ce8d9bee29ce5296f"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0239,
+            "lo": 0.0138,
+            "hi": 0.0342
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0235,
+            "lo": -0.035,
+            "hi": -0.0132
+          },
+          "vs_init": {
+            "delta": 0.0174,
+            "lo": 0.0095,
+            "hi": 0.0252
+          },
+          "truncated_pairs": {
+            "total": 1013,
+            "queries_with_any": 507
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "886133e837db9e6a3a0550c110d2f3a59a351dff3219f310bc21916d76b495de"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-512/top20",
+      "tag": "student-minilm-l12",
+      "depth": 20,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 7833.4,
+        "p95_ms": 7844.5,
+        "peak_mib": 1181,
+        "n": 30
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0946,
+            "lo": 0.0424,
+            "hi": 0.1502
+          },
+          "verdict": "win",
+          "vs_init": {
+            "delta": 0.1662,
+            "lo": 0.1135,
+            "hi": 0.2165
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "72a44b17bc693af8a87c0ad4fb12fb65244c65f837d5ab7e0765a5e04661d676"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0185,
+            "lo": -0.0064,
+            "hi": 0.0465
+          },
+          "verdict": "tie",
+          "vs_init": {
+            "delta": 0.0452,
+            "lo": 0.0218,
+            "hi": 0.0689
+          },
+          "truncated_pairs": {
+            "total": 1003,
+            "queries_with_any": 243
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "666ddf56e67327276a7f0ef411b9fec9b1b7d0ff673d5d6eff3c538b23044f89"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0474,
+            "lo": 0.0336,
+            "hi": 0.062
+          },
+          "verdict": "win",
+          "vs_init": {
+            "delta": 0.0294,
+            "lo": 0.0197,
+            "hi": 0.0389
+          },
+          "truncated_pairs": {
+            "total": 1999,
+            "queries_with_any": 612
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "e10008b2cb05099c8193580a14091c34b917190bef8235212e99b90edc25b8a2"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-256/top5",
+      "tag": "gte-modernbert-base",
+      "depth": 5,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 4110.4,
+        "p95_ms": 4125.3,
+        "peak_mib": 1324,
+        "n": 17
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0623,
+            "lo": 0.0251,
+            "hi": 0.1012
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.032,
+            "lo": -0.0822,
+            "hi": 0.0122
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 121,
+          "ranking_digest": "4f104261d2d56686f7e6437a0e45d4cf8864b684452b854c09322a989ebb0bfd",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.002,
+            "lo": -0.0167,
+            "hi": 0.0208
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0301,
+            "lo": -0.0571,
+            "hi": -0.0056
+          },
+          "truncated_pairs": {
+            "total": 1158,
+            "queries_with_any": 299
+          },
+          "n_top10_differs_from_parent": 290,
+          "ranking_digest": "bcef7dd0ed8aa09f2565ace7139efccf15436042699c2043d9d391d07f17ba09",
+          "n_queries_ranked_unlike_512": 163
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0245,
+            "lo": 0.0146,
+            "hi": 0.0345
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0656,
+            "lo": -0.0817,
+            "hi": -0.0506
+          },
+          "truncated_pairs": {
+            "total": 1632,
+            "queries_with_any": 618
+          },
+          "n_top10_differs_from_parent": 635,
+          "ranking_digest": "7847f4711eda4737bd410a7b4a488c0c10240b011a5eb3587b7e57a51fd29d14",
+          "n_queries_ranked_unlike_512": 323
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-256/top10",
+      "tag": "gte-modernbert-base",
+      "depth": 10,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 8425.7,
+        "p95_ms": 8436.1,
+        "peak_mib": 1371,
+        "n": 28
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0775,
+            "lo": 0.0353,
+            "hi": 0.122
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0169,
+            "lo": -0.06,
+            "hi": 0.0178
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "b29a0bec03b1c08da938108511ed4d124e67b656e8e5fcdb6235b35b26bbe24a",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0079,
+            "lo": -0.0144,
+            "hi": 0.0306
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0241,
+            "lo": -0.0487,
+            "hi": -0.0027
+          },
+          "truncated_pairs": {
+            "total": 2341,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "ac1c0c8403947c21bf67af91c925d8e28ec467c0894c1b66d1ad3af1569500c4",
+          "n_queries_ranked_unlike_512": 286
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0401,
+            "lo": 0.0278,
+            "hi": 0.053
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0499,
+            "lo": -0.0639,
+            "hi": -0.0369
+          },
+          "truncated_pairs": {
+            "total": 3231,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "b50ec0964f121b94a61d5f5d32ae85f5eb90197167349d14c7c76b7cdc728bc3",
+          "n_queries_ranked_unlike_512": 564
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-256/top20",
+      "tag": "gte-modernbert-base",
+      "depth": 20,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 16703.6,
+        "p95_ms": 16714.8,
+        "peak_mib": 1491,
+        "n": 14
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0944,
+            "lo": 0.0416,
+            "hi": 0.1499
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "b8bf5fc2b65d458ca11b8d13db444af9ec5f3a61fa816ef1459b54a9fa333e05",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0155,
+            "lo": -0.0114,
+            "hi": 0.0423
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0166,
+            "lo": -0.037,
+            "hi": 0.0012
+          },
+          "truncated_pairs": {
+            "total": 4711,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "2ba4d718b7fd0ff7159975bf30ccfda3959da48b391fc7d0900f9d07754e3213",
+          "n_queries_ranked_unlike_512": 300
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0794,
+            "lo": 0.0617,
+            "hi": 0.0979
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0106,
+            "lo": -0.0174,
+            "hi": -0.0037
+          },
+          "truncated_pairs": {
+            "total": 6310,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "7b6fbdbaa70f0311095344b3ca6db486bba1772fff13a945b6bec1d8f1581061",
+          "n_queries_ranked_unlike_512": 641
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top5",
+      "tag": "gte-modernbert-base",
+      "depth": 5,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 8977.5,
+        "p95_ms": 8988.2,
+        "peak_mib": 1315,
+        "n": 26
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0623,
+            "lo": 0.0251,
+            "hi": 0.1012
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.032,
+            "lo": -0.0822,
+            "hi": 0.0122
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 121,
+          "ranking_digest": "4f104261d2d56686f7e6437a0e45d4cf8864b684452b854c09322a989ebb0bfd"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0081,
+            "lo": -0.0086,
+            "hi": 0.0248
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.024,
+            "lo": -0.048,
+            "hi": -0.0013
+          },
+          "truncated_pairs": {
+            "total": 174,
+            "queries_with_any": 111
+          },
+          "n_top10_differs_from_parent": 282,
+          "ranking_digest": "6ca80dc0bd2d31201bb5ca2df66676ceec203a80199c379cf7b5171746357a8a"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0309,
+            "lo": 0.0213,
+            "hi": 0.0407
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0591,
+            "lo": -0.0744,
+            "hi": -0.0444
+          },
+          "truncated_pairs": {
+            "total": 458,
+            "queries_with_any": 331
+          },
+          "n_top10_differs_from_parent": 625,
+          "ranking_digest": "62080045d8aebad5947d32be3aaf1beb0ee96be94ce12d1035687e82a73c0264"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top10",
+      "tag": "gte-modernbert-base",
+      "depth": 10,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 18305.4,
+        "p95_ms": 18318.9,
+        "peak_mib": 1450,
+        "n": 13
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0775,
+            "lo": 0.0353,
+            "hi": 0.122
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0169,
+            "lo": -0.06,
+            "hi": 0.0178
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "b29a0bec03b1c08da938108511ed4d124e67b656e8e5fcdb6235b35b26bbe24a"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0164,
+            "lo": -0.0049,
+            "hi": 0.0387
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0156,
+            "lo": -0.0352,
+            "hi": 0.0018
+          },
+          "truncated_pairs": {
+            "total": 338,
+            "queries_with_any": 149
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "86e7cb016536a4423545b41213c4e797962d099dcf09c71364d3024b626fa71f"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0453,
+            "lo": 0.033,
+            "hi": 0.0575
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0448,
+            "lo": -0.0582,
+            "hi": -0.0326
+          },
+          "truncated_pairs": {
+            "total": 986,
+            "queries_with_any": 505
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "cc052f2e7feb5b09eaeb76d0cec5d89c2a938d7592c9d251d0467fc2adc62069"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "tag": "gte-modernbert-base",
+      "depth": 20,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 36213.3,
+        "p95_ms": 43058.6,
+        "peak_mib": 1632,
+        "n": 6
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0944,
+            "lo": 0.0416,
+            "hi": 0.1499
+          },
+          "verdict": "win",
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "b8bf5fc2b65d458ca11b8d13db444af9ec5f3a61fa816ef1459b54a9fa333e05"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.032,
+            "lo": 0.0029,
+            "hi": 0.0608
+          },
+          "verdict": "win",
+          "truncated_pairs": {
+            "total": 620,
+            "queries_with_any": 192
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "0327c3580311cb54100f1e85203a87c4fa251815001091a7baa69cdb957479fc"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0901,
+            "lo": 0.0732,
+            "hi": 0.1078
+          },
+          "verdict": "win",
+          "truncated_pairs": {
+            "total": 1944,
+            "queries_with_any": 611
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "682027d18a375c9d55be1e8e5a3336f9b6cf9e982880e88f317131e562a293c3"
+        }
+      },
+      "passes_at_95": true
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-256/top5",
+      "tag": "bge-rerank",
+      "depth": 5,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 10219.2,
+        "p95_ms": 10229.8,
+        "peak_mib": 2372,
+        "n": 9
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0603,
+            "lo": 0.0255,
+            "hi": 0.0976
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.042,
+            "lo": -0.099,
+            "hi": 0.0041
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 123,
+          "ranking_digest": "defb75ed22fc694a37af17673b9c881c140ed328f125197f958366eb84b862ee",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0031,
+            "lo": -0.0138,
+            "hi": 0.0193
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0128,
+            "lo": -0.0368,
+            "hi": 0.0112
+          },
+          "truncated_pairs": {
+            "total": 1405,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 283,
+          "ranking_digest": "c6ad964e81fb797181abb87102a0d94f863e5f9a92748afdc9b8368ac148311f",
+          "n_queries_ranked_unlike_512": 233
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0173,
+            "lo": 0.0064,
+            "hi": 0.0277
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0436,
+            "lo": -0.0583,
+            "hi": -0.0289
+          },
+          "truncated_pairs": {
+            "total": 1792,
+            "queries_with_any": 629
+          },
+          "n_top10_differs_from_parent": 629,
+          "ranking_digest": "82f9805b75cafab46cf405329776a390084e357b6e075e62ab40ed390c62f4fe",
+          "n_queries_ranked_unlike_512": 408
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-256/top10",
+      "tag": "bge-rerank",
+      "depth": 10,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 20378.1,
+        "p95_ms": 20408.6,
+        "peak_mib": 2476,
+        "n": 11
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0751,
+            "lo": 0.0319,
+            "hi": 0.1183
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0272,
+            "lo": -0.0793,
+            "hi": 0.0144
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 130,
+          "ranking_digest": "45fc601a6f1421173f83040d24a206ebba18e6d530bc56de986f515d1033a9a1",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0067,
+            "lo": -0.0139,
+            "hi": 0.0254
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0092,
+            "lo": -0.0323,
+            "hi": 0.0133
+          },
+          "truncated_pairs": {
+            "total": 2820,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "75a12dc7fb4dd11b5b28cedfdcdd8ce93073df0cfb2beeedf6a6d482c0938456",
+          "n_queries_ranked_unlike_512": 299
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.023,
+            "lo": 0.0108,
+            "hi": 0.0352
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0379,
+            "lo": -0.0519,
+            "hi": -0.0246
+          },
+          "truncated_pairs": {
+            "total": 3541,
+            "queries_with_any": 644
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "b86f771c41561d9a55809f1b7867ba1ad2039e58ae98cc49cb7c576059c245ac",
+          "n_queries_ranked_unlike_512": 613
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-256/top20",
+      "tag": "bge-rerank",
+      "depth": 20,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 39963.5,
+        "p95_ms": 40047.6,
+        "peak_mib": 2736,
+        "n": 5
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.1023,
+            "lo": 0.0465,
+            "hi": 0.1642
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "823e1ea3a59c62a88dd67c7c8ad3089f07797b18c9926d734665679cd3e91057",
+          "n_queries_ranked_unlike_512": 0
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0057,
+            "lo": -0.0189,
+            "hi": 0.0295
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0102,
+            "lo": -0.0319,
+            "hi": 0.0105
+          },
+          "truncated_pairs": {
+            "total": 5623,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "6397c287f8af5e3b2df2b024e9b4fcc9db19c46790b8a7edca5ea0fba22eb659",
+          "n_queries_ranked_unlike_512": 300
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0482,
+            "lo": 0.0305,
+            "hi": 0.0655
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0127,
+            "lo": -0.0234,
+            "hi": -0.0033
+          },
+          "truncated_pairs": {
+            "total": 6862,
+            "queries_with_any": 648
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "539727d406060b308857d0d6162a560c42eb841f95042de87e6ceaa4229f93da",
+          "n_queries_ranked_unlike_512": 646
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top5",
+      "tag": "bge-rerank",
+      "depth": 5,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 21206.1,
+        "p95_ms": 21223.0,
+        "peak_mib": 2475,
+        "n": 11
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0603,
+            "lo": 0.0255,
+            "hi": 0.0976
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.042,
+            "lo": -0.099,
+            "hi": 0.0041
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 123,
+          "ranking_digest": "defb75ed22fc694a37af17673b9c881c140ed328f125197f958366eb84b862ee"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0018,
+            "lo": -0.016,
+            "hi": 0.0122
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.0178,
+            "lo": -0.0371,
+            "hi": 0.0
+          },
+          "truncated_pairs": {
+            "total": 377,
+            "queries_with_any": 185
+          },
+          "n_top10_differs_from_parent": 270,
+          "ranking_digest": "486e80d03d48752e2fc84a12dc461916eb8011d547059900a1286065940856e3"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0268,
+            "lo": 0.0169,
+            "hi": 0.0369
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0341,
+            "lo": -0.0473,
+            "hi": -0.0212
+          },
+          "truncated_pairs": {
+            "total": 566,
+            "queries_with_any": 390
+          },
+          "n_top10_differs_from_parent": 628,
+          "ranking_digest": "38fa1c5f483924e8243f3997c1783c934324e977cef882c386776df155fb7beb"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top10",
+      "tag": "bge-rerank",
+      "depth": 10,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 42202.6,
+        "p95_ms": 42289.2,
+        "peak_mib": 2715,
+        "n": 5
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0751,
+            "lo": 0.0319,
+            "hi": 0.1183
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0272,
+            "lo": -0.0793,
+            "hi": 0.0144
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 130,
+          "ranking_digest": "45fc601a6f1421173f83040d24a206ebba18e6d530bc56de986f515d1033a9a1"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0049,
+            "lo": -0.0127,
+            "hi": 0.0224
+          },
+          "verdict": "tie",
+          "vs_20_512": {
+            "delta": -0.011,
+            "lo": -0.0283,
+            "hi": 0.0036
+          },
+          "truncated_pairs": {
+            "total": 758,
+            "queries_with_any": 244
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "ca38c2a08b4d8fb1abda02fb04d2adbe1714bffbd8a29059d7ee3b44a2e8ff5a"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0354,
+            "lo": 0.0236,
+            "hi": 0.0466
+          },
+          "verdict": "win",
+          "vs_20_512": {
+            "delta": -0.0255,
+            "lo": -0.0372,
+            "hi": -0.0145
+          },
+          "truncated_pairs": {
+            "total": 1199,
+            "queries_with_any": 540
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "8fb319eacd27747ef26079a702bd9b9501120d302e4697c183a555ab58a7bd2e"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "tag": "bge-rerank",
+      "depth": 20,
+      "max_length": 512,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 84840.8,
+        "p95_ms": 102085.7,
+        "peak_mib": 2870,
+        "n": 5
+      },
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.1023,
+            "lo": 0.0465,
+            "hi": 0.1642
+          },
+          "verdict": "win",
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "823e1ea3a59c62a88dd67c7c8ad3089f07797b18c9926d734665679cd3e91057"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": 0.0159,
+            "lo": -0.0073,
+            "hi": 0.0402
+          },
+          "verdict": "tie",
+          "truncated_pairs": {
+            "total": 1512,
+            "queries_with_any": 284
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "8c30afffb4c0fde7e645e390ef455e0d4c00275be3af5cbb62795f274309bd73"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0609,
+            "lo": 0.0453,
+            "hi": 0.0769
+          },
+          "verdict": "win",
+          "truncated_pairs": {
+            "total": 2341,
+            "queries_with_any": 623
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "696e0aad1fd34e6f1571fc93d565eaa38f03d9f318b2a69cd08f1e99314ed8bf"
+        }
+      },
+      "passes_at_95": false
+    }
+  ],
+  "anchors": {
+    "fixture": {
+      "file": "bench/results/small_rerankers.json",
+      "git_sha": "a43f2be",
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "compared": "retrieval, ci, the delta against hybrid@bge-small and a student's delta against its init at 20/512, per scope",
+      "scopes": {
+        "held_out": {
+          "rows": {
+            "hybrid@bge-small": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-512/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-512/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            }
+          },
+          "n_compared": 7,
+          "all": true
+        },
+        "tune": {
+          "rows": {
+            "hybrid@bge-small": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-512/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-512/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            }
+          },
+          "n_compared": 7,
+          "all": true
+        },
+        "all_questions": {
+          "rows": {
+            "hybrid@bge-small": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-512/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-512/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            }
+          },
+          "n_compared": 7,
+          "all": true
+        }
+      },
+      "all": true
+    },
+    "scifact": {
+      "file": "bench/results/beir_scifact_small_rerankers.json",
+      "n_compared": 7,
+      "metrics_equal": true,
+      "metric_differences": [],
+      "ranking_differences": []
+    },
+    "fiqa": {
+      "file": "bench/results/beir_fiqa_small_rerankers.json",
+      "n_compared": 7,
+      "metrics_equal": true,
+      "metric_differences": [],
+      "ranking_differences": []
+    }
+  },
+  "anchor_per_query_differences_vs_m43": {
+    "fixture": 0,
+    "scifact": 0,
+    "fiqa": 0
+  },
+  "host_commands": [
+    "python scripts/time_reranker_on_host.py --model cross-encoder/ms-marco-MiniLM-L6-v2 --depths 5 --max-length 256 --stop-api",
+    "python scripts/time_reranker_on_host.py --model cross-encoder/ms-marco-MiniLM-L6-v2 --depths 10 --max-length 256 --stop-api",
+    "python scripts/time_reranker_on_host.py --model cross-encoder/ms-marco-MiniLM-L12-v2 --depths 5 --max-length 256 --stop-api"
+  ],
+  "does_not_show": [
+    "host timing and memory (the serving bar, unrun): the t3.small's 2 vCPUs are two hyperthreads of one core and it runs in standard credit mode, so it can be well over twice as slow as the HPC CPU; a band is an indicative HPC-CPU budget, never a statement that a shape fits the host",
+    "resident memory on the host: the CPU file ran the torch 2.5.1+cu121 wheel; the image installs the CPU wheel",
+    "concurrency: one request at a time",
+    "typical latency: the CPU timings cut every passage at the cap (600-word passages), the worst case per shape",
+    "the cap on the fixture: no fixture pair exceeds 256 tokens; only SciFact and FiQA say anything about the cap",
+    "absence of an effect: NOT SHOWN is not evidence that the cheap shapes do not help",
+    "students at 256 as trained: both attempt-1 students were trained at max_length 512 (Phase 2 measures this)",
+    "equivalence: a delta against 20/512 that covers zero does not show the cheap shape is as good",
+    "the other M43 candidates (mxbai-xsmall-v1, mxbai-base-v1, bge-reranker-base): over 1,024 MiB at every shape",
+    "quantised or ONNX serving, fp16 on CPU, or another first stage; the real corpus; the final context (RERANK_TOP_N); answer quality",
+    "variance across training seeds: one inference run, one training run per student",
+    "a student YES on an unseen corpus: the students read documents of all three test corpora (never a query or a label)",
+    "a fresh search: M51's question follows M43's failed 20/512 search over 8 small rows",
+    "the publishers' (and the teacher's) training data: not audited for overlap with the BEIR test sets"
+  ]
+}
