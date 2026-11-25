@@ -10,6 +10,11 @@ headline row against each of its references, must have its claim, so a recorded 
 the cells link to, except a served default written as "`SETTING` (default N)", which must equal the default in the
 served code. This test reads the code's defaults as text: CI's eval job does not install llama_index, which
 app/engine/retriever.py imports.
+
+M51 (the small rerankers at cheaper shapes) states its verdicts per dataset, "`<row>` on SciFact covers zero vs
+`hybrid@bge-small`", read off the three shapes files (the fixture's held-out half), with every F1 cell on every dataset
+stated, and its answers as "F1 answer: <level>" and "F2 answer: <level>", which must be the frontier file's. The
+B27 claim form above does not read a dataset-qualified claim.
 """
 
 import json
@@ -155,3 +160,74 @@ def test_claim_parser_reads_lists_and_reports_a_drifted_verdict(tmp_path):
     drifted = real.replace(f"`{row}` {said} vs `{ref}`", f"`{row}` {other} vs `{ref}`", 1)
     recorded = recorded_verdicts()
     assert any(recorded.get((r, f)) != {v} for _, r, v, f in plan_claims(drifted))
+
+
+# ---- M51: the cheaper shapes, stated per dataset ("`<row>` on SciFact covers zero vs `hybrid@bge-small`") and the
+# answer per family ("F1 answer: NOT SHOWN at this n"), read off the three shapes files and the frontier file.
+SHAPES_DATASETS = {"the fixture": "fixture", "SciFact": "scifact", "FiQA": "fiqa"}
+SHAPES_CLAIM = re.compile(r"`([^`]+)` on (the fixture|SciFact|FiQA) (above zero|covers zero|below zero) vs `([^`]+)`")
+SHAPES_ANSWER = re.compile(r"\b(F1|F2) answer: (YES|PASSES PER CELL, NOT AFTER ADJUSTMENT|NOT SHOWN at this n|NO)\b")
+
+
+def shapes_claims(text: str) -> list[tuple[str, str, str, str]]:
+    """(row, dataset, verdict, reference) for every dataset-qualified claim in the status column."""
+    return [(row, SHAPES_DATASETS[d], v, ref) for _, (_, status) in status_rows(text).items() for row, d, v, ref in SHAPES_CLAIM.findall(status)]
+
+
+def shapes_answers(text: str) -> dict[str, str]:
+    return {f: a for _, (_, status) in status_rows(text).items() for f, a in SHAPES_ANSWER.findall(status)}
+
+
+def shapes_verdicts(root: Path = ROOT) -> dict[tuple[str, str, str], str]:
+    """(row, reference, dataset) -> the verdict word of nDCG@10 in the shapes files (the fixture's held-out half)."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    out = {}
+    for dataset, rel in shapes.RESULTS.items():
+        blob = json.loads((root / rel).read_text())
+        if dataset == "fixture":
+            for row in blob["held_out"]["results"]:
+                for block in row.get("deltas") or []:
+                    out[(row["config"], block["reference"], dataset)] = verdict(block["ndcg@10"])
+        else:
+            for row in blob["results"]:
+                if row.get("delta_vs_parent"):
+                    out[(row["config"], row["delta_vs_parent"]["reference"], dataset)] = verdict(row["delta_vs_parent"]["ndcg@10"])
+    return out
+
+
+def test_every_cheaper_shape_claim_is_the_files_and_every_f1_cell_is_stated():
+    from app.eval import small_rerankers_shapes as shapes
+
+    text = (ROOT / "PLAN.md").read_text()
+    recorded = shapes_verdicts()
+    claims = shapes_claims(text)
+    wrong = [(row, d, said, ref, recorded.get((row, ref, d))) for row, d, said, ref in claims if recorded.get((row, ref, d)) != said]
+    assert wrong == [], f"PLAN.md cheaper-shape claims that differ from the results files: {wrong}"
+    stated = {(row, d) for row, d, _, ref in claims if ref == shapes.PARENT}
+    f1 = [shapes.row_name(*c) for c in shapes.family_cells("F1", ROOT)]
+    missing = [(row, d) for row in f1 for d in shapes.DATASETS if (row, d) not in stated]
+    assert missing == [], f"F1 cells whose verdict PLAN.md does not state per dataset: {missing}"
+    front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
+    assert shapes_answers(text) == {f: front["answers"][f]["answer"] for f in ("F1", "F2")}
+
+
+def test_the_cheaper_shape_parser_catches_a_drifted_verdict_and_a_drifted_answer():
+    from app.eval import small_rerankers_shapes as shapes
+
+    text = ("x\n## Status\n\n| Phase | Item | Status |\n|---|---|---|\n"
+            "| 9.9 | thing | F1 answer: NOT SHOWN at this n; F2 answer: NO; `a/top5` on SciFact covers zero vs `b`, `a/top5` on the fixture below zero vs `b` |\n\n---\n")
+    assert shapes_claims(text) == [("a/top5", "scifact", "covers zero", "b"), ("a/top5", "fixture", "below zero", "b")]
+    assert shapes_answers(text) == {"F1": "NOT SHOWN at this n", "F2": "NO"}
+    assert plan_claims(text) == []  # the B27 claim form does not read a dataset-qualified claim
+    real = (ROOT / "PLAN.md").read_text()
+    row, d, said, ref = shapes_claims(real)[0]
+    name = next(k for k, v in SHAPES_DATASETS.items() if v == d)
+    other = next(v for v in ("above zero", "covers zero", "below zero") if v != said)
+    drifted = real.replace(f"`{row}` on {name} {said} vs `{ref}`", f"`{row}` on {name} {other} vs `{ref}`", 1)
+    recorded = shapes_verdicts()
+    assert any(recorded.get((r, f, ds)) != v for r, ds, v, f in shapes_claims(drifted))
+    front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
+    answer = front["answers"]["F1"]["answer"]
+    other_answer = next(a for a, _ in shapes.ANSWER_LEVELS if a != answer)
+    assert shapes_answers(real.replace(f"F1 answer: {answer}", f"F1 answer: {other_answer}", 1))["F1"] != answer

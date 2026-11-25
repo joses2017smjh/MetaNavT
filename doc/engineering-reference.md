@@ -1313,6 +1313,68 @@ their test questions are about, though no test question and no label. Quality
 on the real corpus with the owner's hand-written questions: a later bar, on a
 CPU, from these committed files. Each student is one training run with one seed.
 
+### Cheaper shapes (M51)
+
+At the served shape every small model's API process is over the api container's
+memory limit on the indicative CPU, so M51 asks the quality question again at
+shapes that cost less. The two MiniLM cross-encoders, their students,
+gte-reranker-modernbert-base and bge-reranker-v2-m3 are each scored at every
+depth and cap of the grid, fp32, in the same runs as the unreranked parent, on
+the same three datasets and the same GPU class as M43's rows; the
+parent and the six rows at the served shape must reproduce M43's committed rows
+before a run counts, and they do, query for query. The rows are in
+[the generated block](../README.md#bench-small-rerankers-shapes), and
+[the chart](figures/small-rerankers-shapes.svg) draws them against their
+indicative CPU p95.
+
+**Declared before any row ran.** `app/eval/small_rerankers_shapes.py` holds the
+grid, the budget bands, the two families and the four answer levels, pinned by
+tests, in a commit older than every results file. A cell's band comes from the
+committed CPU file and `api_memory_mib` alone, so it is blind to quality:
+under-indicative-budget is a p95 of at most 1000 ms with a peak of at most 0.9 of the limit, and borderline a p95 of at most 2500 ms within the limit.<!-- num: bench/results/small_rerankers_shapes.json#/small_rerankers/bands/p95_ms_under; #/small_rerankers/bands/headroom; #/small_rerankers/bands/p95_ms_borderline -->
+These are budgets on one HPC CPU, not on the host, which can be more than twice
+as slow. The question has one answer per family, read in a fixed order: YES
+needs one cell's Bonferroni-adjusted interval above zero on all three datasets;
+PASSES PER CELL, NOT AFTER ADJUSTMENT a cell above zero on all three at the
+unadjusted level only; NO every cell losing somewhere at that level; NOT SHOWN at this n is none of
+them. F1, the headline, holds the 6 under-indicative-budget cells; F2 adds the borderline ones, 16 cells in all, and never modifies F1.<!-- num: bench/results/small_rerankers_shapes_frontier.json#/answers/F1/k; #/answers/F2/k -->
+
+**The answer: NOT SHOWN at this n, in both families.** No cell in either
+family wins on all three datasets even before adjustment. The students' cells
+are the only cells of either family above the unreranked list on the
+fixture's held-out half, and every student cell ties on SciFact: `hybrid+student-minilm-l12@bge-small/fp32-256/top5`, the cheapest L12 student cell, is above it on FiQA by +0.0185 [+0.0092, +0.0282] and still above zero at the F1 level, [+0.0062, +0.0314], but on SciFact it is -0.0140 [-0.0324, +0.0044].<!-- num: bench/results/small_rerankers_shapes_frontier.json#/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/delta; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/hi; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/adjusted/F1/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/adjusted/F1/hi; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/delta; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/hi -->
+The MiniLM-L6 cross-encoder loses on SciFact at every shape of the grid, and
+the L12 at all but one. Not every cell loses somewhere, so the answer is not
+NO either; it is not evidence that the cheap shapes do not help.
+
+**Cheapening cost the students.** A shallower rerank was expected to perturb
+less. For the zero-shot MiniLM models it mostly did not measurably change
+anything: against their own served-shape rows only three L12 cells differ, a
+loss on FiQA. For the students it cost. On SciFact every student cell at the
+shorter cap is below its served-shape row, while their shallower cells at the
+longer cap show no measured difference; `hybrid+student-minilm-l6@bge-small/fp32-256/top5` is below by -0.0268 [-0.0518, -0.0041].<!-- num: bench/results/small_rerankers_shapes_frontier.json#/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/delta; #/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/lo; #/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/hi -->
+On FiQA nine of the ten cheaper student cells are below their served-shape
+rows. Both students were trained at the served cap, so part of the SciFact
+cost may be a train/test length mismatch: the Phase-2 retrain at the shorter cap (a second
+attempt, its own family F3, never merged into F1 or F2) measures it.
+
+**What the cap does.** On the fixture no reranked pair is longer than the
+shorter cap, so there every row at the shorter cap ranks every question
+exactly as its twin at the longer one, and the cap axis measures nothing. On
+SciFact and FiQA every cell at the shorter cap cuts pairs and ranks some
+queries differently from its twin, and only queries with a cut pair: the per-query sidecars carry the truncation counts and the
+ranking hashes, and `make small-rerankers-shapes-rescore` checks that
+invariant, the depth invariants and every interval again on a CPU.
+
+**What the host would run.** The block prints the owner's host command for each
+F1 cell (a student is timed as the published model it started from); none has
+been run. What this does not show: the host's own timing and memory, more than
+one request at a time, the students on a corpus they have not read (their
+training documents cover the relevant documents of some SciFact and FiQA test
+queries, counted in `small_rerankers_shapes_exposure.json`, and every fixture
+question), and the publishers' training data, which is not audited for overlap
+with BEIR.
+
 ## The API serves the benchmarked pipeline
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:
