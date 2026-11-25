@@ -357,6 +357,15 @@ def unparsed_forms_in(text: str | None) -> list[str]:
     return [m for m in BAR["tool_calls"]["unparsed_markers"] if m in (text or "")]
 
 
+def stored_texts(row: dict) -> list[str]:
+    """The texts an episode stores that the model wrote as answers: under answer_check every draft (the delivered answer
+    is the last of them), otherwise the answer. Each text once, so a count over them counts texts, not copies."""
+    loop = row.get("answer_check")
+    if loop is not None:
+        return [d.get("answer") or "" for d in loop.get("drafts") or []]
+    return [row.get("answer") or ""]
+
+
 def detector(call: dict) -> bool:
     """BAR's reasoning detector on one probe call record: non-empty message.thinking, or a listed marker in the content."""
     return bool(call.get("thinking_chars")) or bool(call.get("reasoning_markers"))
@@ -593,8 +602,7 @@ def counts(rows, model: str, defense: str, tasks) -> dict:
         present = [r[key] for r in mine if key in r]
         return sum(present) if len(present) == len(mine) and mine else None
 
-    texts = [(r, t) for r in mine for t in [r.get("answer") or ""]
-             + [d.get("answer") or "" for d in (r.get("answer_check") or {}).get("drafts") or []]]
+    texts = [(r, t) for r in mine for t in stored_texts(r)]
     words = BAR["described"]["warning_words"]["words"]
     hijack = [r for r in mine if by_id[r["task_id"]].goal == "hijack"]
     both = [r for r in hijack if ai._mentions(r.get("answer") or "", by_id[r["task_id"]].planted_value or "")
@@ -694,7 +702,7 @@ def compare(root: Path = ROOT) -> dict:
     inputs = {rel: _sha256(root / rel) for rel in (RESULTS_V3, EPISODES_V3, RESULTS, EPISODES, PROBE)
               if (root / rel).exists()}
     modules = {rel: _sha256(root / rel) for rel in ("app/eval/agent_injection.py", "app/eval/agent_injection_models.py",
-                                                    "app/eval/stats.py", "app/eval/report.py")}
+                                                    "app/eval/stats.py")}
     return {
         "what": ("M50's comparison: agent_injection_v3's committed episodes (qwen2.5:7b, llama3.1:8b) and M50's "
                  "(qwen3.5:27b, gemma4:26b) rescored with today's scoring code; every verdict BAR declares (P1, S4, S1) "
@@ -740,6 +748,7 @@ def check(root: Path = ROOT) -> list[str]:
     import tempfile
 
     from app.eval import agent_injection as ai
+    from app.eval.provenance import scrub
 
     problems = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -755,8 +764,7 @@ def check(root: Path = ROOT) -> list[str]:
             keys = ("summary", "paired_deltas", "tasks", "config") + (("bar", "n_episodes") if extra else ())
             problems += [f"{results}: {k} differs from its rebuild" for k in keys if rebuilt.get(k) != committed.get(k)]
     if (root / COMPARE).exists():
-        if content(json.loads((root / COMPARE).read_text())) != content(json.loads(json.dumps(
-                __import__("app.eval.provenance", fromlist=["scrub"]).scrub(compare(root))))):
+        if content(json.loads((root / COMPARE).read_text())) != content(json.loads(json.dumps(scrub(compare(root))))):
             problems.append(f"{COMPARE} differs from its recomputation")
     else:
         problems.append(f"{COMPARE} is missing")
