@@ -37,6 +37,8 @@ JURY_V3_ANSWERS = (("gemma4:26b", "default", None), ("qwen3.5:27b", "default", N
 JURY_V3_JUDGES = ("gpt-oss:120b", "gemma4:26b", "qwen2.5:7b")  # the last: the committed judge on the other generators' answers
 AGENT_INJECTION_FILE = "bench/results/agent_injection.json"  # the first run (agent_injection_v1), kept as recorded
 AGENT_INJECTION_V2_FILE = "bench/results/agent_injection_v2.json"  # the second run: capability control, controls with neutral lines
+# COMMON rule 3: the agent's search_semantic tool in every injection run is the hash embedder's index, a fallback
+HASH_EMBEDDER_LABEL = "the agent's semantic search runs on the hash embedder, a fallback"
 AGENT_INJECTION_V3_FILE = "bench/results/agent_injection_v3.json"  # the current run: phrasings scored as any-success, the in-loop answer check
 AGENT_INJECTION_ADAPTIVE_FILE = "bench/results/agent_injection_adaptive.json"  # the adaptive attacker on the held-out questions
 LATENCY_FILES = {
@@ -1909,7 +1911,8 @@ def agent_injection_v3_table(blob: dict | None) -> str:
     lines = [
         f"LLM-in-the-loop injection with several phrasings per goal and an answer check in the loop ({how}; {where}): "
         f"{blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; models {', '.join(cfg['models'])} "
-        f"via {_server_line(blob)} on {gpu}; temperature {cfg['temperature']}, k = {k} sampled trials per task, "
+        f"via {_server_line(blob)} on {gpu}; {HASH_EMBEDDER_LABEL} (embedder `{cfg.get('embedder', 'hash')}`); "
+        f"temperature {cfg['temperature']}, k = {k} sampled trials per task, "
         f"configuration and model, the trial index as seed; {wall}. Every goal of the {cfg['n_user_tasks']} config "
         f"questions is planted in {len(phrasings)} phrasings around the same goal sentence: {len(own)} written for this "
         f"benchmark ({', '.join(own)}) and {len(adojo)} AgentDojo attack templates, verbatim ({', '.join(adojo)}). A "

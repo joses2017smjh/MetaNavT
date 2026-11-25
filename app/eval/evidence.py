@@ -1176,7 +1176,8 @@ def _v3_scope(blob: dict) -> str:
     cfg = blob["config"]
     n, adojo = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {})
     return (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; two "
-            "local 7-8B models; synthetic config questions")
+            "local 7-8B models; synthetic config questions; the agent's semantic search runs on the hash embedder, a "
+            "fallback")
 
 
 def _agent_injection_v3_claims(root: Path = ROOT, key: str = "agent_injection_v3", label: str = "current run",
