@@ -3199,9 +3199,9 @@ def _li_cpu_lines(root: Path | None) -> list[str]:
             gaps.append(f"`{row['tag']}` {by[('rerank_stored', 20)] - by[('query_encode', None)]:.1f} ms")
     if gaps:
         lines[-1] += (" The stored-token shapes hardly move with depth, yet at depth 20 each sits above the query encode alone by a p50 gap of "
-                      + _and(gaps) + ". That gap is not the MaxSim arithmetic, which grows with depth: a diagnostic on the same node, not a "
-                      "committed result, traced it to the encoder's and numpy's thread pools contending in one process (a query encode that "
-                      "follows a numpy call runs slower). A served process would pay it too, so the shapes stand as measured.")
+                      + _and(gaps) + ". That gap is not the MaxSim arithmetic, which grows with depth. A diagnostic on the same node, not a "
+                      "committed result, saw a query encode that follows a numpy call in the same process run slower than one that does not; "
+                      "the cause is not established here, and the shapes stand as measured.")
     if same:
         ref = [r for r in small["results"] if r["tag"] in ("minilm-l12", "gte-modernbert-base") and r["max_length"] == 512]
         cells = "; ".join(f"`{r['tag']}` depth 20 at max_length 512: {next(s for s in r['shapes'] if s['depth'] == 20)['p50_ms']} / "
@@ -3375,7 +3375,10 @@ def late_interaction_table(root: Path | None) -> str:
         same = [f"{dict(LI_DATASETS)[d]} `{a}`" for d, x in doc512.items() for a, y in x["pairs"].items() if not y["ranking_differs"]]
         repro.append("A named model's primary and 512-token rows come from different token stores; on BEIR their rankings "
                      + ("differ for every pair, as they must." if not same else f"are EQUAL for {_and(same)}, which the leakage check flags."))
-    lines += ["", "Do the recomputed parents and references reproduce the committed rows? " + " ".join(repro)]
+    expected = next((b["late_interaction"]["expected_reproduction"] for b in primary.values()
+                     if b and b["late_interaction"].get("expected_reproduction")), None)  # the BEIR headers carry it
+    lines += ["", "Do the recomputed parents and references reproduce the committed rows? " + " ".join(repro)
+              + (f" {expected}" if expected else "")]
     lines += ["", "**What this does not show.** " + " ".join(s[0].upper() + s[1:] + "." for s in header["does_not_show"])]
     files = [li.results_file(d, p, attempt) for d in li.DATASETS for p in li.PARTS if (primary if p == "primary" else extra).get(d)]
     lines += ["", "Results: " + " · ".join(f"[{f}]({f})" for f in files) + (f" · [{LATE_INTERACTION_CPU_FILE}]({LATE_INTERACTION_CPU_FILE})" if _load(root, LATE_INTERACTION_CPU_FILE) else "")
