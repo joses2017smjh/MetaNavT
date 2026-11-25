@@ -623,3 +623,13 @@ def test_a_stopped_run_resumes_to_the_same_schedule(tmp_path, monkeypatch):
     assert resumed["schedule"]["lr"] == full["schedule"]["lr"] and resumed["schedule"]["draws"] == full["schedule"]["draws"]
     assert resumed["steps"] == full["steps"] == 2 and [g["stopped"] for g in resumed["segments"]][-1] is None
     assert math.isclose(resumed["epochs"][-1]["validation_macro"], full["epochs"][-1]["validation_macro"], rel_tol=1e-3)
+
+
+def test_a_saved_checkpoint_reloads_with_the_declared_encoding(tmp_path):
+    model = _bge_small_or_skip()
+    files = et.save_checkpoint(model, tmp_path / "ckpt")
+    assert json.loads((tmp_path / "ckpt" / "sentence_bert_config.json").read_text())["do_lower_case"] is True
+    assert set(files) >= {et.WEIGHTS_FILE, "sentence_bert_config.json", "modules.json"} and et.path_leaks(tmp_path / "ckpt") == []
+    emb = ae.load_checkpoint_embedder(tmp_path / "ckpt", ae.BAR_ARM, device="cpu")  # raises unless it encodes as ENCODING declares
+    texts = ["MiXeD Case Text about EBITDA", "plain text"]
+    assert emb.name == "ft:bge-small-marginmse" and float(np.max(np.abs(emb.encode(texts) - model.encode(texts, normalize_embeddings=True)))) < 1e-6

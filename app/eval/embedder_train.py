@@ -816,6 +816,13 @@ def save_checkpoint(model, directory: Path) -> dict[str, dict[str, Any]]:
     file's sha256 and size."""
     directory.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(str(directory), create_model_card=False)
+    # sentence-transformers 6.1 saves sentence_bert_config.json without max_seq_length and do_lower_case (they are no
+    # longer among the Transformer module's config keys), so a reload would not lower-case the text itself; written
+    # back as the published bge snapshots have them, so that every loader reads the checkpoint as it was trained.
+    config = directory / "sentence_bert_config.json"
+    blob = json.loads(config.read_text())
+    blob.update(max_seq_length=ENCODING["max_seq_length"], do_lower_case=ENCODING["do_lower_case"])
+    config.write_text(json.dumps(blob, indent=4) + "\n")
     return {p.relative_to(directory).as_posix(): {"sha256": sha256_of(p), "bytes": p.stat().st_size}
             for p in sorted(directory.rglob("*")) if p.is_file() and p.name not in (TRAINING_FILE, SUMS_FILE)}
 
