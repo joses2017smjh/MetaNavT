@@ -1,0 +1,40 @@
+{
+ "D0": "7d39a29a56552083e61aa477b50165abbccef259",
+ "D1": "5d895f1fed71afb11bbedd3af704721e16154945",
+ "D0_time": "2026-11-25T10:54:24-08:00",
+ "D1_time": "2026-11-25T13:07:48-08:00",
+ "d0_to_d1": {
+  "files": [
+   "Makefile",
+   "README.md",
+   "app/eval/evidence.py",
+   "app/eval/llm_query_audit.py",
+   "app/eval/llm_query_gen.py",
+   "app/eval/report.py",
+   "doc/engineering-reference.md",
+   "tests/eval/test_llm_query_arms.py",
+   "tests/eval/test_plan_status.py"
+  ],
+  "changed_functions": {
+   "b": [],
+   "d": []
+  },
+  "num_predict": {
+   "D0": {
+    "hyde": 256,
+    "multiquery": 256,
+    "decompose": 256,
+    "rewrite": 256,
+    "grade": 16
+   },
+   "D1": {
+    "hyde": 256,
+    "multiquery": 256,
+    "decompose": 256,
+    "rewrite": 256,
+    "grade": 16
+   }
+  }
+ },
+ "rule": "between D0 and D1: (a) only NUM_PREDICT (syntax tree), (b) parser fixes the probe showed, (c) byte-identical, (d) only a wiring bug the probe exposed with a failing test first, (e) plumbing; after D1 parts (a)-(d) are frozen"
+}
