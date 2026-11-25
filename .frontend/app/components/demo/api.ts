@@ -79,12 +79,120 @@ export type Outcome<T> =
   | { ok: false; failure: RequestFailure };
 
 // What GET /health on this origin says that the page uses: whether the API runs the public demo (public_demo, read
-// from its 503 too: an API that is still starting), and whether its reranker is loaded (reranker_loaded; null when
-// the answer does not say, as a starting API's does not). Anything else (no API here, a development server's 404
-// page, a network error, an API from before the flag) means the chat interface, as before.
+// from its 503 too: an API that is still starting), whether its reranker is loaded (reranker_loaded; null when the
+// answer does not say, as a starting API's does not), and what it reports about its index and its retrieval stages
+// (system: the Dataset and Pipeline sections show it; null when the answer is not a JSON object). Anything else (no
+// API here, a development server's 404 page, a network error, an API from before the flag) means the chat interface,
+// as before.
 export interface HealthInfo {
   publicDemo: boolean;
   rerankerLoaded: boolean | null;
+  system: SystemInfo | null;
+}
+
+// The fields of /health (main.py) the page shows, each null when the answer does not have it in the type expected:
+// the page shows "not reported" then, never a value of its own.
+export interface SystemInfo {
+  status: string | null;
+  rows: number | null; // n_nodes: the rows of the data table, counted for this answer
+  files: number | null; // indexing.manifest_at_start.files
+  chunks: number | null; // indexing.manifest_at_start.chunks
+  pipelines: string[]; // indexing.manifest_at_start.pipelines
+  chunker: string | null; // indexing.chunker
+  embeddingProvider: string | null;
+  embeddingModel: string | null;
+  queryInstruction: string | null; // the text put in front of every query ("" = the bare query)
+  embeddingDevice: string | null;
+  lexicalBackend: string | null; // bm25_backend: the configured backend
+  retrievalMode: string | null;
+  denseDepth: number | null;
+  denseSettings: [string, string][]; // dense_search.settings, as the API names them
+  pgvector: string | null;
+  reranker: {
+    configured: boolean | null;
+    loaded: boolean | null; // reranker.loaded, or reranker_loaded when the answer has no reranker entry
+    model: string | null;
+    device: string | null;
+    precision: string | null;
+    maxLength: number | null;
+    depth: number | null;
+    error: string | null;
+  };
+  degraded: { component: string; error: string }[];
+}
+
+type Json = Record<string, unknown>;
+
+function record(value: unknown): Json {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Json)
+    : {};
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function count(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function flag(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+export function readSystem(body: unknown): SystemInfo | null {
+  if (body === null || typeof body !== "object" || Array.isArray(body))
+    return null;
+  const health = body as Json;
+  const indexing = record(health.indexing);
+  const manifest = record(indexing.manifest_at_start);
+  const dense = record(health.dense_search);
+  const reranker = record(health.reranker);
+  return {
+    status: text(health.status),
+    rows: count(health.n_nodes),
+    files: count(manifest.files),
+    chunks: count(manifest.chunks),
+    pipelines: Array.isArray(manifest.pipelines)
+      ? manifest.pipelines.filter(
+          (name): name is string => typeof name === "string",
+        )
+      : [],
+    chunker: text(indexing.chunker),
+    embeddingProvider: text(health.embedding_provider),
+    embeddingModel: text(health.embedding_model),
+    queryInstruction: text(health.embedding_query_instruction),
+    embeddingDevice: text(record(health.devices).embedding),
+    lexicalBackend: text(health.bm25_backend),
+    retrievalMode: text(health.retrieval_mode),
+    denseDepth: count(dense.depth),
+    denseSettings: Object.entries(record(dense.settings)).flatMap(
+      ([name, value]): [string, string][] =>
+        typeof value === "string" || typeof value === "number"
+          ? [[name, String(value)]]
+          : [],
+    ),
+    pgvector: text(dense.pgvector),
+    reranker: {
+      configured: flag(reranker.configured),
+      loaded: flag(reranker.loaded) ?? flag(health.reranker_loaded),
+      model: text(reranker.model),
+      device: text(reranker.device),
+      precision: text(reranker.precision),
+      maxLength: count(reranker.max_length),
+      depth: count(reranker.depth),
+      error: text(reranker.error),
+    },
+    degraded: Array.isArray(health.degraded)
+      ? health.degraded.flatMap((entry) => {
+          const { component, error } = record(entry);
+          return typeof component === "string" && typeof error === "string"
+            ? [{ component, error }]
+            : [];
+        })
+      : [],
+  };
 }
 
 export async function readHealth(): Promise<HealthInfo> {
@@ -102,9 +210,10 @@ export async function readHealth(): Promise<HealthInfo> {
         typeof body?.reranker_loaded === "boolean"
           ? body.reranker_loaded
           : null,
+      system: readSystem(body),
     };
   } catch {
-    return { publicDemo: false, rerankerLoaded: null };
+    return { publicDemo: false, rerankerLoaded: null, system: null };
   }
 }
 
