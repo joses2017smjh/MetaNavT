@@ -526,6 +526,7 @@ def write_from_results(root: Path) -> None:
                 hops,
             )
     write_models_2026_figures(root, out_dir)  # M41: nothing is drawn while its results files are missing
+    write_small_rerankers_figure(root, out_dir)  # M43: likewise
 
 
 # ---- M41: the current open models beside the app's default ones (make figures; app/eval/models_2026.py)
@@ -665,6 +666,200 @@ def write_models_2026_figures(root: Path, out_dir: Path) -> list[Path]:
                   f"make figures, from {rerank_sources}.")
     written.append(out_dir / MODELS_2026_FIGURES[1])
     return written
+
+
+# ---- M43: small rerankers, quality against indicative CPU time (make figures; app/eval/small_rerankers.py)
+
+SMALL_RERANKERS_FIGURE = "small-rerankers.svg"
+# Three roles, three hues: slots 1 to 3 of a palette checked for this chart's dark panel (lightness band, chroma floor,
+# colour-vision separation over all pairs, contrast against the panel). The verdict is the marker's shape, never its
+# colour, and every model is named by a label: no reading depends on telling two hues apart.
+ROLE_COLORS = {"candidate": "#3987E5", "student": "#D95926", "default": "#199E70"}
+ROLE_LABELS = {"candidate": "small cross-encoder as published", "student": "distilled student", "default": "app's default reranker"}
+SERVED_SHAPE = (20, 512)  # the depth and max_length whose CPU time is the x position: the single host's
+DODGE = 16.0  # pixels between the points of models whose times nearly coincide
+
+
+def _nice_step(span: float) -> float:
+    """A tick step of 1, 2 or 5 times a power of ten that gives four to eight ticks over `span`."""
+    import math
+
+    raw = span / 6.0
+    power = 10 ** math.floor(math.log10(raw))
+    for m in (1, 2, 5, 10):
+        if raw <= m * power:
+            return m * power
+    return 10 * power
+
+
+def _log_ticks(lo: float, hi: float) -> list[float]:
+    """1, 2, 5 times powers of ten inside [lo, hi]."""
+    import math
+
+    out = []
+    for e in range(math.floor(math.log10(lo)) - 1, math.ceil(math.log10(hi)) + 1):
+        for m in (1, 2, 5):
+            v = m * 10.0 ** e
+            if lo <= v <= hi:
+                out.append(v)
+    return out
+
+
+def _marker(x: float, y: float, verdict: str, color: str) -> str:
+    """A point: filled circle (interval above zero), hollow circle (covers zero), filled triangle pointing down (below
+    zero); each with a ring in the panel colour so it stays legible over a line or another point."""
+    if verdict == "below zero":
+        pts = f"{x - 6:.1f},{y - 5:.1f} {x + 6:.1f},{y - 5:.1f} {x:.1f},{y + 6:.1f}"
+        return f'<polygon points="{pts}" fill="{color}" stroke="{PANEL}" stroke-width="2"/>'
+    if verdict == "above zero":
+        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{color}" stroke="{PANEL}" stroke-width="2"/>'
+    return (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{PANEL}"/>'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="{PANEL}" stroke="{color}" stroke-width="2.5"/>')
+
+
+def write_small_rerankers_figure(root: Path, out_dir: Path) -> list[Path]:
+    """M43's chart: for each small reranker with a CPU measurement, the paired change in nDCG@10 against the unreranked
+    hybrid (with its 95% interval) on the three datasets, against the indicative CPU time of one rerank call at the served
+    shape. Nothing is drawn while the results files or the CPU file are missing."""
+    import math
+
+    from app.eval import small_rerankers as sr
+    from app.eval.report import verdict
+
+    cpu_path = root / "bench" / "results" / "small_rerankers_cpu.json"
+    table = sr.bar_table(root)
+    if not cpu_path.exists() or not table["rows"]:
+        return []
+    cpu = json.loads(cpu_path.read_text())
+    depth, max_length = SERVED_SHAPE
+    seconds = {}
+    for row in cpu["results"]:
+        shape = next((s for s in row["shapes"] if s["depth"] == depth), None)
+        if row["max_length"] == max_length and shape:
+            seconds[row["tag"]] = shape["p50_ms"] / 1000.0
+    datasets = [(d, label) for d, label in (("fixture", "fixture v1, held-out half"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA")) if d in table["datasets"]]
+    rows = [r for r in table["rows"] if r["tag"] in seconds]
+    if not rows or not datasets:
+        return []
+    untimed = [r for r in table["rows"] if r["tag"] not in seconds]
+    role = lambda tag: "student" if tag in sr.STUDENTS else ("default" if tag == "bge-rerank" else "candidate")  # noqa: E731
+
+    w, left, right = 1040, 96, 44
+    plot_w = w - left - right
+    panel_h, panel_gap = 170, 46
+    font = 'font-family="ui-sans-serif, system-ui, sans-serif"'
+    x_lo, x_hi = min(seconds[r["tag"]] for r in rows) / 1.7, max(seconds[r["tag"]] for r in rows) * 1.7
+    sx = lambda v: left + plot_w * (math.log10(v) - math.log10(x_lo)) / (math.log10(x_hi) - math.log10(x_lo))  # noqa: E731
+
+    # models whose times nearly coincide (a student and the model it was trained from, or two models of one size) are
+    # drawn side by side, DODGE pixels apart around their common time, each on its own dotted guide
+    ordered = sorted(rows, key=lambda r: (seconds[r["tag"]], r["tag"]))
+    xpos: dict[str, float] = {}
+    group: list[str] = []
+    for r in [*ordered, None]:
+        if group and (r is None or sx(seconds[r["tag"]]) - sx(seconds[group[-1]]) >= DODGE):
+            centre = sum(sx(seconds[t]) for t in group) / len(group)
+            xpos.update({t: centre + (k - (len(group) - 1) / 2) * DODGE for k, t in enumerate(group)})
+            group = []
+        if r is not None:
+            group.append(r["tag"])
+    # model names above the first panel, staggered so that neighbours on the time axis do not collide
+    lanes: list[float] = []  # the right edge of the last label in each lane
+    placed = []
+    for r in ordered:
+        x, width = xpos[r["tag"]], 6.4 * len(r["tag"]) + 10
+        x0 = min(max(x - width / 2, 16), w - 16 - width)
+        lane = next((i for i, edge in enumerate(lanes) if x0 >= edge + 6), len(lanes))
+        if lane == len(lanes):
+            lanes.append(0.0)
+        lanes[lane] = x0 + width
+        placed.append((r["tag"], x, x0 + width / 2, lane))
+    label_h = 18 * len(lanes)
+    subtitle = [
+        "Paired change in nDCG@10 against hybrid@bge-small with no reranker (dots, with 95% bootstrap intervals), over the fused top 20 at max_length 512.",
+        f"Time: one rerank call of 20 passages cut at 512 tokens in the API process, p50, {cpu['device'].get('threads')} threads on "
+        f"{cpu['device'].get('cpu_model') or 'the recorded CPU'}:",
+        "another machine, not the demo's host. Models whose times nearly coincide are drawn side by side, each on its own dotted guide.",
+        "A model passes the quality bar when its interval is above zero in all three panels. Whether it fits the host is measured on the host.",
+    ]
+    top = 70 + 16 * len(subtitle) + 10
+    first_panel = top + label_h + 16
+    h = first_panel + len(datasets) * (panel_h + panel_gap) + 86
+    parts = []
+    for tag, x, cx, lane in placed:
+        y = top + 12 + 18 * lane
+        parts.append(f'<line x1="{x:.1f}" y1="{y + 5}" x2="{x:.1f}" y2="{first_panel + len(datasets) * (panel_h + panel_gap) - panel_gap}" stroke="{GRID}" stroke-width="1" stroke-dasharray="2 4"/>')
+        parts.append(f'<circle cx="{cx - 3.2 * len(tag) - 9:.1f}" cy="{y - 4}" r="4" fill="{ROLE_COLORS[role(tag)]}"/>')
+        parts.append(f'<text x="{cx + 3:.1f}" y="{y}" text-anchor="middle" fill="{TEXT}" {font} font-size="11.5">{_esc(tag)}</text>')
+    for i, (d, label) in enumerate(datasets):
+        y0 = first_panel + i * (panel_h + panel_gap)
+        cells = [(r, r["datasets"][d]) for r in rows if d in r["datasets"]]
+        refs = [(r, r["datasets"][d]) for r in untimed if d in r["datasets"]]
+        values = [0.0] + [v for _, c in cells for v in (c["vs_parent"]["lo"], c["vs_parent"]["hi"])] + [c["vs_parent"]["delta"] for _, c in refs]
+        step = _nice_step(max(values) - min(values))
+        y_lo, y_hi = math.floor(min(values) / step) * step, math.ceil(max(values) / step) * step
+        sy = lambda v, y0=y0, y_lo=y_lo, y_hi=y_hi: y0 + panel_h * (y_hi - v) / (y_hi - y_lo)  # noqa: E731
+        n = table["datasets"][d]["n"]
+        parts.append(f'<text x="{left}" y="{y0 - 12}" fill="{TEXT}" {font} font-size="13" font-weight="700">{_esc(label)}</text>'
+                     f'<text x="{left + 7.4 * len(label) + 10:.1f}" y="{y0 - 12}" fill="{MUTED}" {font} font-size="11.5">{n} questions; '
+                     f'no reranker: nDCG@10 {table["datasets"][d]["parent_ndcg@10"]["mean"]:.3f}</text>')
+        ticks = round((y_hi - y_lo) / step)
+        for k in range(ticks + 1):
+            v = y_lo + k * step
+            y = sy(v)
+            zero = abs(v) < step / 1000
+            parts.append(f'<line x1="{left}" y1="{y:.1f}" x2="{left + plot_w}" y2="{y:.1f}" stroke="{MUTED if zero else GRID}" stroke-width="{1.4 if zero else 1}"/>')
+            parts.append(f'<text x="{left - 8}" y="{y + 4:.1f}" text-anchor="end" fill="{MUTED}" {font} font-size="10.5">{v:+.2f}</text>')
+        for v in _log_ticks(x_lo, x_hi):
+            parts.append(f'<line x1="{sx(v):.1f}" y1="{y0 + panel_h}" x2="{sx(v):.1f}" y2="{y0 + panel_h + 4}" stroke="{MUTED}" stroke-width="1"/>')
+            if i == len(datasets) - 1:
+                parts.append(f'<text x="{sx(v):.1f}" y="{y0 + panel_h + 17}" text-anchor="middle" fill="{MUTED}" {font} font-size="10.5">{v:g} s</text>')
+        parts.append(f'<text x="{left + plot_w - 4}" y="{sy(0.0) - 5:.1f}" text-anchor="end" fill="{MUTED}" {font} font-size="10.5">no reranker</text>')
+        names = []  # a reference's name goes on top of the points, with a halo, so no whisker crosses it
+        for r, c in refs:  # a reference with no CPU time: a dashed line at its change, named at the left
+            y = sy(c["vs_parent"]["delta"])
+            parts.append(f'<line x1="{left}" y1="{y:.1f}" x2="{left + plot_w}" y2="{y:.1f}" stroke="{MUTED}" stroke-width="1.2" stroke-dasharray="6 5"/>')
+            names.append(f'<text x="{left + 6}" y="{y - 5:.1f}" fill="{MUTED}" stroke="{PANEL}" stroke-width="4" paint-order="stroke" {font} '
+                         f'font-size="10.5">{_esc(r["tag"])} {c["vs_parent"]["delta"]:+.3f} (not timed on a CPU)</text>')
+        for r, c in cells:
+            x, block = xpos[r["tag"]], c["vs_parent"]
+            y_a, y_b = sy(block["hi"]), sy(block["lo"])
+            whisker = f"M{x:.1f},{y_a:.1f}V{y_b:.1f}M{x - 4:.1f},{y_a:.1f}H{x + 4:.1f}M{x - 4:.1f},{y_b:.1f}H{x + 4:.1f}"
+            parts.append(f'<path d="{whisker}" stroke="{PANEL}" stroke-width="4" fill="none"/><path d="{whisker}" stroke="{TEXT}" stroke-width="1.4" fill="none"/>')
+            parts.append(_marker(x, sy(block["delta"]), verdict(block), ROLE_COLORS[role(r["tag"])]))
+        parts.extend(names)
+        parts.append(f'<text x="{left - 62}" y="{y0 + panel_h / 2:.0f}" fill="{MUTED}" {font} font-size="10.5" text-anchor="middle" '
+                     f'transform="rotate(-90 {left - 62} {y0 + panel_h / 2:.0f})">Δ nDCG@10</text>')
+    base = first_panel + len(datasets) * (panel_h + panel_gap) - panel_gap
+    parts.append(f'<text x="{left + plot_w / 2:.0f}" y="{base + 36}" text-anchor="middle" fill="{MUTED}" {font} font-size="11.5">'
+                 f'indicative CPU time of one rerank call, seconds (log scale)</text>')
+    x = left
+    for key in ("candidate", "student", "default"):
+        if any(role(r["tag"]) == key for r in rows):
+            parts.append(f'<circle cx="{x + 5}" cy="{base + 58}" r="5" fill="{ROLE_COLORS[key]}"/>'
+                         f'<text x="{x + 16}" y="{base + 62}" fill="{TEXT}" {font} font-size="11.5">{_esc(ROLE_LABELS[key])}</text>')
+            x += 26 + 6.6 * len(ROLE_LABELS[key])
+    x += 14
+    for shape, text in (("above zero", "interval above zero"), ("covers zero", "covers zero"), ("below zero", "below zero")):
+        parts.append(_marker(x + 6, base + 58, shape, MUTED) + f'<text x="{x + 18}" y="{base + 62}" fill="{TEXT}" {font} font-size="11.5">{text}</text>')
+        x += 30 + 6.6 * len(text)
+    sub = "".join(f'<text x="32" y="{64 + 16 * i}" fill="{MUTED}" {font} font-size="12">{_esc(line)}</text>' for i, line in enumerate(subtitle))
+    sources = ", ".join(f"{d}: results sha {table['datasets'][d]['git_sha']}" for d, _ in datasets) + f", CPU: results sha {cpu.get('git_sha')}"
+    title = "Small rerankers  ·  quality against indicative CPU time"
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" aria-label="{_esc(title)}">
+  <rect width="{w}" height="{h}" fill="{BG}"/>
+  <rect x="12" y="12" width="{w - 24}" height="{h - 24}" rx="16" fill="{PANEL}" stroke="{GRID}"/>
+  <text x="32" y="44" fill="{TEXT}" {font} font-size="18" font-weight="700">{_esc(title)}</text>
+  {sub}
+  {"".join(parts)}
+  <text x="32" y="{h - 26}" fill="{MUTED}" {font} font-size="11">{_esc("make figures, from " + sources + ".")}</text>
+</svg>
+'''
+    out = out_dir / SMALL_RERANKERS_FIGURE
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(svg)
+    return [out]
+
 
 
 def main() -> None:

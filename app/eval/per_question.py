@@ -85,13 +85,27 @@ def recompute(blob: dict, sidecar: dict) -> tuple[list[dict], dict]:
     return rows, settings
 
 
+def _other_schema(blob: dict, sidecar: dict) -> list[str]:
+    """A sidecar written by another runner is checked by that runner's own recomputation (M43: the small-rerankers
+    fixture file and its BEIR files, `make small-rerankers-rescore`); any other schema is a difference."""
+    from app.eval import small_rerankers as sr
+    from app.eval.beir import PER_QUERY_SCHEMA
+
+    schema = sidecar.get("schema")
+    if schema == sr.SIDECAR_SCHEMA:
+        return sr.rescore_fixture(blob, sidecar)
+    if schema == PER_QUERY_SCHEMA and "small_rerankers" in blob:
+        return sr.rescore_beir(blob, sidecar)
+    return [f"sidecar schema {schema!r}, expected {SCHEMA!r}"]
+
+
 def differences(blob: dict, sidecar: dict) -> list[str]:
     """Every interval, paired delta, comparison and mean of `blob` that the sidecar does not reproduce (empty: all do)."""
     from app.eval.compare import _leaf_differences
 
     out: list[str] = []
     if sidecar.get("schema") != SCHEMA:
-        return [f"sidecar schema {sidecar.get('schema')!r}, expected {SCHEMA!r}"]
+        return _other_schema(blob, sidecar)
     for key in ("git_sha", "timestamp"):
         if sidecar.get(key) != blob.get(key):
             out.append(f"{key}: results file {blob.get(key)!r}, sidecar {sidecar.get(key)!r} (not the same run)")

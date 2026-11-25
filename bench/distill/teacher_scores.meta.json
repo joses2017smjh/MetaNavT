@@ -1,0 +1,529 @@
+{
+  "git_sha": "a8393c9",
+  "git_head": "a8393c9096f34ecbfaeb79d94f892d7d499f835c",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "ad32aa870ab9ead1d73eb51abfde77d7002511e56a2e739d578bbbf8a47fd8ca",
+    "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+    "app/eval/distill_teacher.py": "b57b4bf8fefd80c68b5417ed2e015e269df76d965b3694745e7f7c286c3f1880",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+    "app/eval/provenance.py": "ef4cd95e4baadb05f13f74167ac9e84f3886672e40bf9ad10fed757104b3056e",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/small_rerankers.py": "ccaeeb44b0c09431146bdb1878f5c2ed8591c452b2f181ac8a5e7a60af27ce0e",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-24T23:01:14.153053+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.distill_teacher score --data-dir <path>/data --work <path>/work-teacher-a8393c9 --shard <i>/16 --batch-size 16",
+  "merged_by": "python -m app.eval.distill_teacher merge --work <path>/work-teacher-a8393c9",
+  "file": {
+    "name": "teacher_scores.jsonl.gz",
+    "sha256": "fb1972427a2159e3140f61a4a17c1af261360ffd1da81e88f78888cb4f707705",
+    "n": 10622,
+    "fields": "id, corpus, candidates (fused order, the source appended last when absent), source_rank (1-based in the fused top; null: appended), scores (the teacher's raw logits, one per candidate)"
+  },
+  "queries": {
+    "file": "queries.jsonl.gz",
+    "sha256": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050"
+  },
+  "teacher": {
+    "role": "teacher",
+    "model": "mixedbread-ai/mxbai-rerank-large-v2",
+    "revision": "ca7e1ee484c37c0ddd8d178a9a5c33cec575c5e6",
+    "neural": true,
+    "precision": "fp32",
+    "max_length": 512,
+    "device": "cuda:0",
+    "dtype": "torch.float32",
+    "loaded_max_length": 512,
+    "default_prompt_name": null,
+    "default_prompt": null,
+    "load_and_score": {
+      "query": "What is the capital of China?",
+      "score_answer": 0.999991,
+      "score_other": 0.003388,
+      "score_answer_long": 0.999971,
+      "passed": true
+    },
+    "scores": "raw logits (no activation)"
+  },
+  "first_stage": {
+    "config": "hybrid@bge-small",
+    "candidates_top": 20,
+    "source_document": "appended when it is not among them",
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "neural": true
+    },
+    "corpora": {
+      "fiqa": {
+        "index": "app.eval.beir.Engine",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "k": 100,
+        "rrf_k": 60,
+        "unit": "document",
+        "n_units": 57638,
+        "corpus_sha256": "f66ef26f25dae42254b1494d4672e6b0118709ee62cee13b763d99d25066356a",
+        "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+      },
+      "fixture": {
+        "index": "InMemoryHybridIndex, router off, reranker off",
+        "retrieve_k": 50,
+        "unit": "chunk",
+        "n_units": 71
+      },
+      "scifact": {
+        "index": "app.eval.beir.Engine",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "k": 100,
+        "rrf_k": 60,
+        "unit": "document",
+        "n_units": 5183,
+        "corpus_sha256": "7394141cfad041e3b3cc0925871a7347213f880f40ed68ea27b7eaf351b0b7a1",
+        "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+      }
+    }
+  },
+  "shards": [
+    {
+      "shard": [
+        0,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13293,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T21:55:03.505990+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13293,
+          "score_seconds": 1378.0
+        }
+      ]
+    },
+    {
+      "shard": [
+        1,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13296,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T21:54:31.845514+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13296,
+          "score_seconds": 1346.3
+        }
+      ]
+    },
+    {
+      "shard": [
+        10,
+        16
+      ],
+      "device": "NVIDIA A40",
+      "cpu_model": "AMD EPYC 74F3 24-Core Processor",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13300,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:26:03.801813+00:00",
+          "device": "NVIDIA A40",
+          "batch_size": 64,
+          "scored": 664,
+          "pairs": 13300,
+          "score_seconds": 901.4
+        }
+      ]
+    },
+    {
+      "shard": [
+        11,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13298,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:46:58.948649+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13298,
+          "score_seconds": 1310.6
+        }
+      ]
+    },
+    {
+      "shard": [
+        12,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13300,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:47:52.369417+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13300,
+          "score_seconds": 1363.3
+        }
+      ]
+    },
+    {
+      "shard": [
+        13,
+        16
+      ],
+      "device": "NVIDIA A40",
+      "cpu_model": "AMD EPYC 74F3 24-Core Processor",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13304,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:45:23.701322+00:00",
+          "device": "NVIDIA A40",
+          "batch_size": 64,
+          "scored": 664,
+          "pairs": 13304,
+          "score_seconds": 898.4
+        }
+      ]
+    },
+    {
+      "shard": [
+        14,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 663,
+      "pairs": 13280,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:53:28.729223+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 663,
+          "pairs": 13280,
+          "score_seconds": 1304.2
+        }
+      ]
+    },
+    {
+      "shard": [
+        15,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 663,
+      "pairs": 13277,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T23:01:14.153053+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 663,
+          "pairs": 13277,
+          "score_seconds": 1312.6
+        }
+      ]
+    },
+    {
+      "shard": [
+        2,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13300,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T21:54:59.202573+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13300,
+          "score_seconds": 1373.7
+        }
+      ]
+    },
+    {
+      "shard": [
+        3,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13294,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T21:53:59.486435+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13294,
+          "score_seconds": 1314.0
+        }
+      ]
+    },
+    {
+      "shard": [
+        4,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13296,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T21:54:49.048270+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13296,
+          "score_seconds": 1363.5
+        }
+      ]
+    },
+    {
+      "shard": [
+        5,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13301,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:20:17.844454+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13301,
+          "score_seconds": 1317.9
+        }
+      ]
+    },
+    {
+      "shard": [
+        6,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13301,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:21:03.176980+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13301,
+          "score_seconds": 1363.2
+        }
+      ]
+    },
+    {
+      "shard": [
+        7,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13299,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:21:11.154417+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13299,
+          "score_seconds": 1366.2
+        }
+      ]
+    },
+    {
+      "shard": [
+        8,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13297,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:21:27.355236+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13297,
+          "score_seconds": 1366.1
+        }
+      ]
+    },
+    {
+      "shard": [
+        9,
+        16
+      ],
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+      "torch": "2.5.1+cu121",
+      "sentence_transformers": "6.1.0",
+      "lists": 664,
+      "pairs": 13299,
+      "runs": [
+        {
+          "timestamp": "2026-11-24T22:21:29.532530+00:00",
+          "device": "NVIDIA GeForce RTX 2080 Ti",
+          "batch_size": 16,
+          "scored": 664,
+          "pairs": 13299,
+          "score_seconds": 1373.2
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "fiqa": {
+      "lists": 5399,
+      "pairs": 108243,
+      "source_in_fused_top": 5136,
+      "source_first_in_fused": 3863,
+      "source_first_with_teacher": 4850,
+      "logit": {
+        "mean": 5.4246,
+        "std": 3.0106,
+        "min": -7.8505,
+        "max": 14.941,
+        "percentiles_5_25_50_75_95": [
+          0.0054,
+          3.6106,
+          5.6826,
+          7.4742,
+          10.0765
+        ]
+      }
+    },
+    "fixture": {
+      "lists": 733,
+      "pairs": 14692,
+      "source_in_fused_top": 701,
+      "source_first_in_fused": 402,
+      "source_first_with_teacher": 523,
+      "logit": {
+        "mean": 7.3117,
+        "std": 2.7226,
+        "min": -6.3013,
+        "max": 13.5184,
+        "percentiles_5_25_50_75_95": [
+          2.0103,
+          5.8825,
+          7.6812,
+          9.1629,
+          11.2158
+        ]
+      }
+    },
+    "scifact": {
+      "lists": 4490,
+      "pairs": 89800,
+      "source_in_fused_top": 4490,
+      "source_first_in_fused": 4413,
+      "source_first_with_teacher": 4467,
+      "logit": {
+        "mean": 1.7547,
+        "std": 3.7116,
+        "min": -8.8556,
+        "max": 14.8203,
+        "percentiles_5_25_50_75_95": [
+          -3.3585,
+          -0.7156,
+          1.2682,
+          3.5193,
+          10.2089
+        ]
+      }
+    }
+  },
+  "labels": "none: a list carries where the source document ranked and what the teacher said, never a relevance judgment"
+}

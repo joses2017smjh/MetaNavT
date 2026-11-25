@@ -69,6 +69,8 @@ NOT_RESULTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("PostgreSQL 16/pgvector", "the PostgreSQL major version"),
         ("October 7", "the day of the October evaluation, which names its results directory"),
         ("family-bootstrap 95%", "the interval's confidence level, a method setting"),
+        ("has a 95% interval", "the quality bar's confidence level, a method setting (M43)"),
+        ("PLAN row `1.7`", "a row id of the work plan, inventory/PLAN.md (M43)"),
         ("Python 3.11 or 3.12", "the Python versions a clean clone supports"),
         ("Python 3.11 and 3.12", "the Python versions CI runs"),
         ("run 47", "a run id of the fixture corpus"),

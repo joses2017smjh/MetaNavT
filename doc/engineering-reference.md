@@ -1177,6 +1177,142 @@ host is the owner's decision, from the intervals and the latencies above.
 
 ---
 
+## Small rerankers for the single host
+
+The live demo serves hybrid retrieval with no reranker: on its host the app's
+default cross-encoder, bge-reranker-v2-m3, fits neither the memory nor the time
+a request has ([bench/results/api_memory_cpu.json](../bench/results/api_memory_cpu.json)).
+This section asks whether a much smaller reranker keeps enough of the gain to
+be worth serving there. The rows are in
+[the generated block](../README.md#bench-small-rerankers), and `make figures`
+draws them against their indicative CPU time
+([chart](figures/small-rerankers.svg)). Nothing here changes a default, and the
+live host is as it was.
+
+**Two bars, declared before any row ran.** `app/eval/small_rerankers.py` holds
+them as constants, pinned by a test, in a commit older than every results file
+they judge. The quality bar: a reranked row passes when its paired nDCG@10
+delta against the unreranked list, `hybrid@bge-small`, has a 95% interval
+above zero on fixture v1's held-out questions and on BEIR SciFact and on BEIR
+FiQA. The same column judges every reranked row: the published candidates, the
+students, the app's default reranker and the teacher. The serving bar is not
+decided here: it is the added latency and the peak memory on the host itself.
+A CPU timing from another machine is recorded as indicative only.
+
+**The shape.** Every row reranks the fused top 20 of `hybrid@bge-small` at max_length 512 in fp32, the single host's `RERANK_DEPTH`, `RERANKER_MAX_LENGTH` and `RERANKER_PRECISION`.<!-- num: bench/results/small_rerankers.json#/small_rerankers/shape/rerank_top; #/small_rerankers/shape/max_length -->
+bge-reranker-v2-m3 and the teacher are recomputed at that shape in the same
+run; every model first passes the load-and-score check of the M41 rows on the
+instance that was loaded; a candidate's cached revision must be the pinned
+one; nothing falls back. On the fixture the first twenty of the fused top fifty
+chunks are reranked and the rest keep their order, as
+`InMemoryHybridIndex.retrieve` does with `rerank_depth` set. The bar is read
+on the held-out half of `split_questions`, the split `make bench-rrf-sweep`
+uses; no choice was made on the other half. Each run writes its per-query
+scores beside its results file, and `make small-rerankers-rescore` recomputes
+every interval, paired delta and mean from those on a CPU, with no model.
+
+**The candidates.** Six small cross-encoders with permissive licences, each
+pinned to the revision its row records: the MiniLM MS MARCO cross-encoders
+(L6 and L12), mxbai-rerank-xsmall-v1 and mxbai-rerank-base-v1,
+gte-reranker-modernbert-base, and bge-reranker-base as a mid-size reference
+(`CANDIDATES`: licences, sizes and revisions looked up on the Hugging Face API
+before any run; a row refuses a cached snapshot that is not the pinned revision). The teacher is mxbai-rerank-large-v2,
+the one reranker M41 measured above bge-reranker-v2-m3 on all three datasets.
+
+**What the zero-shot rows show.** Of the published candidates, only
+gte-reranker-modernbert-base passes the quality bar: its interval is above
+zero on all three datasets, and on FiQA it is above bge-reranker-v2-m3 in the
+same run. The teacher passes too. bge-reranker-v2-m3 itself does not: on
+SciFact its interval covers zero. The MiniLM cross-encoders, the smallest and
+cheapest, lose on SciFact, and the L12 loses on the fixture's held-out half as
+well; mxbai-rerank-base-v1 and bge-reranker-base gain on the fixture and tie on
+SciFact. Every loser stays in the table.
+
+**What the students show.** Both were trained once, by the recipe frozen with the bars (their first attempt), and scored in the same runs as every other row, on another GPU than the zero-shot rows; every published model's intervals and means came out identical to its zero-shot row.
+On the fixture's held-out half both are above the unreranked list, `student-minilm-l6` by +0.1145 [+0.0600, +0.1755] and `student-minilm-l12` by +0.0946 [+0.0424, +0.1502], and above the published checkpoint each started from, by +0.1305 [+0.0884, +0.1701] and +0.1662 [+0.1135, +0.2165].<!-- num: bench/results/small_rerankers.json#/held_out/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid@bge-small]/ndcg@10/delta; #/held_out/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid@bge-small]/ndcg@10/lo; #/held_out/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid@bge-small]/ndcg@10/hi; #/held_out/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid@bge-small]/ndcg@10/delta; #/held_out/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid@bge-small]/ndcg@10/lo; #/held_out/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid@bge-small]/ndcg@10/hi; #/held_out/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid+minilm-l6@bge-small~1fp32-512~1top20]/ndcg@10/delta; #/held_out/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid+minilm-l6@bge-small~1fp32-512~1top20]/ndcg@10/lo; #/held_out/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid+minilm-l6@bge-small~1fp32-512~1top20]/ndcg@10/hi; #/held_out/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid+minilm-l12@bge-small~1fp32-512~1top20]/ndcg@10/delta; #/held_out/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid+minilm-l12@bge-small~1fp32-512~1top20]/ndcg@10/lo; #/held_out/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/deltas/[reference=hybrid+minilm-l12@bge-small~1fp32-512~1top20]/ndcg@10/hi -->
+That half says the least about them: their synthetic fixture queries sit close to the templated gold questions (the threshold table in the generated block).
+On SciFact both tie with the unreranked list, +0.0118 [-0.0144, +0.0396] and +0.0185 [-0.0064, +0.0465], as bge-reranker-v2-m3 does there, so neither passes December's bar, although each gains on the checkpoint it started from, +0.0426 [+0.0204, +0.0665] and +0.0452 [+0.0218, +0.0689].<!-- num: bench/results/beir_scifact_small_rerankers.json#/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/hi; #/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/hi; #/bootstrap/comparisons/18/ndcg@10/delta; #/bootstrap/comparisons/18/ndcg@10/lo; #/bootstrap/comparisons/18/ndcg@10/hi; #/bootstrap/comparisons/19/ndcg@10/delta; #/bootstrap/comparisons/19/ndcg@10/lo; #/bootstrap/comparisons/19/ndcg@10/hi -->
+On FiQA both are above the unreranked list, +0.0332 [+0.0183, +0.0485] and +0.0474 [+0.0336, +0.0620], and above their starting checkpoints, +0.0210 [+0.0112, +0.0300] and +0.0294 [+0.0197, +0.0389], but below bge-reranker-v2-m3 in the same run, -0.0277 [-0.0406, -0.0152] and -0.0135 [-0.0247, -0.0015].<!-- num: bench/results/beir_fiqa_small_rerankers.json#/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+student-minilm-l6@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/hi; #/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+student-minilm-l12@bge-small~1fp32-512~1top20]/delta_vs_parent/ndcg@10/hi; #/bootstrap/comparisons/18/ndcg@10/delta; #/bootstrap/comparisons/18/ndcg@10/lo; #/bootstrap/comparisons/18/ndcg@10/hi; #/bootstrap/comparisons/19/ndcg@10/delta; #/bootstrap/comparisons/19/ndcg@10/lo; #/bootstrap/comparisons/19/ndcg@10/hi; #/bootstrap/comparisons/14/ndcg@10/delta; #/bootstrap/comparisons/14/ndcg@10/lo; #/bootstrap/comparisons/14/ndcg@10/hi; #/bootstrap/comparisons/16/ndcg@10/delta; #/bootstrap/comparisons/16/ndcg@10/lo; #/bootstrap/comparisons/16/ndcg@10/hi -->
+Against the teacher both lose: on SciFact -0.0492 [-0.0705, -0.0280] and -0.0425 [-0.0652, -0.0210], on FiQA -0.0708 [-0.0847, -0.0560] and -0.0566 [-0.0698, -0.0428].<!-- num: bench/results/beir_scifact_small_rerankers.json#/bootstrap/comparisons/15/ndcg@10/delta; #/bootstrap/comparisons/15/ndcg@10/lo; #/bootstrap/comparisons/15/ndcg@10/hi; #/bootstrap/comparisons/17/ndcg@10/delta; #/bootstrap/comparisons/17/ndcg@10/lo; #/bootstrap/comparisons/17/ndcg@10/hi; bench/results/beir_fiqa_small_rerankers.json#/bootstrap/comparisons/15/ndcg@10/delta; #/bootstrap/comparisons/15/ndcg@10/lo; #/bootstrap/comparisons/15/ndcg@10/hi; #/bootstrap/comparisons/17/ndcg@10/delta; #/bootstrap/comparisons/17/ndcg@10/lo; #/bootstrap/comparisons/17/ndcg@10/hi -->
+Distillation lifted both small cross-encoders on every dataset against the checkpoints they started from, but not over the bar, which needs SciFact too; gte-reranker-modernbert-base, several times their size, is still the only published model that passes.
+
+**The earlier student lost; what differs now.** PLAN row `1.7` records a
+distilled student that lost on held-out questions: a least-squares or
+boosted-tree model over hand-made features (the fused score and rank, token
+overlap, path facts), fitted on bge-reranker-v2-m3's scores for half of the
+fixture's gold questions ([the reranker prototypes](../README.md#bench-rerank-arms)).
+It never read a passage. The students here are small cross-encoders that read
+the query and the passage; their teacher is mxbai-rerank-large-v2; no gold
+question is a training query; and they are judged on three datasets against
+the unreranked list, with the teacher and the app's default in the same run.
+
+**Label-free distillation, step by step.** No step reads a relevance label.
+
+1. *Queries* (`make distill-queries`, `app/eval/distill_queries.py`). Documents
+   are sampled with a seed: every chunk of fixture v1 and a fixed number of
+   SciFact and FiQA documents, read from each dataset's `corpus.jsonl` alone
+   (the code never opens `queries.jsonl`, which holds the test queries, or the
+   qrels). One prompt per document goes to a local open model through Ollama,
+   with the model's digest recorded, asking for questions, keyword queries and
+   one-sentence statements the document answers. The prompt holds no example
+   query, so no benchmark query can reach the model. Every raw completion is
+   kept.
+2. *Near-duplicates of test queries* (`make distill-queries-filter`), the only
+   step that reads test queries, and it only removes: a synthetic query is
+   dropped when it equals a fixture gold question (either half) or a SciFact or
+   FiQA test query after normalisation, or their token sets reach the declared
+   Jaccard, or the cosine of their bge-small embeddings reaches the declared
+   threshold. The generated block lists how many reach each threshold. On the
+   fixture, whose gold questions follow a few templates, many kept queries sit
+   just under the threshold, so a student's fixture rows say less than its
+   SciFact and FiQA rows.
+3. *Teacher scores* (`make distill-teacher`, `app/eval/distill_teacher.py`).
+   For each kept query the candidates are the fused top twenty of
+   `hybrid@bge-small` over its own corpus, built as the benchmark rows build
+   them, plus the query's source document when it is not among them: the lists
+   a served reranker receives. The teacher's raw logits are the targets.
+4. *Students* (`make distill-train`, `app/eval/distill_train.py`). The two
+   smallest candidates are trained with MarginMSE over every pair of
+   candidates in a list, by a recipe frozen with the bars (`RECIPE`), before
+   any zero-shot row existed. The checkpoint is chosen without a label too: the
+   epoch with the lowest loss on the synthetic queries of held-out source
+   documents.
+
+The synthetic queries, the completions, the teacher's scores and the
+students' manifest are committed (`bench/distill/`), so a CPU can re-score the
+students from files. The checkpoints are not in the repository: the manifest
+records their sha256, a row that uses a student records that sha256 and never a
+path, and a loaded student must reproduce reference logits the manifest stores
+before it scores anything.
+
+**What they cost on a CPU, and the command for the host.** On the share node's
+Xeon Silver with two torch threads, one rerank call of twenty passages cut at 512 tokens took a median of 36213.3 ms with gte-reranker-modernbert-base, 84840.8 ms with bge-reranker-v2-m3 and 4033.0 ms with the MiniLM-L6 cross-encoder.<!-- num: bench/results/small_rerankers_cpu.json#/results/7/max_length; #/results/7/shapes/[depth=20]/p50_ms; #/results/13/shapes/[depth=20]/p50_ms; #/results/1/shapes/[depth=20]/p50_ms -->
+The students cost what the checkpoints they started from cost: 3968.1 ms for `student-minilm-l6` and 7833.4 ms for `student-minilm-l12`, against 4033.0 ms and 7967.1 ms.<!-- num: bench/results/small_rerankers_cpu.json#/results/15/shapes/[depth=20]/p50_ms; #/results/17/shapes/[depth=20]/p50_ms; #/results/1/shapes/[depth=20]/p50_ms; #/results/3/shapes/[depth=20]/p50_ms -->
+The API process (the app, bge-small and the reranker) peaked at 1632 MiB with gte-reranker-modernbert-base and at 1144 MiB even with the MiniLM-L6 cross-encoder, more than the memory limit the single host gives the api container (`api_memory_mib` in `infra/modules/single-host/variables.tf`): another machine again, but a warning for the host.<!-- num: bench/results/small_rerankers_cpu.json#/results/7/shapes/[depth=20]/memory_mib/VmHWM; #/results/1/shapes/[depth=20]/memory_mib/VmHWM -->
+That is another machine; it says which shapes are worth trying on the host,
+not whether a model fits it. The host's measurement is one command the owner
+runs on purpose, through SSM, into a one-off container of the deployed image
+with the api container's memory limit; it prints p50 and p95 per rerank call
+and the container's peak memory:
+
+```bash
+SINGLE_HOST_NAME=metanavit-single-host AWS_REGION=us-west-2 \
+python3 scripts/time_reranker_on_host.py --model Alibaba-NLP/gte-reranker-modernbert-base \
+    --stop-api --depths 5,10,20 --max-length 512
+```
+
+`--stop-api` stops the demo's api container for those minutes and starts the
+stack again whatever happens; `--beside-api` keeps the demo up and gives an
+upper bound instead. A student is timed as the published model it was trained
+from: the same architecture and shapes, so the same cost.
+
+**What this does not show.** Whether any of these fits the host. Zero-shot
+quality of a student on a corpus it has not seen: the students were trained on
+synthetic queries over these three corpora, so they have read the documents
+their test questions are about, though no test question and no label. Quality
+on the real corpus with the owner's hand-written questions: a later bar, on a
+CPU, from these committed files. Each student is one training run with one seed.
+
 ## The API serves the benchmarked pipeline
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:

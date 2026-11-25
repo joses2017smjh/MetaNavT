@@ -270,6 +270,22 @@ def cross_encoder_scores(model, pairs: Sequence[Sequence[str]], batch_size: int 
     raise TypeError(f"{type(model).__name__} has neither predict() nor compute_score()")
 
 
+def cross_encoder_logits(model, pairs: Sequence[Sequence[str]], batch_size: int = 32) -> list[float]:
+    """Raw logits of (query, text) pairs from a sentence-transformers CrossEncoder: what cross_encoder_scores puts
+    through the sigmoid. Distillation (M43) trains a student on the teacher's logits, so a library that cannot hand
+    them back without its activation is an error here, never a silent probability."""
+    if not pairs:
+        return []
+    batch = [list(p) for p in pairs]
+    for kw in ("activation_fn", "activation_fct"):  # sentence-transformers >= 5 / < 5
+        try:
+            raw = model.predict(batch, batch_size=batch_size, show_progress_bar=False, **{kw: _identity})
+        except TypeError:
+            continue
+        return [float(x) for x in (raw if not isinstance(raw, (int, float)) else [raw])]
+    raise TypeError(f"{type(model).__name__}.predict() takes no activation override; its raw logits cannot be read")
+
+
 class CrossEncoderReranker:
     """A cross-encoder as a rerank_fn (scores on SCORE_SCALE).
 
