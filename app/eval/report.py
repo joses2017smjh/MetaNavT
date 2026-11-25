@@ -3248,6 +3248,16 @@ def llm_query_arms_table(root: Path | None) -> str:
             lines.append(f"| `{r['config']}` | " + " | ".join(cells) + " |")
         others = sorted({r["config"] for b in stretch.values() for r in b["rows"] if r.get("kind") != "stretch"})
         lines += ["", "Recomputed in the stretch runs as references: " + ", ".join(f"`{n}`" for n in others) + "."]
+    from app.eval.llm_query_gen import arm_qvalues, minimum_detectable_deltas
+
+    mde = minimum_detectable_deltas(root)
+    qs = arm_qvalues(blobs)
+    arm_cells = [c for c in qs if c["kind"] == "arm" and c["scope"] in ("held_out", "test")]
+    lines += ["", "Indicative minimum detectable nDCG@10 delta, 2.8 × the SD of the per-query P1 − P0 differences / √n from M43's committed "
+                  "sidecars (a scale for reading \"covers zero\", not a power analysis of each arm): "
+                  + "; ".join(f"{label} {mde[d]['mde']:.4f} (n = {mde[d]['n']})" for d, label in LLM_QUERY_DATASETS if d in mde) + ".",
+              "", f"A paired sign-flip permutation test per cell, descriptive: {sum(1 for c in arm_cells if c['q'] <= 0.05)} of the {len(arm_cells)} "
+                  f"arm cells of the two models have a Benjamini-Hochberg q-value at most 0.05 across all {len(qs)} intervals."]
     lines += ["", "Do the recomputed parents reproduce the committed rows? " + "; ".join(notes) + ".",
               "", f"{total.get('total', 0)} paired nDCG@10 intervals in the milestone's files, none corrected for multiplicity; each "
                   "evidence row names its arm, not a selected cell.",

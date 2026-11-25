@@ -712,27 +712,54 @@ def probe_report(root: Path, data_dir: Path, *, worklist_dir: Path, cache_dir: P
 # ---------------------------------------------------------------- the printed bar (make llm-query-arms-bar)
 
 
+def minimum_detectable_deltas(root: Path) -> dict[str, dict[str, Any]]:
+    """Per dataset: the indicative minimum detectable nDCG@10 delta, 2.8 x SD of the per-query P1 - P0 differences /
+    sqrt(n), from the committed M43 sidecars (the fixture's held-out half). A scale for reading "covers zero"."""
+    from app.eval import llm_query_bar as bar
+    from app.eval.gold import load_gold
+    from app.eval.rerank_arms import split_questions
+
+    out = {}
+    for dataset, rel in (("fixture", "bench/results/small_rerankers.per_query.json"), ("scifact", M43_SIDECARS["scifact"]), ("fiqa", M43_SIDECARS["fiqa"])):
+        path = root / rel
+        if not path.exists():
+            continue
+        side = json.loads(path.read_text())
+        a, b = side["scores"][spec.P1]["ndcg@10"], side["scores"][spec.P0]["ndcg@10"]
+        idx = split_questions(load_gold(root / "bench" / "gold" / "questions.jsonl"))[1] if dataset == "fixture" else range(len(a))
+        diffs = [a[i] - b[i] for i in idx]
+        out[dataset] = {"mde": bar.minimum_detectable(diffs), "n": len(diffs), "source": rel}
+    return out
+
+
+def arm_qvalues(blobs: dict) -> list[dict[str, Any]]:
+    """Every paired nDCG@10 interval of the milestone's files (all scopes) with its permutation p-value, and the
+    Benjamini-Hochberg q-value across all of them; descriptive, no decision reads them."""
+    from app.eval import llm_query_bar as bar
+
+    cells = []
+    for dataset, blob in blobs.items():
+        for scope_name, scope in (blob.get("scopes") or {}).items():
+            for c in scope.get("comparisons") or []:
+                if "permutation_p" in c:
+                    cells.append({"dataset": dataset, "scope": scope_name, "row": c["row"], "other": c["other"], "kind": c["kind"], "p": c["permutation_p"]})
+    for cell, q in zip(cells, bar.bh_qvalues([c["p"] for c in cells])):
+        cell["q"] = q
+    return cells
+
+
 def print_bar(root: Path) -> int:
     """The declared bar row by row, the replication labels, the decision sentences with each named arm's cost, the
     fixture's ceiling (P1's held-out nDCG@10 and Recall@50 from small_rerankers.json), an indicative minimum detectable
     delta per dataset from the committed M43 sidecars, and the milestone's count of uncorrected intervals."""
     from app.eval import llm_query_bar as bar
-    from app.eval.rerank_arms import split_questions
 
     blobs = bar.load_blobs(root)
     small = json.loads((root / "bench/results/small_rerankers.json").read_text())
     p1 = next(r for r in small["held_out"]["results"] if r["config"] == spec.P1)
     print(f"fixture ceiling (small_rerankers.json, held-out, {spec.P1}): nDCG@10 {p1['ci']['ndcg@10']['mean']:.4f}, Recall@50 {p1['ci']['recall@50']['mean']:.4f}")
-    for dataset, rel in (("fixture", "bench/results/small_rerankers.per_query.json"), ("scifact", M43_SIDECARS["scifact"]), ("fiqa", M43_SIDECARS["fiqa"])):
-        side = json.loads((root / rel).read_text())
-        a, b = side["scores"][spec.P1]["ndcg@10"], side["scores"][spec.P0]["ndcg@10"]
-        idx = list(range(len(a)))
-        if dataset == "fixture":
-            from app.eval.gold import load_gold
-
-            idx = split_questions(load_gold(root / "bench" / "gold" / "questions.jsonl"))[1]
-        diffs = [a[i] - b[i] for i in idx]
-        print(f"indicative minimum detectable nDCG@10 delta, {dataset}: {bar.minimum_detectable(diffs):.4f} (2.8 x SD of P1 - P0 / sqrt({len(diffs)}), {rel})")
+    for dataset, m in minimum_detectable_deltas(root).items():
+        print(f"indicative minimum detectable nDCG@10 delta, {dataset}: {m['mde']:.4f} (2.8 x SD of P1 - P0 / sqrt({m['n']}), {m['source']})")
     for tag in spec.BAR_MODELS:
         print(f"\n{spec.MODELS[tag]['name']}")
         for row in bar.bar_rows(blobs, tag):
@@ -743,6 +770,11 @@ def print_bar(root: Path) -> int:
         print(f"rule {dec['rule']}: {dec['sentence']}")
     total = bar.n_intervals(blobs)
     print(f"\nuncorrected paired nDCG@10 intervals in the milestone's files: {total.get('total', 0)} ({total})")
+    qs = arm_qvalues(blobs)
+    arms_q = [c for c in qs if c["kind"] == "arm" and c["scope"] in ("held_out", "test")]
+    print(f"permutation p and Benjamini-Hochberg q across all {len(qs)} intervals (descriptive), the arm cells:")
+    for c in arms_q:
+        print(f"  {c['dataset']:8s} {c['row']}: p {c['p']:.4f} q {c['q']:.4f}")
     return 0
 
 
