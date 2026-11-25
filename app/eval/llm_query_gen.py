@@ -516,14 +516,17 @@ def write_gz(path: Path, rows: Sequence[dict]) -> str:
 def merge_one(root: Path, data_dir: Path, dataset: str, model_tag: str, *, worklist_dir: Path, cache_dir: Path, server_logs: dict | None = None) -> dict[str, Any]:
     """One (dataset, model): every worklist key covered exactly once by its first completed output (or its final
     failure), every prompt rebuilt from template.format(query=...) and matched to its key, then written in worklist
-    order. Returns the manifest block; raises when the cache is not complete."""
+    order, one row per line. Lines whose prompts are identical (two documents equal after the grader's cut) share one
+    key and so one call: the later line's row is a copy of that call marked `same_prompt_as` (the line that made it),
+    and the counts count the call once. Returns the manifest block; raises when the cache is not complete."""
     lines, parents, meta = read_worklist(worklist_dir, dataset)
     passage = passages_for(root, data_dir, dataset)
     digest = spec.MODELS[model_tag]["digest"]
     work = rebuild_prompts(lines, parents, passage)
     keys = [spec.cache_key(digest, line["kind"], prompt) for line, prompt in work]
-    if len(set(keys)) != len(keys):
-        raise RuntimeError(f"{dataset}: duplicate prompts in the worklist")
+    first_line: dict[str, dict] = {}
+    for k, (line, _) in zip(keys, work):
+        first_line.setdefault(k, line)
     d = Path(cache_dir) / model_tag / dataset
     shard_files = sorted(d.glob("shard-*.jsonl"))
     entries = [e for f in shard_files for e in read_jsonl(f)]
@@ -534,16 +537,21 @@ def merge_one(root: Path, data_dir: Path, dataset: str, model_tag: str, *, workl
     missing = [k for k in keys if k not in done and len(failed.get(k, set())) < 2]
     if missing:
         raise IncompleteCache(f"{dataset} {model_tag}: {len(missing)} of {len(keys)} calls have no completed output yet")
-    rows = []
+    rows, duplicates = [], []
     for k, (line, _) in zip(keys, work):
         if k in done:
             e = done[k]
         else:
             last = [x for x in entries if x["key"] == k][-1]
             e = {**last, "error": last.get("error") or "failed", "final_failure": True}
-        if (e["kind"], e["qid"], e.get("unit")) != (line["kind"], line["qid"], line["unit"]):
+        src = first_line[k]
+        if (e["kind"], e["qid"], e.get("unit")) != (src["kind"], src["qid"], src["unit"]):
             raise RuntimeError(f"{k}: the cached call is not the worklist's")
-        rows.append({f: e.get(f) for f in KEEP_FIELDS if f in e or f in ("error",)} | ({"final_failure": True} if e.get("final_failure") else {}))
+        row = {f: e.get(f) for f in KEEP_FIELDS if f in e or f in ("error",)} | ({"final_failure": True} if e.get("final_failure") else {})
+        if src is not line:  # the same prompt as an earlier line: that line's call, under this line's identity
+            row |= {"qid": line["qid"], "unit": line["unit"], "same_prompt_as": {"qid": src["qid"], "unit": src["unit"]}}
+            duplicates.append({"kind": line["kind"], "qid": line["qid"], "unit": line["unit"], "same_prompt_as": row["same_prompt_as"]})
+        rows.append(row)
     out = root / LLM_DIR / f"{dataset}.{model_tag}.jsonl.gz"
     sha = write_gz(out, rows)
     from app.eval.llm_query_arms import read_call
@@ -551,6 +559,8 @@ def merge_one(root: Path, data_dir: Path, dataset: str, model_tag: str, *, workl
     texts = {q["id"]: q["text"] for q in parents["queries"]}
     counts: dict[str, dict[str, int]] = {}
     for r in rows:
+        if r.get("same_prompt_as"):
+            continue  # counted with the line that made the call
         c = counts.setdefault(r["kind"], {s: 0 for s in ("calls", "ok", "failed", "empty", "unparseable", "unchanged", "overflowed", "truncated", "thinking")})
         _, status, trunc = read_call(r, r["kind"], texts[r["qid"]])
         c["calls"] += 1
@@ -569,7 +579,8 @@ def merge_one(root: Path, data_dir: Path, dataset: str, model_tag: str, *, workl
                        "earliest": min((e["ts"] for e in es if e.get("ts")), default=None), "latest": max((e["ts"] for e in es if e.get("ts")), default=None),
                        "server": metas,
                        "determinism": {"n": len(det_rows), "byte_identical": sum(1 for x in det_rows if x.get("identical"))} if det_rows else None})
-    return {"file": f"{LLM_DIR}/{dataset}.{model_tag}.jsonl.gz", "sha256": sha, "n_calls": len(rows), "counts": counts,
+    return {"file": f"{LLM_DIR}/{dataset}.{model_tag}.jsonl.gz", "sha256": sha, "n_calls": len(rows) - len(duplicates), "n_rows": len(rows),
+            "duplicate_prompt_lines": duplicates, "counts": counts,
             "worklist_sha256": meta["worklist_sha256"], "shards": shards, "model": spec.MODELS[model_tag]}
 
 

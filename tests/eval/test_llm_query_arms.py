@@ -1000,3 +1000,61 @@ def test_generation_stops_when_the_server_is_down(tmp_path, tmp_root):
             ids_path.unlink()
         else:
             ids_path.write_text(saved)
+
+
+def test_identical_grader_prompts_are_one_call_and_one_merged_row_per_worklist_line(tmp_path, tmp_root):
+    """Two documents whose passages are equal after the cut give one grader prompt, so one cache key and one call
+    (FiQA test query 3694: documents 207813 and 217427). The merge keeps a row per worklist line, the later line a copy
+    of the call marked with the line that made it, and counts the call once."""
+    from app.eval import beir
+
+    data = tmp_path / "data"
+    d = _beir_dataset(data, n_queries=4)
+    docs = [json.loads(x) for x in (d / "corpus.jsonl").read_text().splitlines()]
+    docs[1] = {**docs[0], "_id": "d1"}  # the same title and text as d0
+    (d / "corpus.jsonl").write_text("".join(json.dumps(x) + "\n" for x in docs))
+    llm_dir = tmp_root / "bench" / "llm_query"
+    ids_path = llm_dir / "query_ids.json"
+    saved = ids_path.read_text() if ids_path.exists() else None
+    kept = {f: f.read_bytes() for f in llm_dir.glob("*") if f.name in ("parents.json.gz", "manifest.json")}
+    ids_path.write_text(json.dumps({"scifact": {"test": [f"q{i}" for i in range(4)], "dev": []}}))
+    try:
+        corpus = beir.load_corpus(d)
+        engine = beir.Engine(beir.chunks_from_corpus(corpus), cache_dir=data / "cache", device="cpu")
+        score, _, _ = _fake_reranker()
+        backend = arms.BeirBackend(engine, corpus, lambda q, units: score(q, [corpus[u] for u in units]), embedder="hash")
+        wl, cache = tmp_path / "wl", tmp_path / "cache"
+        gen.write_worklist(tmp_root, data, "scifact", "test", wl, rerank_cache=None, gpu="cpu", backend=backend)
+        lines = gen.read_worklist(wl, "scifact")[0]
+        shared = [x for x in lines if x["kind"] == "grade" and x["qid"] == "q0" and x["unit"] in ("d0", "d1")]
+        assert len(shared) == 2 and shared[0]["prompt_sha256"] == shared[1]["prompt_sha256"]  # the setup
+        calls = []
+        assert gen.generate(tmp_root, data, "scifact", "qwen3.5-27b", "1/1", worklist_dir=wl, cache_dir=cache, base_url="x", gpu="G",
+                            post=fake_post(calls), determinism_n=0)["complete"]
+        n_prompts = len({(x["kind"], x["prompt_sha256"]) for x in lines})
+        assert len(calls) == n_prompts < len(lines)
+        merged = gen.merge_one(tmp_root, data, "scifact", "qwen3.5-27b", worklist_dir=wl, cache_dir=cache)
+        rows = arms.load_cache(llm_dir / "scifact.qwen3.5-27b.jsonl.gz")
+        assert [(r["kind"], r["qid"], r["unit"]) for r in rows] == [(x["kind"], x["qid"], x["unit"]) for x in lines]
+        assert merged["n_calls"] == n_prompts and merged["n_rows"] == len(lines)
+        assert sum(c["calls"] for c in merged["counts"].values()) == n_prompts
+        copies = [r for r in rows if r.get("same_prompt_as")]
+        assert len(copies) == len(lines) - n_prompts and len(merged["duplicate_prompt_lines"]) == len(copies)
+        first = {(r["kind"], r["qid"], r["unit"]): r for r in rows if not r.get("same_prompt_as")}
+        for r in copies:
+            src = first[(r["kind"], r["same_prompt_as"]["qid"], r["same_prompt_as"]["unit"])]
+            assert r["key"] == src["key"] and r["reply"] == src["reply"]
+        view = arms.CacheSource("qwen3.5-27b", rows, gen.passages_for(tmp_root, data, "scifact")).view("protein number 0 in tissue sample 0", ["d0", "d1"])
+        assert view.grades["d0"] == view.grades["d1"]  # part (d) reads the one call for both units
+    finally:
+        if saved is None:
+            ids_path.unlink()
+        else:
+            ids_path.write_text(saved)
+        for f in llm_dir.glob("scifact.*"):
+            f.unlink()
+        for f in llm_dir.glob("*"):
+            if f.name in ("parents.json.gz", "manifest.json") and f not in kept:
+                f.unlink()
+        for f, b in kept.items():
+            f.write_bytes(b)
