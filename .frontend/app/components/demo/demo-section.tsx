@@ -1,6 +1,8 @@
 "use client";
 
+import { Quote, Search } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
+import { BENCHMARKS, REPOSITORY } from "../site";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
@@ -21,12 +23,24 @@ import { failureText, reasonText } from "./text";
 // The public demo's home page (PUBLIC_DEMO=1; home-switch.tsx shows it when GET /health says so): one question box,
 // Search (POST /api/retrieve/) and Ask (POST /api/answer/), on the page's own origin only.
 
-const REPOSITORY = "https://github.com/joses2017smjh/MetaNavT";
-const BENCHMARKS = `${REPOSITORY}#generated-benchmark-evidence`;
 const EXAMPLES = [
   "What learning rate did run 47 use?",
   "What encoder did run 40 use?",
 ];
+
+// Shared looks: a result's heading, a smaller heading inside it, a line of facts about a result, a note about how
+// the result was made (as prominent as the result's own facts), a link in running text, and a cited passage's card.
+const RESULT_HEADING =
+  "break-words font-serif text-[2rem] font-normal leading-[1.05] tracking-[-0.02em] text-brand-deep focus:outline-none sm:text-4xl";
+const SUB_HEADING =
+  "font-serif text-2xl font-medium tracking-[-0.02em] text-brand-deep";
+const FACTS = "font-mono text-[11px] leading-relaxed text-muted-foreground";
+const NOTE =
+  "rounded-xl border border-black/[0.07] bg-muted px-3.5 py-2.5 text-xs leading-relaxed text-ink/80";
+const LINK =
+  "font-medium text-brand-deep underline decoration-brand/60 underline-offset-[3px] transition-colors duration-200 hover:decoration-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const PASSAGE =
+  "space-y-2 rounded-2xl border border-black/[0.07] bg-white p-4 shadow-pill target:border-brand/60 target:shadow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5";
 
 type Action = "search" | "ask";
 type Result =
@@ -111,14 +125,22 @@ export default function DemoSection({
   const blank = !question.trim();
   return (
     <section
+      id="search"
       aria-labelledby="demo-title"
-      className="w-full space-y-4 rounded-xl bg-white/90 p-4 pb-24 text-sm lg:pb-4"
+      className="space-y-10 sm:space-y-12"
     >
-      <div className="space-y-1">
-        <h1 id="demo-title" className="text-lg font-semibold">
+      <div className="rise mx-auto max-w-3xl space-y-5 text-center">
+        <p className="eyebrow">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-brand" />
+          Public demo
+        </p>
+        <h1
+          id="demo-title"
+          className="display text-[clamp(2.75rem,6.4vw,4.75rem)]"
+        >
           Search a research project’s files
         </h1>
-        <p>
+        <p className="mx-auto max-w-2xl text-[15px] leading-relaxed text-muted-foreground sm:text-[17px]">
           This public demo searches the fixture this repository benchmarks: a
           small experiment tree of YAML configs, Slurm scripts, training logs,
           an ablation table, paper drafts, Python modules and checkpoint
@@ -127,124 +149,132 @@ export default function DemoSection({
         </p>
       </div>
 
-      <aside
-        aria-label="About the answers"
-        className="rounded-lg border border-amber-300 bg-amber-50 p-3"
-      >
-        Answers come from Claude, Anthropic’s model
-        {model ? (
-          <>
-            {" "}
-            (the last one from <code>{model}</code>, as the API reported it)
-          </>
-        ) : null}
-        , and are not evaluated in this repository: no committed result measures
-        their quality. Retrieval is the benchmarked part:{" "}
-        <a className="underline" href={BENCHMARKS}>
-          benchmark results in the README
-        </a>{" "}
-        ·{" "}
-        <a className="underline" href={REPOSITORY}>
-          source code
-        </a>
-        .
-      </aside>
-
-      <form
-        className="space-y-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void run("search");
-        }}
-      >
-        <label htmlFor="demo-question" className="block font-medium">
-          Question
-        </label>
-        <Input
-          id="demo-question"
-          name="question"
-          value={question}
-          maxLength={MAX_QUESTION_CHARS}
-          autoComplete="off"
-          placeholder={EXAMPLES[0]}
-          aria-describedby="demo-question-help"
-          onChange={(event) => setQuestion(event.target.value)}
-        />
-        <p id="demo-question-help" className="text-xs text-muted-foreground">
-          {question.length} of {MAX_QUESTION_CHARS} characters. Search lists the{" "}
-          {SEARCH_K} best excerpts (Enter searches); Ask sends the {ANSWER_K}{" "}
-          best to Claude.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="submit" disabled={busy !== null || blank}>
-            Search
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy !== null || blank}
-            onClick={() => void run("ask")}
+      <div className="rise rise-2 mx-auto max-w-4xl space-y-5 rounded-card border border-white bg-white/90 p-5 shadow-card sm:p-8">
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run("search");
+          }}
+        >
+          <label
+            htmlFor="demo-question"
+            className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground"
           >
-            Ask
-          </Button>
-          <span role="status" className="text-muted-foreground">
-            {busy === "search"
-              ? "Searching…"
-              : busy === "ask"
-                ? "Asking Claude…"
-                : ""}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1 text-xs">
-          <span>Try:</span>
-          {EXAMPLES.map((example) => (
-            <Button
-              key={example}
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-auto whitespace-normal py-1 text-left"
-              onClick={() => setQuestion(example)}
-            >
-              {example}
-            </Button>
-          ))}
-        </div>
-      </form>
+            Question
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              id="demo-question"
+              name="question"
+              value={question}
+              maxLength={MAX_QUESTION_CHARS}
+              autoComplete="off"
+              placeholder={EXAMPLES[0]}
+              aria-describedby="demo-question-help"
+              onChange={(event) => setQuestion(event.target.value)}
+              className="h-12 flex-1 text-base"
+            />
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                disabled={busy !== null || blank}
+                className="h-12 flex-1 sm:flex-none"
+              >
+                <Search aria-hidden className="h-4 w-4" />
+                Search
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy !== null || blank}
+                onClick={() => void run("ask")}
+                className="h-12 flex-1 sm:flex-none"
+              >
+                <Quote aria-hidden className="h-4 w-4" />
+                Ask
+              </Button>
+            </div>
+          </div>
+          <p id="demo-question-help" className="text-xs text-muted-foreground">
+            {question.length} of {MAX_QUESTION_CHARS} characters. Search lists
+            the {SEARCH_K} best excerpts (Enter searches); Ask sends the{" "}
+            {ANSWER_K} best to Claude.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Try:</span>
+            {EXAMPLES.map((example) => (
+              <button
+                key={example}
+                type="button"
+                className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-left text-[13px] text-ink/80 shadow-pill transition-colors duration-200 hover:border-brand/50 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => setQuestion(example)}
+              >
+                {example}
+              </button>
+            ))}
+            <span role="status" className="ml-auto text-[13px] text-brand-deep">
+              {busy === "search"
+                ? "Searching…"
+                : busy === "ask"
+                  ? "Asking Claude…"
+                  : ""}
+            </span>
+          </div>
+        </form>
+
+        <aside
+          aria-label="About the answers"
+          className="rounded-2xl border border-brand/25 bg-peach/70 px-4 py-3.5 text-sm leading-relaxed text-ink/85"
+        >
+          Answers come from Claude, Anthropic’s model
+          {model ? (
+            <>
+              {" "}
+              (the last one from{" "}
+              <code className="font-mono text-[13px]">{model}</code>, as the API
+              reported it)
+            </>
+          ) : null}
+          , and are not evaluated in this repository: no committed result
+          measures their quality. Retrieval is the benchmarked part:{" "}
+          <a className={LINK} href={BENCHMARKS}>
+            benchmark results in the README
+          </a>{" "}
+          ·{" "}
+          <a className={LINK} href={REPOSITORY}>
+            source code
+          </a>
+          .
+        </aside>
+      </div>
 
       {result?.kind === "failure" && (
-        <div className="space-y-2">
-          <h2
-            ref={heading}
-            tabIndex={-1}
-            className="break-words text-base font-semibold focus:outline-none"
-          >
+        <div className="mx-auto max-w-4xl space-y-3">
+          <h2 ref={heading} tabIndex={-1} className={RESULT_HEADING}>
             {result.action === "search" ? "Search failed" : "No answer"}
           </h2>
-          <p role="alert" className="text-red-700">
+          <p
+            role="alert"
+            className="rounded-2xl border border-destructive/25 bg-destructive/[0.04] px-4 py-3 text-[15px] leading-relaxed text-destructive"
+          >
             {failureText(result.failure)}
           </p>
         </div>
       )}
 
       {result?.kind === "search" && (
-        <div className="space-y-2">
-          <h2
-            ref={heading}
-            tabIndex={-1}
-            className="break-words text-base font-semibold focus:outline-none"
-          >
+        <div className="mx-auto max-w-4xl space-y-4">
+          <h2 ref={heading} tabIndex={-1} className={RESULT_HEADING}>
             {result.data.hits.length === 1
               ? "1 excerpt"
               : `${result.data.hits.length} excerpts`}{" "}
             for “{result.question}”
           </h2>
-          <p className="text-xs text-muted-foreground">
-            {retrievalLine(result.data)}
-          </p>
+          <p className={FACTS}>{retrievalLine(result.data)}</p>
           {!result.data.reranker_loaded && <RerankerOff />}
           {result.data.degraded?.length > 0 && (
-            <p className="text-xs">
+            <p className={NOTE}>
               Degraded:{" "}
               {result.data.degraded
                 .map((entry) => `${entry.component} (${entry.error})`)
@@ -271,10 +301,10 @@ export default function DemoSection({
 // opens: the table itself sits in a collapsed block, which a link into it would not open).
 function RerankerOff() {
   return (
-    <p className="text-xs">
+    <p className={NOTE}>
       Reranker: off on this server, so the hits are in the fused order of the
       lexical and dense lists (a fallback).{" "}
-      <a className="underline" href={BENCHMARKS}>
+      <a className={LINK} href={BENCHMARKS}>
         What the reranker adds: the README’s benchmark tables, Neural models on
         the fixture
       </a>
@@ -283,6 +313,8 @@ function RerankerOff() {
   );
 }
 
+// The answer beside the excerpts it was written from (one column on a narrow screen): a citation's link jumps to its
+// passage, and a passage's link to the retrieved excerpt it is in.
 function AnswerView({
   data,
   heading,
@@ -296,87 +328,94 @@ function AnswerView({
   const hitRank = (chunk: string) =>
     data.hits.find((hit) => hit.chunk_id === chunk)?.rank;
   return (
-    <div className="space-y-2">
-      <h2
-        ref={heading}
-        tabIndex={-1}
-        className="break-words text-base font-semibold focus:outline-none"
-      >
-        {data.answer !== null ? "Answer" : "No answer"}
-      </h2>
-      {data.answer !== null ? (
-        <>
-          <p className="text-xs text-muted-foreground">
-            From Claude, model <code>{data.model ?? "not reported"}</code>
-            {data.cached ? " · served from the answer cache" : ""}
-            {data.fallback_used ? " · a fallback model answered" : ""} · not
-            evaluated in this repository
-          </p>
-          <p className="whitespace-pre-wrap break-words rounded-lg border bg-white p-3">
-            {data.answer}{" "}
-            {citations.map((citation, index) => (
-              <sup key={index} className="mx-0.5">
-                <a
-                  className="underline"
-                  href={`#demo-citation-${index + 1}`}
-                  aria-label={`Citation ${index + 1}`}
-                >
-                  [{index + 1}]
-                </a>
-              </sup>
-            ))}
-          </p>
-          <h3 className="font-semibold">Cited excerpts</h3>
-          <ol className="space-y-2">
-            {citations.map((citation, index) => {
-              const rank = hitRank(citation.chunk_id);
-              return (
-                <li
-                  key={index}
-                  id={`demo-citation-${index + 1}`}
-                  tabIndex={-1}
-                  className="space-y-1 rounded-lg border bg-white p-3"
-                >
-                  <p className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-semibold">[{index + 1}]</span>
-                    <code className="break-all">
-                      {citation.path ?? citation.chunk_id}
-                    </code>
-                    <span className="text-muted-foreground">
-                      {byteRange(citation.start_byte, citation.end_byte)}
-                    </span>
-                  </p>
-                  <blockquote className="whitespace-pre-wrap break-words border-l-2 pl-3 font-mono text-xs">
-                    {citation.cited_text}
-                  </blockquote>
-                  {rank !== undefined && (
-                    <a className="text-xs underline" href={`#demo-hit-${rank}`}>
-                      In retrieved excerpt {rank}
-                    </a>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </>
-      ) : (
-        <>
-          <p>{reasonText(data.reason ?? "not answered")}</p>
-          {data.uncited_reply && (
-            <figure className="space-y-1 rounded-lg border border-dashed p-3">
-              <figcaption className="text-xs font-semibold">
-                Unverified reply: no citation supports it
-              </figcaption>
-              <blockquote className="whitespace-pre-wrap break-words">
-                {data.uncited_reply}
-              </blockquote>
-            </figure>
-          )}
-        </>
-      )}
-      <h3 className="font-semibold">Retrieved excerpts</h3>
-      {rerankerOff && <RerankerOff />}
-      <HitList hits={data.hits} />
+    <div className="grid gap-10 lg:grid-cols-2 lg:gap-8">
+      <div className="space-y-4 lg:sticky lg:top-28 lg:-m-3 lg:max-h-[calc(100vh-8rem)] lg:self-start lg:overflow-y-auto lg:p-3">
+        <h2 ref={heading} tabIndex={-1} className={RESULT_HEADING}>
+          {data.answer !== null ? "Answer" : "No answer"}
+        </h2>
+        {data.answer !== null ? (
+          <>
+            <p className={FACTS}>
+              From Claude, model <code>{data.model ?? "not reported"}</code>
+              {data.cached ? " · served from the answer cache" : ""}
+              {data.fallback_used ? " · a fallback model answered" : ""} · not
+              evaluated in this repository
+            </p>
+            <p className="whitespace-pre-wrap break-words rounded-2xl border border-black/[0.07] bg-white p-5 text-[17px] leading-relaxed text-ink shadow-soft">
+              {data.answer}{" "}
+              {citations.map((citation, index) => (
+                <sup key={index} className="mx-0.5">
+                  <a
+                    className={`${LINK} font-mono text-[11px]`}
+                    href={`#demo-citation-${index + 1}`}
+                    aria-label={`Citation ${index + 1}`}
+                  >
+                    [{index + 1}]
+                  </a>
+                </sup>
+              ))}
+            </p>
+            <h3 className={`${SUB_HEADING} pt-2`}>Cited excerpts</h3>
+            <ol className="space-y-3">
+              {citations.map((citation, index) => {
+                const rank = hitRank(citation.chunk_id);
+                return (
+                  <li
+                    key={index}
+                    id={`demo-citation-${index + 1}`}
+                    tabIndex={-1}
+                    className={PASSAGE}
+                  >
+                    <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="font-mono text-[13px] font-medium text-brand-deep">
+                        [{index + 1}]
+                      </span>
+                      <code className="break-all font-mono text-[13px] font-medium text-ink">
+                        {citation.path ?? citation.chunk_id}
+                      </code>
+                      <span className="text-xs text-muted-foreground">
+                        {byteRange(citation.start_byte, citation.end_byte)}
+                      </span>
+                    </p>
+                    <blockquote className="whitespace-pre-wrap break-words border-l-2 border-brand/70 pl-3.5 font-mono text-xs leading-relaxed text-ink/85">
+                      {citation.cited_text}
+                    </blockquote>
+                    {rank !== undefined && (
+                      <a
+                        className={`${LINK} inline-block text-xs`}
+                        href={`#demo-hit-${rank}`}
+                      >
+                        In retrieved excerpt {rank}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        ) : (
+          <>
+            <p className="text-[15px] leading-relaxed text-ink/85">
+              {reasonText(data.reason ?? "not answered")}
+            </p>
+            {data.uncited_reply && (
+              <figure className="space-y-2 rounded-2xl border border-dashed border-black/25 bg-white/60 p-4">
+                <figcaption className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Unverified reply: no citation supports it
+                </figcaption>
+                <blockquote className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink/85">
+                  {data.uncited_reply}
+                </blockquote>
+              </figure>
+            )}
+          </>
+        )}
+      </div>
+      <div className="space-y-4">
+        <h3 className={`${SUB_HEADING} lg:pt-2`}>Retrieved excerpts</h3>
+        {rerankerOff && <RerankerOff />}
+        <HitList hits={data.hits} />
+      </div>
     </div>
   );
 }
