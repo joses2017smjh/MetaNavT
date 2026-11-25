@@ -1215,8 +1215,8 @@ every interval, paired delta and mean from those on a CPU, with no model.
 pinned to the revision its row records: the MiniLM MS MARCO cross-encoders
 (L6 and L12), mxbai-rerank-xsmall-v1 and mxbai-rerank-base-v1,
 gte-reranker-modernbert-base, and bge-reranker-base as a mid-size reference
-(`CANDIDATES`; `make small-rerankers-hub-facts` asks the Hugging Face API for
-the licences, sizes and revisions again). The teacher is mxbai-rerank-large-v2,
+(`CANDIDATES`: licences, sizes and revisions looked up on the Hugging Face API
+before any run; a row refuses a cached snapshot that is not the pinned revision). The teacher is mxbai-rerank-large-v2,
 the one reranker M41 measured above bge-reranker-v2-m3 on all three datasets.
 
 **What the zero-shot rows show.** Of the published candidates, only
@@ -1286,7 +1286,9 @@ path, and a loaded student must reproduce reference logits the manifest stores
 before it scores anything.
 
 **What they cost on a CPU, and the command for the host.** On the share node's
-Xeon Silver with two torch threads, one rerank call of twenty passages cut at 512 tokens took a median of 35937.2 ms with gte-reranker-modernbert-base, 84788.8 ms with bge-reranker-v2-m3 and 3959.9 ms with the MiniLM-L6 cross-encoder.<!-- num: bench/results/small_rerankers_cpu.json#/results/7/max_length; #/results/7/shapes/[depth=20]/p50_ms; #/results/13/shapes/[depth=20]/p50_ms; #/results/1/shapes/[depth=20]/p50_ms -->
+Xeon Silver with two torch threads, one rerank call of twenty passages cut at 512 tokens took a median of 36213.3 ms with gte-reranker-modernbert-base, 84840.8 ms with bge-reranker-v2-m3 and 4033.0 ms with the MiniLM-L6 cross-encoder.<!-- num: bench/results/small_rerankers_cpu.json#/results/7/max_length; #/results/7/shapes/[depth=20]/p50_ms; #/results/13/shapes/[depth=20]/p50_ms; #/results/1/shapes/[depth=20]/p50_ms -->
+The students cost what the checkpoints they started from cost: 3968.1 ms for `student-minilm-l6` and 7833.4 ms for `student-minilm-l12`, against 4033.0 ms and 7967.1 ms.<!-- num: bench/results/small_rerankers_cpu.json#/results/15/shapes/[depth=20]/p50_ms; #/results/17/shapes/[depth=20]/p50_ms; #/results/1/shapes/[depth=20]/p50_ms; #/results/3/shapes/[depth=20]/p50_ms -->
+The API process (the app, bge-small and the reranker) peaked at 1632 MiB with gte-reranker-modernbert-base and at 1144 MiB even with the MiniLM-L6 cross-encoder, more than the memory limit the single host gives the api container (`api_memory_mib` in `infra/modules/single-host/variables.tf`): another machine again, but a warning for the host.<!-- num: bench/results/small_rerankers_cpu.json#/results/7/shapes/[depth=20]/memory_mib/VmHWM; #/results/1/shapes/[depth=20]/memory_mib/VmHWM -->
 That is another machine; it says which shapes are worth trying on the host,
 not whether a model fits it. The host's measurement is one command the owner
 runs on purpose, through SSM, into a one-off container of the deployed image

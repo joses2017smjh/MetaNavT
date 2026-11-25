@@ -1270,24 +1270,28 @@ The teacher, `mixedbread-ai/mxbai-rerank-large-v2` (float32, max_length 512), sc
 
 `student-minilm-l12` (attempt 1): `cross-encoder/ms-marco-MiniLM-L12-v2` trained on 10087 lists with the recipe declared before any row ran (4 epochs of MarginMSE on the teacher's logits, learning rate 2e-05, 8 lists a step, fp32, seed 0; `make distill-train`, NVIDIA A40). Validation loss on the held-out documents' synthetic queries, averaged over the three corpora: 12.265 before training, then 3.091, 2.833, 2.751, 2.740 after each epoch; epoch 4 was kept. Weights sha256 `4c33938060e2b9d3`, 133.5 MB, not in the repository ([bench/distill/students.json](bench/distill/students.json)).
 
-**What they cost on a CPU, indicative only** (`python scripts/measure_rerank_cpu.py`; Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz, 2 torch threads, torch 2.5.1+cu121; results sha 8374ca0). The API process as the single host runs it (the app, bge-small, then the reranker in fp32), one fresh process per model and max_length; each timed call is one rerank of `depth` passages that are all cut at max_length, so a call costs the most its shape can. This is another machine's CPU: it says which shapes are worth trying on the host, not whether a model fits it.
+**What they cost on a CPU, indicative only** (`python scripts/measure_rerank_cpu.py`; Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz, 2 torch threads, torch 2.5.1+cu121; results sha a43f2be). The API process as the single host runs it (the app, bge-small, then the reranker in fp32), one fresh process per model and max_length; each timed call is one rerank of `depth` passages that are all cut at max_length, so a call costs the most its shape can. This is another machine's CPU: it says which shapes are worth trying on the host, not whether a model fits it.
 
 | reranker | max_length | depth 5: p50 / p95 ms (calls) | depth 10: p50 / p95 ms (calls) | depth 20: p50 / p95 ms (calls) | API process: before the reranker / peak, MiB |
 |---|---:|---:|---:|---:|---:|
-| minilm-l6 | 256 | 446.0 / 452.1 (30) | 877.6 / 887.8 (30) | 1761.3 / 1786.5 (30) | 786 / 1003 |
-| minilm-l6 | 512 | 1005.5 / 1014.0 (30) | 1985.1 / 1997.6 (30) | 3959.9 / 3964.4 (30) | 811 / 1165 |
-| minilm-l12 | 256 | 873.2 / 880.8 (30) | 1751.6 / 1785.2 (30) | 3476.2 / 3500.8 (30) | 808 / 1042 |
-| minilm-l12 | 512 | 1959.6 / 1970.2 (30) | 3942.7 / 3974.7 (30) | 7843.7 / 7890.8 (30) | 813 / 1162 |
-| mxbai-xsmall-v1 | 256 | 1221.1 / 1241.8 (30) | 2500.7 / 2528.1 (30) | 5085.2 / 5119.1 (30) | 773 / 1717 |
-| mxbai-xsmall-v1 | 512 | 3223.7 / 3256.5 (30) | 6506.8 / 6538.5 (30) | 12609.6 / 12665.8 (18) | 815 / 2376 |
-| gte-modernbert-base | 256 | 4028.3 / 4042.5 (15) | 8273.9 / 8281.0 (28) | 16435.9 / 16494.1 (14) | 792 / 1504 |
-| gte-modernbert-base | 512 | 8889.8 / 8927.3 (26) | 17962.9 / 17993.9 (13) | 35937.2 / 43516.7 (6) | 828 / 1706 |
-| mxbai-base-v1 | 256 | 3864.5 / 3882.8 (30) | 7753.4 / 7781.1 (30) | 15417.1 / 15604.7 (15) | 788 / 2623 |
-| mxbai-base-v1 | 512 | 9244.2 / 9274.1 (25) | 17984.9 / 17998.1 (13) | 36127.3 / 36299.9 (6) | 770 / 3914 |
-| bge-reranker-base | 256 | 3013.4 / 3034.8 (30) | 5964.3 / 6022.4 (30) | 11853.5 / 11877.5 (20) | 826 / 1753 |
-| bge-reranker-base | 512 | 6368.9 / 6379.2 (30) | 12699.7 / 12735.6 (18) | 25308.7 / 27471.2 (9) | 776 / 1988 |
-| bge-rerank | 256 | 10396.1 / 10476.1 (8) | 20531.6 / 20555.3 (11) | 39999.8 / 40448.0 (5) | 778 / 2744 |
-| bge-rerank | 512 | 21198.2 / 21213.3 (11) | 42205.6 / 42329.9 (5) | 84788.8 / 99737.6 (5) | 835 / 2800 |
+| minilm-l6 | 256 | 457.2 / 461.4 (30) | 892.8 / 899.2 (30) | 1794.4 / 1815.1 (30) | 774 / 995 |
+| minilm-l6 | 512 | 1024.4 / 1035.4 (30) | 2019.8 / 2038.6 (30) | 4033.0 / 4037.2 (30) | 786 / 1144 |
+| minilm-l12 | 256 | 896.0 / 901.0 (30) | 1785.8 / 1813.5 (30) | 3525.8 / 3560.2 (30) | 776 / 1048 |
+| minilm-l12 | 512 | 1989.6 / 1995.0 (30) | 4003.8 / 4031.9 (30) | 7967.1 / 7975.8 (30) | 826 / 1187 |
+| mxbai-xsmall-v1 | 256 | 1269.1 / 1282.6 (30) | 2560.3 / 2571.7 (30) | 5163.3 / 5200.9 (30) | 795 / 1706 |
+| mxbai-xsmall-v1 | 512 | 3245.9 / 3265.7 (30) | 6704.5 / 6754.8 (30) | 12961.0 / 12995.1 (18) | 783 / 2400 |
+| gte-modernbert-base | 256 | 4110.4 / 4125.3 (17) | 8425.7 / 8436.1 (28) | 16703.6 / 16714.8 (14) | 789 / 1491 |
+| gte-modernbert-base | 512 | 8977.5 / 8988.2 (26) | 18305.4 / 18318.9 (13) | 36213.3 / 43058.6 (6) | 782 / 1632 |
+| mxbai-base-v1 | 256 | 3980.9 / 3996.0 (30) | 7865.5 / 7920.5 (30) | 15758.0 / 15907.5 (15) | 776 / 2638 |
+| mxbai-base-v1 | 512 | 9142.7 / 9210.1 (25) | 18242.9 / 18272.3 (13) | 36016.7 / 36345.5 (6) | 772 / 4044 |
+| bge-reranker-base | 256 | 3006.7 / 3023.3 (30) | 5936.8 / 5972.0 (30) | 11832.0 / 11871.0 (20) | 815 / 1781 |
+| bge-reranker-base | 512 | 6347.6 / 6379.7 (30) | 12601.0 / 12618.5 (19) | 25164.3 / 26948.2 (9) | 791 / 2148 |
+| bge-rerank | 256 | 10219.2 / 10229.8 (9) | 20378.1 / 20408.6 (11) | 39963.5 / 40047.6 (5) | 775 / 2736 |
+| bge-rerank | 512 | 21206.1 / 21223.0 (11) | 42202.6 / 42289.2 (5) | 84840.8 / 102085.7 (5) | 785 / 2870 |
+| student-minilm-l6 | 256 | 443.5 / 447.1 (30) | 871.0 / 874.7 (30) | 1758.9 / 1770.5 (30) | 835 / 1019 |
+| student-minilm-l6 | 512 | 993.4 / 1027.8 (30) | 1978.0 / 1989.6 (30) | 3968.1 / 3974.2 (30) | 799 / 1105 |
+| student-minilm-l12 | 256 | 875.4 / 880.4 (30) | 1750.7 / 1764.6 (30) | 3460.3 / 3485.4 (30) | 797 / 1040 |
+| student-minilm-l12 | 512 | 1967.8 / 1984.5 (30) | 3932.7 / 3950.8 (30) | 7833.4 / 7844.5 (30) | 798 / 1181 |
 
 ![Scatter of nDCG@10 against the indicative CPU time of one rerank call for each small reranker on the three datasets, with the unreranked hybrid as a line](doc/figures/small-rerankers.svg)
 

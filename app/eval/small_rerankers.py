@@ -54,7 +54,8 @@ BGE_ROW = "hybrid+bge-rerank@bge-small" + SUFFIX  # the app's default reranker a
 BGE_RERANKER = "BAAI/bge-reranker-v2-m3"
 
 # Hugging Face facts looked up on the API on 2026-11-22 (licence, parameters from the safetensors header, the commit of
-# main); `make small-rerankers-hub-facts` asks again and writes what it finds. Only permissive licences.
+# main), before any run; each row records the revision it loaded and refuses another (check_revision). Only permissive
+# licences.
 PERMISSIVE_LICENCES = ("apache-2.0", "mit")
 CANDIDATES: dict[str, dict[str, Any]] = {
     "minilm-l6": {"model": "cross-encoder/ms-marco-MiniLM-L6-v2", "licence": "apache-2.0", "parameters": 22_714_113,

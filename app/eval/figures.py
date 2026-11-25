@@ -815,16 +815,19 @@ def write_small_rerankers_figure(root: Path, out_dir: Path) -> list[Path]:
             if i == len(datasets) - 1:
                 parts.append(f'<text x="{sx(v):.1f}" y="{y0 + panel_h + 17}" text-anchor="middle" fill="{MUTED}" {font} font-size="10.5">{v:g} s</text>')
         parts.append(f'<text x="{left + plot_w - 4}" y="{sy(0.0) - 5:.1f}" text-anchor="end" fill="{MUTED}" {font} font-size="10.5">no reranker</text>')
+        names = []  # a reference's name goes on top of the points, with a halo, so no whisker crosses it
         for r, c in refs:  # a reference with no CPU time: a dashed line at its change, named at the left
             y = sy(c["vs_parent"]["delta"])
             parts.append(f'<line x1="{left}" y1="{y:.1f}" x2="{left + plot_w}" y2="{y:.1f}" stroke="{MUTED}" stroke-width="1.2" stroke-dasharray="6 5"/>')
-            parts.append(f'<text x="{left + 6}" y="{y - 5:.1f}" fill="{MUTED}" {font} font-size="10.5">{_esc(r["tag"])} {c["vs_parent"]["delta"]:+.3f} (not timed on a CPU)</text>')
+            names.append(f'<text x="{left + 6}" y="{y - 5:.1f}" fill="{MUTED}" stroke="{PANEL}" stroke-width="4" paint-order="stroke" {font} '
+                         f'font-size="10.5">{_esc(r["tag"])} {c["vs_parent"]["delta"]:+.3f} (not timed on a CPU)</text>')
         for r, c in cells:
             x, block = xpos[r["tag"]], c["vs_parent"]
             y_a, y_b = sy(block["hi"]), sy(block["lo"])
             whisker = f"M{x:.1f},{y_a:.1f}V{y_b:.1f}M{x - 4:.1f},{y_a:.1f}H{x + 4:.1f}M{x - 4:.1f},{y_b:.1f}H{x + 4:.1f}"
             parts.append(f'<path d="{whisker}" stroke="{PANEL}" stroke-width="4" fill="none"/><path d="{whisker}" stroke="{TEXT}" stroke-width="1.4" fill="none"/>')
             parts.append(_marker(x, sy(block["delta"]), verdict(block), ROLE_COLORS[role(r["tag"])]))
+        parts.extend(names)
         parts.append(f'<text x="{left - 62}" y="{y0 + panel_h / 2:.0f}" fill="{MUTED}" {font} font-size="10.5" text-anchor="middle" '
                      f'transform="rotate(-90 {left - 62} {y0 + panel_h / 2:.0f})">Δ nDCG@10</text>')
     base = first_panel + len(datasets) * (panel_h + panel_gap) - panel_gap

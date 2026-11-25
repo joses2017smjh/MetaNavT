@@ -91,3 +91,12 @@ def test_the_generic_sidecar_check_rescores_these_files_and_catches_a_changed_in
         block["ndcg@10"]["lo"] = round(block["ndcg@10"]["lo"] - 0.01, 4)
         assert differences(blob, side), rel  # a hand-edited interval is caught
     assert differences({"results": []}, {"schema": "something-else"}) == ["sidecar schema 'something-else', expected 'per-question-scores-v1'"]
+
+
+def test_a_students_fixture_evidence_row_carries_the_near_twin_caveat():
+    from app.eval.evidence import _small_reranker_claims
+
+    claims = [c for c in _small_reranker_claims(ROOT) if "student-minilm" in c["claim"]]
+    fixture = [c for c in claims if c["claim"].startswith("Fixture v1")]
+    assert fixture and all("sit close to the templated gold questions" in c["not_shown"] for c in fixture)
+    assert all("templated gold questions" not in c["not_shown"] for c in claims if not c["claim"].startswith("Fixture v1"))

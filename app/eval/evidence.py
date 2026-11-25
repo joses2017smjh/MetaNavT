@@ -1008,6 +1008,12 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
     names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
     commands = {"fixture": "make bench-small-rerankers", "scifact": "make bench-beir-small-rerankers", "fiqa": "make bench-beir-fiqa-small-rerankers"}
     out: list[dict] = []
+    near = (_load("bench/distill/queries.meta.json", root) or {}).get("near_duplicates", {}).get("by_corpus", {}).get("fixture")
+    twins = ""
+    if near and near.get("at_other_thresholds", {}).get("cosine_at_least"):
+        low = min(near["at_other_thresholds"]["cosine_at_least"], key=float)
+        twins = (f"its synthetic fixture queries sit close to the templated gold questions: {near['at_other_thresholds']['cosine_at_least'][low]} of "
+                 f"{near['checked']} reach bge-small cosine {low} to one (bench/distill/queries.meta.json), so this row says less than the BEIR ones; ")
 
     def what(tag: str) -> str:
         if tag in sr.STUDENTS:
@@ -1031,6 +1037,8 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
                      f"quality only: whether the model fits the demo's host is measured on the host")
             others = f"against bge-reranker-v2-m3 in the same run: {' '.join(_ci(cell['vs_bge'], 'delta', 4))} ({verdict(cell['vs_bge'])})" if cell.get("vs_bge") else ""
             seen = "the student was trained on synthetic queries over this corpus (it has read its documents, never a test query or a label); " if student else ""
+            if student and d == "fixture":
+                seen += twins
             if block and (block["lo"] > 0 or block["hi"] < 0) and (student or row["passes"] or (lost and block["hi"] < 0)):
                 value, ci = _ci(block, "delta", 4)
                 out.append({"claim": f"{names[d]}, {what(tag)} vs no reranker, both over hybrid@bge-small, paired delta in nDCG@10", "value": value, "ci": ci,
