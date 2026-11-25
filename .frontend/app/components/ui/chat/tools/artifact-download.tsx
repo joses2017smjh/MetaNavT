@@ -76,7 +76,7 @@ export function ArtifactDownload() {
     <>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button variant="outline" className="fixed top-4 right-4">
+          <Button variant="outline" className="fixed bottom-4 right-4 z-40">
             <FileDown className="h-4 w-4 mr-2" />
           </Button>
         </SheetTrigger>

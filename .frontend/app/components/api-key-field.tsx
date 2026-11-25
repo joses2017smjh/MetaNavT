@@ -19,7 +19,10 @@ export default function ApiKeyField() {
   };
 
   return (
-    <form onSubmit={save} className="flex flex-wrap items-center gap-2 text-sm">
+    <form
+      onSubmit={save}
+      className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/[0.07] bg-white/80 p-3 text-sm shadow-pill"
+    >
       <Input
         type="password"
         autoComplete="off"
@@ -31,7 +34,7 @@ export default function ApiKeyField() {
         }
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        className="w-72"
+        className="h-9 w-full rounded-lg text-sm sm:w-72"
       />
       <Button type="submit" size="sm" disabled={!draft.trim()}>
         Use key

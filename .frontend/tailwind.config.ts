@@ -51,15 +51,35 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // The page's own palette (app/globals.css).
+        brand: {
+          DEFAULT: "hsl(var(--brand) / <alpha-value>)",
+          soft: "hsl(var(--brand-soft) / <alpha-value>)",
+          deep: "hsl(var(--brand-deep) / <alpha-value>)",
+        },
+        peach: "hsl(var(--peach) / <alpha-value>)",
+        ink: "hsl(var(--ink) / <alpha-value>)",
+        stone: "hsl(var(--stone) / <alpha-value>)",
+        sage: "hsl(var(--sage) / <alpha-value>)",
+        meadow: "hsl(var(--meadow) / <alpha-value>)",
       },
       borderRadius: {
         xl: `calc(var(--radius) + 4px)`,
         lg: `var(--radius)`,
         md: `calc(var(--radius) - 2px)`,
         sm: "calc(var(--radius) - 4px)",
+        card: "1.75rem",
+      },
+      boxShadow: {
+        card: "0 26px 56px -16px rgb(60 30 10 / 0.14)",
+        soft: "0 4px 20px -6px rgb(60 30 10 / 0.12)",
+        pill: "0 1px 1px rgb(0 0 0 / 0.04), 0 1px 2px rgb(0 0 0 / 0.02)",
       },
       fontFamily: {
+        // app/layout.tsx loads the three families and sets the variables.
         sans: ["var(--font-sans)", ...fontFamily.sans],
+        serif: ["var(--font-serif)", ...fontFamily.serif],
+        mono: ["var(--font-mono)", ...fontFamily.mono],
       },
       keyframes: {
         "accordion-down": {
