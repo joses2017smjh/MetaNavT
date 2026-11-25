@@ -394,3 +394,17 @@ def test_the_beir_main_branch_writes_a_part_its_sidecar_and_its_runs_beside_it(t
     runs = set(p.name for p in (tmp_path / "results" / "late_interaction_runs").iterdir())
     assert runs == {"scifact_rerank_answerai-colbert-small_doc512.json.gz", "scifact_rerank_colbertv2_doc512.json.gz"}
     assert {k for k in blob["late_interaction"]["runs"] if not k.startswith("_")} == {f"{li.RUNS_DIR}/{n}" for n in runs}
+
+
+def test_the_split_only_scopes_the_scores_and_chooses_nothing(fixture_runs, monkeypatch):
+    """Leakage check 3: the tune / held-out split is read for nothing but the scoring scopes. With another split every
+    ranking is the same; only the scopes' intervals move."""
+    import app.eval.rerank_arms as rerank_arms
+
+    blob, _, _ = fixture_runs["primary"]
+    monkeypatch.setattr(rerank_arms, "split_questions", lambda gold: (list(range(1, len(gold), 2)), list(range(0, len(gold), 2))))
+    monkeypatch.setattr(li, "check_fingerprint", lambda encoder, tag: None)
+    again, _, _ = li.run_fixture(ROOT, part="primary", embedder="hash", load_reranker=lambda tag: (Overlap(), {"model": tag}), leg_factory=_leg_factory)
+    assert again["rankings"] == blob["rankings"]
+    assert again["split"]["held_out_ids"] != blob["split"]["held_out_ids"]
+    assert again["all_questions"]["results"] == blob["all_questions"]["results"]

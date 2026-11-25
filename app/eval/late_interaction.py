@@ -1865,6 +1865,59 @@ def dry_run(data_dir: Path, work: Path, device: str = "auto", root: Path | None 
     return summary
 
 
+# ---------------------------------------------------------------- read back from the committed files (no model)
+
+
+def storage_table(root: Path | None = None, attempt: int | None = None) -> list[dict[str, Any]]:
+    """The measured index size per corpus and model at its length, from the token counts the runs recorded (each leg's
+    `store`): scored token vectors x dim x bytes, fp32 and fp16, against bge-small's one 384-dimension float32 vector
+    per document. This replaces the multimodal module's old "10-20x" estimate."""
+    root = Path(root or ROOT)
+    attempt = attempt or deciding_attempt(root)
+    out = []
+    for d in DATASETS:
+        for part in PARTS:
+            blob = _load(root, results_file(d, part, attempt))
+            if not blob:
+                continue
+            legs = dict(blob.get("legs") or {})
+            for row in blob.get("results", []):
+                m = (row.get("models") or {}).get("embedder") or {}
+                if m.get("mv_name") and m.get("store"):
+                    legs.setdefault(m["mv_name"], m)
+            for name, leg in legs.items():
+                s = leg.get("store")
+                if s:
+                    tag, length = parse_mv(name)
+                    out.append({"dataset": d, "part": part, "model": tag, "document_length": length, "kind": leg.get("kind"), "documents": s["documents"],
+                                "scored_vectors": s["scored_vectors"], "dim": s["dim"], "bytes": s["bytes"], "ratio_to_bge_small": s["ratio_to_bge_small"],
+                                "cut_at_document_length": s["cut_at_document_length"], "file": results_file(d, part, attempt)})
+    return out
+
+
+def doc512_rankings(root: Path | None = None, attempt: int | None = None) -> dict[str, Any]:
+    """Leakage check 4 on BEIR: a named model's primary rows and its doc512 rows come from different token stores, so
+    their ranking sha256s must differ; an equal pair is reported (on the fixture they are expected equal, the tripwire's
+    fixture trip)."""
+    root = Path(root or ROOT)
+    attempt = attempt or deciding_attempt(root)
+    out: dict[str, Any] = {}
+    for d in ("scifact", "fiqa"):
+        p, e = _load(root, results_file(d, "primary", attempt)), _load(root, results_file(d, "extra", attempt))
+        if not (p and e):
+            continue
+        pr, er = ({r["config"]: r.get("ranking_sha256") for r in b["results"]} for b in (p, e))
+        pairs = {}
+        for tag, c in CANDIDATES.items():
+            L, S = c["saved"]["document_length"], SENSITIVITY_LENGTH
+            for a, b in ((f"dense@{tag}", f"dense@{tag}/doc{S}"), (f"hybrid@{tag}", f"hybrid@{tag}/doc{S}"),
+                         (f"hybrid+{tag}@bge-small/fp32-doc{L}/top20", f"hybrid+{tag}@bge-small/fp32-doc{S}/top20")):
+                if a in pr and b in er:
+                    pairs[a] = {"doc512_row": b, "ranking_differs": pr[a] != er[b]}
+        out[d] = {"pairs": pairs, "all_differ": all(x["ranking_differs"] for x in pairs.values())}
+    return out
+
+
 # ---------------------------------------------------------------- command line
 
 
@@ -1913,6 +1966,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"outside the bar, above zero on all three: {table['all_three_outside_bar'] or 'none'}")
         print(f"PLAN.md row 4.2: {table['outcome']}")
         print(f"cross-part parents: {json.dumps(cross_part_parents(root))}")
+        print(f"primary vs doc512 rankings on BEIR (must differ): {json.dumps(doc512_rankings(root))}")
         problems = declarations_check(root)
         for line in problems:
             print(f"  - {line}")
