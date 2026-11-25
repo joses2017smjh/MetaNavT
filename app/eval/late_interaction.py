@@ -1508,7 +1508,7 @@ def tripwire(root: Path | None = None, attempt: int | None = None) -> dict[str, 
     def judge(value: float | None, tag: str) -> dict[str, Any]:
         if value is None:
             return {"value": None}
-        pub = float(PUBLISHED["values"][tag]["scifact"]) / 100
+        pub = round(float(PUBLISHED["values"][tag]["scifact"]) / 100, 4)
         low = (bm25 is not None and value < bm25) or value < round(pub - low_by, 4)
         return {"value": value, "bm25": bm25, "published": pub, "low": bool(low), "high": bool(value > round(pub + high_by, 4))}
 
