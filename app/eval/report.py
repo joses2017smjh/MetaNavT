@@ -3124,6 +3124,47 @@ def _shape_cell(block: dict | None, word: str | None) -> str:
     return f"{_delta4(block)} {SHAPE_VERDICT[word]}" if block else "not run"
 
 
+def _ml256_lines(root: Path | None, named) -> list[str]:
+    """M51 Phase 2: the students retrained at max_length 256 (attempt 2), their family F3 and its answer, each cell
+    against no reranker, against the attempt-1 student and against the init; or that no Phase-2 result is committed."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    front = _load(root, shapes.ML256_FRONTIER_FILE)
+    head = f"**Phase 2** ({shapes.PHASE2['label']}; family F3, its own answer, never merged into F1 or F2)"
+    if not front:
+        return ["", head + ": no result committed. Both students above were trained at max_length 512, so a loss at 256 may be a train/test length mismatch."]
+    a = front["answers"]["F3"]
+    blobs = {d: _load(root, rel) for d, rel in shapes.ML256_RESULTS.items()}
+    manifest = _load(root, shapes.PHASE2["manifest"]) or {}
+    trained = "; ".join(f"`{tag}` on {e.get('training_device')}, epoch {e.get('chosen_epoch')} kept" for tag, e in (manifest.get("students") or {}).items())
+    runs = "; ".join(f"{label}: {_device(blobs[d])}, results sha {_sha(blobs[d])}" for d, label in SHAPE_FILES if blobs.get(d))
+    out = ["", head + f": **F3 answer: {a['answer']}**{named(a)} (the {a['k']} attempt-2 cells whose attempt-1 twin is under-indicative-budget; "
+                      f"Bonferroni percentiles {a['percentiles'][0]:g} / {a['percentiles'][1]:g}). Both students were retrained once by M43's recipe "
+                      f"with only max_length changed to 256 ({trained}), and run beside the attempt-1 students and their inits at the same shapes ({runs}). "
+                      "A cell's cost is the same-architecture attempt-1 row's (same architecture, tokenizer and cap), not measured again.", "",
+           "| cell | cost of the attempt-1 row: p95 ms / peak MiB | band | " + " | ".join(f"{label}: Δ vs no reranker" for _, label in SHAPE_DATASETS)
+           + " | F3-level verdicts | vs the attempt-1 student: " + ", ".join(label for _, label in SHAPE_DATASETS) + " | vs the init: " + ", ".join(label for _, label in SHAPE_DATASETS) + " |",
+           "|---|---:|---|" + "---:|" * len(SHAPE_DATASETS) + "---|---|---|"]
+    for c in front["cells"]:
+        cost = c["indicative_cpu"]
+        cells = " | ".join(_shape_cell(c["datasets"][d].get("vs_parent"), c["datasets"][d].get("verdict")) for d, _ in SHAPE_DATASETS)
+        fam = ", ".join(shapes.verdict(c["datasets"][d]["adjusted"]["F3"]) or "—" for d, _ in SHAPE_DATASETS) if c["families"] else "—"
+        vs1 = "; ".join(_delta4(c["datasets"][d].get("vs_attempt_1")) for d, _ in SHAPE_DATASETS)
+        vsi = "; ".join(_delta4(c["datasets"][d].get("vs_init")) for d, _ in SHAPE_DATASETS)
+        out.append(f"| `{c['tag']}` {c['depth']}/{c['max_length']} | {cost['p95_ms']:,.1f} / {cost['peak_mib']:,} | {c['band']} | {cells} | {fam} | {vs1} | {vsi} |")
+    notes = []
+    for d, label in SHAPE_FILES:
+        x = (front.get("anchors") or {}).get(d) or {}
+        good = x.get("all") if d == "fixture" else x.get("metrics_equal")
+        n = (x.get("scopes") or {}).get("held_out", {}).get("n_compared") if d == "fixture" else x.get("n_compared")
+        notes.append(f"{label} {n} rows {'equal' if good else 'DIFFER'}" + (f" (ranking-only differences: {_and([f'`{r}`' for r in x['ranking_differences']])})" if x.get("ranking_differences") else ""))
+    diffs = front.get("anchor_per_query_differences_vs_m51") or {}
+    out += ["", "The anchors (the parent, the attempt-1 students and their inits at the same shapes, against the committed shapes rows): " + "; ".join(notes)
+            + "; per-query values differing: " + ", ".join(f"{label} {diffs.get(d, '?')}" for d, label in SHAPE_FILES)
+            + f". Results: " + " · ".join(f"[{rel}]({rel})" for rel in (*shapes.ML256_RESULTS.values(), shapes.ML256_FRONTIER_FILE, shapes.PHASE2["manifest"])) + "."]
+    return out
+
+
 def small_rerankers_shapes_table(root: Path | None) -> str:
     """M51: every model at every shape (depth 5/10/20 x max_length 256/512) against the unreranked hybrid on the three
     datasets, with its indicative CPU cost and band, the answer per family, the cost of cheapening against the served
@@ -3231,9 +3272,7 @@ def small_rerankers_shapes_table(root: Path | None) -> str:
         lines += ["", f"The replicate (the same commit on {_and(sorted(d for d in devices if d)) or 'the other device'}; never a result row): " + "; ".join(parts) + "."]
     else:
         lines += ["", "The replicate on the other device class (RTX 8000) has not been committed; the rows above are one device's."]
-    phase2 = _load(root, "bench/results/small_rerankers_ml256_frontier.json")
-    lines += ["", f"**Phase 2** ({shapes.PHASE2['label']}; family F3, k = 3, its own answer): "
-              + (f"**{phase2['answers']['F3']['answer']}**." if phase2 else "not run. Both students above were trained at max_length 512, so a loss at 256 may be a train/test length mismatch.")]
+    lines += _ml256_lines(root, named)
     if front.get("host_commands"):
         lines += ["", "The owner's host timing for the F1 cells, printed here and never run (a student is timed by the published model it started from: the same cost):", "",
                   "```", *front["host_commands"], "```"]

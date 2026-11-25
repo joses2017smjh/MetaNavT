@@ -1339,7 +1339,8 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-SHAPE_TESTS = {"F1": "unadjusted, one of 18 cell x dataset tests in F1", "F2": "unadjusted, one of 48 cell x dataset tests in F2"}
+SHAPE_TESTS = {"F1": "unadjusted, one of 18 cell x dataset tests in F1", "F2": "unadjusted, one of 48 cell x dataset tests in F2",
+               "F3": "unadjusted, one of 9 cell x dataset tests in F3"}
 
 
 def _shape_row(cell: dict, dataset: str, family: str, answer: dict, meta: dict, extra: str) -> dict:
@@ -1425,6 +1426,42 @@ def _small_reranker_shape_claims(root: Path = ROOT) -> list[dict]:
                 out.append({"claim": f"{names[d]}, the cost of cheapening: `{cell['tag']}` at {cell['depth']}/{cell['max_length']} vs the same model at 20/512, paired delta in nDCG@10",
                             "value": value, "ci": ci, "n": meta["n"], "command": meta["command"], "source": meta["source"],
                             "not_shown": "descriptive, no adjustment; an interval covering zero is no measured difference, not equivalence"})
+    return out + _small_reranker_ml256_claims(root, exposure, twins)
+
+
+def _small_reranker_ml256_claims(root: Path, exposure: dict, twins: str) -> list[dict]:
+    """M51 Phase 2 (attempt 2): one row for the F3 answer and one per F3 cell x dataset whose 95% interval against no
+    reranker excludes zero, each with its F3-level interval and the F3 answer beside it."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    front = _load(shapes.ML256_FRONTIER_FILE, root)
+    if not front:
+        return []
+    a = front["answers"]["F3"]
+    out = [{"claim": ("Small rerankers retrained at max_length 256 (Phase 2, attempt 2, after M43's attempt-1 numbers were seen), F3: is any "
+                      "attempt-2 cell whose attempt-1 twin is under the indicative budget above no reranker on fixture v1's held-out half, SciFact and FiQA at once?"),
+            "value": a["answer"], "ci": "—", "n": a["k"], "command": "make small-rerankers-ml256-frontier", "source": f"{shapes.ML256_FRONTIER_FILE} @ {front['git_sha']}",
+            "not_shown": (f"deciding cells: {_shape_cells(a)}; " if a.get("cells") and a["answer"] != "NO" else "")
+                         + f"Bonferroni level 1 - 0.05/{a['k']} per cell on 20,000 resamples; F3 is its own family, never merged into F1 or F2; "
+                           "cost from the same-architecture attempt-1 row; one training run per student"}]
+    blobs = {d: _load(rel, root) for d, rel in shapes.ML256_RESULTS.items()}
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-small-rerankers-ml256", "scifact": "make bench-beir-small-rerankers-ml256", "fiqa": "make bench-beir-fiqa-small-rerankers-ml256"}
+    for cell in front["cells"]:
+        if "F3" not in cell["families"]:
+            continue
+        for d, e in cell["datasets"].items():
+            block = e.get("vs_parent")
+            if not block or not (block["lo"] > 0 or block["hi"] < 0):
+                continue
+            meta = {"name": names[d], "n": shapes.N_QUERIES[d], "command": commands[d], "source": f"{shapes.ML256_RESULTS[d]} @ {(blobs.get(d) or {}).get('git_sha')}"}
+            if d == "fixture":
+                extra = "the student read every fixture chunk in training (never a gold question or label); " + twins
+            else:
+                x = exposure.get(d) or {}
+                extra = (f"the student read a relevant document of {x.get('n_exposed_queries')} of {x.get('n_test_queries')} of these test queries in training "
+                         f"(never a query or label); re-read on the other {x.get('n_unexposed_queries')}: " + " ".join(_ci(e.get("exposure_excluded"), "delta", 4)) + "; ")
+            out.append(_shape_row(cell, d, "F3", a, meta, extra + "the cost is the same-architecture attempt-1 row's; "))
     return out
 
 

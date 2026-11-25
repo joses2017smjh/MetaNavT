@@ -66,8 +66,8 @@ def test_an_evidence_row_never_renders_without_its_family_answer():
     assert front["answers"]["F1"]["answer"] in row["not_shown"] and "one of 18 cell x dataset tests in F1" in row["claim"]
     rows = _small_reranker_shape_claims(ROOT)
     assert [r["value"] for r in rows[:2]] == [front["answers"]["F1"]["answer"], front["answers"]["F2"]["answer"]]
-    for r in rows[2:]:  # nothing for an over-budget cell: every cell row is one of its family's tests
-        assert "tests in F1" in r["claim"] or "tests in F2" in r["claim"] or "cost of cheapening" in r["claim"]
+    for r in rows[2:]:  # nothing for an over-budget cell: every cell row is one of its family's tests (Phase 2's: F3)
+        assert any(f"tests in {f}" in r["claim"] for f in ("F1", "F2", "F3")) or "cost of cheapening" in r["claim"] or r["claim"].startswith("Small rerankers retrained")
 
 
 @needs_files

@@ -230,3 +230,24 @@ def test_the_phase2_files_are_whitelisted_and_the_cli_reports_a_missing_frontier
         assert subprocess.run(["git", "check-ignore", "-q", "--no-index", rel], cwd=ROOT).returncode == 1, f"{rel} is ignored by .gitignore"
     monkeypatch.setattr(shapes, "ROOT", tmp_path)
     assert shapes.main(["--bar", "--phase2"]) == 1
+
+
+def test_the_readme_lines_and_evidence_rows_of_phase2_render_with_the_f3_answer(p2_root):
+    from app.eval.evidence import _small_reranker_ml256_claims
+    from app.eval.report import _ml256_lines
+
+    assert "no result committed" in _ml256_lines(ROOT / "nowhere", lambda a: "")[1]
+    (p2_root / shapes.ML256_FRONTIER_FILE).write_text(json.dumps(shapes.ml256_frontier(p2_root)))
+    front = json.loads((p2_root / shapes.ML256_FRONTIER_FILE).read_text())
+    answer = front["answers"]["F3"]["answer"]
+    lines = _ml256_lines(p2_root, lambda a: "")
+    text = "\n".join(lines)
+    assert f"**F3 answer: {answer}**" in text and "never merged into F1 or F2" in text and "attempt-1 row" in text
+    assert sum(1 for line in lines if line.startswith("| `student-minilm-l")) == 6
+    exposure = json.loads((p2_root / shapes.EXPOSURE_FILE).read_text())["datasets"]
+    rows = _small_reranker_ml256_claims(p2_root, exposure, "")
+    assert rows[0]["value"] == answer and rows[0]["n"] == 3 and "never merged into F1 or F2" in rows[0]["not_shown"]
+    f3 = {shapes.row_name(*c) for c in shapes.FAMILIES["F3"]["cells"]}
+    for r in rows[1:]:  # only F3 cells, only where the 95% interval excludes zero, each with the F3 answer beside it
+        assert "one of 9 cell x dataset tests in F3" in r["claim"] and f"the F3 answer is {answer}" in r["not_shown"]
+        assert any(f"`{c.split('+')[1].split('@')[0]}` at depth {c.split('top')[1]}" in r["claim"] for c in f3)

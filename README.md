@@ -1625,7 +1625,7 @@ Do the recomputed rows reproduce M43's? fixture v1: the parent and the six 20/51
 
 The replicate (the same commit on Quadro RTX 8000; never a result row): fixture v1 37 of 37 rows equal in every field, 0 per-query values and 0 rankings differ; SciFact 37 of 37 rows equal in every field, 0 per-query values and 0 rankings differ; FiQA 37 of 37 rows equal in every field, 0 per-query values and 0 rankings differ.
 
-**Phase 2** (attempt 2, retrained at 256 after M43's attempt-1 numbers were seen; family F3, k = 3, its own answer): not run. Both students above were trained at max_length 512, so a loss at 256 may be a train/test length mismatch.
+**Phase 2** (attempt 2, retrained at 256 after M43's attempt-1 numbers were seen; family F3, its own answer, never merged into F1 or F2): no result committed. Both students above were trained at max_length 512, so a loss at 256 may be a train/test length mismatch.
 
 The owner's host timing for the F1 cells, printed here and never run (a student is timed by the published model it started from: the same cost):
 
