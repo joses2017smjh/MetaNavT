@@ -205,6 +205,10 @@ def build_index(
         from app.retrieval.embedders import SentenceTransformerEmbedder
 
         embedder = SentenceTransformerEmbedder()
+    elif embedder_name.startswith("ft:"):  # M48: an adapted embedder's verified checkpoint ($ADAPTED_EMBEDDER_CHECKPOINTS)
+        from app.eval.adapted_embedders import resolve_embedder
+
+        embedder, _ = resolve_embedder(embedder_name)
     else:
         raise ValueError(f"unknown embedder {embedder_name}")
 

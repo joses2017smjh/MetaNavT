@@ -20,7 +20,13 @@ owner's decision; nothing here changes a served default.
 
 from __future__ import annotations
 
-from typing import Any
+import argparse
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any, Sequence
 
 ATTEMPT = 1  # a retrain after any held-out or BEIR number was seen is attempt 2; only attempt 1 is read against the bar
 
@@ -205,6 +211,13 @@ SIDECAR_SCHEMA = "adapted-embedders-per-query-v1"
 SCOPES = ("held_out", "tune", "all_questions")
 
 
+def declarations_sha256() -> str:
+    """The sha256 of what an arm is trained by (RECIPE, ARMS, INITS, ENCODING, TRAINING_SETS) as canonical JSON: a later
+    arm (bge-base) must be trained by the same declarations as the bge-small arms, whatever else this file gains."""
+    blob = {"RECIPE": RECIPE, "ARMS": ARMS, "INITS": INITS, "ENCODING": ENCODING, "TRAINING_SETS": TRAINING_SETS}
+    return hashlib.sha256(json.dumps(blob, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def embedder_name(tag: str) -> str:
     """The embedder name an adapted arm's rows load (index_loader.build_index, the BEIR engine): ft:<tag>."""
     if tag not in ARMS:
@@ -217,3 +230,881 @@ def row_names(tag: str, dataset: str) -> tuple[str, str]:
     dense_only@<tag> / hybrid@<tag>, BEIR's dense@<tag> / hybrid@<tag>."""
     dense = "dense_only" if dataset == "fixture" else "dense"
     return f"{dense}@{tag}", f"hybrid@{tag}"
+
+
+# ---------------------------------------------------------------- loading an arm: ft:<tag> (index_loader.build_index, the BEIR engine)
+
+CHECKPOINT_ENV = "ADAPTED_EMBEDDER_CHECKPOINTS"  # where the checkpoints are; --checkpoint-dir sets it
+WEIGHTS_FILE = "model.safetensors"
+LOADED: dict[str, dict[str, Any]] = {}  # embedder name -> what its rows record (the last load in this process)
+
+
+class CheckpointError(RuntimeError):
+    """An arm's checkpoint is missing, or its weights are not the ones the manifest names."""
+
+
+def _repo() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def read_manifest(root: Path | None = None) -> dict[str, Any] | None:
+    path = (root or _repo()) / MANIFEST_FILE
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def trained_arms(root: Path | None = None, manifest: dict | None = None) -> list[str]:
+    """The arms the committed manifest holds, in table order (an arm not there was not trained)."""
+    manifest = manifest if manifest is not None else read_manifest(root)
+    return [t for t in ARMS if t in ((manifest or {}).get("arms") or {})]
+
+
+def arm_checkpoint(tag: str, checkpoint_dir: Path | str | None = None, manifest: dict | None = None) -> tuple[Path, dict]:
+    """(the directory of arm `tag`'s checkpoint, its manifest entry), after checking that the weights file there has the
+    sha256 the committed manifest records. The checkpoints are not in the repository: `checkpoint_dir` (or
+    $ADAPTED_EMBEDDER_CHECKPOINTS) says where they are, and a results row records the sha256, never the path."""
+    if tag not in ARMS:
+        raise KeyError(f"unknown arm {tag!r}; known: {list(ARMS)}")
+    base = checkpoint_dir or os.environ.get(CHECKPOINT_ENV)
+    if not base:
+        raise CheckpointError(f"{tag}: no checkpoint directory (pass --checkpoint-dir or set {CHECKPOINT_ENV})")
+    manifest = manifest if manifest is not None else read_manifest()
+    if manifest is None:
+        raise CheckpointError(f"{MANIFEST_FILE} is missing: no arm has been trained and recorded")
+    entry = (manifest.get("arms") or {}).get(tag)
+    if not entry:
+        raise CheckpointError(f"{tag} is not in {MANIFEST_FILE}")
+    directory = Path(base) / entry["directory"]
+    weights = directory / WEIGHTS_FILE
+    if not weights.exists():
+        raise CheckpointError(f"{tag}: {entry['directory']}/{WEIGHTS_FILE} is not in the checkpoint directory")
+    from app.eval.embedder_train import sha256_of
+
+    found = sha256_of(weights)
+    if found != entry["weights_sha256"]:
+        raise CheckpointError(f"{tag}: {WEIGHTS_FILE} has sha256 {found}, the manifest records {entry['weights_sha256']}")
+    return directory, entry
+
+
+def load_checkpoint_embedder(directory: Path | str, tag: str, device: str | None = None):
+    """A saved arm as the app's embedder (app.retrieval.embedders.SentenceTransformerEmbedder over the local directory),
+    named ft:<tag> so that no row carries the path; it must encode as ENCODING declares."""
+    from app.eval.embedder_train import check_encoding
+    from app.retrieval.embedders import SentenceTransformerEmbedder
+
+    emb = SentenceTransformerEmbedder(str(directory))
+    if device is not None:
+        emb._model.to(device)
+    emb.model_name, emb.name = tag, f"ft:{tag}"
+    check_encoding(emb._model)
+    return emb
+
+
+def resolve_embedder(name: str, checkpoint_dir: Path | str | None = None, root: Path | None = None, device: str | None = None):
+    """(the embedder, what its rows record) for `name`, or None for a name this module does not own: ft:<tag> is an
+    arm's verified checkpoint (weights sha256, then the reference embeddings its manifest records); st:<model> of an
+    init is that model at its pinned revision (any other cached revision raises)."""
+    if name.startswith("ft:"):
+        tag = name.split(":", 1)[1]
+        directory, entry = arm_checkpoint(tag, checkpoint_dir)
+        from app.eval.embedder_train import check_reference
+
+        emb = load_checkpoint_embedder(directory, tag, device=device)
+        record = {"model": tag, "init": INITS[ARMS[tag]["init"]]["model"], "init_revision": INITS[ARMS[tag]["init"]]["revision"],
+                  "weights_sha256": entry["weights_sha256"], "attempt": entry.get("attempt"), "manifest": MANIFEST_FILE, "revision": None,
+                  "neural": True, "reference_check": check_reference(emb, entry, root or _repo())}
+    else:
+        model = name.split(":", 1)[1] if name.startswith("st:") else name
+        init = next((k for k, v in INITS.items() if v["model"] == model), None)
+        if init is None:
+            return None
+        from app.retrieval.embedders import SentenceTransformerEmbedder
+
+        emb = SentenceTransformerEmbedder(model, revision=INITS[init]["revision"])
+        if device is not None:
+            emb._model.to(device)
+        record = {"pinned_revision": INITS[init]["revision"]}
+    LOADED[name] = record
+    return emb, record
+
+
+# ---------------------------------------------------------------- the twin flags (make embedder-twins, m48-prep, C2)
+
+
+def training_query_sets(queries: Sequence[dict]) -> dict[str, list[dict]]:
+    """TWINS["query_sets"]: every training AND validation query of the arms' two training sets."""
+    return {name: [q for q in queries if q["corpus"] in corpora] for name, corpora in TRAINING_SETS.items()}
+
+
+def twin_flags(tests: Sequence[dict[str, str]], sets: dict[str, list[dict]], embed) -> list[dict[str, Any]]:
+    """Per test query, per query set: the highest base bge-small cosine to one of its queries and the highest token
+    Jaccard (M43's normalisation), each with the nearest id. `embed` returns unit rows."""
+    import numpy as np
+
+    from app.eval.distill_queries import jaccard, normalise
+
+    test_vecs = np.asarray(embed([t["text"] for t in tests]), dtype=np.float64)
+    test_tokens = [set(normalise(t["text"]).split()) for t in tests]
+    out = [{"set": t["set"], "id": t["id"]} for t in tests]
+    for name, rows in sets.items():
+        vecs = np.asarray(embed([q["query"] for q in rows]), dtype=np.float64)
+        cos = test_vecs @ vecs.T
+        tokens = [set(normalise(q["query"]).split()) for q in rows]
+        for i, t in enumerate(test_tokens):
+            c = int(np.argmax(cos[i]))
+            jac = [jaccard(t, s) for s in tokens]
+            j = int(np.argmax(jac))
+            out[i][name] = {"cosine": round(float(cos[i, c]), 4), "cosine_nearest": rows[c]["id"], "jaccard": round(float(jac[j]), 4),
+                            "jaccard_nearest": rows[j]["id"]}
+    return out
+
+
+def twin_assertion(flags: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Leakage risk 2 at 0.90: zero test queries at or above TWINS["assert_below"] + the tolerance, per dataset and set."""
+    limit = TWINS["assert_below"] + TWINS["assert_tolerance"]
+    worst: dict[str, dict[str, float]] = {}
+    for f in flags:
+        for name in TRAINING_SETS:
+            worst.setdefault(f["set"], {})[name] = max(worst.get(f["set"], {}).get(name, -1.0), f[name]["cosine"])
+    failing = {d: {n: v for n, v in by.items() if v >= limit} for d, by in worst.items()}
+    failing = {d: by for d, by in failing.items() if by}
+    return {"threshold": TWINS["assert_below"], "tolerance": TWINS["assert_tolerance"], "fails_at_or_above": round(limit, 4),
+            "max_cosine": worst, "failing": failing, "passed": not failing}
+
+
+class TwinAssertionFailed(RuntimeError):
+    """A test query sits at bge-small cosine 0.90 or more (beyond the tolerance) to a training or validation query."""
+
+
+def subgroup_sizes(flags: Sequence[dict[str, Any]], halves: dict[str, str] | None = None) -> dict[str, Any]:
+    """Twinned test queries per dataset, query set and threshold (the fixture also per held-out / tune half)."""
+    out: dict[str, Any] = {}
+    for dataset in sorted({f["set"] for f in flags}):
+        mine = [f for f in flags if f["set"] == dataset]
+        block: dict[str, Any] = {"n": len(mine)}
+        for name in TRAINING_SETS:
+            block[name] = {f"{t:.2f}": sum(1 for f in mine if f[name]["cosine"] >= t) for t in TWINS["thresholds"]}
+            if dataset == "fixture" and halves:
+                for half in ("held_out", "tune"):
+                    sub = [f for f in mine if halves.get(f["id"]) == half]
+                    block[f"{name}_{half}"] = {"n": len(sub), **{f"{t:.2f}": sum(1 for f in sub if f[name]["cosine"] >= t) for t in TWINS["thresholds"]}}
+        out[dataset] = block
+    return out
+
+
+def run_twins(root: Path, data_dir: Path, device: str = "auto") -> dict[str, Any]:
+    """bench/distill/embedder_twins.json: the one step outside the eval that reads test-query text (M43's
+    benchmark_queries: text only, never qrels' relevance, gold answers or a score); its output is never read by the
+    trainer or the scale step. Raises TwinAssertionFailed (nothing written) when the 0.90 assertion fails."""
+    from datetime import datetime, timezone
+
+    from app.eval.distill_queries import QUERIES_FILE, benchmark_queries, read_jsonl
+    from app.eval.embedder_train import sha256_of, tf32_flags
+    from app.eval.gold import load_gold
+    from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, run_provenance
+    from app.eval.rerank_arms import split_questions
+    from app.retrieval.embedders import SentenceTransformerEmbedder
+
+    started = git_state(root)
+    queries = read_jsonl(root / "bench" / "distill" / QUERIES_FILE)
+    sets = training_query_sets(queries)
+    tests = benchmark_queries(root, data_dir)
+    gold = load_gold(root / "bench" / "gold" / "questions.jsonl")
+    tune, held = split_questions(gold)
+    halves = {gold[i].id: "tune" for i in tune} | {gold[i].id: "held_out" for i in held}
+    emb = SentenceTransformerEmbedder(INITS["bge-small"]["model"], revision=INITS["bge-small"]["revision"])
+    flags = twin_flags(tests, sets, emb.encode)
+    for f in flags:
+        if f["set"] == "fixture":
+            f["half"] = halves[f["id"]]
+    check = twin_assertion(flags)
+    if not check["passed"]:
+        raise TwinAssertionFailed(f"test queries at bge-small cosine >= {check['fails_at_or_above']} to a training query: {check['failing']}")
+    import torch  # noqa: F401  (tf32_flags)
+
+    return {"git_sha": git_sha(root), **run_provenance(root=root, started=started), "timestamp": datetime.now(timezone.utc).isoformat(),
+            "command": command_line(), "device": device_info(device), "embedder_device": model_device(emb._model), "tf32": tf32_flags(),
+            "embedder": {"model": INITS["bge-small"]["model"], "revision": INITS["bge-small"]["revision"], "note": TWINS["embedder"]},
+            "rule": {k: (list(v) if isinstance(v, tuple) else v) for k, v in TWINS.items()},
+            "query_sets": {name: {"n": len(rows), "corpora": list(TRAINING_SETS[name]), "about": TWINS["query_sets"][name]} for name, rows in sets.items()},
+            "queries_sha256": sha256_of(root / "bench" / "distill" / QUERIES_FILE),
+            "test_queries": {d: sum(1 for t in tests if t["set"] == d) for d in sorted({t["set"] for t in tests})},
+            "reads": "the test queries' text only (app.eval.distill_queries.benchmark_queries); no qrels relevance, gold answer or score",
+            "mnrl_note": "bge-small-mnrl is flagged against the all-three set, a superset of the queries it trained on: its flags are an upper bound",
+            "assertion": check, "subgroups": subgroup_sizes(flags, halves), "flags": flags}
+
+
+def read_twins(root: Path | None = None) -> tuple[dict[str, Any], dict[str, dict[str, dict]]]:
+    """(the committed twin file, {dataset: {test id: flags}}), after re-checking its 0.90 assertion on the committed
+    values; raises TwinAssertionFailed when it fails (the eval then writes no row)."""
+    root = root or _repo()
+    blob = json.loads((root / TWINS_FILE).read_text())
+    check = twin_assertion(blob["flags"])
+    if not check["passed"]:
+        raise TwinAssertionFailed(f"{TWINS_FILE}: the 0.90 assertion fails on the committed flags: {check['failing']}")
+    by: dict[str, dict[str, dict]] = {}
+    for f in blob["flags"]:
+        by.setdefault(f["set"], {})[f["id"]] = f
+    return blob, by
+
+
+# ---------------------------------------------------------------- deltas, subgroups, the seed mean (the run and --rescore share these)
+
+
+def arm_of(row: str) -> str | None:
+    """The arm a row name belongs to (None for a base row)."""
+    tag = row.split("@", 1)[1] if "@" in row else None
+    return tag if tag in ARMS else None
+
+
+def base_tag(tag: str) -> str:
+    return "bge-base" if ARMS[tag]["init"] == "bge-base" else "bge-small"
+
+
+def comparisons(rows: Sequence[str], dataset: str) -> list[tuple[str, str]]:
+    """(row, other) for every paired delta of a run, as declared: each adapted row against its base counterpart (dense
+    with dense, hybrid with hybrid; the bar is hybrid@bge-small-marginmse's), hybrid@<tag> against dense@<tag>, the
+    control against the bar row, each seed against seed 0."""
+    names = set(rows)
+    out: list[tuple[str, str]] = []
+    for tag in ARMS:
+        dense, hybrid = row_names(tag, dataset)
+        bdense, bhybrid = row_names(base_tag(tag), dataset)
+        for a, b in ((dense, bdense), (hybrid, bhybrid), (hybrid, dense)):
+            if a in names and b in names:
+                out.append((a, b))
+    for tag in (CONTROL_ARM, *SEED_ARMS[1:]):
+        for a, b in zip(row_names(tag, dataset), row_names(BAR_ARM, dataset)):
+            if a in names and b in names:
+                out.append((a, b))
+    return out
+
+
+def base_pairs(pairs: Sequence[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The pairs that are an adapted row against its base counterpart (these get the subgroup splits)."""
+    return [(a, b) for a, b in pairs if arm_of(a) and not arm_of(b)]
+
+
+def _round(block: tuple[float, float, float]) -> dict[str, float]:
+    return {"delta": round(block[0], 4), "lo": round(block[1], 4), "hi": round(block[2], 4)}
+
+
+def subgroup_blocks(scores: dict[str, dict[str, list[float]]], pairs: Sequence[tuple[str, str]], subset: Sequence[int],
+                    splits: dict[str, dict[str, list[bool]]], metric: str = "ndcg@10") -> list[dict[str, Any]]:
+    """Each (row, other) delta split by each flag: per group its size and mean delta, and an interval from a fresh
+    index matrix of the group's size (seed 0) when it has TWINS["min_subgroup"] queries or more. `splits` maps a split
+    name to {"flag source": [bool per query]} chosen per pair (an arm's twin set) by the caller's key: the split's
+    flags are splits[name][set], set = the row's arm's training set, or "any" for flags every arm shares."""
+    import numpy as np
+
+    from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, paired_delta_ci, resample_indices
+
+    out = []
+    for name, by_set in splits.items():
+        for row, other in pairs:
+            tag = arm_of(row)
+            flags = by_set.get(ARMS[tag]["training_set"]) if tag else None
+            flags = flags if flags is not None else by_set.get("any")
+            if flags is None:
+                continue
+            for value, group in ((True, "flagged"), (False, "not flagged")):
+                ids = [i for i in subset if flags[i] is value]
+                block: dict[str, Any] = {"split": name, "row": row, "other": other, "group": group, "n": len(ids)}
+                if ids:
+                    a = [scores[row][metric][i] for i in ids]
+                    b = [scores[other][metric][i] for i in ids]
+                    block["delta"] = round(float(np.mean(np.asarray(a) - np.asarray(b))), 4)
+                    if len(ids) >= TWINS["min_subgroup"]:
+                        d = paired_delta_ci(a, b, resample_indices(len(ids), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED))
+                        block[metric] = _round(d)
+                    else:
+                        block["interval"] = f"none: fewer than {TWINS['min_subgroup']} queries"
+                out.append(block)
+    return out
+
+
+def twin_splits(twins: dict[str, dict[str, list[float]]]) -> dict[str, dict[str, list[bool]]]:
+    """The declared twin splits from per-query max cosines ({set: [cosine per query]}): flagged = twinned (cosine >= t)."""
+    return {f"twin_cosine_{t:.2f}": {name: [c >= t for c in cos] for name, cos in twins.items()} for t in TWINS["thresholds"]}
+
+
+def seed_mean(scores: dict[str, dict[str, list[float]]], subset: Sequence[int], dataset: str, metric: str = "ndcg@10") -> dict[str, Any] | None:
+    """M44's form, exploratory: per query the mean of the bar recipe's seeds that ran, minus the parent, bootstrapped
+    with the scope's own index matrix (seed 0); with one seed it is that seed's delta."""
+    import numpy as np
+
+    from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, paired_delta_ci, resample_indices
+
+    seeds = [t for t in SEED_ARMS if row_names(t, dataset)[1] in scores]
+    parent = row_names("bge-small", dataset)[1]
+    if not seeds or parent not in scores:
+        return None
+    mean = np.mean([[scores[row_names(t, dataset)[1]][metric][i] for i in subset] for t in seeds], axis=0)
+    d = paired_delta_ci(mean, [scores[parent][metric][i] for i in subset], resample_indices(len(subset), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED))
+    return {"seeds": seeds, "n_seeds": len(seeds), "row": "the per-query mean of " + ", ".join(row_names(t, dataset)[1] for t in seeds),
+            "other": parent, metric: _round(d), "label": "exploratory (M44's form); the bar is read on seed 0 alone"}
+
+
+# ---------------------------------------------------------------- the results header (every file)
+
+
+def m43_provenance(root: Path | None = None) -> dict[str, Any]:
+    """What the training data are, copied from M43's metas: the files' sha256, the teacher and the query writer, and the
+    near-duplicate counts per corpus (dropped, and at bge-small cosine 0.80 / 0.85 / 0.90 / 0.95)."""
+    root = root or _repo()
+    q = json.loads((root / "bench" / "distill" / "queries.meta.json").read_text())
+    t = json.loads((root / "bench" / "distill" / "teacher_scores.meta.json").read_text())
+    near = {c: {"checked": b["checked"], "dropped": b["near_duplicates_dropped"], "cosine_at_least": b["at_other_thresholds"]["cosine_at_least"]}
+            for c, b in q["near_duplicates"]["by_corpus"].items()}
+    llm = q["generation"].get("llm") or {}
+    return {"queries": q["files"]["queries.jsonl.gz"], "teacher_scores": t["file"],
+            "teacher": {k: t["teacher"].get(k) for k in ("model", "revision", "precision", "max_length", "scores")},
+            "query_writer": {k: llm.get(k) for k in ("model", "revision", "ollama_version", "options", "request")},
+            "prompt_sha256": (q["generation"].get("prompt") or {}).get("sha256"), "near_duplicates": near,
+            "near_duplicate_rule": "dropped if normalised-equal, token Jaccard >= 0.7 or bge-small cosine >= 0.90 against any of the 1,084 test queries (M43)"}
+
+
+NOT_SHOWN = (
+    "not the live host's quality: the host embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
+    "not the host's latency: HPC timings are indicative (adapted_embedders_cpu.json); the structural identity is the argument",
+    "not transfer to an unseen corpus: the bar row read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); only the control's fixture rows measure transfer, on one small templated corpus",
+    "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, and nDCG recomputes from the committed TREC runs where they exist, but the checkpoints are not committed",
+    "not card-independent on FiQA: rankings are specific to the card they ran on",
+    "not a clean 'what the fixture data added': the control differs from the bar row in s, in its number of training lists and in its corpus mix",
+    "not label-free in the strict sense: the teacher's and bge-small's own training data are unknown and may include these benchmarks' train splits",
+    "not GPL itself: gemma4:12b queries, an mxbai-rerank-large-v2 teacher, a cosine model with a fixed scale and about 5k steps",
+    "not variance-robust: one run per arm; only the bar recipe has three seeds",
+    "no reranked rows: the served shape has no reranker",
+)
+
+
+def arm_status(root: Path | None = None, base: bool = False) -> dict[str, str]:
+    """Per arm of the run: "trained" (in the committed manifest) or "not run" (not trained by the cutoff)."""
+    trained = set(trained_arms(root))
+    arms = [BASE_ARM] if base else list(BGE_SMALL_ARMS)
+    return {t: ("trained" if t in trained else "not run") for t in arms}
+
+
+def header(rows: Sequence[str], *, root: Path | None = None, base: bool = False, flags: dict | None = None, device: str | None = None) -> dict[str, Any]:
+    """The results header's `adapted_embedders` block: the bar and its arms, the M43 provenance, the twin file, the
+    precision flags and device, and what the file does not show."""
+    root = root or _repo()
+    manifest = read_manifest(root) or {}
+    twins = root / TWINS_FILE
+    from app.eval.embedder_train import sha256_of
+
+    return {"bar": BAR, "arms": {t: {**ARMS[t], "status": s, "weights_sha256": ((manifest.get("arms") or {}).get(t) or {}).get("weights_sha256")}
+                                for t, s in arm_status(root, base).items()},
+            "attempt": ATTEMPT, "recipe": RECIPE, "inits": INITS, "encoding": ENCODING, "declarations_sha256": declarations_sha256(),
+            "rows": list(rows), "m43": m43_provenance(root),
+            "twins_file": {"file": TWINS_FILE, "sha256": sha256_of(twins) if twins.exists() else None},
+            "manifest": {"file": MANIFEST_FILE, "sha256": sha256_of(root / MANIFEST_FILE) if (root / MANIFEST_FILE).exists() else None},
+            "tf32": flags, "device": device, "llm_judge": "no metric uses an LLM judge",
+            "mnrl_twins": "bge-small-mnrl's twin flags are against the all-three query set, a superset of what it trained on: an upper bound",
+            "load_and_score": "every embedder first ranks the check's answer above an unrelated passage with the loaded instance, or the run stops (app/eval/models_2026.py); an adapted one also reproduces its manifest's reference embeddings",
+            "exploratory": "every delta other than the bar row's hybrid delta on the three datasets is descriptive and exploratory",
+            "served_defaults_changed": False, "not_shown": list(NOT_SHOWN)}
+
+
+# ---------------------------------------------------------------- fixture v1 (make bench-adapted-embedders)
+
+
+FIXTURE_REPRODUCE = {"bench/results/neural.json": ("bm25_only", "dense_only@bge-small", "hybrid@bge-small", "dense_only@bge-base", "hybrid@bge-base")}
+HELD_OUT_REPRODUCE = ("bench/results/small_rerankers.json", "held_out", ("hybrid@bge-small",))
+
+
+def fixture_configs(arms: Sequence[str], base: bool = False) -> list:
+    """The base rows of neural.json (bge-base's too for the bge-base file), then dense_only@<tag> and hybrid@<tag> per
+    arm: the same BenchConfig as dense_only@bge-small / hybrid@bge-small with the embedder swapped for ft:<tag>."""
+    from dataclasses import replace
+
+    from app.eval.harness import NEURAL_CONFIGS
+
+    by = {c.name: c for c in NEURAL_CONFIGS}
+    names = ["bm25_only", "dense_only@bge-small", "hybrid@bge-small"] + (["dense_only@bge-base", "hybrid@bge-base"] if base else [])
+    configs = [replace(by[n]) for n in names]
+    for tag in arms:
+        dense, hybrid = row_names(tag, "fixture")
+        bdense, bhybrid = row_names(base_tag(tag), "fixture")
+        configs.append(replace(by["dense_only@bge-small"], name=dense, embedder=embedder_name(tag), parent=bdense))
+        configs.append(replace(by["hybrid@bge-small"], name=hybrid, embedder=embedder_name(tag), parent=bhybrid))
+    return configs
+
+
+def _fixture_twins(twins_by: dict[str, dict[str, dict]], ids: Sequence[str]) -> dict[str, dict[str, list[float]]]:
+    out = {}
+    for name in TRAINING_SETS:
+        out[name] = {"cosine": [twins_by[i][name]["cosine"] for i in ids], "jaccard": [twins_by[i][name]["jaccard"] for i in ids]}
+    return out
+
+
+def _scope_blocks(scores, names, subset, pairs, metrics, twins_cos) -> dict[str, Any]:
+    from app.eval.small_rerankers import scope_rows
+
+    rows, boot = scope_rows(scores, names, subset, pairs, metrics)
+    return {"bootstrap": boot, "results": rows,
+            "subgroups": subgroup_blocks(scores, base_pairs(pairs), subset, twin_splits(twins_cos)),
+            "seed_mean": seed_mean(scores, subset, "fixture")}
+
+
+def run_fixture(root: Path | None = None, *, arms: Sequence[str] | None = None, checkpoint_dir: Path | str | None = None, device: str = "auto",
+                base: bool = False) -> tuple[dict[str, Any], dict[str, Any]]:
+    """(the results blob, its per-question sidecar) for fixture v1: every row through harness.run_config, the code path
+    of neural.json; three scopes; the twin splits of the held-out half; the parents compared with the committed rows."""
+    from datetime import datetime, timezone
+
+    from app.eval.corpus import load_manifest, verify_manifest
+    from app.eval.embedder_train import tf32_flags
+    from app.eval.gold import load_gold
+    from app.eval.harness import CI_METRICS, run_config
+    from app.eval.index_loader import mtime_provenance
+    from app.eval.metrics import aggregate_retrieval
+    from app.eval.models_2026 import free_gpu, reproduces
+    from app.eval.provenance import command_line, device_info, git_sha, git_state, hf_revision, run_provenance, scrub, sha256_file
+    from app.eval.rerank_arms import split_questions
+
+    root = root or _repo()
+    started = git_state(root)
+    files_root = root / "bench" / "corpus" / "files"
+    gold_path = root / "bench" / "gold" / "questions.jsonl"
+    gold = load_gold(gold_path)
+    manifest = load_manifest(root / "bench" / "corpus" / "MANIFEST.json")
+    mismatches = verify_manifest(files_root, manifest)
+    if mismatches:
+        raise RuntimeError("corpus drift:\n" + "\n".join(mismatches))
+    twins_blob, twins_by = read_twins(root)  # the 0.90 assertion again, on the committed flags; raises before any row
+    if checkpoint_dir is not None:
+        os.environ[CHECKPOINT_ENV] = str(checkpoint_dir)
+    for init in (["bge-small", "bge-base"] if base else ["bge-small"]):  # the base rows' snapshots are the pinned ones
+        found = hf_revision(INITS[init]["model"])
+        if found != INITS[init]["revision"]:
+            raise RuntimeError(f"{INITS[init]['model']}: the cached revision is {found}, the pinned one is {INITS[init]['revision']}")
+    arms = list(arms) if arms is not None else [t for t in trained_arms(root) if (t == BASE_ARM) == base]
+    configs = fixture_configs(arms, base=base)
+    n_files = manifest["n_files"]
+    scores: dict[str, dict[str, list[float]]] = {}
+    orders: dict[str, list[list[str]]] = {}
+    rows_meta: dict[str, dict[str, Any]] = {}
+    for cfg in configs:
+        row = run_config(cfg, gold, files_root, n_files=n_files, keep_retrieved=True, mtimes="manifest", check_models=True)
+        scores[cfg.name] = {m: [float(q[m]) for q in row["_per_query_scores"]] for m in CI_METRICS}
+        orders[cfg.name] = row["_retrieved"]
+        rows_meta[cfg.name] = {"settings": row["settings"], "load_and_score": row.get("load_and_score"), "n_chunks": row["n_chunks"],
+                               "latency": row["latency"], "embedder": LOADED.get(cfg.embedder)}
+        free_gpu()
+    names = [c.name for c in configs]
+    pairs = comparisons(names, "fixture")
+    tune_ids, held_ids = split_questions(gold)
+    every = list(range(len(gold)))
+    twins = _fixture_twins(twins_by["fixture"], [q.id for q in gold])
+    twins_cos = {name: t["cosine"] for name, t in twins.items()}
+
+    def rows_of(ids):
+        return [{"id": gold[i].id, "category": gold[i].category, "relevant": gold[i].relevant_ids()} for i in ids]
+
+    import torch  # noqa: F401  (tf32_flags)
+
+    flags = tf32_flags()
+    dev = device_info(device)
+    blob: dict[str, Any] = {
+        "git_sha": git_sha(root), **run_provenance(root=root, started=started), "timestamp": datetime.now(timezone.utc).isoformat(),
+        "command": command_line(), "device": dev, "corpus_sha256": manifest["aggregate_sha256"], "gold_sha256": sha256_file(gold_path),
+        "n_gold": len(gold), "n_files": n_files, "mtimes": mtime_provenance(files_root, "manifest", base=root),
+        "adapted_embedders": header(names, root=root, base=base, flags=flags, device=dev.get("device_name")),
+        "rows": rows_meta,
+        "split": {"rule": "alternate train / test inside each category, gold order (app.eval.rerank_arms.split_questions)", "tune": "train",
+                  "held_out": "test", "tune_ids": [gold[i].id for i in tune_ids], "held_out_ids": [gold[i].id for i in held_ids],
+                  "use": "the bar is read on the held-out half; no choice was made on the tune half; no gold question is a training query"},
+        "seen_documents": "every fixture file is a training source (67 of 71 chunks) or appears in training lists (the 4 validation sources): no split",
+    }
+    for scope, ids in zip(SCOPES, (held_ids, tune_ids, every)):
+        block = _scope_blocks(scores, names, ids, pairs, CI_METRICS, twins_cos)
+        for row in block["results"]:
+            row["retrieval"] = aggregate_retrieval([{**r, "retrieved": orders[row["config"]][i]} for i, r in zip(ids, rows_of(ids))], n_files=n_files).as_dict()
+        if scope != "held_out":
+            block.pop("subgroups")  # the twin splits are read on the held-out half
+        blob[scope] = block
+    committed = [{"config": r["config"], "retrieval": r["retrieval"]} for r in blob["all_questions"]["results"]]
+    held = [{"config": r["config"], "retrieval": r["retrieval"]} for r in blob["held_out"]["results"]]
+    blob["reproduces"] = [reproduces(root, rel, committed, [n for n in rows if n in scores]) for rel, rows in FIXTURE_REPRODUCE.items()]
+    rel, scope, rows = HELD_OUT_REPRODUCE
+    blob["reproduces"].append(reproduces(root, rel, held, [n for n in rows if n in scores], scope=scope))
+    blob["reproduces_all"] = all(b["all"] for b in blob["reproduces"])
+    sidecar = {"schema": SIDECAR_SCHEMA, "dataset": "fixture",
+               "about": ("per-question scores of the results file with the same name (.json), in gold order and unrounded, with each "
+                         "question's twin cosine and Jaccard per training-query set: `make adapted-embedders-rescore` recomputes every "
+                         "interval, paired delta, subgroup and seed mean of its three scopes from them"),
+               "git_sha": blob["git_sha"], "timestamp": blob["timestamp"], "metrics": list(CI_METRICS), "ids": [q.id for q in gold],
+               "categories": [q.category for q in gold], "split": {"tune": tune_ids, "held_out": held_ids}, "scores": scores, "twins": twins}
+    return scrub(blob), sidecar
+
+
+# ---------------------------------------------------------------- BEIR (the runner's adapted-embedders ladder)
+
+
+def seen_flags(root: Path, dataset: str, qrels: dict[str, dict[str, int]]) -> dict[str, dict[str, bool]]:
+    """Leakage risk 3, per BEIR test query, from the qrels and the committed lists (computed by the eval before any
+    adapted row is scored): a relevant document was a training source / appeared in a training list. Every arm trains
+    on all of SciFact's and FiQA's training lists (MNRL on a subset), so the flags are the same for every arm."""
+    from app.eval.distill_queries import QUERIES_FILE, read_jsonl
+    from app.eval.distill_teacher import SCORES_FILE
+
+    queries = [q for q in read_jsonl(root / "bench" / "distill" / QUERIES_FILE) if q["corpus"] == dataset and q["split"] == "train"]
+    train_ids = {q["id"] for q in queries}
+    sources = {q["doc_id"] for q in queries}
+    listed = {c for r in read_jsonl(root / "bench" / "distill" / SCORES_FILE) if r["id"] in train_ids for c in r["candidates"]}
+    return {qid: {"relevant_is_training_source": any(d in sources for d in rel), "relevant_in_training_list": any(d in listed for d in rel)}
+            for qid, rel in qrels.items()}
+
+
+SEEN_SPLITS = ("relevant_is_training_source", "relevant_in_training_list")
+
+
+TREC_ROWS = ("dense@bge-small", "hybrid@bge-small", f"dense@{BAR_ARM}", f"hybrid@{BAR_ARM}")
+
+
+def beir_twins(twins_by: dict[str, dict[str, dict]], dataset: str, ids: Sequence[str]) -> dict[str, dict[str, list[float]]]:
+    missing = [i for i in ids if i not in twins_by.get(dataset, {})]
+    if missing:
+        raise RuntimeError(f"{TWINS_FILE} has no flags for {len(missing)} {dataset} test queries (first {missing[:3]})")
+    return _fixture_twins(twins_by[dataset], ids)
+
+
+def finish_beir(blob: dict[str, Any], per_query: dict[str, list[dict]], seen: dict[str, dict[str, bool]], root: Path | None = None) -> tuple[dict, dict]:
+    """The BEIR results blob with its subgroups and seed mean, and its sidecar (schema adapted-embedders-per-query-v1):
+    every row's per-query scores, the twin cosine and Jaccard per training-query set, both seen-document flags."""
+    from app.eval.beir import PER_QUERY_METRICS
+    from app.eval.provenance import scrub
+
+    root = root or _repo()
+    dataset = blob["dataset"].split("/")[-1]
+    _, twins_by = read_twins(root)
+    first = next(iter(per_query.values()))
+    ids = [r["id"] for r in first]
+    scores = {name: {m: [float(r[m]) for r in rows] for m in PER_QUERY_METRICS} for name, rows in per_query.items()}
+    twins = beir_twins(twins_by, dataset, ids)
+    seen_cols = {k: [bool(seen[i][k]) for i in ids] for k in SEEN_SPLITS}
+    blob["adapted_embedders"].update(beir_extras(scores, ids, blob["bootstrap"], twins, seen_cols, dataset))
+    from app.eval.embedder_train import tf32_flags
+
+    blob["adapted_embedders"].update(tf32=tf32_flags(), device=(blob.get("device") or {}).get("device_name"))
+    sidecar = {"schema": SIDECAR_SCHEMA, "dataset": blob["dataset"], "split": blob["split"],
+               "about": ("per-query scores of the results file with the same name (.json), in the run's query order and unrounded, with "
+                         "each query's twin cosine and Jaccard per training-query set and its two seen-document flags: "
+                         "`make adapted-embedders-rescore` recomputes every interval, delta, subgroup and seed mean from them"),
+               "git_sha": blob.get("git_sha"), "timestamp": blob.get("timestamp"), "metrics": list(PER_QUERY_METRICS), "ids": ids,
+               "scores": scores, "twins": twins, "seen": seen_cols}
+    return scrub(blob), sidecar
+
+
+def beir_extras(scores, ids, boot, twins, seen_cols, dataset) -> dict[str, Any]:
+    """The subgroup splits (twins at 0.80 / 0.85 per arm's query set; the two seen-document flags, the same for every arm)
+    and the seed mean, over every query of the run."""
+    subset = list(range(len(ids)))
+    pairs = [(c["row"], c["other"]) for c in boot.get("comparisons") or []]
+    parents = [(a, b) for a, b in base_pairs(pairs)]
+    for name in scores:  # the parent deltas are the runner's delta_vs_parent, not in comparisons
+        tag = arm_of(name)
+        if tag:
+            for a, b in zip(row_names(tag, "beir"), row_names(base_tag(tag), "beir")):
+                if a == name and b in scores and (a, b) not in parents:
+                    parents.append((a, b))
+    splits = twin_splits({n: t["cosine"] for n, t in twins.items()})
+    splits.update({k: {"any": v} for k, v in seen_cols.items()})
+    return {"subgroups": subgroup_blocks(scores, parents, subset, splits), "seed_mean": seed_mean(scores, subset, "beir"),
+            "subgroup_note": "descriptive only (BEIR): twins at bge-small cosine 0.80 / 0.85 to the arm's training and validation queries; seen-document flags from qrels and the committed lists"}
+
+
+# ---------------------------------------------------------------- every interval again, with no model (make adapted-embedders-rescore)
+
+
+def rescore_fixture(blob: dict, sidecar: dict) -> list[str]:
+    from app.eval.compare import _leaf_differences
+
+    out: list[str] = []
+    for key in ("git_sha", "timestamp"):
+        if sidecar.get(key) != blob.get(key):
+            return [f"{key}: results file {blob.get(key)!r}, sidecar {sidecar.get(key)!r} (not the same run)"]
+    n = len(sidecar["ids"])
+    subsets = {"held_out": sidecar["split"]["held_out"], "tune": sidecar["split"]["tune"], "all_questions": list(range(n))}
+    metrics = tuple(sidecar["metrics"])
+    twins_cos = {name: t["cosine"] for name, t in sidecar["twins"].items()}
+    for scope in SCOPES:
+        stored = blob[scope]["results"]
+        names = [r["config"] for r in stored]
+        pairs = [(r["config"], d["reference"]) for r in stored for d in r.get("deltas", [])]
+        again = _scope_blocks(sidecar["scores"], names, subsets[scope], pairs, metrics, twins_cos)
+        _leaf_differences(f"{scope}.bootstrap", blob[scope]["bootstrap"], again["bootstrap"], out)
+        for a, b in zip(stored, again["results"]):
+            for key in ("n", "ci", "deltas"):
+                _leaf_differences(f"{scope}.{a['config']}.{key}", a.get(key), b.get(key), out)
+            for m in metrics:
+                column = [sidecar["scores"][a["config"]][m][i] for i in subsets[scope]]
+                mean = round(sum(column) / len(column), 4)
+                if a["retrieval"].get(m) != mean:
+                    out.append(f"{scope}.{a['config']}.retrieval.{m}: results file {a['retrieval'].get(m)!r}, mean of the sidecar {mean!r}")
+        _leaf_differences(f"{scope}.seed_mean", blob[scope].get("seed_mean"), again["seed_mean"], out)
+        if "subgroups" in blob[scope]:
+            _leaf_differences(f"{scope}.subgroups", blob[scope]["subgroups"], again["subgroups"], out)
+    return out
+
+
+def rescore_beir(blob: dict, sidecar: dict) -> list[str]:
+    from app.eval import beir
+    from app.eval.compare import _leaf_differences
+
+    out: list[str] = []
+    for key in ("git_sha", "timestamp"):
+        if sidecar.get(key) != blob.get(key):
+            return [f"{key}: results file {blob.get(key)!r}, sidecar {sidecar.get(key)!r} (not the same run)"]
+    metrics = sidecar["metrics"]
+    rows = []
+    for stored in blob["results"]:
+        columns = sidecar["scores"][stored["config"]]
+        rows.append({"config": stored["config"], "parent": stored.get("parent"), "retrieval": stored["retrieval"],
+                     "_per_query": [dict(zip(metrics, values), id=qid) for qid, *values in zip(sidecar["ids"], *(columns[m] for m in metrics))]})
+    boot = blob["bootstrap"]
+    again = beir.attach_confidence(rows, len(sidecar["ids"]), seed=boot["seed"], n_boot=boot["n_boot"], published=blob.get("published"),
+                                   comparisons=[(c["row"], c["other"]) for c in boot.get("comparisons") or []])
+    _leaf_differences("bootstrap.comparisons", boot.get("comparisons"), again.get("comparisons"), out)
+    for stored, row in zip(blob["results"], rows):
+        for key in ("ci", "delta_vs_parent", "delta_vs_bm25"):
+            _leaf_differences(f"{stored['config']}.{key}", stored.get(key), row.get(key), out)
+        for m in metrics:
+            column = sidecar["scores"][stored["config"]][m]
+            mean = round(sum(column) / len(column), 4)
+            if stored["retrieval"].get(m) != mean:
+                out.append(f"{stored['config']}.retrieval.{m}: results file {stored['retrieval'].get(m)!r}, mean of the sidecar {mean!r}")
+    extras = beir_extras(sidecar["scores"], sidecar["ids"], boot, sidecar["twins"], sidecar["seen"], blob["dataset"].split("/")[-1])
+    for key in ("subgroups", "seed_mean"):
+        _leaf_differences(key, blob["adapted_embedders"].get(key), extras[key], out)
+    return out
+
+
+def rescore_file(blob: dict, sidecar: dict) -> list[str]:
+    """Route a sidecar of this schema to its dataset's recomputation (per_question._other_schema calls this)."""
+    return rescore_fixture(blob, sidecar) if sidecar.get("dataset") == "fixture" else rescore_beir(blob, sidecar)
+
+
+def result_files(root: Path | None = None) -> list[str]:
+    root = root or _repo()
+    rels = [*RESULTS.values(), *BASE_RESULTS.values(), CPU_RERUN_FILE]
+    reruns = sorted(p.relative_to(root).as_posix() for rel in rels for p in (root / rel).parent.glob(Path(rel).stem + "_rerun*.json")
+                    if not p.name.endswith(".per_query.json"))
+    return [r for r in [*rels, *reruns] if (root / r).exists()]
+
+
+def rescore(root: Path | None = None) -> tuple[int, list[str]]:
+    """(files checked, differences) over every committed adapted-embedders results file with rows."""
+    from app.eval import per_question
+
+    root = root or _repo()
+    checked, problems = 0, []
+    for rel in result_files(root):
+        path = root / rel
+        side = per_question.sidecar_path(path)
+        if not side.exists():
+            problems.append(f"{rel}: no sidecar {side.name}")
+            continue
+        problems += [f"{rel}: {d}" for d in rescore_file(json.loads(path.read_text()), json.loads(side.read_text()))]
+        checked += 1
+    return checked, problems
+
+
+# ---------------------------------------------------------------- the bar, from the three files
+
+
+def _delta(rows: dict[str, dict], name: str, reference: str, boot: dict | None) -> dict | None:
+    from app.eval.small_rerankers import _delta_to
+
+    row = rows.get(name)
+    return _delta_to(row, reference, boot) if row else None
+
+
+def _scope(blob: dict, dataset: str) -> tuple[dict[str, dict], dict | None, dict]:
+    """(rows by name, bootstrap, the block holding subgroups / seed mean) of the scope the bar reads."""
+    if dataset == "fixture":
+        s = blob["held_out"]
+        return {r["config"]: r for r in s["results"]}, s.get("bootstrap"), s
+    return {r["config"]: r for r in blob["results"]}, blob.get("bootstrap"), blob.get("adapted_embedders") or {}
+
+
+def outcome(legs: Sequence[dict | None], trained: bool = True) -> str:
+    """BAR["outcomes"] from the bar row's three legs (each a delta block, None when not measured)."""
+    if not trained:
+        return "not run"
+    if any(leg is not None and not leg["lo"] > 0 for leg in legs):
+        return "does not pass"
+    if all(leg is not None and leg["lo"] > 0 for leg in legs) and len(legs) == len(CORPORA):
+        return "passes"
+    return "open"
+
+
+def fixture_reading(block: dict | None, arm: str = BAR_ARM) -> dict[str, Any]:
+    """The declared reading of the fixture leg: "adaptation beyond templated twins" only when the not-twinned held-out
+    subgroup at cosine 0.85 has at least 10 questions and its bar-delta interval is above zero."""
+    t = TWINS["fixture_reading_threshold"]
+    groups = [g for g in (block or {}).get("subgroups") or [] if g["split"] == f"twin_cosine_{t:.2f}" and g["row"] == f"hybrid@{arm}"
+              and g["other"] == "hybrid@bge-small"]
+    clean = next((g for g in groups if g["group"] == "not flagged"), None)
+    twinned = next((g for g in groups if g["group"] == "flagged"), None)
+    ok = bool(clean and clean["n"] >= TWINS["min_subgroup"] and clean.get("ndcg@10") and clean["ndcg@10"]["lo"] > 0)
+    return {"reading": FIXTURE_READINGS[0] if ok else FIXTURE_READINGS[1], "threshold": t, "not_twinned": clean, "twinned": twinned}
+
+
+def bar_table(root: Path | None = None, base: bool = False) -> dict[str, Any]:
+    """The bar read off the committed files: per arm and dataset its dense and hybrid deltas against the base rows and
+    the verdict word; the bar row's outcome (BAR["outcomes"]); the seed line; the fixture twin reading; the control."""
+    from app.eval.report import verdict
+
+    root = root or _repo()
+    files = BASE_RESULTS if base else RESULTS
+    blobs = {d: json.loads((root / rel).read_text()) for d, rel in files.items() if (root / rel).exists()}
+    status = arm_status(root, base)
+    bar_arm = BASE_ARM if base else BAR_ARM
+    table: dict[str, Any] = {"base": base, "bar_arm": bar_arm, "datasets": {}, "arms": [], "status": status}
+    scopes = {}
+    for dataset, blob in blobs.items():
+        rows, boot, extra = _scope(blob, dataset)
+        scopes[dataset] = (rows, boot, extra)
+        table["datasets"][dataset] = {"file": files[dataset], "git_sha": blob.get("git_sha"), "device": (blob.get("device") or {}).get("device_name"),
+                                      "n": (boot or {}).get("n_queries"), "dirty": blob.get("working_tree_dirty"),
+                                      "parent": {row_names(base_tag(bar_arm), dataset)[k]: (rows.get(row_names(base_tag(bar_arm), dataset)[k]) or {}).get("ci", {}).get("ndcg@10") for k in (0, 1)}}
+    for tag in [bar_arm] if base else list(BGE_SMALL_ARMS):
+        entry: dict[str, Any] = {"tag": tag, "role": ARMS[tag]["role"], "status": status.get(tag), "datasets": {}}
+        for dataset, (rows, boot, extra) in scopes.items():
+            dense, hybrid = row_names(tag, dataset)
+            bdense, bhybrid = row_names(base_tag(tag), dataset)
+            if hybrid not in rows and dense not in rows:
+                continue
+            cell = {"dense": (rows.get(dense) or {}).get("ci", {}).get("ndcg@10"), "hybrid": (rows.get(hybrid) or {}).get("ci", {}).get("ndcg@10"),
+                    "dense_vs_base": _delta(rows, dense, bdense, boot), "hybrid_vs_base": _delta(rows, hybrid, bhybrid, boot),
+                    "hybrid_vs_dense": _delta(rows, hybrid, dense, boot)}
+            if tag != BAR_ARM and not base and (tag == CONTROL_ARM or tag in SEED_ARMS):
+                cell["hybrid_vs_bar"] = _delta(rows, hybrid, row_names(BAR_ARM, dataset)[1], boot)
+                cell["dense_vs_bar"] = _delta(rows, dense, row_names(BAR_ARM, dataset)[0], boot)
+            for key in ("dense_vs_base", "hybrid_vs_base"):
+                cell[key + "_verdict"] = verdict(cell[key]) if cell[key] else None
+            entry["datasets"][dataset] = cell
+        legs = [(entry["datasets"].get(d) or {}).get("hybrid_vs_base") for d in CORPORA]
+        entry["form_holds"] = outcome(legs, trained=status.get(tag) == "trained")
+        table["arms"].append(entry)
+    bar = next(a for a in table["arms"] if a["tag"] == bar_arm)
+    legs = [(bar["datasets"].get(d) or {}).get("hybrid_vs_base") for d in CORPORA]
+    table["outcome"] = outcome(legs, trained=status.get(bar_arm) == "trained")
+    table["losses"] = [d for d, leg in zip(CORPORA, legs) if leg is not None and leg["hi"] < 0]
+    table["legs"] = dict(zip(CORPORA, legs))
+    if not base:
+        ran = [a for a in table["arms"] if a["tag"] in SEED_ARMS and a["status"] == "trained"]
+        table["seeds"] = {"n": len(ran), "k": sum(1 for a in ran if a["form_holds"] == "passes"), "ran": [a["tag"] for a in ran],
+                          "mean": {d: (extra or {}).get("seed_mean") for d, (_, _, extra) in scopes.items()}}
+        table["fixture_reading"] = fixture_reading(scopes.get("fixture", ({}, None, {}))[2])
+        table["fixture_reading_080"] = fixture_reading_at(scopes.get("fixture", ({}, None, {}))[2], 0.80)
+    return table
+
+
+def fixture_reading_at(block: dict | None, threshold: float, arm: str = BAR_ARM) -> dict[str, Any]:
+    """The twin split at another threshold, reported beside the reading (0.80)."""
+    groups = [g for g in (block or {}).get("subgroups") or [] if g["split"] == f"twin_cosine_{threshold:.2f}" and g["row"] == f"hybrid@{arm}"
+              and g["other"] == "hybrid@bge-small"]
+    return {"threshold": threshold, "not_twinned": next((g for g in groups if g["group"] == "not flagged"), None),
+            "twinned": next((g for g in groups if g["group"] == "flagged"), None)}
+
+
+def seeds_line(table: dict[str, Any]) -> str:
+    """'the bar's form holds for k of n seeds' (n = the seeds that ran), or 'one run (seed 0)'."""
+    s = table.get("seeds") or {}
+    if s.get("n", 0) <= 1:
+        return "one run (seed 0)"
+    return f"the bar's form holds for {s['k']} of {s['n']} seeds"
+
+
+# ---------------------------------------------------------------- command line
+
+
+def _parse(argv: list[str] | None):
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--check", action="store_true", help="load every embedder named and run its load-and-score check")
+    p.add_argument("--out", type=Path, default=None, help="run fixture v1 and write this results file with its per-question sidecar")
+    p.add_argument("--rescore", action="store_true", help="recompute every interval of the committed files from their sidecars (no model)")
+    p.add_argument("--bar", action="store_true", help="print the bar, arm by arm, from the committed files")
+    p.add_argument("--twins", action="store_true", help="write bench/distill/embedder_twins.json (reads the test queries' text)")
+    p.add_argument("--base", action="store_true", help="the bge-base files (--out, --bar)")
+    p.add_argument("--arms", default=None, help="comma-separated arm tags (default: every arm the manifest holds)")
+    p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    p.add_argument("--checkpoint-dir", type=Path, default=None, help=f"where the checkpoints are (default: ${CHECKPOINT_ENV})")
+    p.add_argument("--data-dir", type=Path, default=_repo() / "bench" / "external", help="--twins: where the BEIR datasets are")
+    return p.parse_args(argv)
+
+
+def _fmt(block: dict | None) -> str:
+    return f"{block['delta']:+.4f} [{block['lo']:+.4f}, {block['hi']:+.4f}]" if block else "-"
+
+
+def main(argv: list[str] | None = None) -> int:
+    from app.eval.provenance import scrub
+
+    args = _parse(argv)
+    root = _repo()
+    if args.rescore:
+        checked, problems = rescore(root)
+        for line in problems[:60]:
+            print(f"  - {line}")
+        print(f"adapted-embedders intervals: {'OK' if not problems else f'{len(problems)} differences'}, {checked} results files recomputed from their per-query sidecars")
+        return 1 if problems else 0
+    if args.bar:
+        table = bar_table(root, base=args.base)
+        for arm in table["arms"]:
+            cells = "; ".join(f"{d} {_fmt(c['hybrid_vs_base'])}" for d, c in arm["datasets"].items())
+            print(f"{arm['form_holds']:14s} {arm['tag']:32s} {cells}")
+        print(f"bar ({table['bar_arm']}): {table['outcome']}" + (f"; {seeds_line(table)}; fixture: {table['fixture_reading']['reading']}" if not args.base else ""))
+        return 0
+    if args.device == "cpu":
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    if args.checkpoint_dir is not None:
+        os.environ[CHECKPOINT_ENV] = str(args.checkpoint_dir)
+    arms = [t.strip() for t in args.arms.split(",") if t.strip()] if args.arms else None
+    if args.twins:
+        blob = run_twins(root, args.data_dir, args.device)
+        (root / TWINS_FILE).write_text(json.dumps(scrub(blob), indent=1) + "\n")
+        print(json.dumps({"assertion": blob["assertion"], "subgroups": blob["subgroups"]}))
+        print(f"wrote {TWINS_FILE}")
+        return 0
+    if args.out is not None:
+        from app.eval import per_question
+
+        blob, sidecar = run_fixture(root, arms=arms, checkpoint_dir=args.checkpoint_dir, device=args.device, base=args.base)
+        out = args.out if args.out.is_absolute() else root / args.out
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(blob, indent=2) + "\n")
+        per_question.write(per_question.sidecar_path(out), sidecar)
+        for row in blob["held_out"]["results"]:
+            print("held_out", row["config"], row["ci"]["ndcg@10"], [(d["reference"], d["ndcg@10"]) for d in row.get("deltas", [])])
+        print("reproduces", json.dumps([{k: b.get(k) for k in ("file", "all")} for b in blob["reproduces"]]))
+        print(f"wrote {out}")
+        return 0
+    if not args.check:
+        print("nothing to do: pass --check, --out, --rescore, --bar or --twins", file=sys.stderr)
+        return 2
+    from app.eval.models_2026 import check_embedder, free_gpu
+    from app.eval.provenance import model_device
+
+    names = [INITS["bge-small"]["embedder"], *([INITS["bge-base"]["embedder"]] if args.base else [])]
+    names += [embedder_name(t) for t in (arms if arms is not None else trained_arms(root))]
+    failed = 0
+    for name in names:
+        line: dict[str, Any] = {"embedder": name}
+        try:
+            emb, record = resolve_embedder(name, args.checkpoint_dir, root)
+            line.update(record, device=model_device(emb._model), dim=emb.dim, **emb.provenance(), check=check_embedder(emb))
+            line["ok"] = True
+            del emb
+        except Exception as e:  # noqa: BLE001 - reported per model, then the exit status says it failed
+            line.update(ok=False, error=scrub(f"{type(e).__name__}: {e}"))
+            failed += 1
+        free_gpu()
+        print(json.dumps(line), flush=True)
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

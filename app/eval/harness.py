@@ -358,7 +358,7 @@ def _check_models(index, cfg: BenchConfig) -> dict[str, Any]:
     from app.eval.models_2026 import check_embedder, check_reranker
 
     out: dict[str, Any] = {}
-    if cfg.embedder.startswith("st:"):
+    if cfg.embedder.startswith(("st:", "ft:")):  # ft: an adapted embedder (M48)
         out["embedder"] = check_embedder(index.embedder)
     model = getattr(getattr(index, "rerank_fn", None), "model", None)
     if cfg.enable_rerank and isinstance(getattr(index, "rerank_fn", None), CrossEncoderReranker):

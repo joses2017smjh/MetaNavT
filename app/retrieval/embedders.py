@@ -184,12 +184,23 @@ def weights_dtype(model) -> str | None:
 class SentenceTransformerEmbedder:
     name = "st"
 
-    def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5"):
+    def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5", revision: str | None = None):
+        """revision (M48): when given, the cached snapshot must be that commit (refs/main, app.eval.provenance.hf_revision)
+        and it is the one loaded; any other cached revision raises. None loads by hub id, as every committed row did."""
+        if revision is not None:  # before the library is imported: a wrong snapshot is refused on any machine
+            from app.eval.provenance import hf_revision
+
+            found = hf_revision(model_name)
+            if found != revision:
+                raise RuntimeError(f"{model_name}: the cached revision is {found}, the pinned one is {revision}")
         from sentence_transformers import SentenceTransformer
 
         self.model_name = model_name
+        self.revision = revision
         self.dtype = MODEL_DTYPES.get(model_name)  # None: no model_kwargs, the library's default
         kwargs = {"model_kwargs": {"dtype": self.dtype}} if self.dtype else {}
+        if revision is not None:
+            kwargs["revision"] = revision
         self.snapshot_view = None  # what a SNAPSHOT_VIEWS model's view dropped; None: loaded by its hub id, as committed
         source = model_name
         if model_name in SNAPSHOT_VIEWS:
