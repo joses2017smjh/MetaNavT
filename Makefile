@@ -402,6 +402,16 @@ distill-train: ## train one student by the declared recipe: STUDENT=student-mini
 distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
 	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)
 
+# ---- M51 Phase 2: the two students retrained by M43's RECIPE with only max_length 256 (attempt 2; declared in
+# app/eval/small_rerankers_shapes.py PHASE2 before any M51 row ran). Reads M43's synthetic queries and teacher scores
+# only: no test query, gold question or label. The checkpoints are not committed; the manifest is.
+.PHONY: distill-train-ml256 distill-manifest-ml256
+distill-train-ml256: ## M51 Phase 2: retrain one student at max_length 256 as attempt 2 under the tag <student>-ml256 (STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir>; TRAIN_MICRO=n; TRAIN_MAX_STEPS=n is a smoke run the manifest refuses; needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)-ml256/ (not committed)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --max-length 256 --attempt 2 --tag $(STUDENT)-ml256 --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO)) $(if $(TRAIN_MAX_STEPS),--max-steps $(TRAIN_MAX_STEPS))
+
+distill-manifest-ml256: ## M51 Phase 2: the retrained students' weights sha256, recipe, loss curve, training device and reference logits, from their checkpoints (CHECKPOINTS=<dir>; refuses a smoke run, a dirty tree or another attempt) -> bench/distill/students_ml256.json
+	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS) --students student-minilm-l6-ml256,student-minilm-l12-ml256 --attempt 2 --out bench/distill/students_ml256.json
+
 # ---- M51: the small rerankers at cheaper shapes (app/eval/small_rerankers_shapes.py) ----
 # The grid (6 models x depth 5/10/20 x max_length 256/512), the budget bands, the families and the answer levels were
 # declared before any row at a new shape was measured; these two targets are CPU-only and read committed files.
