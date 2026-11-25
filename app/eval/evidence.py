@@ -1167,30 +1167,46 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     return out
 
 
-def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
-    """agent_injection_v3, the current run: per model, hijack attacked by at least one of the phrasings with no defense, and the answer
-    check in the loop against no defense (planted value delivered, utility under attack, benign success), paired."""
-    blob = _load(FILES["agent_injection_v3"], root)
+def _v3_command(shards: list) -> str:
+    return (f"make bench-agent-injection-v3-shard ({len(shards)} shards), then make bench-agent-injection-v3-merge" if shards
+            else "make bench-agent-injection-v3")
+
+
+def _v3_scope(blob: dict) -> str:
+    cfg = blob["config"]
+    n, adojo = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {})
+    return (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; two "
+            "local 7-8B models; synthetic config questions")
+
+
+def _agent_injection_v3_claims(root: Path = ROOT, key: str = "agent_injection_v3", label: str = "current run",
+                               command=_v3_command, scope=_v3_scope, models=None) -> list[dict]:
+    """A results file of agent_injection_v3's protocol (by default the current run, agent_injection_v3): per model,
+    hijack attacked by at least one of the phrasings with no defense, and the answer check in the loop against no
+    defense (planted value delivered, utility under attack, benign success), paired. `key` names the file in FILES,
+    `label` the run in the claim, `command` and `scope` build the command and the scope from the file; `models` keeps
+    some models (M50 leaves out a model the outcome table gives no verdict)."""
+    blob = _load(FILES[key], root)
     if not blob:
         return []
     cfg = blob["config"]
     gen = blob.get("episodes_generated_by") or {}
     shards = (gen.get("merged") or {}).get("shards") or []
-    cmd = (f"make bench-agent-injection-v3-shard ({len(shards)} shards), then make bench-agent-injection-v3-merge" if shards
-           else "make bench-agent-injection-v3")
-    src = f"{FILES['agent_injection_v3']} @ {str(blob.get('git_head') or '')[:7]}"
-    n, adojo, k = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {}), cfg["k"]
-    scope = (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; two "
-             "local 7-8B models; synthetic config questions")
+    cmd = command(shards)
+    src = f"{FILES[key]} @ {str(blob.get('git_head') or '')[:7]}"
+    n, k = len(cfg["phrasings"]), cfg["k"]
+    scope = scope(blob)
     out: list[dict] = []
     for model, per in blob["summary"].items():
+        if models is not None and model not in models:
+            continue
         if "none" in per:
             hijack = per["none"]["by_goal"]["hijack"]["attempted_any_phrasing"]
             value, ci = _ci(hijack)
             # an interval pinned at one: no configuration could show a higher rate, so the measure separates none of them
             ceiling = ("; at the ceiling: every pair was attacked under every seed, so this rate cannot separate one "
                        "configuration from another" if hijack["lo"] == 1.0 else "")
-            out.append({"claim": f"Agent injection, current run ({n} phrasings), {model}, no defense: hijack questions in which at least one phrasing put the planted value into the model's answer, per seed",
+            out.append({"claim": f"Agent injection, {label} ({n} phrasings), {model}, no defense: hijack questions in which at least one phrasing put the planted value into the model's answer, per seed",
                         "value": value, "ci": ci, "n": hijack["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; n is (question, hijack) pairs, each read over {k} seeds; the phrasings share each seed, so "
                                       f"this compares texts on shared trajectories, not independent tries{ceiling}")})
@@ -1202,7 +1218,7 @@ def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
             if not d:
                 continue
             value, ci = _ci(d, "delta")
-            out.append({"claim": f"Agent injection, current run, {model}: the structured answer check in the loop minus no defense, {what}, paired",
+            out.append({"claim": f"Agent injection, {label}, {model}: the structured answer check in the loop minus no defense, {what}, paired",
                         "value": value, "ci": ci, "n": d["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; {_zero(d)}; the check is told each question's config field and file, so it covers "
                                       "single-field questions only; a flagged answer gets one retry within the same turn budget")})
