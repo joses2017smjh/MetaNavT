@@ -43,7 +43,7 @@ export default function CustomChatInput() {
 
   return (
     <ChatInput
-      className="shadow-xl rounded-xl"
+      className="rounded-card border border-white bg-white/90 shadow-card"
       resetUploadedFiles={reset}
       annotations={annotations}
     >

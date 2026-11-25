@@ -116,11 +116,16 @@ export default function PlansPanel() {
 
   return (
     <section
-      className="w-full rounded-xl bg-white/80 dark:bg-black/40 p-4 space-y-3 text-sm"
+      className="w-full space-y-5 rounded-card border border-white bg-white/90 p-5 text-sm shadow-card sm:p-8"
       aria-label="File plans"
     >
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Review file changes before applying</h2>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-4">
+          <p className="eyebrow">Files</p>
+          <h2 className="display text-[clamp(2rem,4vw,3rem)] leading-[1.02]">
+            Review file changes before applying
+          </h2>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -130,12 +135,12 @@ export default function PlansPanel() {
           Refresh
         </Button>
       </div>
-      <p className="text-muted-foreground">
+      <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
         Review the manifest, then paste a short-lived approval token from your
         authorized operator. A changed file requires a new plan.
       </p>
 
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="source path (relative to DATA_DIR)"
           value={src}
@@ -152,10 +157,9 @@ export default function PlansPanel() {
           placeholder="your name (logged if the API has no keys)"
           value={actor}
           onChange={(e) => setActor(e.target.value)}
-          className="w-40"
+          className="w-full sm:w-72"
         />
         <Button
-          size="sm"
           onClick={() => void propose()}
           disabled={!src || !dst || busy !== null}
         >
@@ -164,12 +168,17 @@ export default function PlansPanel() {
       </div>
 
       {error && (
-        <p role="alert" className="text-red-600 dark:text-red-400">
+        <p
+          role="alert"
+          className="rounded-2xl border border-destructive/25 bg-destructive/[0.04] px-4 py-3 text-[15px] leading-relaxed text-destructive"
+        >
           {error}
         </p>
       )}
 
-      <h3 className="font-medium">Pending ({pending.length})</h3>
+      <h3 className="pt-2 font-serif text-2xl font-medium tracking-[-0.02em] text-brand-deep">
+        Pending ({pending.length})
+      </h3>
       {pending.length === 0 && (
         <p className="text-muted-foreground">
           No plans waiting for a decision.
@@ -179,14 +188,16 @@ export default function PlansPanel() {
         {pending.map((plan) => (
           <li
             key={plan.plan_id}
-            className="flex flex-wrap items-center gap-2 rounded-lg border p-2"
+            className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/[0.07] bg-white p-4 shadow-pill"
           >
-            <code className="flex-1 break-all">
+            <code className="flex-1 break-all font-mono text-[13px] font-medium text-ink">
               {plan.src} → {plan.dst}
             </code>
             <details className="w-full">
-              <summary className="cursor-pointer">Review manifest</summary>
-              <pre className="overflow-auto max-h-64 whitespace-pre-wrap text-xs">
+              <summary className="w-fit cursor-pointer rounded text-muted-foreground underline-offset-4 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                Review manifest
+              </summary>
+              <pre className="my-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-peach/70 px-3.5 py-3 font-mono text-xs leading-relaxed text-ink/85">
                 {JSON.stringify(plan.review, null, 2)}
               </pre>
               <Button
@@ -233,7 +244,7 @@ export default function PlansPanel() {
 
       {decided.length > 0 && (
         <details>
-          <summary className="cursor-pointer">
+          <summary className="w-fit cursor-pointer rounded font-serif text-2xl font-medium tracking-[-0.02em] text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Decided ({decided.length})
           </summary>
           <ul className="mt-2 space-y-1">
@@ -242,10 +253,10 @@ export default function PlansPanel() {
                 key={plan.plan_id}
                 className="flex flex-wrap items-center gap-2"
               >
-                <span className="rounded px-2 py-0.5 border">
+                <span className="rounded-full border border-black/10 bg-white px-2.5 py-1 text-[11px] uppercase leading-none tracking-[0.08em] text-muted-foreground shadow-pill">
                   {plan.status}
                 </span>
-                <code className="break-all">
+                <code className="break-all font-mono text-[13px] text-ink">
                   {plan.src} → {plan.dst}
                 </code>
                 {plan.actor && (
