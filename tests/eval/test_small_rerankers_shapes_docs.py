@@ -34,7 +34,8 @@ def test_the_committed_sidecars_hold_every_invariant_and_per_row_total(dataset):
 @needs_files
 def test_the_committed_frontier_is_recomputed_from_the_committed_files():
     checked, problems = shapes.rescore(ROOT)
-    assert checked == 4 and problems == [], problems[:10]
+    phase2 = [rel for rel in (*shapes.ML256_RESULTS.values(), shapes.ML256_FRONTIER_FILE) if (ROOT / rel).exists()]
+    assert checked == 4 + len(phase2) and problems == [], problems[:10]  # the three shapes files, the frontier, and Phase 2's once committed
     front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
     assert front["working_tree_dirty"] is False and front["headline"]["family"] == "F1"
     assert [a for a, _ in shapes.ANSWER_LEVELS].count(front["answers"]["F1"]["answer"]) == 1

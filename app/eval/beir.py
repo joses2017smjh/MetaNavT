@@ -210,8 +210,24 @@ def small_reranker_shape_configs(rows: str = "all") -> list[BeirConfig]:
     return configs
 
 
+def small_reranker_ml256_configs() -> list[BeirConfig]:
+    """M51 Phase 2: the parent, the attempt-1 students and their inits at depth 5/10/20 x max_length 256 (anchors: they
+    must equal M51's committed shapes rows) and the two students retrained at 256 (attempt 2) at the same shapes."""
+    from app.eval import small_rerankers as sr
+    from app.eval import small_rerankers_shapes as shapes
+
+    by = {c.name: c for c in DEFAULT_CONFIGS}
+    configs = [replace(by[sr.PARENT], parent=None)]
+    for name, tag, depth, cap in shapes.ml256_rows():
+        student = tag in sr.STUDENTS or tag in shapes.PHASE2["students"]
+        configs.append(BeirConfig(name=name, mode="hybrid", embedder=BGE_SMALL, reranker=tag if student else sr.model_of(tag),
+                                  rerank_top=depth, precision=shapes.PRECISION, max_length=cap, parent=sr.PARENT))
+    return configs
+
+
 SMALL_RERANKERS_LADDER = "small-rerankers"
 SMALL_RERANKER_SHAPES_LADDER = "small-rerankers-shapes"
+SMALL_RERANKER_ML256_LADDER = "small-rerankers-ml256"
 # The committed files a small-rerankers run compares its recomputed rows with: the parent and the app's default reranker
 # with the dataset's first file, the teacher with M41's row of the same name.
 SMALL_RERANKERS_REPRODUCE = {"scifact": (("bench/results/beir_scifact.json", ("hybrid@bge-small", RERANK_FP32_512)),
@@ -220,7 +236,8 @@ SMALL_RERANKERS_REPRODUCE = {"scifact": (("bench/results/beir_scifact.json", ("h
                                       ("bench/results/beir_fiqa_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",)))}
 LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS,
            **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()},
-           SMALL_RERANKERS_LADDER: small_reranker_configs(), SMALL_RERANKER_SHAPES_LADDER: small_reranker_shape_configs()}
+           SMALL_RERANKERS_LADDER: small_reranker_configs(), SMALL_RERANKER_SHAPES_LADDER: small_reranker_shape_configs(),
+           SMALL_RERANKER_ML256_LADDER: small_reranker_ml256_configs()}
 
 
 def models_2026_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
@@ -934,6 +951,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
     p.add_argument("--checkpoint-dir", type=Path, default=None, help="small-rerankers: where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS)")
     p.add_argument("--rows", choices=("all", "anchors"), default="all", help="small-rerankers-shapes: every row, or the parent and M43's six 20/512 rows only")
+    p.add_argument("--ml256-checkpoint-dir", type=Path, default=None, help="small-rerankers-ml256: where the attempt-2 checkpoints are (default: $SMALL_RERANKER_ML256_CHECKPOINTS)")
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -970,6 +988,15 @@ def main(argv: list[str] | None = None) -> int:
                    reproduce_extra=_same_ranking_and_intervals, per_query_extras=shapes.pair_token_lengths,
                    header={"small_rerankers": shapes.header([c.name for c in configs], rows=args.rows)},
                    resolve_reranker=shapes.resolver(args.checkpoint_dir, root))
+    if args.ladder == SMALL_RERANKER_ML256_LADDER:  # M51 Phase 2: the same conventions, anchored on M51's committed shapes files
+        from app.eval import small_rerankers_shapes as shapes
+
+        names = {c.name for c in configs}
+        m41 = dict(check_models=True, comparisons=shapes.comparisons([c.name for c in configs], with_parent=False), keep_per_query=True,
+                   reproduce=((shapes.RESULTS[args.dataset], tuple(n for n in shapes.ml256_anchor_rows() if n in names)),),
+                   reproduce_extra=_same_ranking_and_intervals, per_query_extras=shapes.pair_token_lengths,
+                   header={"small_rerankers": shapes.header([c.name for c in configs], phase2=True)},
+                   resolve_reranker=shapes.resolver(args.checkpoint_dir, root, args.ml256_checkpoint_dir))
     blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval, **m41)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -977,6 +1004,8 @@ def main(argv: list[str] | None = None) -> int:
     per_query_extra = blob.pop("_per_query_extra", None)
     if args.ladder == SMALL_RERANKER_SHAPES_LADDER:
         shapes.annotate_beir(blob, per_query_extra)  # per row: ranking_digest, n_top10_differs_from_parent, truncation totals
+    if args.ladder == SMALL_RERANKER_ML256_LADDER:
+        shapes.annotate_beir(blob, per_query_extra, shapes.N_ML256_ANCHOR_ROWS)
     out.write_text(json.dumps(blob, indent=2) + "\n")
     if per_query is not None:
         from app.eval import per_question

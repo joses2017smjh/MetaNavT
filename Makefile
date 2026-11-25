@@ -459,6 +459,31 @@ small-rerankers-shapes-bar: ## print the 36 cells and both family answers from t
 small-rerankers-shapes-replicate: ## the replicate's files (*_shapes_rep.json, the other device) against the result's, row by row (CPU) -> bench/results/small_rerankers_shapes_replicate.json
 	$(PYTHON) -m app.eval.small_rerankers_shapes --replicate
 
+# M51 Phase 2 rows: the two students retrained at 256 (attempt 2) at depth 5/10/20 x max_length 256, beside the
+# attempt-1 students and their inits at the same shapes (the anchors: they must equal the committed shapes rows).
+# CHECKPOINTS=<attempt-1 dir>, ML256_CHECKPOINTS=<attempt-2 dir>; the CPU targets read the committed files only.
+.PHONY: small-rerankers-ml256-check bench-small-rerankers-ml256 bench-beir-small-rerankers-ml256 bench-beir-fiqa-small-rerankers-ml256 small-rerankers-ml256-anchors small-rerankers-ml256-frontier small-rerankers-ml256-bar
+small-rerankers-ml256-check: ## Phase 2: load the attempt-2 students, the attempt-1 students and their inits at max_length 256, check each pin and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --check --phase2 $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS))
+
+bench-small-rerankers-ml256: ## Phase 2 on fixture v1: held-out half, tune half, all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --phase2 --out $(or $(OUT),bench/results/small_rerankers_ml256.json) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS))
+
+bench-beir-small-rerankers-ml256: ## Phase 2 on BEIR SciFact (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/beir_scifact_small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_scifact_small_rerankers_ml256.json)
+
+bench-beir-fiqa-small-rerankers-ml256: ## Phase 2 on BEIR FiQA (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/beir_fiqa_small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_ml256.json)
+
+small-rerankers-ml256-anchors: ## Phase 2: the parent, the attempt-1 students and their inits at 5/10/20 x 256 of each Phase-2 file against M51's committed shapes rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
+	$(PYTHON) -m app.eval.small_rerankers_shapes --anchors --phase2 $(FILES)
+
+small-rerankers-ml256-frontier: ## Phase 2: per attempt-2 cell its cost (the attempt-1 row's), deltas vs no reranker (95% and F3's Bonferroni level), vs the attempt-1 student and vs the init, and the F3 answer (CPU) -> bench/results/small_rerankers_ml256_frontier.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier --phase2
+
+small-rerankers-ml256-bar: ## Phase 2: print the six attempt-2 cells and the F3 answer from its frontier file -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --bar --phase2
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)

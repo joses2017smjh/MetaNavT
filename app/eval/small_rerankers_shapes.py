@@ -8,8 +8,11 @@
     python -m app.eval.small_rerankers_shapes --out bench/results/small_rerankers_shapes.json [--checkpoint-dir <dir>]
     python -m app.eval.small_rerankers_shapes --anchors [files]   # the parent and six 20/512 rows against M43's rows
     python -m app.eval.small_rerankers_shapes --frontier | --rescore | --bar | --replicate     # CPU, committed files only
+    python -m app.eval.small_rerankers_shapes --phase2 --out bench/results/small_rerankers_ml256.json \
+        --checkpoint-dir <attempt-1 dir> --ml256-checkpoint-dir <attempt-2 dir>   # Phase 2 rows (also --anchors, --frontier, --bar)
 
-The BEIR rows are the BEIR runner's `small-rerankers-shapes` ladder (app/eval/beir.py; --rows anchors for the smoke).
+The BEIR rows are the BEIR runner's `small-rerankers-shapes` ladder (app/eval/beir.py; --rows anchors for the smoke), and
+Phase 2's its `small-rerankers-ml256` ladder.
 
 M43 (app/eval/small_rerankers.py) measured six small cross-encoders and two distilled students at one shape, the single
 host's: the fused top 20 of hybrid@bge-small at max_length 512 in fp32. At that shape every model's API-process peak on
@@ -462,6 +465,73 @@ def anchor_rows() -> list[str]:
     return [PARENT, *(row_name(tag, *ANCHOR) for tag in MODELS)]
 
 
+# Phase 2 (attempt 2): the students retrained at max_length 256, run beside the attempt-1 students and their inits at
+# the same shapes, which must reproduce M51's committed shapes files (the anchors).
+ML256_RESULTS = {"fixture": "bench/results/small_rerankers_ml256.json", "scifact": "bench/results/beir_scifact_small_rerankers_ml256.json",
+                 "fiqa": "bench/results/beir_fiqa_small_rerankers_ml256.json"}
+ML256_FRONTIER_FILE = "bench/results/small_rerankers_ml256_frontier.json"
+ML256_ANCHOR_TAGS = ("minilm-l6", "minilm-l12", "student-minilm-l6", "student-minilm-l12")
+N_ML256_ANCHOR_ROWS = 1 + len(ML256_ANCHOR_TAGS) * len(PHASE2["shapes"])  # the parent and 12 rows
+ML256_ROWS_NOTE = ("the parent, the attempt-1 students and their inits at depth 5/10/20 x max_length 256 (the anchors: they must "
+                   "equal M51's committed shapes files), and the two attempt-2 students at the same shapes")
+
+
+def ml256_rows() -> list[tuple[str, str, int, int]]:
+    """(row name, tag, depth, max_length) of a Phase-2 run, a model's rows next to each other: the anchors' tags, then
+    the attempt-2 students."""
+    return [(row_name(tag, d, m), tag, d, m) for tag in (*ML256_ANCHOR_TAGS, *PHASE2["students"]) for d, m in PHASE2["shapes"]]
+
+
+def ml256_anchor_rows() -> list[str]:
+    return [PARENT, *(name for name, tag, _, _ in ml256_rows() if tag in ML256_ANCHOR_TAGS)]
+
+
+def ml256_checkpoint(tag: str, checkpoint_dir: Path | str | None, root: Path | None = None, manifest: dict | None = None) -> tuple[Path, dict]:
+    """(the directory of Phase-2 student `tag`, its students_ml256.json entry), after checking the entry is attempt 2
+    trained at max_length 256 and the weights there have the sha256 the committed manifest records. The checkpoints
+    are not in the repository: `checkpoint_dir` (or $SMALL_RERANKER_ML256_CHECKPOINTS) says where they are."""
+    import os
+
+    if tag not in PHASE2["students"]:
+        raise KeyError(f"unknown Phase-2 student {tag!r}; known: {sorted(PHASE2['students'])}")
+    base = checkpoint_dir or os.environ.get("SMALL_RERANKER_ML256_CHECKPOINTS")
+    if not base:
+        raise sr.CheckpointError(f"{tag}: no checkpoint directory (pass --ml256-checkpoint-dir or set SMALL_RERANKER_ML256_CHECKPOINTS)")
+    if manifest is None:
+        path = (root or ROOT) / PHASE2["manifest"]
+        if not path.exists():
+            raise sr.CheckpointError(f"{PHASE2['manifest']} is missing: no Phase-2 student has been trained and recorded")
+        manifest = json.loads(path.read_text())
+    entry = (manifest.get("students") or {}).get(tag)
+    if not entry:
+        raise sr.CheckpointError(f"{tag} is not in {PHASE2['manifest']}")
+    if entry.get("attempt") != PHASE2["attempt"] or (entry.get("recipe") or {}).get("max_length") != PHASE2["recipe_delta"]["max_length"]:
+        raise sr.CheckpointError(f"{tag}: the manifest records attempt {entry.get('attempt')} at max_length "
+                                 f"{(entry.get('recipe') or {}).get('max_length')}, not Phase 2's")
+    weights = Path(base) / entry["directory"] / sr.WEIGHTS_FILE
+    if not weights.exists():
+        raise sr.CheckpointError(f"{tag}: {entry['directory']}/{sr.WEIGHTS_FILE} is not in the checkpoint directory")
+    found = sr.sha256_of(weights)
+    if found != entry["weights_sha256"]:
+        raise sr.CheckpointError(f"{tag}: {sr.WEIGHTS_FILE} has sha256 {found}, the manifest records {entry['weights_sha256']}")
+    return weights.parent, entry
+
+
+def loader(resolve, device: str = "auto"):
+    """(tag, max_length) -> (model, record) for rerank_rows: what its own loader does, for every tag including Phase 2's
+    (whose provenance is named by its tag, as an attempt-1 student's is)."""
+    def load(tag: str, cap: int):
+        from app.eval.provenance import model_provenance
+        from app.retrieval.rerank import get_cross_encoder
+
+        source, record, after_load = resolve(tag)
+        model = get_cross_encoder(source, precision=PRECISION, max_length=cap, device=None if device == "auto" else device, raise_errors=True)
+        named = tag if tag in sr.STUDENTS or tag in PHASE2["students"] else sr.model_of(tag)
+        return model, {**model_provenance(named, "reranker"), **record, **(after_load(model) if after_load else {})}
+
+    return load
+
+
 def parse_row(name: str) -> tuple[str, int, int] | None:
     """(tag, depth, max_length) of a reranked row's name; None for the parent or another name."""
     m = re.fullmatch(r"hybrid\+(.+)@bge-small/fp32-(\d+)/top(\d+)", name)
@@ -471,7 +541,8 @@ def parse_row(name: str) -> tuple[str, int, int] | None:
 def comparisons(names: list[str], *, with_parent: bool = True) -> list[tuple[str, str]]:
     """(row, other) for every paired delta: each reranked row against the unreranked parent (the bar; on BEIR that is
     the row's delta_vs_parent, so with_parent=False), against the same model's 20/512 row (the cost of cheapening;
-    descriptive), and a student against its init at the same shape."""
+    descriptive), and a student against its init at the same shape. A Phase-2 student (attempt 2) is compared with the
+    attempt-1 student and with the published init, both at the same shape."""
     present = set(names)
     out = []
     for name in names:
@@ -484,9 +555,9 @@ def comparisons(names: list[str], *, with_parent: bool = True) -> list[tuple[str
         anchor = row_name(tag, *ANCHOR)
         if name != anchor and anchor in present:
             out.append((name, anchor))
-        init = (sr.STUDENTS.get(tag) or PHASE2["students"].get(tag))
-        if init and row_name(init, depth, cap) in present:
-            out.append((name, row_name(init, depth, cap)))
+        for init in (sr.STUDENTS.get(tag), PHASE2["students"].get(tag), sr.STUDENTS.get(PHASE2["students"].get(tag, ""))):
+            if init and row_name(init, depth, cap) in present:
+                out.append((name, row_name(init, depth, cap)))
     return out
 
 
@@ -531,12 +602,24 @@ def derived(extra: dict[str, Any], parent_extra: dict[str, Any] | None) -> dict[
     return out
 
 
-def resolver(checkpoint_dir: Path | str | None = None, root: Path | None = None):
+def resolver(checkpoint_dir: Path | str | None = None, root: Path | None = None, ml256_dir: Path | str | None = None):
     """M43's resolver (pinned revisions; a student's verified checkpoint and reference logits), plus M51's pin of
-    bge-reranker-v2-m3: its cached snapshot must be BGE_REVISION, or the run stops."""
+    bge-reranker-v2-m3: its cached snapshot must be BGE_REVISION, or the run stops. Phase 2's tags resolve to their
+    verified attempt-2 checkpoints (ml256_checkpoint) in `ml256_dir`, and must give their manifest's reference logits."""
     inner = sr.resolver(checkpoint_dir, root)
 
     def resolve(name: str):
+        if name in PHASE2["students"]:
+            directory, entry = ml256_checkpoint(name, ml256_dir, root)
+
+            def after_load(model):
+                from app.eval.distill_train import check_reference
+
+                return {"reference_check": check_reference(model, entry, root or ROOT)}
+
+            return str(directory), {"model": name, "student_of": sr.model_of(sr.STUDENTS[PHASE2["students"][name]]),
+                                    "attempt_1_twin": PHASE2["students"][name], "weights_sha256": entry["weights_sha256"],
+                                    "attempt": entry.get("attempt"), "manifest": PHASE2["manifest"], "revision": None, "neural": True}, after_load
         source, record, after_load = inner(name)
         if sr.tag_of(name) == "bge-rerank":
             from app.eval.provenance import hf_revision
@@ -550,10 +633,11 @@ def resolver(checkpoint_dir: Path | str | None = None, root: Path | None = None)
     return resolve
 
 
-def header(row_names: list[str] | None = None, rows: str = "all") -> dict[str, Any]:
+def header(row_names: list[str] | None = None, rows: str = "all", phase2: bool = False) -> dict[str, Any]:
     """The results header's `small_rerankers` block (the key M43's sidecar routing reads), with a `shapes` block in
-    place of M43's single `shape` and M51's bar in place of M43's."""
-    return {"milestone": "M51", "parent": PARENT,
+    place of M43's single `shape` and M51's bar in place of M43's; a Phase-2 run adds its `phase2` block."""
+    extra = {"phase2": {**PHASE2, "rows": ML256_ROWS_NOTE, "anchor_files": RESULTS}} if phase2 else {}
+    return {"milestone": "M51", "parent": PARENT, **extra,
             "shapes": {"depths": list(DEPTHS), "max_lengths": list(MAX_LENGTHS), "precision": PRECISION, "cells": len(GRID),
                        "anchor": {"rerank_top": ANCHOR[0], "max_length": ANCHOR[1], "rows": "M43's committed rows, which this run must reproduce"},
                        "rows_filter": rows},
@@ -601,10 +685,12 @@ def grid_rows(tags: list[str] | None = None, *, anchors_only: bool = False, skip
 
 
 def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, checkpoint_dir: Path | str | None = None, device: str = "auto",
-                retrieve_k: int = 50, load=None, embedder: str | None = None, count_tokens=None) -> tuple[dict[str, Any], dict[str, Any]]:
+                retrieve_k: int = 50, load=None, embedder: str | None = None, count_tokens=None, phase2: bool = False,
+                ml256_dir: Path | str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     """(the results blob, its per-question sidecar) for fixture v1 at every shape of the grid. `load` (tests) replaces
     the model loader: (tag, max_length) -> (model, record); `count_tokens` the tokenizer count (default: the model's
-    own, pair_token_lengths); `embedder` replaces bge-small."""
+    own, pair_token_lengths); `embedder` replaces bge-small. phase2: Phase 2's rows (ml256_rows), anchored on M51's
+    committed shapes file; the attempt-2 checkpoints are in `ml256_dir`."""
     from datetime import datetime, timezone
 
     from app.eval.harness import CI_METRICS
@@ -620,9 +706,10 @@ def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, chec
     files_root = root / "bench" / "corpus" / "files"
     n_files = manifest["n_files"]
     orders: dict[str, list[list[str]]] = {PARENT: [_paths(pairs) for pairs in fused]}
-    rows = grid_rows(tags)
-    ranked, infos, loads = sr.rerank_rows(gold, fused, rows, resolve=resolver(checkpoint_dir, root), load=load, device=device, parent=orders[PARENT],
-                                          check_cap=True, count_tokens=count_tokens or pair_token_lengths)
+    rows = ml256_rows() if phase2 else grid_rows(tags)
+    resolve = resolver(checkpoint_dir, root, ml256_dir)
+    ranked, infos, loads = sr.rerank_rows(gold, fused, rows, resolve=resolve, load=load or (loader(resolve, device) if phase2 else None), device=device,
+                                          parent=orders[PARENT], check_cap=True, count_tokens=count_tokens or pair_token_lengths)
     orders.update(ranked)
     extra: dict[str, dict[str, Any]] = {PARENT: {"truncated_pairs": None, "rank_hash": hash_columns(orders[PARENT])}}
     row_info: dict[str, dict[str, Any]] = {}
@@ -647,7 +734,7 @@ def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, chec
         "git_sha": git_sha(root), **run_provenance(root=root, started=started), "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command_line(), "device": device_info(device), "corpus_sha256": manifest["aggregate_sha256"], "gold_sha256": sha256_file(root / "bench" / "gold" / "questions.jsonl"),
         "n_gold": len(gold), "n_files": n_files, "mtimes": mtime_provenance(files_root, "manifest", base=root), "n_chunks": len(index.chunks),
-        "small_rerankers": header(names),
+        "small_rerankers": header(names, phase2=phase2),
         "first_stage": {"config": PARENT, "retrieve_k": retrieve_k, "reranked": "the fused top d chunks of each row; the rest keep the fused order",
                         "embedder": {**model_provenance(embedder, "embedder"), "device": model_device(getattr(index.embedder, "_model", None)),
                                      **(index.embedder.provenance() if hasattr(index.embedder, "provenance") else {}),
@@ -667,8 +754,8 @@ def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, chec
     blob["reproduces"] = [reproduces(root, rel, blob["results"], [n for n in want if n in orders]) for rel, want in sr.FIXTURE_REPRODUCE.items()
                           if any(n in orders for n in want)]
     del blob["results"]
-    blob["anchors"] = fixture_anchors(root, blob)
-    blob["does_not_show"] = DOES_NOT_SHOW["fixture"]
+    blob["anchors"] = (fixture_anchors(root, blob, RESULTS["fixture"], ml256_anchor_rows(), N_ML256_ANCHOR_ROWS) if phase2 else fixture_anchors(root, blob))
+    blob["does_not_show"] = DOES_NOT_SHOW["fixture"] + (DOES_NOT_SHOW["phase2"] if phase2 else [])
     sidecar = {"schema": sr.SIDECAR_SCHEMA,
                "about": "per-question scores of the results file with the same name (.json), in gold order and unrounded: "
                         "`make small-rerankers-shapes-rescore` recomputes every interval and paired delta of its three scopes from them, "
@@ -686,20 +773,22 @@ def _delta_block(row: dict, reference: str) -> dict | None:
     return None
 
 
-def fixture_anchors(root: Path, blob: dict) -> dict[str, Any]:
+def fixture_anchors(root: Path, blob: dict, committed_rel: str | None = None, names: list[str] | None = None, n_rows: int = N_ANCHOR_ROWS) -> dict[str, Any]:
     """The parent and the six 20/512 rows of this run against M43's committed fixture file, scope by scope (its rows
     are under each scope: it has no top-level results): retrieval and ci; each 20/512 row's delta block against the
-    parent; each student's against its init at 20/512. All three scopes must compare N_ANCHOR_ROWS rows."""
-    path = root / sr.RESULTS["fixture"]
-    committed = json.loads(path.read_text())
-    out: dict[str, Any] = {"file": sr.RESULTS["fixture"], "git_sha": committed.get("git_sha"), "device": (committed.get("device") or {}).get("device_name"),
-                           "compared": "retrieval, ci, the delta against hybrid@bge-small and a student's delta against its init at 20/512, per scope",
+    parent; each student's against its init at 20/512. All three scopes must compare N_ANCHOR_ROWS rows. Phase 2 passes
+    M51's committed shapes file, its 13 anchor rows (the parent, the attempt-1 students and their inits at 5/10/20 x
+    256) and n_rows = 13; a student's init delta is then at the row's own shape."""
+    committed_rel = committed_rel or sr.RESULTS["fixture"]
+    committed = json.loads((root / committed_rel).read_text())
+    out: dict[str, Any] = {"file": committed_rel, "git_sha": committed.get("git_sha"), "device": (committed.get("device") or {}).get("device_name"),
+                           "compared": "retrieval, ci, the delta against hybrid@bge-small and a student's delta against its init at the row's shape, per scope",
                            "scopes": {}}
     for scope in sr.SCOPES:
         mine = {r["config"]: r for r in blob[scope]["results"]}
         theirs = {r["config"]: r for r in committed[scope]["results"]}
         rows: dict[str, Any] = {}
-        for name in anchor_rows():
+        for name in (names or anchor_rows()):
             if name not in mine:
                 continue
             if name not in theirs:
@@ -709,37 +798,37 @@ def fixture_anchors(root: Path, blob: dict) -> dict[str, Any]:
             refs = [] if name == PARENT else [PARENT]
             cell = parse_row(name)
             if cell and cell[0] in sr.STUDENTS:
-                refs.append(row_name(sr.STUDENTS[cell[0]], *ANCHOR))
+                refs.append(row_name(sr.STUDENTS[cell[0]], cell[1], cell[2]))
             for ref in refs:
                 entry[f"delta_vs {ref} equal"] = _delta_block(mine[name], ref) == _delta_block(theirs[name], ref) and _delta_block(mine[name], ref) is not None
             entry["equal"] = all(v for k, v in entry.items() if k.endswith("equal"))
             rows[name] = entry
-        out["scopes"][scope] = {"rows": rows, "n_compared": len(rows), "all": len(rows) == N_ANCHOR_ROWS and all(e["equal"] for e in rows.values())}
+        out["scopes"][scope] = {"rows": rows, "n_compared": len(rows), "all": len(rows) == n_rows and all(e["equal"] for e in rows.values())}
     out["all"] = all(s["all"] for s in out["scopes"].values())
     return out
 
 
-def beir_anchors(blob: dict) -> dict[str, Any]:
-    """The BEIR run's reproduction of M43's committed file: N_ANCHOR_ROWS rows, each with retrieval, ci and the parent
-    delta equal (a metric difference stops the commit); ranking_equal reported, never stopped on."""
+def beir_anchors(blob: dict, n_rows: int = N_ANCHOR_ROWS) -> dict[str, Any]:
+    """The BEIR run's reproduction of M43's committed file (Phase 2: of M51's): n_rows rows, each with retrieval, ci and
+    the parent delta equal (a metric difference stops the commit); ranking_equal reported, never stopped on."""
     blocks = blob.get("reproduces") or []
     block = blocks[0] if isinstance(blocks, list) and blocks else (blocks or {})
     rows = block.get("rows") or {}
     metric = {n: bool(e.get("equal") and e.get("ci_equal", False) and (n == PARENT or e.get("delta_vs_parent_equal", False))) for n, e in rows.items()}
-    return {"file": block.get("file"), "n_compared": len(rows), "metrics_equal": len(rows) == N_ANCHOR_ROWS and all(metric.values()),
+    return {"file": block.get("file"), "n_compared": len(rows), "metrics_equal": len(rows) == n_rows and all(metric.values()),
             "metric_differences": sorted(n for n, ok in metric.items() if not ok),
             "ranking_differences": sorted(n for n, e in rows.items() if e.get("ranking_equal") is False)}
 
 
-def annotate_beir(blob: dict, extra: dict[str, dict] | None) -> dict:
+def annotate_beir(blob: dict, extra: dict[str, dict] | None, n_anchor_rows: int = N_ANCHOR_ROWS) -> dict:
     """Per row of a BEIR shapes file: ranking_digest, n_top10_differs_from_parent and the truncation totals (from the
     per-query extras the sidecar keeps); and the file's anchors and what it does not show."""
     extra = extra or {}
     for row in blob["results"]:
         if row["config"] in extra:
             row.update(derived(extra[row["config"]], extra.get(PARENT) if row["config"] != PARENT else None))
-    blob["anchors"] = beir_anchors(blob)
-    blob["does_not_show"] = DOES_NOT_SHOW["beir"]
+    blob["anchors"] = beir_anchors(blob, n_anchor_rows)
+    blob["does_not_show"] = DOES_NOT_SHOW["beir"] + (DOES_NOT_SHOW["phase2"] if n_anchor_rows == N_ML256_ANCHOR_ROWS else [])
     return blob
 
 
@@ -749,6 +838,10 @@ DOES_NOT_SHOW = {
                 "students' quality on an unseen corpus: they were trained on synthetic queries over every fixture chunk (never a gold question or label)",
                 "equivalence: a delta against 20/512 that covers zero is no measured difference, not the same quality",
                 "answer quality: no LLM answer is generated or judged", RUN_TIME_ONLY],
+    "phase2": ["the attempt-2 students are one training run each (seed 0), retrained after M43's attempt-1 numbers were seen; "
+               "their cost is the same-architecture attempt-1 row's (not timed again)",
+               "the training corpora: like attempt 1, they read every fixture chunk and 1,500 SciFact and 1,800 FiQA documents "
+               "(never a test query or label)"],
     "beir": ["host timing or memory: the serving bar, unrun (scripts/time_reranker_on_host.py)",
              "students' quality on an unseen corpus: they read 1,500 SciFact and 1,800 FiQA documents (never a test query or label; see the exposure file)",
              "the publishers' training data overlap with BEIR test sets: not audited for any model",
@@ -905,6 +998,16 @@ def rescore(root: Path | None = None, files: dict[str, str] | None = None, *, wi
         _leaf_differences("frontier", {k: v for k, v in stored.items() if k not in PROVENANCE_KEYS}, {k: v for k, v in again.items() if k not in PROVENANCE_KEYS}, out)
         problems += [f"{FRONTIER_FILE}: {d}" for d in out]
         checked += 1
+    if files is None and with_frontier:  # Phase 2's files (anchored on the shapes files) and its frontier, once committed
+        n, more = rescore(root, ML256_RESULTS, with_frontier=False)
+        checked, problems = checked + n, problems + more
+        if (root / ML256_FRONTIER_FILE).exists():
+            stored = json.loads((root / ML256_FRONTIER_FILE).read_text())
+            again = ml256_frontier(root)
+            out = []
+            _leaf_differences("ml256_frontier", {k: v for k, v in stored.items() if k not in PROVENANCE_KEYS}, {k: v for k, v in again.items() if k not in PROVENANCE_KEYS}, out)
+            problems += [f"{ML256_FRONTIER_FILE}: {d}" for d in out]
+            checked += 1
     return checked, problems
 
 
@@ -1056,6 +1159,91 @@ def write_frontier(root: Path | None = None) -> dict:
     return blob
 
 
+def ml256_frontier(root: Path | None = None) -> dict[str, Any]:
+    """Phase 2's frontier: per attempt-2 cell (the two students retrained at 256, at depth 5/10/20 x 256) its cost (the
+    same-architecture attempt-1 row's: same architecture, tokenizer and cap), its band from that cost, per dataset its
+    delta against hybrid@bge-small (95%, verdict) and, in F3, at the Bonferroni level k = 3 with the sign-flip p-value;
+    its delta against the attempt-1 student and against the published init at the same shape; the F3 answer."""
+    from datetime import datetime, timezone
+
+    from app.eval.provenance import command_line, git_sha, git_state, run_provenance, sha256_file
+    from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, paired_delta_ci, resample_indices
+
+    root = root or ROOT
+    started = git_state(root)
+    pairs = {d: _load_pair(root, rel) for d, rel in ML256_RESULTS.items()}
+    missing = [ML256_RESULTS[d] for d, p in pairs.items() if p is None]
+    if missing:
+        raise FileNotFoundError(f"the Phase-2 frontier needs all three Phase-2 files; missing: {missing}")
+    cpu, limit = load_cpu(root), memory_limit_mib(root)
+    exposure_blob = json.loads((root / EXPOSURE_FILE).read_text())
+    family = set(family_cells("F3"))
+    k = FAMILIES["F3"]["k"]
+    columns, idx = {}, {}
+    for dataset, (blob, side) in pairs.items():
+        subset = side["split"]["held_out"] if dataset == "fixture" else list(range(len(side["ids"])))
+        columns[dataset] = (side, subset)
+        idx[dataset] = resample_indices(len(subset), n_boot=ADJUSTED["n_boot"], seed=ADJUSTED["seed"])
+    col = lambda dataset, name: [columns[dataset][0]["scores"][name][METRIC][i] for i in columns[dataset][1]]  # noqa: E731
+    cells_out: list[dict[str, Any]] = []
+    by_family: dict[str, dict] = {}
+    for tag, twin in PHASE2["students"].items():
+        for depth, cap in PHASE2["shapes"]:
+            name = row_name(tag, depth, cap)
+            cell: dict[str, Any] = {"config": name, "tag": tag, "attempt": PHASE2["attempt"], "attempt_1_twin": row_name(twin, depth, cap),
+                                    "depth": depth, "max_length": cap, "band": band_of(twin, depth, cap, cpu, limit),
+                                    "indicative_cpu": cpu_cost(twin, depth, cap, cpu), "cost_source": PHASE2["cost_source"],
+                                    "families": ["F3"] if (tag, depth, cap) in family else [], "datasets": {}}
+            for dataset, (blob, side) in pairs.items():
+                vs = _file_delta(dataset, blob, name, PARENT)
+                entry: dict[str, Any] = {"vs_parent": vs, "verdict": verdict(vs)}
+                if cell["families"]:
+                    row, parent = col(dataset, name), col(dataset, PARENT)
+                    entry["adjusted"] = {"F3": adjusted_delta(row, parent, k, idx[dataset])}
+                    entry["sign_flip_p"] = sign_flip_p(row, parent, SENSITIVITY["permutation"]["draws"], SENSITIVITY["permutation"]["seed"])
+                    if dataset != "fixture":
+                        exposed = set(exposure_blob["datasets"][dataset]["exposed_query_ids"])
+                        keep = [i for i, q in enumerate(side["ids"]) if q not in exposed]
+                        r2 = [side["scores"][name][METRIC][i] for i in keep]
+                        p2 = [side["scores"][PARENT][METRIC][i] for i in keep]
+                        d, lo, hi = paired_delta_ci(r2, p2, resample_indices(len(keep), n_boot=DEFAULT_N_BOOT, seed=DEFAULT_SEED))
+                        entry["exposure_excluded"] = {"n": len(keep), "delta": round(d, 4), "lo": round(lo, 4), "hi": round(hi, 4)}
+                    by_family.setdefault(name, {})[dataset] = {"ci95": vs, "adjusted": entry["adjusted"]["F3"]}
+                entry["vs_attempt_1"] = _file_delta(dataset, blob, name, row_name(twin, depth, cap))
+                entry["vs_init"] = _file_delta(dataset, blob, name, row_name(sr.STUDENTS[twin], depth, cap))
+                stored = blob["rerankers"].get(name, {}) if dataset == "fixture" else {r["config"]: r for r in blob["results"]}.get(name, {})
+                entry.update({key: stored.get(key) for key in ("truncated_pairs", "n_top10_differs_from_parent", "ranking_digest")})
+                cell["datasets"][dataset] = entry
+            cell["passes_at_95"] = all(cell["datasets"][d]["verdict"] == "win" for d in DATASETS)
+            cells_out.append(cell)
+    answer = {**family_answer(by_family), "k": k, "percentiles": [round(x, 4) for x in adjusted_percentiles(k)]}
+    anchor_diffs = {}
+    for dataset, (blob, side) in pairs.items():
+        m51 = _load_pair(root, RESULTS[dataset])
+        anchor_diffs[dataset] = sum(1 for n in ml256_anchor_rows() for m in side["metrics"] for a, b in zip(side["scores"][n][m], m51[1]["scores"][n][m]) if a != b)
+    inputs = [*ML256_RESULTS.values(), *(_sidecar_rel(r) for r in ML256_RESULTS.values()), CPU_FILE, LIMIT_FILE, EXPOSURE_FILE, PHASE2["manifest"],
+              *(RESULTS[d] for d in DATASETS)]
+    return {"git_sha": git_sha(root), **run_provenance(root=root, started=started), "timestamp": datetime.now(timezone.utc).isoformat(),
+            "command": command_line(), "label": f"M51 Phase 2 ({PHASE2['label']}): quality x indicative CPU cost per cell, and the F3 answer (CPU, from committed files only)",
+            "inputs_sha256": {rel: sha256_file(root / rel) for rel in inputs},
+            "devices": {d: (b.get("device") or {}).get("device_name") for d, (b, _) in pairs.items()},
+            "limit_mib": limit, "family": {"F3": {**{key: v for key, v in FAMILIES["F3"].items() if key != "cells"},
+                                                  "cells": [row_name(*c) for c in FAMILIES["F3"]["cells"]], "alpha": adjusted_alpha(k)}},
+            "settings": {"ci95": "the stored 95% intervals of the three files (2000 resamples, seed 0)", "adjusted": ADJUSTED,
+                         "sensitivity": SENSITIVITY, "exposure_excluded_interval": "95%, 2000 resamples, seed 0, over the unexposed queries"},
+            "answers": {"F3": answer}, "family_control": "F3 is its own family, never merged into F1 or F2; it does not modify the headline",
+            "cells": cells_out, "anchors": {d: (b.get("anchors") or {}) for d, (b, _) in pairs.items()},
+            "anchor_per_query_differences_vs_m51": anchor_diffs,
+            "does_not_show": DOES_NOT_SHOW_FRONTIER[:6] + DOES_NOT_SHOW["phase2"] + DOES_NOT_SHOW_FRONTIER[7:]}
+
+
+def write_ml256_frontier(root: Path | None = None) -> dict:
+    root = root or ROOT
+    blob = ml256_frontier(root)
+    (root / ML256_FRONTIER_FILE).write_text(json.dumps(blob, indent=2) + "\n")
+    return blob
+
+
 def _fmt(block: dict | None) -> str:
     return f"{block['delta']:+.4f} [{block['lo']:+.4f}, {block['hi']:+.4f}]" if block else "-"
 
@@ -1137,21 +1325,25 @@ def _parse(argv: list[str] | None):
     p.add_argument("--models", default=None, help="comma-separated tags (default: all six)")
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     p.add_argument("--checkpoint-dir", type=Path, default=None, help="where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS)")
+    p.add_argument("--phase2", action="store_true", help="Phase 2 (attempt 2): --check, --out, --anchors, --frontier and --bar act on its rows and files")
+    p.add_argument("--ml256-checkpoint-dir", type=Path, default=None, help="Phase 2: where the attempt-2 checkpoints are (default: $SMALL_RERANKER_ML256_CHECKPOINTS)")
     return p.parse_args(argv)
 
 
-def check_models(tags: list[str], *, checkpoint_dir: Path | str | None = None, device: str = "auto") -> list[dict[str, Any]]:
+def check_models(tags: list[str], *, checkpoint_dir: Path | str | None = None, device: str = "auto", caps: tuple[int, ...] = MAX_LENGTHS,
+                 ml256_dir: Path | str | None = None) -> list[dict[str, Any]]:
     """make small-rerankers-shapes-check: each model at both caps, loaded as serving loads it, its pin (a candidate's
     cached revision, bge's BGE_REVISION, a student's sha256 and reference logits) checked, its loaded_max_length and
-    dtype read back, and M41's load-and-score check run. One record per (model, cap); nothing falls back."""
+    dtype read back, and M41's load-and-score check run. One record per (model, cap); nothing falls back. Phase 2:
+    its rows' tags at 256 only, the attempt-2 students resolved from `ml256_dir`."""
     from app.eval.models_2026 import check_reranker, free_gpu
     from app.eval.provenance import model_device, scrub
     from app.retrieval.rerank import cross_encoder_provenance, get_cross_encoder
 
-    resolve = resolver(checkpoint_dir)
+    resolve = resolver(checkpoint_dir, None, ml256_dir)
     out = []
     for tag in tags:
-        for cap in MAX_LENGTHS:
+        for cap in caps:
             line: dict[str, Any] = {"tag": tag, "max_length": cap, "precision": PRECISION}
             try:
                 source, record, after_load = resolve(tag)
@@ -1173,9 +1365,10 @@ def check_models(tags: list[str], *, checkpoint_dir: Path | str | None = None, d
     return out
 
 
-def anchor_report(paths: list[Path], root: Path | None = None) -> tuple[bool, list[str]]:
+def anchor_report(paths: list[Path], root: Path | None = None, phase2: bool = False) -> tuple[bool, list[str]]:
     """Before the results commit: each shapes file's anchors (N_ANCHOR_ROWS rows; a metric difference fails), and how
-    many of its anchor rows' per-query values differ from M43's sidecars (expected 0)."""
+    many of its anchor rows' per-query values differ from M43's sidecars (expected 0). Phase 2: its 13 anchor rows
+    against M51's committed shapes files and sidecars."""
     from app.eval import per_question
 
     root = root or ROOT
@@ -1185,8 +1378,9 @@ def anchor_report(paths: list[Path], root: Path | None = None) -> tuple[bool, li
         side = json.loads(per_question.sidecar_path(Path(path)).read_text())
         dataset = "fixture" if "held_out" in blob else blob["dataset"].split("/")[-1]
         a = blob.get("anchors") or {}
-        m43 = _load_pair(root, sr.RESULTS[dataset])[1]
-        values = sum(1 for n in anchor_rows() if n in side["scores"] for m in side["metrics"] for x, y in zip(side["scores"][n][m], m43["scores"][n][m]) if x != y)
+        ref = _load_pair(root, (RESULTS if phase2 else sr.RESULTS)[dataset])[1]
+        names = ml256_anchor_rows() if phase2 else anchor_rows()
+        values = sum(1 for n in names if n in side["scores"] for m in side["metrics"] for x, y in zip(side["scores"][n][m], ref["scores"][n][m]) if x != y)
         if dataset == "fixture":
             good = bool(a.get("all"))
             detail = {s: (v["n_compared"], v["all"]) for s, v in a.get("scopes", {}).items()}
@@ -1194,7 +1388,7 @@ def anchor_report(paths: list[Path], root: Path | None = None) -> tuple[bool, li
             good = bool(a.get("metrics_equal"))
             detail = {"n_compared": a.get("n_compared"), "metric_differences": a.get("metric_differences"), "ranking_differences": a.get("ranking_differences")}
         ok = ok and good and values == 0
-        lines.append(f"{dataset}: anchors {'OK' if good else 'DIFFER'} {json.dumps(detail)}; anchor per-query values differing from M43's sidecar: {values}; "
+        lines.append(f"{dataset}: anchors {'OK' if good else 'DIFFER'} {json.dumps(detail)}; anchor per-query values differing from {'M51' if phase2 else 'M43'}'s sidecar: {values}; "
                      f"device {(blob.get('device') or {}).get('device_name')}; git_sha {blob.get('git_sha')} dirty {blob.get('working_tree_dirty')}")
     return ok, lines
 
@@ -1226,14 +1420,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"small-rerankers-shapes: {'OK' if not problems else f'{len(problems)} differences'}, {checked} files recomputed from the per-query sidecars")
         return 1 if problems or not checked else 0
     if args.frontier:
-        blob = write_frontier(root)
+        blob = write_ml256_frontier(root) if args.phase2 else write_frontier(root)
         print("\n".join(bar_lines(blob)))
-        print(f"wrote {FRONTIER_FILE}")
+        print(f"wrote {ML256_FRONTIER_FILE if args.phase2 else FRONTIER_FILE}")
         return 0
     if args.bar:
-        path = root / FRONTIER_FILE
+        path = root / (ML256_FRONTIER_FILE if args.phase2 else FRONTIER_FILE)
         if not path.exists():
-            print(f"{FRONTIER_FILE} is missing: run make small-rerankers-shapes-frontier", file=sys.stderr)
+            print(f"{path.relative_to(root)} is missing: run make small-rerankers-{'ml256' if args.phase2 else 'shapes'}-frontier", file=sys.stderr)
             return 1
         print("\n".join(bar_lines(json.loads(path.read_text()))))
         return 0
@@ -1247,7 +1441,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {REPLICATE_FILE}")
         return 0
     if args.anchors is not None:
-        ok, lines = anchor_report(args.anchors or [root / rel for rel in RESULTS.values()], root)
+        ok, lines = anchor_report(args.anchors or [root / rel for rel in (ML256_RESULTS if args.phase2 else RESULTS).values()], root, phase2=args.phase2)
         print("\n".join(lines))
         return 0 if ok else 1
     if args.device == "cpu":
@@ -1262,7 +1456,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.out is not None:
         from app.eval import per_question
 
-        blob, sidecar = run_fixture(root, tags=tags, checkpoint_dir=args.checkpoint_dir, device=args.device)
+        blob, sidecar = run_fixture(root, tags=tags, checkpoint_dir=args.checkpoint_dir, device=args.device, phase2=args.phase2, ml256_dir=args.ml256_checkpoint_dir)
         out = args.out if args.out.is_absolute() else root / args.out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
@@ -1272,7 +1466,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {out}")
         return 0
     if args.check:
-        lines = check_models(tags, checkpoint_dir=args.checkpoint_dir, device=args.device)
+        if args.phase2:
+            lines = check_models([*ML256_ANCHOR_TAGS, *PHASE2["students"]], checkpoint_dir=args.checkpoint_dir, device=args.device,
+                                 caps=(PHASE2["recipe_delta"]["max_length"],), ml256_dir=args.ml256_checkpoint_dir)
+        else:
+            lines = check_models(tags, checkpoint_dir=args.checkpoint_dir, device=args.device)
         for line in lines:
             print(json.dumps(line), flush=True)
         return 0 if all(line["ok"] for line in lines) else 1
