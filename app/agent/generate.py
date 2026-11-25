@@ -128,6 +128,7 @@ class OllamaGenerator:
         keep_alive: str = "30m",
         timeout: float = 600.0,
         n_sources: int = 8,
+        think: bool | None = None,
     ):
         self.model = model or os.environ.get("GENERATOR_MODEL", DEFAULT_MODEL)
         self.base_url = (base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
@@ -135,22 +136,26 @@ class OllamaGenerator:
         self.keep_alive = keep_alive
         self.timeout = timeout
         self.n_sources = n_sources
+        # None sends no `think` key: a model that reasons before it answers does so at the server's default.
+        # False turns that reasoning off (the reply is then the whole generation); see app/eval/llm_eval.py --think.
+        self.think = think
         self.last_meta: GenerationMeta | None = None
         self.history: list[GenerationMeta] = []
         self._last_payload: dict | None = None
 
     def complete(self, prompt: str) -> str:
-        body = json.dumps(
-            {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "keep_alive": self.keep_alive,
-                # No num_ctx: every caller must use the server's default context, because
-                # Ollama reloads the model (about 50 s) whenever the requested size changes.
-                "options": {"temperature": self.temperature, "seed": 0},
-            }
-        ).encode()
+        request = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "keep_alive": self.keep_alive,
+            # No num_ctx: every caller must use the server's default context, because
+            # Ollama reloads the model (about 50 s) whenever the requested size changes.
+            "options": {"temperature": self.temperature, "seed": 0},
+        }
+        if self.think is not None:
+            request["think"] = self.think
+        body = json.dumps(request).encode()
         req = urllib.request.Request(f"{self.base_url}/api/generate", data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
             payload = json.loads(resp.read().decode())

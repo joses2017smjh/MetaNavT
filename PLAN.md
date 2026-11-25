@@ -10,7 +10,7 @@ The eval harness is the first deliverable. Everything after it is a one-change-a
 
 ## Status
 
-A status says what exists and, for a measured piece, the verdict its row holds: the paired bootstrap interval of nDCG@10 against the named parent is above zero, covers zero or below zero (`tests/eval/test_plan_status.py` checks every verdict below against the results files). The numbers are in the generated tables each row links to: [CPU fixture](README.md#bench-table), [real models](README.md#bench-neural), [prototype arms, CPU](README.md#bench-frontier), [prototype arms, real models](README.md#bench-frontier-neural), [reranker prototypes](README.md#bench-rerank-arms). "Built" without a verdict means no results file scores it.
+A status says what exists and, for a measured piece, the verdict its row holds: the paired bootstrap interval of nDCG@10 against the named parent is above zero, covers zero or below zero; for the search policy (row `2.4`) the interval is of exact match, the metric of the bar declared before it was trained (`tests/eval/test_plan_status.py` checks every verdict below against the results files). The numbers are in the generated tables each row links to: [CPU fixture](README.md#bench-table), [real models](README.md#bench-neural), [prototype arms, CPU](README.md#bench-frontier), [prototype arms, real models](README.md#bench-frontier-neural), [reranker prototypes](README.md#bench-rerank-arms), [search policy](README.md#search-policy). "Built" without a verdict means no results file scores it.
 
 | Phase | Item | Status |
 |---|---|---|
@@ -31,7 +31,7 @@ A status says what exists and, for a measured piece, the verdict its row holds: 
 | 2.1 | Retrieval loop: route→plan→search→grade→rewrite→verify | built (`app/agent/retrieval_loop.py`); no results file scores its answers |
 | 2.2 | Filesystem MCP tools + stdio server | done (`app/mcp/server_sdk.py` on the official SDK, `app/mcp/server.py`) |
 | 2.3 | HITL: `propose_move` never executes; `apply_plan` needs approval | done: applying needs an operator-signed, single-use Ed25519 capability; the deterministic approval benchmark is `make bench-trusted-actions` ([results](bench/results/trusted_actions_v2.json)) |
-| 2.4 | RL search policy (Search-R1 / GRPO) | built, not evaluated: env + reward + masked loss + a dummy CPU GRPO step; **not GPU-trained** (an open owner decision: evaluate it, or label it a demo) |
+| 2.4 | RL search policy (Search-R1 / GRPO) | trained once and evaluated, a tie on the bar declared before training: in exact match on held-out questions `policy-grpo` covers zero vs `policy-untrained` and covers zero vs `single-shot-rag` ([search policy](README.md#search-policy)); `Qwen/Qwen2.5-1.5B-Instruct` with a LoRA adapter, GRPO's group advantage with retrieved tokens masked, three seeds, trained on corpora the fixture's builder writes from other seeds; secondary to that bar, the mean reward rises, about half of it from fewer uncited or empty answers, and the policy still searches once per question; no run collapsed by the declared rule, so the PPO fallback did not run |
 | 3.1 | Deterministic file graph + staleness Tier 1 | measured: `hybrid+rerank+router+staleness` above zero vs `hybrid+rerank+router`, `hybrid+bge-rerank+router+staleness@bge-small` above zero vs `hybrid+bge-rerank+router@bge-small` ([CPU fixture](README.md#bench-table), [real models](README.md#bench-neural)); served |
 | 3.2 | GraphRAG entities + communities | evaluated, a negative result: `hybrid+rerank+graphrag` covers zero vs `hybrid+rerank`, `hybrid+bge-rerank+graphrag@bge-small` covers zero vs `hybrid+bge-rerank@bge-small`; the community step collapses the fixture into one community (table notes) ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); LLM extraction and modularity clustering not evaluated (an open owner decision: a fairer test, or the negative result as it stands) |
 | 3.3 | Hierarchical summaries | built (extractive), not evaluated |
@@ -47,7 +47,7 @@ A status says what exists and, for a measured piece, the verdict its row holds: 
 | 7 | RankGPT listwise + honest bge row | evaluated: listwise reranking by an LLM, `hybrid+listwise(qwen2.5:7b)@bge-small` above zero vs `hybrid@bge-small` and below zero vs `hybrid+bge-rerank@bge-small` ([reranker prototypes](README.md#bench-rerank-arms)); the frontier arm with the token-overlap fallback, `hybrid+rankgpt` covers zero vs `hybrid` and `hybrid+rankgpt@bge-small` below zero vs `hybrid@bge-small` ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); the bge row is row `1.2b` |
 | 8 | Deep Research multi-query + scratchpad + token budget | built (`app/agent/deep_research.py`); its multi-query step is evaluated, `hybrid+multiquery` above zero vs `hybrid`, `hybrid+multiquery@bge-small` above zero vs `hybrid@bge-small`, with keyword rules written for this fixture ([CPU](README.md#bench-frontier), [real models](README.md#bench-frontier-neural)); the loop's answers are not evaluated |
 | 9 | HippoRAG PPR | evaluated: row `3.5` |
-| 10 | Search-R1 / GRPO (CI dummy step) | built, not trained or evaluated: row `2.4` (`app/rl/`) |
+| 10 | Search-R1 / GRPO | trained once and evaluated: row `2.4` (`app/rl/`, `make search-policy-train`, `make search-policy-eval`) |
 | 11 | Research artifacts + code production | built (`app/artifacts/`, MCP HITL), not evaluated: no quality measurement of the generated artifacts (an open owner decision: evaluate it, or label it a demo) |
 | 12 | Generated hard-case demos + negative controls | done (`bench/demo/manifest.json`, `app/eval/demo_export.py`) |
 | 13 | Spreadsheet aggregation + approval-gated MATLAB visualization | built (`app/artifacts/visualization.py`): the aggregation and the plot are a demo on one frozen CSV (`make matlab-demo`), not evaluated; the approval checkpoint in front of the plot script is one of the approval benchmark's families (row `2.3`) |
@@ -135,7 +135,7 @@ After pgvector / GraphRAG / multimodal:
 
 1. **Measured `bge-reranker-v2-m3` row: measured** (status rows `1.2` and `1.2b`; `make bench-neural`, `reranker_loaded` true in `bench/results/neural.json`). A run without the weights still sets `reranker_fallback=overlap`, and no cross-encoder gain is claimed from such a row. Set `BGE_ALLOW_DOWNLOAD=1` only when you intend to pull from Hugging Face.
 
-2. **GPU Search-R1 / GRPO training.** `app/rl/` has the env, the reward, retrieved-token masking, group-relative advantages, and a numpy dummy step for CI. veRL + Qwen2.5-3B is still a training run, not a unit test. PPO remains the fallback if GRPO collapses.
+2. **GPU Search-R1 / GRPO training: trained once** (status rows `2.4` and `10`; `make search-policy-train`, `make search-policy-eval`, `bench/results/search_policy.json`, recomputed on a CPU by `make search-policy-rescore`). A small loop on transformers and peft, not veRL; `Qwen/Qwen2.5-1.5B-Instruct` with a LoRA adapter, not Qwen2.5-3B, whose licence is research-only. The bar was declared before training and the result is a tie on it; no run collapsed by the declared rule, so the PPO fallback did not run. The adapters stay outside the repository; the results file records their sha256.
 
 3. **README jury numbers: measured** (status row `6`). `make bench-jury-v2` writes `bench/results/jury_v2.json`; a judge's score is printed on the README only when its kappa on the calibration set reaches the gate (`kappa_gate` in the file; `readme_ok` per judge under `summary.kappa`).
 
@@ -328,7 +328,7 @@ app/graph/         file graph, version clusters, hierarchy, GraphRAG, HippoRAG P
 app/agent/         retrieval loop, Deep Research, move-plan schema, decompose, corrective RAG, citation verify
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox
 doc/matlab/        generated MATLAB source for checked-in visualization demos
-app/rl/            Search-R1 parse/env, reward, GRPO dummy step
+app/rl/            Search-R1 parse/env, reward, GRPO dummy step; the policy, its training loop and held-out scoring (M44)
 app/mcp/           filesystem tools + stdio MCP server
 app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images, modality RRF
 bench/corpus/      frozen files, MANIFEST, registry

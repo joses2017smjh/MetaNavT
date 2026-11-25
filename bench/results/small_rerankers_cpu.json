@@ -1,0 +1,1669 @@
+{
+  "git_sha": "a43f2be",
+  "git_head": "a43f2be84f4e27539913ada60abc5ede29380e3c",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "scripts/measure_rerank_cpu.py": "b6facc88fd0a0a01fd2a948d0ec266f8f52f5c30a8e1ec4213324d7bf19958f5",
+    "scripts/rerank_timing_payload.py": "d3cb21bebf7105569c63423ee63bfa1958b0cb63edef0f33fcd8399c859bc485",
+    "app/eval/small_rerankers.py": "ccaeeb44b0c09431146bdb1878f5c2ed8591c452b2f181ac8a5e7a60af27ce0e",
+    "app/engine/retriever.py": "468042b5b5bc1e21f3b575ccd92504091f2f8752436c76722d37091971dde13d",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/settings.py": "deb3957a81eda114776dee784311665aef9e7c5adf1bde2dedcd5116dba1eecf",
+    "main.py": "1eee0db597f3e852157e7f82a48bcb0bbd08b08fc8079d90107b6fb447f6c575"
+  },
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES= python -m measure_rerank_cpu.py --models minilm-l6,minilm-l12,mxbai-xsmall-v1,gte-modernbert-base,mxbai-base-v1,bge-reranker-base,bge-rerank,student-minilm-l6,student-minilm-l12 --threads 2 --out bench/results/small_rerankers_cpu.json --checkpoint-dir <path>/checkpoints",
+  "device": {
+    "requested": "cpu",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 20,
+    "cpu_model": "Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": false,
+    "device": "cpu",
+    "device_name": "x86_64",
+    "threads": 2,
+    "sentence_transformers": "6.1.0"
+  },
+  "label": "indicative only: one HPC CPU, not the demo's host; the serving bar is measured on the host itself (scripts/time_reranker_on_host.py)",
+  "method": {
+    "as": "scripts/measure_api_memory.py with the reranker swapped: import main, the embedder, then the reranker, in a fresh process per model and max_length",
+    "max_lengths": [
+      256,
+      512
+    ],
+    "depths": [
+      5,
+      10,
+      20
+    ],
+    "precision": "fp32",
+    "program": "scripts/rerank_timing_payload.py",
+    "passages": "600 seeded words each, so every pair is cut at max_length: the most a shape can cost",
+    "calls": "one warm-up, then up to `repeats` calls, each another query with other passages, one batch per call",
+    "repeats": 30,
+    "min_repeats": 5,
+    "budget_seconds_per_depth": 240.0,
+    "memory": "VmRSS, VmHWM, RssAnon, RssFile from <path>/status, MiB; the peak never falls, and depths ascend"
+  },
+  "results": [
+    {
+      "tag": "minilm-l6",
+      "config": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+      "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "pinned_revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+      "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 774,
+          "VmHWM": 846,
+          "RssAnon": 538,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 776,
+          "VmHWM": 846,
+          "RssAnon": 539,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.22,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 457.2,
+          "p95_ms": 461.4,
+          "min_ms": 455.2,
+          "max_ms": 468.0,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 1171.1,
+          "memory_mib": {
+            "VmRSS": 853,
+            "VmHWM": 853,
+            "RssAnon": 574,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 892.8,
+          "p95_ms": 899.2,
+          "min_ms": 888.7,
+          "max_ms": 900.4,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 907.0,
+          "memory_mib": {
+            "VmRSS": 894,
+            "VmHWM": 894,
+            "RssAnon": 615,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 1794.4,
+          "p95_ms": 1815.1,
+          "min_ms": 1775.8,
+          "max_ms": 1826.5,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 1785.2,
+          "memory_mib": {
+            "VmRSS": 965,
+            "VmHWM": 995,
+            "RssAnon": 687,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "minilm-l6",
+      "config": "hybrid+minilm-l6@bge-small/fp32-512/top20",
+      "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "pinned_revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+      "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 786,
+          "VmHWM": 844,
+          "RssAnon": 550,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 788,
+          "VmHWM": 844,
+          "RssAnon": 551,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.15,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 1024.4,
+          "p95_ms": 1035.4,
+          "min_ms": 1005.7,
+          "max_ms": 1038.5,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 1068.6,
+          "memory_mib": {
+            "VmRSS": 829,
+            "VmHWM": 900,
+            "RssAnon": 550,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 2019.8,
+          "p95_ms": 2038.6,
+          "min_ms": 1978.2,
+          "max_ms": 2040.7,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 2060.4,
+          "memory_mib": {
+            "VmRSS": 934,
+            "VmHWM": 979,
+            "RssAnon": 655,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 4033.0,
+          "p95_ms": 4037.2,
+          "min_ms": 4004.4,
+          "max_ms": 4037.9,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 4041.6,
+          "memory_mib": {
+            "VmRSS": 904,
+            "VmHWM": 1144,
+            "RssAnon": 625,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "minilm-l12",
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+      "pinned_revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+      "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 776,
+          "VmHWM": 848,
+          "RssAnon": 539,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 777,
+          "VmHWM": 848,
+          "RssAnon": 540,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.27,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 896.0,
+          "p95_ms": 901.0,
+          "min_ms": 892.9,
+          "max_ms": 901.8,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 1680.1,
+          "memory_mib": {
+            "VmRSS": 885,
+            "VmHWM": 885,
+            "RssAnon": 566,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 1785.8,
+          "p95_ms": 1813.5,
+          "min_ms": 1747.3,
+          "max_ms": 1826.8,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 1808.8,
+          "memory_mib": {
+            "VmRSS": 924,
+            "VmHWM": 943,
+            "RssAnon": 605,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 3525.8,
+          "p95_ms": 3560.2,
+          "min_ms": 3445.5,
+          "max_ms": 3576.2,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 3532.3,
+          "memory_mib": {
+            "VmRSS": 928,
+            "VmHWM": 1048,
+            "RssAnon": 609,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "minilm-l12",
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+      "pinned_revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+      "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 826,
+          "VmHWM": 848,
+          "RssAnon": 589,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 828,
+          "VmHWM": 848,
+          "RssAnon": 591,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.2,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 1989.6,
+          "p95_ms": 1995.0,
+          "min_ms": 1982.8,
+          "max_ms": 1995.9,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 2095.2,
+          "memory_mib": {
+            "VmRSS": 922,
+            "VmHWM": 922,
+            "RssAnon": 603,
+            "RssFile": 320
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 4003.8,
+          "p95_ms": 4031.9,
+          "min_ms": 3972.1,
+          "max_ms": 4038.4,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 4031.4,
+          "memory_mib": {
+            "VmRSS": 1022,
+            "VmHWM": 1050,
+            "RssAnon": 715,
+            "RssFile": 307
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 7967.1,
+          "p95_ms": 7975.8,
+          "min_ms": 7953.0,
+          "max_ms": 7977.4,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 7979.5,
+          "memory_mib": {
+            "VmRSS": 985,
+            "VmHWM": 1187,
+            "RssAnon": 678,
+            "RssFile": 307
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "mxbai-xsmall-v1",
+      "config": "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+      "model": "mixedbread-ai/mxbai-rerank-xsmall-v1",
+      "pinned_revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422",
+      "revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 795,
+          "VmHWM": 852,
+          "RssAnon": 558,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1171,
+          "VmHWM": 1202,
+          "RssAnon": 932,
+          "RssFile": 239
+        }
+      },
+      "reranker_load_seconds": 3.88,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 1269.1,
+          "p95_ms": 1282.6,
+          "min_ms": 1249.5,
+          "max_ms": 1295.3,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 1413.1,
+          "memory_mib": {
+            "VmRSS": 1286,
+            "VmHWM": 1293,
+            "RssAnon": 1046,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 2560.3,
+          "p95_ms": 2571.7,
+          "min_ms": 2544.6,
+          "max_ms": 2576.1,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 2560.0,
+          "memory_mib": {
+            "VmRSS": 1256,
+            "VmHWM": 1424,
+            "RssAnon": 1016,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 5163.3,
+          "p95_ms": 5200.9,
+          "min_ms": 4975.7,
+          "max_ms": 5219.4,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 5194.8,
+          "memory_mib": {
+            "VmRSS": 1301,
+            "VmHWM": 1706,
+            "RssAnon": 1084,
+            "RssFile": 217
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "mxbai-xsmall-v1",
+      "config": "hybrid+mxbai-xsmall-v1@bge-small/fp32-512/top20",
+      "model": "mixedbread-ai/mxbai-rerank-xsmall-v1",
+      "pinned_revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422",
+      "revision": "b5c6e9da73abc3711f593f705371cdbe9e0fe422",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 783,
+          "VmHWM": 871,
+          "RssAnon": 546,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1171,
+          "VmHWM": 1190,
+          "RssAnon": 933,
+          "RssFile": 239
+        }
+      },
+      "reranker_load_seconds": 1.43,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 3245.9,
+          "p95_ms": 3265.7,
+          "min_ms": 3167.6,
+          "max_ms": 3267.0,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 3319.1,
+          "memory_mib": {
+            "VmRSS": 1386,
+            "VmHWM": 1595,
+            "RssAnon": 1146,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 6704.5,
+          "p95_ms": 6754.8,
+          "min_ms": 6633.4,
+          "max_ms": 6767.7,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 6678.7,
+          "memory_mib": {
+            "VmRSS": 1356,
+            "VmHWM": 1880,
+            "RssAnon": 1116,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 12961.0,
+          "p95_ms": 12995.1,
+          "min_ms": 12828.2,
+          "max_ms": 12997.8,
+          "n": 18,
+          "depth": 20,
+          "warm_up_ms": 12960.3,
+          "memory_mib": {
+            "VmRSS": 1356,
+            "VmHWM": 2400,
+            "RssAnon": 1116,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "gte-modernbert-base",
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+      "pinned_revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+      "revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 789,
+          "VmHWM": 850,
+          "RssAnon": 552,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 833,
+          "VmHWM": 850,
+          "RssAnon": 595,
+          "RssFile": 238
+        }
+      },
+      "reranker_load_seconds": 0.57,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 4110.4,
+          "p95_ms": 4125.3,
+          "min_ms": 4104.6,
+          "max_ms": 4140.7,
+          "n": 17,
+          "depth": 5,
+          "warm_up_ms": 13675.9,
+          "memory_mib": {
+            "VmRSS": 1307,
+            "VmHWM": 1324,
+            "RssAnon": 663,
+            "RssFile": 644
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 8425.7,
+          "p95_ms": 8436.1,
+          "min_ms": 8356.4,
+          "max_ms": 8442.2,
+          "n": 28,
+          "depth": 10,
+          "warm_up_ms": 8406.1,
+          "memory_mib": {
+            "VmRSS": 1311,
+            "VmHWM": 1371,
+            "RssAnon": 667,
+            "RssFile": 644
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 16703.6,
+          "p95_ms": 16714.8,
+          "min_ms": 16691.0,
+          "max_ms": 16721.1,
+          "n": 14,
+          "depth": 20,
+          "warm_up_ms": 16644.0,
+          "memory_mib": {
+            "VmRSS": 1205,
+            "VmHWM": 1491,
+            "RssAnon": 637,
+            "RssFile": 569
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "gte-modernbert-base",
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+      "pinned_revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+      "revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 782,
+          "VmHWM": 799,
+          "RssAnon": 598,
+          "RssFile": 184
+        },
+        "after_reranker_load": {
+          "VmRSS": 809,
+          "VmHWM": 809,
+          "RssAnon": 625,
+          "RssFile": 185
+        }
+      },
+      "reranker_load_seconds": 0.51,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 8977.5,
+          "p95_ms": 8988.2,
+          "min_ms": 8959.0,
+          "max_ms": 8989.1,
+          "n": 26,
+          "depth": 5,
+          "warm_up_ms": 9196.7,
+          "memory_mib": {
+            "VmRSS": 1311,
+            "VmHWM": 1315,
+            "RssAnon": 703,
+            "RssFile": 609
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 18305.4,
+          "p95_ms": 18318.9,
+          "min_ms": 18272.7,
+          "max_ms": 18319.5,
+          "n": 13,
+          "depth": 10,
+          "warm_up_ms": 18281.3,
+          "memory_mib": {
+            "VmRSS": 1285,
+            "VmHWM": 1450,
+            "RssAnon": 677,
+            "RssFile": 609
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 36213.3,
+          "p95_ms": 43058.6,
+          "min_ms": 35989.7,
+          "max_ms": 44392.0,
+          "n": 6,
+          "depth": 20,
+          "warm_up_ms": 35946.8,
+          "memory_mib": {
+            "VmRSS": 1224,
+            "VmHWM": 1632,
+            "RssAnon": 694,
+            "RssFile": 531
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "mxbai-base-v1",
+      "config": "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+      "model": "mixedbread-ai/mxbai-rerank-base-v1",
+      "pinned_revision": "800f24c113213a187e65bde9db00c15a2bb12738",
+      "revision": "800f24c113213a187e65bde9db00c15a2bb12738",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 776,
+          "VmHWM": 873,
+          "RssAnon": 539,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1608,
+          "VmHWM": 1834,
+          "RssAnon": 1369,
+          "RssFile": 239
+        }
+      },
+      "reranker_load_seconds": 7.21,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 3980.9,
+          "p95_ms": 3996.0,
+          "min_ms": 3968.0,
+          "max_ms": 4007.1,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 4087.5,
+          "memory_mib": {
+            "VmRSS": 1819,
+            "VmHWM": 1905,
+            "RssAnon": 1579,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 7865.5,
+          "p95_ms": 7920.5,
+          "min_ms": 7780.4,
+          "max_ms": 7929.4,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 7913.6,
+          "memory_mib": {
+            "VmRSS": 1823,
+            "VmHWM": 2108,
+            "RssAnon": 1583,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 15758.0,
+          "p95_ms": 15907.5,
+          "min_ms": 15440.5,
+          "max_ms": 16025.3,
+          "n": 15,
+          "depth": 20,
+          "warm_up_ms": 15759.7,
+          "memory_mib": {
+            "VmRSS": 1683,
+            "VmHWM": 2638,
+            "RssAnon": 1576,
+            "RssFile": 107
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "mxbai-base-v1",
+      "config": "hybrid+mxbai-base-v1@bge-small/fp32-512/top20",
+      "model": "mixedbread-ai/mxbai-rerank-base-v1",
+      "pinned_revision": "800f24c113213a187e65bde9db00c15a2bb12738",
+      "revision": "800f24c113213a187e65bde9db00c15a2bb12738",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 772,
+          "VmHWM": 850,
+          "RssAnon": 535,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1606,
+          "VmHWM": 1814,
+          "RssAnon": 1368,
+          "RssFile": 239
+        }
+      },
+      "reranker_load_seconds": 7.12,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 9142.7,
+          "p95_ms": 9210.1,
+          "min_ms": 9058.9,
+          "max_ms": 9258.7,
+          "n": 25,
+          "depth": 5,
+          "warm_up_ms": 9536.0,
+          "memory_mib": {
+            "VmRSS": 1945,
+            "VmHWM": 2245,
+            "RssAnon": 1705,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 18242.9,
+          "p95_ms": 18272.3,
+          "min_ms": 18182.7,
+          "max_ms": 18274.1,
+          "n": 13,
+          "depth": 10,
+          "warm_up_ms": 18220.6,
+          "memory_mib": {
+            "VmRSS": 1915,
+            "VmHWM": 2845,
+            "RssAnon": 1675,
+            "RssFile": 240
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 36016.7,
+          "p95_ms": 36345.5,
+          "min_ms": 35986.3,
+          "max_ms": 36424.5,
+          "n": 6,
+          "depth": 20,
+          "warm_up_ms": 36111.7,
+          "memory_mib": {
+            "VmRSS": 1812,
+            "VmHWM": 4044,
+            "RssAnon": 1705,
+            "RssFile": 107
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "bge-reranker-base",
+      "config": "hybrid+bge-reranker-base@bge-small/fp32-512/top20",
+      "model": "BAAI/bge-reranker-base",
+      "pinned_revision": "2cfc18c9415c912f9d8155881c133215df768a70",
+      "revision": "2cfc18c9415c912f9d8155881c133215df768a70",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 815,
+          "VmHWM": 850,
+          "RssAnon": 578,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1143,
+          "VmHWM": 1189,
+          "RssAnon": 905,
+          "RssFile": 238
+        }
+      },
+      "reranker_load_seconds": 3.39,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 3006.7,
+          "p95_ms": 3023.3,
+          "min_ms": 2970.2,
+          "max_ms": 3027.0,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 5528.0,
+          "memory_mib": {
+            "VmRSS": 1522,
+            "VmHWM": 1541,
+            "RssAnon": 957,
+            "RssFile": 565
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 5936.8,
+          "p95_ms": 5972.0,
+          "min_ms": 5872.7,
+          "max_ms": 5974.9,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 5984.8,
+          "memory_mib": {
+            "VmRSS": 1616,
+            "VmHWM": 1646,
+            "RssAnon": 1051,
+            "RssFile": 565
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 11832.0,
+          "p95_ms": 11871.0,
+          "min_ms": 11761.9,
+          "max_ms": 11876.6,
+          "n": 20,
+          "depth": 20,
+          "warm_up_ms": 11839.5,
+          "memory_mib": {
+            "VmRSS": 1548,
+            "VmHWM": 1781,
+            "RssAnon": 985,
+            "RssFile": 563
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "bge-reranker-base",
+      "config": "hybrid+bge-reranker-base@bge-small/fp32-512/top20",
+      "model": "BAAI/bge-reranker-base",
+      "pinned_revision": "2cfc18c9415c912f9d8155881c133215df768a70",
+      "revision": "2cfc18c9415c912f9d8155881c133215df768a70",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 791,
+          "VmHWM": 857,
+          "RssAnon": 554,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1145,
+          "VmHWM": 1191,
+          "RssAnon": 908,
+          "RssFile": 238
+        }
+      },
+      "reranker_load_seconds": 3.37,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 6347.6,
+          "p95_ms": 6379.7,
+          "min_ms": 6268.4,
+          "max_ms": 6381.8,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 6577.5,
+          "memory_mib": {
+            "VmRSS": 1519,
+            "VmHWM": 1654,
+            "RssAnon": 953,
+            "RssFile": 566
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 12601.0,
+          "p95_ms": 12618.5,
+          "min_ms": 12572.7,
+          "max_ms": 12619.0,
+          "n": 19,
+          "depth": 10,
+          "warm_up_ms": 12621.6,
+          "memory_mib": {
+            "VmRSS": 1527,
+            "VmHWM": 1781,
+            "RssAnon": 961,
+            "RssFile": 566
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 25164.3,
+          "p95_ms": 26948.2,
+          "min_ms": 25052.3,
+          "max_ms": 27589.0,
+          "n": 9,
+          "depth": 20,
+          "warm_up_ms": 25206.0,
+          "memory_mib": {
+            "VmRSS": 1604,
+            "VmHWM": 2148,
+            "RssAnon": 1171,
+            "RssFile": 433
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "bge-rerank",
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "model": "BAAI/bge-reranker-v2-m3",
+      "pinned_revision": null,
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 775,
+          "VmHWM": 845,
+          "RssAnon": 538,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1139,
+          "VmHWM": 1139,
+          "RssAnon": 900,
+          "RssFile": 238
+        }
+      },
+      "reranker_load_seconds": 2.92,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 10219.2,
+          "p95_ms": 10229.8,
+          "min_ms": 10211.1,
+          "max_ms": 10229.9,
+          "n": 9,
+          "depth": 5,
+          "warm_up_ms": 24317.3,
+          "memory_mib": {
+            "VmRSS": 2356,
+            "VmHWM": 2372,
+            "RssAnon": 960,
+            "RssFile": 1396
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 20378.1,
+          "p95_ms": 20408.6,
+          "min_ms": 20078.9,
+          "max_ms": 20416.4,
+          "n": 11,
+          "depth": 10,
+          "warm_up_ms": 20420.7,
+          "memory_mib": {
+            "VmRSS": 2366,
+            "VmHWM": 2476,
+            "RssAnon": 970,
+            "RssFile": 1396
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 39963.5,
+          "p95_ms": 40047.6,
+          "min_ms": 39903.8,
+          "max_ms": 40063.7,
+          "n": 5,
+          "depth": 20,
+          "warm_up_ms": 40055.3,
+          "memory_mib": {
+            "VmRSS": 2374,
+            "VmHWM": 2736,
+            "RssAnon": 1080,
+            "RssFile": 1293
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "bge-rerank",
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "model": "BAAI/bge-reranker-v2-m3",
+      "pinned_revision": null,
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 785,
+          "VmHWM": 851,
+          "RssAnon": 548,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 1137,
+          "VmHWM": 1137,
+          "RssAnon": 899,
+          "RssFile": 238
+        }
+      },
+      "reranker_load_seconds": 2.57,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 21206.1,
+          "p95_ms": 21223.0,
+          "min_ms": 21189.5,
+          "max_ms": 21223.4,
+          "n": 11,
+          "depth": 5,
+          "warm_up_ms": 21737.8,
+          "memory_mib": {
+            "VmRSS": 2385,
+            "VmHWM": 2475,
+            "RssAnon": 988,
+            "RssFile": 1397
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 42202.6,
+          "p95_ms": 42289.2,
+          "min_ms": 42135.4,
+          "max_ms": 42307.4,
+          "n": 5,
+          "depth": 10,
+          "warm_up_ms": 42312.3,
+          "memory_mib": {
+            "VmRSS": 2430,
+            "VmHWM": 2715,
+            "RssAnon": 1039,
+            "RssFile": 1391
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 84840.8,
+          "p95_ms": 102085.7,
+          "min_ms": 84836.1,
+          "max_ms": 105744.2,
+          "n": 5,
+          "depth": 20,
+          "warm_up_ms": 85330.3,
+          "memory_mib": {
+            "VmRSS": 2254,
+            "VmHWM": 2870,
+            "RssAnon": 988,
+            "RssFile": 1266
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "student-minilm-l6",
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-512/top20",
+      "model": "student-minilm-l6",
+      "student_of": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "weights_sha256": "7c3ae64c2c9002ef2ab0a28f27e025afcf9f407c6446214ea471297d603ccb0c",
+      "attempt": 1,
+      "manifest": "bench/distill/students.json",
+      "revision": null,
+      "neural": true,
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 835,
+          "VmHWM": 857,
+          "RssAnon": 598,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 838,
+          "VmHWM": 857,
+          "RssAnon": 601,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.14,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 443.5,
+          "p95_ms": 447.1,
+          "min_ms": 443.1,
+          "max_ms": 449.9,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 483.2,
+          "memory_mib": {
+            "VmRSS": 879,
+            "VmHWM": 879,
+            "RssAnon": 601,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 871.0,
+          "p95_ms": 874.7,
+          "min_ms": 869.7,
+          "max_ms": 875.8,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 890.5,
+          "memory_mib": {
+            "VmRSS": 896,
+            "VmHWM": 896,
+            "RssAnon": 617,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 1758.9,
+          "p95_ms": 1770.5,
+          "min_ms": 1734.2,
+          "max_ms": 1771.0,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 1770.9,
+          "memory_mib": {
+            "VmRSS": 974,
+            "VmHWM": 1019,
+            "RssAnon": 696,
+            "RssFile": 279
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "student-minilm-l6",
+      "config": "hybrid+student-minilm-l6@bge-small/fp32-512/top20",
+      "model": "student-minilm-l6",
+      "student_of": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "weights_sha256": "7c3ae64c2c9002ef2ab0a28f27e025afcf9f407c6446214ea471297d603ccb0c",
+      "attempt": 1,
+      "manifest": "bench/distill/students.json",
+      "revision": null,
+      "neural": true,
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 799,
+          "VmHWM": 852,
+          "RssAnon": 563,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 801,
+          "VmHWM": 852,
+          "RssAnon": 565,
+          "RssFile": 236
+        }
+      },
+      "reranker_load_seconds": 0.15,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 993.4,
+          "p95_ms": 1027.8,
+          "min_ms": 984.0,
+          "max_ms": 1043.6,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 1392.6,
+          "memory_mib": {
+            "VmRSS": 835,
+            "VmHWM": 892,
+            "RssAnon": 565,
+            "RssFile": 270
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 1978.0,
+          "p95_ms": 1989.6,
+          "min_ms": 1944.8,
+          "max_ms": 1992.3,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 2018.4,
+          "memory_mib": {
+            "VmRSS": 925,
+            "VmHWM": 985,
+            "RssAnon": 655,
+            "RssFile": 270
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 3968.1,
+          "p95_ms": 3974.2,
+          "min_ms": 3947.7,
+          "max_ms": 3978.2,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 3966.4,
+          "memory_mib": {
+            "VmRSS": 940,
+            "VmHWM": 1105,
+            "RssAnon": 670,
+            "RssFile": 270
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "student-minilm-l12",
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-512/top20",
+      "model": "student-minilm-l12",
+      "student_of": "cross-encoder/ms-marco-MiniLM-L12-v2",
+      "weights_sha256": "4c33938060e2b9d32f6e9b37bd910fc1c36f23e95077f04ca2379ddb1aac51fe",
+      "attempt": 1,
+      "manifest": "bench/distill/students.json",
+      "revision": null,
+      "neural": true,
+      "max_length": 256,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 797,
+          "VmHWM": 863,
+          "RssAnon": 561,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 801,
+          "VmHWM": 863,
+          "RssAnon": 564,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.18,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 256,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 875.4,
+          "p95_ms": 880.4,
+          "min_ms": 872.1,
+          "max_ms": 882.3,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 952.8,
+          "memory_mib": {
+            "VmRSS": 905,
+            "VmHWM": 905,
+            "RssAnon": 586,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 1750.7,
+          "p95_ms": 1764.6,
+          "min_ms": 1718.3,
+          "max_ms": 1766.7,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 1764.8,
+          "memory_mib": {
+            "VmRSS": 932,
+            "VmHWM": 950,
+            "RssAnon": 612,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 3460.3,
+          "p95_ms": 3485.4,
+          "min_ms": 3391.0,
+          "max_ms": 3517.2,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 3477.9,
+          "memory_mib": {
+            "VmRSS": 950,
+            "VmHWM": 1040,
+            "RssAnon": 631,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    },
+    {
+      "tag": "student-minilm-l12",
+      "config": "hybrid+student-minilm-l12@bge-small/fp32-512/top20",
+      "model": "student-minilm-l12",
+      "student_of": "cross-encoder/ms-marco-MiniLM-L12-v2",
+      "weights_sha256": "4c33938060e2b9d32f6e9b37bd910fc1c36f23e95077f04ca2379ddb1aac51fe",
+      "attempt": 1,
+      "manifest": "bench/distill/students.json",
+      "revision": null,
+      "neural": true,
+      "max_length": 512,
+      "threads": 2,
+      "torch_threads": 2,
+      "torch": "2.5.1+cu121",
+      "cpu_count": 20,
+      "memory_mib": {
+        "after_import_main": {
+          "VmRSS": 393,
+          "VmHWM": 393,
+          "RssAnon": 276,
+          "RssFile": 117
+        },
+        "after_embedder": {
+          "VmRSS": 798,
+          "VmHWM": 842,
+          "RssAnon": 561,
+          "RssFile": 237
+        },
+        "after_reranker_load": {
+          "VmRSS": 801,
+          "VmHWM": 842,
+          "RssAnon": 564,
+          "RssFile": 237
+        }
+      },
+      "reranker_load_seconds": 0.17,
+      "reranker": {
+        "precision": "fp32",
+        "max_length": 512,
+        "device": "cpu",
+        "dtype": "torch.float32"
+      },
+      "shapes": [
+        {
+          "p50_ms": 1967.8,
+          "p95_ms": 1984.5,
+          "min_ms": 1949.4,
+          "max_ms": 1996.5,
+          "n": 30,
+          "depth": 5,
+          "warm_up_ms": 2114.2,
+          "memory_mib": {
+            "VmRSS": 926,
+            "VmHWM": 956,
+            "RssAnon": 606,
+            "RssFile": 320
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 3932.7,
+          "p95_ms": 3950.8,
+          "min_ms": 3907.0,
+          "max_ms": 3955.9,
+          "n": 30,
+          "depth": 10,
+          "warm_up_ms": 3925.8,
+          "memory_mib": {
+            "VmRSS": 1009,
+            "VmHWM": 1046,
+            "RssAnon": 689,
+            "RssFile": 320
+          },
+          "cgroup_peak_mib": null
+        },
+        {
+          "p50_ms": 7833.4,
+          "p95_ms": 7844.5,
+          "min_ms": 7820.3,
+          "max_ms": 7854.7,
+          "n": 30,
+          "depth": 20,
+          "warm_up_ms": 7858.8,
+          "memory_mib": {
+            "VmRSS": 896,
+            "VmHWM": 1181,
+            "RssAnon": 577,
+            "RssFile": 319
+          },
+          "cgroup_peak_mib": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1800 @@
+{
+  "git_sha": "8374ca0",
+  "git_head": "8374ca004ba4deb195b7ece50899528c2d5b696c",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "ad32aa870ab9ead1d73eb51abfde77d7002511e56a2e739d578bbbf8a47fd8ca",
+    "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+    "app/eval/gold.py": "3f286b1a62c2f7ba5724089c46f1891b08fec992d379ece329f0a47ce6618517",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+    "app/eval/provenance.py": "ef4cd95e4baadb05f13f74167ac9e84f3886672e40bf9ad10fed757104b3056e",
+    "app/eval/small_rerankers.py": "ccaeeb44b0c09431146bdb1878f5c2ed8591c452b2f181ac8a5e7a60af27ce0e",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-23T02:15:50.683968+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.distill_queries filter --data-dir <path>/data --work <path>/work-queries-8374ca0-b",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "cpu_model": "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "files": {
+    "queries.jsonl.gz": {
+      "sha256": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050",
+      "n": 10622,
+      "fields": "id, corpus, doc_id, form, query, split"
+    },
+    "completions.jsonl.gz": {
+      "sha256": "294416446e26a2947fb15a13ce7c5a456626c3de960b0f9ac36c048e75bd2602",
+      "n": 3371,
+      "fields": "corpus, doc_id, ms, content (the raw completion), eval_count, done_reason, error, parse"
+    }
+  },
+  "generation": {
+    "git_sha": "8374ca0",
+    "git_head": "8374ca004ba4deb195b7ece50899528c2d5b696c",
+    "working_tree_dirty": false,
+    "source_sha256": {
+      "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+      "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+      "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+      "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+      "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+      "app/eval/beir.py": "ad32aa870ab9ead1d73eb51abfde77d7002511e56a2e739d578bbbf8a47fd8ca",
+      "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+      "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+      "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+      "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+      "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+      "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+      "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+      "app/eval/provenance.py": "ef4cd95e4baadb05f13f74167ac9e84f3886672e40bf9ad10fed757104b3056e",
+      "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+      "app/eval/small_rerankers.py": "ccaeeb44b0c09431146bdb1878f5c2ed8591c452b2f181ac8a5e7a60af27ce0e",
+      "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+      "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+      "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+      "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+      "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+      "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+      "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+      "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+      "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+      "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+    },
+    "timestamp": "2026-11-23T02:15:03.186052+00:00",
+    "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.distill_queries generate --data-dir <path>/data --work <path>/work-queries-8374ca0-b --workers 8",
+    "device": {
+      "requested": "auto",
+      "python": "3.11.16",
+      "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+      "cpu_count": 48,
+      "cpu_model": "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz",
+      "torch": "2.5.1+cu121",
+      "cuda_available": true,
+      "device": "cuda",
+      "device_name": "Quadro RTX 8000",
+      "threads": 1,
+      "sentence_transformers": "6.1.0"
+    },
+    "llm": {
+      "role": "query writer",
+      "model": "gemma4:12b",
+      "revision": "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+      "neural": true,
+      "backend": "ollama",
+      "family": "gemma4",
+      "quantization": "Q4_K_M",
+      "parameter_size": "11.9B",
+      "size_bytes": 8021618941,
+      "ollama_version": "0.40.16",
+      "options": {
+        "temperature": 0.0,
+        "seed": 0,
+        "num_ctx": 4096,
+        "num_predict": 600
+      },
+      "request": {
+        "think": false,
+        "format": "json"
+      },
+      "endpoint": "/api/chat, one user message"
+    },
+    "prompt": {
+      "template": "You write search queries for testing a document search engine.\nCorpus: {description}\nDocument:\n\"\"\"\n{text}\n\"\"\"\nWrite search queries that this document answers, as a person who has not seen the document would type them:\n- {n} natural-language questions\n- {n} keyword queries (3 to 8 words, no question words)\n- {n} one-sentence statements of a fact that the document supports\nEach query must be answerable from this document alone and specific enough to prefer it over similar documents. Do not copy a whole sentence from the document.\nReply with JSON only: {{\"questions\": [...], \"keywords\": [...], \"statements\": [...]}}",
+      "sha256": "ae1734aacc541e2dbd1bcf9337c40df77406ae4c2ff1bd1ced18bca09f0d7140",
+      "max_chars_of_document": 3000,
+      "contains_example_queries": false
+    },
+    "sample": {
+      "seed": 0,
+      "min_words": 30,
+      "reads": "the fixture's files and each BEIR corpus.jsonl; never queries.jsonl or qrels",
+      "corpora": {
+        "fixture": {
+          "description": "files of a machine-learning research project (configs, logs, job scripts, code, notes, results)",
+          "documents": null,
+          "per_form": 4,
+          "n_documents": 71,
+          "documents_sha256": "0615ab59c426245ab48a8bbf4b8b51594c52e4851810da327f23f48a00e10854"
+        },
+        "scifact": {
+          "description": "abstracts of scientific papers",
+          "documents": 1500,
+          "per_form": 1,
+          "n_documents": 1500,
+          "documents_sha256": "c0c93ed08cbeab5f7f71be626a5028da47a083fd3507b69aedbad88922925e4e"
+        },
+        "fiqa": {
+          "description": "posts from a personal-finance question-and-answer site",
+          "documents": 1800,
+          "per_form": 1,
+          "n_documents": 1800,
+          "documents_sha256": "735569996e977891b84e22be4ea86cdc6a3fce4f98638a3b909acb6f3e94ddb9"
+        }
+      }
+    },
+    "calls_this_run": 3371,
+    "seconds_this_run": 3226.9,
+    "workers": 8,
+    "limit": null
+  },
+  "clean": {
+    "min_words": 2,
+    "max_words": 60
+  },
+  "near_duplicates": {
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "neural": true,
+      "query_prompt_name": null,
+      "query_prompt": null,
+      "dtype_requested": null,
+      "dtype": "torch.float32",
+      "batch_size": null,
+      "max_seq_length": 512,
+      "snapshot_view": null,
+      "device": "cuda:0"
+    },
+    "rule": {
+      "jaccard": 0.7,
+      "cosine": 0.9,
+      "embedder": "BAAI/bge-small-en-v1.5",
+      "equal": "the normalised strings are the same",
+      "normalise": "lowercase, every run of characters outside a-z and 0-9 becomes one space",
+      "jaccard_of": "the sets of normalised tokens",
+      "cosine_of": "unit embeddings of the bare queries",
+      "dropped_when": "any of the three holds against any test query of any of the three benchmarks"
+    },
+    "test_queries": {
+      "fiqa": 648,
+      "fixture": 136,
+      "scifact": 300
+    },
+    "by_corpus": {
+      "fixture": {
+        "completions": {
+          "ok": 71,
+          "no_completion": 0,
+          "not_json": 0,
+          "no_queries": 0
+        },
+        "queries_parsed": 852,
+        "repeats_dropped": 73,
+        "checked": 779,
+        "near_duplicates_dropped": 46,
+        "dropped_by_rule": {
+          "equal": 0,
+          "jaccard": 1,
+          "cosine": 46
+        },
+        "at_other_thresholds": {
+          "cosine_at_least": {
+            "0.80": 390,
+            "0.85": 178,
+            "0.90": 46,
+            "0.95": 7
+          },
+          "jaccard_at_least": {
+            "0.5": 42,
+            "0.6": 21,
+            "0.7": 1,
+            "0.8": 0
+          }
+        },
+        "kept": 733,
+        "kept_by_form": {
+          "questions": 235,
+          "keywords": 238,
+          "statements": 260
+        },
+        "kept_by_split": {
+          "train": 691,
+          "validation": 42
+        },
+        "source_documents": 71,
+        "validation_documents": 4,
+        "nearest_kept": [
+          {
+            "id": "fixture:configs/archive/run_048_v1.yaml::77129dc9cec0:q1",
+            "query": "What was the baseline RMSE for run 48?",
+            "cosine": 0.8999,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q045"
+            },
+            "jaccard": 0.6667
+          },
+          {
+            "id": "fixture:results/ablation.csv::abd766c87295:k4",
+            "query": "ablation fusion_on_resnet 0.0588",
+            "cosine": 0.8993,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q095"
+            },
+            "jaccard": 0.3636
+          },
+          {
+            "id": "fixture:src/trellis_wires.py::c02dccbbb8c6:q4",
+            "query": "How can I identify a Blender render that includes the trellis wire overlay?",
+            "cosine": 0.8987,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q133"
+            },
+            "jaccard": 0.2353
+          },
+          {
+            "id": "fixture:logs/run_042.out::2a2e8233ceb1:q2",
+            "query": "What learning rate was used for the run with bark_type pine?",
+            "cosine": 0.8985,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q088"
+            },
+            "jaccard": 0.4
+          },
+          {
+            "id": "fixture:results/ablation.csv::42e38900299d:k1",
+            "query": "clip_fusion val_rmse 0.0595",
+            "cosine": 0.8981,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q085"
+            },
+            "jaccard": 0.3333
+          },
+          {
+            "id": "fixture:src/dinov2_encoder.py::b6410ea5bc31:k3",
+            "query": "runs 45-49 52-55 encoder",
+            "cosine": 0.898,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q049"
+            },
+            "jaccard": 0.2
+          },
+          {
+            "id": "fixture:configs/run_051.yaml::970f59b6d070:k1",
+            "query": "run_id 51 val_rmse 0.0681",
+            "cosine": 0.8975,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q060"
+            },
+            "jaccard": 0.4
+          },
+          {
+            "id": "fixture:configs/run_043.yaml::15e4fe97a34c:q1",
+            "query": "What was the baseline RMSE for run 43?",
+            "cosine": 0.8974,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q020"
+            },
+            "jaccard": 0.6667
+          },
+          {
+            "id": "fixture:configs/run_043.yaml::15e4fe97a34c:k3",
+            "query": "run 43 val_rmse 0.072",
+            "cosine": 0.8971,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q020"
+            },
+            "jaccard": 0.4444
+          },
+          {
+            "id": "fixture:results/ablation.csv::a4f718536f2c:q1",
+            "query": "What was the val_rmse for the fusion_off_dino ablation with dinov2?",
+            "cosine": 0.897,
+            "cosine_nearest": {
+              "set": "fixture",
+              "id": "q113"
+            },
+            "jaccard": 0.3571
+          }
+        ]
+      },
+      "scifact": {
+        "completions": {
+          "ok": 1500,
+          "no_completion": 0,
+          "not_json": 0,
+          "no_queries": 0
+        },
+        "queries_parsed": 4498,
+        "repeats_dropped": 0,
+        "checked": 4498,
+        "near_duplicates_dropped": 8,
+        "dropped_by_rule": {
+          "equal": 0,
+          "jaccard": 0,
+          "cosine": 8
+        },
+        "at_other_thresholds": {
+          "cosine_at_least": {
+            "0.80": 207,
+            "0.85": 49,
+            "0.90": 8,
+            "0.95": 0
+          },
+          "jaccard_at_least": {
+            "0.5": 1,
+            "0.6": 0,
+            "0.7": 0,
+            "0.8": 0
+          }
+        },
+        "kept": 4490,
+        "kept_by_form": {
+          "questions": 1496,
+          "keywords": 1498,
+          "statements": 1496
+        },
+        "kept_by_split": {
+          "train": 4267,
+          "validation": 223
+        },
+        "source_documents": 1500,
+        "validation_documents": 75,
+        "nearest_kept": [
+          {
+            "id": "scifact:9745001:s1",
+            "query": "Radioactive iodine treatment for non-toxic multinodular goitre resulted in a 60% median reduction in thyroid volume within 24 months.",
+            "cosine": 0.8971,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "1012"
+            },
+            "jaccard": 0.3182
+          },
+          {
+            "id": "scifact:6309659:s1",
+            "query": "Women with natural menopause and a longer reproductive period have an increased risk of dementia, especially among APOE epsilon4 carriers.",
+            "cosine": 0.895,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "415"
+            },
+            "jaccard": 0.2222
+          },
+          {
+            "id": "scifact:27123743:q1",
+            "query": "Is there a correlation between high birthweight and the risk of developing premenopausal breast cancer?",
+            "cosine": 0.893,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "179"
+            },
+            "jaccard": 0.2963
+          },
+          {
+            "id": "scifact:9878167:q1",
+            "query": "Do neutrophils need to die in order to release neutrophil extracellular traps (NETs)?",
+            "cosine": 0.8883,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "845"
+            },
+            "jaccard": 0.2941
+          },
+          {
+            "id": "scifact:26118532:s1",
+            "query": "Telomestatin stabilizes G-quadruplex structures in the absence of monovalent cations, a unique characteristic among G-quadruplex-interactive compounds.",
+            "cosine": 0.8847,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "993"
+            },
+            "jaccard": 0.1905
+          },
+          {
+            "id": "scifact:31141365:k1",
+            "query": "hair follicle stem cells chromatin H3K27me3",
+            "cosine": 0.884,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "1204"
+            },
+            "jaccard": 0.25
+          },
+          {
+            "id": "scifact:4883040:k1",
+            "query": "antiretroviral therapy tuberculosis incidence HIV CD4 count",
+            "cosine": 0.8839,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "124"
+            },
+            "jaccard": 0.2667
+          },
+          {
+            "id": "scifact:9745001:k1",
+            "query": "radioactive iodine treatment non-toxic multinodular goitre",
+            "cosine": 0.8835,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "1012"
+            },
+            "jaccard": 0.4167
+          },
+          {
+            "id": "scifact:1032372:k1",
+            "query": "epigenetic modulation antitumor immune response therapy",
+            "cosine": 0.8832,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "385"
+            },
+            "jaccard": 0.2667
+          },
+          {
+            "id": "scifact:15319019:s1",
+            "query": "The N348I mutation in the connection domain of HIV-1 reverse transcriptase is associated with increased resistance to zidovudine and nevirapine.",
+            "cosine": 0.8817,
+            "cosine_nearest": {
+              "set": "scifact",
+              "id": "823"
+            },
+            "jaccard": 0.2059
+          }
+        ]
+      },
+      "fiqa": {
+        "completions": {
+          "ok": 1800,
+          "no_completion": 0,
+          "not_json": 0,
+          "no_queries": 0
+        },
+        "queries_parsed": 5400,
+        "repeats_dropped": 0,
+        "checked": 5400,
+        "near_duplicates_dropped": 1,
+        "dropped_by_rule": {
+          "equal": 0,
+          "jaccard": 0,
+          "cosine": 1
+        },
+        "at_other_thresholds": {
+          "cosine_at_least": {
+            "0.80": 257,
+            "0.85": 32,
+            "0.90": 1,
+            "0.95": 0
+          },
+          "jaccard_at_least": {
+            "0.5": 7,
+            "0.6": 0,
+            "0.7": 0,
+            "0.8": 0
+          }
+        },
+        "kept": 5399,
+        "kept_by_form": {
+          "questions": 1800,
+          "keywords": 1799,
+          "statements": 1800
+        },
+        "kept_by_split": {
+          "train": 5129,
+          "validation": 270
+        },
+        "source_documents": 1800,
+        "validation_documents": 90,
+        "nearest_kept": [
+          {
+            "id": "fiqa:551122:k1",
+            "query": "diversification across 401k and IRA accounts",
+            "cosine": 0.896,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "3189"
+            },
+            "jaccard": 0.125
+          },
+          {
+            "id": "fiqa:163836:k1",
+            "query": "offset capital gains with capital losses",
+            "cosine": 0.889,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "7098"
+            },
+            "jaccard": 0.1818
+          },
+          {
+            "id": "fiqa:259150:q1",
+            "query": "What are the specific tax advantages of a Traditional IRA versus a Roth IRA?",
+            "cosine": 0.8871,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "10447"
+            },
+            "jaccard": 0.2941
+          },
+          {
+            "id": "fiqa:194319:k1",
+            "query": "limitations of PE ratio for stock investment",
+            "cosine": 0.8864,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "7734"
+            },
+            "jaccard": 0.2667
+          },
+          {
+            "id": "fiqa:301616:q1",
+            "query": "Should I contribute more to my 401(k) than the amount my employer matches?",
+            "cosine": 0.8798,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "10827"
+            },
+            "jaccard": 0.3333
+          },
+          {
+            "id": "fiqa:150514:k1",
+            "query": "tax advantages of buybacks vs dividends",
+            "cosine": 0.8797,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "9565"
+            },
+            "jaccard": 0.3333
+          },
+          {
+            "id": "fiqa:391063:q1",
+            "query": "Does implied volatility have a consistent predictive power for future volatility compared to historical volatility?",
+            "cosine": 0.8763,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "7329"
+            },
+            "jaccard": 0.2
+          },
+          {
+            "id": "fiqa:272248:q1",
+            "query": "How do I pay taxes on self-employment income and what forms do I need?",
+            "cosine": 0.8733,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "853"
+            },
+            "jaccard": 0.3158
+          },
+          {
+            "id": "fiqa:194319:q1",
+            "query": "Why is a low PE ratio not enough information to decide if a stock is a good investment?",
+            "cosine": 0.8702,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "7734"
+            },
+            "jaccard": 0.2174
+          },
+          {
+            "id": "fiqa:83473:k1",
+            "query": "tax on foreign currency value increase",
+            "cosine": 0.8694,
+            "cosine_nearest": {
+              "set": "fiqa",
+              "id": "1284"
+            },
+            "jaccard": 0.4
+          }
+        ]
+      }
+    },
+    "flagged": [
+      {
+        "id": "fixture:checkpoints/run_046.ckpt.meta.json::345746f0c48c:k3",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_046.ckpt.meta.json::345746f0c48c",
+        "form": "keywords",
+        "query": "slurm script run_046.sbatch",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4286,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q124"
+        },
+        "cosine": 0.9122,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q124"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_047.ckpt.meta.json::5845b3185651:q1",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+        "form": "questions",
+        "query": "What was the validation RMSE for run 47?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.9083,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_047.ckpt.meta.json::5845b3185651:q2",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+        "form": "questions",
+        "query": "Which encoder model was used for the run with ID 47?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.9442,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q039"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_047.ckpt.meta.json::5845b3185651:k1",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+        "form": "keywords",
+        "query": "run_id 47 val_rmse",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.5,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.92,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_047.ckpt.meta.json::5845b3185651:k4",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+        "form": "keywords",
+        "query": "slurm run_047.sbatch produced_by",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q130"
+        },
+        "cosine": 0.9044,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q124"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea:q2",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea",
+        "form": "questions",
+        "query": "Which encoder model was used for the run with ID 48?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q045"
+        },
+        "cosine": 0.9427,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q044"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea:k1",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea",
+        "form": "keywords",
+        "query": "run_id 48 val_rmse",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.5,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q045"
+        },
+        "cosine": 0.9062,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q045"
+        }
+      },
+      {
+        "id": "fixture:checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea:k4",
+        "corpus": "fixture",
+        "doc_id": "checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea",
+        "form": "keywords",
+        "query": "slurm run_048.sbatch output",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4286,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q124"
+        },
+        "cosine": 0.9277,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q124"
+        }
+      },
+      {
+        "id": "fixture:configs/archive/run_046_v1.yaml::018c317630ac:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/archive/run_046_v1.yaml::018c317630ac",
+        "form": "questions",
+        "query": "Which encoder was used in the superseded run 46 configuration?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.24,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q107"
+        },
+        "cosine": 0.965,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q034"
+        }
+      },
+      {
+        "id": "fixture:configs/archive/run_047_v1.yaml::1ed3939f452e:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/archive/run_047_v1.yaml::1ed3939f452e",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 47?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.9288,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        }
+      },
+      {
+        "id": "fixture:configs/archive/run_047_v1.yaml::1ed3939f452e:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/archive/run_047_v1.yaml::1ed3939f452e",
+        "form": "questions",
+        "query": "Which encoder was used in the superseded run 47 configuration?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.24,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q107"
+        },
+        "cosine": 0.9601,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q039"
+        }
+      },
+      {
+        "id": "fixture:configs/archive/run_047_v1.yaml::1ed3939f452e:s2",
+        "corpus": "fixture",
+        "doc_id": "configs/archive/run_047_v1.yaml::1ed3939f452e",
+        "form": "statements",
+        "query": "Run 47 used a learning rate of 1e-05.",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.3571,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q106"
+        },
+        "cosine": 0.912,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q036"
+        }
+      },
+      {
+        "id": "fixture:configs/archive/run_048_v1.yaml::77129dc9cec0:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/archive/run_048_v1.yaml::77129dc9cec0",
+        "form": "questions",
+        "query": "Which encoder was used in the superseded run 48 configuration?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.24,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q107"
+        },
+        "cosine": 0.9652,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q044"
+        }
+      },
+      {
+        "id": "fixture:configs/run_040.yaml::f51a80241e01:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_040.yaml::f51a80241e01",
+        "form": "questions",
+        "query": "Which encoder model was used in the configuration for run 40?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q005"
+        },
+        "cosine": 0.9431,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q004"
+        }
+      },
+      {
+        "id": "fixture:configs/run_040.yaml::f51a80241e01:k2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_040.yaml::f51a80241e01",
+        "form": "keywords",
+        "query": "run 40 val_rmse 0.0612",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4444,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q005"
+        },
+        "cosine": 0.9053,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q005"
+        }
+      },
+      {
+        "id": "fixture:configs/run_041.yaml::c00a02fe5743:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_041.yaml::c00a02fe5743",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 41?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q010"
+        },
+        "cosine": 0.9052,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q010"
+        }
+      },
+      {
+        "id": "fixture:configs/run_041.yaml::c00a02fe5743:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_041.yaml::c00a02fe5743",
+        "form": "questions",
+        "query": "Which encoder model was used in the configuration for run_id 41?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q010"
+        },
+        "cosine": 0.9114,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q009"
+        }
+      },
+      {
+        "id": "fixture:configs/run_042.yaml::f71733c83b0b:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_042.yaml::f71733c83b0b",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 42?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q015"
+        },
+        "cosine": 0.9013,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q015"
+        }
+      },
+      {
+        "id": "fixture:configs/run_043.yaml::15e4fe97a34c:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_043.yaml::15e4fe97a34c",
+        "form": "questions",
+        "query": "Which encoder was used in the configuration for run_id 43?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q020"
+        },
+        "cosine": 0.9292,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q019"
+        }
+      },
+      {
+        "id": "fixture:configs/run_044.yaml::f5f0ffdd97f7:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_044.yaml::f5f0ffdd97f7",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 44?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q025"
+        },
+        "cosine": 0.9034,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q025"
+        }
+      },
+      {
+        "id": "fixture:configs/run_044.yaml::f5f0ffdd97f7:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_044.yaml::f5f0ffdd97f7",
+        "form": "questions",
+        "query": "Which encoder was used in the configuration for run_id 44?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q025"
+        },
+        "cosine": 0.924,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q024"
+        }
+      },
+      {
+        "id": "fixture:configs/run_045.yaml::287782b4e727:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_045.yaml::287782b4e727",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 45?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q030"
+        },
+        "cosine": 0.9066,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q030"
+        }
+      },
+      {
+        "id": "fixture:configs/run_045.yaml::287782b4e727:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_045.yaml::287782b4e727",
+        "form": "questions",
+        "query": "Which encoder was used in the configuration for run_id 45?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q030"
+        },
+        "cosine": 0.9242,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q029"
+        }
+      },
+      {
+        "id": "fixture:configs/run_046.yaml::73da02074cc2:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_046.yaml::73da02074cc2",
+        "form": "questions",
+        "query": "Which encoder was used in the configuration for run_id 46?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q035"
+        },
+        "cosine": 0.9236,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q034"
+        }
+      },
+      {
+        "id": "fixture:configs/run_047.yaml::387c656a4708:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_047.yaml::387c656a4708",
+        "form": "questions",
+        "query": "What is the baseline RMSE for run 47?",
+        "rules": [
+          "jaccard",
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.7,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        },
+        "cosine": 0.9336,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        }
+      },
+      {
+        "id": "fixture:configs/run_047.yaml::387c656a4708:k2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_047.yaml::387c656a4708",
+        "form": "keywords",
+        "query": "val_rmse 0.0521 run 47",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4444,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.93,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        }
+      },
+      {
+        "id": "fixture:configs/run_048.yaml::8d81b80c881c:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_048.yaml::8d81b80c881c",
+        "form": "questions",
+        "query": "Which encoder model was used in the configuration for run_id 48?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q045"
+        },
+        "cosine": 0.9121,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q044"
+        }
+      },
+      {
+        "id": "fixture:configs/run_048.yaml::8d81b80c881c:k2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_048.yaml::8d81b80c881c",
+        "form": "keywords",
+        "query": "val_rmse 0.0533 run 48",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4444,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q045"
+        },
+        "cosine": 0.904,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q045"
+        }
+      },
+      {
+        "id": "fixture:configs/run_049.yaml::2276b9b53da0:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_049.yaml::2276b9b53da0",
+        "form": "questions",
+        "query": "Which encoder model was used in the run with ID 49?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.28,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q107"
+        },
+        "cosine": 0.9418,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q049"
+        }
+      },
+      {
+        "id": "fixture:configs/run_049.yaml::2276b9b53da0:k3",
+        "corpus": "fixture",
+        "doc_id": "configs/run_049.yaml::2276b9b53da0",
+        "form": "keywords",
+        "query": "run 49 val_rmse 0.0559",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4444,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q050"
+        },
+        "cosine": 0.9099,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q050"
+        }
+      },
+      {
+        "id": "fixture:configs/run_051.yaml::970f59b6d070:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_051.yaml::970f59b6d070",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 51?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q060"
+        },
+        "cosine": 0.9072,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q060"
+        }
+      },
+      {
+        "id": "fixture:configs/run_051.yaml::970f59b6d070:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_051.yaml::970f59b6d070",
+        "form": "questions",
+        "query": "Which encoder was used in the configuration for run_id 51?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q060"
+        },
+        "cosine": 0.9296,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q059"
+        }
+      },
+      {
+        "id": "fixture:configs/run_052.yaml::8670c0449efa:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_052.yaml::8670c0449efa",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 52?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q065"
+        },
+        "cosine": 0.904,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q065"
+        }
+      },
+      {
+        "id": "fixture:configs/run_052.yaml::8670c0449efa:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_052.yaml::8670c0449efa",
+        "form": "questions",
+        "query": "Which encoder was used in the configuration for run_id 52?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2857,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q065"
+        },
+        "cosine": 0.9282,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q064"
+        }
+      },
+      {
+        "id": "fixture:configs/run_053.yaml::4681c613d163:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_053.yaml::4681c613d163",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 53?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q070"
+        },
+        "cosine": 0.9026,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q070"
+        }
+      },
+      {
+        "id": "fixture:configs/run_054.yaml::ae40d45f8dbf:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_054.yaml::ae40d45f8dbf",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 54?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q075"
+        },
+        "cosine": 0.9042,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q075"
+        }
+      },
+      {
+        "id": "fixture:configs/run_054.yaml::ae40d45f8dbf:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_054.yaml::ae40d45f8dbf",
+        "form": "questions",
+        "query": "Which encoder model was used in the configuration for run_id 54?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q075"
+        },
+        "cosine": 0.9083,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q074"
+        }
+      },
+      {
+        "id": "fixture:configs/run_055.yaml::6b3160084330:q1",
+        "corpus": "fixture",
+        "doc_id": "configs/run_055.yaml::6b3160084330",
+        "form": "questions",
+        "query": "What was the baseline RMSE for run 55?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.6667,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q080"
+        },
+        "cosine": 0.9088,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q080"
+        }
+      },
+      {
+        "id": "fixture:configs/run_055.yaml::6b3160084330:q2",
+        "corpus": "fixture",
+        "doc_id": "configs/run_055.yaml::6b3160084330",
+        "form": "questions",
+        "query": "Which encoder model was used in the run with ID 55?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.28,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q107"
+        },
+        "cosine": 0.9413,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q079"
+        }
+      },
+      {
+        "id": "fixture:logs/run_043.out::e5eb9416bf2c:q4",
+        "corpus": "fixture",
+        "doc_id": "logs/run_043.out::e5eb9416bf2c",
+        "form": "questions",
+        "query": "Which bark type was used in the job for run 43?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.3333,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q107"
+        },
+        "cosine": 0.9622,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q018"
+        }
+      },
+      {
+        "id": "fixture:logs/run_051.out::a51115fae802:k1",
+        "corpus": "fixture",
+        "doc_id": "logs/run_051.out::a51115fae802",
+        "form": "keywords",
+        "query": "run 51 val_rmse 0.0681",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4444,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q060"
+        },
+        "cosine": 0.9108,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q060"
+        }
+      },
+      {
+        "id": "fixture:paper/draft_v2.md::3da067a8ae21:q2",
+        "corpus": "fixture",
+        "doc_id": "paper/draft_v2.md::3da067a8ae21",
+        "form": "questions",
+        "query": "Which bark type was used for run 47?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.3636,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q038"
+        },
+        "cosine": 0.9822,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q038"
+        }
+      },
+      {
+        "id": "fixture:paper/draft_v2.md::3da067a8ae21:k2",
+        "corpus": "fixture",
+        "doc_id": "paper/draft_v2.md::3da067a8ae21",
+        "form": "keywords",
+        "query": "run 47 val RMSE 0.0521",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.4444,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.95,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        }
+      },
+      {
+        "id": "fixture:results/ablation.csv::597d44102c87:q3",
+        "corpus": "fixture",
+        "doc_id": "results/ablation.csv::597d44102c87",
+        "form": "questions",
+        "query": "What is the specific val_rmse value for run 40?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.5833,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q116"
+        },
+        "cosine": 0.9301,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q005"
+        }
+      },
+      {
+        "id": "fixture:results/ablation.csv::3a3e8594ad0a:q2",
+        "corpus": "fixture",
+        "doc_id": "results/ablation.csv::3a3e8594ad0a",
+        "form": "questions",
+        "query": "Which encoder was used for run_id 47?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.3636,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q040"
+        },
+        "cosine": 0.9368,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q039"
+        }
+      },
+      {
+        "id": "fixture:src/trellis_wires.py::c02dccbbb8c6:k4",
+        "corpus": "fixture",
+        "doc_id": "src/trellis_wires.py::c02dccbbb8c6",
+        "form": "keywords",
+        "query": "find Blender render trellis wires",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.625,
+        "jaccard_nearest": {
+          "set": "fixture",
+          "id": "q133"
+        },
+        "cosine": 0.9511,
+        "cosine_nearest": {
+          "set": "fixture",
+          "id": "q133"
+        }
+      },
+      {
+        "id": "scifact:18872233:k1",
+        "corpus": "scifact",
+        "doc_id": "18872233",
+        "form": "keywords",
+        "query": "prevalence of mental health conditions bariatric surgery",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.3333,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "163"
+        },
+        "cosine": 0.913,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "163"
+        }
+      },
+      {
+        "id": "scifact:17450673:q1",
+        "corpus": "scifact",
+        "doc_id": "17450673",
+        "form": "questions",
+        "query": "Does birth weight have a statistically significant association with breast cancer risk in daughters?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.3043,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "1379"
+        },
+        "cosine": 0.9375,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "179"
+        }
+      },
+      {
+        "id": "scifact:17450673:s1",
+        "corpus": "scifact",
+        "doc_id": "17450673",
+        "form": "statements",
+        "query": "Heavier birth weights are associated with an increased risk of developing breast cancer in adulthood.",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2778,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "179"
+        },
+        "cosine": 0.9377,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "1379"
+        }
+      },
+      {
+        "id": "scifact:9745001:q1",
+        "corpus": "scifact",
+        "doc_id": "9745001",
+        "form": "questions",
+        "query": "What is the median reduction in thyroid volume for patients with non-toxic multinodular goitre after a single dose of radioactive iodine?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.28,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "1012"
+        },
+        "cosine": 0.903,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "1012"
+        }
+      },
+      {
+        "id": "scifact:4414547:q1",
+        "corpus": "scifact",
+        "doc_id": "4414547",
+        "form": "questions",
+        "query": "What is the functional effect of mosaic PPM1D protein-truncating variants on p53 suppression?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.25,
+        "jaccard_nearest": {
+          "set": "fiqa",
+          "id": "8034"
+        },
+        "cosine": 0.9077,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "70"
+        }
+      },
+      {
+        "id": "scifact:4414547:s1",
+        "corpus": "scifact",
+        "doc_id": "4414547",
+        "form": "statements",
+        "query": "PPM1D mutations in the final exon result in hyperactive isoforms that enhance p53 suppression.",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.1304,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "560"
+        },
+        "cosine": 0.9111,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "70"
+        }
+      },
+      {
+        "id": "scifact:4883040:q1",
+        "corpus": "scifact",
+        "doc_id": "4883040",
+        "form": "questions",
+        "query": "Does antiretroviral therapy reduce the risk of tuberculosis in adults with HIV across different CD4 count categories?",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2609,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "124"
+        },
+        "cosine": 0.9184,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "124"
+        }
+      },
+      {
+        "id": "scifact:4883040:s1",
+        "corpus": "scifact",
+        "doc_id": "4883040",
+        "form": "statements",
+        "query": "Antiretroviral therapy is strongly associated with a reduction in tuberculosis incidence in HIV-infected adults regardless of their baseline CD4 count.",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2308,
+        "jaccard_nearest": {
+          "set": "scifact",
+          "id": "124"
+        },
+        "cosine": 0.9285,
+        "cosine_nearest": {
+          "set": "scifact",
+          "id": "124"
+        }
+      },
+      {
+        "id": "fiqa:102436:k1",
+        "corpus": "fiqa",
+        "doc_id": "102436",
+        "form": "keywords",
+        "query": "vesting conditions stock options exercise shares",
+        "rules": [
+          "cosine"
+        ],
+        "equal": false,
+        "jaccard": 0.2,
+        "jaccard_nearest": {
+          "set": "fiqa",
+          "id": "8632"
+        },
+        "cosine": 0.901,
+        "cosine_nearest": {
+          "set": "fiqa",
+          "id": "8632"
+        }
+      }
+    ]
+  },
+  "validation": {
+    "fraction": 0.05,
+    "min_documents": 4,
+    "seed": 1,
+    "rule": "by source document, per corpus: the ids sorted, permuted (RandomState(seed)), the first max(min_documents, ceil(fraction * n)) are validation; every query of a document goes with it"
+  },
+  "what_this_is_not": "no query has a relevance label; the documents are the benchmarks' own corpora, so a student trained on these queries has seen the documents its test questions are about, though no test question and no label"
+}

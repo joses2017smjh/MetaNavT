@@ -1,0 +1,8 @@
+{"id": "q001", "question": "what learning rate did run 40 use", "gold": "1e-04", "answer": "Run 40 used a learning rate of 0.0001.", "cited_paths": ["configs/run_040.yaml"], "extractive": "learning_rate: 1e-04"}
+{"id": "q002", "question": "how many stereo pairs did run 40 use", "gold": "2", "answer": "Run 40 used 3 stereo pairs.", "cited_paths": ["configs/run_040.yaml", "slurm/run_040.sbatch"], "extractive": "num_pairs: 2"}
+{"id": "q003", "question": "what bark type did run 40 use", "gold": "oak", "answer": "The bark type of run 40 was oak.", "cited_paths": ["configs/run_040.yaml"], "retrieved_paths": ["configs/run_040.yaml", "logs/run_040.out"]}
+{"id": "q004", "question": "what encoder did run 40 use", "gold": "resnet50", "answer": "Run 40 used the dinov2 encoder.", "cited_paths": ["configs/run_099.yaml"], "retrieved_paths": ["configs/run_040.yaml"]}
+{"id": "q005", "question": "what was val RMSE for run 40", "gold": "0.0612", "answer": "NOT IN SOURCES", "cited_paths": []}
+{"id": "q006", "question": "what learning rate did run 41 use", "gold": "1e-04", "answer": "The learning rate of run 41 was 1e-04.", "cited_paths": []}
+{"id": "q081", "question": "what LR did the DINOv2 runs use with fusion on", "gold": "1e-04, 2e-04, 3e-04", "answer": "The fusion-on DINOv2 runs used learning rates of 1e-04 and 2e-04.", "cited_paths": ["configs/run_046.yaml", "configs/run_047.yaml"]}
+{"id": "q090", "question": "which run had the highest val RMSE", "gold": "43", "answer": null, "cited_paths": []}

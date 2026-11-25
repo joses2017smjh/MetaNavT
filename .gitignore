@@ -67,10 +67,20 @@ bench/results/*.json
 !bench/results/api_latency_*.json
 !bench/results/jury.json
 !bench/results/jury_v2.json
+# M42: generate-only answers per generator (make bench-jury-v3-answers) and one judge file per judge (make
+# bench-jury-v3-judge), each holding its gate verdicts and every verdict on the stored answers
+!bench/results/jury_v3_answers_*.json
+!bench/results/jury_v3_judge_*.json
+# `make bench-judge-stored ANSWERS=<file>`'s default output beside its answers (e.g. the recorded Claude answers)
+!bench/results/*_judged_by_*.json
 !bench/results/robotics_file_lookup_2026-10-07.json
 !bench/results/robotics_file_lookup_revalidated_2026-10-07.json
 !bench/results/robotics_chunking.json
 !bench/results/robotics_multiquery.json
+# the search policy trained once (M44): the results file and its two sidecars (make search-policy-eval; make search-policy-rescore recomputes it)
+!bench/results/search_policy.json
+!bench/results/search_policy.rollouts.json
+!bench/results/search_policy.training.json
 
 # editable install metadata
 *.egg-info/
@@ -133,6 +143,16 @@ bench/results/agent_injection_adaptive_tune/
 !bench/results/beir_fiqa_models_2026.json
 !bench/results/beir_scifact_models_2026_harrier.json
 !bench/results/beir_fiqa_models_2026_harrier.json
+# M43: the small rerankers over hybrid@bge-small at the served shape, each with its per-query sidecar (make
+# bench-small-rerankers, bench-beir-small-rerankers, bench-beir-fiqa-small-rerankers), and what they cost on a CPU
+# (scripts/measure_rerank_cpu.py, indicative). The synthetic queries and the teacher's scores are in bench/distill/.
+!bench/results/small_rerankers.json
+!bench/results/small_rerankers.per_query.json
+!bench/results/beir_scifact_small_rerankers.json
+!bench/results/beir_scifact_small_rerankers.per_query.json
+!bench/results/beir_fiqa_small_rerankers.json
+!bench/results/beir_fiqa_small_rerankers.per_query.json
+!bench/results/small_rerankers_cpu.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

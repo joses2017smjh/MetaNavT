@@ -1,7 +1,8 @@
 # Deploy the public demo to AWS
 
-**Status: code only, but for the bootstrap.** The owner's account exists (the Free plan) and the owner applied
-`infra/bootstrap` on 2026-11-21; no environment is applied and no deploy has run. The Terraform is checked offline
+**Status: the single host is applied; the ECS stack is code only.** The owner's account exists (the Free plan). On
+2026-11-21 the owner applied `infra/bootstrap` and the live demo's single host (`infra/envs/single-host`), whose
+first boot deployed the image; the ECS stack is not applied. The Terraform is checked offline
 (`terraform validate`, `terraform fmt`, tflint with the AWS rules) and by tests that read it; the deploy workflows are
 checked by tests that run their scripts against a fake AWS CLI. [What has not been run](#what-has-not-been-run) and
 [what only an apply can prove](#what-only-an-apply-can-prove) list what only the account can prove. Every step below
@@ -47,6 +48,13 @@ pgvector and Redis
   origin carries it). An Anthropic key is optional: a SecureString the owner stores, never in Terraform; without it
   answers are off and search works. The host reads both at every start and deploy into a root-only file in memory;
   the Postgres password is made on the host and never leaves it.
+- **The host role can read every parameter, not only its two.** Its inline policy (`read-parameters` in
+  `infra/modules/single-host/host.tf`) names only the two SecureStrings, but the AWS-managed
+  `AmazonSSMManagedInstanceCore` policy attached beside it, for Run Command and Session Manager, already allows
+  `ssm:GetParameter` and `ssm:GetParameters` on every parameter in the account, so the narrow policy narrows
+  nothing. The fix is a custom policy in place of the managed one, with only the actions the SSM agent needs. It is
+  planned, not done: a mistake there would cut off Session Manager and Run Command on the live host, which are the
+  only way onto it (there is no SSH) and the way every deploy runs.
 - **No reranker on the live site: a labelled fallback.** `serve_reranker = false` sets `RERANKER_MODEL=none`, the
   app's own "not configured": the live site serves hybrid retrieval (BM25 plus bge-small, fused) without the
   bge-reranker-v2-m3 cross-encoder, and every response says `reranker_loaded: false`. The README's benchmark tables

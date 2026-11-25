@@ -143,11 +143,11 @@ async def answer(req: AnswerRequest, request: Request, caller: Caller = Depends(
     if not excerpts:
         return _response(req, hits, reason="nothing retrieved")
     try:
-        reserved = await run_in_threadpool(limits.reserve, claude.worst_case_usd(settings, req.question, excerpts))
+        reservation = await run_in_threadpool(limits.reserve, claude.worst_case_usd(settings, req.question, excerpts))
     except Exception as exc:  # noqa: BLE001 - fail closed
         logger.warning(f"answer: budget unavailable ({type(exc).__name__})")
         return _response(req, hits, reason="limits unavailable")
-    if reserved is None:
+    if reservation is None:
         return _response(req, hits, reason="daily budget spent")
     result = None
     try:
@@ -155,9 +155,10 @@ async def answer(req: AnswerRequest, request: Request, caller: Caller = Depends(
     finally:
         # a failure before a reply keeps the whole reservation: whether it was billed is unknown. A refusal because the
         # account cannot pay (claude.UNPAID) costs 0, so its whole reservation is given back: no spend is recorded.
+        # Settling goes to the reservation's own day, even when the reply comes back after UTC midnight.
         actual = result.cost_usd if result is not None else None
         try:
-            await run_in_threadpool(limits.settle, reserved, actual)
+            await run_in_threadpool(limits.settle, reservation, actual)
         except Exception as exc:  # noqa: BLE001 - the reservation stays counted, which errs on the safe side
             logger.warning(f"answer: could not settle the budget ({type(exc).__name__})")
     response = _response(req, hits, result=result)

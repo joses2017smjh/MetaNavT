@@ -53,7 +53,22 @@ Heuristic columns are labelled "heuristic" and stay out of README tables.
 
 The header pins every Ollama model by the manifest digest the server's
 /api/tags reports for its tag (`revision`), with the server version; a model
-run refuses to start when a tag has no digest.
+run refuses to start when a tag has no digest. Since M42 it also records what
+every call sends (OLLAMA_REQUEST) and how the server held the generator
+(`ollama.generator_loaded`: its size, how much of it was on the GPU, the
+context length), and each row stores the extractive answer of its AB/BA pair.
+
+    python -m app.eval.llm_eval --out bench/results/jury_v3_answers_<generator>.json \
+        --generator qwen3.5:27b --judges none
+
+is a generate-only run (M42): steps 1 to 3, no judge and no calibration set.
+Its answers are judged later, one judge at a time, by app/eval/judge_stored.py,
+which gates each judge on the calibration answers stored in jury_v2.json.
+`--think off` sends `think: false` with every generation call, for a model
+whose reasoning does not end inside the context (its answers are then empty);
+the generator block and `ollama.request` say so. A generate-only file states
+what its numbers do not show (`does_not_show`), and a rescore adds that list
+to such a file written before it existed.
 
     python -m app.eval.llm_eval --rescore bench/results/jury.json
 
@@ -112,6 +127,7 @@ from app.eval.provenance import (
     git_sha,
     git_state,
     model_provenance,
+    ollama_loaded,
     ollama_model_provenance,
     ollama_tag_entry,
     ollama_tags,
@@ -119,7 +135,7 @@ from app.eval.provenance import (
     run_provenance,
     scrub,
 )
-from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, RNG_NAME, resample_indices
+from app.eval.stats import DEFAULT_N_BOOT, DEFAULT_SEED, RNG_NAME, mean_ci, resample_indices
 from app.graph.staleness import cluster_versions
 from app.retrieval.types import RetrievalHit
 
@@ -142,6 +158,29 @@ GATED_LABEL = "correctness verdict (app/eval/judge.py correctness_prompt: questi
 REFERENCE_LABELS = "exact_match_label, bounded (the gold may not sit inside a longer number or word)"
 ABSTENTION_RULE = (f"an answer that is {NOT_IN_SOURCES} and nothing else, to a question with a gold answer, is wrong "
                    "by rule: no judge is asked, and the row is left out of kappa")
+# What every generator and judge call sends (app/agent/generate.py OllamaGenerator.complete, app/eval/judge.py
+# ollama_payload), recorded since M42: a model that reasons before it answers does so at the server's default.
+OLLAMA_REQUEST = {"route": "/api/generate", "stream": False, "options": {"temperature": 0.0, "seed": 0},
+                  "think": "not sent: the server's default for the model", "num_ctx": "not sent: the server's context length"}
+NO_JUDGE_VERDICT = "no judge in this run: the answers and their deterministic checks only"
+# What a generate-only file's numbers do not show (M42), written by run() and by a rescore of such a file.
+GENERATE_ONLY_DOES_NOT_SHOW = (
+    "whether the answers are correct beyond exact match on the simple-factual questions: no judge labelled them in this file; "
+    "a judge's verdicts on them are in that judge's own file (app/eval/judge_stored.py), publishable only where that judge "
+    "passed its gate",
+    "that a stated value is grounded: the value checks are case-insensitive string containment in the cited bytes and in all "
+    "retrieved bytes, so a value written in another numeric format counts as missing, a value the model computed is missing "
+    "by design, and a value that appears there for another reason counts as found",
+    "the model's reasoning: where the model reasoned before it replied (`ollama.request`), only the reply is stored and "
+    "checked; a reply whose reasoning reached the server's context length (`ollama.generator_loaded`) is empty or cut short, "
+    "and an empty one counts as uncited",
+    "variance between runs or machines: one run at temperature 0 and seed 0 on the GPU in `device`; latency also depends on "
+    "how the server was started (its thread count is not recorded here), so it is not comparable across files",
+    "anything beyond fixture v1: a synthetic corpus and its gold questions, with the one retrieval configuration in `config`",
+)
+# A generation call that fails (a timeout, a server error) is that question's failure: the row keeps the error and an
+# empty answer, which is uncited. This many in a row mean the generator is gone, and the run stops and writes nothing.
+MAX_GENERATION_ERRORS_IN_A_ROW = 5
 
 
 def abstention_only(answer: str) -> bool:
@@ -277,9 +316,12 @@ def run(
     base_url: str | None = None,
     complete_fn=None,
     calibration_generator: str | None = None,
+    think: bool | None = None,
 ) -> dict[str, Any]:
     """Score generated answers. `complete_fn` (prompt -> text) replaces Ollama for tests. With a
-    `calibration_generator`, the gate's reference is the calibration set (CALIBRATION_CONDITIONS) it answers."""
+    `calibration_generator`, the gate's reference is the calibration set (CALIBRATION_CONDITIONS) it answers.
+    `think=False` sends `think: false` with every generation call (M42: a generator whose reasoning does not end
+    inside the context returns empty answers at the server's default); None sends no key, as every committed run."""
     root = root or project_root()
     started = git_state(root)  # before the run writes anything (run_provenance)
     files_root = root / "bench" / "corpus" / "files"
@@ -308,7 +350,7 @@ def run(
     ollama_models = list(dict.fromkeys([generator_model, *judge_models, *([calibration_generator] if calibration_generator else [])]))
     cal_generator = OllamaGenerator(model=calibration_generator, base_url=base_url) if calibration_generator else None
     if complete_fn is not None:
-        generator = OllamaGenerator(model=generator_model, base_url=base_url)
+        generator = OllamaGenerator(model=generator_model, base_url=base_url, think=think)
         generator.complete = complete_fn  # type: ignore[method-assign]
         if cal_generator is not None:
             cal_generator.complete = complete_fn  # type: ignore[method-assign]
@@ -323,7 +365,7 @@ def run(
         undigested = [m for m in ollama_models if not ollama_tag_entry(m, tags).get("digest")]
         if undigested:  # the results would name these weights by tag only
             raise SystemExit(f"Ollama lists no digest for {undigested}; refusing to record weights by tag alone")
-        generator = OllamaGenerator(model=generator_model, base_url=base_url)
+        generator = OllamaGenerator(model=generator_model, base_url=base_url, timeout=float(os.environ.get("OLLAMA_TIMEOUT", "600")), think=think)
         judges = [(name, LlmJudge(model=name, name=name)) for name in judge_models]
         pair_fns = {name: (lambda prompt, _m=name: ollama_complete(prompt, model=_m) or "") for name in judge_models}
     heuristic = HeuristicJudge()
@@ -334,16 +376,24 @@ def run(
     # Pass 1: retrieve + generate every answer (one model resident), then deterministic checks.
     work: list[tuple[GoldQuestion, dict[str, Any], list[str], str, str]] = []
     sf_hits: dict[str, list[RetrievalHit]] = {}
+    failing = 0
     for q in gold:
         paths, payload = _retrieve(index, q.question, config, StageTimer(), clusters, None)
         hits = list(payload.hits[:TOP_N]) if hasattr(payload, "hits") else list(payload[:TOP_N])
         if q.category == "simple_factual":
             sf_hits[q.id] = hits
         contexts = [h.chunk.text for h in hits]
-        with timer.stage("generate"):
-            text = generator(q.question, hits)
-        gen_meta = generator.last_meta.__dict__ if generator.last_meta else {}
+        try:
+            with timer.stage("generate"):
+                text = generator(q.question, hits)
+            gen_meta, failing = (generator.last_meta.__dict__ if generator.last_meta else {}), 0
+        except Exception as e:  # noqa: BLE001 - kept in the row (MAX_GENERATION_ERRORS_IN_A_ROW)
+            failing += 1
+            if failing >= MAX_GENERATION_ERRORS_IN_A_ROW:
+                raise SystemExit(f"{failing} generation calls failed in a row, the last on {q.id} ({type(e).__name__}: {e}); nothing is written") from e
+            text, gen_meta = "", {"model": generator_model, "error": f"{type(e).__name__}: {e}"}
         checks = deterministic_checks(q, text, hits)
+        extractive = extractive_answer(q.question, hits)
         row: dict[str, Any] = {
             "id": q.id,
             "category": q.category,
@@ -351,6 +401,7 @@ def run(
             "gold": q.answer,
             "retrieved_paths": paths[:TOP_N],
             "answer": text,
+            "extractive": extractive,  # the AB/BA pair's other answer, so a judge-only run needs no retrieval (M42)
             "generation": gen_meta,
             "checks": checks,
             "judges": {},
@@ -363,7 +414,7 @@ def run(
             continue
         judged_text = cited_answer(text, hits)["answer"]
         row["judges"]["heuristic"] = judge_pointwise(heuristic, q, judged_text, contexts)
-        work.append((q, row, contexts, judged_text, extractive_answer(q.question, hits)))
+        work.append((q, row, contexts, judged_text, extractive))
     # Pass 1b: the calibration set, each simple-factual question from the retrieved and from the planted context.
     calibration: list[dict[str, Any]] = []
     for q in gold if cal_generator is not None else []:
@@ -382,6 +433,8 @@ def run(
                 "generation": cal_generator.last_meta.__dict__ if cal_generator.last_meta else {},
                 "checks": calibration_checks(q, text, context), "correctness": {},
             })
+    # How the server holds the generator, read before a judge can evict it: size, GPU share, context length (M42).
+    generator_loaded = ollama_loaded(generator_model, base_url) if tags else {}
     by_id = {q.id: q for q in gold}
     # Pass 2: one judge model at a time over every answer (pointwise, correctness, then AB/BA), so a
     # model is loaded once rather than swapped per question.
@@ -422,12 +475,13 @@ def run(
         "n_gold": len(gold),
         "config": bench_settings(config),
         "models": {
-            "generator": ollama_model_provenance(generator_model, "generator", tags) | {"temperature": 0.0, "seed": 0},
+            "generator": ollama_model_provenance(generator_model, "generator", tags) | {"temperature": 0.0, "seed": 0} | ({} if think is None else {"think": "on" if think else "off"}),
             "judges": [ollama_model_provenance(m, "judge", tags) for m in judge_models],
             "embedder": model_provenance(config.embedder, "embedder"),
             "reranker": model_provenance(config.reranker, "reranker") | {"loaded": bool(getattr(index, "reranker_loaded", False))},
         },
-        "ollama": {"version": ollama_version(base_url) if tags else None},
+        "ollama": {"version": ollama_version(base_url) if tags else None, "generator_loaded": generator_loaded,
+                   "request": OLLAMA_REQUEST if think is None else OLLAMA_REQUEST | {"think": f"{str(think).lower()}: sent with every generation call"}},
         "kappa_gate": KAPPA_GATE,
         "protocol": {
             "gated_label": GATED_LABEL,
@@ -435,8 +489,11 @@ def run(
             "reference": REFERENCE_LABELS,
             "abstention_rule": ABSTENTION_RULE,
         },
+        **({} if judge_models else {"does_not_show": list(GENERATE_ONLY_DOES_NOT_SHOW)}),
         "latency": timer.summary(),
         "wall_s": wall_s,
+        "generation_errors": [r["id"] for r in rows if r["generation"].get("error")],  # calls that failed: empty answers, uncited
+        "check_intervals": check_intervals(rows),
         "summary": summary,
         "rows": rows,
     }
@@ -451,6 +508,28 @@ def run(
             "rows": calibration,
         }
     return blob
+
+
+def check_intervals(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """The deterministic-check rates of summarize() with a percentile bootstrap interval each, resampling the answers
+    the rate counts (M42: generators are compared on these rates). A top-level block of the file, beside the summary."""
+    judged = [r for r in rows if not r.get("failed")]
+    valued = [r for r in judged if r["checks"].get("n_values")]
+
+    def interval(flags: Sequence[bool]) -> dict[str, Any] | None:
+        if not flags:
+            return None
+        rate, lo, hi = mean_ci([float(f) for f in flags], resample_indices(len(flags), DEFAULT_N_BOOT, DEFAULT_SEED))
+        return {"rate": round(rate, 4), "lo": round(lo, 4), "hi": round(hi, 4), "n": len(flags)}
+
+    return {
+        "method": "percentile bootstrap over the answers each rate counts", "rng": RNG_NAME, "seed": DEFAULT_SEED, "n_boot": DEFAULT_N_BOOT, "level": 0.95,
+        "uncited_answers": interval([r.get("failed") == "uncited_answer" for r in rows]),
+        "cited_in_retrieved": interval([bool(r["checks"]["cited_in_retrieved"]) for r in judged if r["checks"].get("cited_in_retrieved") is not None]),
+        "values_in_cited_bytes": interval([bool(r["checks"]["values_in_cited_bytes"]) for r in valued]),
+        "values_in_any_evidence": interval([bool(r["checks"]["values_in_any_evidence"]) for r in valued]),
+        "exact_match_simple_factual": interval([bool(r["checks"]["exact_match"]) for r in judged if r["category"] == "simple_factual"]),
+    }
 
 
 def _counts(labels: Sequence[str]) -> dict[str, int]:
@@ -566,9 +645,10 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
             maj.append((r["checks"]["exact_match_label"], _majority(labs)))
             maj_ids.append(r["id"])
     k_j = cohens_kappa([a for a, _ in maj], [b for _, b in maj])
-    kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4),
-                              "interval": kappa_interval(maj, maj_ids), "n": len(maj),
-                              "readme_ok": reference["gate_evaluable"] and bool(maj) and k_j >= KAPPA_GATE}
+    if judge_models:  # a generate-only run (M42) has no jury
+        kappa["jury_majority"] = {"members": list(judge_models), "kappa_vs_exact_match_simple_factual": round(k_j, 4),
+                                  "interval": kappa_interval(maj, maj_ids), "n": len(maj),
+                                  "readme_ok": reference["gate_evaluable"] and bool(maj) and k_j >= KAPPA_GATE}
     # The M4 label (mean of faithfulness, relevancy and groundedness), kept as a labelled column: never gated or
     # published, because a wrong value copied faithfully from a retrieved chunk scores about 1, 1, 0 -> partial.
     composite: dict[str, Any] = {}
@@ -620,7 +700,9 @@ def summarize(rows: list[dict[str, Any]], judge_models: Sequence[str], calibrati
             replies[name]["calibration_correctness"] = _health([r["correctness"][name] for r in calibration
                                                                 if (r["correctness"].get(name) or {}).get("by") == "judge"])
     publishable = [m for m in judge_models if kappa[m]["readme_ok"]]
-    if not reference["gate_evaluable"]:
+    if not judge_models:
+        verdict = NO_JUDGE_VERDICT
+    elif not reference["gate_evaluable"]:
         counts = ", ".join(f"{v} {k}" for k, v in ref_counts.items())
         verdict = (f"gate not evaluable: the exact-match reference on the judge-labelled {'calibration' if calibration is not None else 'simple_factual'} answers is "
                    f"{'one class' if single_class else 'empty'} ({counts} of {len(ref_labels)}), so Cohen's kappa is 0 by construction "
@@ -702,6 +784,8 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
             raise SystemExit(f"{row['id']}: the judged set would change (uncited/abstained); re-run make bench-jury")
         if "abstention_only" in old and checks["abstention_only"] != old["abstention_only"]:  # files from M29 on
             raise SystemExit(f"{row['id']}: the rows the abstention rule labels would change; re-run the answer evaluation")
+        if "extractive" in row and extractive_answer(q.question, hits) != row["extractive"]:  # files from M42 on
+            raise SystemExit(f"{row['id']}: the extractive answer differs from the stored one; re-run the answer evaluation")
         new_checks[row["id"]] = checks
     if mismatched:
         raise SystemExit(f"retrieval differs from the stored paths for {mismatched}; re-run make bench-jury")
@@ -727,6 +811,8 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
             row["checks"] = checks
     judge_models = [j["model"] for j in blob["models"]["judges"]]
     blob["summary"] = summarize(blob["rows"], judge_models, calibration)
+    if "check_intervals" in blob:  # files from M42 on
+        blob["check_intervals"] = check_intervals(blob["rows"])
     prior = blob.get("rescore") or {}
     # The generating run's block, carried by key: after a first rescore the header describes that rescore, and a False
     # flag must not give way to the header's. None for a file written before the jury writer recorded the block.
@@ -746,12 +832,16 @@ def rescore(path: Path, root: Path | None = None) -> dict[str, Any]:
     if isinstance(blob.get("device"), dict):  # the generating run's machine, written out again: no host name, no paths
         blob["device"] = scrub({k: v for k, v in blob["device"].items() if k != "hostname"})
     checks = run_provenance(root=root, started=started)  # the rescore's own block, right after git_sha as run() writes it
+    # A generate-only file from M42 on states what it does not show, after `protocol` as run() writes it; others keep their shape.
+    does_not_show = list(GENERATE_ONLY_DOES_NOT_SHOW) if not blob["models"]["judges"] and "check_intervals" in blob else None
     out: dict[str, Any] = {}
     for key, value in blob.items():
-        if key not in checks:
+        if key not in checks and not (key == "does_not_show" and does_not_show):
             out[key] = value
         if key == "git_sha":
             out.update(checks)
+        if key == "protocol" and does_not_show:
+            out["does_not_show"] = does_not_show
     return out
 
 
@@ -759,7 +849,7 @@ def markdown_table(blob: dict) -> str:
     s = blob["summary"]
     lines = [
         f"LLM answers on fixture v1 ({blob['n_gold']} questions), generator {blob['models']['generator']['model']}, "
-        f"judges {', '.join(j['model'] for j in blob['models']['judges'])}; wall {blob['wall_s']} s.",
+        f"judges {', '.join(j['model'] for j in blob['models']['judges']) or 'none (generate-only)'}; wall {blob['wall_s']} s.",
         "",
         "| deterministic check | rate | n |",
         "|---|---:|---:|",
@@ -808,11 +898,16 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out", type=Path, default=root / "bench" / "results" / "jury.json")
     p.add_argument("--generator", default=os.environ.get("GENERATOR_MODEL", "qwen2.5:7b"))
-    p.add_argument("--judges", default=os.environ.get("JUDGE_MODELS", ",".join(DEFAULT_JUDGE_MODELS)))
+    p.add_argument("--judges", default=os.environ.get("JUDGE_MODELS", ",".join(DEFAULT_JUDGE_MODELS)),
+                   help="comma-separated Ollama models; `none` for a generate-only run (answers and deterministic checks, "
+                        "judged later by app.eval.judge_stored)")
     p.add_argument("--calibration-generator", default=None, metavar="MODEL",
                    help="answer the simple-factual questions again with MODEL from the retrieved and from a planted context; "
                         "those answers become the gate's reference (the calibration set)")
     p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--think", choices=["default", "off"], default="default",
+                   help="off sends `think: false` with every generation call (a reasoning model then answers directly); default sends "
+                        "no key, as every committed run")
     p.add_argument("--embedder", default=DEFAULT_CONFIG.embedder)
     p.add_argument("--reranker", default=DEFAULT_CONFIG.reranker)
     p.add_argument("--no-router", action="store_true")
@@ -837,9 +932,9 @@ def main(argv: list[str] | None = None) -> int:
         name=f"{'hybrid'}{'+' + ('bge-rerank' if 'bge' in args.reranker else args.reranker) if args.reranker.lower() != 'none' else ''}"
         f"{'' if args.no_router else '+router'}{'' if args.no_staleness else '+staleness'}@{args.embedder.split(':')[-1].split('/')[-1]}",
     )
-    judges = [m.strip() for m in args.judges.split(",") if m.strip()]
+    judges = [m.strip() for m in args.judges.split(",") if m.strip() and m.strip().lower() != "none"]
     blob = run(root=root, config=config, generator_model=args.generator, judge_models=judges, limit=args.limit,
-               calibration_generator=args.calibration_generator)
+               calibration_generator=args.calibration_generator, think=False if args.think == "off" else None)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2) + "\n")

@@ -244,3 +244,43 @@ def test_the_injection_rows_lead_with_the_current_run_and_keep_the_others_labell
         assert all(c["source"].startswith(f"bench/results/{results} @ ") for c, r in zip(rows, runs) if r == run)
     assert "no defense: hijack questions in which at least one phrasing put the planted value" in rows[0]["claim"]
     assert "the structured answer check in the loop minus no defense, the planted value delivered" in rows[1]["claim"]
+
+
+def test_the_search_policy_has_one_row_the_declared_bar_and_says_in_words_what_the_reward_did(tmp_path):
+    """M44: the evidence table carries the bar declared before training (exact match against the untrained model) and
+    nothing else from this run, whatever its verdict; the reward, secondary to the bar, is described in words read
+    from the file, with no number the file does not hold."""
+    import json
+
+    from app.eval.evidence import _search_policy_claims
+
+    def verdict(metric, reference, lo, hi, primary=False):
+        word = "above zero" if lo > 0 else "below zero" if hi < 0 else "covers zero"
+        return {"config": "policy-grpo", "reference": reference, "metric": metric, "delta": round((lo + hi) / 2, 4), "lo": lo, "hi": hi,
+                "interval": word, "outcome": {"above zero": "win", "covers zero": "tie", "below zero": "loss"}[word], "primary": primary, "n_seeds": 3}
+
+    def write(verdicts, uncited=(0.0882, 0.0245)):
+        blob = {"git_sha": "abc1234", "model": {"name": "Qwen/Qwen2.5-1.5B-Instruct"}, "split": {"n_held_out": 68}, "verdicts": verdicts,
+                "reward": {"formula": "R = 1.0 * em + 0.5 * nDCG@10(files shown) - 0.1 * n_search - 1.0 * uncited_or_empty"},
+                "results": [{"config": "policy-untrained", "means": {"uncited_or_empty": uncited[0]}},
+                            {"config": "policy-grpo", "means": {"uncited_or_empty": uncited[1]}}]}
+        (tmp_path / "bench" / "results").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "bench" / "results" / "search_policy.json").write_text(json.dumps(blob))
+        return _search_policy_claims(tmp_path)
+
+    others = [verdict("reward", "policy-untrained", 0.04, 0.2), verdict("em_bounded", "policy-untrained", 0.01, 0.1),
+              verdict("em", "single-shot-rag", -0.01, 0.09), verdict("reward", "single-shot-rag", 0.1, 0.26)]
+    (row,) = write([verdict("em", "policy-untrained", -0.0049, 0.0931, primary=True), *others])
+    assert row["value"] == "+0.0441" and row["ci"] == "[-0.0049, +0.0931]" and row["n"] == 68 and row["claim"].endswith("(the bar declared before training)")
+    assert "each question's mean over 3 training seeds" in row["claim"] and "minus the same model untrained" in row["claim"]
+    assert row["not_shown"].startswith("verdict from the interval: covers zero, a tie on the bar declared before training; "
+                                       "against single-shot RAG with the same model, exact match is a tie too; "
+                                       "secondary to the bar, the mean reward rose, with an interval above zero, about half of it from fewer uncited or empty answers;")
+    # a win on the bar is still the one row; a reward whose interval covers zero is said to have not moved measurably
+    (row,) = write([verdict("em", "policy-untrained", 0.01, 0.09, primary=True), verdict("reward", "policy-untrained", -0.02, 0.2)])
+    assert "above zero, a win on the bar" in row["not_shown"] and "the mean reward did not move measurably (its interval covers zero)" in row["not_shown"]
+    (row,) = write([verdict("em", "policy-untrained", -0.0049, 0.0931, primary=True), verdict("reward", "policy-untrained", 0.04, 0.2)], uncited=(0.12, 0.0))
+    assert "nearly all of it from fewer uncited or empty answers" in row["not_shown"]
+    (row,) = write([verdict("em", "policy-untrained", -0.0049, 0.0931, primary=True), verdict("reward", "policy-untrained", 0.04, 0.2)], uncited=(0.2, 0.0))
+    assert "more than all of it from fewer uncited or empty answers" in row["not_shown"]
+    assert _search_policy_claims(tmp_path / "nowhere") == []
