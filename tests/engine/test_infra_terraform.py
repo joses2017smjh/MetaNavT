@@ -77,7 +77,7 @@ def test_github_reaches_aws_through_two_roles_each_bound_to_this_repository():
 
 
 def test_the_plan_role_is_for_pull_requests_and_cannot_write():
-    assert hcl.strings(_locals(BOOTSTRAP)["plan_subjects"]) == ["repo:${var.github_repository}:pull_request"]
+    assert hcl.strings(_locals(BOOTSTRAP)["plan_subjects"]) == ["${local.subject_prefix}:pull_request"]
     attachments = _resources(BOOTSTRAP, "aws_iam_role_policy_attachment")
     assert {name: hcl.attr(body, "role") for name, body in attachments.items()} == {"plan_read_only": "aws_iam_role.plan.name"}
     assert hcl.strings(hcl.attr(attachments["plan_read_only"], "policy_arn")) == ["arn:${local.partition}:iam::aws:policy/ReadOnlyAccess"]
@@ -87,7 +87,7 @@ def test_the_plan_role_is_for_pull_requests_and_cannot_write():
 
 def test_the_deploy_role_is_assumable_only_from_the_protected_environments_production_by_default():
     subjects = _locals(BOOTSTRAP)["deploy_subjects"]
-    assert subjects == '[for env in var.deploy_environments : "repo:${var.github_repository}:environment:${env}"]'
+    assert subjects == '[for env in var.deploy_environments : "${local.subject_prefix}:environment:${env}"]'
     variable = hcl.block(BOOTSTRAP, "variable", "deploy_environments")
     assert hcl.attr(variable, "default") == '["production"]'  # staging is opt-in (doc/deploy.md)
     (validation,) = hcl.nested(variable, "validation")
@@ -563,3 +563,16 @@ def test_terraform_fmt_is_clean():
     done = subprocess.run([TERRAFORM, "fmt", "-check", "-recursive", "-diff", str(INFRA)], capture_output=True, text=True,
                           env={**os.environ, "CHECKPOINT_DISABLE": "1"}, timeout=120)
     assert done.returncode == 0, done.stdout + done.stderr
+
+
+def test_the_roles_match_the_sub_claim_github_sends_for_this_repository():
+    """This repository's tokens carry immutable subject claims (GitHub's API, actions/oidc/customization/sub, read
+    2026-11-22: use_immutable_subject true, sub_claim_prefix repo:joses2017smjh@119717035/MetaNavT@1333420738). With
+    the older repo:<owner>/<name> prefix every AssumeRoleWithWebIdentity was refused (the first plan job, run
+    44970369246). The default prefix names the default repository, with the owner's and the repository's ids."""
+    assert _locals(BOOTSTRAP)["subject_prefix"] == 'coalesce(var.github_subject_prefix, "repo:${var.github_repository}")'
+    prefix = hcl.strings(hcl.attr(hcl.block(BOOTSTRAP, "variable", "github_subject_prefix"), "default"))[0]
+    repository = hcl.strings(hcl.attr(hcl.block(BOOTSTRAP, "variable", "github_repository"), "default"))[0]
+    owner, name = repository.split("/")
+    assert re.fullmatch(rf"repo:{re.escape(owner)}@[0-9]+/{re.escape(name)}@[0-9]+", prefix), prefix
+    assert prefix == "repo:joses2017smjh@119717035/MetaNavT@1333420738"

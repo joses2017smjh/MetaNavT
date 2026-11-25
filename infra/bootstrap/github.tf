@@ -5,10 +5,12 @@
 locals {
   oidc_host = "token.actions.githubusercontent.com"
 
-  # The sub claim GitHub puts in a token: "repo:<owner>/<name>:pull_request" for a pull request's jobs,
-  # "repo:<owner>/<name>:environment:<name>" for a job that names an environment.
-  plan_subjects   = ["repo:${var.github_repository}:pull_request"]
-  deploy_subjects = [for env in var.deploy_environments : "repo:${var.github_repository}:environment:${env}"]
+  # The sub claim GitHub puts in a token: "<prefix>:pull_request" for a pull request's jobs, "<prefix>:environment:<name>"
+  # for a job that names an environment. <prefix> is repo:<owner>/<name>, or repo:<owner>@<owner id>/<name>@<id> for a
+  # repository with immutable subject claims, as this one has (var.github_subject_prefix).
+  subject_prefix  = coalesce(var.github_subject_prefix, "repo:${var.github_repository}")
+  plan_subjects   = ["${local.subject_prefix}:pull_request"]
+  deploy_subjects = [for env in var.deploy_environments : "${local.subject_prefix}:environment:${env}"]
 
   # Every environment's resources are named <project>-<environment>... (infra/modules/demo).
   ecs_arn    = "arn:${local.partition}:ecs:${var.region}:${local.account_id}"

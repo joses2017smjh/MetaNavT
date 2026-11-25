@@ -758,3 +758,25 @@ def test_the_memory_measurement_loads_the_models_the_host_serves():
     # the cross-encoder serve_reranker = true would load (main.tf), measured on CPU with CUDA hidden
     assert measure.SETTINGS["RERANKER_MODEL"] == "BAAI/bge-reranker-v2-m3" in _locals()["reranker_model"]
     assert measure.SETTINGS["CUDA_VISIBLE_DEVICES"] == ""
+
+
+# The characters EC2 accepts in a network interface's description (the CreateNetworkInterface error lists them) and
+# in a security group's or a security group rule's (CreateSecurityGroup's API reference lists the same set).
+EC2_DESCRIPTION = re.compile(r"[a-zA-Z0-9. _\-:/()#,@\[\]+=&;{}!$*]{0,255}")
+EC2_DESCRIBED = ("aws_network_interface", "aws_security_group", "aws_vpc_security_group_ingress_rule",
+                 "aws_vpc_security_group_egress_rule")
+
+
+def test_ec2_descriptions_use_only_the_characters_ec2_accepts():
+    """terraform validate cannot see a description EC2 refuses, and the apply then stops half way: the first apply of
+    the single host did, at an apostrophe in the network interface's description."""
+    checked = []
+    for path in sorted((INFRA / "modules" / "single-host").glob("*.tf")):
+        for kind, name, body in re.findall(r'^resource "(\w+)" "(\w+)" \{(.*?)^\}', path.read_text(), flags=re.S | re.M):
+            if kind not in EC2_DESCRIBED:
+                continue
+            for value in re.findall(r'^\s*description\s*=\s*"((?:[^"\\]|\\.)*)"', body, flags=re.M):
+                literal = re.sub(r"\$\{[^}]*\}", "metanavit-single-host", value)
+                assert EC2_DESCRIPTION.fullmatch(literal), (path.name, kind, name, value)
+                checked.append((kind, name))
+    assert {("aws_network_interface", "host"), ("aws_security_group", "host")} <= set(checked), checked
