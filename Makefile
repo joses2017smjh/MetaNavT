@@ -440,8 +440,8 @@ adapted-embedders-bar: ## print the bar arm by arm from the committed files (BAS
 	$(PYTHON) -m app.eval.adapted_embedders --bar $(if $(BASE),--base)
 
 .PHONY: adapted-embedders-cpu adapted-embedders-cpu-rerun
-adapted-embedders-cpu: ## indicative CPU cost: structural identity, then base / adapted / base timings interleaved per query, 2 threads, CUDA hidden (CHECKPOINTS=<dir>) -> bench/results/adapted_embedders_cpu.json
-	CUDA_VISIBLE_DEVICES= $(PYTHON) scripts/measure_embed_cpu.py --threads 2 --checkpoint-dir $(CHECKPOINTS) --out bench/results/adapted_embedders_cpu.json
+adapted-embedders-cpu: ## indicative CPU cost: structural identity, then base / adapted / base timings interleaved per query, 2 threads, CUDA hidden (CHECKPOINTS=<dir>; BEIR_DATA_DIR for the test queries' text) -> bench/results/adapted_embedders_cpu.json
+	CUDA_VISIBLE_DEVICES= $(PYTHON) scripts/measure_embed_cpu.py --threads 2 --checkpoint-dir $(CHECKPOINTS) --data-dir $(BEIR_DATA_DIR) --out bench/results/adapted_embedders_cpu.json
 
 adapted-embedders-cpu-rerun: ## the fixture rows again on a CPU from the checkpoints (a reproducibility check, never read against the bar; CHECKPOINTS=<dir>) -> bench/results/adapted_embedders_cpu_rerun.json
 	CUDA_VISIBLE_DEVICES= $(PYTHON) -m app.eval.adapted_embedders --device cpu --out bench/results/adapted_embedders_cpu_rerun.json --checkpoint-dir $(CHECKPOINTS)
