@@ -78,3 +78,27 @@ def test_a_failed_child_stops_the_cpu_measurement(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="failed"):
         cpu.main(["--models", "colbertv2", "--out", str(tmp_path / "cpu.json")])
     assert not (tmp_path / "cpu.json").exists()
+
+
+def test_each_rerank_call_encodes_its_query_once():
+    """The first J4 run encoded the query once per passage (inside the list comprehension); one call encodes it once."""
+    import numpy as np
+
+    class Counting:
+        def __init__(self):
+            self.queries, self.documents = 0, 0
+
+        def encode_queries(self, texts):
+            self.queries += len(texts)
+            return [np.ones((32, 4), dtype=np.float32) for _ in texts]
+
+        def encode_documents(self, texts):
+            self.documents += len(texts)
+            return [np.ones((7, 4), dtype=np.float32) for _ in texts]
+
+    enc = Counting()
+    stored = {d: enc.encode_documents(["x"] * d) for d in payload.DEPTHS}
+    enc.documents = 0
+    on_the_fly, from_store = payload.rerank_calls(enc, lambda q, d: float((q @ d.T).max(axis=1).sum()), stored)
+    assert len(on_the_fly(20)(1)) == 20 and (enc.queries, enc.documents) == (1, 20)
+    assert len(from_store(10)(2)) == 10 and (enc.queries, enc.documents) == (2, 20)

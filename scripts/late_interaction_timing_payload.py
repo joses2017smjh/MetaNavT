@@ -88,6 +88,25 @@ def timed(fn, repeats, min_repeats, budget):
             "cgroup_peak_mib": cgroup_peak_mib()}
 
 
+def rerank_calls(enc, maxsim, stored):
+    """The two rerank shapes as functions of the depth, each giving a call of the seed k: on the fly (encode the query
+    once, encode `depth` passages, MaxSim each) and from stored matrices (encode the query once, MaxSim over the
+    `depth` matrices encoded beforehand). One query encode per call: the first J4 run (22150853) encoded it once per
+    passage, which overstated both shapes; that file was never committed."""
+    def on_the_fly(depth):
+        def call(k):
+            q = enc.encode_queries([query(k)])[0]
+            return [maxsim(q, m) for m in enc.encode_documents(passages(k, depth))]
+        return call
+
+    def from_store(depth):
+        def call(k):
+            q = enc.encode_queries([query(k)])[0]
+            return [maxsim(q, m) for m in stored[depth]]
+        return call
+
+    return on_the_fly, from_store
+
 def measure(env):
     tag = env["TIMING_TAG"]
     threads = int(env.get("TIMING_THREADS", "2"))
@@ -134,11 +153,7 @@ def measure(env):
     stored = {d: enc.encode_documents(passages(0, d)) for d in DEPTHS}
     steps["after_stores"] = memory()
 
-    def on_the_fly(depth):
-        return lambda k: [maxsim(enc.encode_queries([query(k)])[0], m) for m in enc.encode_documents(passages(k, depth))]
-
-    def from_store(depth):
-        return lambda k: [maxsim(enc.encode_queries([query(k)])[0], m) for m in stored[depth]]
+    on_the_fly, from_store = rerank_calls(enc, maxsim, stored)
 
     def first_stage(k):
         scores = maxsim_scores(enc.encode_queries([query(k)]), store, block_bytes=li.MAXSIM_BLOCK_BYTES)
