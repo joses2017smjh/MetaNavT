@@ -509,6 +509,9 @@ def test_the_m50_table_reads_the_server_from_the_segments_and_every_verdict_from
     assert "| new | win: below zero, -0.200 [-0.300, -0.100] | 50 / 6 | 0.002 | not testable (floor)" in text
     assert "reasoning off not fully honoured (3 calls" in text and "For new S4's word differs from P1's" in text
     assert "| old | incomplete |" in text and "- Not an adaptive attacker." in text
+    assert "Departures from the declared plan" not in text
+    compare["deviations"] = ["A change, written down first."]
+    assert "- A change, written down first." in agent_injection_v3_models_2026_table(blob, compare, v3, probe)
 
 
 def _m50_blob(models=("qwen3.5:27b", "gemma4:26b")):

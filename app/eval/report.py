@@ -2186,6 +2186,9 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
                 recall = r.get("field_check_recall") or {}
                 lines.append(f"| {new} | {old} | {r['delta']:+.3f} [{r['lo']:+.3f}, {r['hi']:+.3f}], {r['interval']} "
                              f"| {_flagged(recall.get(new))} | {_flagged(recall.get(old))} |")
+    if compare.get("deviations"):
+        lines += ["", "Departures from the declared plan, each written down before it was made:", ""] + [
+            f"- {x}" for x in compare["deviations"]]
     if blob.get("superseded"):
         lines += ["", f"Regenerated: {len(blob['superseded'])} earlier file(s) superseded by a declared trigger (`superseded` "
                   "in the results file names each one, its trigger and its sha256)."]
