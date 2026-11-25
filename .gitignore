@@ -156,6 +156,23 @@ bench/results/agent_injection_adaptive_tune/
 # M51: the same small rerankers at cheaper shapes (depth 5/10/20 x max_length 256/512; app/eval/small_rerankers_shapes.py):
 # which BEIR test queries the students' synthetic training documents touch (make small-rerankers-shapes-exposure).
 !bench/results/small_rerankers_shapes_exposure.json
+# The rows at every shape with their per-query sidecars (make bench-small-rerankers-shapes, bench-beir-small-rerankers-shapes,
+# bench-beir-fiqa-small-rerankers-shapes), the replicate on the other device (OUT_SUFFIX=_rep), the frontier and the
+# replicate comparison (CPU, from those files).
+!bench/results/small_rerankers_shapes.json
+!bench/results/small_rerankers_shapes.per_query.json
+!bench/results/beir_scifact_small_rerankers_shapes.json
+!bench/results/beir_scifact_small_rerankers_shapes.per_query.json
+!bench/results/beir_fiqa_small_rerankers_shapes.json
+!bench/results/beir_fiqa_small_rerankers_shapes.per_query.json
+!bench/results/small_rerankers_shapes_rep.json
+!bench/results/small_rerankers_shapes_rep.per_query.json
+!bench/results/beir_scifact_small_rerankers_shapes_rep.json
+!bench/results/beir_scifact_small_rerankers_shapes_rep.per_query.json
+!bench/results/beir_fiqa_small_rerankers_shapes_rep.json
+!bench/results/beir_fiqa_small_rerankers_shapes_rep.per_query.json
+!bench/results/small_rerankers_shapes_frontier.json
+!bench/results/small_rerankers_shapes_replicate.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

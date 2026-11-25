@@ -412,6 +412,43 @@ small-rerankers-shapes-mde: ## the design-time Bonferroni half-widths (F1 k=6, F
 small-rerankers-shapes-exposure: ## which BEIR SciFact / FiQA test queries have a relevant document among the students' synthetic source documents (CPU; needs BEIR_DATA_DIR) -> bench/results/small_rerankers_shapes_exposure.json
 	$(PYTHON) -m app.eval.small_rerankers_shapes --exposure --data-dir $(BEIR_DATA_DIR)
 
+# The rows (GPU): every model at every shape over hybrid@bge-small, the parent recomputed, the six 20/512 rows checked
+# against M43's committed rows (the anchors). OUT= writes elsewhere (the replicate: *_shapes_rep.json); ROWS=anchors
+# runs only the parent and the six 20/512 rows on BEIR (the smoke). CHECKPOINTS=<dir> holds the students' checkpoints.
+.PHONY: small-rerankers-shapes-check small-rerankers-shapes-smoke bench-small-rerankers-shapes bench-beir-small-rerankers-shapes bench-beir-fiqa-small-rerankers-shapes
+small-rerankers-shapes-check: ## load the six models at max_length 256 and 512 (fp32), check each pin, read loaded_max_length and the dtype back and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --check $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+small-rerankers-shapes-smoke: ## fixture v1: the parent and the six 20/512 rows against M43's file (three scopes), every other shape on the tune half only with the depth and truncation invariants pass/fail; writes nothing (needs .[ml] and a GPU; CHECKPOINTS=<dir>) -> stdout
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --smoke $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-small-rerankers-shapes: ## fixture v1 at every shape: held-out half (the bar), tune half, all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --out $(or $(OUT),bench/results/small_rerankers_shapes.json) $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-beir-small-rerankers-shapes: ## BEIR SciFact at every shape (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>; ROWS=anchors) -> bench/results/beir_scifact_small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-shapes --rows $(or $(ROWS),all) --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_scifact_small_rerankers_shapes.json)
+
+bench-beir-fiqa-small-rerankers-shapes: ## BEIR FiQA at every shape (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>; ROWS=anchors) -> bench/results/beir_fiqa_small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-shapes --rows $(or $(ROWS),all) --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_shapes.json)
+
+# From the committed files (CPU, no model): the anchors, the frontier (quality x indicative cost per cell and the
+# answer per family), every number again from the sidecars, the bar, and the replicate against the result.
+.PHONY: small-rerankers-shapes-anchors small-rerankers-shapes-frontier small-rerankers-shapes-rescore small-rerankers-shapes-bar small-rerankers-shapes-replicate
+small-rerankers-shapes-anchors: ## the parent and the six 20/512 rows of each shapes file against M43's committed rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
+	$(PYTHON) -m app.eval.small_rerankers_shapes --anchors $(FILES)
+
+small-rerankers-shapes-frontier: ## per cell its band, indicative cost and deltas (95% and the family's Bonferroni level), and the F1 / F2 answers, from the committed files (CPU) -> bench/results/small_rerankers_shapes_frontier.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier
+
+small-rerankers-shapes-rescore: ## recompute every interval, per-row total and invariant of the three shapes files from their sidecars, and the frontier from them (CPU, no model, no dataset); exit 1 unless all equal
+	$(PYTHON) -m app.eval.small_rerankers_shapes --rescore
+
+small-rerankers-shapes-bar: ## print the 36 cells and both family answers from the frontier file -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --bar
+
+small-rerankers-shapes-replicate: ## the replicate's files (*_shapes_rep.json, the other device) against the result's, row by row (CPU) -> bench/results/small_rerankers_shapes_replicate.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --replicate
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)
