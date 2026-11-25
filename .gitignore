@@ -153,6 +153,9 @@ bench/results/agent_injection_adaptive_tune/
 !bench/results/beir_fiqa_small_rerankers.json
 !bench/results/beir_fiqa_small_rerankers.per_query.json
 !bench/results/small_rerankers_cpu.json
+# M51: the same small rerankers at cheaper shapes (depth 5/10/20 x max_length 256/512; app/eval/small_rerankers_shapes.py):
+# which BEIR test queries the students' synthetic training documents touch (make small-rerankers-shapes-exposure).
+!bench/results/small_rerankers_shapes_exposure.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

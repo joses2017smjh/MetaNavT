@@ -402,6 +402,16 @@ distill-train: ## train one student by the declared recipe: STUDENT=student-mini
 distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
 	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)
 
+# ---- M51: the small rerankers at cheaper shapes (app/eval/small_rerankers_shapes.py) ----
+# The grid (6 models x depth 5/10/20 x max_length 256/512), the budget bands, the families and the answer levels were
+# declared before any row at a new shape was measured; these two targets are CPU-only and read committed files.
+.PHONY: small-rerankers-shapes-mde small-rerankers-shapes-exposure
+small-rerankers-shapes-mde: ## the design-time Bonferroni half-widths (F1 k=6, F2 k=16) of the paired nDCG@10 delta, from M43's committed sidecars (CPU, seconds) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --mde
+
+small-rerankers-shapes-exposure: ## which BEIR SciFact / FiQA test queries have a relevant document among the students' synthetic source documents (CPU; needs BEIR_DATA_DIR) -> bench/results/small_rerankers_shapes_exposure.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --exposure --data-dir $(BEIR_DATA_DIR)
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)
