@@ -978,3 +978,25 @@ def test_one_evidence_row_per_measured_arm_of_the_two_bar_models(fixture_pipelin
     assert all(r["command"].startswith("make ") and "bench/results/" in r["source"] and r["not_shown"] for r in rows)
     assert all("uncorrected paired nDCG@10 intervals" in r["not_shown"] and "SciFact: not run" in r["ci"] for r in rows)
     assert not any("[heuristic]" in r["claim"] or "qwen2.5" in r["claim"] for r in rows)
+
+
+def test_generation_stops_when_the_server_is_down(tmp_path, tmp_root):
+    wl, cache = tmp_path / "wl", tmp_path / "cache"
+    ids_path = tmp_root / "bench" / "llm_query" / "query_ids.json"
+    saved = ids_path.read_text() if ids_path.exists() else None
+    ids_path.write_text(json.dumps({"fixture": {"test": [f"q{i:03d}" for i in range(1, 6)], "dev": []}}))
+    try:
+        gen.write_worklist(tmp_root, tmp_path, "fixture", "test", wl, rerank_cache=None, gpu="cpu", backend=_fixture_backend(tmp_root))
+        calls = []
+        dead = fake_post(calls, fail=tuple(spec.KINDS))
+        s = gen.generate(tmp_root, tmp_path, "fixture", "qwen3.5-27b", "1/1", worklist_dir=wl, cache_dir=cache, base_url="x", gpu="G", job="1",
+                         post=dead, determinism_n=0)
+        assert s["stopped_server_down"] and not s["complete"] and s["issued_this_job"] == gen.MAX_CONSECUTIVE_FAILURES
+        s = gen.generate(tmp_root, tmp_path, "fixture", "qwen3.5-27b", "1/1", worklist_dir=wl, cache_dir=cache, base_url="x", gpu="G", job="2",
+                         post=fake_post(), determinism_n=0)
+        assert s["complete"] and s["final_failures"] == 0  # failed in one job only: re-issued once, and answered
+    finally:
+        if saved is None:
+            ids_path.unlink()
+        else:
+            ids_path.write_text(saved)

@@ -40,6 +40,7 @@ DEV_QRELS = {"scifact": "train", "fiqa": "dev"}
 SYNTHETIC = "bench/distill/queries.jsonl.gz"
 RETRIES = 2
 DETERMINISM_N = 20
+MAX_CONSECUTIVE_FAILURES = 10  # then the server is taken to be down: the job stops instead of logging every call as failed
 
 
 # ---------------------------------------------------------------- ids (make llm-query-ids; reads the qrels' id column only)
@@ -437,8 +438,8 @@ def generate(root: Path, data_dir: Path, dataset: str, model_tag: str, shard: st
     job = job or os.environ.get("SLURM_JOB_ID") or "local"
     gpu = gpu or _gpu_name_smi()
     code_sha = _git_head(root)
-    issued = skipped_final = 0
-    stopped_early = False
+    issued = skipped_final = consecutive = 0
+    stopped_early = server_down = False
     with path.open("a", encoding="utf-8") as fh:
         for line, prompt in work:
             key = spec.cache_key(digest, line["kind"], prompt)
@@ -460,14 +461,19 @@ def generate(root: Path, data_dir: Path, dataset: str, model_tag: str, shard: st
             issued += 1
             if rec.get("error") is None:
                 done[key] = entry
+                consecutive = 0
             else:
                 failed.setdefault(key, set()).add(job)
+                consecutive += 1
+                if consecutive >= MAX_CONSECUTIVE_FAILURES:
+                    server_down = True
+                    break
     keys = [spec.cache_key(digest, line["kind"], prompt) for line, prompt in work]
     complete = all(k in done or len(failed.get(k, set())) >= 2 for k in keys)
     summary = {"dataset": dataset, "queries": which, "model": model_tag, "shard": shard, "job": job, "gpu": gpu, "code_sha": code_sha,
                "calls_in_shard": len(work), "issued_this_job": issued, "completed": sum(1 for k in keys if k in done),
                "final_failures": sum(1 for k in keys if k not in done and len(failed.get(k, set())) >= 2), "complete": complete,
-               "stopped_before_deadline": stopped_early}
+               "stopped_before_deadline": stopped_early, "stopped_server_down": server_down}
     if complete and determinism_n and not (d / f"determinism-{tag}.jsonl").exists():
         summary["determinism"] = determinism(base_url, name, [done[k] for k in keys if k in done], {k: prompt for k, (_, prompt) in zip(keys, work)},
                                              d / f"determinism-{tag}.jsonl", n=determinism_n, post=post)
