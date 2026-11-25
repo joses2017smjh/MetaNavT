@@ -1002,6 +1002,19 @@ def bar_table(root: Path | None = None, base: bool = False) -> dict[str, Any]:
     return table
 
 
+def interval_count(blob: dict, metric: str = "ndcg@10") -> int:
+    """How many paired intervals of `metric` a results file holds (every scope of the fixture file; every row's deltas,
+    the declared comparisons, the subgroups with an interval and the seed mean of a BEIR file): the N of "N intervals
+    in this file, unadjusted", next to a delta selected because its interval excludes zero."""
+    def blocks(scope: dict) -> int:  # the subgroups with an interval, and the seed mean
+        return sum(1 for g in scope.get("subgroups") or [] if g.get(metric)) + (1 if (scope.get("seed_mean") or {}).get(metric) else 0)
+
+    if any(s in blob for s in SCOPES):
+        return sum(sum(1 for r in blob[s]["results"] for d in r.get("deltas") or [] if d.get(metric)) + blocks(blob[s]) for s in SCOPES if s in blob)
+    rows = sum(1 for r in blob.get("results") or [] for key in ("delta_vs_parent", "delta_vs_bm25") if (r.get(key) or {}).get(metric))
+    comps = sum(1 for c in (blob.get("bootstrap") or {}).get("comparisons") or [] if c.get(metric))
+    return rows + comps + blocks(blob.get("adapted_embedders") or {})
+
 def fixture_reading_at(block: dict | None, threshold: float, arm: str = BAR_ARM) -> dict[str, Any]:
     """The twin split at another threshold, reported beside the reading (0.80)."""
     groups = [g for g in (block or {}).get("subgroups") or [] if g["split"] == f"twin_cosine_{threshold:.2f}" and g["row"] == f"hybrid@{arm}"

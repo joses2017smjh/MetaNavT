@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parents[2]
 VERDICT_FILES = ("bench/results/main.json", "bench/results/neural.json", "bench/results/frontier.json",
                  "bench/results/frontier_neural.json", "bench/results/rerank_arms.json")
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: its verdicts are of exact match (`em`), not nDCG@10
+ADAPTED_FILE = "bench/results/adapted_embedders.json"  # M48: its held-out half's verdicts; the bar's word is bar_table's
+ADAPTED_PHASE = "1.8"
 CLAIM = re.compile(r"`([^`]+)` ((?:(?:above zero|covers zero|below zero) vs `[^`]+`(?:,? and |, )?)+)")
 SUB = re.compile(r"(above zero|covers zero|below zero) vs `([^`]+)`")
 DEFAULT = re.compile(r"`([A-Z][A-Z0-9_]+)` \(default (\d+)\)")
@@ -67,7 +69,19 @@ def recorded_verdicts(root: Path = ROOT) -> dict[tuple[str, str], set[str]]:
                 out.setdefault((row["config"], dp["reference"]), set()).add(verdict(dp.get("ndcg@10")))
     for v in search_policy_verdicts(root):
         out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
+    for row, ref, block in adapted_held_out(root):
+        out.setdefault((row, ref), set()).add(verdict(block))
     return out
+
+
+def adapted_held_out(root: Path = ROOT) -> list[tuple[str, str, dict | None]]:
+    """M48: (row, reference, nDCG@10 delta) of every paired delta on the fixture's held-out half (the bar's scope), when
+    the file exists."""
+    path = root / ADAPTED_FILE
+    if not path.exists():
+        return []
+    blob = json.loads(path.read_text())
+    return [(row["config"], block["reference"], block.get("ndcg@10")) for row in blob["held_out"]["results"] for block in row.get("deltas") or []]
 
 
 def search_policy_verdicts(root: Path = ROOT) -> list[dict]:
@@ -94,6 +108,10 @@ def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
             if row["config"] not in parents:
                 pairs |= {(row["config"], block["reference"]) for block in row.get("deltas") or []}
     pairs |= {(v["config"], v["reference"]) for v in search_policy_verdicts(root)}
+    if (root / ADAPTED_FILE).exists():  # M48: the bar row against the published model, hybrid (the bar) and dense
+        from app.eval.adapted_embedders import BAR_ARM
+
+        pairs |= {(f"hybrid@{BAR_ARM}", "hybrid@bge-small"), (f"dense_only@{BAR_ARM}", "dense_only@bge-small")}
     return pairs
 
 
@@ -155,3 +173,17 @@ def test_claim_parser_reads_lists_and_reports_a_drifted_verdict(tmp_path):
     drifted = real.replace(f"`{row}` {said} vs `{ref}`", f"`{row}` {other} vs `{ref}`", 1)
     recorded = recorded_verdicts()
     assert any(recorded.get((r, f)) != {v} for _, r, v, f in plan_claims(drifted))
+
+
+def test_the_adapted_embedder_row_leads_with_the_bars_word():
+    """M48: once the fixture file exists, row 1.8's status states the bar's outcome as bar_table reads it off the three
+    files (passes / does not pass / open / not run), before anything else, and says that nothing serves it."""
+    if not (ROOT / ADAPTED_FILE).exists():
+        assert ADAPTED_PHASE not in status_rows((ROOT / "PLAN.md").read_text())
+        return
+    from app.eval.adapted_embedders import bar_table
+
+    status = status_rows((ROOT / "PLAN.md").read_text())[ADAPTED_PHASE][1]
+    word = bar_table(ROOT)["outcome"]
+    assert status.startswith(f"bar outcome: {word} ") or status.startswith(f"bar outcome: {word},"), status[:120]
+    assert "nothing serves it" in status

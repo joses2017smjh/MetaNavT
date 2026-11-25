@@ -187,6 +187,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _file_depth_claims(root)
     out += _models_2026_claims(root)
     out += _small_reranker_claims(root)
+    out += _adapted_embedder_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -1050,6 +1051,60 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
                 out.append({"claim": f"{names[d]}, what distillation added: `{tag}` vs `{sr.STUDENTS[tag]}`, the published model it started from, paired delta in nDCG@10",
                             "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": src,
                             "not_shown": f"verdict from the interval: {verdict(init)}; same architecture and cost, different weights; {seen}one training run, one seed; {shape}"})
+    return out
+
+
+
+def _adapted_embedder_claims(root: Path = ROOT) -> list[dict]:
+    """M48: bge-small adapted on M43's synthetic queries. A row only where the paired interval excludes zero: the bar
+    row's hybrid and dense deltas against the published model per dataset, the control's fixture deltas against its
+    base rows, and any adapted row below zero anywhere (a recorded loss). Ties are in the generated table, not here."""
+    from app.eval import adapted_embedders as ae
+    from app.eval.report import verdict
+
+    table = ae.bar_table(root)
+    if not table["datasets"]:
+        return []
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-adapted-embedders", "scifact": "make bench-beir-adapted-embedders", "fiqa": "make bench-beir-fiqa-adapted-embedders"}
+    twins = _load(ae.TWINS_FILE, root) or {}
+    held = ((twins.get("subgroups") or {}).get("fixture") or {}).get("all_held_out") or {}
+    reading = (table.get("fixture_reading") or {}).get("reading", "not measured")
+    twin_note = (f"{held.get('0.85')} of {held.get('n')} held-out questions have a training query at bge-small cosine 0.85 or more "
+                 f"({ae.TWINS_FILE}); the declared fixture reading: {reading}; " if held else f"the declared fixture reading: {reading}; ")
+    seeds = ae.seeds_line(table)
+    out: list[dict] = []
+    for arm in table["arms"]:
+        tag = arm["tag"]
+        for d, cell in arm["datasets"].items():
+            meta = table["datasets"][d]
+            blob = _load(ae.RESULTS[d], root) or {}
+            n_intervals = ae.interval_count(blob)
+            for kind in ("hybrid", "dense"):
+                block = cell.get(f"{kind}_vs_base")
+                if not block or not (block["lo"] > 0 or block["hi"] < 0):
+                    continue
+                wanted = (tag == ae.BAR_ARM or (tag == ae.CONTROL_ARM and d == "fixture") or block["hi"] < 0)
+                if not wanted:
+                    continue
+                dense_name, hybrid_name = ae.row_names(tag, d)
+                bdense, bhybrid = ae.row_names("bge-small", d)
+                row, ref = (hybrid_name, bhybrid) if kind == "hybrid" else (dense_name, bdense)
+                read = ("the model never read this corpus's documents in training (zero-shot transfer from SciFact and FiQA)"
+                        if tag == ae.CONTROL_ARM and d == "fixture" else "the model read this corpus's documents in training (unsupervised domain adaptation; no test query, no label)")
+                parts = [f"verdict from the interval: {verdict(block)}", f"the bar ({ae.BAR_ARM}, hybrid, three datasets): {table['outcome']}"]
+                if tag != ae.BAR_ARM:
+                    parts.append("exploratory: not the bar row")
+                if kind == "dense":
+                    parts.append("secondary read; the served shape is hybrid")
+                parts += [read, f"selected because its interval excludes zero; {n_intervals} intervals in this file, unadjusted"]
+                if d == "fixture":
+                    parts.append(twin_note.rstrip("; "))
+                parts += [seeds, f"one GPU ({meta['device']}); the checkpoints are not committed; the host is unchanged (it serves the published bge-small)"]
+                value, ci = _ci(block, "delta", 4)
+                out.append({"claim": f"{names[d]}, `{row}` vs `{ref}` (bge-small fine-tuned on synthetic queries vs as published), paired delta in nDCG@10",
+                            "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": f"{meta['file']} @ {meta['git_sha']}",
+                            "not_shown": "; ".join(parts)})
     return out
 
 

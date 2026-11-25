@@ -323,9 +323,9 @@ def test_the_outcome_words():
     assert ae.outcome([win, win, win], trained=False) == "not run"
 
 
-def _fixture_blob(rng, names, n=24):
+def _fixture_blob(rng, names, n=24, scores=None):
     """A fixture results file and its sidecar made by the module's own code, as run_fixture makes them."""
-    scores = _scores(rng, names, n)
+    scores = scores or _scores(rng, names, n)
     held, tune = list(range(1, n, 2)), list(range(0, n, 2))
     twins = {s: {"cosine": [float(x) for x in rng.random(n)], "jaccard": [0.1] * n} for s in ae.TRAINING_SETS}
     pairs = ae.comparisons(names, "fixture")
@@ -431,6 +431,89 @@ def test_bar_table_reads_the_outcome_off_the_files(tmp_path):
     assert ae.seeds_line({"seeds": {"n": 1, "k": 1}}) == "one run (seed 0)"
     assert ae.seeds_line({"seeds": {"n": 3, "k": 2}}) == "the bar's form holds for 2 of 3 seeds"
 
+
+# ---------------------------------------------------------------- the generated docs (README block, evidence rows)
+
+
+def _docs_root(root, gain=0.0, n=40):
+    """A repository root with a fixture file whose bar-row hybrid gains `gain` on every question over hybrid@bge-small,
+    a SciFact file (random scores), no FiQA file, and a manifest holding the bar row, the control and seed 1."""
+    from app.eval import report  # noqa: F401  (the renderer's module imports cleanly)
+
+    rng = np.random.default_rng(3)
+    scores = _scores(rng, FIXTURE_ROWS, n)
+    base = scores["hybrid@bge-small"]["ndcg@10"]
+    scores[f"hybrid@{ae.BAR_ARM}"]["ndcg@10"] = [min(1.0, b + gain) if gain else x for b, x in zip(base, scores[f"hybrid@{ae.BAR_ARM}"]["ndcg@10"])]
+    fixture, _ = _fixture_blob(rng, FIXTURE_ROWS, n, scores=scores)
+    fixture.update(device={"device_name": "card"}, reproduces=[])
+    beir_blob, _ = _beir_blob(np.random.default_rng(2))
+    beir_blob.update(device={"device_name": "card"})
+    (root / "bench" / "results").mkdir(parents=True, exist_ok=True)
+    (root / "bench" / "distill").mkdir(parents=True, exist_ok=True)
+    (root / ae.RESULTS["fixture"]).write_text(json.dumps(fixture))
+    (root / ae.RESULTS["scifact"]).write_text(json.dumps(beir_blob))
+    entry = {"attempt": 1, "s": 55.9, "lists": {"train": {"fixture": 691, "scifact": 4267, "fiqa": 5129}}, "steps_per_epoch": 1261,
+             "epochs": [{"validation_macro": v} for v in (8.1, 7.5, 7.4, 7.39)], "segments": [{"device": "card"}],
+             "validation_before_training": {"macro": 11.4}, "chosen_epoch": 4, "chosen_is_last": True, "beats_epoch_0": True, "weights_sha256": "ab" * 32}
+    (root / ae.MANIFEST_FILE).write_text(json.dumps({"arms": {t: entry for t in (ae.BAR_ARM, ae.CONTROL_ARM, "bge-small-marginmse-s1")}}))
+    return fixture, beir_blob
+
+
+def test_interval_count_counts_every_paired_interval_of_a_file(tmp_path):
+    fixture, beir_blob = _docs_root(tmp_path)
+    by_hand = sum(1 for s in ae.SCOPES for r in fixture[s]["results"] for d in r.get("deltas") or [])
+    by_hand += sum(1 for g in fixture["held_out"]["subgroups"] if "ndcg@10" in g) + sum(1 for s in ae.SCOPES if fixture[s].get("seed_mean"))
+    assert ae.interval_count(fixture) == by_hand > 0
+    ext = beir_blob["adapted_embedders"]
+    by_hand = sum(1 for r in beir_blob["results"] for k in ("delta_vs_parent", "delta_vs_bm25") if r.get(k)) + len(beir_blob["bootstrap"]["comparisons"])
+    by_hand += sum(1 for g in ext["subgroups"] if "ndcg@10" in g) + (1 if ext.get("seed_mean") else 0)
+    assert ae.interval_count(beir_blob) == by_hand > 0
+
+
+def test_the_readme_block_keeps_every_arm_and_reads_the_bar_off_the_files(tmp_path):
+    from app.eval.report import adapted_embedders_table
+
+    assert "is missing" in adapted_embedders_table(tmp_path)
+    _docs_root(tmp_path)
+    table = ae.bar_table(tmp_path)
+    text = adapted_embedders_table(tmp_path)
+    assert f"**Outcome: {table['outcome']}.**" in text and table["outcome"] in ("does not pass", "open")  # FiQA is not measured: never passes
+    for tag in ae.BGE_SMALL_ARMS:  # losers and arms not run stay, in both tables
+        rows = [line for line in text.splitlines() if line.startswith(f"| `{tag}` (")]
+        assert len(rows) == 2, tag
+        if table["status"][tag] != "trained":
+            assert all("not run" in r for r in rows)
+    hybrid_bar = next(line for line in text.splitlines() if line.startswith(f"| `{ae.BAR_ARM}` ("))
+    assert "exploratory" not in hybrid_bar  # the bar row's hybrid legs are the one declared test
+    others = [line for line in text.splitlines() if line.startswith("| `bge-small-marginmse-") and "not run" not in line]
+    assert others and all("exploratory" in line for line in others)
+    n = int(text.split("This block shows ")[1].split(" exploratory intervals")[0])
+    assert n >= text.count("exploratory)") > 0
+    assert "**What this does not show.**" in text and "Fixture reading:" in text and "The verdict is read on seed 0 alone" in text
+
+
+def test_evidence_rows_only_where_an_interval_excludes_zero_and_say_what_they_do_not_show(tmp_path):
+    from app.eval.evidence import _adapted_embedder_claims
+
+    assert _adapted_embedder_claims(tmp_path) == []
+    fixture, _ = _docs_root(tmp_path, gain=0.3)
+    table = ae.bar_table(tmp_path)
+    claims = _adapted_embedder_claims(tmp_path)
+    bar = [c for c in claims if f"`hybrid@{ae.BAR_ARM}`" in c["claim"] and c["claim"].startswith("Fixture")]
+    assert len(bar) == 1 and bar[0]["value"].startswith("+")
+    n = ae.interval_count(fixture)
+    for c in claims:
+        lo, hi = (float(x) for x in c["ci"].strip("[]").split(","))
+        assert lo > 0 or hi < 0, c["claim"]
+        assert f"the bar ({ae.BAR_ARM}, hybrid, three datasets): {table['outcome']}" in c["not_shown"]
+        assert "intervals in this file, unadjusted" in c["not_shown"] and "the checkpoints are not committed" in c["not_shown"]
+        assert ("secondary read; the served shape is hybrid" in c["not_shown"]) is ("`dense" in c["claim"])
+        if c["claim"].startswith("Fixture"):
+            assert f"; {n} intervals in this file" in c["not_shown"] and "fixture reading" in c["not_shown"]
+        if ae.CONTROL_ARM in c["claim"] and c["claim"].startswith("Fixture"):
+            assert "never read this corpus" in c["not_shown"]
+        if ae.BAR_ARM + "`" not in c["claim"] and not (ae.CONTROL_ARM in c["claim"] and c["claim"].startswith("Fixture")):
+            assert hi < 0, c["claim"]  # any other arm is a row only as a recorded loss
 
 class _Guard:
     """Leakage risk 4: any open of a gold file, a BEIR qrels directory or a queries.jsonl raises."""
