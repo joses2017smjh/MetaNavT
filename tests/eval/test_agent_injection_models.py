@@ -450,7 +450,53 @@ def test_the_counts_read_the_episodes_and_mark_what_the_committed_rows_did_not_r
     for r in rows:
         r.update(thinking_calls=1, length_stops=0, max_call_prompt_tokens=10)
     rows[0]["answer"] = "<think>hm</think> <function=read_file>"
+    checked = {"answer": "a", "answer_check": {"drafts": [{"answer": "<think>"}, {"answer": "a"}]}}
+    assert m50.stored_texts(checked) == ["<think>", "a"] and m50.stored_texts({"answer": None}) == [""]
     c = m50.counts(rows, "m", "none", tasks)
     assert (c["thinking_calls"], c["episodes_with_thinking"], c["length_stops"]) == (1160, 1160, 0)
     assert (c["texts_with_reasoning_markers"], c["texts_with_unparsed_call_forms"], c["unparsed_forms"]) == (
         1, 1, ["<function="])
+
+
+def test_the_m50_table_reads_the_server_from_the_segments_and_every_verdict_from_the_comparison():
+    from app.eval.report import agent_injection_v3_models_2026_table
+    assert "is missing" in agent_injection_v3_models_2026_table(None, None, None, None)
+    request = {"think": "off", "num_predict": 384, "temperature": 0.7, "max_turns": 6, "workers": 8,
+               "chat_timeout_s": 600.0, "server_context": 32768, "num_parallel": 1}
+    rate = {"mean": 0.5, "lo": 0.25, "hi": 0.75, "n": 10}
+    goal = {"attempted": rate, "attempted_any_phrasing": rate, "took_effect": rate}
+    block = {"benign_success": rate, "benign_pass_hat_k": {"4": rate}, "by_goal": {"hijack": goal},
+             "planted_actions": {"attempted_episodes": 0, "exposed_episodes": 3}, "utility_under_attack": rate,
+             "exposure": rate, "unanswered_episodes": 2, "mean_turns": 2.5}
+    seg = {"git_head": "a" * 40, "working_tree_dirty": False, "episodes_before": 0, "device": {"gpu": "NVIDIA A40"},
+           "ollama_after": {"version": "0.40.16", "models": {"new": {"digest": "b" * 64}}}, "models": ["new"],
+           "request": request}
+    blob = {"git_head": "a" * 40, "working_tree_dirty": False, "n_episodes": 4640, "n_episode_errors": 0,
+            "config": {"models": ["new"], "temperature": 0.7, "k": 4, "request": {"new": request}},
+            "summary": {"new": {"none": block, "answer_check": block}},
+            "episodes_generated_by": {"segments": [seg, {**seg, "episodes_before": 100}],
+                                      "merged": {"shards": [{"file": "x"}]}}}
+    v3 = {"config": {"models": ["old"]}, "summary": {"old": {"none": block}}}
+    p1 = {"config": "answer_check@new", "reference": "none@new", "metric": "planted_value_delivered", "delta": -0.2,
+          "lo": -0.3, "hi": -0.1, "excludes_zero_raw": True, "interval": "below zero", "outcome": "win", "primary": True,
+          "floor": {"took_effect_episodes": 50, "of": 280, "questions_nonzero": 6}, "sign_flip": {"p_two_sided": 0.002}}
+    s4 = {**p1, "metric": "planted_value_only", "outcome": "floor", "interval": None, "primary": False}
+    s1 = {**p1, "metric": "utility_under_attack", "interval": "covers zero", "outcome": "no measurable cost",
+          "lo": -0.1, "hi": 0.1, "floor": None}
+    old = {**p1, "config": "answer_check@old", "reference": "none@old", "primary": False, "outcome": "incomplete",
+           "interval": None, "delta": None}
+    compare = {"verdicts": [p1, s4, s1, old], "described": {"new": {"none": {"counts": {
+        "withheld": 0, "unanswered": 2, "length_stops": 1, "thinking_calls": 3, "texts_with_reasoning_markers": 0,
+        "texts_with_unparsed_call_forms": 0}}}}, "s3": {"rows": [], "n_intervals": 0, "labels": ["confound"],
+                                                       "bridge": "not run"},
+               "difference_in_differences": [], "does_not_show": ["Not an adaptive attacker."]}
+    probe = {"models": {"new": {"decisions": {"reasoning": {"case": "a", "think": "off", "label": None},
+                                              "speed": {"s_call": 1.5, "h_per_question": 1.0, "split": "one", "workers": 8}}}}}
+    text = agent_injection_v3_models_2026_table(blob, compare, v3, probe)
+    assert "context pinned at 32768 tokens by OLLAMA_CONTEXT_LENGTH" in text and "the server's choice" not in text
+    assert "hash embedder, a fallback" in text and "GPUs NVIDIA A40" in text and "1 of them resumed segments" in text
+    assert "new: think off (think: false), num_predict 384, 8 workers, chat timeout 600 s" in text
+    assert "| new | none |" in text and "| old | none |" in text  # the committed models are read from v3's file
+    assert "| new | win: below zero, -0.200 [-0.300, -0.100] | 50 / 6 | 0.002 | not testable (floor)" in text
+    assert "reasoning off not fully honoured (3 calls" in text and "For new S4's word differs from P1's" in text
+    assert "| old | incomplete |" in text and "- Not an adaptive attacker." in text
