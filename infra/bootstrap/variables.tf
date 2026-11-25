@@ -26,6 +26,17 @@ variable "github_repository" {
   }
 }
 
+variable "github_subject_prefix" {
+  description = "The start of the sub claim in this repository's tokens, before the job's context, as GitHub reports it: gh api repos/<owner>/<name>/actions/oidc/customization/sub --jq .sub_claim_prefix. A repository with immutable subject claims gets repo:<owner>@<owner id>/<name>@<repository id> (this one, read 2026-11-22), which a deleted and recreated repository of the same name cannot match; null means repo:<owner>/<name>."
+  type        = string
+  default     = "repo:joses2017smjh@119717035/MetaNavT@1333420738"
+
+  validation {
+    condition     = var.github_subject_prefix == null || can(regex("^repo:[A-Za-z0-9_.-]+(@[0-9]+)?/[A-Za-z0-9_.-]+(@[0-9]+)?$", var.github_subject_prefix))
+    error_message = "github_subject_prefix: repo:<owner>/<name>, or repo:<owner>@<owner id>/<name>@<repository id>."
+  }
+}
+
 variable "deploy_environments" {
   description = "GitHub environments whose jobs may assume the deploy role. Production only by default; add \"staging\" when the staging environment is used (doc/deploy.md, staging mode)."
   type        = list(string)

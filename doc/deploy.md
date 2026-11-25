@@ -355,6 +355,8 @@ spend; the live demo's step 3 passes 30). Pass the email on the command line: it
 stays outside the checkout, applied from a plan file with a copy in the state bucket: the commands are the live
 demo's step 3 above (staging mode adds `-var 'deploy_environments=["production","staging"]'` to the plan).
 
+The roles trust only tokens whose `sub` claim starts with `github_subject_prefix`. Its default is this repository's prefix as GitHub reports it (`gh api repos/<owner>/<name>/actions/oidc/customization/sub --jq .sub_claim_prefix`): this repository has immutable subject claims, `repo:<owner>@<owner id>/<name>@<repository id>`. For a fork, pass its own prefix; with the older `repo:<owner>/<name>` form every role assumption fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`.
+
 If the account already has GitHub's OIDC provider, import it first:
 `terraform -chdir=infra/bootstrap import -state="$BOOTSTRAP_STATE" aws_iam_openid_connect_provider.github arn:aws:iam::<account id>:oidc-provider/token.actions.githubusercontent.com`.
 
