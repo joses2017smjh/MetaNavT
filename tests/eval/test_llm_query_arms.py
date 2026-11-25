@@ -803,6 +803,7 @@ def test_the_beir_pipeline_end_to_end(tmp_path, tmp_root):
     d = _beir_dataset(data, n_queries=8)
     ids_path = tmp_root / "bench" / "llm_query" / "query_ids.json"
     saved = ids_path.read_text() if ids_path.exists() else "{}"
+    kept = {f: f.read_bytes() for f in (tmp_root / "bench" / "llm_query").glob("*") if f.name in ("parents.json.gz", "manifest.json")}
     ids_path.write_text(json.dumps({**json.loads(saved), "scifact": {"test": [f"q{i}" for i in range(8)], "dev": ["q9"]}}))
     try:
         corpus = beir.load_corpus(d)
@@ -818,7 +819,8 @@ def test_the_beir_pipeline_end_to_end(tmp_path, tmp_root):
         manifest = gen.merge(tmp_root, data, worklist_dir=wl, cache_dir=cache, models=list(spec.BAR_MODELS), datasets=["scifact"])
         assert "scifact.qwen3.5-27b" in manifest["files"] and len(manifest["files"]["scifact.qwen3.5-27b"]["shards"]) == 2
         with gzip.open(tmp_root / "bench" / "llm_query" / "parents.json.gz", "rt") as fh:
-            assert "scifact" in json.load(fh)
+            merged = json.load(fh)
+            assert "scifact" in merged and ("fixture" in merged) == bool(kept)  # an earlier dataset's parents are kept
         blob, sidecar = arms.score_beir(tmp_root, data, "scifact", models=list(spec.BAR_MODELS), load_reranker=_fake_reranker, gpu="Fake GPU",
                                         engine=engine, corpus=corpus, embedder="hash")
         names = [r["config"] for r in blob["rows"]]
@@ -833,9 +835,12 @@ def test_the_beir_pipeline_end_to_end(tmp_path, tmp_root):
         assert cells["word"] == "withheld"  # the parents did not reproduce (hash embedder): the cell is withheld
     finally:
         ids_path.write_text(saved)
-        for p in (tmp_root / bar.RESULTS["scifact"], per_question.sidecar_path(tmp_root / bar.RESULTS["scifact"])):
+        for p in (tmp_root / bar.RESULTS["scifact"], per_question.sidecar_path(tmp_root / bar.RESULTS["scifact"]),
+                  *(tmp_root / "bench" / "llm_query").glob("scifact.*")):
             if p.exists():
                 p.unlink()
+        for f, data in kept.items():
+            f.write_bytes(data)
 
 
 def test_the_bar_cli_prints_from_the_files(fixture_pipeline, tmp_root, capsys, monkeypatch):
@@ -932,3 +937,44 @@ def test_the_probe_counts_lines_that_lose_digits():
     assert gen.digits_lost("1. 401k rollover rules\n2) best 2023 tax rules\n- index funds") == 0
     assert gen.digits_lost("401k rollover rules\n2023 tax rules\n3. third") == 2
     assert parse.parse_lines("401k rollover rules", "q", 2) == (["k rollover rules"], "ok")  # the brief's rule as written
+
+
+def test_the_audit_reads_the_caches_and_shares_only(fixture_pipeline, tmp_root):
+    from app.eval import llm_query_audit as audit
+
+    assert audit.longest_common_run("a b c d e".split(), "x b c d y".split()) == 3 and audit.longest_common_run([], ["a"]) == 0
+    fx = audit.fixture_audit(tmp_root, list(spec.BAR_MODELS))
+    qa = fx["answers"]["models"]["qwen3.5-27b"]
+    assert set(qa) == set(spec.QUERY_KINDS) and qa["hyde"]["n"] == 80 and fx["answers"]["question_text"]["n"] == 80
+    paths = fx["paths"]["models"]["qwen3.5-27b"]["hyde"]
+    assert paths["gold"]["n"] == 136 and paths["control"]["n"] > 0
+    from app.eval.llm_query_arms import load_parents
+
+    grader = audit.grader_audit(tmp_root, tmp_root, list(spec.BAR_MODELS), {"fixture": load_parents(tmp_root)["fixture"]})
+    g = grader["fixture"]["qwen3.5-27b"]
+    assert g["tp"] + g["fp"] + g["fn"] + g["tn"] + g["unusable"] == g["graded"] > 0
+
+
+def test_every_row_of_every_m46_results_file_appears_in_the_readme_block(fixture_pipeline, tmp_root):
+    from app.eval import report
+
+    text = report.llm_query_arms_table(tmp_root)
+    for rel in (*bar.RESULTS.values(), *bar.STRETCH_RESULTS.values()):
+        path = tmp_root / rel
+        if path.exists():
+            for row in json.loads(path.read_text())["rows"]:
+                assert f"`{row['config']}`" in text, (rel, row["config"])
+    for dec in bar.decisions(bar.load_blobs(tmp_root)):
+        assert dec["sentence"] in text
+    assert "paired nDCG@10 intervals in the milestone's files" in text and "What this does not show" in text
+    assert "_bench/results/llm_query_arms.json is missing" in report.llm_query_arms_table(tmp_root / "nowhere")
+
+
+def test_one_evidence_row_per_measured_arm_of_the_two_bar_models(fixture_pipeline, tmp_root):
+    from app.eval.evidence import _llm_query_claims
+
+    rows = _llm_query_claims(tmp_root)
+    assert len(rows) == 20 and all(r["value"] == "withheld" for r in rows)  # the hash-embedder parents did not reproduce
+    assert all(r["command"].startswith("make ") and "bench/results/" in r["source"] and r["not_shown"] for r in rows)
+    assert all("uncorrected paired nDCG@10 intervals" in r["not_shown"] and "SciFact: not run" in r["ci"] for r in rows)
+    assert not any("[heuristic]" in r["claim"] or "qwen2.5" in r["claim"] for r in rows)

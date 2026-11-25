@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-llm-query-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-llm-query-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: the RL search policy, trained once
 FRONTIER_FILE = "bench/results/frontier.json"
@@ -73,6 +73,15 @@ DISTILL_QUERIES_META = "bench/distill/queries.meta.json"
 DISTILL_SCORES_META = "bench/distill/teacher_scores.meta.json"
 DISTILL_STUDENTS = "bench/distill/students.json"
 SMALL_RERANKERS_FIGURE = "doc/figures/small-rerankers.svg"
+# M46: LLM query processing with real open LLMs (app/eval/llm_query_*.py), each arm against its exact parent
+LLM_QUERY_FILE = "bench/results/llm_query_arms.json"
+BEIR_LLM_QUERY_FILE = "bench/results/beir_scifact_llm_query_arms.json"
+BEIR_FIQA_LLM_QUERY_FILE = "bench/results/beir_fiqa_llm_query_arms.json"
+LLM_QUERY_AUDIT_FILE = "bench/results/llm_query_audit.json"
+LLM_QUERY_DATASETS = (("fixture", "fixture v1, held-out"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA"))
+LLM_QUERY_COMMANDS = {"fixture": "make bench-llm-query-arms", "scifact": "make bench-beir-llm-query-arms", "fiqa": "make bench-beir-fiqa-llm-query-arms"}
+PLACEMENT_LABELS = {"none": "no reranker (vs P0)", "pre": "before the reranker", "post": "after the reranker",
+                    "union": "before the reranker (union, then rerank)", "per-sub": "each sub-question reranked against itself"}
 SOURCES = {
     "bench-headline": "bench/results/main.json",
     "bench-table": "bench/results/main.json",
@@ -101,6 +110,7 @@ SOURCES = {
     "bench-rerank-arms": RERANK_ARMS_FILE,
     "search-policy": SEARCH_POLICY_FILE,
     "bench-small-rerankers": f"{SMALL_RERANKERS_FILE}, {BEIR_SMALL_RERANKERS_FILE}, {BEIR_FIQA_SMALL_RERANKERS_FILE}, {SMALL_RERANKERS_CPU_FILE} and bench/distill/",
+    "bench-llm-query-arms": f"{LLM_QUERY_FILE}, {BEIR_LLM_QUERY_FILE}, {BEIR_FIQA_LLM_QUERY_FILE} and bench/llm_query/",
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -3108,6 +3118,149 @@ def small_rerankers_table(root: Path | None) -> str:
     return "\n".join(lines)
 
 
+def _llm_cost(row: dict | None) -> str:
+    """'calls / prompt+generated tokens / p50 s' per query, from a results row's cost block."""
+    cost = (row or {}).get("cost")
+    if not cost or not cost.get("llm_ms_per_query"):
+        return "—"
+    return (f"{cost['llm_calls_per_query']:.2f} / {cost['prompt_tokens_per_query']:.0f}+{cost['generated_tokens_per_query']:.0f} / "
+            f"{cost['llm_ms_per_query']['p50'] / 1000:.2f}")
+
+
+def _llm_rows(blobs: dict, dataset: str) -> dict:
+    return {r["config"]: r for r in (blobs.get(dataset) or {}).get("rows") or []}
+
+
+def llm_query_arms_table(root: Path | None) -> str:
+    """M46: every LLM arm against its exact parent on the three datasets, the declared bar, the gemma4:26b replication,
+    one decision sentence per technique (all from the stored verdict words), cost, the reference and stand-in rows, the
+    secondaries, the reproduction of the parents, the fallback counts and what the rows do not show."""
+    from app.eval import llm_query_bar as bar
+    from app.eval import llm_query_spec as spec
+
+    root = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    blobs = bar.load_blobs(root)
+    if not blobs:
+        return (f"_{LLM_QUERY_FILE} is missing; the LLM outputs are generated first (`make llm-query-worklist`, `make llm-query-generate`, "
+                f"`make llm-query-merge`), then `make bench-llm-query-arms`, `make bench-beir-llm-query-arms` and "
+                f"`make bench-beir-fiqa-llm-query-arms` score them with no LLM._")
+    present = [(d, label) for d, label in LLM_QUERY_DATASETS if d in blobs]
+    runs = "; ".join(f"{label}: `{LLM_QUERY_COMMANDS[d]}`, {_device(blobs[d])}, results sha {_sha(blobs[d])}" for d, label in present)
+    decl = (blobs[present[0][0]].get("llm_query") or {}).get("declaration") or {}
+    lines = [
+        f"LLM query processing with real open LLMs (M46): HyDE, multi-query expansion, decomposition and corrective grading, each at "
+        f"its placements relative to the cross-encoder, each against its exact parent: `{spec.P0}` (P0) for the arms with no reranker, "
+        f"`{spec.P1}` (P1) for the reranked ones ({runs}). Every LLM output was generated once, cached in `bench/llm_query/` and read back; "
+        f"scoring calls no LLM. **The bar was declared before any LLM call** (`app/eval/llm_query_spec.py`, commit D0 "
+        f"`{(decl.get('D0') or '?')[:10]}`, declaration D1 `{(decl.get('D1') or '?')[:10]}`): an arm passes when its paired nDCG@10 "
+        f"delta against its parent is above zero on SciFact and on FiQA and not below zero on the fixture's held-out half. The word in "
+        f"each cell is stored in the results file, read from the raw interval bounds (a bound that rounds to 0.0000 is printed raw). "
+        f"qwen3.5:27b decides the placement; gemma4:26b is the replication. No served default changed.",
+    ]
+    for tag in spec.BAR_MODELS:
+        rows = bar.bar_rows(blobs, tag)
+        lines += ["", f"**{spec.MODELS[tag]['name']}** ({'the placement decision' if tag == spec.MAIN_MODEL else 'the replication'}; "
+                      f"Q4_K_M, Ollama, temperature 0, reasoning off)", "",
+                  "| technique, placement | row | " + " | ".join(f"{label}: Δ nDCG@10 [95% CI] | word" for _, label in present)
+                  + " | passes | all three | replication | LLM calls / tokens (prompt+generated) / p50 s per query, " + ", ".join(label for _, label in present) + " |",
+                  "|---|---|" + "---:|:---:|" * len(present) + ":---:|:---:|:---:|---|"]
+        for row in rows:
+            cells = []
+            for d, _ in present:
+                c = row["cells"][d]
+                block = c["block"] or bar.find_block(blobs[d]["scopes"][bar.BAR_SCOPE[d]], row["config"], row["parent"])  # a withheld cell keeps its interval
+                cells.append(f"{bar.fmt_block(block)} | {c['word'] or 'not run'}")
+            cost = "; ".join(_llm_cost(_llm_rows(blobs, d).get(row["config"])) for d, _ in present)
+            lines.append(f"| {spec.TECHNIQUE_NAMES[row['technique']]}, {PLACEMENT_LABELS[row['placement']]} | `{row['config']}` | " + " | ".join(cells)
+                         + f" | {'**passes**' if row['passes'] == 'passes' else row['passes']} | {row['all_three']} | {row.get('replication', '—')} | {cost} |")
+        gpus = sorted({g for d, _ in present for r in _llm_rows(blobs, d).values() if r.get("model") == tag for g in (r.get("cost") or {}).get("gpu") or []})
+        lines += ["", f"Cost is the sum of the cached calls an arm reads per query, one call at a time on {_and(gpus) or 'the GPU recorded'}; never part of the bar."]
+    lines += ["", "**The decision**, one sentence per technique, generated from the stored words (rules 0-4 of `llm_query_spec.DECISION`):", ""]
+    for dec in bar.decisions(blobs):
+        named = "; ".join(f"{PLACEMENT_LABELS[p]}: {_llm_cost(_llm_rows(blobs, 'fiqa').get(spec.arm_name(dec['technique'], p, spec.MAIN_MODEL)))} on FiQA"
+                          for p in dec.get("named") or [] if "fiqa" in blobs)
+        lines.append(f"- {dec['sentence']}" + (f" Cost (calls / tokens / p50 s per query): {named}." if named else ""))
+    # parents and references
+    lines += ["", "The parents and the reference row, recomputed in each run (nDCG@10 [95% CI]):", "",
+              "| row | " + " | ".join(label for _, label in present) + " |", "|---|" + "---:|" * len(present)]
+    for name in (spec.P0, spec.P1, spec.DENSE):
+        cells = []
+        for d, _ in present:
+            scope = blobs[d]["scopes"][bar.BAR_SCOPE[d]]
+            r = next((x for x in scope["rows"] if x["config"] == name), None)
+            cells.append(_mean_ci(r["ci"]["ndcg@10"]) if r else "—")
+        lines.append(f"| `{name}` | " + " | ".join(cells) + " |")
+    p1 = [f"{label} {bar.fmt_block(bar.find_block(blobs[d]['scopes'][bar.BAR_SCOPE[d]], spec.P1, spec.P0))} "
+          f"({(bar.find_block(blobs[d]['scopes'][bar.BAR_SCOPE[d]], spec.P1, spec.P0) or {}).get('verdict')})" for d, label in present]
+    lines += ["", f"P1 minus P0 (what the reranker adds): {'; '.join(p1)}."]
+    # stand-ins and qwen2.5:7b (fixture only, words only)
+    fixture = blobs.get("fixture")
+    if fixture:
+        scope = fixture["scopes"]["held_out"]
+        rows = _llm_rows(blobs, "fixture")
+        lines += ["", "Fixture only, verdict words only (never a decision): the keyword stand-ins at the same placements, and the "
+                      "three HyDE placements with the committed qwen2.5:7b hypotheses (no new call). Held-out half, against the parent:", "",
+                  "| row | Δ nDCG@10 [95% CI] | word | fallbacks |", "|---|---:|:---:|---|"]
+        for r in fixture["rows"]:
+            if r.get("kind") in ("stand-in", "qwen2.5-7b"):
+                b = bar.find_block(scope, r["config"], r["parent"])
+                lines.append(f"| `{r['config']}` | {bar.fmt_block(b)} | {(b or {}).get('verdict', '—')} | {'; '.join(rows[r['config']].get('fallbacks') or []) or '—'} |")
+    # secondaries
+    lines += ["", "Secondary comparisons, reported and never a decision (Δ nDCG@10 [95% CI], word):", "",
+              "| comparison | kind | " + " | ".join(label for _, label in present) + " |", "|---|---|" + "---:|" * len(present)]
+    seen = []
+    for d, _ in present:
+        for c in blobs[d]["scopes"][bar.BAR_SCOPE[d]]["comparisons"]:
+            if c["kind"].startswith("secondary:") and (c["row"], c["other"], c["kind"]) not in seen:
+                seen.append((c["row"], c["other"], c["kind"]))
+    for a, b, kind in seen:
+        cells = []
+        for d, _ in present:
+            blk = bar.find_block(blobs[d]["scopes"][bar.BAR_SCOPE[d]], a, b)
+            cells.append(f"{bar.fmt_block(blk)} {blk['verdict']}" if blk else "—")
+        lines.append(f"| `{a}` minus `{b}` | {kind.split(':', 1)[1]} | " + " | ".join(cells) + " |")
+    # notes
+    total = bar.n_intervals(blobs)
+    said = {"reproduces": "the parents reproduce the committed rows in every per-query score and every available ranking hash",
+            "failed": "the parents did NOT reproduce the committed rows, so its cells are withheld"}
+    notes = [f"{label}: {said.get(blobs[d]['reproduction']['status'], 'the parents ' + blobs[d]['reproduction']['status'])}" for d, label in present]
+    fallbacks = []
+    for d, label in present:
+        for r in blobs[d]["rows"]:
+            if r.get("model") in spec.BAR_MODELS and r.get("llm_fallbacks"):
+                fallbacks.append(f"{label} `{r['config']}`: {'; '.join(r['llm_fallbacks'])}")
+    stretch = {d: json.loads((root / rel).read_text()) for d, rel in bar.STRETCH_RESULTS.items() if (root / rel).exists()}
+    if stretch:
+        sp = [(d, label) for d, label in LLM_QUERY_DATASETS if d in stretch]
+        lines += ["", f"**{spec.MODELS[spec.STRETCH_MODEL]['name']}, the stretch** (a scale comparison only: verdict words, no decision, "
+                      "no evidence row; its own files and caches). Against the parent, and against qwen3.5:27b at the same arm, recomputed "
+                      "in the same run:", "",
+                  "| row | " + " | ".join(f"{label}: vs parent | vs qwen3.5:27b" for _, label in sp) + " |", "|---|" + "---:|---:|" * len(sp)]
+        for r in next(iter(stretch.values()))["rows"]:
+            if r.get("kind") != "stretch":
+                continue
+            cells = []
+            for d, _ in sp:
+                scope = stretch[d]["scopes"][bar.BAR_SCOPE[d]]
+                vp = bar.find_block(scope, r["config"], r["parent"])
+                vq = bar.find_block(scope, r["config"], spec.arm_name(r["technique"], r["placement"], spec.MAIN_MODEL))
+                cells.append(f"{bar.fmt_block(vp)} {(vp or {}).get('verdict', '')} | {bar.fmt_block(vq)} {(vq or {}).get('verdict', '')}")
+            lines.append(f"| `{r['config']}` | " + " | ".join(cells) + " |")
+        others = sorted({r["config"] for b in stretch.values() for r in b["rows"] if r.get("kind") != "stretch"})
+        lines += ["", "Recomputed in the stretch runs as references: " + ", ".join(f"`{n}`" for n in others) + "."]
+    lines += ["", "Do the recomputed parents reproduce the committed rows? " + "; ".join(notes) + ".",
+              "", f"{total.get('total', 0)} paired nDCG@10 intervals in the milestone's files, none corrected for multiplicity; each "
+                  "evidence row names its arm, not a selected cell.",
+              "", "LLM fallbacks (each call that failed, came back empty, did not parse or was cut, and what the arm did instead): "
+                  + ("; ".join(fallbacks) if fallbacks else "none") + ".",
+              "", ("The qwen3.5:122b stretch: " + (f"scored on {_and([LLM_QUERY_DATASETS[spec.DATASETS.index(d)][1] for d in stretch])} (its own files, above)." if stretch else "not run.")),
+              "", "**What this does not show.** " + " ".join((next(iter(blobs.values())).get("does_not_show") or [])),
+              "", "Results: " + " · ".join(f"[{bar.RESULTS[d]}]({bar.RESULTS[d]})" for d, _ in present)
+              + " (each with its per-query sidecar; `make llm-query-arms-rescore` recomputes every interval and word from those on a CPU, "
+                "and every cost from `bench/llm_query/`)."]
+    return "\n".join(lines)
+
+
 def render(blob: dict, root: Path | None = None) -> dict[str, str]:
     root = root if root is not None else Path(__file__).resolve().parents[2]
     return {
@@ -3142,6 +3295,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
         "search-policy": search_policy_table(_load(root, SEARCH_POLICY_FILE)),
         "bench-small-rerankers": small_rerankers_table(root),
+        "bench-llm-query-arms": llm_query_arms_table(root),
     }
 
 

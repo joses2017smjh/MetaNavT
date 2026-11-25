@@ -234,9 +234,11 @@ def committed_hash_check(root: Path, dataset: str, parent_lists: dict[str, dict]
 
 
 def write_worklist(root: Path, data_dir: Path, dataset: str, which: str, out_dir: Path, *, rerank_cache: Path | None, gpu: str,
-                   device: str = "auto", backend=None) -> dict[str, Any]:
+                   device: str = "auto", backend=None, reproduced: Path | None = None) -> dict[str, Any]:
     """Run P0 and P1, check the BEIR test parents' hashes against the committed ones (before writing anything), then
-    write the worklist, the parents and a meta file. Returns the meta block."""
+    write the worklist, the parents and a meta file. Returns the meta block. `reproduced`: the record of the scoring
+    command's reproduce-only mode for this dataset; when it shows every per-query score equal (the declared near-tie
+    reading), a hash mismatch no longer stops the worklist, and the meta says so."""
     queries = dataset_queries(root, data_dir, dataset, which)
     info = None
     if backend is None:
@@ -244,7 +246,12 @@ def write_worklist(root: Path, data_dir: Path, dataset: str, which: str, out_dir
     parent_lists = run_parents(backend, queries)
     check = committed_hash_check(root, dataset, parent_lists) if (dataset != "fixture" and which == "test") else None
     name = f"{dataset}{'' if which == 'test' else '.' + which}"
-    if check is not None and not check["all_equal"]:
+    if check is not None and not check["all_equal"] and reproduced is not None:
+        record = json.loads(Path(reproduced).read_text())
+        status = (record.get("reproduction") or {}).get("status", "")
+        if record.get("dataset") == dataset and status.startswith("reproduces in every metric"):
+            check["accepted"] = {"record": Path(reproduced).name, "status": status}
+    if check is not None and not check["all_equal"] and "accepted" not in check:
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / f"{name}.hash-mismatch.json").write_text(json.dumps(check, indent=1) + "\n")
         raise SystemExit(f"{dataset}: P0/P1 ranking hashes differ from the committed ones; nothing written (run the scoring command's "
@@ -583,8 +590,12 @@ def merge(root: Path, data_dir: Path, *, worklist_dir: Path, cache_dir: Path, mo
                 files[f"{dataset}.{tag}"] = merge_one(root, data_dir, dataset, tag, worklist_dir=worklist_dir, cache_dir=cache_dir)
             except IncompleteCache as e:
                 incomplete[f"{dataset}.{tag}"] = str(e)
+    parents_path = root / LLM_DIR / "parents.json.gz"
     parents = {}
-    worklists = {}
+    if parents_path.exists():  # a dataset merged earlier keeps its parents when another dataset's worklist is merged
+        with gzip.open(parents_path, "rt", encoding="utf-8") as fh:
+            parents = json.load(fh)
+    worklists = dict(old.get("worklists") or {})
     for dataset in spec.DATASETS:
         if (worklist_dir / f"{dataset}.worklist.jsonl").exists():
             _, p, meta = read_worklist(worklist_dir, dataset)
@@ -592,7 +603,7 @@ def merge(root: Path, data_dir: Path, *, worklist_dir: Path, cache_dir: Path, mo
             worklists[dataset] = {k: meta[k] for k in ("n_queries", "n_prompts", "by_kind", "worklist_sha256", "templates_sha256", "committed_hash_check", "gpu", "code_sha", "timestamp")}
     parents_sha = None
     if parents and manifest_name == "manifest.json":
-        path = root / LLM_DIR / "parents.json.gz"
+        path = parents_path
         data = json.dumps(parents, sort_keys=True).encode("utf-8")
         with open(path, "wb") as raw:
             with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as fh:
@@ -884,6 +895,8 @@ def main(argv: list[str] | None = None) -> int:
         s = sub.add_parser(name)
         s.add_argument("--data-dir", type=Path, required=True)
         s.add_argument("--worklist-dir", type=Path, required=True)
+        if name == "worklist":
+            s.add_argument("--reproduced", type=Path, default=None, help="the reproduce-only record that shows every per-query score equal")
         if name != "worklist":
             s.add_argument("--cache-dir", type=Path, required=True)
         if name in ("worklist", "generate"):
@@ -924,7 +937,8 @@ def main(argv: list[str] | None = None) -> int:
         gpu = _gpu_name_smi()
         # its own score cache, so the scoring run recomputes P1 rather than reading the worklist's scores
         cache = (args.rerank_cache_dir / f"worklist-{args.dataset}{'' if args.queries == 'test' else '.' + args.queries}.jsonl") if args.rerank_cache_dir else None
-        meta = write_worklist(ROOT, args.data_dir, args.dataset, args.queries, args.worklist_dir, rerank_cache=cache, gpu=gpu, device=args.device)
+        meta = write_worklist(ROOT, args.data_dir, args.dataset, args.queries, args.worklist_dir, rerank_cache=cache, gpu=gpu, device=args.device,
+                              reproduced=args.reproduced)
         print(json.dumps({k: meta[k] for k in ("dataset", "queries", "n_queries", "n_prompts", "by_kind", "worklist_sha256", "committed_hash_check")}, default=str))
         return 0
     if args.cmd == "generate":

@@ -1313,6 +1313,117 @@ their test questions are about, though no test question and no label. Quality
 on the real corpus with the owner's hand-written questions: a later bar, on a
 CPU, from these committed files. Each student is one training run with one seed.
 
+## LLM query processing with real open LLMs
+
+Four query-processing prototypes live in the repository ([Cutting-edge query
+processing](#cutting-edge-query-processing)): HyDE, multi-query expansion,
+decomposition and corrective retrieval. Until M46 their benchmark rows ran
+keyword stand-ins instead of a model, labelled as such, and the one exception
+(HyDE written by qwen2.5:7b) was measured on the fixture alone. This section
+asks the question with real open LLMs, on fixture v1 and on BEIR SciFact and
+FiQA, at each place in the pipeline where the technique makes sense relative to
+the cross-encoder. The rows are in [the generated
+block](../README.md#bench-llm-query-arms). Nothing here changes a served
+default; the live demo is as it was.
+
+**The bar, declared before any LLM call.** `app/eval/llm_query_spec.py` holds
+every pinned value and `app/eval/llm_query_bar.py` the rules that apply them,
+both committed at the pre-probe commit D0, before the probe on development
+queries, and frozen at the declaration commit D1; `make llm-query-arms-check`
+shows that every generation shard and every scoring run holds them unchanged.
+An arm is compared with its exact parent, the same run with the LLM step as
+the only switch: `hybrid@bge-small` (P0) for the arms with no reranker, and
+`hybrid+bge-rerank@bge-small/fp32-512/top20` (P1, the served reranker shape)
+for the reranked ones. It passes when its paired nDCG@10 interval is above
+zero on SciFact and on FiQA and not below zero on the fixture's held-out half,
+where the reranked parent sits near the ceiling. Each interval is computed once
+and stored twice, rounded and raw; the verdict word comes from the raw bounds
+and is stored with it, and every reader (the README block, the evidence rows,
+the test behind PLAN.md's status column) uses the stored word, so a bound that
+rounds to zero cannot read two ways. qwen3.5:27b decides where each technique
+goes; gemma4:26b replicates it, with a label for every combination of
+outcomes; qwen3.5:122b is a scale comparison that decides nothing.
+
+**The arms, and why each placement.**
+
+- *HyDE.* The model writes a short passage that would answer the query; its
+  embedding, averaged with the query's own, replaces the query vector in the
+  dense leg, and BM25 still reads the query. Measured with no reranker and
+  before the reranker. After the reranker it is the older wiring: P1's list
+  re-sorted by RRF with the HyDE dense list, which overrides the reranker's
+  order; it is kept to measure exactly that wiring, not post-rerank HyDE in
+  general.
+- *Multi-query expansion.* The query and up to two alternatives the model
+  writes, each through the same first stage, fused by RRF; with no reranker,
+  and before the reranker on the fused list. Not after it: an RRF re-sort after
+  the reranker overrides it, as the HyDE row shows.
+- *Decomposition.* The query and up to four sub-questions, fused the same way.
+  Before the reranker in two ways: the union reranked against the original
+  question, or each list's head reranked against its own sub-question and the
+  units merged by their best score. The second (per-sub) is the only arm in
+  which the reranker reads anything but the original query, and its name says so.
+- *Corrective grading.* The model grades each of the parent list's top units
+  (yes or no); a "no" moves to the end. When no unit is "yes", a rewritten query
+  runs the placement's first stage once and its list goes first. With no
+  reranker, and after the reranker; not before it, because the reranker would
+  re-sort the head and undo a demotion.
+
+First-stage lists are built with the reranker off and the reranker runs once
+per arm, as the table says, so a union-then-rerank arm cannot turn into an
+unlabelled per-sub arm (a test records the queries a fake reranker sees). Every
+arm's list is cut to its parent's length. On the fixture the same placements
+also run with the keyword stand-ins, tagged `[heuristic]`, and the three HyDE
+placements with the committed qwen2.5:7b hypotheses; both get verdict words
+only. The stand-ins' keyword rules were written with every fixture question in
+view, held-out half included, and their rows say so.
+
+**The prompts and the request.** The prototypes' own prompts, verbatim:
+HyDE's, the multi-query prompt of `expand_queries` and the decomposition prompt
+of `llm_decompose`, the last two now module constants with the text unchanged.
+The grader and the rewrite have new prompts, pinned with the rest. Only the
+query text, and for the grader one unit's text, reaches a prompt; a test feeds
+a gold question whose answer and paths are sentinels, and none reaches a prompt.
+Each call is one request to Ollama's `/api/generate` at a time: temperature
+zero, seed zero, reasoning off, a capped generation length per kind of call, the
+model pinned by its digest, the server's context fixed. A reply that failed,
+came back empty, did not parse or overflowed the context makes the arm behave as
+its parent for that query (a grade counts as "yes"; a rewrite is skipped); each
+is counted and printed as a fallback label, and no heuristic is ever put in its
+place.
+
+**What is cached, and how it re-scores.** The worklist, every prompt of a
+dataset and the same for every model, is made after P0 and P1 are recomputed
+and, on BEIR, checked against the committed ranking hashes. Generation reads no
+qrels (the jobs do not even copy them) and appends one line per call, so a job
+stopped by its time limit resumes. The merged outputs and their manifest are
+committed in `bench/llm_query/`; the scoring targets read them and call no LLM,
+and `make llm-query-arms-rescore` recomputes every interval, word, cost block
+and decision sentence on a CPU from the per-query sidecars and that directory.
+
+**Cost.** Each arm's LLM calls, prompt and generated tokens, and seconds per
+query are the sum of the cached calls it reads, run one at a time on the GPU the
+file names. Cost is printed beside each decision and is never part of the bar.
+
+**The audit.** `make llm-query-audit` asks, from the cache, how often an
+output contains a fixture question's gold answer or a gold file path that the
+question itself does not name (beside a control path from the same directory),
+how long a run of words a HyDE passage shares verbatim with a relevant BEIR
+document (and with the parent's top non-relevant one), and how often the grader's
+"yes" agrees with the qrels. Every share there is descriptive.
+
+**What this does not show.** Answer quality: these are rankings only, and the
+agent loops' answers are another milestone's. The variability of the LLM: one
+generation per prompt at temperature zero on one GPU type, so the intervals
+cover query sampling only. Prompt engineering: one untuned prompt per technique
+for every dataset, so these rows are a lower bound for tuned variants (SciFact's
+queries are claims, not questions). Frontier API models or reasoning: two
+quantised open models served by Ollama with reasoning off. Pretraining exposure
+to BEIR or to this repository, which the audit bounds only for verbatim copying
+and path mentions. A stronger first stage or reranker: bge-small and
+bge-reranker-v2-m3 only, and stronger ones may leave less room. Multi-query
+after the reranker, corrective before it, combinations of techniques, more than
+one corrective round: not measured. No correction for multiplicity.
+
 ## The API serves the benchmarked pipeline
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:

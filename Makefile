@@ -411,7 +411,7 @@ llm-query-ids: ## the test and dev query ids (reads the qrels' query-id column o
 	$(PYTHON) -m app.eval.llm_query_gen ids --data-dir $(BEIR_DATA_DIR)
 
 llm-query-worklist: ## every prompt of DATASET=fixture|scifact|fiqa (QUERIES=dev for the probe), after P0 and P1 and (BEIR test) their committed ranking hashes; no qrels (needs .[ml] and a GPU) -> $(LLM_QUERY_WORK)/worklist
-	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_gen worklist --dataset $(DATASET) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --rerank-cache-dir $(LLM_QUERY_WORK)/rerank_cache
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_gen worklist --dataset $(DATASET) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --rerank-cache-dir $(LLM_QUERY_WORK)/rerank_cache $(if $(REPRODUCED),--reproduced $(REPRODUCED))
 
 llm-query-generate: ## the calls of DATASET, MODEL=qwen3.5-27b|gemma4-26b|qwen3.5-122b, SHARD=i/n through Ollama at OLLAMA_BASE_URL, resumable (DEADLINE=epoch seconds) -> $(LLM_QUERY_WORK)/cache
 	$(PYTHON) -m app.eval.llm_query_gen generate --dataset $(DATASET) --model $(MODEL) --shard $(SHARD) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --cache-dir $(LLM_QUERY_WORK)/cache $(if $(DEADLINE),--deadline $(DEADLINE))
@@ -433,6 +433,10 @@ llm-query-arms-rescore: ## every interval, mean and verdict word of the M46 resu
 
 llm-query-arms-bar: ## the declared bar, the replication labels and the placement decision from the committed files -> stdout
 	$(PYTHON) -m app.eval.llm_query_bar --bar
+
+.PHONY: llm-query-audit
+llm-query-audit: ## the memorisation and grader audit from the cached outputs: gold answers and paths in the outputs (fixture), verbatim runs shared with relevant documents (BEIR), the grader against qrels; descriptive (CPU; reads the BEIR qrels) -> bench/results/llm_query_audit.json
+	$(PYTHON) -m app.eval.llm_query_audit --data-dir $(BEIR_DATA_DIR) $(if $(MODELS),--models $(MODELS))
 
 .PHONY: llm-query-arms-check
 llm-query-arms-check: ## every test generation shard and scoring run is at D1 or a descendant with parts (a)-(d) byte-identical to D1; D1 descends from D0; D0..D1 changed (a) only in NUM_PREDICT and (c) not at all (bench/llm_query/declaration.json)
