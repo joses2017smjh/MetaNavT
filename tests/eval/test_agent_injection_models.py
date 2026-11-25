@@ -172,21 +172,30 @@ def test_a_stopped_run_records_its_segment_and_resumes_where_it_stopped(tmp_path
     import os
     import signal
     import threading
-    import time
     task = _q011_tasks()[0]
     sent = [0]
     lock = threading.Lock()
+    fired, stopped = threading.Event(), threading.Event()
 
     def blocking(m):
         def chat(messages, tools, seed):
             with lock:
                 sent[0] += 1
-                n = sent[0]
-            if n == 7:  # an episode in flight when the job is told to stop
+                # an episode in flight when the job is told to stop: its first call (no tool result yet), so the
+                # episode makes another call after the stop; held until run() has set the stop (it logs it), so the
+                # outcome does not depend on how the threads are scheduled
+                fire = sent[0] >= 7 and not fired.is_set() and not any(x["role"] == "tool" for x in messages)
+                if fire:
+                    fired.set()
+            if fire:
                 os.kill(os.getpid(), signal.SIGINT)
-                time.sleep(0.5)
+                stopped.wait(30)
             return _read_then_answer(task)(messages, tools, seed)
         return chat
+
+    def log(line):
+        if line.startswith("stop requested"):
+            stopped.set()
 
     path = tmp_path / "s_episodes.jsonl"
     # a shard's process starts with Python's own SIGINT handler (KeyboardInterrupt); an earlier test in this session
@@ -194,7 +203,7 @@ def test_a_stopped_run_records_its_segment_and_resumes_where_it_stopped(tmp_path
     previous = signal.signal(signal.SIGINT, signal.default_int_handler)
     try:
         ai.run(["m"], k=1, workers=2, episodes_path=path, questions=["q011"], defenses=("none",), chat_factory=blocking,
-               log=lambda _: None, benchmark=ai.BENCHMARK_V3)
+               log=log, benchmark=ai.BENCHMARK_V3)
     finally:
         signal.signal(signal.SIGINT, previous)
     seg = json.loads(ai.sidecar(path).read_text())["segments"][0]
