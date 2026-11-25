@@ -1871,7 +1871,9 @@ def dry_run(data_dir: Path, work: Path, device: str = "auto", root: Path | None 
 def storage_table(root: Path | None = None, attempt: int | None = None) -> list[dict[str, Any]]:
     """The measured index size per corpus and model at its length, from the token counts the runs recorded (each leg's
     `store`): scored token vectors x dim x bytes, fp32 and fp16, against bge-small's one 384-dimension float32 vector
-    per document. This replaces the multimodal module's old "10-20x" estimate."""
+    per document. This replaces the multimodal module's old "10-20x" estimate. Each entry also carries the recorded
+    truncation: documents cut at the length, documents with no scored token, and the leg's `queries` record (the
+    query cap, the queries over it, the longest)."""
     root = Path(root or ROOT)
     attempt = attempt or deciding_attempt(root)
     out = []
@@ -1891,7 +1893,8 @@ def storage_table(root: Path | None = None, attempt: int | None = None) -> list[
                     tag, length = parse_mv(name)
                     out.append({"dataset": d, "part": part, "model": tag, "document_length": length, "kind": leg.get("kind"), "documents": s["documents"],
                                 "scored_vectors": s["scored_vectors"], "dim": s["dim"], "bytes": s["bytes"], "ratio_to_bge_small": s["ratio_to_bge_small"],
-                                "cut_at_document_length": s["cut_at_document_length"], "file": results_file(d, part, attempt)})
+                                "cut_at_document_length": s["cut_at_document_length"], "zero_scored_tokens": s.get("zero_scored_tokens"),
+                                "queries": leg.get("queries"), "file": results_file(d, part, attempt)})
     return out
 
 

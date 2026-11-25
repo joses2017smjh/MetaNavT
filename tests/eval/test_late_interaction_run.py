@@ -12,7 +12,9 @@ import hashlib
 import json
 import math
 import re
+import shutil
 import string
+import subprocess
 from dataclasses import replace
 from pathlib import Path
 
@@ -24,6 +26,7 @@ from app.eval import late_interaction as li
 from app.eval.beir import BGE_SMALL
 from app.eval.harness import BenchConfig, run_config
 from app.eval.gold import load_gold
+from app.eval.report import verdict
 from app.multimodal.late_interaction import maxsim
 from app.retrieval.bm25 import tokenize
 
@@ -144,7 +147,7 @@ def test_both_beir_parts_run_every_mv_branch_and_rescore_from_their_sidecars(tmp
         tuple(f) for f in li.PLAN_FLAGS if f[0].startswith("scifact:"))
     for v in blob["verdicts"]:
         assert v["config"].startswith("scifact:") and v["reference"].startswith("scifact:") and v["scope"] == "test"
-        assert v["interval"] == {True: "above zero", False: None}.get(v["lo"] > 0) or v["interval"] in ("below zero", "covers zero")
+        assert v["interval"] == verdict(v)  # the stored word, read off the stored lo and hi
         assert ("bonferroni" in v) == (v["kind"] == "bar")
         if v["kind"] == "bar":
             assert v["bonferroni"]["lo"] <= v["lo"] and v["bonferroni"]["hi"] >= v["hi"]  # wider: 98.75% from the same draws
@@ -314,6 +317,107 @@ def test_the_bar_pass_not_pass_open_and_the_card_claim(tmp_path):
     for f in tmp_path.glob("bench/results/*.json"):
         f.unlink()
     assert li.bar_table(tmp_path)["outcome"]["word"] == "labelled a demo"
+
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-c", "pack.threads=1", *args], cwd=ROOT, capture_output=True, text=True)
+
+
+def _needs_the_declarations_commit() -> None:
+    """The declarations check reads the declarations commit from this repository's history. A shallow clone without it
+    skips, as tests/eval/test_agent_injection_adaptive.py does (CI's eval job fetches the full history); a full clone
+    without it fails: the results would name a commit that is not in the history, as a squash merge would leave them."""
+    if shutil.which("git") is None or _git("rev-parse", "--is-inside-work-tree").stdout.strip() != "true":
+        pytest.skip("not a git checkout: the declarations commit cannot be read")
+    if _git("cat-file", "-e", f"{li.DECLARATIONS_COMMIT}^{{commit}}").returncode != 0:
+        if _git("rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            pytest.skip(f"shallow clone without the declarations commit {li.DECLARATIONS_COMMIT[:7]}: git fetch --unshallow")
+        pytest.fail(f"the results name the declarations commit {li.DECLARATIONS_COMMIT}, which is not in this repository's history")
+
+
+def test_the_bar_command_and_the_declarations_check_on_the_committed_files(capsys):
+    """`make late-interaction-bar` on the committed files: the declarations commit is an ancestor of every results
+    file's git_sha, BAR, SETTINGS and CANDIDATES at that commit equal each header's, and the command exits 0 with the
+    bar of every named model in both roles."""
+    _needs_the_declarations_commit()
+    files = li.all_files(ROOT)
+    assert len(files) == 6 and li.declarations_check(ROOT) == []
+    assert li.main(["--bar"]) == 0
+    out = capsys.readouterr().out
+    assert f"declarations commit: OK ({li.DECLARATIONS_COMMIT})" in out
+    for tag in li.CANDIDATES:
+        for role in ("a", "b"):
+            assert f" {tag:24s} role ({role}) {li.bar_row(tag, role)}: " in out
+
+
+def test_the_declarations_check_finds_a_changed_header_and_a_commit_outside_the_history(tmp_path, monkeypatch):
+    """A copied results file passes as committed and fails, with the named problem, once its header's BAR, SETTINGS or
+    CANDIDATES differ from the declarations commit's, or its declarations commit is unknown, not an ancestor of its
+    git_sha, or missing. Git reads this repository's history (GIT_DIR), so a problem is never just "not a git
+    repository" from the copy's directory."""
+    _needs_the_declarations_commit()
+    monkeypatch.setenv("GIT_DIR", _git("rev-parse", "--absolute-git-dir").stdout.strip())
+    rel = li.results_file("fixture", "primary")
+    original = json.loads((ROOT / rel).read_text())
+    target = tmp_path / rel
+    target.parent.mkdir(parents=True)
+
+    def problems(edit) -> list[str]:
+        blob = copy.deepcopy(original)
+        edit(blob["late_interaction"])
+        target.write_text(json.dumps(blob))
+        return li.declarations_check(tmp_path)
+
+    assert problems(lambda h: None) == []
+    for name, key in (("BAR", "bar"), ("SETTINGS", "settings"), ("CANDIDATES", "candidates")):
+        assert problems(lambda h: h[key].update({"changed": True})) == [f"{rel}: {name} at the declarations commit differs from the header's"]
+    unknown = problems(lambda h: h.update({"declarations_commit": "0" * 40}))
+    assert len(unknown) == 1 and f"{rel}: the declarations commit {'0' * 12} is not an ancestor of {original['git_sha']}" in unknown[0]
+    head = _git("rev-parse", "HEAD").stdout.strip()  # a descendant of the results' commit, never its ancestor
+    later = problems(lambda h: h.update({"declarations_commit": head}))
+    assert later == [f"{rel}: the declarations commit {head[:12]} is not an ancestor of {original['git_sha']} (not an ancestor)"]
+    assert problems(lambda h: h.pop("declarations_commit")) == [f"{rel}: no declarations commit in its header"]
+
+
+def test_the_bar_command_fails_on_a_declarations_problem(monkeypatch, capsys):
+    monkeypatch.setattr(li, "declarations_check", lambda root=None: ["bench/results/x.json: a problem"])
+    assert li.main(["--bar"]) == 1
+    assert "declarations commit: 1 problems" in capsys.readouterr().out
+
+
+def test_the_readme_block_states_the_recorded_truncation_and_rests_on_committed_files():
+    """The generated block prints, per corpus and model at its length, the documents cut and the queries over the
+    query cap as each leg recorded them, names the query cap among what the rows do not show, and cites nothing that
+    is not a committed file (no uncommitted diagnostic)."""
+    from app.eval import report
+
+    text = report.late_interaction_table(ROOT)
+    over = {}
+    for d in ("scifact", "fiqa"):
+        blob = json.loads((ROOT / li.results_file(d, "primary")).read_text())
+        for name, leg in blob["late_interaction"]["legs"].items():
+            q, s = leg["queries"], leg["store"]
+            assert (f"{s['cut_at_document_length']} of {s['documents']} documents cut · {q['over_query_length']} of {q['n']} queries over "
+                    f"{q['query_length']} tokens (longest {q['longest_tokenized']})") in text, (d, name)
+            over[d] = f"{q['over_query_length']} of {q['n']}"
+    tail = text[text.index("**What this does not show.**"):]
+    assert "Full-length queries for the named models' MaxSim legs" in tail
+    assert f"BEIR SciFact {over['scifact']} and BEIR FiQA {over['fiqa']} queries are longer and are cut in both roles" in tail
+    assert "diagnostic" not in text
+
+
+
+def test_the_evidence_rows_are_the_recorded_losses_with_the_declared_union_bound():
+    """M43's rule: a row only for a bar comparison below zero (or a model that passes); a stretch row, reported as a
+    finding, quotes the declared bound that counts the stretch PASS claims too (MULTIPLICITY['row_4_2'])."""
+    from app.eval import evidence
+
+    rows = evidence._late_interaction_claims(ROOT)
+    named, stretch = [r for r in rows if "STRETCH" not in r["claim"]], [r for r in rows if "STRETCH" in r["claim"]]
+    assert len(named) == 5 and len(stretch) == 2 and all("verdict from the interval: below zero" in r["not_shown"] for r in rows)
+    assert all("or at most 20% if the four stretch PASS claims are also reported as findings" in r["not_shown"] for r in stretch)
+    assert not any("20%" in r["not_shown"] for r in named)
 
 
 def test_the_committed_parents_and_references_exist_in_the_files_a_part_compares_with():

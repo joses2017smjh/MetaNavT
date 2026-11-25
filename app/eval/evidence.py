@@ -1073,6 +1073,9 @@ def _late_interaction_claims(root: Path = ROOT) -> list[dict]:
                 "fiqa": "make bench-beir-fiqa-late-interaction PART=primary"}
     multiplicity = ("uncorrected 95% interval; a PASS needs all three datasets (each one-sided test at 2.5%); four named PASS claims give at most "
                     "10% for any false PASS (union bound)")
+    # a stretch row is reported as a finding, so its note carries the declared bound that counts the stretch PASS claims too
+    stretch_multiplicity = ("uncorrected 95% interval; a PASS needs all three datasets (each one-sided test at 2.5%); "
+                            + li.MULTIPLICITY["row_4_2"].split(": ", 1)[1])
     out: list[dict] = []
     for tag, entry in table["models"].items():
         for role in ("a", "b"):
@@ -1109,7 +1112,7 @@ def _late_interaction_claims(root: Path = ROOT) -> list[dict]:
                             "ci": ci, "n": n, "command": commands[d].replace("PART=primary", "PART=extra"),
                             "source": f"{li.results_file(d, 'extra', attempt)} @ {blob['git_sha']}",
                             "not_shown": (f"verdict from the interval: {verdict(v)}; a stretch row, outside the declared bar: it never changes PLAN row 4.2; "
-                                          f"chosen knowing its published BEIR scores; {multiplicity}; quality only")})
+                                          f"chosen knowing its published BEIR scores; {stretch_multiplicity}; quality only")})
     return out
 
 

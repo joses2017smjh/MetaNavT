@@ -3172,6 +3172,60 @@ def _li_storage_lines(root: Path | None) -> list[str]:
     return lines
 
 
+def _li_truncation(root: Path | None) -> tuple[list[str], str | None]:
+    """The truncation the runs recorded (each leg's `store` and `queries`, read through storage_table): per model and
+    length, the documents cut at the document length and the queries over the query cap on each corpus; and, when a
+    named model cuts any query, the does-not-show clause for the query side, which no row varies."""
+    from app.eval import late_interaction as li
+
+    entries = li.storage_table(root)
+    if not entries:
+        return [], None
+    short = {d: label.split(",")[0] for d, label in LI_DATASETS}
+    present = [d for d, _ in LI_DATASETS if any(e["dataset"] == d for e in entries)]
+    by: dict[tuple[str, int], dict[str, dict]] = {}
+    for e in entries:
+        by.setdefault((e["model"], e["document_length"]), {})[e["dataset"]] = e
+
+    def cell(e: dict | None) -> str:
+        if e is None:
+            return "—"
+        q = e.get("queries") or {}
+        queries = (f"{q['over_query_length']} of {q['n']} queries over {q['query_length']} tokens (longest {q['longest_tokenized']})"
+                   if q else "queries not recorded")
+        return f"{e['cut_at_document_length']} of {e['documents']} documents cut · {queries}"
+
+    lines = ["**Truncation, as the runs recorded it** (each leg's token counts): the documents cut at the model's document length, and the "
+             "queries longer than its query cap, on each corpus.", "",
+             "| model, document length | " + " | ".join(short[d] for d in present) + " |", "|---|" + "---|" * len(present)]
+    lines += [f"| {model}, {length} | " + " | ".join(cell(cells.get(d)) for d in present) + " |" for (model, length), cells in by.items()]
+    zero = [e for e in entries if e.get("zero_scored_tokens") is None or e["zero_scored_tokens"] > 0]
+    lines += ["", "No document has zero scored tokens at any length." if not zero else
+              "Documents with no scored token: " + "; ".join(f"{e['model']}, {e['document_length']} on {short[e['dataset']]}: "
+                                                              f"{e.get('zero_scored_tokens', 'not recorded')}" for e in zero) + "."]
+    named = [e for e in entries if e["model"] in li.CANDIDATES and e.get("queries")]
+    caps = sorted({e["queries"]["query_length"] for e in named})
+    cut: list[str] = []
+    for d in present:
+        counts = {(e["queries"]["over_query_length"], e["queries"]["n"]) for e in named if e["dataset"] == d}
+        if len(counts) == 1:
+            over, n = next(iter(counts))
+            if over:
+                cut.append(f"{short[d]} {over} of {n}")
+        else:
+            cut += [f"{short[d]} {e['queries']['over_query_length']} of {e['queries']['n']} (`{e['model']}`, {e['document_length']})"
+                    for e in named if e["dataset"] == d and e["queries"]["over_query_length"]]
+    if not (named and cut):
+        return lines, None
+    caps_text = " or ".join(str(c) for c in caps)
+    lines[-1] += (f" The named models' query cap is their saved {caps_text} tokens, and no row varies it: the {li.SENSITIVITY_LENGTH}-token rows lengthen the document "
+                  f"side only, so the same queries are cut in both roles and at both document lengths ({_and(cut)} queries over the cap). bge-small's "
+                  f"dense leg has a {li.SENSITIVITY_LENGTH}-token budget for the query alone, and BM25 reads the whole query in every hybrid row.")
+    clause = (f"full-length queries for the named models' MaxSim legs (from the runs' recorded counts, not in the headers' list): each reads at most "
+              f"its saved {caps_text} query tokens, no row varies that cap, and {_and(cut)} queries are longer and are cut in both roles")
+    return lines, clause
+
+
 def _li_cpu_lines(root: Path | None) -> list[str]:
     cpu, small = _load(root, LATE_INTERACTION_CPU_FILE), _load(root, SMALL_RERANKERS_CPU_FILE)
     if not cpu:
@@ -3196,17 +3250,25 @@ def _li_cpu_lines(root: Path | None) -> list[str]:
     for row in cpu["results"]:
         by = {(s["shape"], s.get("depth")): s["p50_ms"] for s in row["shapes"]}
         if ("rerank_stored", 20) in by and ("query_encode", None) in by:
-            gaps.append(f"`{row['tag']}` {by[('rerank_stored', 20)] - by[('query_encode', None)]:.1f} ms")
+            gap = f"`{row['tag']}` {by[('rerank_stored', 20)] - by[('query_encode', None)]:.1f} ms"
+            if ("first_stage", None) in by:
+                gap += f" (first stage {by[('first_stage', None)] - by[('query_encode', None)]:.1f} ms)"
+            gaps.append(gap)
     if gaps:
         lines[-1] += (" The stored-token shapes hardly move with depth, yet at depth 20 each sits above the query encode alone by a p50 gap of "
-                      + _and(gaps) + ". That gap is not the MaxSim arithmetic, which grows with depth. A diagnostic on the same node, not a "
-                      "committed result, saw a query encode that follows a numpy call in the same process run slower than one that does not; "
-                      "the cause is not established here, and the shapes stand as measured.")
+                      + _and(gaps) + ". That gap is not the MaxSim arithmetic, which grows with depth; the cause is not established here, "
+                      "and the shapes stand as measured.")
     if same:
-        ref = [r for r in small["results"] if r["tag"] in ("minilm-l12", "gte-modernbert-base") and r["max_length"] == 512]
-        cells = "; ".join(f"`{r['tag']}` depth 20 at max_length 512: {next(s for s in r['shapes'] if s['depth'] == 20)['p50_ms']} / "
-                          f"{next(s for s in r['shapes'] if s['depth'] == 20)['p95_ms']} ms" for r in ref)
-        lines[-1] += f" The cross-encoders on the same CPU model ([{SMALL_RERANKERS_CPU_FILE}]({SMALL_RERANKERS_CPU_FILE})): {cells}."
+        ref: dict[str, list[dict]] = {}
+        for r in small["results"]:
+            if r["tag"] in ("minilm-l12", "gte-modernbert-base"):
+                ref.setdefault(r["tag"], []).append(r)
+        cells = "; ".join(f"`{tag}` depth 20 " + ", ".join(f"at max_length {r['max_length']}: {next(s for s in r['shapes'] if s['depth'] == 20)['p50_ms']} / "
+                                                           f"{next(s for s in r['shapes'] if s['depth'] == 20)['p95_ms']} ms" for r in rows)
+                          for tag, rows in ref.items())
+        lines[-1] += (f" The cross-encoders on the same CPU model ([{SMALL_RERANKERS_CPU_FILE}]({SMALL_RERANKERS_CPU_FILE})): {cells}. The budgets "
+                      "differ, so the speeds do not compare like for like: the ColBERT model reads each passage up to the document length beside its "
+                      "name and the query separately, while a cross-encoder at max_length L reads L tokens of query plus passage together.")
     else:
         lines[-1] += " The cross-encoders' CPU file was measured on another CPU model, so no comparison is drawn."
     return lines
@@ -3240,7 +3302,8 @@ def late_interaction_table(root: Path | None) -> str:
         f"ran** (`app/eval/late_interaction.py`, commit `{(li.DECLARATIONS_COMMIT or '')[:7]}`; `make late-interaction-bar` checks it is an ancestor of every results "
         f"file): a named model passes in a role when its paired nDCG@10 delta against `{li.PARENT}` is above zero on fixture v1's held-out questions and on "
         f"BEIR SciFact and on BEIR FiQA. Two roles: (a) the MaxSim leg in place of bge-small's dense leg, BM25 kept, RRF k 60; (b) MaxSim reranking the "
-        f"fused top 20. Exhaustive MaxSim in float64 over every document's token vectors: the exact score PLAID-style search approximates. No default changed.",
+        f"fused top 20. Role (a) scores exhaustive MaxSim in float64 over every document's token vectors: the exact score PLAID-style search approximates; "
+        f"role (b) scores each of the top 20 with the module's `maxsim`, in float32. No default changed.",
         "",
         "**Role (a): the MaxSim leg as the first stage.**",
         "",
@@ -3346,8 +3409,12 @@ def late_interaction_table(root: Path | None) -> str:
     if pvm:
         lines += ["", f"Measured against the card's published figures (printed as nDCG@10 x 100; other implementations, ColBERTv2's with approximate "
                       f"PLAID search; a tripwire, never a bar), the dense leg alone: {pvm}."]
+    truncation, query_clause = _li_truncation(root)
     lines += ["", "**Index size, measured from the runs' token counts** (the multimodal module's \"10-20x\" was an estimate): bytes of the uncompressed "
-                  "token index against bge-small's one 384-dimension float32 vector per document.", "", *_li_storage_lines(root), "", *_li_cpu_lines(root)]
+                  "token index against bge-small's one 384-dimension float32 vector per document.", "", *_li_storage_lines(root)]
+    if truncation:
+        lines += ["", *truncation]
+    lines += ["", *_li_cpu_lines(root)]
     # training data, reproduction, what this does not show: as the headers froze them, not as the module says today
     header = next(b for b in primary.values() if b)["late_interaction"]
     training = header["training_data"]
@@ -3379,7 +3446,7 @@ def late_interaction_table(root: Path | None) -> str:
                      if b and b["late_interaction"].get("expected_reproduction")), None)  # the BEIR headers carry it
     lines += ["", "Do the recomputed parents and references reproduce the committed rows? " + " ".join(repro)
               + (f" {expected}" if expected else "")]
-    lines += ["", "**What this does not show.** " + " ".join(s[0].upper() + s[1:] + "." for s in header["does_not_show"])]
+    lines += ["", "**What this does not show.** " + " ".join(s[0].upper() + s[1:] + "." for s in [*header["does_not_show"], *([query_clause] if query_clause else [])])]
     files = [li.results_file(d, p, attempt) for d in li.DATASETS for p in li.PARTS if (primary if p == "primary" else extra).get(d)]
     lines += ["", "Results: " + " · ".join(f"[{f}]({f})" for f in files) + (f" · [{LATE_INTERACTION_CPU_FILE}]({LATE_INTERACTION_CPU_FILE})" if _load(root, LATE_INTERACTION_CPU_FILE) else "")
               + f" (each with its per-query sidecar; the named rows' MaxSim lists and reranked heads in [{li.RUNS_DIR}/]({li.RUNS_DIR}/)). "
