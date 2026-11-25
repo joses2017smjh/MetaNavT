@@ -1,11 +1,12 @@
-"""Brand-colored SVG figures for the README. Palette matches .frontend/app/globals.css."""
+"""Brand-colored SVG figures for the README. The palette is the web client's earlier dark one (.frontend/app/globals.css
+has since moved to a light palette; these figures keep theirs)."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-# App chrome: #121212 body, lavender / gold / sky / pink radial gradient.
+# The earlier app chrome: #121212 body, lavender / gold / sky / pink radial gradient.
 BG = "#121212"
 PANEL = "#1A1A24"
 TEXT = "#F4F4F8"
