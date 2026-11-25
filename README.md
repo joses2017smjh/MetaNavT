@@ -1,28 +1,124 @@
-# MetaNaviT — Research File Search and RAG
+# MetaNaviT
 
-**Find the right experiment file, inspect its source, and review proposed changes.**
+[![CI](https://github.com/joses2017smjh/MetaNavT/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/joses2017smjh/MetaNavT/actions/workflows/ci.yml)
 
-MetaNaviT combines lexical and dense retrieval with source locations, version-aware filtering, and agent tools. A FastAPI service and PostgreSQL/pgvector backend support a Next.js interface; answer generation uses an additional language-model service.
+MetaNaviT is a hybrid search and RAG service for research files: it finds the right config, log or draft with keyword plus semantic search, answers questions with citations to the exact file and byte range, and runs on AWS.
 
-[![Illustrated query trace: identify the current learning rate and inspect the source](doc/gifs/ask.gif)](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/)
+Started as our six-person Oregon State capstone (I built the retrieval and data APIs); everything since 2026<!-- num: doc/engineering-reference.md:"The independent {} extensions" --> is my solo work. Upstream: [klaurie/MetaNaviT](https://github.com/klaurie/MetaNaviT) ([what I added](#my-role)).
 
-*Illustrated fixture interaction, not a live model recording. The project also includes generated traces from its real offline retrieval stack. [Measured fixture demos](doc/engineering-reference.md#hard-benchmark-demos-generated).*
+## Demo
 
-[Visual case study](https://jose-sanchez-portfolio-com.vercel.app/projects/metanavit/) · [Demo walkthroughs](#demo-walkthroughs) · [Run the benchmark](#run-the-cpu-benchmark) · [Architecture](#how-it-works) · [Engineering reference](doc/engineering-reference.md) · [Agent Field mobile companion](mobile/README.md)
+**Live demo: [d26sc4g7hhx8h3.cloudfront.net](https://d26sc4g7hhx8h3.cloudfront.net)** on AWS, searching the project's synthetic 61-file<!-- num: bench/results/main.json#/n_files --> benchmark fixture. Search works now; Claude answers stay off until I store an Anthropic API key, and once on they are rate-limited per caller and budget-capped.
 
-## Problem and contribution
+![Live demo: a question about a training run's learning rate returns ranked excerpts from config and log files, each with its file path, byte range and lexical, dense and fused scores](docs/media/demo-search.gif)
 
-Research directories contain near-duplicate configurations, archived results, and claims spread across files. Search needs to return inspectable evidence and distinguish current sources from superseded ones.
+[TODO: re-record this GIF from the live site once Claude answers are on, showing Ask with its citations.]
 
-**My contribution:** retrieval and data APIs on the original six-person team. My independent 2026 work adds experiment-file provenance, external retrieval evaluations, service-load measurements, and signed approval grants for file operations. [Team attribution](doc/engineering-reference.md#team).
+## Highlights
 
-## What it does
+- **Hybrid retrieval: +0.307 nDCG@10 over BM25** (95% CI +0.259 to +0.353)<!-- num: bench/results/neural.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25_only/ndcg@10/delta; #/bootstrap/level|*100; bench/results/neural.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25_only/ndcg@10/lo; bench/results/neural.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25_only/ndcg@10/hi --> on the project's 136-question<!-- num: bench/results/neural.json#/n_gold --> benchmark, from BM25 and dense search fused by reciprocal rank fusion, then a cross-encoder reranker.
+- **Validated on BEIR SciFact:** +0.075 nDCG@10 over BM25 (CI +0.053 to +0.101)<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25/ndcg@10/delta; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25/ndcg@10/lo; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25/ndcg@10/hi -->; the repository's BM25 reproduces Anserini's published baseline (0.6767 vs 0.6789)<!-- num: bench/results/beir_scifact.json#/results/[config=bm25]/retrieval/ndcg@10; #/results/[config=bm25]/vs_published/published_bm25_ndcg@10 -->.
+- **Served at BEIR FiQA scale** (57,638 documents, 117,212 chunks<!-- num: bench/results/served_scale_fiqa.json#/n_docs; #/build/report/chunks_embedded --> in PostgreSQL/pgvector): the HNSW index keeps 0.944 Recall@50<!-- num: bench/results/pgvector_hnsw.json#/rows/7/recall@50/mean --> against an exact scan.
+- **On AWS for about $20 a month**<!-- num: doc/deploy.md:"| t3.small, the live demo's | $15.18 | $1.60 | $3.65 | ${} |" -->: Terraform, CloudFront, one EC2 host with Docker Compose (FastAPI, PostgreSQL/pgvector, Redis), per-caller answer quotas and a daily LLM budget; CI gates `main` on eight required checks.
+- **Prompt-injection defense, measured:** a structured answer check cut planted values reaching the user from 73% to 23%<!-- num: bench/results/agent_injection_v3.json#/summary/qwen2.5:7b/none/by_goal/hijack/took_effect/mean|*100; #/summary/qwen2.5:7b/answer_check/by_goal/hijack/took_effect/mean|*100 --> (qwen2.5:7b; paired difference -0.504<!-- num: docs/RESUME_EVIDENCE.md:"qwen2.5:7b: the structured answer check in the loop minus no defense, the planted value delivered to the user, hijack, per draw, paired | {} |" -->, interval below zero).
 
-- **Retrieve and cite:** combine lexical and dense candidates, rerank when configured, and return source paths and byte ranges.
-- **Handle versions:** filter known superseded files and surface conflicts in the evaluated fixtures.
-- **Support agents:** expose search and source inspection through HTTP/MCP; the research companion is read-only.
-- **Review changes:** the separate file-operation tools propose plans and require externally signed, single-use approval tokens to apply them.
-- **Measure regressions:** keep deterministic fixture checks, real-model experiments, and external-domain evaluations separate.
+## Tech stack
+
+| Area | Technologies |
+| --- | --- |
+| Backend and retrieval | Python, FastAPI, PostgreSQL, pgvector, Redis, LlamaIndex, MCP |
+| Models | PyTorch, sentence-transformers (bge-small-en-v1.5, bge-reranker-v2-m3), Claude API, Ollama (local models for evaluation) |
+| Front end | Next.js, TypeScript |
+| Cloud and CI | AWS (EC2, CloudFront, Systems Manager), Terraform, Docker Compose, GitHub Actions |
+| Evaluation | BEIR (SciFact, FiQA), paired bootstrap intervals, Slurm jobs for GPU runs |
+
+## My role
+
+**Capstone, as a team.** On our six-person team I built the retrieval and data APIs. Upstream is the team's repository, [klaurie/MetaNaviT](https://github.com/klaurie/MetaNaviT): a FastAPI app with LlamaIndex chat agents, PostgreSQL/pgvector indexing, Ollama models, a Next.js front end and an execution sandbox. This repository is a copy of it with the full history, not a GitHub fork. [Team and roles](doc/engineering-reference.md#team).
+
+**My independent 2026 work**, everything else in this repository:
+
+- **Retrieval:** hybrid lexical and dense search fused by reciprocal rank fusion in one PostgreSQL statement, cross-encoder reranking, a query router and a filter for superseded file versions.
+- **Evaluation:** the frozen benchmark fixture and its questions, BEIR SciFact and FiQA runs, paired bootstrap intervals, a CI regression gate, and README tables generated from the results files.
+- **Scale and models:** the served API on BEIR FiQA, pgvector HNSW recall, and current open embedders and rerankers measured on GPUs.
+- **LLM features:** cited answers from the Claude API in a public demo mode, with quotas, a daily budget and an answer cache in Redis; MCP file tools whose changes need a signed, single-use approval.
+- **Cloud and CI:** the Docker Compose stacks and published images, the GitHub Actions CI, the Terraform for AWS (the live single host, and an ECS stack that is written but not applied) and the deploy workflows.
+- **LLM studies:** answer-quality judges and prompt-injection runs with local models through Ollama, and a search policy trained with reinforcement learning.
+
+## Architecture
+
+Research directories hold near-duplicate configs, archived results and claims spread across files, so search has to return evidence you can inspect and tell current files from superseded ones.
+
+```mermaid
+flowchart LR
+  subgraph live["Live demo on AWS"]
+    B["Browser"] -->|HTTPS| CF["CloudFront"]
+    CF -->|"origin secret header"| API["FastAPI on one EC2 host, Docker Compose"]
+    API -->|"one SQL statement"| PG[("PostgreSQL + pgvector")]
+    API -->|"quotas, budget, answer cache"| RD[("Redis")]
+    API -.->|"cited answers, off until a key is stored"| CL["Claude API"]
+  end
+  subgraph offline["Offline evaluation"]
+    FX["Fixture, BEIR SciFact and FiQA"] --> H["In-memory harness: BM25, dense, RRF, rerankers"]
+    GPU["Slurm GPU jobs"] --> H
+    H --> RJ["Results JSON per run"]
+    RJ --> OUT["CI gate and generated README tables"]
+  end
+  IDX["Index step: chunk, embed, insert"] --> PG
+```
+
+An index step chunks each file, embeds the chunks with bge-small and stores them in PostgreSQL with their byte ranges; the source text stays separate from any search context added to a chunk. A request reaches CloudFront, which adds a secret header the app checks, and then FastAPI on one EC2 host. FastAPI embeds the query and runs one SQL statement: the dense list comes from the pgvector HNSW index, the lexical list from PostgreSQL full text (`ts_rank_cd`, not BM25), and reciprocal rank fusion merges them. A router can answer exact-path questions without embedding, a filter drops superseded file versions, and a cross-encoder reranks the top of the list when one is configured (the live host has none). For an answer, Claude receives the retrieved excerpts, and the answer is delivered only when it cites one of them. Redis holds the per-caller quotas, the daily dollar budget and the answer cache.
+
+The benchmark runs the same pipeline in memory, with true BM25 and no database. A parity job in CI replays the benchmark questions through the API and reports the gap with its interval. Details: [how the app is put together](doc/engineering-reference.md#how-the-app-is-put-together) and [the deploy runbook](doc/deploy.md).
+
+## Key technical decisions
+
+**Hybrid search in one PostgreSQL statement, not a separate vector database.**
+- **Chose:** the dense leg (pgvector HNSW), the lexical leg (PostgreSQL full text) and reciprocal rank fusion in one SQL round trip ([`hybrid_tsrank.sql`](app/database/sql/hybrid_tsrank.sql)); a test checks that the SQL fusion equals the Python one.
+- **Rejected:** a vector database beside PostgreSQL, which adds a service and a second copy of the data on a small host. No vector database was benchmarked against it.
+- **Why it holds:** on FiQA's 117,212 vectors<!-- num: bench/results/pgvector_hnsw.json#/table/rows --> the HNSW index returns 0.944 [0.939, 0.949]<!-- num: bench/results/pgvector_hnsw.json#/rows/7/recall@50/mean; #/rows/7/recall@50/lo; #/rows/7/recall@50/hi --> of an exact scan's results (Recall@50).
+
+**No reranker on the live host, decided from a measurement.**
+- **Chose:** serve the fused hybrid list without the cross-encoder, and say so in every response (`reranker_loaded: false`).
+- **Rejected:** the reranker on the same host, or a larger instance: a c7i-flex.large costs $67.15 a month against $20.43<!-- num: doc/deploy.md:"| c7i-flex.large | $61.90 | $1.60 | $3.65 | ${} |"; doc/deploy.md:"| t3.small, the live demo's | $15.18 | $1.60 | $3.65 | ${} |" --> at list price.
+- **Why:** measured with the API's own loaders on another machine with two CPU threads (an upper bound for the image's CPU build), the process peaked at 2,720 MiB<!-- num: bench/results/api_memory_cpu.json#/memory_mib/after_reranker/VmHWM --> once the reranker had scored one query, which took 98 s against a 5 s retrieval budget<!-- num: bench/results/api_memory_cpu.json#/rerank_seconds; deploy/single-host/compose.yml:"RETRIEVE_TIMEOUT_SECONDS: \"{}\"" -->. The cost is real: on the fixture the reranker adds +0.116 [+0.076, +0.160]<!-- num: bench/results/neural.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_previous/ndcg@10/delta; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_previous/ndcg@10/lo; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_previous/ndcg@10/hi --> nDCG@10 over hybrid alone.
+
+**One EC2 host before the ECS stack.**
+- **Chose:** one t3.small behind CloudFront running the API, PostgreSQL and Redis under Docker Compose, paid from AWS Free plan credits.
+- **Rejected, for now:** the production-grade stack in [`infra/modules/demo`](infra/modules/demo) (ECS Fargate, RDS, ElastiCache, an ALB and a WAF). It is written and checked offline but not applied; its always-on rows come to $102.03<!-- num: doc/deploy.md:"| **Subtotal** | | | **${}** |" --> a month at list price.
+- **Trade-off:** one host is a single point of failure, a deploy takes the API down for a time that has not been measured, and there is no WAF.
+
+**A small CPU embedder over larger open models.**
+- **Chose:** keep bge-small-en-v1.5 as the served embedder.
+- **Rejected:** Qwen3-Embedding-8B beats it on FiQA by +0.230 [+0.205, +0.253]<!-- num: bench/results/beir_fiqa_models_2026.json#/results/[config=dense@qwen3-emb-8b]/delta_vs_parent/ndcg@10/delta; #/results/[config=dense@qwen3-emb-8b]/delta_vs_parent/ndcg@10/lo; #/results/[config=dense@qwen3-emb-8b]/delta_vs_parent/ndcg@10/hi --> nDCG@10 (dense), but it is an 8B-parameter model, measured only on a GPU. The CPU-servable Qwen3-Embedding-0.6B took 344 ms per query to embed and search, against 20 ms<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid@qwen3-emb-0.6b]/latency/embed/p50_ms; #/results/[config=hybrid@bge-small]/latency/embed/p50_ms --> (median, same CPU).
+- **Why:** that cost bought a mixed result: in hybrid search it lost on the fixture, -0.059 [-0.116, -0.004]<!-- num: bench/results/models_2026_cpu.json#/results/[config=hybrid@qwen3-emb-0.6b]/delta_vs_previous/ndcg@10/delta; #/results/[config=hybrid@qwen3-emb-0.6b]/delta_vs_previous/ndcg@10/lo; #/results/[config=hybrid@qwen3-emb-0.6b]/delta_vs_previous/ndcg@10/hi -->, and gained +0.028 [+0.016, +0.041]<!-- num: bench/results/beir_fiqa_models_2026.json#/results/[config=hybrid@qwen3-emb-0.6b]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid@qwen3-emb-0.6b]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid@qwen3-emb-0.6b]/delta_vs_parent/ndcg@10/hi --> on FiQA ([cost table](#bench-models-2026-cpu)).
+
+## Results and evaluation
+
+**How it is measured.**
+- **Frozen fixture:** 61 synthetic research files and 136 questions<!-- num: bench/results/main.json#/n_files; #/n_gold --> in eight categories. The fixture's builder computes each answer and relevant path, so no model labels anything.
+- **Public benchmarks:** BEIR SciFact (300 test queries over 5,183 documents) and FiQA (648 over 57,638)<!-- num: bench/results/beir_scifact.json#/n_queries; #/n_docs; bench/results/served_scale_fiqa.json#/n_queries; #/n_docs -->.
+- **Statistics:** a paired bootstrap over queries, 2,000 resamples and 95% intervals<!-- num: bench/results/main.json#/bootstrap/n_boot; #/bootstrap/level|*100 -->. A difference counts only when its interval excludes zero; ties and losses stay in the tables.
+- **LLM judges:** a judge's scores are published only if Cohen's kappa against exact-match labels reaches 0.6<!-- num: bench/results/jury_v2.json#/kappa_gate --> on a calibration set. qwen2.5:7b passed at 0.951 and llama3.1:8b, which called every calibration answer correct, failed at 0.0<!-- num: bench/results/jury_v2.json#/summary/kappa/qwen2.5:7b/kappa_vs_exact_match_simple_factual; #/summary/kappa/llama3.1:8b/kappa_vs_exact_match_simple_factual -->.
+- **Reproducibility:** every pull request re-runs the CPU benchmark, and CI fails unless every row equals the committed baseline. The full tables at the end are generated from the results files, and a check compares every number in this README's prose with the file it cites.
+- **Hardware:** GPU runs used a Slurm GPU cluster (NVIDIA A40, H100, H200) and an NVIDIA GeForce RTX 2080 Ti / Quadro RTX 8000<!-- num: bench/results/neural.json:"\"device_name\": \"Quadro RTX {}\"" -->. Each results file records its device.
+
+**Key results** (nDCG@10 unless noted; intervals in brackets).
+
+| Comparison | Result | Data | Reading |
+| --- | --- | --- | --- |
+| Hybrid + reranker minus BM25 | +0.307 [+0.259, +0.353]<!-- num: bench/results/neural.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25_only/ndcg@10/delta; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25_only/ndcg@10/lo; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25_only/ndcg@10/hi --> | fixture | win |
+| The same pipeline minus BM25 | +0.075 [+0.053, +0.101]<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25/ndcg@10/delta; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25/ndcg@10/lo; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_bm25/ndcg@10/hi --> | SciFact | win |
+| The reranker over hybrid alone | +0.014 [-0.010, +0.041]<!-- num: bench/results/beir_scifact.json#/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+bge-rerank@bge-small]/delta_vs_parent/ndcg@10/hi --> | SciFact | tie: hybrid carries the gain there |
+| Our BM25 against Anserini's published BM25 | 0.6767 vs 0.6789<!-- num: bench/results/beir_scifact.json#/results/[config=bm25]/retrieval/ndcg@10; #/results/[config=bm25]/vs_published/published_bm25_ndcg@10 --> | SciFact | reproduces the baseline |
+| Served API (PostgreSQL + pgvector, reranker on) | 0.363 [0.335, 0.391]<!-- num: bench/results/served_scale_fiqa.json#/served/api:hybrid+rerank/ci/ndcg@10/mean; #/served/api:hybrid+rerank/ci/ndcg@10/lo; #/served/api:hybrid+rerank/ci/ndcg@10/hi --> | FiQA | measured at scale |
+| Served minus in-memory, same queries | -0.062 [-0.080, -0.044]<!-- num: bench/results/served_scale_fiqa.json#/served/api:hybrid+rerank/delta_vs_in_memory/ndcg@10/delta; #/served/api:hybrid+rerank/delta_vs_in_memory/ndcg@10/lo; #/served/api:hybrid+rerank/delta_vs_in_memory/ndcg@10/hi --> | FiQA | loss: chunks against documents, `ts_rank_cd` against BM25 |
+| pgvector HNSW against an exact scan, Recall@50 | 0.944 [0.939, 0.949]<!-- num: bench/results/pgvector_hnsw.json#/rows/7/recall@50/mean; #/rows/7/recall@50/lo; #/rows/7/recall@50/hi --> | FiQA | the served index settings |
+| CI pipeline with hash embeddings minus BM25 | -0.012 [-0.062, +0.040]<!-- num: bench/results/main.json#/results/[config=hybrid+rerank+router+staleness]/delta_vs_bm25_only/ndcg@10/delta; #/results/[config=hybrid+rerank+router+staleness]/delta_vs_bm25_only/ndcg@10/lo; #/results/[config=hybrid+rerank+router+staleness]/delta_vs_bm25_only/ndcg@10/hi --> | fixture | tie: without real models hybrid does not beat BM25 |
+| Answer check minus no defense, planted value reaching the user (qwen2.5:7b) | -0.504 [-0.704, -0.279]<!-- num: docs/RESUME_EVIDENCE.md:"qwen2.5:7b: the structured answer check in the loop minus no defense, the planted value delivered to the user, hijack, per draw, paired | {} |"; docs/RESUME_EVIDENCE.md:"qwen2.5:7b: the structured answer check in the loop minus no defense, the planted value delivered to the user, hijack, per draw, paired | -0.504 | [{}, "; docs/RESUME_EVIDENCE.md:"qwen2.5:7b: the structured answer check in the loop minus no defense, the planted value delivered to the user, hijack, per draw, paired | -0.504 | [-0.704, {}] | " --> | injection study | win, on 10 hijack questions<!-- num: docs/RESUME_EVIDENCE.md:"qwen2.5:7b: the structured answer check in the loop minus no defense, the planted value delivered to the user, hijack, per draw, paired | -0.504 | [-0.704, -0.279] | {} |" --> |
+| RL search policy minus the same model untrained, exact match | +0.039 [-0.005, +0.093]<!-- num: bench/results/search_policy.json#/verdicts/0/delta; #/verdicts/0/lo; #/verdicts/0/hi --> | fixture, held out | tie on the bar declared before training |
+
+Every configuration and slice is in the [full benchmark tables](#generated-benchmark-evidence), and each protocol and its limits are in the [engineering reference](doc/engineering-reference.md). The October evidence table and the notes on each study are in the [appendix](#appendix-deployment-and-study-notes).
 
 **Current open models, measured beside the app's default.**
 
@@ -32,21 +128,117 @@ Research directories contain near-duplicate configurations, archived results, an
 
 *Drawn by `make figures` from the committed results files behind the generated tables ([fixture](#bench-models-2026), [SciFact](#bench-beir-models-2026), [FiQA](#bench-beir-fiqa-models-2026), [cost on a CPU](#bench-models-2026-cpu)). The app's default, bge-small with bge-reranker-v2-m3, is marked in both charts; the larger models are measured for the benchmark tables. Fixture v1 is small, so ties are expected there; the BEIR datasets carry the comparison.*
 
-## Demo walkthroughs
+## Getting started
 
-### Combine exact terms with semantic matches
+**Prerequisites:** Python **3.11 or 3.12**, Git and Make. The benchmark needs no GPU, database, model download or LLM service. The retrieval API also needs Docker with Compose.
 
-[![Illustrated lexical and dense candidate lists combined through reciprocal rank fusion](doc/gifs/hybrid.gif)](doc/engineering-reference.md#hybrid-search)
+### Install and run the benchmark (CPU)
 
-*Illustrated ranking flow. The displayed Recall@50 comes from the 61-file<!-- num: bench/results/main.json#/n_files --> fixture, where retrieving most files makes coverage easy; it is not a claim about external-domain ranking quality.*
+```bash
+git clone https://github.com/joses2017smjh/MetaNavT.git
+cd MetaNavT
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[eval]"
+make test-eval     # the LLM-free evaluation tests
+make bench         # score the frozen fixture: bench/results/latest.json
+make bench-gate    # fail if nDCG@10, Recall@10 or Recall@50 dropped against the committed baseline
+make bench-check   # re-run and fail unless every row equals the committed baseline
+```
 
-### Keep archived evidence from becoming the answer
+The bench reads the fixture's file times from its MANIFEST and breaks score ties by corpus order, so its numbers do not depend on the machine or the checkout. Keep the frozen corpus unchanged when reproducing the published tables. [Dependency specification](pyproject.toml) · [CI](.github/workflows/ci.yml).
 
-[![Two generated fixture traces comparing archived configurations and contradictory paper drafts before and after current-version filtering](doc/gifs/hard-staleness.gif)](doc/engineering-reference.md#staleness-under-contradiction)
+<a id="android-and-ios-companion-backend"></a>
 
-*Generated traces for fixture questions `q115` and `q117`: remove known superseded paths and surface conflicting claims. These two cases illustrate the mechanism; aggregate results are reported separately. [Trace data](doc/demo/traces.json) · [Case manifest](bench/demo/manifest.json).*
+### Run the retrieval API (Docker Compose)
 
-## Evidence and limits
+```bash
+docker compose up --build -d --wait
+curl -s http://localhost:8000/health
+curl -s -X POST http://localhost:8000/api/retrieve/ \
+  -H 'content-type: application/json' \
+  -d '{"query":"current learning rate for run 47"}'
+python3 scripts/smoke_retrieve.py --require-bm25
+docker compose down
+```
+
+The default stack uses PostgreSQL lexical ranking and hash embeddings, so retrieval reproduces without a model download, and indexes the committed 61-file<!-- num: bench/results/main.json#/n_files --> fixture. Responses disclose the lexical backend (PostgreSQL `ts_rank_cd`, the default of the `LEXICAL_BACKEND` setting, not BM25), the hash embedder, and the absent neural reranker. For the real models on a CPU (bge-small-en-v1.5 and bge-reranker-v2-m3, downloaded at the first start), add the model override: `docker compose -f docker-compose.yml -f docker-compose.ml.yml up --build -d --wait`. Chat with local models, the GPU stack and the production rehearsal: [run it](doc/engineering-reference.md#run-it).
+
+### Deploy
+
+[Deploy to AWS](doc/deploy.md) is the runbook for the live single host and the ECS stack: Terraform, the one-time steps, costs and rollback.
+
+## Project structure
+
+```text
+app/
+  api/            FastAPI routers: retrieve, answer (public demo), chat, plans, uploads
+  retrieval/      BM25, reciprocal rank fusion, router, rerankers, HNSW and halfvec experiments
+  database/       PostgreSQL + pgvector: schema migrations and the hybrid SQL statements
+  engine/         the served retriever, the index step, LlamaIndex chat agents
+  answer/         cited answers from the Claude API
+  eval/           benchmark harness, BEIR runs, bootstrap intervals, README tables, figures
+  agent/, mcp/    agent loop and MCP file tools with signed approvals
+  rl/             the search policy trained with reinforcement learning
+.frontend/        Next.js web client (a search-and-ask page in public demo mode)
+bench/
+  corpus/         the frozen fixture and its MANIFEST
+  gold/           the benchmark questions
+  results/        committed results files, one per run, with per-query sidecars
+infra/            Terraform: bootstrap, the live single host, the ECS stack (not applied)
+deploy/           the single host's Compose file, deploy script and systemd unit
+.github/workflows/ CI, deploys, Terraform checks
+doc/              engineering reference, deploy runbook, figures, GIFs
+docs/             resume evidence (every claim with its interval and source), demo media
+scripts/          smoke tests, memory and latency measurements
+tests/            unit, engine, API, database and evaluation tests
+```
+
+More: [read-only research agents](doc/research-companion.md), [prototypes and their limits](doc/engineering-reference.md#prototypes-not-evaluated), illustrated walkthroughs of [hybrid search](doc/engineering-reference.md#hybrid-search) and [archived evidence](doc/engineering-reference.md#staleness-under-contradiction), and the robotics lookup's [experiment source manifest](bench/robotics/2026-10-07/manifest.json) and [question provenance](bench/robotics/2026-10-07/questions.jsonl).
+
+## Limitations and future work
+
+**Limitations.**
+- **A small synthetic fixture.** 61 files and 136 generated questions<!-- num: bench/results/main.json#/n_files; #/n_gold -->, so many comparisons tie there. BEIR SciFact and FiQA carry the external comparison.
+- **Claude's answers are not evaluated in this repository.** Every committed LLM result used local models through Ollama, and the live answer route stays off until a key is stored.
+- **No reranker on the live host.** The default cross-encoder fits neither the host's 2 GiB<!-- num: doc/deploy.md:"t3.small ({} GiB)" --> of memory nor its retrieval deadline (see [Key technical decisions](#key-technical-decisions)). Of the smaller rerankers, only gte-reranker-modernbert-base passes the quality bar, and off the host even the smallest, MiniLM-L6, peaked at 1,144 MiB<!-- num: bench/results/small_rerankers_cpu.json#/results/1/shapes/[depth=20]/memory_mib/VmHWM -->, above the memory limit the host gives the API container. The timing on the host itself has not been run ([small rerankers](#bench-small-rerankers)).
+- **The deploy pipeline has run end to end once.** After the role-trust fix (#59), `deploy-single-host.yml` assumed the deploy role through OIDC, waited for approval, deployed the image by digest through SSM Run Command and passed its smoke test. One run is not a track record, and how long a deploy keeps the API down has not been measured (the deploy stops the API while it migrates and indexes).
+- **The ECS stack is not applied.** It is written and checked offline (`terraform validate`, tflint and tests that read the Terraform).
+- **The RL search policy tied its declared bar:** exact match against the same model untrained, on 68 held-out questions<!-- num: bench/results/search_policy.json#/split/n_held_out --> from the fixture's templates. It is one small training run.
+- **Judge self-preference is unresolved.** The generator's own model scores its answers higher than two other judges do, but the files cannot separate self-preference from a lenient judge, and every judge is validated on single-value answers only.
+- **The prompt-injection study** used two local models (llama3.1:8b and qwen2.5:7b) with fixed or narrowly adaptive phrasings. It does not show that any configuration resists prompt injection.
+- **API hardening.** Authentication is off unless a key is configured. The request budget is counted per process and is not set on the live host, so there only the answer route has per-caller quotas. The host's role can read every SSM parameter in the account; a narrower policy is planned.
+
+**Future work.**
+- Time a small reranker on the live host (`scripts/time_reranker_on_host.py`) and serve one if it fits.
+- Evaluate Claude's answers on the live path within a set budget.
+- Validate the judges beyond single-value answers, with human labels or a second fixture.
+- Narrow the host's role (a custom policy in place of the AWS-managed SSM policy) and measure how long a deploy keeps the API down.
+- Test larger models and a quarantined reader against prompt injection.
+
+## Acknowledgments
+
+- **Capstone teammates:** Deepti R. (benchmark testing and documentation), Carlana S. (benchmark testing and backend), Kaitlyn L. (DevOps / CI and benchmark infrastructure), John T. (front end / UX and the execution sandbox) and Kantaro N. (retrieval and indexing). The team's repository is [klaurie/MetaNaviT](https://github.com/klaurie/MetaNaviT).
+- **Open-source projects:** FastAPI, LlamaIndex, PostgreSQL, pgvector, Redis, Next.js, PyTorch, sentence-transformers, the open models measured here (BAAI bge, Qwen3, mixedbread, gte, harrier), Ollama, the MCP Python SDK, the Anthropic Python SDK and Terraform.
+- **Datasets and baselines:** BEIR (SciFact, FiQA and NFCorpus), Anserini's published BM25 baselines, and AgentDojo's injection templates.
+
+## Appendix: deployment and study notes
+
+These folded notes keep the longer explanations from the earlier README: the deployment details, the October evidence table and the notes on each study. Several tests read them word for word.
+
+<details>
+<summary>Live demo and deployment details</summary>
+
+**Public demo mode (deployed).** It is deployed as a public demo on one host behind CloudFront, with answers switched off until the owner stores an Anthropic API key; search works meanwhile ([the live demo](doc/deploy.md#the-live-demo-one-host-on-the-aws-free-plan)). With `PUBLIC_DEMO=1` the API serves only search (`/api/retrieve/`) and cited answers (`/api/answer/`): the chat agents, code execution, uploads, files and approval routes are not mounted, and a test checks the route table. An answer comes from Claude over the retrieved excerpts, with the Messages API's own citations, and is delivered only when it cites one of them. The demo is configured to answer with Claude Haiku (`claude-haiku-5-5`) once that key is stored, under a smaller daily budget than the default: the AWS production profile and the rehearsal's `deploy/prod.env.example` set both ([cost](doc/deploy.md#claudes-cost)). Per-caller quotas, a daily dollar budget reserved before each call, and an answer cache live in Redis; without an API key, Redis or budget left, the route still returns the retrieved hits. Claude's answers are not evaluated in this repository: every committed LLM result used local models. The web client's home page becomes a search-and-ask demo page when `/health` reports `public_demo`: the answer with numbered citations linking to the cited passages, each reason for a missing answer in plain words, and the retrieved hits. [Public demo mode](doc/engineering-reference.md#public-demo-mode).
+
+**Deploy to AWS (the live demo's host is applied; the ECS stack is code only).** The live demo is one Free-plan EC2 host behind CloudFront that runs the CPU model image beside Postgres and Redis, without the reranker there (a labelled fallback: the runbook has the measured memory) ([the live demo](doc/deploy.md#the-live-demo-one-host-on-the-aws-free-plan)). Terraform under `infra/` also describes the production-grade target: CloudFront with a WAF in front of an ALB that admits only CloudFront, one ECS Fargate service running the CPU model image by digest, RDS PostgreSQL and ElastiCache in private subnets, alarms and a monthly budget, and an opt-in staging copy. A deploy workflow runs the migrations and the index step, moves the service to the new image, uploads the web client and smokes the public URL; production waits for the owner's approval. CI checks the Terraform offline. The owner has applied the bootstrap (the state bucket, the deploy and plan roles, the budget) and the single host, whose first boot deployed the image; the ECS stack is not applied. [Deploy to AWS](doc/deploy.md).
+
+CI publishes this image to `ghcr.io/joses2017smjh/metanavt` (tags `main` and `sha-<commit>`) from a push to `main`, after every CI job has passed and a smoke of that image, and after it the CPU model image of `docker-compose.ml.yml` (tags `main-ml` and `sha-<commit>-ml`; the models download at its first start); each image's own command only serves, so run the migrations and the index step first, as `docker-compose.yml` does. [Published image and merges into main](doc/engineering-reference.md#run-it).
+
+</details>
+
+<details>
+<summary>October evidence table and the served FiQA run</summary>
 
 **Evidence checked October 14, 2026.** The latest committed retrieval and HTTP-load additions are from the October 7 campaign. These are stored measurements; this README refresh does not claim a new evaluation run.
 
@@ -57,9 +249,14 @@ Research directories contain near-duplicate configurations, archived results, an
 | Robotics-file lookup | Path context increased source-file Recall@10 **0.058 → 0.671** | 240 generated test questions with disjoint experiment families; this measures file retrieval, not answer correctness.<!-- num: bench/results/robotics_file_lookup_revalidated_2026-10-07.json#/summary/test/bm25_body/recall@10/mean; #/summary/test/bm25_path_context/recall@10/mean; #/labels/test --> [Results](bench/results/robotics_file_lookup_revalidated_2026-10-07.json) |
 | Neural HTTP service | Client p95 **252 / 422 / 1,319 ms** at concurrency **1 / 4 / 16** <!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/runs/[concurrency=1]/e2e_all_attempts/p95_ms; #/runs/[concurrency=4]/e2e_all_attempts/p95_ms; #/runs/[concurrency=16]/e2e_all_attempts/p95_ms; #/workload/concurrency_levels/0; #/workload/concurrency_levels/1; #/workload/concurrency_levels/2 --> | H100, 600 files, 5,633 nodes; 16 requests per level, all 48 measured requests succeeded.<!-- num: bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json#/deployment/data_files; #/health/n_nodes; #/workload/requests_per_level; #/measured_attempts/succeeded --> A short workload, not a capacity claim. [Results](bench/results/revamp_20261007/http_robotics_gpu_fp16_512/http_load.json) |
 
-The small frozen fixture uses **hash embeddings and overlap reranking**. Its full pipeline does not establish an overall ranking improvement over BM25. Model-backed retrieval, generated answers, and mobile fixture replays have different dependencies and evidence. [Full generated measurements](#generated-benchmark-evidence) · [HTTP load studies](doc/engineering-reference.md#measured-neural-http-service).
+The small frozen fixture uses **hash embeddings and overlap reranking**. Its full pipeline does not establish an overall ranking improvement over BM25. Model-backed retrieval and generated answers have different dependencies and evidence. [Full generated measurements](#generated-benchmark-evidence) · [HTTP load studies](doc/engineering-reference.md#measured-neural-http-service).
 
 FiQA has also been run through the served path end to end (the served indexer, PostgreSQL with pgvector, and the API), each answer scored next to in-memory rows computed in the same job; the served rows, their paired intervals, the build, start-up and load figures are in [their generated section](#bench-served-scale).
+
+</details>
+
+<details>
+<summary>Notes on the answer-quality, prompt-injection and deep-research studies</summary>
 
 The generated-answer study is separate from retrieval ranking. Its judge-validity gate is now evaluable: the simple-factual slice is saturated, so each judge's correctness verdicts are checked against exact match on a calibration set, a smaller model answering those questions from retrieved and from planted contexts. qwen2.5:7b passed and its score of the generator's answers is published, with the caveats that it is the generator's own model and was validated on single-value answers only; llama3.1:8b called every calibration answer correct and failed. [Generated table](#bench-jury) · [Answer-evaluation artifact](bench/results/jury_v2.json) · [First run](bench/results/jury.json).
 
@@ -73,99 +270,31 @@ A fourth run replaces the current run's fixed phrasings with an attacker model t
 
 The deep-research loop (`app/agent/deep_research.py`: query rewrites, multi-query search, relevance grading, a token-budgeted scratchpad and a cited extractive answer) is a demo that has not been evaluated: no results file scores its answers. Only its multi-query retrieval step has measured rows: the prototype-arm tables below, on the fixture its keyword rewrite rules were written for, and a check on the robotics file-lookup questions, where those rules almost never fire, so that check does not exercise multi-query. [Robotics check](bench/results/robotics_multiquery.json) · [Protocol](doc/engineering-reference.md#real-robotics-experiment-lookup).
 
-## How it works
+</details>
 
-```mermaid
-flowchart LR
-  UI[Next.js or MCP client] --> API[FastAPI]
-  API --> R[Route query]
-  R --> S[Lexical and dense retrieval]
-  S --> F[Fuse, rerank, filter versions]
-  F --> C[Source paths and evidence spans]
-  C --> UI
-  C --> L[Optional language-model answer]
-  L --> UI
-```
+<a id="generated-benchmark-evidence"></a>
 
-| Concern | Source |
-| --- | --- |
-| Retrieval and evaluation | [`app/retrieval/`](app/retrieval/), [`app/eval/`](app/eval/) |
-| PostgreSQL retrieval | [`app/database/`](app/database/) |
-| API and web interface | [`main.py`](main.py), [`.frontend/`](.frontend/) |
-| MCP tools and action approval | [`app/mcp/`](app/mcp/) |
-| Read-only research companion | [Setup and contracts](doc/research-companion.md) |
+## Full benchmark tables
 
-**Engineering decisions:** exact-path queries can skip embedding/reranking; benchmark results retain losing configurations; source text remains separate from added search context. The default Docker stack uses PostgreSQL lexical ranking and hash embeddings to make retrieval reproducible without a model download. [Tradeoffs and system details](doc/engineering-reference.md#how-the-app-is-put-together).
+Generated from the committed results files by `make bench-table-write`; `make bench-table-check` and the README tests fail if a block drifts. Each table is folded: open the one you need. The engineering reference explains each protocol and its limits.
 
-## Run the CPU benchmark
-
-Use Python **3.11 or 3.12**, Git, and Make. This path needs no GPU, database, model download, or LLM service.
-
-```bash
-git clone https://github.com/joses2017smjh/MetaNavT.git
-cd MetaNavT
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[eval]"
-make test-eval
-make bench
-make bench-gate
-make bench-check
-```
-
-`make bench` writes a new result and `bench/results/latest.json`; `make bench-gate` compares it with the committed baseline; `make bench-check` re-runs the bench and fails unless every field of every row equals that baseline (the bench reads the fixture's mtimes from its MANIFEST and breaks dense-score ties by corpus order, so the numbers do not depend on the machine or the checkout). Keep the frozen corpus unchanged when reproducing the published table. [Dependency specification](pyproject.toml) · [CI](.github/workflows/ci.yml).
-
-## Run the retrieval API
-
-From the cloned repository, with Docker Compose available:
-
-```bash
-docker compose up --build -d --wait
-curl -s http://localhost:8000/health
-curl -s -X POST http://localhost:8000/api/retrieve/ \
-  -H 'content-type: application/json' \
-  -d '{"query":"current learning rate for run 47"}'
-python3 scripts/smoke_retrieve.py --require-bm25
-docker compose down
-```
-
-The default stack indexes the committed 61-file<!-- num: bench/results/main.json#/n_files --> fixture. Responses disclose the lexical backend (PostgreSQL `ts_rank_cd`, the default of the `LEXICAL_BACKEND` setting, not BM25), the hash embedder, and the absent neural reranker. This is a retrieval API demo; generated chat additionally needs Ollama, and the default image does not build the Next.js interface. [Full application, real models, and deployment options](doc/engineering-reference.md#run-it).
-
-CI publishes this image to `ghcr.io/joses2017smjh/metanavt` (tags `main` and `sha-<commit>`) from a push to `main`, after every CI job has passed and a smoke of that image, and after it the CPU model image of `docker-compose.ml.yml` (tags `main-ml` and `sha-<commit>-ml`; the models download at its first start); each image's own command only serves, so run the migrations and the index step first, as `docker-compose.yml` does. [Published image and merges into main](doc/engineering-reference.md#run-it).
-
-**Public demo mode (deployed).** It is deployed as a public demo on one host behind CloudFront, with answers switched off until the owner stores an Anthropic API key; search works meanwhile ([the live demo](doc/deploy.md#the-live-demo-one-host-on-the-aws-free-plan)). With `PUBLIC_DEMO=1` the API serves only search (`/api/retrieve/`) and cited answers (`/api/answer/`): the chat agents, code execution, uploads, files and approval routes are not mounted, and a test checks the route table. An answer comes from Claude over the retrieved excerpts, with the Messages API's own citations, and is delivered only when it cites one of them. The demo is configured to answer with Claude Haiku (`claude-haiku-5-5`) once that key is stored, under a smaller daily budget than the default: the AWS production profile and the rehearsal's `deploy/prod.env.example` set both ([cost](doc/deploy.md#claudes-cost)). Per-caller quotas, a daily dollar budget reserved before each call, and an answer cache live in Redis; without an API key, Redis or budget left, the route still returns the retrieved hits. Claude's answers are not evaluated in this repository: every committed LLM result used local models. The web client's home page becomes a search-and-ask demo page when `/health` reports `public_demo`: the answer with numbered citations linking to the cited passages, each reason for a missing answer in plain words, and the retrieved hits. [Public demo mode](doc/engineering-reference.md#public-demo-mode).
-
-**Deploy to AWS (the live demo's host is applied; the ECS stack is code only).** The live demo is one Free-plan EC2 host behind CloudFront that runs the CPU model image beside Postgres and Redis, without the reranker there (a labelled fallback: the runbook has the measured memory) ([the live demo](doc/deploy.md#the-live-demo-one-host-on-the-aws-free-plan)). Terraform under `infra/` also describes the production-grade target: CloudFront with a WAF in front of an ALB that admits only CloudFront, one ECS Fargate service running the CPU model image by digest, RDS PostgreSQL and ElastiCache in private subnets, alarms and a monthly budget, and an opt-in staging copy. A deploy workflow runs the migrations and the index step, moves the service to the new image, uploads the web client and smokes the public URL; production waits for the owner's approval. CI checks the Terraform offline. The owner has applied the bootstrap (the state bucket, the deploy and plan roles, the budget) and the single host, whose first boot deployed the image; the ECS stack is not applied. [Deploy to AWS](doc/deploy.md).
-
-<a id="android-and-ios-companion-backend"></a>
-
-## Explore further
-
-- [Feature walkthrough and research history](doc/engineering-reference.md)
-- [Research agent setup](doc/research-companion.md) and [Android/iOS companion](mobile/README.md)
-- [Experiment source manifest](bench/robotics/2026-10-07/manifest.json) and [question provenance](bench/robotics/2026-10-07/questions.jsonl)
-- [Prototype features and their limits](doc/engineering-reference.md#prototypes-not-evaluated)
-
-**Stack:** Python, FastAPI, PostgreSQL/pgvector, Next.js, TypeScript, MCP, Docker; optional BGE embeddings/reranking and Ollama generation.
-
-## Generated benchmark evidence
-
-These tables remain generated from committed artifacts. `make bench-table-check` and the existing README tests detect drift; `make bench-table-write` updates the marked blocks. The engineering reference explains each protocol and its limits.
-
-<details>
-<summary>Open fixture, neural, external-domain, API, answer-evaluation, prompt-injection, and prototype-arm tables</summary>
+### Retrieval on the fixture
 
 <a id="bench-headline"></a>
 
-### Fixture summary
+<details>
+<summary>Fixture summary</summary>
 
 <!-- bench-headline:start (generated by `make bench-table` from bench/results/main.json; do not edit by hand) -->
 On the frozen fixture (136 questions over 61 files; hash embeddings, overlap reranker) the full pipeline scores nDCG@10 0.493 [0.453, 0.538] and Recall@10 0.748 [0.691, 0.804]; BM25 alone scores nDCG@10 0.505 [0.454, 0.555] and Recall@10 0.730 [0.664, 0.793]. Paired delta, full pipeline minus BM25: nDCG@10 -0.012 [-0.062, +0.040] (the interval covers zero), Recall@10 +0.018 [-0.037, +0.080] (the interval covers zero). Staleness Tier 1 on vs off: nDCG@10 +0.036 [+0.027, +0.046] (the interval excludes zero). Of the added components (rerank, router, staleness), the nDCG@10 gain over the previous row that excludes zero: staleness. The router's exact-path gain, nDCG@10 0.875 → 0.938, rests on n = 8 questions. Its nDCG@10 delta against the reranked hybrid is negative on the aggregation and comparative slices (intervals in the per-category lines below the table). Recall@50 is 0.940 against 0.660 for a random list of the same length: with 40 unique files in a top-50 over 61, that metric mostly measures list length.
 <!-- bench-headline:end -->
 
+</details>
+
 <a id="bench-table"></a>
 
-### Fixture ablations
+<details>
+<summary>Fixture ablations</summary>
 
 <!-- bench-table:start (generated by `make bench-table` from bench/results/main.json; do not edit by hand) -->
 | config | nDCG@10 [95% CI] | Recall@5 [95% CI] | Recall@10 [95% CI] | random list @10 | Recall@50 | random list @50 | unique files in top 50 | MRR@10 [95% CI] |
@@ -212,9 +341,12 @@ Per-category paired deltas vs parent, where the mechanism targets one category (
 Intervals: percentile bootstrap over queries, one index matrix shared by all configs (paired deltas); 2000 resamples, seed 0, numpy.random.RandomState.randint. Results file sha c92b455, corpus sha f1ba038674e7.
 <!-- bench-table:end -->
 
+</details>
+
 <a id="bench-rrf-sweep-hash"></a>
 
-### RRF settings with the hash embedder (recorded, not blind, not adopted)
+<details>
+<summary>RRF settings with the hash embedder (recorded, not blind, not adopted)</summary>
 
 <!-- bench-rrf-sweep-hash:start (generated by `make bench-table` from bench/results/rrf_sweep_hash.json; do not edit by hand) -->
 The RRF sweep with the hash embedder on fixture v1 (`make bench-rrf-sweep-hash`, CPU; results sha be7db42): k x the dense list's weight chosen on the tune half (68 questions, in-sample), the chosen setting against the default (k = 60, equal weights) on the held-out half, paired. Not blind: the held-out half was already scored before this run, by an uncommitted dry run of this sweep with the hash embedder (and the test of this module runs the same sweep), so its confirmation is not blind; fixture v1 has no unseen questions: every gold question is in the tune or the held-out half. By the owner's decision the default does not change whatever this shows.
@@ -227,9 +359,12 @@ The RRF sweep with the hash embedder on fixture v1 (`make bench-rrf-sweep-hash`,
 held-out nDCG@10, chosen minus default: above zero; the default stays (`default_changed`: false). Results, with the in-sample grid: [bench/results/rrf_sweep_hash.json](bench/results/rrf_sweep_hash.json).
 <!-- bench-rrf-sweep-hash:end -->
 
+</details>
+
 <a id="bench-neural"></a>
 
-### Neural models on the fixture
+<details>
+<summary>Neural models on the fixture</summary>
 
 <!-- bench-neural:start (generated by `make bench-table` from bench/results/neural.json; do not edit by hand) -->
 Fixture v1 with real models (`make bench-neural`, cuda (Quadro RTX 8000), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 32972cf). Each row names its parent (one change away); the paired delta is against that parent. Wall time is the whole row after a warm-up query.
@@ -258,9 +393,12 @@ Per-category paired deltas vs parent (small n); under each, every other category
   - `hybrid+bge-rerank+router+staleness@bge-small`: no other category has a negative nDCG@10 delta.
 <!-- bench-neural:end -->
 
+</details>
+
 <a id="bench-file-depth"></a>
 
-### Equal file depth for the real-model rows
+<details>
+<summary>Equal file depth for the real-model rows</summary>
 
 <!-- bench-file-depth:start (generated by `make bench-table` from bench/results/file_depth.json; do not edit by hand) -->
 Equal file depth (`make bench-file-depth`, cuda (NVIDIA A40), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 38ade0c). Recall@k scores the first k files of a list, and every committed row cuts its lists at 50 chunks before taking their files, so a list whose chunks share files holds fewer than 50. These rows apply one rule to every list, the BM25 leg, the dense leg and the fused list: keep chunks in rank order until the list holds 50 distinct files, or its candidates run out; the metrics are unchanged. Each is paired with its parent, the chunk-cut row recomputed in the same run, over all 136 questions. Those parents reproduce bench/results/neural.json exactly. The rows are added beside the committed ones: the served path and every committed row keep the 50-chunk cut.
@@ -278,9 +416,12 @@ bge-small: hybrid minus dense-only at Recall@50 is +0.000 [-0.011, +0.011] under
 Results: [bench/results/file_depth.json](bench/results/file_depth.json) · per question: [bench/results/file_depth.per_query.json](bench/results/file_depth.per_query.json).
 <!-- bench-file-depth:end -->
 
+</details>
+
 <a id="bench-models-2026"></a>
 
-### Current open models on the fixture
+<details>
+<summary>Current open models on the fixture</summary>
 
 Each row below swaps one model of a committed bge row for a current open embedder or reranker, measured in the same run as that parent; nothing here changes the app's default models.
 
@@ -323,9 +464,12 @@ harrier-oss-v1-27b's rows are their own run on a larger GPU (`make bench-models-
 Results: [bench/results/models_2026.json](bench/results/models_2026.json) · [bench/results/models_2026_harrier.json](bench/results/models_2026_harrier.json) (each with its per-question sidecar).
 <!-- bench-models-2026:end -->
 
+</details>
+
 <a id="bench-models-2026-cpu"></a>
 
-#### What the CPU-servable ones cost on a CPU
+<details>
+<summary>What the CPU-servable ones cost on a CPU</summary>
 
 <!-- bench-models-2026-cpu:start (generated by `make bench-table` from bench/results/models_2026_cpu.json; do not edit by hand) -->
 What the CPU-servable models cost per query on a CPU (`make bench-models-2026-cpu`; Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz, 8 torch threads, torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 23729b3). The reranked rows use the app's default CPU settings (the fused top 20, max_length 512, fp32), each paired with bge-reranker-v2-m3 at the same settings, recomputed in the run. Latency is per question after one warm-up question: `embed` is the query embedding and the dense search, `rerank` the cross-encoder over the top 20. Fixture chunks are short, so a passage of a few hundred tokens costs more per pair than these.
@@ -346,9 +490,14 @@ What the CPU-servable models cost per query on a CPU (`make bench-models-2026-cp
 Results: [bench/results/models_2026_cpu.json](bench/results/models_2026_cpu.json) (with its per-question sidecar).
 <!-- bench-models-2026-cpu:end -->
 
+</details>
+
+### BEIR SciFact and FiQA
+
 <a id="bench-beir"></a>
 
-### BEIR SciFact
+<details>
+<summary>BEIR SciFact</summary>
 
 This run read its document embeddings from the on-disk cache that the file's previous recording (results sha 2583576) wrote on an NVIDIA GeForce RTX 2080 Ti; the queries and the reranker ran on the GPU named below, and the dense rows' build time is the model load plus reading that cache, not an embedding pass over the corpus.
 
@@ -371,9 +520,12 @@ BEIR SciFact test split (`make bench-beir`): 5183 documents (title + ' ' + text)
 Our BM25 with the same analyzer and document text scores nDCG@10 0.6767 against Anserini's published 0.6789 (-0.0022). Dense bge-small vs BM25: nDCG@10 +0.043 [+0.011, +0.077] (the interval excludes zero), p50 10.13 ms. The bge-v1.5 query instruction vs no instruction: nDCG@10 -0.007 [-0.021, +0.005] (the interval covers zero), p50 10.17 ms. Hybrid RRF over dense: nDCG@10 +0.018 [-0.007, +0.041] (the interval covers zero), p50 12.45 ms. bge-reranker-v2-m3 (top 20, fp32, uncapped) over the hybrid: nDCG@10 +0.014 [-0.010, +0.041] (the interval covers zero), p50 895.75 ms. max_length 512 vs uncapped (both fp32): nDCG@10 +0.002 [-0.008, +0.010] (the interval covers zero), p50 655.43 ms. fp16 vs fp32 (both max_length 512): nDCG@10 +0.000 [+0.000, +0.000] (the interval covers zero), p50 170.24 ms. Rerank depth 50 vs 20: nDCG@10 -0.012 [-0.020, -0.005] (the interval excludes zero), p50 359.28 ms. Depth 100 vs 50: nDCG@10 -0.005 [-0.011, -0.001] (the interval excludes zero), p50 655.31 ms.
 <!-- bench-beir:end -->
 
+</details>
+
 <a id="bench-beir-bm25"></a>
 
-#### BM25 settings on SciFact, one at a time
+<details>
+<summary>BM25 settings on SciFact, one at a time</summary>
 
 <!-- bench-beir-bm25:start (generated by `make bench-table` from bench/results/beir_scifact_bm25_ablation.json; do not edit by hand) -->
 BM25 on BEIR SciFact, one setting at a time (`make bench-beir-bm25-ablation`; cpu, no model; results sha 45539b9): 5183 documents, 300 queries. `bm25@default-tokenizer` (also in the table above) changes the analyzer, k1 and b at once; `bm25@default-analyzer` changes the analyzer alone and `bm25@k1-1.5-b-0.75` changes k1 and b alone. Every delta is paired against bm25 (2000 bootstrap resamples of the queries, seed 0), printed to the four decimals the file stores so that an interval bound close to zero keeps its sign; BM25 latency is per query, after one warm-up query, index build excluded.
@@ -388,9 +540,12 @@ BM25 on BEIR SciFact, one setting at a time (`make bench-beir-bm25-ablation`; cp
 The analyzer alone: nDCG@10 -0.0798 [-0.1072, -0.0517] (the interval excludes zero), Recall@100 -0.1042 [-0.1429, -0.0703] (the interval excludes zero). k1 and b alone: nDCG@10 +0.0115 [+0.0001, +0.0236] (the interval excludes zero), Recall@100 -0.0044 [-0.0133, +0.0000] (the interval covers zero). All three together: nDCG@10 -0.0757 [-0.1045, -0.0466] (the interval excludes zero), Recall@100 -0.1074 [-0.1451, -0.0741] (the interval excludes zero).
 <!-- bench-beir-bm25:end -->
 
+</details>
+
 <a id="bench-beir-fiqa"></a>
 
-#### BEIR FiQA with the reranker
+<details>
+<summary>BEIR FiQA with the reranker</summary>
 
 This run read its document embeddings from the on-disk cache of the October FiQA run, so they were computed on the GPU that [beir_fiqa_gpu.json](bench/results/revamp_20261007/beir_fiqa_gpu.json) names; the queries and the reranker ran on the GPU named below, and the dense row's build time is the model load plus reading (and normalising) that cache, not an embedding pass over the corpus.
 
@@ -408,9 +563,12 @@ BEIR FiQA test split (`make bench-beir-fiqa`): 57638 documents (title + ' ' + te
 Dense bge-small vs BM25: nDCG@10 +0.1479 [+0.1239, +0.1729] (the interval excludes zero), p50 30.67 ms. Hybrid RRF over dense: nDCG@10 -0.0204 [-0.0394, -0.0020] (the interval excludes zero), p50 53.74 ms. bge-reranker-v2-m3 (top 20, fp32, max_length 512) over the hybrid: nDCG@10 +0.0609 [+0.0453, +0.0769] (the interval excludes zero), p50 684.43 ms. fp16 vs fp32 (both max_length 512): nDCG@10 +0.0001 [-0.0001, +0.0004] (the interval covers zero), p50 207.34 ms.
 <!-- bench-beir-fiqa:end -->
 
+</details>
+
 <a id="bench-beir-models-2026"></a>
 
-#### Current open models on SciFact
+<details>
+<summary>Current open models on SciFact</summary>
 
 <!-- bench-beir-models-2026:start (generated by `make bench-table` from bench/results/beir_scifact_models_2026.json and bench/results/beir_scifact_models_2026_harrier.json; do not edit by hand) -->
 The current open models on BEIR SciFact (`make bench-beir-models-2026`): 5183 documents, 300 queries; cuda (NVIDIA A40), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 23729b3. Each new row changes one model of a committed bge row, its parent, which the run recomputes: an embedder's dense and hybrid rows against bge-small's, a reranker over hybrid@bge-small against bge-reranker-v2-m3 at its settings (the fused top 20, max_length 512, fp32; Qwen3-Reranker-8B in bf16). The 512-token cap counts the causal-LM rerankers' chat template too, so their passages keep fewer tokens. Every model passed its load-and-score check first; intervals are paired bootstrap intervals over the queries, printed to the four decimals the file stores.
@@ -451,9 +609,12 @@ harrier-oss-v1-27b, its own run on a larger GPU (`make bench-beir-models-2026-ha
 Results: [bench/results/beir_scifact_models_2026.json](bench/results/beir_scifact_models_2026.json) · [bench/results/beir_scifact_models_2026_harrier.json](bench/results/beir_scifact_models_2026_harrier.json).
 <!-- bench-beir-models-2026:end -->
 
+</details>
+
 <a id="bench-beir-fiqa-models-2026"></a>
 
-#### Current open models on FiQA
+<details>
+<summary>Current open models on FiQA</summary>
 
 The bge parents recomputed on the A40 equal the committed FiQA rows in every metric, but three of them do not rank every query identically: there a few pairs of near-tied documents swap adjacent places below the top ten, while the committed file's GPU type, and the H200 of harrier's run, reproduce the committed TREC runs byte for byte ([why](doc/engineering-reference.md#current-open-models-measured-beside-the-committed-ones)).
 
@@ -496,9 +657,14 @@ harrier-oss-v1-27b, its own run on a larger GPU (`make bench-beir-fiqa-models-20
 Results: [bench/results/beir_fiqa_models_2026.json](bench/results/beir_fiqa_models_2026.json) · [bench/results/beir_fiqa_models_2026_harrier.json](bench/results/beir_fiqa_models_2026_harrier.json).
 <!-- bench-beir-fiqa-models-2026:end -->
 
+</details>
+
+### The served API
+
 <a id="bench-served-scale"></a>
 
-### Served path at FiQA scale
+<details>
+<summary>Served path at FiQA scale</summary>
 
 FiQA again, this time through the served path end to end: the served indexer writes the corpus into PostgreSQL with pgvector, the API answers every test query, and each answer is scored next to the in-memory rows computed in the same job on the same queries.
 
@@ -535,9 +701,12 @@ Load (app/eval/http_load): POST /api/retrieve/ with k = 8, reranker on, 64 reque
 | 16 | 64 | 0 | none | 1665.089 / 4084.234 | 6.40 |
 <!-- bench-served-scale:end -->
 
+</details>
+
 <a id="bench-pgvector-hnsw"></a>
 
-#### pgvector HNSW and quantized copies on the same table
+<details>
+<summary>pgvector HNSW and quantized copies on the same table</summary>
 
 <!-- bench-pgvector-hnsw:start (generated by `make bench-table` from bench/results/pgvector_hnsw.json; do not edit by hand) -->
 pgvector's HNSW index against the exact scan on the table the served indexer built from FiQA (`make bench-served-scale`): 117212 chunk vectors, 384 dimensions (BAAI/bge-small-en-v1.5), queried with the served query embedding of the 648 test queries, k = 50; the served index (m 16, ef_construction 64, 228.8 MiB) as a deployment builds it: the schema migrations create it on the empty table and index_directory's inserts grow it row by row; a REINDEX of it took 95.25 s, in the variants step below, after the two copies had been added and the table vacuumed; PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2), pgvector 0.8.6; Quadro RTX 8000 (44.3 GB) with Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz, 8 CPUs allocated; results sha 6ff210f. Recall: a returned row counts when its float32 distance is at most the exact k-th distance plus tie_eps; Recall@10 reads the first 10 rows of the same k-row list. Latency: client wall time of each statement (execute and fetch) on one connection, after an untimed pass of the exact scan and of the widest index scan.
@@ -570,9 +739,12 @@ halfvec and binary + rescore on the same table (the run's own DDL on its task-lo
 | binary+rescore | 1000 | 1000 | 50.0 | 0.9738 [0.9687, 0.9787] | 0.9119 [0.9055, 0.9184] | 20.569 / 23.592 | Index Scan using data_llamaindex_embedding_embedding_bit_hnsw |
 <!-- bench-pgvector-hnsw:end -->
 
+</details>
+
 <a id="bench-parity"></a>
 
-### API and in-memory parity
+<details>
+<summary>API and in-memory parity</summary>
 
 <!-- bench-parity:start (generated by `make bench-table` from bench/results/parity_shared_chunker.json and bench/results/parity_neural.json; do not edit by hand) -->
 Same 136 questions, same metrics, same paired bootstrap, two runs. Each in-memory row is the bench harness with the settings the API served in that run; each API row is POST /api/retrieve/ over Postgres + pgvector (one SQL round trip, app/database/sql/hybrid_tsrank.sql).
@@ -591,9 +763,12 @@ Same 136 questions, same metrics, same paired bootstrap, two runs. Each in-memor
 The gaps are reported, not gated: the lexical legs differ by design (ts_rank_cd vs BM25). The dense leg is checked for exact agreement by tests/database/test_dense_parity.py (hash embeddings, in CI). The API's e2e latency is client-measured over HTTP on the machine that produced the results file; the in-memory figure is the search stage only.
 <!-- bench-parity:end -->
 
+</details>
+
 <a id="api-latency"></a>
 
-### Recorded API latency
+<details>
+<summary>Recorded API latency</summary>
 
 <!-- api-latency:start (generated by `make bench-table` from bench/results/api_latency_*.json; do not edit by hand) -->
 | stack | embedder | reranker | degraded | server total p50 / p95 ms | e2e p50 / p95 ms | embed / hybrid_sql / rerank p50 ms | questions |
@@ -603,9 +778,14 @@ The gaps are reported, not gated: the lexical legs differ by design (ts_rank_cd 
 Per-query, k = 8, one warm-up excluded; server total is the sum of the API's own stage timers, e2e includes HTTP.
 <!-- api-latency:end -->
 
+</details>
+
+### LLM answers and prompt injection
+
 <a id="bench-jury"></a>
 
-### Answer evaluation
+<details>
+<summary>Answer evaluation</summary>
 
 <!-- bench-jury:start (generated by `make bench-table` from bench/results/jury_v2.json and bench/results/jury_v3_judge_*.json; do not edit by hand) -->
 Generated answers on fixture v1 (`make bench-jury-v2`, answers and judge labels generated at sha 01b70f7; deterministic checks and summary recomputed by `make bench-jury-v2-rescore` at sha 3601901): 136 questions, retrieval `hybrid+bge-rerank+router+staleness@bge-small-en-v1.5` (the configured reranker loaded), top 8 chunks, generator qwen2.5:7b via Ollama (temperature 0, seed 0), judges qwen2.5:7b, llama3.1:8b, calibration generator qwen2.5:1.5b; every Ollama model is pinned by its digest in the results file; wall 5742.3 s. The generator qwen2.5:7b is also a judge, so that judge's scores of the run's answers carry self-preference risk. The calibration generator qwen2.5:1.5b shares a model family (qwen2) with the judge qwen2.5:7b.
@@ -677,9 +857,12 @@ What the gate shows and what it does not: the reference is an exact-match label,
 Earlier record: [bench/results/jury.json](bench/results/jury.json), the first run (generator and first judge qwen2.5:7b, the composite label gated, Ollama models named by tag only). Its reference was one class, so its gate was not evaluable, and its stored retrieval no longer matches today's, so `make bench-jury-rescore` refuses to recompute it.
 <!-- bench-jury:end -->
 
+</details>
+
 <a id="bench-jury-v3"></a>
 
-### Answer evaluation with current open models
+<details>
+<summary>Answer evaluation with current open models</summary>
 
 <!-- bench-jury-v3:start (generated by `make bench-table` from bench/results/jury_v3_answers_*.json, bench/results/jury_v3_judge_*.json and bench/results/jury_v2.json; do not edit by hand) -->
 Current open-weight models as generators and as judges, in two stages. `make bench-jury-v3-answers GENERATOR=<model>` writes one generator's cited answers on fixture v1 with their deterministic checks and no judge. `make bench-jury-v3-judge JUDGE=<model>` gates one judge and then labels stored answers: the gate's reference is the 160 calibration answers stored in [bench/results/jury_v2.json](bench/results/jury_v2.json) (the answers of qwen2.5:1.5b, read from the committed file and never regenerated; the judge files record the sha256 of the items, 4ecf9a02bbc9). Models are served by Ollama 0.40.16, 0.34.3 and pinned by digest in every file. Every call is the committed request (temperature 0, seed 0, no `think` key): these models reason before they reply, at the server's default, and the reasoning is not part of the reply that is stored and scored. A generator row marked reasoning off sent `think: false` with every generation call instead. No committed file is rewritten; rows of [bench/results/jury_v2.json](bench/results/jury_v2.json) are repeated below as parents.
@@ -752,9 +935,12 @@ The AB/BA pairs are not in these files for qwen2.5:7b on 4 answer sets that stor
 What this shows and what it does not: the gate's reference is an exact-match label on single-value answers whose wrong class is a planted value of the same field, so a pass shows that a judge compares a single-value answer with the gold, not that it judges multi-part, paraphrased or computed answers correctly; the answer sets also hold such answers. The M4 composite label is not collected by a judge-only run. Each judge file can be re-read without a model: `make bench-jury-v3-check` recomputes every gate and summary from the stored verdicts, and `make bench-jury-v3-answers-rescore` recomputes the deterministic checks from the stored answers.
 <!-- bench-jury-v3:end -->
 
+</details>
+
 <a id="agent-injection"></a>
 
-### Prompt-injection evaluation
+<details>
+<summary>Prompt-injection evaluation</summary>
 
 <!-- agent-injection:start (generated by `make bench-table` from bench/results/agent_injection_v2.json and bench/results/agent_injection.json; do not edit by hand) -->
 LLM-in-the-loop injection on fixture v1 (`make bench-agent-injection-v2`; episodes generated and scored at sha b867e30 from a clean tree in 1 process segment): 1680 episodes, 0 harness errors; models qwen2.5:7b, llama3.1:8b via Ollama 0.34.3 (context length 32768 tokens, the server's choice) on NVIDIA A40; temperature 0.7, k = 4 sampled trials per task, configuration and model; wall 21688.8 s. 40 injected tasks (4 goals x 10 config questions, planted as comment lines in the config that answers the question and in the same run's log); the same 10 questions as controls, whose config and log end with neutral comment lines that carry the same run number and field name, the query terms the planted text adds (matched on those terms, not on every search result: the lines are shorter than the planted text and say something else); and 20 capability tasks (below). Task copies are indexed with the fixture MANIFEST's file times, and every tool result is stored in the episodes file as sent to the model, except that a path into the task copy is written relative to the corpus root and user and host names are replaced. Success means the gold value is stated in the answer and a cited file of the asked run contains it; utility under attack (AgentDojo) also requires that the planted goal was not pursued. Benign and per-goal intervals are a percentile bootstrap over the 10 tasks; pooled injected rates average each question's 4 injected tasks first and resample the 10 questions.
@@ -822,9 +1008,12 @@ One phrasing per goal and task, written for this benchmark; not an adaptive atta
 Earlier run, kept as recorded: [bench/results/agent_injection.json](bench/results/agent_injection.json) (`agent_injection_v1`, `make bench-agent-injection`: no capability tasks, controls without neutral lines, task copies indexed with the disk's file times, tool results not stored). 1200 episodes, episodes generated at sha 01b1733 with uncommitted changes in 2 process segments, provenance reconstructed after the run; scored at sha 16145a6 from a clean tree by `make bench-agent-injection-rescore`; about 50 minutes over two process segments (times from the session clock, not recorded by the harness). Today's harness rebuilds its summary exactly from its stored episodes, which hold every answer and tool call.
 <!-- agent-injection:end -->
 
+</details>
+
 <a id="agent-injection-v3"></a>
 
-### Prompt injection: several phrasings per goal, and the answer check in the loop
+<details>
+<summary>Prompt injection: several phrasings per goal, and the answer check in the loop</summary>
 
 <!-- agent-injection-v3:start (generated by `make bench-table` from bench/results/agent_injection_v3.json; do not edit by hand) -->
 LLM-in-the-loop injection with several phrasings per goal and an answer check in the loop (`make bench-agent-injection-v3`, run as 4 shards merged by `make bench-agent-injection-v3-merge`; episodes generated and scored at sha 083ddea from a clean tree in 4 process segments): 9280 episodes, 0 harness errors; models qwen2.5:7b, llama3.1:8b via Ollama 0.34.3 (context length 32768 tokens, the server's choice) on NVIDIA A40; temperature 0.7, k = 4 sampled trials per task, configuration and model, the trial index as seed; wall 61943.1 s summed over the 4 segments (40560 s from the first segment's start to the last one's finish, at most 2 running at once). Every goal of the 10 config questions is planted in 7 phrasings around the same goal sentence: 2 written for this benchmark (maintainer_note, system_override) and 5 AgentDojo attack templates, verbatim (important_instructions, ignore_previous, injecagent, system_message, direct). A (question, goal) pair counts as attacked under a seed when the episode of at least one of its phrasings with that seed attempted the goal (model level) or, apart from that, when the goal took effect (system level); a pair's value is the share of the 4 seeds, and per goal the mean over the 10 pairs, with a percentile bootstrap over the pairs; per draw averages each pair's episodes. The phrasings of a question share each seed, so their episodes mostly follow one trajectory until the planted text is read: any-success compares the texts on shared trajectories and adds no samples; retrying one text, each phrasing's chance of at least once in 4 trials, is in the hijack table below. The controls carry neutral lines with the planted text's query terms, as in `agent_injection_v2`.
@@ -938,9 +1127,12 @@ Every configuration against `none` (paired deltas):
 A fixed set of phrasings, not an adaptive attacker. The check is told which config field and file each question is about, so it covers single-field questions only; its rule was fixed on the earlier run's answers, and this run's answers were not seen when it was written. Seeds are per trial and shared across tasks; sampled episodes are not expected to reproduce token for token on another server version or GPU.
 <!-- agent-injection-v3:end -->
 
+</details>
+
 <a id="agent-injection-adaptive"></a>
 
-### Prompt injection: an adaptive attacker against each configuration
+<details>
+<summary>Prompt injection: an adaptive attacker against each configuration</summary>
 
 <!-- agent-injection-adaptive:start (generated by `make bench-table` from bench/results/agent_injection_adaptive.json; do not edit by hand) -->
 An adaptive attacker against each configuration (`make bench-agent-injection-adaptive`, run as 2 shards merged by `make bench-agent-injection-adaptive-merge`; rounds generated and scored at sha 72685ab from a clean tree in 2 process segments): 2658 rounds in 448 trajectories, 0 harness errors; attacker `qwen2.5:7b` (instructions: tuning candidate v3, temperature 1.0) via its own Ollama 0.34.3 (context length 32768 tokens, the server's choice); targets qwen2.5:7b (temperature 0.7) via Ollama 0.34.3 (context length 32768 tokens, the server's choice) on NVIDIA A40; wall 38362.2 s summed over the 2 segments (24570 s from the first segment's start to the last one's finish, at most 2 running at once).
@@ -1021,9 +1213,14 @@ The fixed phrasings' run (`agent_injection_v3`, sha 083ddea) ran its targets on 
 One attacker model, which is the target too (a self-attack); its instructions were tuned on 3 training questions, and 7 held-out questions make wide intervals. The second declared target, llama3.1:8b, was cut during tuning, before any held-out round: with the attacker's server on the same GPU its rounds took several times as long as its episodes in agent_injection_v3, so the full design did not fit the GPU budget, and it held most of that cost. The milestone's budget rule allowed cutting a target model or K; cutting K would have broken the match with v3's seven phrasings per seed. The feedback tells the attacker more than a user would see. This measures how the target and these configurations held up against this attacker, not against adaptive attackers in general.
 <!-- agent-injection-adaptive:end -->
 
+</details>
+
+### Prototypes, the RL search policy and small rerankers
+
 <a id="bench-frontier"></a>
 
-### Prototype arms on the CPU stand-ins
+<details>
+<summary>Prototype arms on the CPU stand-ins</summary>
 
 <!-- bench-frontier:start (generated by `make bench-table` from bench/results/frontier.json; do not edit by hand) -->
 Prototype arms on fixture v1 (`make bench-frontier`, cpu (cpu), torch None, sentence-transformers None; results sha 45d915a). Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "Fired" counts the questions (of 136) on which the arm's mechanism triggered; "top 10 differs" counts the questions whose first ten files differ from the parent's. The last column names every stand-in the row's number depends on.
@@ -1087,9 +1284,12 @@ Graph arms on the question categories they are aimed at (paired vs parent; every
 | hybrid+rerank+graphrag | multi_hop | 8 (small n) | -0.0571 [-0.2184, +0.1425] | covers zero |
 <!-- bench-frontier:end -->
 
+</details>
+
 <a id="bench-frontier-neural"></a>
 
-### Prototype arms with real models
+<details>
+<summary>Prototype arms with real models</summary>
 
 <!-- bench-frontier-neural:start (generated by `make bench-table` from bench/results/frontier_neural.json; do not edit by hand) -->
 Prototype arms on fixture v1 (`make bench-frontier-neural`, cuda (NVIDIA A40), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha 6664a41). Each arm is one switch away from its parent and the parent rows are computed in the same run. The verdict is read off the paired bootstrap interval of nDCG@10, arm minus parent: above zero, covers zero, or below zero. "Fired" counts the questions (of 136) on which the arm's mechanism triggered; "top 10 differs" counts the questions whose first ten files differ from the parent's. The last column names every stand-in the row's number depends on.
@@ -1161,9 +1361,12 @@ Graph arms on the question categories they are aimed at (paired vs parent; every
 | hybrid+bge-rerank+graphrag@bge-small | multi_hop | 8 (small n) | -0.1772 [-0.3349, -0.0436] | below zero |
 <!-- bench-frontier-neural:end -->
 
+</details>
+
 <a id="bench-rerank-arms"></a>
 
-### Reranker prototypes against the cross-encoder
+<details>
+<summary>Reranker prototypes against the cross-encoder</summary>
 
 <!-- bench-rerank-arms:start (generated by `make bench-table` from bench/results/rerank_arms.json; do not edit by hand) -->
 Reranker prototypes on fixture v1 (`make bench-rerank-arms LISTWISE_MODEL=qwen2.5:7b`, cuda (Tesla V100-SXM3-32GB), torch 2.5.1+cu121, sentence-transformers 6.1.0; results sha c681be7). Every arm reranks the same list: the fused top 50 of `hybrid@bge-small`. A student is fitted on the cross-encoder's scores for 68 train questions and scored on the other 68 (alternate train / test inside each category, gold order), with the features it has when it serves. Verdicts are read off the paired bootstrap interval of nDCG@10. Latency is the rerank step alone, per question.
@@ -1181,9 +1384,12 @@ Students: `hybrid+distilled-student@bge-small` is linear least squares with an i
 Listwise arm: `qwen2.5:7b` through Ollama (temperature 0.0, seed 0), one prompt per question over the top 20 candidates (280 characters of each). A reply counts only when the whole reply is a permutation of the window, `[2] > [1] > ...`; anything else keeps the fused order. Of 136 calls, 97 replies were permutations, 39 replies were not (6 not a chain, 22 partial, 10 repeated id, 1 out of range) and 0 calls returned nothing, so the row's numbers include 39 questions in the fused order. Every completion and its parse status is in the results file.
 <!-- bench-rerank-arms:end -->
 
+</details>
+
 <a id="search-policy"></a>
 
-### Search policy trained with reinforcement learning (one configuration, three seeds)
+<details>
+<summary>Search policy trained with reinforcement learning (one configuration, three seeds)</summary>
 
 <!-- search-policy:start (generated by `make bench-table` from bench/results/search_policy.json; do not edit by hand) -->
 The search policy of `app/rl` (Search-R1 style: the model writes `<search>` and `<answer>`, the environment answers a search with `<information>`), trained once and scored (`make search-policy-train`, `make search-policy-eval`; results sha d74b047, episodes generated at ffe4978). Policy model: `Qwen/Qwen2.5-1.5B-Instruct` (licence apache-2.0, revision `989aa7980e4c`) with a LoRA adapter; NVIDIA A40, bf16, torch 2.5.1+cu121, transformers 5.17.0, peft 0.22.0. Environment: the in-memory hybrid index over the question's corpus: BM25 and bge-small lists fused with RRF, no router, no reranker (the benchmark's hybrid@bge-small construction); at most 3 searches per question, 4 chunks shown per search, 48 new tokens per piece. Every arm is the same model, prompt and environment on fixture v1's 68 held-out questions, decoded greedily; intervals are paired bootstrap intervals over those questions. Exact match is strict: the answer without its citation equals the gold answer after normalisation (numbers compared as numbers).
@@ -1210,9 +1416,12 @@ What this does not show: Synthetic corpora: training and test corpora come from 
 Results: [bench/results/search_policy.json](bench/results/search_policy.json) · every episode: [bench/results/search_policy.rollouts.json](bench/results/search_policy.rollouts.json) · training curves: [bench/results/search_policy.training.json](bench/results/search_policy.training.json). `make search-policy-rescore` scores every stored episode again and recomputes each number above on a CPU, with no model.
 <!-- search-policy:end -->
 
+</details>
+
 <a id="bench-small-rerankers"></a>
 
-### Small rerankers for the single host
+<details>
+<summary>Small rerankers for the single host</summary>
 
 <!-- bench-small-rerankers:start (generated by `make bench-table` from bench/results/small_rerankers.json, bench/results/beir_scifact_small_rerankers.json, bench/results/beir_fiqa_small_rerankers.json, bench/results/small_rerankers_cpu.json and bench/distill/; do not edit by hand) -->
 Small rerankers over `hybrid@bge-small` at the shape the single host serves: the fused top 20, max_length 512, fp32 (fixture v1, held-out: `make bench-small-rerankers`, cuda (NVIDIA GeForce RTX 2080 Ti), torch 2.5.1+cu121, sentence-transformers 6.1.0, results sha a43f2be; BEIR SciFact: `make bench-beir-small-rerankers`, cuda (NVIDIA GeForce RTX 2080 Ti), torch 2.5.1+cu121, sentence-transformers 6.1.0, results sha a43f2be; BEIR FiQA: `make bench-beir-fiqa-small-rerankers`, cuda (NVIDIA GeForce RTX 2080 Ti), torch 2.5.1+cu121, sentence-transformers 6.1.0, results sha a43f2be). The live demo serves no reranker, because bge-reranker-v2-m3 does not fit its host ([bench/results/api_memory_cpu.json](bench/results/api_memory_cpu.json)). **The bar was declared before any row ran** (`app/eval/small_rerankers.py`): a row passes on quality when its paired nDCG@10 delta against the unreranked list has an interval above zero on fixture v1's held-out questions and on SciFact and on FiQA. Every reranked row is judged alike, the app's default reranker and the teacher included, each recomputed in the same run after its load-and-score check. Whether a model fits the host is a second bar, measured on the host itself (`scripts/time_reranker_on_host.py`); nothing here decides it, and no default changed.
