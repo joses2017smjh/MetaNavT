@@ -500,3 +500,65 @@ def test_the_m50_table_reads_the_server_from_the_segments_and_every_verdict_from
     assert "| new | win: below zero, -0.200 [-0.300, -0.100] | 50 / 6 | 0.002 | not testable (floor)" in text
     assert "reasoning off not fully honoured (3 calls" in text and "For new S4's word differs from P1's" in text
     assert "| old | incomplete |" in text and "- Not an adaptive attacker." in text
+
+
+def _m50_blob(models=("qwen3.5:27b", "gemma4:26b")):
+    rate = {"mean": 0.5, "lo": 0.25, "hi": 0.75, "n": 10}
+    delta = {"delta": -0.2, "lo": -0.3, "hi": -0.1, "n": 10, "unit": "questions", "excludes_zero": True}
+    request = {"think": "off", "num_predict": 384, "temperature": 0.7, "max_turns": 6, "workers": 8,
+               "chat_timeout_s": 600.0, "server_context": 32768, "num_parallel": 1}
+    seg = {"ollama_after": {"version": "0.40.16", "models": {m: {"digest": "d", "parameter_size": "26.9B",
+                                                                 "quantization": "Q4_K_M",
+                                                                 "parameters": "top_k 20\ntemperature 1"} for m in models}}}
+    return {"git_head": "a" * 40, "config": {"models": list(models), "phrasings": list(ai.PHRASINGS), "k": 4,
+                                             "agentdojo_templates": dict(ai.AGENTDOJO_TEMPLATES),
+                                             "request": {m: request for m in models}},
+            "summary": {m: {"none": {"by_goal": {"hijack": {"attempted_any_phrasing": rate}}}} for m in models},
+            "paired_deltas": {m: {"answer_check - none": {"planted_value_delivered": delta, "utility_under_attack": delta,
+                                                          "benign_success": delta}} for m in models},
+            "episodes_generated_by": {"segments": [seg], "merged": {"shards": [{"file": "x"}] * 20}}}
+
+
+def _m50_compare(outcomes):
+    verdicts, rows = [], []
+    for model, outcome in outcomes.items():
+        for metric in ("planted_value_delivered", "planted_value_only", "utility_under_attack", "benign_success"):
+            verdicts.append({"config": f"answer_check@{model}", "reference": f"none@{model}", "metric": metric,
+                             "outcome": outcome if metric != "utility_under_attack" else "no measurable cost",
+                             "interval": "below zero" if outcome == "win" else None,
+                             "floor": {"took_effect_episodes": 3, "of": 280, "questions_nonzero": 2}})
+        for old in ("qwen2.5:7b", "llama3.1:8b"):
+            rows.append({"config": f"none@{model}", "reference": f"none@{old}", "metric": "hijack_planted_value",
+                         "delta": 0.1, "lo": -0.1, "hi": 0.2, "n": 10, "interval": "covers zero",
+                         "labels": ["confound", "hash"]})
+    return {"git_head": "b" * 40, "bar": m50.BAR, "verdicts": verdicts, "s3": {"rows": rows, "n_intervals": 68}}
+
+
+def test_the_m50_evidence_rows_mirror_the_committed_rows_with_the_declared_words_and_all_four_s3_rows(tmp_path):
+    from app.eval.evidence import FILES, _agent_injection_v3_models_2026_claims
+    assert _agent_injection_v3_models_2026_claims(tmp_path) == []
+    for key, blob in (("agent_injection_v3_models_2026", _m50_blob()),
+                      ("agent_injection_v3_models_2026_compare", _m50_compare({"qwen3.5:27b": "win", "gemma4:26b": "win"}))):
+        (tmp_path / FILES[key]).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / FILES[key]).write_text(json.dumps(blob))
+    rows = _agent_injection_v3_models_2026_claims(tmp_path)
+    assert len(rows) == 2 * 4 + 4
+    assert rows[1]["claim"].endswith("(declared bar P1: win)") and "floor counts under no defense: 3 of 280" in rows[1]["not_shown"]
+    assert rows[2]["claim"].endswith("(S1: no measurable cost)")
+    scope = rows[0]["not_shown"]
+    assert "qwen3.5:27b (26.9B Q4_K_M, think false, Modelfile defaults top_k 20)" in scope and "Ollama 0.40.16" in scope
+    assert "hash embedder, a fallback" in scope and "two local 7-8B models" not in scope
+    s3 = [r for r in rows if "(S3: " in r["claim"]]
+    assert len(s3) == 4 and all("(68 intervals" in r["not_shown"] and "confound" in r["not_shown"] for r in s3)
+    # a model the outcome table stopped gets one row saying so, and the S3 rows of the other model alone are not all four
+    (tmp_path / FILES["agent_injection_v3_models_2026_compare"]).write_text(json.dumps(
+        _m50_compare({"qwen3.5:27b": "win", "gemma4:26b": "incomplete"})))
+    rows = _agent_injection_v3_models_2026_claims(tmp_path)
+    stated = [r for r in rows if r["claim"].endswith("the declared bar's outcome")]
+    assert len(stated) == 1 and stated[0]["value"] == "incomplete" and "gemma4:26b" in stated[0]["claim"]
+    assert not any("gemma4:26b" in r["claim"] and "no defense" in r["claim"] for r in rows)
+    # a floor keeps the rows but replaces the P1 verdict with the state
+    (tmp_path / FILES["agent_injection_v3_models_2026_compare"]).write_text(json.dumps(
+        _m50_compare({"qwen3.5:27b": "floor", "gemma4:26b": "win"})))
+    p1 = [r for r in _agent_injection_v3_models_2026_claims(tmp_path) if "qwen3.5:27b" in r["claim"] and "P1" in r["claim"]]
+    assert len(p1) == 1 and "not testable, the floor" in p1[0]["claim"] and "no verdict" in p1[0]["not_shown"]
