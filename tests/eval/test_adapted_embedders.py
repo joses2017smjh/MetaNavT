@@ -377,12 +377,15 @@ def test_the_fixture_file_rescores_from_its_sidecar_with_no_model_or_dataset(mon
     assert any("subgroups" in d for d in ae.rescore_fixture(blob, sidecar))
 
 
-def _beir_blob(rng, n=40, entries=None):
+def _beir_blob(rng, n=40, entries=None, base=False):
+    """A SciFact results file and its sidecar made by the module's own code (base=True: bge-base's file, its two base rows
+    recomputed beside bge-small's and its arm paired with them)."""
     from app.eval import beir
 
-    names = ["bm25", "dense@bge-small", "hybrid@bge-small", f"dense@{ae.BAR_ARM}", f"hybrid@{ae.BAR_ARM}"]
-    parents = {"dense@bge-small": "bm25", "hybrid@bge-small": "dense@bge-small", f"dense@{ae.BAR_ARM}": "dense@bge-small",
-               f"hybrid@{ae.BAR_ARM}": "hybrid@bge-small"}
+    arm, init = (ae.BASE_ARM, "bge-base") if base else (ae.BAR_ARM, "bge-small")
+    names = ["bm25", "dense@bge-small", "hybrid@bge-small", *(["dense@bge-base", "hybrid@bge-base"] if base else []), f"dense@{arm}", f"hybrid@{arm}"]
+    parents = {"dense@bge-small": "bm25", "hybrid@bge-small": "dense@bge-small", f"dense@{arm}": f"dense@{init}", f"hybrid@{arm}": f"hybrid@{init}",
+               **({"dense@bge-base": "dense@bge-small", "hybrid@bge-base": "hybrid@bge-small"} if base else {})}
     metrics = list(beir.PER_QUERY_METRICS)
     ids = [f"q{i}" for i in range(n)]
     scores = _scores(rng, names, n, tuple(metrics))
@@ -396,7 +399,7 @@ def _beir_blob(rng, n=40, entries=None):
     blob = {"dataset": "BEIR/scifact", "split": "test", "git_sha": "abc1234", "timestamp": "t", "bootstrap": boot, "results": rows,
             "adapted_embedders": ae.beir_extras(scores, ids, boot, twins, seen, "scifact")}
     if entries is not None:
-        blob["adapted_embedders"].update(_run_header(entries))
+        blob["adapted_embedders"].update(_run_header(entries, base=base))
         blob["adapted_embedders"]["bar_leg"] = ae.bar_leg(blob, "scifact")
     sidecar = {"schema": ae.SIDECAR_SCHEMA, "dataset": "BEIR/scifact", "split": "test", "git_sha": "abc1234", "timestamp": "t", "metrics": metrics,
                "ids": ids, "scores": scores, "twins": twins, "seen": seen}
@@ -470,11 +473,12 @@ MNRL_ENTRY = {"attempt": 1, "s": 55.9215, "lists": {"train": {"fixture": 691, "s
 TWINS_SUBGROUPS = {"fixture": {"n": 40, "all_held_out": {"n": 20, "0.80": 15, "0.85": 12}, "beir_held_out": {"n": 20, "0.80": 0, "0.85": 0}}}
 
 
-def _docs_root(root, gain=0.0, n=40, control_gain=0.0):
+def _docs_root(root, gain=0.0, n=40, control_gain=0.0, adjust=None):
     """A repository root with a fixture file whose bar-row hybrid gains `gain` (the control's `control_gain`) on every
     question over hybrid@bge-small, a SciFact file (random scores), no FiQA file, a twins file whose held-out twin rate
     differs between the two query sets, and a manifest holding the bar row, the control, seed 1 and MNRL (MNRL has no
-    rows: its cells read "not measured"). Every results header matches the manifest."""
+    rows: its cells read "not measured"). Every results header matches the manifest. `adjust(scores)` may change the
+    fixture's per-question scores before the file is built."""
     from app.eval import report  # noqa: F401  (the renderer's module imports cleanly)
 
     rng = np.random.default_rng(3)
@@ -482,6 +486,8 @@ def _docs_root(root, gain=0.0, n=40, control_gain=0.0):
     base = scores["hybrid@bge-small"]["ndcg@10"]
     for tag, g in ((ae.BAR_ARM, gain), (ae.CONTROL_ARM, control_gain)):
         scores[f"hybrid@{tag}"]["ndcg@10"] = [min(1.0, b + g) if g else x for b, x in zip(base, scores[f"hybrid@{tag}"]["ndcg@10"])]
+    if adjust is not None:
+        adjust(scores)
     entry = {"attempt": 1, "s": 55.9, "lists": {"train": {"fixture": 691, "scifact": 4267, "fiqa": 5129}}, "steps_per_epoch": 1261,
              "epochs": [{"validation_macro": v} for v in (8.1, 7.5, 7.4, 7.39)], "segments": [{"device": "card"}],
              "validation_before_training": {"macro": 11.4}, "chosen_epoch": 4, "chosen_is_last": True, "beats_epoch_0": True, "weights_sha256": "ab" * 32}
@@ -549,15 +555,17 @@ def test_evidence_rows_only_where_an_interval_excludes_zero_and_say_what_they_do
     fixture, _ = _docs_root(tmp_path, gain=0.3)
     table = ae.bar_table(tmp_path)
     claims = _adapted_embedder_claims(tmp_path)
-    bar = [c for c in claims if f"`hybrid@{ae.BAR_ARM}`" in c["claim"] and c["claim"].startswith("Fixture")]
+    bar = [c for c in claims if c["claim"].startswith(f"Fixture v1 (held-out half), `hybrid@{ae.BAR_ARM}` vs `hybrid@bge-small` ")]
     assert len(bar) == 1 and bar[0]["value"].startswith("+")
+    # the gain puts seed 1's and the control's hybrid rows below the bar row's: recorded losses, rows of their own
+    assert any(c["claim"].startswith("Fixture v1 (held-out half), `hybrid@bge-small-marginmse-s1` vs `hybrid@bge-small-marginmse` ") for c in claims)
     n = ae.interval_count(fixture)
     for c in claims:
         lo, hi = (float(x) for x in c["ci"].strip("[]").split(","))
         assert lo > 0 or hi < 0, c["claim"]
         assert f"the bar ({ae.BAR_ARM}, hybrid, three datasets): {table['outcome']}" in c["not_shown"]
         assert "intervals in this file, unadjusted" in c["not_shown"] and "the checkpoints are not committed" in c["not_shown"]
-        assert ("secondary read; the served shape is hybrid" in c["not_shown"]) is ("`dense" in c["claim"])
+        assert ("secondary read; the served shape is hybrid" in c["not_shown"]) is c["claim"].split("`")[1].startswith("dense")  # the row read
         if c["claim"].startswith("Fixture"):
             assert f"; {n} intervals in this file" in c["not_shown"] and "fixture reading" in c["not_shown"]
         if ae.CONTROL_ARM in c["claim"] and c["claim"].startswith("Fixture"):
@@ -712,6 +720,167 @@ def test_the_control_evidence_row_carries_its_own_twin_rate_and_the_bar_rows_rea
     assert "0 of 20 held-out questions have one of this arm's training or validation queries (SciFact and FiQA)" in control["not_shown"]
     assert f"the bar row's declared fixture reading (read on {ae.BAR_ARM} only)" in control["not_shown"]
     assert "no gold relevance label or qrel" in bar["not_shown"] and "no label)" not in bar["not_shown"]
+
+
+BASE_FIXTURE_ROWS = ["bm25_only", "dense_only@bge-small", "hybrid@bge-small", "dense_only@bge-base", "hybrid@bge-base",
+                     f"dense_only@{ae.BASE_ARM}", f"hybrid@{ae.BASE_ARM}"]
+
+
+def _base_files(root, n=40):
+    """bge-base's own fixture file beside _docs_root's files: its hybrid row loses to hybrid@bge-base on every question (a
+    recorded loss) and its dense row gains over dense_only@bge-base (an exploratory win); the manifest gains bge-base's
+    entry, the header bge-base's arm, and the file two reproduction checks (all questions, then the held-out half)."""
+    rng = np.random.default_rng(5)
+    scores = _scores(rng, BASE_FIXTURE_ROWS, n)
+    scores[f"hybrid@{ae.BASE_ARM}"]["ndcg@10"] = [max(0.0, x - 0.3) for x in scores["hybrid@bge-base"]["ndcg@10"]]
+    scores[f"dense_only@{ae.BASE_ARM}"]["ndcg@10"] = [min(1.0, x + 0.3) for x in scores["dense_only@bge-base"]["ndcg@10"]]
+    manifest = json.loads((root / ae.MANIFEST_FILE).read_text())
+    entry = {"attempt": 1, "s": 49.9, "lists": {"train": {"fixture": 691, "scifact": 4267, "fiqa": 5129}}, "steps_per_epoch": 1261,
+             "epochs": [{"validation_macro": v} for v in (4.0, 3.7, 3.8, 3.79)], "segments": [{"device": "big card"}],
+             "validation_before_training": {"macro": 8.8}, "chosen_epoch": 2, "chosen_is_last": False, "beats_epoch_0": True, "weights_sha256": "ef" * 32}
+    manifest["arms"][ae.BASE_ARM] = entry
+    (root / ae.MANIFEST_FILE).write_text(json.dumps(manifest))
+    blob, _ = _fixture_blob(rng, BASE_FIXTURE_ROWS, n, scores=scores)
+    blob["adapted_embedders"] = _run_header({ae.BASE_ARM: entry}, base=True)
+    blob["adapted_embedders"]["bar_leg"] = ae.bar_leg(blob, "fixture")
+    blob.update(device={"device_name": "big card"}, n_gold=n, reproduces=[
+        {"file": "bench/results/neural.json", "git_sha": "abc", "device": "card", "rows": {"hybrid@bge-base": {"equal": True}}, "all": True},
+        {"file": "bench/results/small_rerankers.json", "scope": "held_out", "git_sha": "def", "device": "card",
+         "rows": {"hybrid@bge-small": {"equal": True}}, "all": True}])
+    (root / ae.BASE_RESULTS["fixture"]).write_text(json.dumps(blob))
+    scifact, _ = _beir_blob(np.random.default_rng(6), entries={ae.BASE_ARM: entry}, base=True)
+    scifact.update(device={"device_name": "big card"}, reproduces={
+        "file": "bench/results/beir_scifact.json", "git_sha": "abc", "device": "card", "all": False,
+        "rows": {"hybrid@bge-small": {"equal": True}, "hybrid@bge-base": {"in_committed_file": False, "equal": False}}})
+    (root / ae.BASE_RESULTS["scifact"]).write_text(json.dumps(scifact))
+    return blob
+
+
+def test_evidence_rows_take_every_below_zero_declared_comparison_and_bge_bases_own_files(tmp_path):
+    """The brief: a row for any below-zero delta. So also an arm's hybrid row below its own dense row, the control below
+    the bar row, and bge-base's losses in its own files (labelled exploratory, never the bar); an exploratory win outside
+    the two the brief names (the bar row's deltas, the control's fixture deltas against its base rows) is never a row."""
+    from app.eval.evidence import _adapted_embedder_claims
+
+    bar_dense, bar_hybrid = ae.row_names(ae.BAR_ARM, "fixture")
+    control_dense = ae.row_names(ae.CONTROL_ARM, "fixture")[0]
+
+    def adjust(scores):
+        scores[bar_dense]["ndcg@10"] = [min(1.0, x + 0.4) for x in scores[bar_hybrid]["ndcg@10"]]  # the bar row's hybrid below its own dense row
+        scores[control_dense]["ndcg@10"] = [max(0.0, x - 0.4) for x in scores[bar_dense]["ndcg@10"]]  # the control's dense below the bar row's
+
+    _docs_root(tmp_path, adjust=adjust)
+    base_blob = _base_files(tmp_path)
+    outcome = ae.bar_table(tmp_path)["outcome"]
+    claims = {c["claim"].split(", ", 1)[1].split(" (")[0]: c for c in _adapted_embedder_claims(tmp_path) if c["claim"].startswith("Fixture")}
+    own = claims[f"`{bar_hybrid}` vs `{bar_dense}`"]
+    assert "exploratory: not the bar comparison" in own["not_shown"] and "what fusing BM25 does to this model" in own["not_shown"]
+    assert "secondary read" not in own["not_shown"]  # the row read is the hybrid one
+    control = claims[f"`{control_dense}` vs `{bar_dense}`"]
+    assert "what the fixture data added, confounded" in control["not_shown"] and "never read this corpus" in control["not_shown"]
+    base_dense, base_hybrid = ae.row_names(ae.BASE_ARM, "fixture")
+    loss = claims[f"`{base_hybrid}` vs `hybrid@bge-base`"]
+    assert loss["command"] == "make bench-adapted-embedders BASE=1" and loss["source"].startswith(ae.BASE_RESULTS["fixture"] + " @ ")
+    assert f"exploratory: {ae.BASE_ARM} in its own files, never read against the bar" in loss["not_shown"]
+    assert f"the bar ({ae.BAR_ARM}, hybrid, three datasets): {outcome}" in loss["not_shown"]
+    assert f"; {ae.interval_count(base_blob)} intervals in this file" in loss["not_shown"] and f"one run ({ae.BASE_ARM}, seed 0)" in loss["not_shown"]
+    assert "one GPU (big card)" in loss["not_shown"]
+    assert f"`{base_dense}` vs `dense_only@bge-base`" not in claims  # bge-base's exploratory win: the README block only
+    for name, c in claims.items():
+        hi = float(c["ci"].strip("[]").split(",")[1])
+        named = name in (f"`{bar_hybrid}` vs `hybrid@bge-small`", f"`{bar_dense}` vs `dense_only@bge-small`") or (
+            ae.CONTROL_ARM in name.split(" vs ")[0] and name.endswith("@bge-small`"))
+        assert named or hi < 0, name  # any other row is a recorded loss
+
+
+def test_the_readme_block_shows_bge_bases_dense_rows_its_pairs_its_reproduction_and_its_cost(tmp_path):
+    from app.eval.report import adapted_embedders_table
+
+    _docs_root(tmp_path)
+    _base_files(tmp_path)
+    text = adapted_embedders_table(tmp_path)
+    section = text.split("bge-base, exploratory, in its own files")[1].split("Do the bge-small files' recomputed base rows")[0]
+    rows = [line for line in section.splitlines() if line.startswith(f"| `{ae.BASE_ARM}` (")]
+    assert len(rows) == 2 and "Dense alone (a secondary read):" in section  # its hybrid row and its dense row
+    assert "(below zero, exploratory)" in rows[0] and "(above zero, exploratory)" in rows[1]  # its hybrid loss and its dense gain
+    assert f"| `{ae.BASE_ARM}` | `hybrid@{ae.BASE_ARM}` vs its own dense row |" in section
+    assert "`bench/results/beir_scifact.json` holds no bge-base row" in section and "bge-base is not the served architecture" in section
+    assert "BEIR SciFact: `hybrid@bge-small` reproduces bench/results/beir_scifact.json" in section
+    assert "`hybrid@bge-base` does NOT reproduce bench/results/beir_scifact.json (results sha abc, card): it is not in that file" in section
+    assert "its CPU cost is not measured" in section
+    assert "epoch 2 kept (not the last)" in text and "1 training segment, never resumed" in text  # the training lines
+    # each reproduction check is labelled by the scope it compared: neural.json is compared on all the questions
+    assert "Do bge-base's recomputed base rows reproduce the committed ones?" in section
+    assert "fixture v1, all 40 questions: `hybrid@bge-base` reproduces bench/results/neural.json" in section
+    assert "fixture v1, held-out half: `hybrid@bge-small` reproduces bench/results/small_rerankers.json" in section
+    not_shown = text.split("**What this does not show.**")[1]
+    assert "may include these benchmarks' train splits" in not_shown and "the served shape has no reranker" in not_shown
+
+
+def test_a_bge_base_header_says_what_its_own_files_do_not_show_and_the_card_line_is_the_runs(tmp_path):
+    entry = {"weights_sha256": "ab" * 32, "epochs": [], "chosen_epoch": 2}
+    small = ae.header([], root=_header_root(tmp_path / "a", {ae.BAR_ARM: entry}))["not_shown"]
+    base = ae.header([], root=_header_root(tmp_path / "b", {ae.BASE_ARM: entry}), base=True)["not_shown"]
+    for lines in (small, base):  # the first FiQA run's base rankings differ from the committed runs on the same card model
+        assert "can differ between runs on the same card model" in lines[4] and "specific to the card they ran on" not in lines[4]
+    topics = ("live host's quality", "host's latency", "transfer to an unseen corpus", "re-measurable from a clone", "card-independent on FiQA",
+              "what the fixture data added", "label-free", "GPL itself", "variance-robust", "no reranked rows", "Qwen3 or harrier")
+    assert len(base) == len(topics) and all(t in line for t, line in zip(topics, base))
+    text = " ".join(base)
+    assert "bge-base's CPU cost is not measured" in base[1] and "structural identity" not in text
+    assert f"{ae.BASE_ARM} read the documents of all three test corpora" in base[2] and "the bar row read" not in text
+    assert "the control differs" not in text and "bge-base's own training data" in base[6]
+
+
+def test_the_beir_main_adapted_branch_writes_one_file_its_sidecar_and_its_runs(tmp_path, monkeypatch):
+    """`make bench-beir-adapted-embedders` as the eval job runs it, through beir.main's hand-merged dispatch and write
+    block: the ladder of the committed manifest, every embedder a stand-in (no torch, no checkpoint), the toy queries'
+    twin flags, and the gz TREC runs written to a temporary directory, never over the committed ones."""
+    from app.eval import beir, per_question
+    from app.retrieval.embedders import HashEmbedder
+
+    data = tmp_path / "data" / "scifact"
+    (data / "qrels").mkdir(parents=True)
+    docs = {f"d{i}": f"protein number {i} folds in cells, tissue sample {i} and enzyme {i % 5}" for i in range(30)}
+    (data / "corpus.jsonl").write_text("".join(json.dumps({"_id": k, "title": "", "text": v}) + "\n" for k, v in docs.items()))
+    ids = [f"q{i}" for i in range(12)]
+    (data / "queries.jsonl").write_text("".join(json.dumps({"_id": q, "text": f"protein number {i} in tissue sample {i}"}) + "\n" for i, q in enumerate(ids)))
+    (data / "qrels" / "test.tsv").write_text("query-id\tcorpus-id\tscore\n" + "".join(f"q{i}\td{i}\t1\n" for i in range(12)))
+    committed = ROOT / ae.TREC_DIRS["scifact"]
+    before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in committed.iterdir()}
+    trec = tmp_path / "trec"
+    monkeypatch.setitem(ae.TREC_DIRS, "scifact", str(trec))
+    monkeypatch.setattr(beir, "download_dataset", lambda data_dir, dataset, **kw: Path(data_dir) / dataset)
+    flags = {q: {s: {"cosine": 0.5 + 0.03 * i, "jaccard": 0.1} for s in ae.TRAINING_SETS} for i, q in enumerate(ids)}
+    monkeypatch.setattr(ae, "read_twins", lambda root=None: ({}, {"scifact": flags}))
+
+    def stand_in(name, checkpoint_dir=None, root=None, device=None):
+        if name.startswith("ft:"):
+            return HashEmbedder(dim=128), {"model": name[3:], "weights_sha256": hashlib.sha256(name.encode()).hexdigest(), "revision": None}
+        return HashEmbedder(dim=256), {"pinned_revision": "stand-in"}
+
+    monkeypatch.setattr(ae, "resolve_embedder", stand_in)
+    monkeypatch.setattr(et, "tf32_flags", lambda: {"stand_in": True})  # torch's flags, read in the GPU job
+    out = tmp_path / "results" / "beir_scifact_adapted_embedders.json"
+    assert beir.main(["--ladder", beir.ADAPTED_LADDER, "--data-dir", str(tmp_path / "data"), "--out", str(out), "--n-boot", "100"]) == 0
+    blob, sidecar = json.loads(out.read_text()), json.loads(per_question.sidecar_path(out).read_text())
+    assert [r["config"] for r in blob["results"]] == [c.name for c in beir.LADDERS[beir.ADAPTED_LADDER]]
+    assert len(blob["results"]) == 3 + 2 * len([t for t in ae.trained_arms(ROOT) if t != ae.BASE_ARM])  # every committed bge-small arm
+    assert sidecar["schema"] == ae.SIDECAR_SCHEMA and sorted(sidecar["ids"]) == sorted(ids)
+    assert set(sidecar["seen"]) == set(ae.SEEN_SPLITS) and set(sidecar["twins"]) == set(ae.TRAINING_SETS)
+    ext = blob["adapted_embedders"]
+    assert ext["bar_leg"]["row"] == f"hybrid@{ae.BAR_ARM}" and ext["bar_leg"]["measured"] is True
+    assert ext["file_role"].startswith("not a path the bar reads") and ext["subgroups"] and ext["seed_mean"]
+    for r in blob["results"]:  # every document matrix in the run, the bar's parent's included
+        if r["config"] != "bm25":
+            assert r["models"]["embedder"]["doc_embeddings"].startswith("computed in this run"), r["config"]
+    assert per_question.differences(blob, sidecar) == [] and ae.rescore_file(blob, sidecar) == []
+    for name in ae.TREC_ROWS:  # each committed-shape run decompresses to the text its row's ranking_sha256 names
+        row = next(r for r in blob["results"] if r["config"] == name)
+        gz = (trec / f"{beir._slug(name)}.run.gz").read_bytes()
+        assert hashlib.sha256(gzip.decompress(gz)).hexdigest() == row["ranking_sha256"]
+        assert hashlib.sha256(gz).hexdigest() == row["trec_gz"]["run_gz_sha256"]
+    assert {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in committed.iterdir()} == before  # the committed runs untouched
 
 
 class _Guard:

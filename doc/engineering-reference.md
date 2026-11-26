@@ -1464,7 +1464,7 @@ whose stored lower end is above zero on fixture v1's held-out half and on BEIR
 SciFact and on BEIR FiQA, read from the first complete run of each dataset. The
 three intervals form one intersection-union test; every other delta in the
 files is descriptive and labelled exploratory.
-The generated block holds 85 exploratory intervals beside the bar's three legs; with no real effect anywhere, about 2.5% of them would sit above zero by chance alone (one-sided), so a lone exploratory win is not evidence by itself.<!-- num: README.md:"This block shows {} exploratory intervals besides the bar's three legs"; app/eval/report.py:"about {}% of them" -->
+The generated block holds 91 exploratory intervals beside the bar's three legs; with no real effect anywhere, about 2.5% of them would sit above zero by chance alone (one-sided), so a lone exploratory win is not evidence by itself.<!-- num: README.md:"This block shows {} exploratory intervals besides the bar's three legs"; app/eval/report.py:"about {}% of them" -->
 
 **The recipe.** GPL's ingredients, taken as M43 committed them: synthetic
 queries written by a local open model, hard negatives mined by the current
@@ -1493,7 +1493,9 @@ published model, dense and hybrid, for every seed, the control and MNRL; the
 bar's form holds for none of the seeds. Why FiQA lost is not tested here.
 bge-base, trained the same way and read in its own files against
 `hybrid@bge-base` recomputed in the same runs, does not pass that form either:
-it loses on the fixture's held-out half and on FiQA (exploratory).
+it loses on the fixture's held-out half and on FiQA (exploratory). Its dense
+row alone gains on the fixture's held-out half, and, as with bge-small, that
+gain does not carry into its hybrid row.
 
 **What it costs, and a CPU re-run.** An adapted arm is the same network as
 bge-small with other weights, so a query costs what it costs today; the
@@ -1505,7 +1507,9 @@ delta and verdict in it equals the GPU run's.
 
 **What it does not show.** The block lists it: not the live host's quality
 (the host adds a query instruction, these rows embed queries bare), not
-transfer to an unseen corpus, and not a re-measurement from a clone. Every
+transfer to an unseen corpus, not label-free in the strict sense (the
+teacher's and the published models' own training data are unknown), and not
+a re-measurement from a clone. Every
 interval re-scores from the committed per-query sidecars
 (`make adapted-embedders-rescore`, a CPU and no model), and nDCG recomputes
 from the committed TREC runs, but the checkpoints are not in the repository.

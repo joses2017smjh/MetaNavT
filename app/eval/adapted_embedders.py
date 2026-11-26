@@ -581,17 +581,37 @@ def variance_note(seeds_ran: Sequence[str], base: bool = False) -> str:
 
 
 def not_shown(seeds_ran: Sequence[str], base: bool = False) -> list[str]:
-    """What a results file does not show (the brief's list, in its order); the seed line is derived from the arms that ran."""
+    """What a results file does not show (the brief's list, in its order); the seed line is derived from the arms that ran.
+    A bge-base file (base=True) gets bge-base's own wording where a bge-small sentence would not apply to it: its CPU cost
+    is not measured, it has no control arm, and its init is bge-base. The FiQA card sentence is the README block's: the
+    first FiQA run's base rankings differ from the committed TREC runs on the same card model, so rankings are specific
+    to the run, not only to the card (the files written before this wording carry the earlier sentence)."""
     bar_lists, bar_steps = _lists_and_steps(ARMS[BAR_ARM]["training_set"])
     control_lists, control_steps = _lists_and_steps(ARMS[CONTROL_ARM]["training_set"])
+    card = ("not card-independent on FiQA: rankings are specific to the run they came from: bge-small's own FiQA rankings differ "
+            "between cards (M41: near-tied documents swapping adjacent places below the top ten, with no metric change) and can "
+            "differ between runs on the same card model (this file's reproduces block says whether its base rows rank every query "
+            "as the committed TREC runs do); how far an adapted model's rankings move across cards is not measured")
+    if base:
+        return [
+            "not the live host's quality: the host serves bge-small, not bge-base, and embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
+            "not the host's latency: bge-base's CPU cost is not measured (adapted_embedders_cpu.json times the bge-small arms only), and bge-base is not the served architecture",
+            f"not transfer to an unseen corpus: {BASE_ARM} read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); no bge-base arm measures transfer",
+            "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, but no TREC run of a bge-base row is committed and the checkpoints are not committed",
+            card,
+            "not 'what the fixture data added' for bge-base: these files have no bge-base arm trained without the fixture (the control is a bge-small arm, in the bge-small files)",
+            "not label-free in the strict sense: the teacher's and bge-base's own training data are unknown and may include these benchmarks' train splits",
+            "not GPL itself: gemma4:12b queries, an mxbai-rerank-large-v2 teacher, a cosine model with a fixed scale and about 5k steps",
+            variance_note(seeds_ran, base),
+            "no reranked rows: the served shape has no reranker",
+            "no comparison with Qwen3 or harrier except across runs (their rows are in other files, from other runs), so no paired delta",
+        ]
     return [
         "not the live host's quality: the host embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
         "not the host's latency: HPC timings are indicative (adapted_embedders_cpu.json); the structural identity is the argument",
         "not transfer to an unseen corpus: the bar row read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); only the control's fixture rows measure transfer, on one small templated corpus",
         "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, and nDCG recomputes from the committed TREC runs where they exist, but the checkpoints are not committed",
-        ("not card-independent on FiQA: rankings are specific to the card they ran on; M41 found that bge-small's own FiQA rankings "
-         "differ between cards (near-tied documents swapping adjacent places below the top ten, with no metric change); how far an "
-         "adapted model's rankings move across cards is not measured"),
+        card,
         (f"not a clean 'what the fixture data added': the control differs from the bar row in its scale s, in its number of training "
          f"lists ({control_lists:,} vs {bar_lists:,}; {control_steps:,} vs {bar_steps:,} steps an epoch) and in its two-corpus "
          f"square-root-of-size mix; the control-vs-bar delta is confounded by all three"),

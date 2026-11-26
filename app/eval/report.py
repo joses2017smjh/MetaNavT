@@ -3804,8 +3804,11 @@ def _adapted_training_lines(manifest: dict | None, scale: dict | None) -> list[s
     for tag, e in manifest["arms"].items():
         curve = ", ".join(f"{ep['validation_macro']:.4f}" for ep in e["epochs"])
         devices = _and(sorted({s.get("device") or "?" for s in e.get("segments") or []}))
-        last = (" (the last: the validation curve had not flattened)" if e.get("chosen_is_last") else "")
-        run = (f"{len(e['epochs'])} epochs ({devices}; {_plural(len(e.get('segments') or []), 'resume segment')})")
+        last = (" (the last: the validation curve had not flattened)" if e.get("chosen_is_last")
+                else " (not the last)" if e.get("chosen_is_last") is False else "")
+        n_segments = len(e.get("segments") or [])
+        segments = _plural(n_segments, "training segment") + (", never resumed" if n_segments == 1 else " joined by resume" if n_segments > 1 else "")
+        run = f"{len(e['epochs'])} epochs ({devices}; {segments})"
         if ae.ARMS.get(tag, {}).get("loss") == "mnrl":  # no fitted s: cosine at the library's scale, on the lists where the teacher ranks the source first
             m = e.get("mnrl") or {}
             elig = m.get("eligibility") or {}
@@ -3846,11 +3849,33 @@ def _adapted_cpu_lines(cpu: dict | None) -> list[str]:
     return lines
 
 
+ADAPTED_SCOPE_WORDS = {"held_out": "held-out half", "tune": "tune half", "all_questions": "all questions"}
+
+
+def _adapted_reproduction(blobs: dict[str, dict | None], present: list[tuple[str, str]]) -> list[str]:
+    """Per dataset, whether the run's recomputed base rows equal the committed ones (_reproduction), each check labelled
+    by the scope it compared: the fixture runner compares its all-questions rows with neural.json and its held-out rows
+    with small_rerankers.json (its `scope`), so a single "held-out" label would misname the first."""
+    notes = []
+    for d, label in present:
+        blob = blobs.get(d) or {}
+        blocks = blob.get("reproduces") or blob.get("reproduce")
+        if d != "fixture" or not isinstance(blocks, list):
+            notes.append(f"{label}: " + _reproduction(blocks))
+            continue
+        for b in blocks:
+            scope = b.get("scope")
+            where = ADAPTED_SCOPE_WORDS.get(scope, scope) if scope else f"all {blob.get('n_gold') or 'the'} questions"
+            notes.append(f"fixture v1, {where}: " + _reproduction([b]))
+    return notes
+
+
 def adapted_embedders_table(root: Path | None) -> str:
     """M48: bge-small fine-tuned on M43's synthetic queries and teacher scores, against the published model recomputed in
     the same run, on the three datasets: the bar, every arm (losers and "not run" kept), the twin and seen-document
     splits, the seeds, the training and the CPU cost."""
     from app.eval import adapted_embedders as ae
+    from app.eval.beir import COMMITTED_FILES
 
     table = ae.bar_table(root)
     if not table["datasets"] and table["refused"]:
@@ -3932,16 +3957,24 @@ def adapted_embedders_table(root: Path | None) -> str:
     base_table = ae.bar_table(root, base=True)
     if base_table["datasets"]:
         base_present = [(d, label) for d, label in ADAPTED_DATASETS if d in base_table["datasets"]]
+        base_blobs = {d: _load(root, rel) for d, rel in ae.BASE_RESULTS.items()}
+        timed = ["`" + r["arm"] + "`" for r in (_load(root, ae.CPU_FILE) or {}).get("results") or []]
+        cost = "its CPU cost is not measured: " + (f"{ae.CPU_FILE} times {_and(timed)} only" if timed else f"{ae.CPU_FILE} is missing")
+        committed = ["`" + COMMITTED_FILES[d] + "`" for d, _ in base_present if d in COMMITTED_FILES]
+        no_parent = (f"Said before any run: {_and(committed)} {'holds' if len(committed) == 1 else 'hold'} no bge-base row, so its BEIR "
+                     f"parents have no committed row to reproduce. " if committed else "")
         lines += ["", f"bge-base, exploratory, in its own files ({_and([f'[{ae.BASE_RESULTS[d]}]({ae.BASE_RESULTS[d]})' for d, _ in base_present])}): "
-                      f"the same bar form for `hybrid@{ae.BASE_ARM}` against `hybrid@bge-base` reads **{base_table['outcome']}** (exploratory).", "",
-                  *_adapted_table(base_table, base_present, "hybrid", count)]
+                      f"the same bar form for `hybrid@{ae.BASE_ARM}` against `hybrid@bge-base` reads **{base_table['outcome']}** (exploratory). "
+                      f"Its rows are paired with `dense@bge-base` and `hybrid@bge-base` recomputed in the same run. {no_parent}bge-base is not "
+                      f"the served architecture, and {cost}.", "",
+                  "Hybrid (the bar's form):", "", *_adapted_table(base_table, base_present, "hybrid", count), "",
+                  "Dense alone (a secondary read):", "", *_adapted_table(base_table, base_present, "dense", count), "",
+                  "Other paired deltas declared before any run, all exploratory:", "", *_adapted_other_pairs(base_table, base_present, count), "",
+                  "Do bge-base's recomputed base rows reproduce the committed ones? " + " ".join(_adapted_reproduction(base_blobs, base_present))]
     if base_table["refused"]:
         lines += ["", "bge-base files refused, not read (not a run of the committed checkpoints): "
                       + " ".join(f"`{r['file']}`: {'; '.join(r['reasons'])}." for r in base_table["refused"].values())]
-    notes = []
-    for d, label in present:
-        notes.append(f"{label}: " + _reproduction((blobs[d] or {}).get("reproduces") or (blobs[d] or {}).get("reproduce")))
-    lines += ["", "Do the recomputed base rows reproduce the committed ones? " + " ".join(notes)]
+    lines += ["", "Do the bge-small files' recomputed base rows reproduce the committed ones? " + " ".join(_adapted_reproduction(blobs, present))]
     chance = count.n * 0.025
     lines += ["", f"**Reading the exploratory intervals.** This block shows {count.n} exploratory intervals besides the bar's three legs. With "
                   f"no real effect anywhere, about 2.5% of them ({chance:.1f}) would sit above zero by chance alone (one-sided), so a lone "
@@ -3956,8 +3989,11 @@ def adapted_embedders_table(root: Path | None) -> str:
                   "lines above say whether this run's base rows rank every query as the committed runs do); how far an adapted model's rankings "
                   "move across cards is not measured. "
                   f"Variance: {variance}. A clean \"what the fixture data added\": the control-vs-bar delta is confounded by s, the number of "
-                  "training lists and the corpus mix. A paired comparison with Qwen3 or harrier: their rows come from other runs. GPL "
-                  "itself: other queries, another teacher, a cosine model with a fixed scale and about 5k steps.",
+                  "training lists and the corpus mix. Label-free in the strict sense: this pipeline read no test query, gold label or qrel, "
+                  "but the teacher's and the published models' own training data are unknown and may include these benchmarks' train "
+                  "splits. Reranked rows: the served shape has no reranker, so none is measured here. A paired comparison with Qwen3 or "
+                  "harrier: their rows come from other runs. GPL itself: other queries, another teacher, a cosine model with a fixed scale "
+                  "and about 5k steps.",
               "", "Results: " + " · ".join(f"[{ae.RESULTS[d]}]({ae.RESULTS[d]})" for d, _ in present)
               + (f" · [{ae.CPU_FILE}]({ae.CPU_FILE})" if _load(root, ae.CPU_FILE) else "")
               + f" · [{ae.MANIFEST_FILE}]({ae.MANIFEST_FILE}) · [{ae.TWINS_FILE}]({ae.TWINS_FILE})"
