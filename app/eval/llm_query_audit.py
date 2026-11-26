@@ -19,6 +19,10 @@ test qrels, and the M46 results sidecars for the subgroup delta of (c).
   (d) grader vs qrels   per model and dataset, the precision and recall of "yes" against the relevant units (fixture: a
                         chunk whose file is a gold path); unusable grades are counted and left out. SciFact's qrels are
                         sparse, so an unjudged document is not known to be irrelevant
+  (e) parser digits     per model, dataset and kind (multi-query, decomposition), the kept lines (read as scoring reads
+                        them: part (b)'s parser and its truncation rule) whose numbering-and-bullet strip removed a digit
+                        that belongs to the text, not to a list number ("401k plan" -> "k plan"); a count of what the
+                        frozen parser did, not a re-measurement
 """
 
 from __future__ import annotations
@@ -43,7 +47,15 @@ DOES_NOT_SHOW = (
     "The subgroup delta of (c) is chosen by a variable that reads the qrels: it is biased and descriptive, not an estimate.",
     "The grader's precision and recall (d) are against qrels that are sparse on SciFact; they explain the corrective rows "
     "and are not a judge metric.",
+    "The declared line parser (part (b), frozen at D1) also strips leading digits that belong to the text (\"401k plan\" -> "
+    "\"k plan\"); (e) counts the kept lines it altered, and the scored rows used those lines as altered. A corrected parser "
+    "would be a second attempt and was not run, so what those lines did to any interval is not measured.",
 )
+_LIST_NUMBER = re.compile(r"\d+[.)]")
+DIGITS_RULE = ("a kept multi-query alternative or sub-question (read as scoring reads it: part (b)'s parser, its truncation "
+               "rule, the first reply line that gives the kept text) whose numbering-and-bullet strip (^[\\d.)\\-*\\s]+, "
+               "repeated with the quote and markdown strip) removed a digit that is not part of a list number (digits followed "
+               "by '.' or ')'): \"401k plan\" -> \"k plan\", \"1. 401k plan\" -> \"k plan\"; \"2) index funds\" loses nothing")
 
 
 def tokens(text: str) -> list[str]:
@@ -202,6 +214,74 @@ def grader_audit(root: Path, data_dir: Path, models: Sequence[str], parents: dic
     return out
 
 
+def strip_line(line: str) -> tuple[str, bool]:
+    """The text part (b)'s line parser makes of one reply line (its own loop: the numbering-and-bullet strip, then quotes
+    and markdown, until nothing changes), and whether the strip removed a digit that is not part of a list number."""
+    from app.eval.llm_query_parse import _BULLET, _strip_wrapping
+
+    text, prev, removed = line.strip(), None, ""
+    while prev != text:
+        prev = text
+        m = _BULLET.match(text)
+        if m:
+            removed += m.group(0)
+        text = _strip_wrapping(_BULLET.sub("", text).strip())
+    return text, any(c.isdigit() for c in _LIST_NUMBER.sub("", removed))
+
+
+def kept_lines_losing_digits(entry: dict, kind: str, query: str) -> tuple[int, int]:
+    """(the lines the arm kept, how many of them lost a digit of their text) for one cached multi-query or decomposition
+    call, read through read_call as scoring reads it. A kept text comes from the first reply line that gives it."""
+    from app.eval.llm_query_arms import read_call
+
+    kept, _, truncated = read_call(entry, kind, query)
+    if not kept:
+        return 0, 0
+    want = {k.lower() for k in kept}
+    lines = (entry.get("reply") or "").split("\n")
+    if truncated:
+        lines = lines[:-1]  # the parser drops the cut line
+    seen: set[str] = set()
+    lost = 0
+    for line in lines:
+        text, digits = strip_line(line)
+        key = text.lower()
+        if key in want and key not in seen:
+            seen.add(key)
+            lost += int(digits)
+    return len(kept), lost
+
+
+def parser_digits_audit(root: Path, models: Sequence[str], parents: dict) -> dict[str, Any]:
+    out: dict[str, Any] = {"rule": DIGITS_RULE, "datasets": {}}
+    lost_total, pairs = 0, set()
+    for dataset in spec.DATASETS:
+        if dataset not in parents:
+            continue
+        texts = {q["id"]: q["text"] for q in parents[dataset]["queries"]}
+        for tag in models:
+            entries = _entries(root, dataset, tag)
+            if not entries:
+                continue
+            block: dict[str, Any] = {}
+            for kind in ("multiquery", "decompose"):
+                calls = kept = lost = 0
+                qids: list[str] = []
+                for e in entries:
+                    if e["kind"] != kind:
+                        continue
+                    k, n = kept_lines_losing_digits(e, kind, texts[e["qid"]])
+                    calls, kept, lost = calls + 1, kept + k, lost + n
+                    if n:
+                        qids.append(e["qid"])
+                        pairs.add((dataset, tag, e["qid"]))
+                block[kind] = {"calls": calls, "kept_lines": kept, "kept_lines_losing_digits": lost, "queries": len(qids), "qids": sorted(qids)}
+                lost_total += lost
+            out["datasets"].setdefault(dataset, {})[tag] = block
+    out["total"] = {"kept_lines_losing_digits": lost_total, "model_query_pairs": len(pairs)}
+    return out
+
+
 def audit(root: Path, data_dir: Path, models: Sequence[str]) -> dict[str, Any]:
     from app.eval.llm_query_arms import load_parents
     from app.eval.provenance import command_line, git_sha, run_provenance
@@ -212,6 +292,7 @@ def audit(root: Path, data_dir: Path, models: Sequence[str]) -> dict[str, Any]:
     blob["fixture"] = fixture_audit(root, models)
     blob["beir_verbatim"] = {d: beir_audit(root, data_dir, d, models, parents) for d in ("scifact", "fiqa") if d in parents}
     blob["grader_vs_qrels"] = grader_audit(root, data_dir, models, parents)
+    blob["parser_digits"] = parser_digits_audit(root, models, parents)
     blob["does_not_show"] = list(DOES_NOT_SHOW)
     return blob
 
@@ -226,6 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     out = args.out if args.out.is_absolute() else ROOT / args.out
     out.write_text(json.dumps(blob, indent=1) + "\n")
     print(json.dumps({k: blob[k] for k in ("fixture", "beir_verbatim", "grader_vs_qrels")}, indent=1)[:4000])
+    print(json.dumps(blob["parser_digits"]["total"]))
     print(f"wrote {out}")
     return 0
 

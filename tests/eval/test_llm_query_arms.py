@@ -967,6 +967,30 @@ def test_the_audit_reads_the_caches_and_shares_only(fixture_pipeline, tmp_root):
     assert g["tp"] + g["fp"] + g["fn"] + g["tn"] + g["unusable"] == g["graded"] > 0
 
 
+def test_the_audit_counts_kept_lines_whose_digits_the_declared_strip_removed(fixture_pipeline, tmp_root):
+    """(e): part (b)'s strip (^[\\d.)\\-*\\s]+) also removes digits that belong to the text; the audit counts the kept
+    lines it altered, tracing each kept text to the first reply line that gives it, as the parser does."""
+    from app.eval import llm_query_audit as audit
+    from app.eval.llm_query_arms import load_parents
+
+    assert audit.strip_line("401k asset allocation") == ("k asset allocation", True)
+    assert audit.strip_line("1. 401k rollover rules") == ("k rollover rules", True)
+    assert gen.digits_lost("1. 401k rollover rules") == 0  # the probe's counter did not see a numbered line's loss
+    assert audit.strip_line("**1.** 1031 exchange") == ("exchange", True)
+    assert audit.strip_line("2) index funds") == ("index funds", False)
+    assert audit.strip_line("- **index funds**") == ("index funds", False)
+    entry = {"kind": "multiquery", "reply": "401k rules\n- 401k rules\nindex funds\n2023 taxes", "done_reason": "stop", "prompt_eval_count": 50}
+    assert audit.kept_lines_losing_digits(entry, "multiquery", "q") == (2, 1)  # "k rules" and "index funds"; the 2023 line is not kept
+    assert audit.kept_lines_losing_digits({**entry, "reply": "index funds\n401k rules", "done_reason": "length"}, "multiquery", "q") == (1, 0)
+    assert audit.kept_lines_losing_digits({**entry, "reply": "k rules\n401k rules\nbonds"}, "multiquery", "q") == (2, 0)  # kept from line 1
+    assert audit.kept_lines_losing_digits({**entry, "reply": ""}, "multiquery", "q") == (0, 0)
+    blob = audit.parser_digits_audit(tmp_root, list(spec.BAR_MODELS), {"fixture": load_parents(tmp_root)["fixture"]})
+    q = blob["datasets"]["fixture"]["qwen3.5-27b"]
+    assert q["multiquery"] == {"calls": 136, "kept_lines": 272, "kept_lines_losing_digits": 0, "queries": 0, "qids": []}
+    assert blob["datasets"]["fixture"]["gemma4-26b"]["multiquery"]["kept_lines"] == 0  # its multi-query replies are empty
+    assert blob["total"] == {"kept_lines_losing_digits": 0, "model_query_pairs": 0} and "401k" in blob["rule"]
+
+
 def test_every_row_of_every_m46_results_file_appears_in_the_readme_block(fixture_pipeline, tmp_root):
     from app.eval import report
 
