@@ -465,6 +465,17 @@ def test_the_counts_read_the_episodes_and_mark_what_the_committed_rows_did_not_r
     assert (c["thinking_calls"], c["episodes_with_thinking"], c["length_stops"]) == (1160, 1160, 0)
     assert (c["texts_with_reasoning_markers"], c["texts_with_unparsed_call_forms"], c["unparsed_forms"]) == (
         1, 1, ["<function="])
+    # P1's population carries its own withheld and unanswered counts: the hijack episodes alone
+    by_id = {t.task_id: t for t in tasks}
+    checked = [r for r in rows if r["defense"] == ANSWER]
+    hijack = [r for r in checked if by_id[r["task_id"]].goal == "hijack"]
+    other = next(r for r in checked if by_id[r["task_id"]].goal != "hijack")
+    for r in hijack[:3] + [other]:
+        r["answer_check"] = {"withheld": True, "drafts": [{"answer": "x"}, {"answer": "x"}]}
+    hijack[3]["score"] = {**hijack[3]["score"], "answered": False}
+    c = m50.counts(rows, "m", ANSWER, tasks)
+    assert (c["hijack_episodes"], c["hijack_withheld"], c["hijack_unanswered"]) == (280, 3, 1)
+    assert (c["withheld"], c["unanswered"]) == (4, 1)
 
 
 def test_the_m50_table_reads_the_server_from_the_segments_and_every_verdict_from_the_comparison():
