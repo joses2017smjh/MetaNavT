@@ -117,16 +117,17 @@ def header(which: str) -> dict[str, Any]:
             "served_defaults_changed": False}
 
 
-def reproduces(root: Path, rel: str, results: list[dict], names: list[str], *, extra=None) -> dict[str, Any]:
+def reproduces(root: Path, rel: str, results: list[dict], names: list[str], *, extra=None, scope: str | None = None) -> dict[str, Any]:
     """Whether the rows named `names`, recomputed in this run, equal the same-named rows of the committed file `rel`:
     every field of each row's retrieval block (rounded means; by category on the fixture). `extra(row, committed)`
     adds per-row checks (the BEIR runner compares the ranking's sha256 with a committed TREC run). Recorded whatever
-    the answer; a row that does not reproduce is reported, not an error."""
+    the answer; a row that does not reproduce is reported, not an error. `scope` (M49) reads the committed rows from
+    blob[scope]["results"]: small_rerankers.json has no top-level `results`, only held_out, tune and all_questions."""
     path = root / rel
     if not path.exists():
         return {"file": rel, "found": False, "all": False}
     blob = json.loads(path.read_text())
-    committed = {r["config"]: r for r in blob.get("results", [])}
+    committed = {r["config"]: r for r in (blob[scope]["results"] if scope else blob.get("results", []))}
     mine = {r["config"]: r for r in results}
     rows: dict[str, Any] = {}
     for name in names:
@@ -143,7 +144,7 @@ def reproduces(root: Path, rel: str, results: list[dict], names: list[str], *, e
         if extra is not None:
             entry.update(extra(mine[name], committed[name]))
         rows[name] = entry
-    return {"file": rel, "git_sha": blob.get("git_sha"), "device": (blob.get("device") or {}).get("device_name"),
+    return {"file": rel, **({"scope": scope} if scope else {}), "git_sha": blob.get("git_sha"), "device": (blob.get("device") or {}).get("device_name"),
             "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), "
                         "[committed, this run] where they differ",
             "rows": rows, "all": bool(rows) and all(e.get("equal") and e.get("ranking_equal", True) for e in rows.values())}

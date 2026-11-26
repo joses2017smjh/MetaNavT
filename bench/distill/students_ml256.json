@@ -1,0 +1,765 @@
+{
+  "about": "the students of app/eval/small_rerankers.py: what each was trained from and on, its loss after every epoch, and the sha256 of its checkpoint files. The checkpoints are not in the repository; a row that uses one records weights_sha256, and a load is checked against reference_logits",
+  "students": {
+    "student-minilm-l6-ml256": {
+      "directory": "student-minilm-l6-ml256",
+      "weights_sha256": "f3646ac9523e113ca40178dbe68a1700f01c32dd38636285b88c95f427fc3982",
+      "weights_bytes": 90866412,
+      "training_device": "Quadro RTX 8000",
+      "student": "student-minilm-l6-ml256",
+      "attempt": 2,
+      "init": {
+        "tag": "minilm-l6",
+        "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "licence": "apache-2.0",
+        "parameters": 22714113,
+        "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+        "load_and_score": {
+          "query": "What is the capital of China?",
+          "score_answer": 0.999922,
+          "score_other": 1.6e-05,
+          "score_answer_long": 0.893338,
+          "passed": true
+        }
+      },
+      "recipe": {
+        "teacher": "mixedbread-ai/mxbai-rerank-large-v2",
+        "targets": "the teacher's raw logits (fp32, max_length 512), one per candidate",
+        "list": "the fused top 20 of hybrid@bge-small for a synthetic query (the candidates a served reranker sees), plus the query's source document when it is not among them",
+        "loss": "MarginMSE over every pair of candidates of one query's list: the mean over i < j of ((s_i - s_j) - (t_i - t_j))^2, s the student's logit and t the teacher's",
+        "max_length": 256,
+        "lists_per_step": 8,
+        "epochs": 4,
+        "steps_per_epoch": "ceil(training lists / lists_per_step)",
+        "optimizer": "AdamW, betas (0.9, 0.999)",
+        "learning_rate": 2e-05,
+        "weight_decay": 0.01,
+        "schedule": "linear warm-up over the first 10% of the steps, then linear decay to zero",
+        "warmup_fraction": 0.1,
+        "max_grad_norm": 1.0,
+        "precision": "float32 weights and float32 arithmetic (no mixed precision: the targets are logit differences)",
+        "seed": 0,
+        "corpus_mixing": "each list of a step comes from a corpus drawn with probability proportional to the square root of that corpus's number of training lists; inside a corpus lists are drawn without replacement and reshuffled when exhausted",
+        "validation": "the synthetic queries of 5% of each corpus's source documents (at least 4 documents), held out by document before training; never a gold question, a tune-half question or a BEIR query",
+        "selection": "the epoch end with the lowest validation loss: the same MarginMSE, averaged per corpus and then over the three corpora; ties go to the earlier epoch"
+      },
+      "smoke_run_max_steps": null,
+      "memory": {
+        "micro_lists": null,
+        "validation_lists": 32,
+        "note": "how a step's lists were split for the GPU's memory; the optimizer steps once per lists_per_step lists either way"
+      },
+      "lists": {
+        "train": {
+          "fiqa": 5129,
+          "fixture": 691,
+          "scifact": 4267
+        },
+        "validation": {
+          "fiqa": 270,
+          "fixture": 42,
+          "scifact": 223
+        },
+        "pairs_train": {
+          "fiqa": 102834,
+          "fixture": 13850,
+          "scifact": 85340
+        }
+      },
+      "steps_per_epoch": 1261,
+      "steps": 5044,
+      "lists_drawn": {
+        "fiqa": 17834,
+        "fixture": 6662,
+        "scifact": 15856
+      },
+      "validation_before_training": {
+        "fiqa": 14.494331,
+        "fixture": 10.952128,
+        "scifact": 14.795354,
+        "macro": 13.413938
+      },
+      "epochs": [
+        {
+          "epoch": 1,
+          "train_loss": 5.7925,
+          "validation_loss": {
+            "fiqa": 4.320087,
+            "fixture": 1.351933,
+            "scifact": 5.83831
+          },
+          "validation_macro": 3.836777,
+          "pairs": 202056,
+          "seconds": 698.8
+        },
+        {
+          "epoch": 2,
+          "train_loss": 4.133211,
+          "validation_loss": {
+            "fiqa": 4.040003,
+            "fixture": 0.995039,
+            "scifact": 5.464444
+          },
+          "validation_macro": 3.499829,
+          "pairs": 202066,
+          "seconds": 1400.6
+        },
+        {
+          "epoch": 3,
+          "train_loss": 3.70908,
+          "validation_loss": {
+            "fiqa": 3.986512,
+            "fixture": 0.932182,
+            "scifact": 5.417784
+          },
+          "validation_macro": 3.445492,
+          "pairs": 202046,
+          "seconds": 2104.7
+        },
+        {
+          "epoch": 4,
+          "train_loss": 3.490639,
+          "validation_loss": {
+            "fiqa": 3.960627,
+            "fixture": 0.899649,
+            "scifact": 5.279769
+          },
+          "validation_macro": 3.380015,
+          "pairs": 202050,
+          "seconds": 2806.1
+        }
+      ],
+      "chosen_epoch": 4,
+      "first_step_loss": {
+        "torch": 12.470352172851562,
+        "numpy": 12.470352597606709,
+        "chunks": 1
+      },
+      "train_seconds": 2806.2,
+      "device": "cuda:0",
+      "dtype": "torch.float32",
+      "loaded_max_length": 256,
+      "default_prompt_name": null,
+      "default_prompt": null,
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 0.999413,
+        "score_other": 4.7e-05,
+        "score_answer_long": 0.894759,
+        "passed": true
+      },
+      "git_sha": "8273b15",
+      "git_head": "8273b156c05d14af4e02f0054f4c45609d3ef4b1",
+      "working_tree_dirty": false,
+      "source_sha256": {
+        "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+        "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+        "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+        "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+        "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+        "app/eval/beir.py": "5b1b7efab080fc0f355d85e7a2ad14dc15e2b6887be1ace6321f6e27209bb5f6",
+        "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+        "app/eval/distill_teacher.py": "b57b4bf8fefd80c68b5417ed2e015e269df76d965b3694745e7f7c286c3f1880",
+        "app/eval/distill_train.py": "3793b8d5efb418951b13a8a0020d2d692b799eda16197f54fe8b90ff25829f0e",
+        "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+        "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+        "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+        "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+        "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+        "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+        "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+        "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+        "app/eval/small_rerankers.py": "723f7f81c64d37bb77ff7a44bea32ce4e4364efbb1624ada88479165d206bc79",
+        "app/eval/small_rerankers_shapes.py": "d354aa0c6cf3e6b93d091591ae5f2c2c25df9e38109b9c29ea8bd70f0e3638c9",
+        "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+        "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+        "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+        "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+        "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+        "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+        "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+        "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+        "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+        "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+      },
+      "timestamp": "2026-11-25T23:13:12.797231+00:00",
+      "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.distill_train train --student student-minilm-l6 --max-length 256 --attempt 2 --tag student-minilm-l6-ml256 --data-dir <path>/data --checkpoint-dir <path>/ckpt",
+      "machine": {
+        "requested": "auto",
+        "python": "3.11.16",
+        "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+        "cpu_count": 48,
+        "cpu_model": "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz",
+        "torch": "2.5.1+cu121",
+        "cuda_available": true,
+        "device": "cuda",
+        "device_name": "Quadro RTX 8000",
+        "threads": 1,
+        "sentence_transformers": "6.1.0"
+      },
+      "data": {
+        "queries.jsonl.gz": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050",
+        "teacher_scores.jsonl.gz": "fb1972427a2159e3140f61a4a17c1af261360ffd1da81e88f78888cb4f707705"
+      },
+      "files": {
+        "config.json": {
+          "sha256": "825c92ad1fdf9cfa3bb4b61ba3987c0422e0c3f4f5ca1915979c56d9bf5ab89c",
+          "bytes": 843
+        },
+        "config_sentence_transformers.json": {
+          "sha256": "ebcf9c07406fa86c5a50b347bf92b16bd27e3d8038b3eeb8e8575ed20aa63e6a",
+          "bytes": 258
+        },
+        "model.safetensors": {
+          "sha256": "f3646ac9523e113ca40178dbe68a1700f01c32dd38636285b88c95f427fc3982",
+          "bytes": 90866412
+        },
+        "modules.json": {
+          "sha256": "ec085e5249603c4bbf035028f530b68d78a7387110828d554d3193f41e1b67b9",
+          "bytes": 131
+        },
+        "sentence_bert_config.json": {
+          "sha256": "d43017ebfb955afe9b83122ef46e15db65d0353a42884c8ad40fb442226e5363",
+          "bytes": 225
+        },
+        "tokenizer.json": {
+          "sha256": "851ca67100d372ca3ae031a6abd168f53489eebfd7d89523f35c5c9b4d372c3c",
+          "bytes": 711649
+        },
+        "tokenizer_config.json": {
+          "sha256": "598806b75470765faa27a65f650617aa3b854027c181a743bd27f21cdb89c9df",
+          "bytes": 442
+        }
+      },
+      "reference_logits": [
+        {
+          "id": "fixture:logs/run_043.out::e5eb9416bf2c:k1",
+          "candidates": [
+            "logs/run_043.out::e5eb9416bf2c",
+            "logs/run_040.out::e51c5ab2cb32",
+            "logs/run_041.out::dd66c8d2239c",
+            "logs/run_042.out::2a2e8233ceb1",
+            "logs/run_050.out::2867f467033c",
+            "logs/run_045.out::3afd4349101c",
+            "logs/run_044.out::e9cf6890d58c",
+            "configs/run_043.yaml::15e4fe97a34c",
+            "logs/run_055.out::6c200bb802b1",
+            "logs/run_054.out::f72d7e188b4f",
+            "logs/run_046.out::ca33f9b22c6e",
+            "logs/run_053.out::75a874aa15b4",
+            "logs/run_048.out::92ca3c275fb1",
+            "logs/run_051.out::a51115fae802",
+            "logs/run_049.out::074b548a78e6",
+            "logs/run_047.out::f8766aa6405e",
+            "logs/run_052.out::e5e688815eed",
+            "configs/run_040.yaml::f51a80241e01",
+            "configs/run_042.yaml::f71733c83b0b",
+            "configs/run_041.yaml::c00a02fe5743"
+          ],
+          "logits": [
+            3.133827,
+            -0.878561,
+            -0.792387,
+            -0.457301,
+            -1.001849,
+            -0.659221,
+            -0.293665,
+            0.664676,
+            -1.077778,
+            -0.930314,
+            -0.633425,
+            -0.940552,
+            -0.749748,
+            -1.05239,
+            -0.894826,
+            -0.740668,
+            -1.004583,
+            -4.831268,
+            -4.127091,
+            -4.700636
+          ]
+        },
+        {
+          "id": "fixture:logs/run_043.out::e5eb9416bf2c:k2",
+          "candidates": [
+            "configs/run_043.yaml::15e4fe97a34c",
+            "logs/run_042.out::2a2e8233ceb1",
+            "logs/run_040.out::e51c5ab2cb32",
+            "logs/run_045.out::3afd4349101c",
+            "logs/run_049.out::074b548a78e6",
+            "logs/run_043.out::e5eb9416bf2c",
+            "configs/run_042.yaml::f71733c83b0b",
+            "results/ablation.csv::6a39fd99e180",
+            "logs/run_041.out::dd66c8d2239c",
+            "checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea",
+            "logs/run_044.out::e9cf6890d58c",
+            "results/ablation.csv::f175214dd2b9",
+            "configs/run_040.yaml::f51a80241e01",
+            "checkpoints/run_046.ckpt.meta.json::345746f0c48c",
+            "logs/run_046.out::ca33f9b22c6e",
+            "results/ablation.csv::a4f718536f2c",
+            "configs/run_049.yaml::2276b9b53da0",
+            "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+            "logs/run_053.out::75a874aa15b4",
+            "configs/run_045.yaml::287782b4e727"
+          ],
+          "logits": [
+            2.076039,
+            0.425295,
+            0.197247,
+            0.245272,
+            0.150506,
+            3.508033,
+            -1.973177,
+            -0.978554,
+            0.214326,
+            -2.524096,
+            0.322107,
+            -1.388844,
+            -2.328284,
+            -2.307554,
+            0.237987,
+            -1.456686,
+            -2.670782,
+            -2.433012,
+            0.115273,
+            -2.439455
+          ]
+        },
+        {
+          "id": "fixture:logs/run_043.out::e5eb9416bf2c:k3",
+          "candidates": [
+            "configs/run_051.yaml::970f59b6d070",
+            "configs/run_043.yaml::15e4fe97a34c",
+            "configs/run_044.yaml::f5f0ffdd97f7",
+            "results/ablation.csv::42e38900299d",
+            "slurm/run_043.sbatch::74ac4df22202",
+            "slurm/run_051.sbatch::e9027320f11f",
+            "logs/run_051.out::a51115fae802",
+            "slurm/run_044.sbatch::1bcad5462ba1",
+            "configs/run_045.yaml::287782b4e727",
+            "configs/run_052.yaml::8670c0449efa",
+            "configs/archive/run_048_v1.yaml::77129dc9cec0",
+            "logs/run_043.out::e5eb9416bf2c",
+            "results/ablation.csv::a4f718536f2c",
+            "configs/run_049.yaml::2276b9b53da0",
+            "logs/run_044.out::e9cf6890d58c",
+            "results/ablation.csv::597d44102c87",
+            "configs/run_050.yaml::2de15b91bbf9",
+            "configs/run_055.yaml::6b3160084330",
+            "configs/run_040.yaml::f51a80241e01",
+            "logs/run_052.out::e5e688815eed"
+          ],
+          "logits": [
+            0.825853,
+            2.427364,
+            0.321384,
+            -0.405421,
+            0.211012,
+            -1.386893,
+            0.845029,
+            -1.450819,
+            -0.109622,
+            0.671784,
+            -0.423606,
+            2.333774,
+            -1.075113,
+            -0.252387,
+            -0.338281,
+            -1.117694,
+            -0.315692,
+            -0.348332,
+            -0.102763,
+            0.153693
+          ]
+        }
+      ],
+      "reload_check": {
+        "lists": 3,
+        "max_abs_difference": 0.0,
+        "tolerance": 0.001
+      }
+    },
+    "student-minilm-l12-ml256": {
+      "directory": "student-minilm-l12-ml256",
+      "weights_sha256": "3c0fd2d3fce622d1706d6030dd7237ecdeae2f12a4cdf23886db1ad0bcd91155",
+      "weights_bytes": 133464836,
+      "training_device": "NVIDIA A40",
+      "student": "student-minilm-l12-ml256",
+      "attempt": 2,
+      "init": {
+        "tag": "minilm-l12",
+        "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+        "licence": "apache-2.0",
+        "parameters": 33360897,
+        "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+        "load_and_score": {
+          "query": "What is the capital of China?",
+          "score_answer": 0.999925,
+          "score_other": 1.6e-05,
+          "score_answer_long": 0.950707,
+          "passed": true
+        }
+      },
+      "recipe": {
+        "teacher": "mixedbread-ai/mxbai-rerank-large-v2",
+        "targets": "the teacher's raw logits (fp32, max_length 512), one per candidate",
+        "list": "the fused top 20 of hybrid@bge-small for a synthetic query (the candidates a served reranker sees), plus the query's source document when it is not among them",
+        "loss": "MarginMSE over every pair of candidates of one query's list: the mean over i < j of ((s_i - s_j) - (t_i - t_j))^2, s the student's logit and t the teacher's",
+        "max_length": 256,
+        "lists_per_step": 8,
+        "epochs": 4,
+        "steps_per_epoch": "ceil(training lists / lists_per_step)",
+        "optimizer": "AdamW, betas (0.9, 0.999)",
+        "learning_rate": 2e-05,
+        "weight_decay": 0.01,
+        "schedule": "linear warm-up over the first 10% of the steps, then linear decay to zero",
+        "warmup_fraction": 0.1,
+        "max_grad_norm": 1.0,
+        "precision": "float32 weights and float32 arithmetic (no mixed precision: the targets are logit differences)",
+        "seed": 0,
+        "corpus_mixing": "each list of a step comes from a corpus drawn with probability proportional to the square root of that corpus's number of training lists; inside a corpus lists are drawn without replacement and reshuffled when exhausted",
+        "validation": "the synthetic queries of 5% of each corpus's source documents (at least 4 documents), held out by document before training; never a gold question, a tune-half question or a BEIR query",
+        "selection": "the epoch end with the lowest validation loss: the same MarginMSE, averaged per corpus and then over the three corpora; ties go to the earlier epoch"
+      },
+      "smoke_run_max_steps": null,
+      "memory": {
+        "micro_lists": null,
+        "validation_lists": 32,
+        "note": "how a step's lists were split for the GPU's memory; the optimizer steps once per lists_per_step lists either way"
+      },
+      "lists": {
+        "train": {
+          "fiqa": 5129,
+          "fixture": 691,
+          "scifact": 4267
+        },
+        "validation": {
+          "fiqa": 270,
+          "fixture": 42,
+          "scifact": 223
+        },
+        "pairs_train": {
+          "fiqa": 102834,
+          "fixture": 13850,
+          "scifact": 85340
+        }
+      },
+      "steps_per_epoch": 1261,
+      "steps": 5044,
+      "lists_drawn": {
+        "fiqa": 17834,
+        "fixture": 6662,
+        "scifact": 15856
+      },
+      "validation_before_training": {
+        "fiqa": 15.157479,
+        "fixture": 11.979701,
+        "scifact": 14.798484,
+        "macro": 13.978555
+      },
+      "epochs": [
+        {
+          "epoch": 1,
+          "train_loss": 5.281613,
+          "validation_loss": {
+            "fiqa": 3.963862,
+            "fixture": 0.986567,
+            "scifact": 5.511492
+          },
+          "validation_macro": 3.487307,
+          "pairs": 202056,
+          "seconds": 799.9
+        },
+        {
+          "epoch": 2,
+          "train_loss": 3.695441,
+          "validation_loss": {
+            "fiqa": 3.747502,
+            "fixture": 0.801578,
+            "scifact": 5.111699
+          },
+          "validation_macro": 3.22026,
+          "pairs": 202066,
+          "seconds": 1599.5
+        },
+        {
+          "epoch": 3,
+          "train_loss": 3.237447,
+          "validation_loss": {
+            "fiqa": 3.721996,
+            "fixture": 0.802934,
+            "scifact": 5.0006
+          },
+          "validation_macro": 3.175177,
+          "pairs": 202046,
+          "seconds": 2399.9
+        },
+        {
+          "epoch": 4,
+          "train_loss": 3.030174,
+          "validation_loss": {
+            "fiqa": 3.654969,
+            "fixture": 0.786105,
+            "scifact": 4.917473
+          },
+          "validation_macro": 3.119516,
+          "pairs": 202050,
+          "seconds": 3199.1
+        }
+      ],
+      "chosen_epoch": 4,
+      "first_step_loss": {
+        "torch": 12.321516990661621,
+        "numpy": 12.321516557863575,
+        "chunks": 1
+      },
+      "train_seconds": 3199.2,
+      "device": "cuda:0",
+      "dtype": "torch.float32",
+      "loaded_max_length": 256,
+      "default_prompt_name": null,
+      "default_prompt": null,
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 0.999192,
+        "score_other": 9e-05,
+        "score_answer_long": 0.959371,
+        "passed": true
+      },
+      "git_sha": "8273b15",
+      "git_head": "8273b156c05d14af4e02f0054f4c45609d3ef4b1",
+      "working_tree_dirty": false,
+      "source_sha256": {
+        "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+        "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+        "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+        "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+        "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+        "app/eval/beir.py": "5b1b7efab080fc0f355d85e7a2ad14dc15e2b6887be1ace6321f6e27209bb5f6",
+        "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+        "app/eval/distill_teacher.py": "b57b4bf8fefd80c68b5417ed2e015e269df76d965b3694745e7f7c286c3f1880",
+        "app/eval/distill_train.py": "3793b8d5efb418951b13a8a0020d2d692b799eda16197f54fe8b90ff25829f0e",
+        "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+        "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+        "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+        "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+        "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+        "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+        "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+        "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+        "app/eval/small_rerankers.py": "723f7f81c64d37bb77ff7a44bea32ce4e4364efbb1624ada88479165d206bc79",
+        "app/eval/small_rerankers_shapes.py": "d354aa0c6cf3e6b93d091591ae5f2c2c25df9e38109b9c29ea8bd70f0e3638c9",
+        "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+        "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+        "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+        "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+        "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+        "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+        "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+        "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+        "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+        "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+      },
+      "timestamp": "2026-11-25T23:53:08.566985+00:00",
+      "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.distill_train train --student student-minilm-l12 --max-length 256 --attempt 2 --tag student-minilm-l12-ml256 --data-dir <path>/data --checkpoint-dir <path>/ckpt",
+      "machine": {
+        "requested": "auto",
+        "python": "3.11.16",
+        "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+        "cpu_count": 48,
+        "cpu_model": "AMD EPYC 74F3 24-Core Processor",
+        "torch": "2.5.1+cu121",
+        "cuda_available": true,
+        "device": "cuda",
+        "device_name": "NVIDIA A40",
+        "threads": 1,
+        "sentence_transformers": "6.1.0"
+      },
+      "data": {
+        "queries.jsonl.gz": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050",
+        "teacher_scores.jsonl.gz": "fb1972427a2159e3140f61a4a17c1af261360ffd1da81e88f78888cb4f707705"
+      },
+      "files": {
+        "config.json": {
+          "sha256": "4624cb73b68c0df6edf6c4a37c9fc7c4431659db522d7317cd9306272f10b4fb",
+          "bytes": 844
+        },
+        "config_sentence_transformers.json": {
+          "sha256": "ebcf9c07406fa86c5a50b347bf92b16bd27e3d8038b3eeb8e8575ed20aa63e6a",
+          "bytes": 258
+        },
+        "model.safetensors": {
+          "sha256": "3c0fd2d3fce622d1706d6030dd7237ecdeae2f12a4cdf23886db1ad0bcd91155",
+          "bytes": 133464836
+        },
+        "modules.json": {
+          "sha256": "ec085e5249603c4bbf035028f530b68d78a7387110828d554d3193f41e1b67b9",
+          "bytes": 131
+        },
+        "sentence_bert_config.json": {
+          "sha256": "d43017ebfb955afe9b83122ef46e15db65d0353a42884c8ad40fb442226e5363",
+          "bytes": 225
+        },
+        "tokenizer.json": {
+          "sha256": "851ca67100d372ca3ae031a6abd168f53489eebfd7d89523f35c5c9b4d372c3c",
+          "bytes": 711649
+        },
+        "tokenizer_config.json": {
+          "sha256": "598806b75470765faa27a65f650617aa3b854027c181a743bd27f21cdb89c9df",
+          "bytes": 442
+        }
+      },
+      "reference_logits": [
+        {
+          "id": "fixture:logs/run_043.out::e5eb9416bf2c:k1",
+          "candidates": [
+            "logs/run_043.out::e5eb9416bf2c",
+            "logs/run_040.out::e51c5ab2cb32",
+            "logs/run_041.out::dd66c8d2239c",
+            "logs/run_042.out::2a2e8233ceb1",
+            "logs/run_050.out::2867f467033c",
+            "logs/run_045.out::3afd4349101c",
+            "logs/run_044.out::e9cf6890d58c",
+            "configs/run_043.yaml::15e4fe97a34c",
+            "logs/run_055.out::6c200bb802b1",
+            "logs/run_054.out::f72d7e188b4f",
+            "logs/run_046.out::ca33f9b22c6e",
+            "logs/run_053.out::75a874aa15b4",
+            "logs/run_048.out::92ca3c275fb1",
+            "logs/run_051.out::a51115fae802",
+            "logs/run_049.out::074b548a78e6",
+            "logs/run_047.out::f8766aa6405e",
+            "logs/run_052.out::e5e688815eed",
+            "configs/run_040.yaml::f51a80241e01",
+            "configs/run_042.yaml::f71733c83b0b",
+            "configs/run_041.yaml::c00a02fe5743"
+          ],
+          "logits": [
+            4.038445,
+            0.180725,
+            0.3522,
+            0.747483,
+            -0.203662,
+            0.516108,
+            0.614543,
+            0.621406,
+            -0.358691,
+            -0.128502,
+            0.311165,
+            -0.175606,
+            0.177102,
+            -0.275062,
+            -0.200742,
+            0.208556,
+            -0.281646,
+            -3.808418,
+            -2.615768,
+            -3.196892
+          ]
+        },
+        {
+          "id": "fixture:logs/run_043.out::e5eb9416bf2c:k2",
+          "candidates": [
+            "configs/run_043.yaml::15e4fe97a34c",
+            "logs/run_042.out::2a2e8233ceb1",
+            "logs/run_040.out::e51c5ab2cb32",
+            "logs/run_045.out::3afd4349101c",
+            "logs/run_049.out::074b548a78e6",
+            "logs/run_043.out::e5eb9416bf2c",
+            "configs/run_042.yaml::f71733c83b0b",
+            "results/ablation.csv::6a39fd99e180",
+            "logs/run_041.out::dd66c8d2239c",
+            "checkpoints/run_048.ckpt.meta.json::3880b7f8c4ea",
+            "logs/run_044.out::e9cf6890d58c",
+            "results/ablation.csv::f175214dd2b9",
+            "configs/run_040.yaml::f51a80241e01",
+            "checkpoints/run_046.ckpt.meta.json::345746f0c48c",
+            "logs/run_046.out::ca33f9b22c6e",
+            "results/ablation.csv::a4f718536f2c",
+            "configs/run_049.yaml::2276b9b53da0",
+            "checkpoints/run_047.ckpt.meta.json::5845b3185651",
+            "logs/run_053.out::75a874aa15b4",
+            "configs/run_045.yaml::287782b4e727"
+          ],
+          "logits": [
+            2.775654,
+            1.831279,
+            1.427277,
+            1.599701,
+            1.310781,
+            4.508641,
+            -0.528715,
+            0.106238,
+            1.629354,
+            -1.677359,
+            1.739565,
+            -0.393937,
+            -1.075862,
+            -1.359369,
+            1.554777,
+            -0.389789,
+            -1.532956,
+            -1.600176,
+            1.289274,
+            -0.925507
+          ]
+        },
+        {
+          "id": "fixture:logs/run_043.out::e5eb9416bf2c:k3",
+          "candidates": [
+            "configs/run_051.yaml::970f59b6d070",
+            "configs/run_043.yaml::15e4fe97a34c",
+            "configs/run_044.yaml::f5f0ffdd97f7",
+            "results/ablation.csv::42e38900299d",
+            "slurm/run_043.sbatch::74ac4df22202",
+            "slurm/run_051.sbatch::e9027320f11f",
+            "logs/run_051.out::a51115fae802",
+            "slurm/run_044.sbatch::1bcad5462ba1",
+            "configs/run_045.yaml::287782b4e727",
+            "configs/run_052.yaml::8670c0449efa",
+            "configs/archive/run_048_v1.yaml::77129dc9cec0",
+            "logs/run_043.out::e5eb9416bf2c",
+            "results/ablation.csv::a4f718536f2c",
+            "configs/run_049.yaml::2276b9b53da0",
+            "logs/run_044.out::e9cf6890d58c",
+            "results/ablation.csv::597d44102c87",
+            "configs/run_050.yaml::2de15b91bbf9",
+            "configs/run_055.yaml::6b3160084330",
+            "configs/run_040.yaml::f51a80241e01",
+            "logs/run_052.out::e5e688815eed"
+          ],
+          "logits": [
+            1.400346,
+            3.559021,
+            0.65084,
+            1.01392,
+            0.905918,
+            -1.035524,
+            1.326669,
+            -1.09539,
+            0.699775,
+            1.884868,
+            0.573663,
+            3.316419,
+            -0.158817,
+            0.607345,
+            0.135616,
+            -0.006411,
+            0.50454,
+            0.496274,
+            0.612988,
+            1.032817
+          ]
+        }
+      ],
+      "reload_check": {
+        "lists": 3,
+        "max_abs_difference": 0.0,
+        "tolerance": 0.001
+      }
+    }
+  }
+}

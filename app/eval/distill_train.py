@@ -3,13 +3,18 @@
     python -m app.eval.distill_train train --student student-minilm-l6 --data-dir <BEIR dir> --checkpoint-dir <dir>
     python -m app.eval.distill_train manifest --checkpoint-dir <dir>        # -> bench/distill/students.json
 
+M51's Phase 2 retrains the same students with one setting changed (--max-length 256), as a later attempt under its
+own tag (--attempt 2 --tag student-minilm-l6-ml256), into its own manifest (manifest --students ... --attempt 2 --out
+bench/distill/students_ml256.json). Without those flags every path is M43's: train() defaults to RECIPE and ATTEMPT.
+
 A student is one of the small cross-encoders (STUDENTS names the candidate it starts from), fine-tuned without a
 label: its targets are the teacher's logits for the candidates of the synthetic queries
 (bench/distill/teacher_scores.jsonl.gz), and its checkpoint is the epoch end with the lowest loss on the synthetic
 queries of the held-out source documents. Nothing here opens a gold question, a BEIR query or a qrel: only the two
 committed files and the texts of the candidates (the fixture's chunks, each BEIR corpus.jsonl).
 
-Every setting comes from RECIPE; this module has no hyper-parameter of its own. The loss is MarginMSE over every pair
+Every setting comes from the recipe train() is given (RECIPE unless a later attempt changes one setting, see
+recipe_for); this module has no hyper-parameter of its own. The loss is MarginMSE over every pair
 of candidates in one query's list: with d = student logits - teacher logits, the mean over i < j of (d_i - d_j)^2.
 Pairs are tokenized and scored by the CrossEncoder's own preprocess() and forward, the path predict() takes when the
 model serves, so training and scoring cut a long passage at the same token.
@@ -153,12 +158,22 @@ def _validate(model, lists: dict[str, list[dict]], batch_lists: int = VALIDATION
     return out
 
 
+def recipe_for(max_length: int | None = None) -> dict[str, Any]:
+    """The recipe a run trains by: RECIPE itself (the very object) unless max_length names another cap, in which case
+    a copy of RECIPE with only max_length changed (M51's Phase 2). RECIPE is never edited."""
+    if max_length is None or max_length == RECIPE["max_length"]:
+        return RECIPE
+    return {**RECIPE, "max_length": int(max_length)}
+
+
 def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str | None = None, max_steps: int | None = None,
-          micro_lists: int | None = None, log=print) -> tuple[Any, dict[str, Any]]:
+          micro_lists: int | None = None, log=print, recipe: dict[str, Any] = RECIPE, attempt: int = ATTEMPT,
+          tag: str | None = None) -> tuple[Any, dict[str, Any]]:
     """(the student CrossEncoder holding the chosen epoch's weights, the training record). max_steps cuts every epoch
     short for a smoke run, which the record says and `manifest` refuses. micro_lists splits each step's lists into
     chunks whose gradients are accumulated before the one optimizer step (a GPU with less memory; recorded); it also
-    caps the lists of a validation forward pass."""
+    caps the lists of a validation forward pass. `student` names the init (STUDENTS); `recipe`, `attempt` and `tag`
+    default to M43's RECIPE, ATTEMPT and the student's own tag, and the record states what was used."""
     import torch
 
     from app.eval.models_2026 import ModelCheckFailed, check_reranker
@@ -167,23 +182,23 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
 
     init = CANDIDATES[STUDENTS[student]]
     check_revision(STUDENTS[student], hf_revision(init["model"]))
-    seed = RECIPE["seed"]
+    seed = recipe["seed"]
     torch.manual_seed(seed)
     np.random.seed(seed)
-    model = get_cross_encoder(init["model"], precision="fp32", max_length=RECIPE["max_length"], device=device, raise_errors=True)
+    model = get_cross_encoder(init["model"], precision="fp32", max_length=recipe["max_length"], device=device, raise_errors=True)
     init_check = check_reranker(model, init["model"])
     train_lists, val_lists = lists["train"], lists["validation"]
     sizes = {c: len(rows) for c, rows in train_lists.items()}
-    per_step = RECIPE["lists_per_step"]
+    per_step = recipe["lists_per_step"]
     steps_per_epoch = math.ceil(sum(sizes.values()) / per_step)
     if max_steps is not None:
         steps_per_epoch = min(steps_per_epoch, max_steps)
-    total = steps_per_epoch * RECIPE["epochs"]
+    total = steps_per_epoch * recipe["epochs"]
     decay = [p for n, p in model.named_parameters() if p.requires_grad and not any(k in n for k in ("bias", "LayerNorm.weight"))]
     no_decay = [p for n, p in model.named_parameters() if p.requires_grad and any(k in n for k in ("bias", "LayerNorm.weight"))]
-    optimizer = torch.optim.AdamW([{"params": decay, "weight_decay": RECIPE["weight_decay"]}, {"params": no_decay, "weight_decay": 0.0}],
-                                  lr=RECIPE["learning_rate"], betas=(0.9, 0.999))
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: lr_factor(step, total, RECIPE["warmup_fraction"]))
+    optimizer = torch.optim.AdamW([{"params": decay, "weight_decay": recipe["weight_decay"]}, {"params": no_decay, "weight_decay": 0.0}],
+                                  lr=recipe["learning_rate"], betas=(0.9, 0.999))
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: lr_factor(step, total, recipe["warmup_fraction"]))
     sampler = MixedSampler(sizes, seed)
     val_batch = min(VALIDATION_LISTS, micro_lists) if micro_lists else VALIDATION_LISTS
     before = _validate(model, val_lists, val_batch)
@@ -191,7 +206,7 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
     epochs, best_state, first_step_check = [], None, None
     drawn = {c: 0 for c in sizes}
     t0 = time.perf_counter()
-    for epoch in range(1, RECIPE["epochs"] + 1):
+    for epoch in range(1, recipe["epochs"] + 1):
         model.train()
         running, pairs_seen = [], 0
         for _ in range(steps_per_epoch):
@@ -227,7 +242,7 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
                 first_step_check = {"torch": step_loss, "numpy": float(np.mean(numpy_rows)), "chunks": len(micro_chunks(len(batch), micro_lists))}
                 if abs(first_step_check["torch"] - first_step_check["numpy"]) > 1e-3 * max(1.0, first_step_check["numpy"]):
                     raise RuntimeError(f"the training loss is not the declared MarginMSE: {first_step_check}")
-            torch.nn.utils.clip_grad_norm_(model.parameters(), RECIPE["max_grad_norm"])
+            torch.nn.utils.clip_grad_norm_(model.parameters(), recipe["max_grad_norm"])
             optimizer.step()
             scheduler.step()
             running.append(step_loss)
@@ -243,8 +258,8 @@ def train(student: str, lists: dict[str, dict[str, list[dict]]], *, device: str 
     model.load_state_dict(best_state)
     model.eval()
     record = {
-        "student": student, "attempt": ATTEMPT, "init": {"tag": STUDENTS[student], **init, "load_and_score": init_check},
-        "recipe": RECIPE, "smoke_run_max_steps": max_steps,
+        "student": tag or student, "attempt": attempt, "init": {"tag": STUDENTS[student], **init, "load_and_score": init_check},
+        "recipe": recipe, "smoke_run_max_steps": max_steps,
         "memory": {"micro_lists": micro_lists, "validation_lists": val_batch,
                    "note": "how a step's lists were split for the GPU's memory; the optimizer steps once per lists_per_step lists either way"},
         "lists": {"train": sizes, "validation": {c: len(rows) for c, rows in val_lists.items()},
@@ -299,9 +314,10 @@ def save_checkpoint(model, directory: Path) -> dict[str, dict[str, Any]]:
             for p in sorted(directory.rglob("*")) if p.is_file() and p.name != TRAINING_FILE}
 
 
-def build_manifest(checkpoint_dir: Path, students: Sequence[str] | None = None) -> dict[str, Any]:
-    """bench/distill/students.json from each student's training.json: refuses a smoke run, a dirty tree and weights
-    that no longer have the sha256 their training recorded."""
+def build_manifest(checkpoint_dir: Path, students: Sequence[str] | None = None, attempt: int | None = None) -> dict[str, Any]:
+    """bench/distill/students.json (or a later attempt's manifest) from each student's training.json: refuses a smoke
+    run, a dirty tree, weights that no longer have the sha256 their training recorded and, when `attempt` is given, a
+    run recorded as another attempt. Each entry names the device it trained on (training_device)."""
     out: dict[str, Any] = {}
     for tag in students or STUDENTS:
         path = Path(checkpoint_dir) / tag / TRAINING_FILE
@@ -312,11 +328,14 @@ def build_manifest(checkpoint_dir: Path, students: Sequence[str] | None = None) 
             raise SystemExit(f"{tag}: its training.json is a smoke run")
         if record.get("working_tree_dirty"):
             raise SystemExit(f"{tag}: trained with uncommitted changes")
+        if attempt is not None and record.get("attempt") != attempt:
+            raise SystemExit(f"{tag}: its training.json records attempt {record.get('attempt')}, not {attempt}")
         weights = record["files"][WEIGHTS_FILE]
         found = sha256_of(Path(checkpoint_dir) / tag / WEIGHTS_FILE)
         if found != weights["sha256"]:
             raise SystemExit(f"{tag}: {WEIGHTS_FILE} has sha256 {found}, its training recorded {weights['sha256']}")
-        out[tag] = {"directory": tag, "weights_sha256": weights["sha256"], "weights_bytes": weights["bytes"], **record}
+        out[tag] = {"directory": tag, "weights_sha256": weights["sha256"], "weights_bytes": weights["bytes"],
+                    "training_device": (record.get("machine") or {}).get("device_name"), **record}
     return {"about": ("the students of app/eval/small_rerankers.py: what each was trained from and on, its loss after every epoch, "
                       "and the sha256 of its checkpoint files. The checkpoints are not in the repository; a row that uses one "
                       "records weights_sha256, and a load is checked against reference_logits"),
@@ -327,7 +346,11 @@ def _parse_args(argv: list[str] | None):
     root = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("step", choices=["train", "manifest"])
-    p.add_argument("--student", choices=sorted(STUDENTS), help="train: which student")
+    p.add_argument("--student", choices=sorted(STUDENTS), help="train: which student (named by the init it starts from)")
+    p.add_argument("--max-length", type=int, default=None, help="train: the one recipe setting a later attempt may change (default RECIPE's)")
+    p.add_argument("--attempt", type=int, default=None, help=f"train: the attempt recorded (default {ATTEMPT}); manifest: refuse another attempt")
+    p.add_argument("--tag", default=None, help="train: the tag and checkpoint directory of a later attempt (default the student's)")
+    p.add_argument("--students", default=None, help="manifest: comma-separated tags (default M43's students)")
     p.add_argument("--checkpoint-dir", type=Path, required=True, help="where checkpoints are written (train) and read (manifest)")
     p.add_argument("--data-dir", type=Path, default=root / "bench" / "external", help="where the BEIR corpora are")
     p.add_argument("--queries", type=Path, default=root / "bench" / "distill" / QUERIES_FILE)
@@ -343,7 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     root = Path(__file__).resolve().parents[2]
     if args.step == "manifest":
-        manifest = build_manifest(args.checkpoint_dir)
+        tags = [t.strip() for t in args.students.split(",") if t.strip()] if args.students else None
+        manifest = build_manifest(args.checkpoint_dir, tags, args.attempt)
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(manifest, indent=2) + "\n")
         for tag, entry in manifest["students"].items():
@@ -353,6 +377,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if not args.student:
         raise SystemExit("train needs --student")
+    recipe, attempt, name = recipe_for(args.max_length), args.attempt if args.attempt is not None else ATTEMPT, args.tag or args.student
+    if recipe is not RECIPE and (attempt == ATTEMPT or args.tag in (None, args.student)):
+        raise SystemExit(f"a recipe other than RECIPE is a later attempt under its own tag: pass --attempt > {ATTEMPT} and --tag")
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     started = git_state(root)
@@ -360,13 +387,13 @@ def main(argv: list[str] | None = None) -> int:
     texts = {c: corpus_texts(c, root, args.data_dir) for c in sorted({q["corpus"] for q in queries})}
     lists = build_lists(queries, scores, texts)
     model, record = train(args.student, lists, device=None if args.device == "auto" else args.device, max_steps=args.max_steps,
-                          micro_lists=args.micro_lists)
-    directory = args.checkpoint_dir / args.student
+                          micro_lists=args.micro_lists, recipe=recipe, attempt=attempt, tag=args.tag)
+    directory = args.checkpoint_dir / name
     files = save_checkpoint(model, directory)
     from app.retrieval.rerank import get_cross_encoder
 
     reference = reference_logits(model, lists["validation"]["fixture"][:REFERENCE_LISTS])
-    reloaded = get_cross_encoder(str(directory), precision="fp32", max_length=RECIPE["max_length"],
+    reloaded = get_cross_encoder(str(directory), precision="fp32", max_length=recipe["max_length"],
                                  device=None if args.device == "auto" else args.device, raise_errors=True)
     record.update({
         "git_sha": git_sha(root), **run_provenance(root=root, started=started), "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -376,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
     })
     record["reload_check"] = check_reference(reloaded, record, root, queries)  # the saved files, loaded again, score as the trained model
     (directory / TRAINING_FILE).write_text(json.dumps(scrub(record), indent=2) + "\n")
-    print(json.dumps({"student": args.student, "chosen_epoch": record["chosen_epoch"], "weights_sha256": files[WEIGHTS_FILE]["sha256"],
+    print(json.dumps({"student": name, "chosen_epoch": record["chosen_epoch"], "weights_sha256": files[WEIGHTS_FILE]["sha256"],
                       "reload_check": record["reload_check"], "train_seconds": record["train_seconds"]}))
     return 0
 

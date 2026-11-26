@@ -1,0 +1,6425 @@
+{
+  "git_sha": "71bdae8",
+  "git_head": "71bdae8ff8eb35e39236f9e272c417d3de171e5c",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/agent/__init__.py": "b0d3045af83a80e8fa46c8fde1dcc3744d8a9f244c66d7d2ea1e20e70743a998",
+    "app/agent/corrective.py": "62a3d9979c077b1e4853d59b56b0093c3c4e8657d3c0af9ef65cfc9c48f76c99",
+    "app/agent/decompose.py": "88983a4c974786c2b6b28cc675718136b838fde2d0176d36962e177a5851f77e",
+    "app/agent/deep_research.py": "79d5a92fc700f918d356c0672324ccbea04db56b1e83cb186b8c18e612d73546",
+    "app/agent/retrieval_loop.py": "b5af513800fa0ab9df52e49fab40930356d09767495741b0627214eb9be19f1d",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/corpus.py": "2b2c52dbd98d36656ae38ccd7b7b7d49bd2e6897e252a4b76fd0928276b950fa",
+    "app/eval/frontier_llm.py": "0a293b29abb342dcec7e67442b2df3d19bf9226558429448d7e34cbb1d4a28ef",
+    "app/eval/gold.py": "3f286b1a62c2f7ba5724089c46f1891b08fec992d379ece329f0a47ce6618517",
+    "app/eval/harness.py": "9c60f37faa38144ec089aaba1776cda6e362cdb0d91f92682ab6d34ee0446498",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "f6b7eb5aa845f2e65f75040ba514b9831ab4a59cf1ac8c52517b47f66308a6b9",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/judge.py": "64780ec6e52b247de212fd7430bcbd84e834b1b9ed4587a639e9e3bb6a14607c",
+    "app/eval/jury.py": "1aa881fa2051dfd2e945706b158854aea1a70b3b10af23c3151ea675c19b1e8d",
+    "app/eval/late_interaction.py": "2bb92647c1715f603ef9176b4f534e9d154494dea2a7cf72b02054ba1268bf7a",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "233e90f1d4d0ee65b0ff875cd3228f0246a64cde52cec7d49dca56b1bc8e269e",
+    "app/eval/per_question.py": "8baa250cb562af4946fb8a21c32f1f8812770f4feb4b85fa32c3e1893a4736b9",
+    "app/eval/probes.py": "f85c9fe0cd427c75551af5fcfe2639375ba7316c36331c1b437cb09be320bb41",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/ragas_metrics.py": "8b3809e47d36673b7a0cf014490d6ef5105176877ee70949404622c24d380da2",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/rerank_arms.py": "9075617fb0f212b8088b429d133ba5dd1bc9ae694000a83d33245b3cb5c078e4",
+    "app/eval/small_rerankers.py": "f98655495b24f0c97c220e2570e5ff84bba0fa17fbfc55934f1a8908b789423f",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/graph/__init__.py": "65052777718d171f92bd51f5773712749c5f62983120169036aeb1ada05ac12b",
+    "app/graph/conflicts.py": "8e5053d77aabb1f5715bb9a52ccc234cfbaf48f3e0571ebd5a7b1b30df12705d",
+    "app/graph/file_graph.py": "fcfbb24a2089194d7e902a9bdf03615d1105dacfc8b62635c869507511982dd4",
+    "app/graph/graphrag.py": "8d042c623a77b0a54aac472f8adfc1c9dfb38c9976d6a297d4864d17fdbe2c8f",
+    "app/graph/hipporag.py": "56b1c37b3837270654cd2712af295ff81bd83b0b37a69e966632096cc5519e18",
+    "app/graph/staleness.py": "e05adb3f012a7d1403f5cee77837147bf136c0a854419d24c410056ce958ae53",
+    "app/multimodal/__init__.py": "fdfa04feab7d81f945512895f9e17061419bf5e2330629a6cf8f49f83ae89bd0",
+    "app/multimodal/colpali.py": "c27e2675708323e064785f49ec60f25ada8b30c8ad6220b49e309002d2e9fba0",
+    "app/multimodal/fusion.py": "ea8df6ab91b1446cf32ff8339385f98008fdd7ae1e58d56a1ac0563079fc45b8",
+    "app/multimodal/images.py": "5ffa9cb95bf074f7e4ebf6625d61b41cf12b10f7e7aa2ebf79016dc71a917eaf",
+    "app/multimodal/late_interaction.py": "cca5d810982100351a1fb75472d97dd303368bb8f481aed0f153ff2ad1d3d0c2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/adaptive.py": "e08b5d1964ff6ad2f7b05e7d3275d22931d0f527cf61023647fc72a1dce785ac",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/cache.py": "65fbfced92240e00b0df98c07670e3f0ce015cad86fc8604c6866089a11807f5",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/distill.py": "0714f9ef5b4422c9f63a56e76924b3a9d3fc83e3204d1d56e6af07c6c37549de",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/hyde.py": "e0f81e2283a3411317e692531bb6bdd49db4f40468d378ed63fec0266b62db4b",
+    "app/retrieval/rankgpt.py": "33b88cb9db9f694008ad6c50dfe9bc1dfd8eb11c058e02e48caf07cf794776c1",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-25T19:10:44.214105+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.late_interaction --out bench/results/late_interaction.json --part primary",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 40,
+    "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f1ba038674e720cbdeef3d4efe8e4f47846ac3887e774a9c2df6f56249ebe5f6",
+  "gold_sha256": "06c2421220fa2569c87cfa5fc57902476da06ac28f9ea41a5320623d64e984de",
+  "n_gold": 136,
+  "n_files": 61,
+  "mtimes": {
+    "source": "manifest",
+    "file": "bench/corpus/MANIFEST.json",
+    "field": "files[].mtime"
+  },
+  "n_chunks": 71,
+  "late_interaction": {
+    "milestone": "M49",
+    "attempt": 1,
+    "declarations_commit": "26585e8429556e7424a7679d4bbf28523862dd3e",
+    "dataset": "fixture",
+    "part": "primary",
+    "bar": {
+      "name": "M49's all-three bar",
+      "metric": "ndcg@10",
+      "interval": "paired percentile bootstrap over the queries, 2000 resamples, seed 0, alpha 0.05 (app/eval/stats.py defaults, as M43)",
+      "words": "app.eval.report.verdict on the lo and hi stored in the results file (rounded to four decimals): 'above zero' if and only if lo > 0; 'below zero' if and only if hi < 0; 'covers zero' otherwise, including a stored lo or hi of exactly 0.0000",
+      "parent": "hybrid@bge-small",
+      "datasets": {
+        "fixture": "fixture v1, the held-out (test) half of app.eval.rerank_arms.split_questions (n 68); the tune half and all 136 are reported beside it, nothing is chosen on either",
+        "scifact": "BEIR SciFact test (300 queries, 5,183 documents)",
+        "fiqa": "BEIR FiQA test (648 queries, 57,638 documents)"
+      },
+      "only_test_qrels": true,
+      "roles": {
+        "a": "hybrid@<tag> vs hybrid@bge-small: BM25 plus the MaxSim leg in place of bge-small, RRF k 60, equal weights (fixture retrieve_k 50, BEIR k 100)",
+        "b": "hybrid+<tag>@bge-small/fp32-doc<L>/top20 vs hybrid@bge-small: MaxSim reranks the fused top 20 (fixture: of the fused top 50, the tail in fused order; BEIR: of the fused top 100)"
+      },
+      "named_models": [
+        "answerai-colbert-small",
+        "colbertv2"
+      ],
+      "pass": "PASS if the model's bar comparison in that role is above zero on all three datasets",
+      "not_pass": "NOT PASS if it covers zero or is below zero on at least one dataset, with the triple written out; a loss on any dataset is written as a loss",
+      "open": "OPEN if at least one dataset is measured, none covers zero or is below zero, and at least one dataset has no row (its part did not finish, or could not before 2026-12-15); OPEN is never a pass. A model that loaded but has no row on any dataset is 'not measured: no row finished before 2026-12-15'",
+      "secondary": "dense@<tag> vs dense@bge-small (fixture: dense_only@), the leg alone: reported with its verdict, outside the bar",
+      "references": "each named role-(b) row vs hybrid+bge-rerank, hybrid+minilm-l12 and hybrid+gte-modernbert-base@bge-small/fp32-512/top20, recomputed in the same (primary) part: outside the bar",
+      "does_not_count": [
+        "the sensitivity rows (document length 512)",
+        "the stretch models",
+        "the tune half",
+        "the all-136 scope",
+        "recall",
+        "MRR",
+        "latency",
+        "storage",
+        "the CARD_CLAIM reading",
+        "the Bonferroni column"
+      ],
+      "plan_row_4_2": {
+        "pass": "measured: `<model>` passes in role (a|b) (claims) ...; against `gte-modernbert-base` (claims) ...; not on the default path: adopting it is an owner decision after the serving bar on the host",
+        "no_pass": "measured, not adopted: no named model at its saved settings passes the all-three bar in either role (claims); the MaxSim code stays as a measured, tested option off the default path",
+        "open": "appends: the bar is open for `<model>` in role (a|b): <dataset> not measured (<reason>)",
+        "sensitivity_or_stretch_all_three": "appends: `<row>` (sensitivity or stretch, outside the declared bar) is above zero on all three datasets; the verdict is unchanged",
+        "demo": "labelled a demo only if NO named model can be measured (both fail to load or the fidelity checks, or no GPU row can finish before 2026-12-15), naming the failed check's output, the job id and the NOTES entry",
+        "one_measured": "if one named model is measured and the other is not, the row is 'measured' for the measured model, its nine plan-flagged claims only, the other named as 'not measured: <reason>'",
+        "not_measured_means": "only a load failure, a failed fidelity check, or no row of that model finishing on any dataset before 2026-12-15; rows that loaded, passed the checks and scored are never withdrawn"
+      }
+    },
+    "settings": {
+      "precision": "fp32",
+      "batch_size": 32,
+      "primary_document_length": "each model's saved setting: CANDIDATES[tag]['saved']['document_length'] (300 answerai, 180 colbertv2)",
+      "sensitivity_document_length": 512,
+      "doc512_override": "the backbone Transformer module's document_length, set after loading, read back and asserted; the run records the longest document's token count to show it took effect",
+      "query_side": "the model's own markers and query expansion; no instruction or prompt beyond those markers",
+      "document_text": {
+        "fixture": "chunk.text, exactly what bge-small's dense leg reads (BM25 also reads search_context)",
+        "beir": "title + ' ' + text from app.eval.beir.load_corpus, as the parent"
+      },
+      "scoring": {
+        "role_a": "maxsim_scores: one batched float64 pass per token store and query set, scores rounded to 10 decimals (DENSE_SCORE_DECIMALS), ranked with hybrid.rank_by_score (ties in corpus order)",
+        "role_b": "app.multimodal.late_interaction.maxsim per (query, candidate), candidates encoded on the fly per query; stable sort, ties keep the fused order"
+      },
+      "maxsim_block_bytes": 1073741824,
+      "maxsim_dtype": "float64",
+      "fixture": {
+        "retrieve_k": 50,
+        "rerank_top": 20,
+        "candidates": "the fused top 50 chunks, the first 20 reranked, the tail in fused order"
+      },
+      "beir": {
+        "k": 100,
+        "rerank_top": 20,
+        "candidates": "the fused top 100 documents, the first 20 reranked",
+        "split": "test"
+      },
+      "rrf_k": 60,
+      "equivalence": {
+        "pairs_per_dataset": 200,
+        "maxsim_tolerance": 1e-05,
+        "sentence_transformers_tolerance": 0.0001
+      },
+      "fingerprint_tolerance": 0.001,
+      "runs": {
+        "gzip": "mtime 0, compresslevel 9",
+        "ids_only_if_beir_runs_exceed_bytes": 4000000
+      },
+      "device_order": "Turing first (-p gpu,eecs --constraint 'rtx8000|rtx2080'); an A40 only if neither started 12 h after submission"
+    },
+    "candidates": {
+      "answerai-colbert-small": {
+        "model": "answerdotai/answerai-colbert-small-v1",
+        "licence": "apache-2.0",
+        "parameters": 33396864,
+        "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+        "format": "stanford",
+        "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+        "weights_bytes": 133610664,
+        "readme_sha256": "5852bad161ce37c95108ffd1b1d862abdff536f2c9efb66bdc37db688571a7a1",
+        "saved": {
+          "dim": 96,
+          "query_length": 32,
+          "query_expansion": true,
+          "expansion_attended": false,
+          "document_length": 300,
+          "skiplist": "punctuation",
+          "markers": [
+            "[unused0]",
+            "[unused1]"
+          ]
+        },
+        "why": "33M parameters, the size of the parent bge-small and of the MiniLM-L12 cross-encoder"
+      },
+      "colbertv2": {
+        "model": "colbert-ir/colbertv2.0",
+        "licence": "mit",
+        "parameters": 109581056,
+        "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+        "format": "stanford",
+        "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+        "weights_bytes": 438349816,
+        "readme_sha256": "44e68292037d4fac7db91b9b24ae36535ae5807eef2b323adcc83a615b91751d",
+        "saved": {
+          "dim": 128,
+          "query_length": 32,
+          "query_expansion": true,
+          "expansion_attended": false,
+          "document_length": 180,
+          "skiplist": "punctuation",
+          "markers": [
+            "[unused0]",
+            "[unused1]"
+          ]
+        },
+        "why": "the 2021 reference model of late interaction"
+      }
+    },
+    "stretch": {
+      "gte-moderncolbert": {
+        "model": "lightonai/GTE-ModernColBERT-v1",
+        "licence": "apache-2.0",
+        "parameters": 149015808,
+        "revision": "25f6f7bb8237b7ae25ae1d9b805ce17c0d1cc639",
+        "format": "pylate",
+        "weights_sha256": "a08c46f4ef7c9ffd8486d6531844bf6c47188d42b260ed42db72e86d5304f0e9",
+        "weights_bytes": 596076280,
+        "readme_sha256": "8bac6a7e2d6c2de129f643aeb75e6f19e350d6c180e50362d86c0212a8c07b6c",
+        "saved": {
+          "dim": 128,
+          "query_length": 48,
+          "query_expansion": false,
+          "expansion_attended": false,
+          "document_length": 300,
+          "skiplist": "punctuation",
+          "markers": [
+            "[Q] ",
+            "[D] "
+          ]
+        },
+        "why": "chosen as the strongest current open English ColBERT model (a selection on published BEIR scores)"
+      },
+      "mxbai-edge-colbert-17m": {
+        "model": "mixedbread-ai/mxbai-edge-colbert-v0-17m",
+        "licence": "apache-2.0",
+        "parameters": 16797952,
+        "revision": "592c6417c1c6687572043408ed1ae5196bce16b1",
+        "format": "pylate",
+        "weights_sha256": "63e9d246f0166ceafa8bd63ee52cb929335ca30110efdb28e7f877c7aa641ca1",
+        "weights_bytes": 67195976,
+        "readme_sha256": "0d177ea3615e2842ea6523d144d60d35c0cbc9d0e534012c319b4eb6bf7b2fb6",
+        "saved": {
+          "dim": 48,
+          "query_length": 48,
+          "query_expansion": false,
+          "expansion_attended": false,
+          "document_length": 512,
+          "skiplist": "punctuation",
+          "markers": [
+            "[Q] ",
+            "[D] "
+          ]
+        },
+        "why": "the size that could serve on a CPU"
+      }
+    },
+    "multiplicity": {
+      "per_pass": "each PASS is an intersection-union test: three one-sided tests, each at 2.5% (the lower end of a 95% two-sided interval above zero); its false-PASS rate is at most about 2.5% per (model, role)",
+      "row_4_2": "row 4.2 moves on a union, 'at least one named model passes in at least one role': four named PASS claims give at most 10% for any false PASS (union bound), or at most 20% if the four stretch PASS claims are also reported as findings",
+      "bar_words": "the twelve per-dataset bar words are uncorrected 95% intervals: if every true effect were zero and the tests independent, about 46% of runs (1 - 0.95^12) would show at least one 'above zero' or 'below zero' word by chance",
+      "others": "every other interval is uncorrected too: the reference, secondary, sensitivity and stretch comparisons add 69 nDCG@10 intervals (23 per dataset: 11 in the primary part, 12 in the extra part) beside the 12 bar intervals, before the tune and all-136 scopes and before recall and MRR; each results file states its own count",
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "for": "the twelve bar comparisons (0.05 / 4)",
+        "draws": "the same bootstrap draws",
+        "deciding": false
+      },
+      "counts": {
+        "bar_per_dataset": 4,
+        "other_primary_per_dataset": 11,
+        "other_extra_per_dataset": 12,
+        "datasets": 3,
+        "bar_total": 12,
+        "other_total": 69
+      },
+      "this_file": {
+        "ndcg@10_intervals": 15,
+        "bar": 4,
+        "scope": "held_out (the tune and all-136 scopes' intervals are not counted)",
+        "uncorrected": true
+      }
+    },
+    "card_claim": {
+      "card_line": "If you're interested in using this model as a re-ranker (it vastly outperforms cross-encoders its size!), you can do so via the [rerankers](https://github.com/AnswerDotAI/rerankers) library:",
+      "row": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "comparator": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "supported": "'supported here' only if the row is above zero against the comparator on all three datasets",
+      "contradicted": "'contradicted on <datasets>' if it is below zero against the comparator on at least one dataset",
+      "not_shown": "'not shown' otherwise, including a missing dataset",
+      "excluded": "the doc512 rows are sensitivity rows and are not part of this reading",
+      "caveats": [
+        "the comparator was chosen by parameter count while its rows were already known to be weak: its held-out row against the parent in bench/results/small_rerankers.json is below zero",
+        "unequal budgets: the MaxSim reranker reads 300 document tokens (answerai's saved length); the cross-encoder reads 512 tokens of query plus document"
+      ]
+    },
+    "published": {
+      "card": {
+        "url": "https://huggingface.co/answerdotai/answerai-colbert-small-v1",
+        "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+        "readme_sha256": "5852bad161ce37c95108ffd1b1d862abdff536f2c9efb66bdc37db688571a7a1",
+        "table": "Against ColBERTv2.0"
+      },
+      "metric": "nDCG@10 x 100",
+      "lines": {
+        "scifact": "| **SciFact**     |    **74.77**     |    69.3     |",
+        "fiqa": "| **FiQA2018**    |    **41.15**     |    35.6     |"
+      },
+      "values": {
+        "answerai-colbert-small": {
+          "scifact": "74.77",
+          "fiqa": "41.15"
+        },
+        "colbertv2": {
+          "scifact": "69.3",
+          "fiqa": "35.6"
+        }
+      },
+      "note": "other implementations; ColBERTv2's with approximate (PLAID) search; not every setting is stated: a tripwire, never a bar"
+    },
+    "tripwire": {
+      "low": {
+        "below_bm25": "below the nDCG@10 of the committed bm25 row of bench/results/beir_scifact.json, read from that file at run time",
+        "below_published_by": 0.05
+      },
+      "high": {
+        "above_published_by": 0.05
+      },
+      "truncation_explained": "a low trip of a model whose saved document length is below 512, whose dense@<tag>/doc512 SciFact row neither low-trips nor high-trips, is 'truncation-explained' and does not stop FiQA; a high trip has no exception; no exception if the doc512 row is missing",
+      "fixture_trip": "if the run's counts show no fixture chunk cut at a model's primary document length, its primary and doc512 fixture rows (dense_only, hybrid and role b) must have equal ranking sha256s, row by row; a difference trips, no exception"
+    },
+    "training_data": {
+      "answerai-colbert-small": {
+        "stated": "MS MARCO triplets, by the JaColBERTv2.5 recipe (artifact.metadata: triples, collection and queries under msmarco/)",
+        "source": "artifact.metadata and the model card at the pinned revision",
+        "lists_scifact_or_fiqa": false
+      },
+      "colbertv2": {
+        "stated": "MS MARCO Passage Ranking (the card: 'trained on the MS MARCO Passage Ranking task'; artifact.metadata: MSMARCO triples and collection)",
+        "source": "the model card and artifact.metadata at the pinned revision",
+        "lists_scifact_or_fiqa": false
+      },
+      "gte-moderncolbert": {
+        "stated": "knowledge distillation on MS MARCO (lightonai/ms-marco-en-bge-gemma), the card; the card's NanoSciFact and NanoFiQA2018 rows are evaluations",
+        "source": "the model card at the pinned revision",
+        "lists_scifact_or_fiqa": false
+      },
+      "mxbai-edge-colbert-17m": {
+        "stated": "not stated on the card, which cites its tech report ('Fantastic (small) Retrievers and How to Train Them'), not read here",
+        "source": "the model card at the pinned revision",
+        "lists_scifact_or_fiqa": null
+      },
+      "bge-small": {
+        "stated": "MTEB's training-data annotation of BAAI/bge-small-en-v1.5 (bge_training_data, from BAAI-MTP): NQ, NQHardNegatives, AmazonReviewsClassification, MLQARetrieval, DuRetrieval, and pretraining pairs not in MTEB (wudao, cmrc2018, simclue, csl, amazon_reviews_multi, wiki_atomic_edits, mlqa, xlsum, wikipedia, reddit, stackexchange, s2orc); neither SciFact nor FiQA; the annotation itself marks the sentence-transformers data as not checked",
+        "source": "mteb@551a5b54b1dfa07441deef71681a352b05c913b8 mteb/models/model_implementations/bge_models.py (sha256 4c7ae018...); the card at 5c38ec7c405e links BAAI-MTP",
+        "lists_scifact_or_fiqa": false,
+        "corpus_note": "s2orc (title, abstract) pairs: SciFact's corpus is S2ORC abstracts, so the parent may have read SciFact documents (not its claims or labels)"
+      },
+      "bge-rerank": {
+        "stated": "the card: 'a mixture of multilingual datasets': bge-m3-data, quora train data, fever train data; MTEB's annotation of bge-m3's data (bge_m3_training_data): MIRACL, Mr.TyDi, MS MARCO, NQ, HotpotQA, T2, DuRetrieval, CodeSearchNet and others, with s2orc among the pretraining data; neither SciFact nor FiQA",
+        "source": "BAAI/bge-reranker-v2-m3's card at 953dc6f6f85a; mteb@551a5b54b1df bge_models.py",
+        "lists_scifact_or_fiqa": false,
+        "corpus_note": "s2orc in bge-m3's pretraining: it may have read SciFact documents (not its claims or labels)"
+      },
+      "minilm-l12": {
+        "stated": "MS MARCO Passage Ranking (the card; datasets: sentence-transformers/msmarco)",
+        "source": "cross-encoder/ms-marco-MiniLM-L12-v2's card at 7b0235231ca2",
+        "lists_scifact_or_fiqa": false
+      },
+      "gte-modernbert-base": {
+        "stated": "not listed on the card, which refers to the mGTE paper's training scheme, not read here",
+        "source": "Alibaba-NLP/gte-reranker-modernbert-base's card at f7481e605550",
+        "lists_scifact_or_fiqa": null
+      }
+    },
+    "rows": [
+      "dense_only@bge-small",
+      "hybrid@bge-small",
+      "dense_only@answerai-colbert-small",
+      "hybrid@answerai-colbert-small",
+      "dense_only@colbertv2",
+      "hybrid@colbertv2",
+      "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "hybrid+gte-modernbert-base@bge-small/fp32-512/top20"
+    ],
+    "stretch_status": {},
+    "expected_reproduction": null,
+    "does_not_show": [
+      "a PLAID or compressed index: this is exhaustive, uncompressed MaxSim, the exact score PLAID-style search approximates; not ANN latency at scale; storage is for uncompressed vectors",
+      "that it serves: no pgvector MaxSim, no served path; HPC timings are indicative; the serving bar on the host is not decided here; the image's sentence-transformers is 6.3, 6.1 here",
+      "equivalence or 'no effect': a NOT PASS, and an interval that covers zero, is not evidence of equivalence; each dataset's paired half-width is the rough smallest gain that could have passed",
+      "first-stage recall on the fixture: role (a) ranks 71 chunks with retrieve_k 50, so the fixture's Recall@50 sits beside its random baseline and is no recall claim",
+      "results free of selection: the models were chosen knowing their published BEIR scores, which include SciFact and FiQA; only the fixture is free of that",
+      "a level field: RRF k 60, retrieve_k, the reranking depth and the 512 budget were set around bge-small; the MaxSim legs are not re-tuned",
+      "equal budgets in role (b): MaxSim reads 180 or 300 document tokens (512 in the sensitivity rows), the cross-encoders 512 of query plus document",
+      "fine-tuned or domain-adapted ColBERT: zero-shot only",
+      "that BEIR is free of training contamination: it cannot be checked from outside",
+      "answer quality or the real corpus: retrieval metrics only; the fixture is small (68 held-out questions), templated and judged by file",
+      "ColPali pages or image retrieval (PLAN rows 4.1, 4.3 and 4.4 unchanged)",
+      "late interaction in general: two named models at their saved settings plus one 512 sensitivity length, and two stretch models"
+    ],
+    "served_defaults_changed": false,
+    "other_scoring_jobs": [],
+    "runs": {
+      "bench/results/late_interaction_runs/fixture_answerai-colbert-small.run.gz": {
+        "sha256": "68c707edeacd1b73d80a525d2d5148fdf6b16209df3609a304ecf4958bc27ade",
+        "bytes": 60728,
+        "lines": 136
+      },
+      "bench/results/late_interaction_runs/fixture_rerank_answerai-colbert-small.json.gz": {
+        "sha256": "a7af9cbabef188186651ad037b8e04f7e918b4bcac043846843f5adeeb0797d5",
+        "bytes": 6544,
+        "lines": 136
+      },
+      "bench/results/late_interaction_runs/fixture_colbertv2.run.gz": {
+        "sha256": "d30f8ea5dda1b6defdefa397ca165faffae730b901993f61b43195c8df500279",
+        "bytes": 64434,
+        "lines": 136
+      },
+      "bench/results/late_interaction_runs/fixture_rerank_colbertv2.json.gz": {
+        "sha256": "2ba427efaf6a52de5b22e3e8475bd5e797db6186198b88025d36d253709cf7bc",
+        "bytes": 6534,
+        "lines": 136
+      }
+    }
+  },
+  "first_stage": {
+    "config": "hybrid@bge-small",
+    "retrieve_k": 50,
+    "reranked": "the fused top 20 chunks; the rest keep the fused order",
+    "embedder": {
+      "role": "embedder",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "neural": true,
+      "device": "cuda:0",
+      "query_prompt_name": null,
+      "query_prompt": null,
+      "dtype_requested": null,
+      "dtype": "torch.float32",
+      "batch_size": null,
+      "max_seq_length": 512,
+      "snapshot_view": null,
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "cosine_answer": 0.871201,
+        "cosine_other": 0.41797,
+        "passed": true
+      }
+    }
+  },
+  "legs": {
+    "mv:answerai-colbert-small": {
+      "mv_name": "mv:answerai-colbert-small",
+      "model": "answerdotai/answerai-colbert-small-v1",
+      "tag": "answerai-colbert-small",
+      "pinned_revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+      "licence": "apache-2.0",
+      "neural": true,
+      "kind": "named",
+      "document_length": 300,
+      "store_key": "c0dcdb2f4ed082aed00d93246e13c86ebc83b92661208674a95eb27119ea3a7b",
+      "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+      "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+      "weights_bytes": 133610664,
+      "dtype": "torch.float32",
+      "all_parameters_dtype": [
+        "torch.float32"
+      ],
+      "requested_dtype": "float32",
+      "parameters": 33396864,
+      "device": "cuda:0",
+      "batch_size": 32,
+      "versions": {
+        "sentence_transformers": "6.1.0",
+        "transformers": "5.17.0",
+        "torch": "2.5.1+cu121"
+      },
+      "settings": {
+        "dim": 96,
+        "query_length": 32,
+        "query_expansion": true,
+        "expansion_attended": false,
+        "expansion_strategy": "fixed",
+        "document_length": 300,
+        "saved_document_length": 300,
+        "skiplist_words": [
+          "!",
+          "\"",
+          "#",
+          "$",
+          "%",
+          "&",
+          "'",
+          "(",
+          ")",
+          "*",
+          "+",
+          ",",
+          "-",
+          ".",
+          "/",
+          ":",
+          ";",
+          "<",
+          "=",
+          ">",
+          "?",
+          "@",
+          "[",
+          "\\",
+          "]",
+          "^",
+          "_",
+          "`",
+          "{",
+          "|",
+          "}",
+          "~"
+        ],
+        "skiplist_ids": [
+          999,
+          1000,
+          1001,
+          1002,
+          1003,
+          1004,
+          1005,
+          1006,
+          1007,
+          1008,
+          1009,
+          1010,
+          1011,
+          1012,
+          1013,
+          1024,
+          1025,
+          1026,
+          1027,
+          1028,
+          1029,
+          1030,
+          1031,
+          1032,
+          1033,
+          1034,
+          1035,
+          1036,
+          1063,
+          1064,
+          1065,
+          1066
+        ],
+        "skiplist_tasks": [
+          "document"
+        ],
+        "markers": {
+          "query": {
+            "prompt": "[unused0] ",
+            "token": "[unused0]",
+            "piece": "[unused0]",
+            "id": 1,
+            "single_piece": true
+          },
+          "document": {
+            "prompt": "[unused1] ",
+            "token": "[unused1]",
+            "piece": "[unused1]",
+            "id": 2,
+            "single_piece": true
+          }
+        },
+        "do_lower_case": false,
+        "text_max_length_override": null,
+        "similarity_fn_name": "maxsim",
+        "modules": [
+          "Transformer",
+          "Dense",
+          "MultiVectorMask",
+          "Normalize"
+        ],
+        "max_seq_length": 512
+      },
+      "training": false,
+      "settings_read_back": {
+        "dim": 96,
+        "query_length": 32,
+        "query_expansion": true,
+        "expansion_attended": false,
+        "expansion_strategy": "fixed",
+        "document_length": 300,
+        "saved_document_length": 300,
+        "skiplist_words": [
+          "!",
+          "\"",
+          "#",
+          "$",
+          "%",
+          "&",
+          "'",
+          "(",
+          ")",
+          "*",
+          "+",
+          ",",
+          "-",
+          ".",
+          "/",
+          ":",
+          ";",
+          "<",
+          "=",
+          ">",
+          "?",
+          "@",
+          "[",
+          "\\",
+          "]",
+          "^",
+          "_",
+          "`",
+          "{",
+          "|",
+          "}",
+          "~"
+        ],
+        "skiplist_ids": [
+          999,
+          1000,
+          1001,
+          1002,
+          1003,
+          1004,
+          1005,
+          1006,
+          1007,
+          1008,
+          1009,
+          1010,
+          1011,
+          1012,
+          1013,
+          1024,
+          1025,
+          1026,
+          1027,
+          1028,
+          1029,
+          1030,
+          1031,
+          1032,
+          1033,
+          1034,
+          1035,
+          1036,
+          1063,
+          1064,
+          1065,
+          1066
+        ],
+        "skiplist_tasks": [
+          "document"
+        ],
+        "markers": {
+          "query": {
+            "prompt": "[unused0] ",
+            "token": "[unused0]",
+            "piece": "[unused0]",
+            "id": 1,
+            "single_piece": true
+          },
+          "document": {
+            "prompt": "[unused1] ",
+            "token": "[unused1]",
+            "piece": "[unused1]",
+            "id": 2,
+            "single_piece": true
+          }
+        },
+        "do_lower_case": false,
+        "text_max_length_override": null,
+        "similarity_fn_name": "maxsim",
+        "modules": [
+          "Transformer",
+          "Dense",
+          "MultiVectorMask",
+          "Normalize"
+        ],
+        "max_seq_length": 512,
+        "asserted": [
+          "dim",
+          "document_length",
+          "expansion_attended",
+          "query_expansion",
+          "query_length",
+          "skiplist",
+          "markers"
+        ]
+      },
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 31.603561,
+        "score_other": 30.224949,
+        "score_answer_long": 31.080109,
+        "tokens": {
+          "query": 32,
+          "answer": 9,
+          "other": 31,
+          "answer_long": 280
+        },
+        "passed": true
+      },
+      "fingerprint": {
+        "query_shape": [
+          32,
+          96
+        ],
+        "document_0_shape": [
+          17,
+          96
+        ],
+        "card_scores": [
+          "30.5692",
+          "31.4895",
+          "31.3029",
+          "31.3072"
+        ],
+        "sentence_transformers": [
+          30.5692,
+          31.4895,
+          31.3029,
+          31.3072
+        ],
+        "maxsim": [
+          30.5692,
+          31.4895,
+          31.3029,
+          31.3072
+        ],
+        "max_abs_difference": {
+          "sentence_transformers": 4.0100097656647904e-05,
+          "maxsim": 4.3914794922272904e-05
+        },
+        "tolerance": 0.001,
+        "passed": true
+      },
+      "store": {
+        "documents": 71,
+        "dim": 96,
+        "document_length": 300,
+        "cut_at_document_length": 0,
+        "longest_tokenized": 99,
+        "longest_scored": 68,
+        "zero_scored_tokens": 0,
+        "scored_vectors": 3589,
+        "mean_scored_per_document": 50.549,
+        "bytes": {
+          "fp32": 1378176,
+          "fp16": 689088,
+          "bge_small_fp32": 109056
+        },
+        "ratio_to_bge_small": {
+          "fp32": 12.637,
+          "fp16": 6.319
+        },
+        "encode_seconds": 0.08,
+        "where": "memory only (never the shared embedding cache)",
+        "document_text": "chunk.text"
+      },
+      "queries": {
+        "n": 136,
+        "query_length": 32,
+        "over_query_length": 0,
+        "longest_tokenized": 32,
+        "scored_rows": 4352
+      },
+      "batched_pass": {
+        "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+        "device": "cuda",
+        "block_bytes": 1073741824,
+        "wall_ms": 38.91,
+        "ms_per_query_amortised": 0.286,
+        "ranking_ms": 3.94,
+        "queries": 136,
+        "documents": 71,
+        "k": 50
+      },
+      "equivalence": {
+        "pairs": 200,
+        "max_abs_difference": {
+          "matrix_vs_maxsim": 4.954665335787922e-06,
+          "matrix_vs_sentence_transformers": 4.471495294922079e-06
+        },
+        "tolerance": {
+          "maxsim": 1e-05,
+          "sentence_transformers": 0.0001
+        },
+        "within_tolerance": true,
+        "rank_agreement": {
+          "queries": 136,
+          "top": 100,
+          "same_order_as_sentence_transformers": 135,
+          "max_abs_difference": 6.576341235131622e-06,
+          "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+        }
+      },
+      "bm25_equal_to_parent": true,
+      "document_text": "chunk.text (asserted equal to bge-small's dense leg)",
+      "stored_vs_on_the_fly": {
+        "queries_checked": 136,
+        "queries_order_differs": 1,
+        "what": "the same candidates ordered by the role-(a) store's scores (documents encoded in corpus batches) against on-the-fly encoding; batch padding can change floats"
+      },
+      "rerank_latency": {
+        "p50_ms": 35.079,
+        "p95_ms": 42.365,
+        "n": 136,
+        "note": "per question on this run's device, on-the-fly encoding included"
+      }
+    },
+    "mv:colbertv2": {
+      "mv_name": "mv:colbertv2",
+      "model": "colbert-ir/colbertv2.0",
+      "tag": "colbertv2",
+      "pinned_revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+      "licence": "mit",
+      "neural": true,
+      "kind": "named",
+      "document_length": 180,
+      "store_key": "58949fc1b42269599396d091665e3b93b93cc1518c65580f8d98ee7e8d1d2e63",
+      "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+      "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+      "weights_bytes": 438349816,
+      "dtype": "torch.float32",
+      "all_parameters_dtype": [
+        "torch.float32"
+      ],
+      "requested_dtype": "float32",
+      "parameters": 109580544,
+      "device": "cuda:0",
+      "batch_size": 32,
+      "versions": {
+        "sentence_transformers": "6.1.0",
+        "transformers": "5.17.0",
+        "torch": "2.5.1+cu121"
+      },
+      "settings": {
+        "dim": 128,
+        "query_length": 32,
+        "query_expansion": true,
+        "expansion_attended": false,
+        "expansion_strategy": "fixed",
+        "document_length": 180,
+        "saved_document_length": 180,
+        "skiplist_words": [
+          "!",
+          "\"",
+          "#",
+          "$",
+          "%",
+          "&",
+          "'",
+          "(",
+          ")",
+          "*",
+          "+",
+          ",",
+          "-",
+          ".",
+          "/",
+          ":",
+          ";",
+          "<",
+          "=",
+          ">",
+          "?",
+          "@",
+          "[",
+          "\\",
+          "]",
+          "^",
+          "_",
+          "`",
+          "{",
+          "|",
+          "}",
+          "~"
+        ],
+        "skiplist_ids": [
+          999,
+          1000,
+          1001,
+          1002,
+          1003,
+          1004,
+          1005,
+          1006,
+          1007,
+          1008,
+          1009,
+          1010,
+          1011,
+          1012,
+          1013,
+          1024,
+          1025,
+          1026,
+          1027,
+          1028,
+          1029,
+          1030,
+          1031,
+          1032,
+          1033,
+          1034,
+          1035,
+          1036,
+          1063,
+          1064,
+          1065,
+          1066
+        ],
+        "skiplist_tasks": [
+          "document"
+        ],
+        "markers": {
+          "query": {
+            "prompt": "[unused0] ",
+            "token": "[unused0]",
+            "piece": "[unused0]",
+            "id": 1,
+            "single_piece": true
+          },
+          "document": {
+            "prompt": "[unused1] ",
+            "token": "[unused1]",
+            "piece": "[unused1]",
+            "id": 2,
+            "single_piece": true
+          }
+        },
+        "do_lower_case": false,
+        "text_max_length_override": null,
+        "similarity_fn_name": "maxsim",
+        "modules": [
+          "Transformer",
+          "Dense",
+          "MultiVectorMask",
+          "Normalize"
+        ],
+        "max_seq_length": 512
+      },
+      "training": false,
+      "settings_read_back": {
+        "dim": 128,
+        "query_length": 32,
+        "query_expansion": true,
+        "expansion_attended": false,
+        "expansion_strategy": "fixed",
+        "document_length": 180,
+        "saved_document_length": 180,
+        "skiplist_words": [
+          "!",
+          "\"",
+          "#",
+          "$",
+          "%",
+          "&",
+          "'",
+          "(",
+          ")",
+          "*",
+          "+",
+          ",",
+          "-",
+          ".",
+          "/",
+          ":",
+          ";",
+          "<",
+          "=",
+          ">",
+          "?",
+          "@",
+          "[",
+          "\\",
+          "]",
+          "^",
+          "_",
+          "`",
+          "{",
+          "|",
+          "}",
+          "~"
+        ],
+        "skiplist_ids": [
+          999,
+          1000,
+          1001,
+          1002,
+          1003,
+          1004,
+          1005,
+          1006,
+          1007,
+          1008,
+          1009,
+          1010,
+          1011,
+          1012,
+          1013,
+          1024,
+          1025,
+          1026,
+          1027,
+          1028,
+          1029,
+          1030,
+          1031,
+          1032,
+          1033,
+          1034,
+          1035,
+          1036,
+          1063,
+          1064,
+          1065,
+          1066
+        ],
+        "skiplist_tasks": [
+          "document"
+        ],
+        "markers": {
+          "query": {
+            "prompt": "[unused0] ",
+            "token": "[unused0]",
+            "piece": "[unused0]",
+            "id": 1,
+            "single_piece": true
+          },
+          "document": {
+            "prompt": "[unused1] ",
+            "token": "[unused1]",
+            "piece": "[unused1]",
+            "id": 2,
+            "single_piece": true
+          }
+        },
+        "do_lower_case": false,
+        "text_max_length_override": null,
+        "similarity_fn_name": "maxsim",
+        "modules": [
+          "Transformer",
+          "Dense",
+          "MultiVectorMask",
+          "Normalize"
+        ],
+        "max_seq_length": 512,
+        "asserted": [
+          "dim",
+          "document_length",
+          "expansion_attended",
+          "query_expansion",
+          "query_length",
+          "skiplist",
+          "markers"
+        ]
+      },
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 29.358189,
+        "score_other": 4.386675,
+        "score_answer_long": 22.314949,
+        "tokens": {
+          "query": 32,
+          "answer": 9,
+          "other": 31,
+          "answer_long": 168
+        },
+        "passed": true
+      },
+      "store": {
+        "documents": 71,
+        "dim": 128,
+        "document_length": 180,
+        "cut_at_document_length": 0,
+        "longest_tokenized": 99,
+        "longest_scored": 68,
+        "zero_scored_tokens": 0,
+        "scored_vectors": 3589,
+        "mean_scored_per_document": 50.549,
+        "bytes": {
+          "fp32": 1837568,
+          "fp16": 918784,
+          "bge_small_fp32": 109056
+        },
+        "ratio_to_bge_small": {
+          "fp32": 16.85,
+          "fp16": 8.425
+        },
+        "encode_seconds": 0.16,
+        "where": "memory only (never the shared embedding cache)",
+        "document_text": "chunk.text"
+      },
+      "queries": {
+        "n": 136,
+        "query_length": 32,
+        "over_query_length": 0,
+        "longest_tokenized": 32,
+        "scored_rows": 4352
+      },
+      "batched_pass": {
+        "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+        "device": "cuda",
+        "block_bytes": 1073741824,
+        "wall_ms": 18.17,
+        "ms_per_query_amortised": 0.134,
+        "ranking_ms": 4.6,
+        "queries": 136,
+        "documents": 71,
+        "k": 50
+      },
+      "equivalence": {
+        "pairs": 200,
+        "max_abs_difference": {
+          "matrix_vs_maxsim": 3.6048499048035865e-06,
+          "matrix_vs_sentence_transformers": 3.0322946571459397e-06
+        },
+        "tolerance": {
+          "maxsim": 1e-05,
+          "sentence_transformers": 0.0001
+        },
+        "within_tolerance": true,
+        "rank_agreement": {
+          "queries": 136,
+          "top": 100,
+          "same_order_as_sentence_transformers": 136,
+          "max_abs_difference": 4.325751916667286e-06,
+          "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+        }
+      },
+      "bm25_equal_to_parent": true,
+      "document_text": "chunk.text (asserted equal to bge-small's dense leg)",
+      "stored_vs_on_the_fly": {
+        "queries_checked": 136,
+        "queries_order_differs": 1,
+        "what": "the same candidates ordered by the role-(a) store's scores (documents encoded in corpus batches) against on-the-fly encoding; batch padding can change floats"
+      },
+      "rerank_latency": {
+        "p50_ms": 59.617,
+        "p95_ms": 63.487,
+        "n": 136,
+        "note": "per question on this run's device, on-the-fly encoding included"
+      }
+    }
+  },
+  "rerankers": {
+    "bge-rerank": {
+      "role": "reranker",
+      "model": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "neural": true,
+      "loaded": true,
+      "device": "cuda:0",
+      "precision": "fp32",
+      "max_length": 512,
+      "depth": 20,
+      "dtype": "torch.float32",
+      "loaded_max_length": 512,
+      "default_prompt_name": null,
+      "default_prompt": null,
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 0.999968,
+        "score_other": 1.6e-05,
+        "score_answer_long": 0.968841,
+        "passed": true
+      },
+      "rerank_latency": {
+        "p50_ms": 145.978,
+        "p95_ms": 160.186,
+        "n": 136,
+        "note": "per question on this run's device, after one warm-up question"
+      }
+    },
+    "minilm-l12": {
+      "role": "reranker",
+      "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+      "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+      "neural": true,
+      "pinned_revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+      "loaded": true,
+      "device": "cuda:0",
+      "precision": "fp32",
+      "max_length": 512,
+      "depth": 20,
+      "dtype": "torch.float32",
+      "loaded_max_length": 512,
+      "default_prompt_name": null,
+      "default_prompt": null,
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 0.999925,
+        "score_other": 1.6e-05,
+        "score_answer_long": 0.982473,
+        "passed": true
+      },
+      "rerank_latency": {
+        "p50_ms": 22.716,
+        "p95_ms": 24.758,
+        "n": 136,
+        "note": "per question on this run's device, after one warm-up question"
+      }
+    },
+    "gte-modernbert-base": {
+      "role": "reranker",
+      "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+      "revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+      "neural": true,
+      "pinned_revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+      "loaded": true,
+      "device": "cuda:0",
+      "precision": "fp32",
+      "max_length": 512,
+      "depth": 20,
+      "dtype": "torch.float32",
+      "loaded_max_length": 512,
+      "default_prompt_name": null,
+      "default_prompt": null,
+      "load_and_score": {
+        "query": "What is the capital of China?",
+        "score_answer": 0.980046,
+        "score_other": 0.199054,
+        "score_answer_long": 0.946022,
+        "passed": true
+      },
+      "rerank_latency": {
+        "p50_ms": 76.169,
+        "p95_ms": 82.939,
+        "n": 136,
+        "note": "per question on this run's device, after one warm-up question"
+      }
+    }
+  },
+  "rankings": {
+    "dense_only@bge-small": "e4e6765b2602d7098e6587ce7b2bea6a413c23d256bdaf1346dfcf79d467dd1a",
+    "hybrid@bge-small": "3b55008180717673c98dba3a3e4222f1f85aed3fce018eded080d6cf5ac905cd",
+    "dense_only@answerai-colbert-small": "c4de15f850d02ff14fc75f1a1471b36d0b9bceec0fce79c332b7b222c2f1b543",
+    "hybrid@answerai-colbert-small": "ca795e0fe4e9cf5340df32cae655d7174ef919cab59573f40cf5da966f2686b8",
+    "dense_only@colbertv2": "8e866c384205cfc8c2cfec5856a69c1258ed0cfc6fa70fb15239a67e96258358",
+    "hybrid@colbertv2": "5fd1224358b31bcdb4f634e73eaad2f4acaa4ab839f53b592cb271a22e0403e0",
+    "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20": "fa485aedc29a24ef68a6b7b251941d8a1791fdf84530f75fdc830ee6916a21df",
+    "hybrid+colbertv2@bge-small/fp32-doc180/top20": "2c0ff941a4e7f7b3773b8b49c198341225d4caed336c1a903a2177f836468d27",
+    "hybrid+bge-rerank@bge-small/fp32-512/top20": "00be7a94a12057e03a97109ec5198dc0bc36df815b023ec965269fb1072efe77",
+    "hybrid+minilm-l12@bge-small/fp32-512/top20": "4cbc11b8ec704b625df1d9821f52311582d8c1f809b13ea9e05ad2ba6af0aa73",
+    "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": "0927d733993a4cdab745a27ce164c947238c94b4473b653b53d0f455226bc99e"
+  },
+  "split": {
+    "rule": "alternate train / test inside each category, gold order (app.eval.rerank_arms.split_questions)",
+    "tune": "train",
+    "held_out": "test",
+    "tune_ids": [
+      "q001",
+      "q003",
+      "q005",
+      "q007",
+      "q009",
+      "q011",
+      "q013",
+      "q015",
+      "q017",
+      "q019",
+      "q021",
+      "q023",
+      "q025",
+      "q027",
+      "q029",
+      "q031",
+      "q033",
+      "q035",
+      "q037",
+      "q039",
+      "q041",
+      "q043",
+      "q045",
+      "q047",
+      "q049",
+      "q051",
+      "q053",
+      "q055",
+      "q057",
+      "q059",
+      "q061",
+      "q063",
+      "q065",
+      "q067",
+      "q069",
+      "q071",
+      "q073",
+      "q075",
+      "q077",
+      "q079",
+      "q081",
+      "q083",
+      "q085",
+      "q087",
+      "q089",
+      "q091",
+      "q093",
+      "q095",
+      "q097",
+      "q099",
+      "q101",
+      "q103",
+      "q105",
+      "q107",
+      "q109",
+      "q111",
+      "q113",
+      "q115",
+      "q117",
+      "q119",
+      "q121",
+      "q123",
+      "q125",
+      "q127",
+      "q129",
+      "q131",
+      "q133",
+      "q135"
+    ],
+    "held_out_ids": [
+      "q002",
+      "q004",
+      "q006",
+      "q008",
+      "q010",
+      "q012",
+      "q014",
+      "q016",
+      "q018",
+      "q020",
+      "q022",
+      "q024",
+      "q026",
+      "q028",
+      "q030",
+      "q032",
+      "q034",
+      "q036",
+      "q038",
+      "q040",
+      "q042",
+      "q044",
+      "q046",
+      "q048",
+      "q050",
+      "q052",
+      "q054",
+      "q056",
+      "q058",
+      "q060",
+      "q062",
+      "q064",
+      "q066",
+      "q068",
+      "q070",
+      "q072",
+      "q074",
+      "q076",
+      "q078",
+      "q080",
+      "q082",
+      "q084",
+      "q086",
+      "q088",
+      "q090",
+      "q092",
+      "q094",
+      "q096",
+      "q098",
+      "q100",
+      "q102",
+      "q104",
+      "q106",
+      "q108",
+      "q110",
+      "q112",
+      "q114",
+      "q116",
+      "q118",
+      "q120",
+      "q122",
+      "q124",
+      "q126",
+      "q128",
+      "q130",
+      "q132",
+      "q134",
+      "q136"
+    ],
+    "use": "the bar is read on the held-out half; nothing was chosen on the tune half"
+  },
+  "held_out": {
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 68,
+      "level": 0.95
+    },
+    "results": [
+      {
+        "config": "dense_only@bge-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.5819,
+            "lo": 0.5062,
+            "hi": 0.6648
+          },
+          "recall@10": {
+            "mean": 0.7569,
+            "lo": 0.6754,
+            "hi": 0.8352
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.569,
+            "lo": 0.4824,
+            "hi": 0.663
+          },
+          "recall@5": {
+            "mean": 0.6178,
+            "lo": 0.5285,
+            "hi": 0.7093
+          }
+        },
+        "retrieval": {
+          "ndcg@10": 0.5819,
+          "recall@5": 0.6178,
+          "recall@10": 0.7569,
+          "recall@50": 0.9338,
+          "mrr@10": 0.569,
+          "mean_unique_paths@50": 44.21,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.5949,
+              "recall@10": 0.8,
+              "recall@50": 0.9125,
+              "mrr@10": 0.564,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6294,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.4167,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6522,
+              "recall@10": 0.7917,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5815,
+              "recall@10": 0.56,
+              "recall@50": 1.0,
+              "mrr@10": 0.7,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.4339,
+              "recall@10": 0.5,
+              "recall@50": 0.875,
+              "mrr@10": 0.525,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7783,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.2217,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.1333,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 0.8333,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7247
+        }
+      },
+      {
+        "config": "hybrid@bge-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7068,
+            "lo": 0.6316,
+            "hi": 0.7773
+          },
+          "recall@10": {
+            "mean": 0.8299,
+            "lo": 0.7564,
+            "hi": 0.8946
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.7281,
+            "lo": 0.6427,
+            "hi": 0.8122
+          },
+          "recall@5": {
+            "mean": 0.7507,
+            "lo": 0.66,
+            "hi": 0.8338
+          }
+        },
+        "retrieval": {
+          "ndcg@10": 0.7068,
+          "recall@5": 0.7507,
+          "recall@10": 0.8299,
+          "recall@50": 0.9338,
+          "mrr@10": 0.7281,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.782,
+              "recall@10": 0.875,
+              "recall@50": 0.9,
+              "mrr@10": 0.8187,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6256,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5944,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.6607,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4693,
+              "recall@10": 0.52,
+              "recall@50": 1.0,
+              "mrr@10": 0.5286,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5323,
+              "recall@10": 0.625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8016,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7917,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4583,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.369,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7956,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        }
+      },
+      {
+        "config": "dense_only@answerai-colbert-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7415,
+            "lo": 0.6591,
+            "hi": 0.8159
+          },
+          "recall@10": {
+            "mean": 0.8075,
+            "lo": 0.7298,
+            "hi": 0.8778
+          },
+          "recall@50": {
+            "mean": 0.9706,
+            "lo": 0.9412,
+            "hi": 0.9926
+          },
+          "mrr@10": {
+            "mean": 0.7631,
+            "lo": 0.6728,
+            "hi": 0.8448
+          },
+          "recall@5": {
+            "mean": 0.7499,
+            "lo": 0.6624,
+            "hi": 0.833
+          }
+        },
+        "deltas": [
+          {
+            "reference": "dense_only@bge-small",
+            "ndcg@10": {
+              "delta": 0.1596,
+              "lo": 0.0837,
+              "hi": 0.2375
+            },
+            "recall@10": {
+              "delta": 0.0506,
+              "lo": -0.0239,
+              "hi": 0.1216
+            },
+            "recall@50": {
+              "delta": 0.0368,
+              "lo": 0.0074,
+              "hi": 0.0664
+            },
+            "mrr@10": {
+              "delta": 0.194,
+              "lo": 0.103,
+              "hi": 0.2854
+            },
+            "recall@5": {
+              "delta": 0.1322,
+              "lo": 0.0368,
+              "hi": 0.2239
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7415,
+          "recall@5": 0.7499,
+          "recall@10": 0.8075,
+          "recall@50": 0.9706,
+          "mrr@10": 0.7631,
+          "mean_unique_paths@50": 44.29,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8627,
+              "recall@10": 0.9,
+              "recall@50": 0.9625,
+              "mrr@10": 0.9125,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.58,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.3958,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6472,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.6875,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4553,
+              "recall@10": 0.405,
+              "recall@50": 1.0,
+              "mrr@10": 0.4667,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.4683,
+              "recall@10": 0.5625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5278,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8052,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7778,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4077,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.375,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7261
+        }
+      },
+      {
+        "config": "hybrid@answerai-colbert-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.745,
+            "lo": 0.6583,
+            "hi": 0.8195
+          },
+          "recall@10": {
+            "mean": 0.7854,
+            "lo": 0.7,
+            "hi": 0.8596
+          },
+          "recall@50": {
+            "mean": 0.9706,
+            "lo": 0.9412,
+            "hi": 0.9926
+          },
+          "mrr@10": {
+            "mean": 0.7832,
+            "lo": 0.6903,
+            "hi": 0.8645
+          },
+          "recall@5": {
+            "mean": 0.7433,
+            "lo": 0.6494,
+            "hi": 0.8289
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0382,
+              "lo": -0.0127,
+              "hi": 0.0925
+            },
+            "recall@10": {
+              "delta": -0.0445,
+              "lo": -0.1044,
+              "hi": 0.0125
+            },
+            "recall@50": {
+              "delta": 0.0368,
+              "lo": 0.0074,
+              "hi": 0.0735
+            },
+            "mrr@10": {
+              "delta": 0.0551,
+              "lo": -0.0115,
+              "hi": 0.1218
+            },
+            "recall@5": {
+              "delta": -0.0074,
+              "lo": -0.0515,
+              "hi": 0.0368
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.745,
+          "recall@5": 0.7433,
+          "recall@10": 0.7854,
+          "recall@50": 0.9706,
+          "mrr@10": 0.7832,
+          "mean_unique_paths@50": 44.18,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8873,
+              "recall@10": 0.9,
+              "recall@50": 0.9625,
+              "mrr@10": 0.95,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.3852,
+              "recall@10": 0.7,
+              "recall@50": 1.0,
+              "mrr@10": 0.2792,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.574,
+              "recall@10": 0.5833,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.3931,
+              "recall@10": 0.405,
+              "recall@50": 1.0,
+              "mrr@10": 0.4,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5151,
+              "recall@10": 0.6875,
+              "recall@50": 0.875,
+              "mrr@10": 0.5357,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.6734,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.871,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 1.0,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7242
+        }
+      },
+      {
+        "config": "dense_only@colbertv2",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6306,
+            "lo": 0.5598,
+            "hi": 0.699
+          },
+          "recall@10": {
+            "mean": 0.8398,
+            "lo": 0.7651,
+            "hi": 0.9038
+          },
+          "recall@50": {
+            "mean": 0.9853,
+            "lo": 0.9632,
+            "hi": 1.0
+          },
+          "mrr@10": {
+            "mean": 0.5685,
+            "lo": 0.496,
+            "hi": 0.6433
+          },
+          "recall@5": {
+            "mean": 0.7807,
+            "lo": 0.698,
+            "hi": 0.854
+          }
+        },
+        "deltas": [
+          {
+            "reference": "dense_only@bge-small",
+            "ndcg@10": {
+              "delta": 0.0488,
+              "lo": -0.0405,
+              "hi": 0.1352
+            },
+            "recall@10": {
+              "delta": 0.083,
+              "lo": 0.0015,
+              "hi": 0.1624
+            },
+            "recall@50": {
+              "delta": 0.0515,
+              "lo": 0.0221,
+              "hi": 0.0882
+            },
+            "mrr@10": {
+              "delta": -0.0005,
+              "lo": -0.1078,
+              "hi": 0.1069
+            },
+            "recall@5": {
+              "delta": 0.1629,
+              "lo": 0.0744,
+              "hi": 0.2493
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6306,
+          "recall@5": 0.7807,
+          "recall@10": 0.8398,
+          "recall@50": 0.9853,
+          "mrr@10": 0.5685,
+          "mean_unique_paths@50": 45.69,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6261,
+              "recall@10": 0.9,
+              "recall@50": 0.9875,
+              "mrr@10": 0.5542,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.8542,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.3686,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.2708,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6861,
+              "recall@10": 0.7383,
+              "recall@50": 1.0,
+              "mrr@10": 0.5952,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.504,
+              "recall@10": 0.5625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8311,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7257,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.7,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.749
+        }
+      },
+      {
+        "config": "hybrid@colbertv2",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7071,
+            "lo": 0.6348,
+            "hi": 0.7727
+          },
+          "recall@10": {
+            "mean": 0.8217,
+            "lo": 0.7444,
+            "hi": 0.8871
+          },
+          "recall@50": {
+            "mean": 0.9779,
+            "lo": 0.9485,
+            "hi": 1.0
+          },
+          "mrr@10": {
+            "mean": 0.723,
+            "lo": 0.636,
+            "hi": 0.799
+          },
+          "recall@5": {
+            "mean": 0.7715,
+            "lo": 0.6882,
+            "hi": 0.8475
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0003,
+              "lo": -0.05,
+              "hi": 0.0512
+            },
+            "recall@10": {
+              "delta": -0.0082,
+              "lo": -0.0561,
+              "hi": 0.0408
+            },
+            "recall@50": {
+              "delta": 0.0441,
+              "lo": 0.0147,
+              "hi": 0.0809
+            },
+            "mrr@10": {
+              "delta": -0.0051,
+              "lo": -0.0725,
+              "hi": 0.0629
+            },
+            "recall@5": {
+              "delta": 0.0208,
+              "lo": -0.0159,
+              "hi": 0.0711
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7071,
+          "recall@5": 0.7715,
+          "recall@10": 0.8217,
+          "recall@50": 0.9779,
+          "mrr@10": 0.723,
+          "mean_unique_paths@50": 45.69,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8035,
+              "recall@10": 0.9,
+              "recall@50": 0.975,
+              "mrr@10": 0.8333,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6071,
+              "recall@10": 0.8875,
+              "recall@50": 1.0,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.4248,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.375,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.478,
+              "recall@10": 0.5317,
+              "recall@50": 1.0,
+              "mrr@10": 0.4833,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5136,
+              "recall@10": 0.625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.6888,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5625,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.871,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 1.0,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.749
+        }
+      },
+      {
+        "config": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7537,
+            "lo": 0.6799,
+            "hi": 0.8223
+          },
+          "recall@10": {
+            "mean": 0.8494,
+            "lo": 0.7801,
+            "hi": 0.9108
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.7603,
+            "lo": 0.6753,
+            "hi": 0.8407
+          },
+          "recall@5": {
+            "mean": 0.7749,
+            "lo": 0.6899,
+            "hi": 0.8546
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0469,
+              "lo": -0.0022,
+              "hi": 0.0997
+            },
+            "recall@10": {
+              "delta": 0.0195,
+              "lo": -0.025,
+              "hi": 0.0739
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.0322,
+              "lo": -0.0394,
+              "hi": 0.1029
+            },
+            "recall@5": {
+              "delta": 0.0243,
+              "lo": -0.0338,
+              "hi": 0.0875
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.0554,
+              "lo": -0.1041,
+              "hi": -0.0075
+            },
+            "recall@10": {
+              "delta": -0.0288,
+              "lo": -0.0686,
+              "hi": 0.0061
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.0586,
+              "lo": -0.1196,
+              "hi": 0.0034
+            },
+            "recall@5": {
+              "delta": -0.0445,
+              "lo": -0.1088,
+              "hi": 0.0176
+            }
+          },
+          {
+            "reference": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": 0.1185,
+              "lo": 0.0648,
+              "hi": 0.1691
+            },
+            "recall@10": {
+              "delta": -0.0116,
+              "lo": -0.0441,
+              "hi": 0.0165
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.1801,
+              "lo": 0.108,
+              "hi": 0.2524
+            },
+            "recall@5": {
+              "delta": -0.0301,
+              "lo": -0.0772,
+              "hi": 0.0103
+            }
+          },
+          {
+            "reference": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.0475,
+              "lo": -0.088,
+              "hi": -0.0078
+            },
+            "recall@10": {
+              "delta": -0.0207,
+              "lo": -0.057,
+              "hi": 0.0098
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.051,
+              "lo": -0.1071,
+              "hi": 0.0091
+            },
+            "recall@5": {
+              "delta": -0.0423,
+              "lo": -0.0945,
+              "hi": 0.0132
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7537,
+          "recall@5": 0.7749,
+          "recall@10": 0.8494,
+          "recall@50": 0.9338,
+          "mrr@10": 0.7603,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8627,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9125,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.58,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.3958,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6016,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.5982,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5595,
+              "recall@10": 0.575,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.4683,
+              "recall@10": 0.5625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5278,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8052,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7778,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5308,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.375,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        }
+      },
+      {
+        "config": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6378,
+            "lo": 0.574,
+            "hi": 0.7019
+          },
+          "recall@10": {
+            "mean": 0.8701,
+            "lo": 0.807,
+            "hi": 0.9234
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.569,
+            "lo": 0.4994,
+            "hi": 0.6422
+          },
+          "recall@5": {
+            "mean": 0.8051,
+            "lo": 0.7297,
+            "hi": 0.8733
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0689,
+              "lo": -0.1245,
+              "hi": -0.0108
+            },
+            "recall@10": {
+              "delta": 0.0402,
+              "lo": -0.0011,
+              "hi": 0.0923
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.1591,
+              "lo": -0.2424,
+              "hi": -0.0731
+            },
+            "recall@5": {
+              "delta": 0.0544,
+              "lo": -0.0118,
+              "hi": 0.1316
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.1712,
+              "lo": -0.2247,
+              "hi": -0.1159
+            },
+            "recall@10": {
+              "delta": -0.0081,
+              "lo": -0.0368,
+              "hi": 0.0176
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.2498,
+              "lo": -0.326,
+              "hi": -0.1669
+            },
+            "recall@5": {
+              "delta": -0.0143,
+              "lo": -0.0467,
+              "hi": 0.0147
+            }
+          },
+          {
+            "reference": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": 0.0027,
+              "lo": -0.0251,
+              "hi": 0.0285
+            },
+            "recall@10": {
+              "delta": 0.0091,
+              "lo": -0.0098,
+              "hi": 0.0294
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.0111,
+              "lo": -0.0449,
+              "hi": 0.0206
+            },
+            "recall@5": {
+              "delta": 0.0,
+              "lo": -0.0368,
+              "hi": 0.0294
+            }
+          },
+          {
+            "reference": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.1633,
+              "lo": -0.2067,
+              "hi": -0.1176
+            },
+            "recall@10": {
+              "delta": 0.0,
+              "lo": -0.0221,
+              "hi": 0.0221
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.2422,
+              "lo": -0.3008,
+              "hi": -0.179
+            },
+            "recall@5": {
+              "delta": -0.0121,
+              "lo": -0.0368,
+              "hi": 0.011
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6378,
+          "recall@5": 0.8051,
+          "recall@10": 0.8701,
+          "recall@50": 0.9338,
+          "mrr@10": 0.569,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6261,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.5542,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.8542,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5108,
+              "recall@10": 0.7917,
+              "recall@50": 1.0,
+              "mrr@10": 0.4236,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6284,
+              "recall@10": 0.65,
+              "recall@50": 1.0,
+              "mrr@10": 0.54,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.504,
+              "recall@10": 0.5625,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8311,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5376,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.4,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7457,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.7333,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        }
+      },
+      {
+        "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8091,
+            "lo": 0.7441,
+            "hi": 0.8713
+          },
+          "recall@10": {
+            "mean": 0.8782,
+            "lo": 0.8105,
+            "hi": 0.9336
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.8189,
+            "lo": 0.7404,
+            "hi": 0.8934
+          },
+          "recall@5": {
+            "mean": 0.8194,
+            "lo": 0.7451,
+            "hi": 0.886
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.1023,
+              "lo": 0.0465,
+              "hi": 0.1642
+            },
+            "recall@10": {
+              "delta": 0.0483,
+              "lo": 0.002,
+              "hi": 0.1029
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.0908,
+              "lo": 0.0144,
+              "hi": 0.1735
+            },
+            "recall@5": {
+              "delta": 0.0687,
+              "lo": -0.0,
+              "hi": 0.1408
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.8091,
+          "recall@5": 0.8194,
+          "recall@10": 0.8782,
+          "recall@50": 0.9338,
+          "mrr@10": 0.8189,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8928,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9583,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5731,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.3542,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.4674,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.3958,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6634,
+              "recall@10": 0.65,
+              "recall@50": 1.0,
+              "mrr@10": 0.6,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6016,
+              "recall@10": 0.75,
+              "recall@50": 0.875,
+              "mrr@10": 0.5625,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8137,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.8223,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.775,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.9591,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 1.0,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        }
+      },
+      {
+        "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6351,
+            "lo": 0.5747,
+            "hi": 0.6969
+          },
+          "recall@10": {
+            "mean": 0.861,
+            "lo": 0.7912,
+            "hi": 0.921
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.5801,
+            "lo": 0.5115,
+            "hi": 0.6525
+          },
+          "recall@5": {
+            "mean": 0.8051,
+            "lo": 0.7282,
+            "hi": 0.8747
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0716,
+              "lo": -0.1288,
+              "hi": -0.0094
+            },
+            "recall@10": {
+              "delta": 0.0311,
+              "lo": -0.0158,
+              "hi": 0.089
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.148,
+              "lo": -0.2331,
+              "hi": -0.0614
+            },
+            "recall@5": {
+              "delta": 0.0544,
+              "lo": -0.0037,
+              "hi": 0.1243
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6351,
+          "recall@5": 0.8051,
+          "recall@10": 0.861,
+          "recall@50": 0.9338,
+          "mrr@10": 0.5801,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6393,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.5854,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.7587,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.6875,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.488,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.3625,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.617,
+              "recall@10": 0.65,
+              "recall@50": 1.0,
+              "mrr@10": 0.5333,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.459,
+              "recall@10": 0.5,
+              "recall@50": 0.875,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.6781,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5625,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.6731,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5625,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7689,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.7778,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        }
+      },
+      {
+        "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8011,
+            "lo": 0.7302,
+            "hi": 0.8644
+          },
+          "recall@10": {
+            "mean": 0.8701,
+            "lo": 0.7996,
+            "hi": 0.9283
+          },
+          "recall@50": {
+            "mean": 0.9338,
+            "lo": 0.8897,
+            "hi": 0.9706
+          },
+          "mrr@10": {
+            "mean": 0.8113,
+            "lo": 0.7343,
+            "hi": 0.8794
+          },
+          "recall@5": {
+            "mean": 0.8172,
+            "lo": 0.7393,
+            "hi": 0.8855
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0944,
+              "lo": 0.0416,
+              "hi": 0.1499
+            },
+            "recall@10": {
+              "delta": 0.0402,
+              "lo": -0.0092,
+              "hi": 0.0966
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.0832,
+              "lo": 0.0056,
+              "hi": 0.1566
+            },
+            "recall@5": {
+              "delta": 0.0665,
+              "lo": -0.0015,
+              "hi": 0.1404
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.8011,
+          "recall@5": 0.8172,
+          "recall@10": 0.8701,
+          "recall@50": 0.9338,
+          "mrr@10": 0.8113,
+          "mean_unique_paths@50": 44.31,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8785,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.925,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.84,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.4951,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.425,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5841,
+              "recall@10": 0.6,
+              "recall@50": 1.0,
+              "mrr@10": 0.54,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5591,
+              "recall@10": 0.625,
+              "recall@50": 0.875,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8443,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.73,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.65,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.8479,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7778,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7264
+        }
+      }
+    ]
+  },
+  "tune": {
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 68,
+      "level": 0.95
+    },
+    "results": [
+      {
+        "config": "dense_only@bge-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.5483,
+            "lo": 0.4715,
+            "hi": 0.6266
+          },
+          "recall@10": {
+            "mean": 0.7453,
+            "lo": 0.6608,
+            "hi": 0.825
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.5135,
+            "lo": 0.4282,
+            "hi": 0.6042
+          },
+          "recall@5": {
+            "mean": 0.6107,
+            "lo": 0.5185,
+            "hi": 0.7063
+          }
+        },
+        "retrieval": {
+          "ndcg@10": 0.5483,
+          "recall@5": 0.6107,
+          "recall@10": 0.7453,
+          "recall@50": 0.9412,
+          "mrr@10": 0.5135,
+          "mean_unique_paths@50": 43.59,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.5542,
+              "recall@10": 0.8125,
+              "recall@50": 0.9,
+              "mrr@10": 0.5013,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.4109,
+              "recall@10": 0.85,
+              "recall@50": 1.0,
+              "mrr@10": 0.2292,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.561,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5791,
+              "recall@10": 0.6556,
+              "recall@50": 1.0,
+              "mrr@10": 0.59,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.7079,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.7917,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.625,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.5833,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.25,
+              "recall@10": 0.25,
+              "recall@50": 1.0,
+              "mrr@10": 0.25,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7146
+        }
+      },
+      {
+        "config": "hybrid@bge-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6843,
+            "lo": 0.6146,
+            "hi": 0.7567
+          },
+          "recall@10": {
+            "mean": 0.8102,
+            "lo": 0.7298,
+            "hi": 0.8784
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.6816,
+            "lo": 0.5989,
+            "hi": 0.7652
+          },
+          "recall@5": {
+            "mean": 0.7283,
+            "lo": 0.6393,
+            "hi": 0.8111
+          }
+        },
+        "retrieval": {
+          "ndcg@10": 0.6843,
+          "recall@5": 0.7283,
+          "recall@10": 0.8102,
+          "recall@50": 0.9412,
+          "mrr@10": 0.6816,
+          "mean_unique_paths@50": 43.68,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.7604,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.7608,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.572,
+              "recall@10": 0.8,
+              "recall@50": 1.0,
+              "mrr@10": 0.4896,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.664,
+              "recall@10": 0.7792,
+              "recall@50": 1.0,
+              "mrr@10": 0.5917,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6027,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.6218,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.25,
+              "recall@10": 0.25,
+              "recall@50": 1.0,
+              "mrr@10": 0.25,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.716
+        }
+      },
+      {
+        "config": "dense_only@answerai-colbert-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7679,
+            "lo": 0.6887,
+            "hi": 0.8373
+          },
+          "recall@10": {
+            "mean": 0.8212,
+            "lo": 0.7371,
+            "hi": 0.8913
+          },
+          "recall@50": {
+            "mean": 0.9853,
+            "lo": 0.9632,
+            "hi": 1.0
+          },
+          "mrr@10": {
+            "mean": 0.7892,
+            "lo": 0.701,
+            "hi": 0.8676
+          },
+          "recall@5": {
+            "mean": 0.7764,
+            "lo": 0.6845,
+            "hi": 0.8558
+          }
+        },
+        "deltas": [
+          {
+            "reference": "dense_only@bge-small",
+            "ndcg@10": {
+              "delta": 0.2196,
+              "lo": 0.143,
+              "hi": 0.2947
+            },
+            "recall@10": {
+              "delta": 0.0759,
+              "lo": 0.0005,
+              "hi": 0.1547
+            },
+            "recall@50": {
+              "delta": 0.0441,
+              "lo": 0.0147,
+              "hi": 0.0809
+            },
+            "mrr@10": {
+              "delta": 0.2757,
+              "lo": 0.1837,
+              "hi": 0.3711
+            },
+            "recall@5": {
+              "delta": 0.1657,
+              "lo": 0.0786,
+              "hi": 0.2503
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7679,
+          "recall@5": 0.7764,
+          "recall@10": 0.8212,
+          "recall@50": 0.9853,
+          "mrr@10": 0.7892,
+          "mean_unique_paths@50": 44.04,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8704,
+              "recall@10": 0.9,
+              "recall@50": 0.975,
+              "mrr@10": 0.9333,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.2646,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.1667,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5835,
+              "recall@10": 0.6681,
+              "recall@50": 1.0,
+              "mrr@10": 0.4333,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.7299,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.9077,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.875,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5655,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.722
+        }
+      },
+      {
+        "config": "hybrid@answerai-colbert-small",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7711,
+            "lo": 0.6952,
+            "hi": 0.8419
+          },
+          "recall@10": {
+            "mean": 0.824,
+            "lo": 0.7441,
+            "hi": 0.8921
+          },
+          "recall@50": {
+            "mean": 0.9779,
+            "lo": 0.9485,
+            "hi": 1.0
+          },
+          "mrr@10": {
+            "mean": 0.7907,
+            "lo": 0.7049,
+            "hi": 0.8706
+          },
+          "recall@5": {
+            "mean": 0.7792,
+            "lo": 0.6961,
+            "hi": 0.8566
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0868,
+              "lo": 0.027,
+              "hi": 0.1448
+            },
+            "recall@10": {
+              "delta": 0.0137,
+              "lo": -0.0294,
+              "hi": 0.0637
+            },
+            "recall@50": {
+              "delta": 0.0368,
+              "lo": 0.0074,
+              "hi": 0.0662
+            },
+            "mrr@10": {
+              "delta": 0.1091,
+              "lo": 0.0332,
+              "hi": 0.1853
+            },
+            "recall@5": {
+              "delta": 0.0508,
+              "lo": -0.0154,
+              "hi": 0.1195
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7711,
+          "recall@5": 0.7792,
+          "recall@10": 0.824,
+          "recall@50": 0.9779,
+          "mrr@10": 0.7907,
+          "mean_unique_paths@50": 44.07,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8981,
+              "recall@10": 0.9,
+              "recall@50": 0.9625,
+              "mrr@10": 0.9625,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.3309,
+              "recall@10": 0.7,
+              "recall@50": 1.0,
+              "mrr@10": 0.2028,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5967,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5595,
+              "recall@10": 0.6458,
+              "recall@50": 1.0,
+              "mrr@10": 0.425,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7827,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7083,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5655,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7225
+        }
+      },
+      {
+        "config": "dense_only@colbertv2",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6505,
+            "lo": 0.5833,
+            "hi": 0.7144
+          },
+          "recall@10": {
+            "mean": 0.8385,
+            "lo": 0.7656,
+            "hi": 0.9029
+          },
+          "recall@50": {
+            "mean": 0.9853,
+            "lo": 0.9632,
+            "hi": 1.0
+          },
+          "mrr@10": {
+            "mean": 0.593,
+            "lo": 0.524,
+            "hi": 0.6628
+          },
+          "recall@5": {
+            "mean": 0.803,
+            "lo": 0.72,
+            "hi": 0.8767
+          }
+        },
+        "deltas": [
+          {
+            "reference": "dense_only@bge-small",
+            "ndcg@10": {
+              "delta": 0.1023,
+              "lo": 0.0252,
+              "hi": 0.1782
+            },
+            "recall@10": {
+              "delta": 0.0932,
+              "lo": 0.0348,
+              "hi": 0.1582
+            },
+            "recall@50": {
+              "delta": 0.0441,
+              "lo": 0.0147,
+              "hi": 0.0809
+            },
+            "mrr@10": {
+              "delta": 0.0795,
+              "lo": -0.0199,
+              "hi": 0.1718
+            },
+            "recall@5": {
+              "delta": 0.1923,
+              "lo": 0.1145,
+              "hi": 0.2776
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6505,
+          "recall@5": 0.803,
+          "recall@10": 0.8385,
+          "recall@50": 0.9853,
+          "mrr@10": 0.593,
+          "mean_unique_paths@50": 45.4,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6414,
+              "recall@10": 0.9,
+              "recall@50": 0.975,
+              "mrr@10": 0.5708,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5659,
+              "recall@10": 0.85,
+              "recall@50": 1.0,
+              "mrr@10": 0.4107,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.8042,
+              "recall@10": 0.8236,
+              "recall@50": 1.0,
+              "mrr@10": 0.65,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6976,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.775,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8155,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4077,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.375,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7442
+        }
+      },
+      {
+        "config": "hybrid@colbertv2",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7533,
+            "lo": 0.681,
+            "hi": 0.8196
+          },
+          "recall@10": {
+            "mean": 0.8233,
+            "lo": 0.7464,
+            "hi": 0.8897
+          },
+          "recall@50": {
+            "mean": 0.9632,
+            "lo": 0.9265,
+            "hi": 0.9926
+          },
+          "mrr@10": {
+            "mean": 0.7756,
+            "lo": 0.6978,
+            "hi": 0.8505
+          },
+          "recall@5": {
+            "mean": 0.7952,
+            "lo": 0.7118,
+            "hi": 0.8683
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0689,
+              "lo": 0.0213,
+              "hi": 0.12
+            },
+            "recall@10": {
+              "delta": 0.0131,
+              "lo": -0.0049,
+              "hi": 0.0441
+            },
+            "recall@50": {
+              "delta": 0.0221,
+              "lo": 0.0,
+              "hi": 0.0515
+            },
+            "mrr@10": {
+              "delta": 0.094,
+              "lo": 0.0229,
+              "hi": 0.1616
+            },
+            "recall@5": {
+              "delta": 0.0668,
+              "lo": 0.0163,
+              "hi": 0.1242
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7533,
+          "recall@5": 0.7952,
+          "recall@10": 0.8233,
+          "recall@50": 0.9632,
+          "mrr@10": 0.7756,
+          "mean_unique_paths@50": 45.43,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8439,
+              "recall@10": 0.9,
+              "recall@50": 0.9375,
+              "mrr@10": 0.8958,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5522,
+              "recall@10": 0.8,
+              "recall@50": 1.0,
+              "mrr@10": 0.4562,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6702,
+              "recall@10": 0.7569,
+              "recall@50": 1.0,
+              "mrr@10": 0.55,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6332,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7827,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7083,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4077,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.375,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7447
+        }
+      },
+      {
+        "config": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7715,
+            "lo": 0.6972,
+            "hi": 0.8366
+          },
+          "recall@10": {
+            "mean": 0.8437,
+            "lo": 0.7759,
+            "hi": 0.9062
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.7912,
+            "lo": 0.7084,
+            "hi": 0.868
+          },
+          "recall@5": {
+            "mean": 0.769,
+            "lo": 0.6747,
+            "hi": 0.8521
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0872,
+              "lo": 0.0297,
+              "hi": 0.1453
+            },
+            "recall@10": {
+              "delta": 0.0335,
+              "lo": -0.0059,
+              "hi": 0.085
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.1096,
+              "lo": 0.0318,
+              "hi": 0.1864
+            },
+            "recall@5": {
+              "delta": 0.0407,
+              "lo": -0.0343,
+              "hi": 0.1172
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.033,
+              "lo": -0.0823,
+              "hi": 0.0137
+            },
+            "recall@10": {
+              "delta": -0.0049,
+              "lo": -0.0196,
+              "hi": 0.0049
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.0465,
+              "lo": -0.1139,
+              "hi": 0.0177
+            },
+            "recall@5": {
+              "delta": -0.0564,
+              "lo": -0.1168,
+              "hi": -0.0123
+            }
+          },
+          {
+            "reference": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": 0.1462,
+              "lo": 0.0906,
+              "hi": 0.2003
+            },
+            "recall@10": {
+              "delta": 0.0016,
+              "lo": 0.0,
+              "hi": 0.0049
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.2212,
+              "lo": 0.1364,
+              "hi": 0.3031
+            },
+            "recall@5": {
+              "delta": -0.0258,
+              "lo": -0.0667,
+              "hi": 0.0016
+            }
+          },
+          {
+            "reference": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.0464,
+              "lo": -0.0881,
+              "hi": -0.0074
+            },
+            "recall@10": {
+              "delta": -0.0068,
+              "lo": -0.0234,
+              "hi": 0.0065
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.0569,
+              "lo": -0.1154,
+              "hi": -0.0039
+            },
+            "recall@5": {
+              "delta": -0.0512,
+              "lo": -0.1108,
+              "hi": -0.0071
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7715,
+          "recall@5": 0.769,
+          "recall@10": 0.8437,
+          "recall@50": 0.9412,
+          "mrr@10": 0.7912,
+          "mean_unique_paths@50": 43.68,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8704,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9333,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.3666,
+              "recall@10": 0.8,
+              "recall@50": 1.0,
+              "mrr@10": 0.2194,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6261,
+              "recall@10": 0.7347,
+              "recall@50": 1.0,
+              "mrr@10": 0.4583,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6976,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.775,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.9077,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.875,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5044,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.425,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.716
+        }
+      },
+      {
+        "config": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6571,
+            "lo": 0.5912,
+            "hi": 0.7176
+          },
+          "recall@10": {
+            "mean": 0.8545,
+            "lo": 0.789,
+            "hi": 0.9128
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.5966,
+            "lo": 0.5285,
+            "hi": 0.6656
+          },
+          "recall@5": {
+            "mean": 0.8177,
+            "lo": 0.7357,
+            "hi": 0.8868
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0273,
+              "lo": -0.093,
+              "hi": 0.0353
+            },
+            "recall@10": {
+              "delta": 0.0443,
+              "lo": 0.0062,
+              "hi": 0.0941
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.085,
+              "lo": -0.1751,
+              "hi": -0.0006
+            },
+            "recall@5": {
+              "delta": 0.0894,
+              "lo": 0.031,
+              "hi": 0.1606
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.1474,
+              "lo": -0.1951,
+              "hi": -0.0996
+            },
+            "recall@10": {
+              "delta": 0.0059,
+              "lo": -0.0033,
+              "hi": 0.0193
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.2411,
+              "lo": -0.309,
+              "hi": -0.1718
+            },
+            "recall@5": {
+              "delta": -0.0077,
+              "lo": -0.0286,
+              "hi": 0.0059
+            }
+          },
+          {
+            "reference": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": 0.0318,
+              "lo": 0.0037,
+              "hi": 0.0645
+            },
+            "recall@10": {
+              "delta": 0.0124,
+              "lo": -0.0033,
+              "hi": 0.0363
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.0266,
+              "lo": -0.0118,
+              "hi": 0.066
+            },
+            "recall@5": {
+              "delta": 0.0229,
+              "lo": -0.0033,
+              "hi": 0.0621
+            }
+          },
+          {
+            "reference": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.1608,
+              "lo": -0.2094,
+              "hi": -0.1141
+            },
+            "recall@10": {
+              "delta": 0.004,
+              "lo": -0.0028,
+              "hi": 0.0147
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.2515,
+              "lo": -0.3199,
+              "hi": -0.1841
+            },
+            "recall@5": {
+              "delta": -0.0026,
+              "lo": -0.0114,
+              "hi": 0.0038
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6571,
+          "recall@5": 0.8177,
+          "recall@10": 0.8545,
+          "recall@50": 0.9412,
+          "mrr@10": 0.5966,
+          "mean_unique_paths@50": 43.68,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6414,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.5708,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5904,
+              "recall@10": 0.9,
+              "recall@50": 1.0,
+              "mrr@10": 0.4107,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.7906,
+              "recall@10": 0.8014,
+              "recall@50": 1.0,
+              "mrr@10": 0.65,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.7044,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.7857,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8155,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5044,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.425,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.716
+        }
+      },
+      {
+        "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8045,
+            "lo": 0.7366,
+            "hi": 0.8659
+          },
+          "recall@10": {
+            "mean": 0.8486,
+            "lo": 0.7803,
+            "hi": 0.91
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.8377,
+            "lo": 0.7647,
+            "hi": 0.9044
+          },
+          "recall@5": {
+            "mean": 0.8254,
+            "lo": 0.7515,
+            "hi": 0.8912
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.1202,
+              "lo": 0.0648,
+              "hi": 0.1787
+            },
+            "recall@10": {
+              "delta": 0.0384,
+              "lo": 0.0016,
+              "hi": 0.0899
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.1561,
+              "lo": 0.0768,
+              "hi": 0.2346
+            },
+            "recall@5": {
+              "delta": 0.0971,
+              "lo": 0.0384,
+              "hi": 0.1675
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.8045,
+          "recall@5": 0.8254,
+          "recall@10": 0.8486,
+          "recall@50": 0.9412,
+          "mrr@10": 0.8377,
+          "mean_unique_paths@50": 43.68,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8924,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9625,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.7058,
+              "recall@10": 0.8,
+              "recall@50": 1.0,
+              "mrr@10": 0.65,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.8139,
+              "recall@10": 0.8014,
+              "recall@50": 1.0,
+              "mrr@10": 0.7667,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6203,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.675,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7232,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5327,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.4583,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.716
+        }
+      },
+      {
+        "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6253,
+            "lo": 0.5588,
+            "hi": 0.6917
+          },
+          "recall@10": {
+            "mean": 0.8421,
+            "lo": 0.7739,
+            "hi": 0.9044
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.57,
+            "lo": 0.4982,
+            "hi": 0.6425
+          },
+          "recall@5": {
+            "mean": 0.7949,
+            "lo": 0.712,
+            "hi": 0.8716
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.059,
+              "lo": -0.1234,
+              "hi": 0.0067
+            },
+            "recall@10": {
+              "delta": 0.0319,
+              "lo": -0.0078,
+              "hi": 0.0833
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.1116,
+              "lo": -0.2027,
+              "hi": -0.0252
+            },
+            "recall@5": {
+              "delta": 0.0665,
+              "lo": -0.0025,
+              "hi": 0.1407
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6253,
+          "recall@5": 0.7949,
+          "recall@10": 0.8421,
+          "recall@50": 0.9412,
+          "mrr@10": 0.57,
+          "mean_unique_paths@50": 43.68,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6171,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.5404,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.4563,
+              "recall@10": 0.8,
+              "recall@50": 1.0,
+              "mrr@10": 0.3107,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.7156,
+              "recall@10": 0.7125,
+              "recall@50": 1.0,
+              "mrr@10": 0.6917,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6994,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.7778,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7232,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5327,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.4583,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.716
+        }
+      },
+      {
+        "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "n": 68,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8179,
+            "lo": 0.7497,
+            "hi": 0.88
+          },
+          "recall@10": {
+            "mean": 0.8505,
+            "lo": 0.7855,
+            "hi": 0.9097
+          },
+          "recall@50": {
+            "mean": 0.9412,
+            "lo": 0.9044,
+            "hi": 0.9779
+          },
+          "mrr@10": {
+            "mean": 0.8481,
+            "lo": 0.7749,
+            "hi": 0.9151
+          },
+          "recall@5": {
+            "mean": 0.8203,
+            "lo": 0.7415,
+            "hi": 0.8873
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.1336,
+              "lo": 0.0857,
+              "hi": 0.1846
+            },
+            "recall@10": {
+              "delta": 0.0403,
+              "lo": 0.0028,
+              "hi": 0.0909
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.1665,
+              "lo": 0.0993,
+              "hi": 0.2357
+            },
+            "recall@5": {
+              "delta": 0.0919,
+              "lo": 0.0337,
+              "hi": 0.1621
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.8179,
+          "recall@5": 0.8203,
+          "recall@10": 0.8505,
+          "recall@50": 0.9412,
+          "mrr@10": 0.8481,
+          "mean_unique_paths@50": 43.68,
+          "n_queries": 68,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8975,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9583,
+              "n": 40.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6837,
+              "recall@10": 0.9,
+              "recall@50": 1.0,
+              "mrr@10": 0.5357,
+              "n": 4.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6533,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.7922,
+              "recall@10": 0.7472,
+              "recall@50": 1.0,
+              "mrr@10": 0.7667,
+              "n": 5.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6794,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.7778,
+              "n": 4.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8155,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 4.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.6077,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.5625,
+              "n": 4.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 3.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.716
+        }
+      }
+    ]
+  },
+  "all_questions": {
+    "bootstrap": {
+      "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+      "rng": "numpy.random.RandomState.randint",
+      "seed": 0,
+      "n_boot": 2000,
+      "n_queries": 136,
+      "level": 0.95
+    },
+    "results": [
+      {
+        "config": "dense_only@bge-small",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.5651,
+            "lo": 0.5089,
+            "hi": 0.6194
+          },
+          "recall@10": {
+            "mean": 0.7511,
+            "lo": 0.6919,
+            "hi": 0.8057
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.5413,
+            "lo": 0.4795,
+            "hi": 0.6064
+          },
+          "recall@5": {
+            "mean": 0.6142,
+            "lo": 0.5471,
+            "hi": 0.6764
+          }
+        },
+        "retrieval": {
+          "ndcg@10": 0.5651,
+          "recall@5": 0.6142,
+          "recall@10": 0.7511,
+          "recall@50": 0.9375,
+          "mrr@10": 0.5413,
+          "mean_unique_paths@50": 43.9,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.5746,
+              "recall@10": 0.8063,
+              "recall@50": 0.9062,
+              "mrr@10": 0.5327,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5201,
+              "recall@10": 0.925,
+              "recall@50": 1.0,
+              "mrr@10": 0.3229,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6066,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.6875,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5803,
+              "recall@10": 0.6078,
+              "recall@50": 1.0,
+              "mrr@10": 0.645,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5709,
+              "recall@10": 0.625,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6583,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7016,
+              "recall@10": 0.8125,
+              "recall@50": 1.0,
+              "mrr@10": 0.7083,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.2359,
+              "recall@10": 0.375,
+              "recall@50": 1.0,
+              "mrr@10": 0.1917,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 0.9167,
+              "mrr@10": 0.6667,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7196
+        }
+      },
+      {
+        "config": "hybrid@bge-small",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6956,
+            "lo": 0.6456,
+            "hi": 0.7451
+          },
+          "recall@10": {
+            "mean": 0.8201,
+            "lo": 0.7676,
+            "hi": 0.8721
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.7049,
+            "lo": 0.6438,
+            "hi": 0.7617
+          },
+          "recall@5": {
+            "mean": 0.7395,
+            "lo": 0.678,
+            "hi": 0.7963
+          }
+        },
+        "retrieval": {
+          "ndcg@10": 0.6956,
+          "recall@5": 0.7395,
+          "recall@10": 0.8201,
+          "recall@50": 0.9375,
+          "mrr@10": 0.7049,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.7712,
+              "recall@10": 0.8875,
+              "recall@50": 0.9,
+              "mrr@10": 0.7898,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5988,
+              "recall@10": 0.9,
+              "recall@50": 1.0,
+              "mrr@10": 0.4948,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6239,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.7054,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5667,
+              "recall@10": 0.6496,
+              "recall@50": 1.0,
+              "mrr@10": 0.5601,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5675,
+              "recall@10": 0.625,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6667,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7117,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.6458,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.3542,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.3095,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7311,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        }
+      },
+      {
+        "config": "dense_only@answerai-colbert-small",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7547,
+            "lo": 0.6975,
+            "hi": 0.8062
+          },
+          "recall@10": {
+            "mean": 0.8143,
+            "lo": 0.7575,
+            "hi": 0.8689
+          },
+          "recall@50": {
+            "mean": 0.9779,
+            "lo": 0.9596,
+            "hi": 0.9926
+          },
+          "mrr@10": {
+            "mean": 0.7761,
+            "lo": 0.7153,
+            "hi": 0.8329
+          },
+          "recall@5": {
+            "mean": 0.7632,
+            "lo": 0.7001,
+            "hi": 0.822
+          }
+        },
+        "deltas": [
+          {
+            "reference": "dense_only@bge-small",
+            "ndcg@10": {
+              "delta": 0.1896,
+              "lo": 0.1342,
+              "hi": 0.2483
+            },
+            "recall@10": {
+              "delta": 0.0633,
+              "lo": 0.0117,
+              "hi": 0.1167
+            },
+            "recall@50": {
+              "delta": 0.0404,
+              "lo": 0.0184,
+              "hi": 0.0662
+            },
+            "mrr@10": {
+              "delta": 0.2349,
+              "lo": 0.1685,
+              "hi": 0.3037
+            },
+            "recall@5": {
+              "delta": 0.1489,
+              "lo": 0.0838,
+              "hi": 0.2144
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7547,
+          "recall@5": 0.7632,
+          "recall@10": 0.8143,
+          "recall@50": 0.9779,
+          "mrr@10": 0.7761,
+          "mean_unique_paths@50": 44.17,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8665,
+              "recall@10": 0.9,
+              "recall@50": 0.9688,
+              "mrr@10": 0.9229,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.4223,
+              "recall@10": 0.725,
+              "recall@50": 1.0,
+              "mrr@10": 0.2812,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6503,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.7188,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5194,
+              "recall@10": 0.5365,
+              "recall@50": 1.0,
+              "mrr@10": 0.45,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5991,
+              "recall@10": 0.6562,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6389,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8565,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.8264,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4866,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.4375,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7241
+        }
+      },
+      {
+        "config": "hybrid@answerai-colbert-small",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7581,
+            "lo": 0.7013,
+            "hi": 0.813
+          },
+          "recall@10": {
+            "mean": 0.8047,
+            "lo": 0.7487,
+            "hi": 0.8588
+          },
+          "recall@50": {
+            "mean": 0.9743,
+            "lo": 0.9559,
+            "hi": 0.989
+          },
+          "mrr@10": {
+            "mean": 0.787,
+            "lo": 0.7254,
+            "hi": 0.8439
+          },
+          "recall@5": {
+            "mean": 0.7612,
+            "lo": 0.6952,
+            "hi": 0.8219
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0625,
+              "lo": 0.0238,
+              "hi": 0.1041
+            },
+            "recall@10": {
+              "delta": -0.0154,
+              "lo": -0.0523,
+              "hi": 0.0238
+            },
+            "recall@50": {
+              "delta": 0.0368,
+              "lo": 0.0147,
+              "hi": 0.0588
+            },
+            "mrr@10": {
+              "delta": 0.0821,
+              "lo": 0.0336,
+              "hi": 0.1324
+            },
+            "recall@5": {
+              "delta": 0.0217,
+              "lo": -0.0186,
+              "hi": 0.0639
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7581,
+          "recall@5": 0.7612,
+          "recall@10": 0.8047,
+          "recall@50": 0.9743,
+          "mrr@10": 0.787,
+          "mean_unique_paths@50": 44.12,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8927,
+              "recall@10": 0.9,
+              "recall@50": 0.9625,
+              "mrr@10": 0.9563,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.358,
+              "recall@10": 0.7,
+              "recall@50": 1.0,
+              "mrr@10": 0.241,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5854,
+              "recall@10": 0.6042,
+              "recall@50": 1.0,
+              "mrr@10": 0.625,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.4763,
+              "recall@10": 0.5254,
+              "recall@50": 1.0,
+              "mrr@10": 0.4125,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5842,
+              "recall@10": 0.6562,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6429,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.728,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5327,
+              "recall@10": 0.625,
+              "recall@50": 1.0,
+              "mrr@10": 0.5,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7689,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7234
+        }
+      },
+      {
+        "config": "dense_only@colbertv2",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6406,
+            "lo": 0.5899,
+            "hi": 0.6873
+          },
+          "recall@10": {
+            "mean": 0.8392,
+            "lo": 0.7892,
+            "hi": 0.8862
+          },
+          "recall@50": {
+            "mean": 0.9853,
+            "lo": 0.9706,
+            "hi": 0.9963
+          },
+          "mrr@10": {
+            "mean": 0.5808,
+            "lo": 0.5259,
+            "hi": 0.6303
+          },
+          "recall@5": {
+            "mean": 0.7919,
+            "lo": 0.7315,
+            "hi": 0.8483
+          }
+        },
+        "deltas": [
+          {
+            "reference": "dense_only@bge-small",
+            "ndcg@10": {
+              "delta": 0.0755,
+              "lo": 0.0143,
+              "hi": 0.1352
+            },
+            "recall@10": {
+              "delta": 0.0881,
+              "lo": 0.04,
+              "hi": 0.1371
+            },
+            "recall@50": {
+              "delta": 0.0478,
+              "lo": 0.0257,
+              "hi": 0.0735
+            },
+            "mrr@10": {
+              "delta": 0.0395,
+              "lo": -0.0348,
+              "hi": 0.1124
+            },
+            "recall@5": {
+              "delta": 0.1776,
+              "lo": 0.1172,
+              "hi": 0.2381
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6406,
+          "recall@5": 0.7919,
+          "recall@10": 0.8392,
+          "recall@50": 0.9853,
+          "mrr@10": 0.5808,
+          "mean_unique_paths@50": 45.54,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6337,
+              "recall@10": 0.9,
+              "recall@50": 0.9812,
+              "mrr@10": 0.5625,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.71,
+              "recall@10": 0.925,
+              "recall@50": 1.0,
+              "mrr@10": 0.5804,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5109,
+              "recall@10": 0.6458,
+              "recall@50": 1.0,
+              "mrr@10": 0.5104,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.7452,
+              "recall@10": 0.781,
+              "recall@50": 1.0,
+              "mrr@10": 0.6226,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6008,
+              "recall@10": 0.6562,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6792,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8233,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4539,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.4375,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6962,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.6833,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7466
+        }
+      },
+      {
+        "config": "hybrid@colbertv2",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7302,
+            "lo": 0.6799,
+            "hi": 0.7804
+          },
+          "recall@10": {
+            "mean": 0.8225,
+            "lo": 0.7705,
+            "hi": 0.8726
+          },
+          "recall@50": {
+            "mean": 0.9706,
+            "lo": 0.9485,
+            "hi": 0.989
+          },
+          "mrr@10": {
+            "mean": 0.7493,
+            "lo": 0.6923,
+            "hi": 0.8036
+          },
+          "recall@5": {
+            "mean": 0.7833,
+            "lo": 0.7252,
+            "hi": 0.8389
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.0346,
+              "lo": -0.0,
+              "hi": 0.0722
+            },
+            "recall@10": {
+              "delta": 0.0024,
+              "lo": -0.0225,
+              "hi": 0.0317
+            },
+            "recall@50": {
+              "delta": 0.0331,
+              "lo": 0.0147,
+              "hi": 0.0551
+            },
+            "mrr@10": {
+              "delta": 0.0445,
+              "lo": -0.0039,
+              "hi": 0.0939
+            },
+            "recall@5": {
+              "delta": 0.0438,
+              "lo": 0.0108,
+              "hi": 0.0823
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7302,
+          "recall@5": 0.7833,
+          "recall@10": 0.8225,
+          "recall@50": 0.9706,
+          "mrr@10": 0.7493,
+          "mean_unique_paths@50": 45.56,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8237,
+              "recall@10": 0.9,
+              "recall@50": 0.9563,
+              "mrr@10": 0.8646,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.5797,
+              "recall@10": 0.8438,
+              "recall@50": 1.0,
+              "mrr@10": 0.5198,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.539,
+              "recall@10": 0.6458,
+              "recall@50": 1.0,
+              "mrr@10": 0.5625,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5741,
+              "recall@10": 0.6443,
+              "recall@50": 1.0,
+              "mrr@10": 0.5167,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5734,
+              "recall@10": 0.625,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6667,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7357,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.6354,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.4539,
+              "recall@10": 0.5,
+              "recall@50": 1.0,
+              "mrr@10": 0.4375,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7689,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7469
+        }
+      },
+      {
+        "config": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.7626,
+            "lo": 0.7104,
+            "hi": 0.8137
+          },
+          "recall@10": {
+            "mean": 0.8466,
+            "lo": 0.7962,
+            "hi": 0.8941
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.7757,
+            "lo": 0.7169,
+            "hi": 0.83
+          },
+          "recall@5": {
+            "mean": 0.772,
+            "lo": 0.7074,
+            "hi": 0.8306
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.067,
+              "lo": 0.0271,
+              "hi": 0.1078
+            },
+            "recall@10": {
+              "delta": 0.0265,
+              "lo": -0.0031,
+              "hi": 0.0621
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.0709,
+              "lo": 0.0175,
+              "hi": 0.1244
+            },
+            "recall@5": {
+              "delta": 0.0325,
+              "lo": -0.0153,
+              "hi": 0.0824
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.0442,
+              "lo": -0.0768,
+              "hi": -0.0116
+            },
+            "recall@10": {
+              "delta": -0.0169,
+              "lo": -0.0402,
+              "hi": 0.001
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.0526,
+              "lo": -0.0968,
+              "hi": -0.0087
+            },
+            "recall@5": {
+              "delta": -0.0504,
+              "lo": -0.0913,
+              "hi": -0.0116
+            }
+          },
+          {
+            "reference": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": 0.1324,
+              "lo": 0.0941,
+              "hi": 0.1704
+            },
+            "recall@10": {
+              "delta": -0.005,
+              "lo": -0.0211,
+              "hi": 0.0092
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.2007,
+              "lo": 0.1454,
+              "hi": 0.2539
+            },
+            "recall@5": {
+              "delta": -0.028,
+              "lo": -0.0587,
+              "hi": -0.0029
+            }
+          },
+          {
+            "reference": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.0469,
+              "lo": -0.0759,
+              "hi": -0.0186
+            },
+            "recall@10": {
+              "delta": -0.0138,
+              "lo": -0.0351,
+              "hi": 0.004
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.0539,
+              "lo": -0.095,
+              "hi": -0.0153
+            },
+            "recall@5": {
+              "delta": -0.0468,
+              "lo": -0.0875,
+              "hi": -0.0107
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.7626,
+          "recall@5": 0.772,
+          "recall@10": 0.8466,
+          "recall@50": 0.9375,
+          "mrr@10": 0.7757,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8665,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9229,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.4733,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.3076,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.6275,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6741,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.5928,
+              "recall@10": 0.6549,
+              "recall@50": 1.0,
+              "mrr@10": 0.4792,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5829,
+              "recall@10": 0.6562,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6514,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8565,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.8264,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.5176,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.4,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.6667,
+              "recall@10": 0.6667,
+              "recall@50": 1.0,
+              "mrr@10": 0.6667,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        }
+      },
+      {
+        "config": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6475,
+            "lo": 0.5994,
+            "hi": 0.6896
+          },
+          "recall@10": {
+            "mean": 0.8623,
+            "lo": 0.8159,
+            "hi": 0.9059
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.5828,
+            "lo": 0.5296,
+            "hi": 0.6306
+          },
+          "recall@5": {
+            "mean": 0.8114,
+            "lo": 0.7559,
+            "hi": 0.8632
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0481,
+              "lo": -0.0911,
+              "hi": -0.005
+            },
+            "recall@10": {
+              "delta": 0.0422,
+              "lo": 0.0135,
+              "hi": 0.0767
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.122,
+              "lo": -0.1838,
+              "hi": -0.0606
+            },
+            "recall@5": {
+              "delta": 0.0719,
+              "lo": 0.0247,
+              "hi": 0.1235
+            }
+          },
+          {
+            "reference": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.1593,
+              "lo": -0.1964,
+              "hi": -0.1245
+            },
+            "recall@10": {
+              "delta": -0.0011,
+              "lo": -0.0155,
+              "hi": 0.0135
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.2455,
+              "lo": -0.2981,
+              "hi": -0.1929
+            },
+            "recall@5": {
+              "delta": -0.011,
+              "lo": -0.0292,
+              "hi": 0.0046
+            }
+          },
+          {
+            "reference": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": 0.0172,
+              "lo": -0.0028,
+              "hi": 0.038
+            },
+            "recall@10": {
+              "delta": 0.0107,
+              "lo": -0.0012,
+              "hi": 0.0259
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.0077,
+              "lo": -0.0188,
+              "hi": 0.0338
+            },
+            "recall@5": {
+              "delta": 0.0114,
+              "lo": -0.0121,
+              "hi": 0.036
+            }
+          },
+          {
+            "reference": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+            "ndcg@10": {
+              "delta": -0.1621,
+              "lo": -0.1961,
+              "hi": -0.1283
+            },
+            "recall@10": {
+              "delta": 0.002,
+              "lo": -0.0104,
+              "hi": 0.0143
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.2469,
+              "lo": -0.2947,
+              "hi": -0.1993
+            },
+            "recall@5": {
+              "delta": -0.0073,
+              "lo": -0.0208,
+              "hi": 0.0047
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6475,
+          "recall@5": 0.8114,
+          "recall@10": 0.8623,
+          "recall@50": 0.9375,
+          "mrr@10": 0.5828,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6337,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.5625,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.7223,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.5804,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.582,
+              "recall@10": 0.7083,
+              "recall@50": 1.0,
+              "mrr@10": 0.5868,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.7095,
+              "recall@10": 0.7257,
+              "recall@50": 1.0,
+              "mrr@10": 0.595,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6042,
+              "recall@10": 0.6562,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6845,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8233,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.75,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.521,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.4125,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7062,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.7,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        }
+      },
+      {
+        "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8068,
+            "lo": 0.7601,
+            "hi": 0.8529
+          },
+          "recall@10": {
+            "mean": 0.8634,
+            "lo": 0.8172,
+            "hi": 0.9084
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.8283,
+            "lo": 0.7743,
+            "hi": 0.8771
+          },
+          "recall@5": {
+            "mean": 0.8224,
+            "lo": 0.771,
+            "hi": 0.8723
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.1112,
+              "lo": 0.0718,
+              "hi": 0.1544
+            },
+            "recall@10": {
+              "delta": 0.0433,
+              "lo": 0.0131,
+              "hi": 0.0784
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.1234,
+              "lo": 0.0705,
+              "hi": 0.1813
+            },
+            "recall@5": {
+              "delta": 0.0829,
+              "lo": 0.0389,
+              "hi": 0.1323
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.8068,
+          "recall@5": 0.8224,
+          "recall@10": 0.8634,
+          "recall@50": 0.9375,
+          "mrr@10": 0.8283,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.8926,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9604,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6394,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.5021,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5603,
+              "recall@10": 0.6458,
+              "recall@50": 1.0,
+              "mrr@10": 0.5729,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.7387,
+              "recall@10": 0.7257,
+              "recall@50": 1.0,
+              "mrr@10": 0.6833,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.611,
+              "recall@10": 0.75,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6188,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7685,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.6875,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.6775,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.6167,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.8129,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.8333,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        }
+      },
+      {
+        "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.6302,
+            "lo": 0.5817,
+            "hi": 0.6751
+          },
+          "recall@10": {
+            "mean": 0.8516,
+            "lo": 0.8021,
+            "hi": 0.8981
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.5751,
+            "lo": 0.5212,
+            "hi": 0.6249
+          },
+          "recall@5": {
+            "mean": 0.8,
+            "lo": 0.7421,
+            "hi": 0.8538
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": -0.0653,
+              "lo": -0.1105,
+              "hi": -0.0208
+            },
+            "recall@10": {
+              "delta": 0.0315,
+              "lo": -0.0003,
+              "hi": 0.0691
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": -0.1298,
+              "lo": -0.1925,
+              "hi": -0.0659
+            },
+            "recall@5": {
+              "delta": 0.0605,
+              "lo": 0.0146,
+              "hi": 0.1096
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.6302,
+          "recall@5": 0.8,
+          "recall@10": 0.8516,
+          "recall@50": 0.9375,
+          "mrr@10": 0.5751,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.6282,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.5629,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.6075,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.4991,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5707,
+              "recall@10": 0.6875,
+              "recall@50": 1.0,
+              "mrr@10": 0.5563,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6663,
+              "recall@10": 0.6813,
+              "recall@50": 1.0,
+              "mrr@10": 0.6125,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.5792,
+              "recall@10": 0.625,
+              "recall@50": 0.9375,
+              "mrr@10": 0.6806,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.7007,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.5938,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.6029,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.5104,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7178,
+              "recall@10": 0.75,
+              "recall@50": 1.0,
+              "mrr@10": 0.7222,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        }
+      },
+      {
+        "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "n": 136,
+        "ci": {
+          "ndcg@10": {
+            "mean": 0.8095,
+            "lo": 0.7593,
+            "hi": 0.8547
+          },
+          "recall@10": {
+            "mean": 0.8603,
+            "lo": 0.813,
+            "hi": 0.9053
+          },
+          "recall@50": {
+            "mean": 0.9375,
+            "lo": 0.9081,
+            "hi": 0.9632
+          },
+          "mrr@10": {
+            "mean": 0.8297,
+            "lo": 0.7762,
+            "hi": 0.8787
+          },
+          "recall@5": {
+            "mean": 0.8187,
+            "lo": 0.7642,
+            "hi": 0.8709
+          }
+        },
+        "deltas": [
+          {
+            "reference": "hybrid@bge-small",
+            "ndcg@10": {
+              "delta": 0.114,
+              "lo": 0.0784,
+              "hi": 0.1539
+            },
+            "recall@10": {
+              "delta": 0.0402,
+              "lo": 0.009,
+              "hi": 0.077
+            },
+            "recall@50": {
+              "delta": 0.0,
+              "lo": 0.0,
+              "hi": 0.0
+            },
+            "mrr@10": {
+              "delta": 0.1248,
+              "lo": 0.0736,
+              "hi": 0.1817
+            },
+            "recall@5": {
+              "delta": 0.0792,
+              "lo": 0.035,
+              "hi": 0.1287
+            }
+          }
+        ],
+        "retrieval": {
+          "ndcg@10": 0.8095,
+          "recall@5": 0.8187,
+          "recall@10": 0.8603,
+          "recall@50": 0.9375,
+          "mrr@10": 0.8297,
+          "mean_unique_paths@50": 43.99,
+          "n_queries": 136,
+          "by_category": {
+            "simple_factual": {
+              "ndcg@10": 0.888,
+              "recall@10": 0.9,
+              "recall@50": 0.9,
+              "mrr@10": 0.9417,
+              "n": 80.0
+            },
+            "conditional": {
+              "ndcg@10": 0.7619,
+              "recall@10": 0.95,
+              "recall@50": 1.0,
+              "mrr@10": 0.6429,
+              "n": 8.0
+            },
+            "comparative": {
+              "ndcg@10": 0.5742,
+              "recall@10": 0.6458,
+              "recall@50": 1.0,
+              "mrr@10": 0.5875,
+              "n": 8.0
+            },
+            "aggregation": {
+              "ndcg@10": 0.6881,
+              "recall@10": 0.6736,
+              "recall@50": 1.0,
+              "mrr@10": 0.6533,
+              "n": 10.0
+            },
+            "multi_hop": {
+              "ndcg@10": 0.6192,
+              "recall@10": 0.6875,
+              "recall@50": 0.9375,
+              "mrr@10": 0.7014,
+              "n": 8.0
+            },
+            "staleness": {
+              "ndcg@10": 0.8299,
+              "recall@10": 1.0,
+              "recall@50": 1.0,
+              "mrr@10": 0.7917,
+              "n": 8.0
+            },
+            "exact_path": {
+              "ndcg@10": 0.6688,
+              "recall@10": 0.875,
+              "recall@50": 1.0,
+              "mrr@10": 0.6062,
+              "n": 8.0
+            },
+            "semantic": {
+              "ndcg@10": 0.7573,
+              "recall@10": 0.8333,
+              "recall@50": 1.0,
+              "mrr@10": 0.7222,
+              "n": 6.0
+            }
+          },
+          "n_files": 61,
+          "random_recall@5": 0.082,
+          "random_recall@10": 0.1639,
+          "random_recall@50": 0.7212
+        }
+      }
+    ]
+  },
+  "reproduces": [
+    {
+      "file": "bench/results/neural.json",
+      "git_sha": "32972cf",
+      "device": "Quadro RTX 8000",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "dense_only@bge-small": {
+          "equal": true
+        },
+        "hybrid@bge-small": {
+          "equal": true
+        }
+      },
+      "all": true
+    },
+    {
+      "file": "bench/results/rerank_depth.json",
+      "git_sha": "2ca5fa1",
+      "device": "Quadro RTX 8000",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "equal": true
+        }
+      },
+      "all": true
+    },
+    {
+      "file": "bench/results/small_rerankers.json",
+      "scope": "all_questions",
+      "git_sha": "a43f2be",
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+          "equal": true
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+          "equal": true
+        }
+      },
+      "all": true
+    }
+  ],
+  "reproduces_all": true,
+  "verdicts": [
+    {
+      "config": "fixture:dense_only@answerai-colbert-small",
+      "reference": "fixture:dense_only@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.1596,
+      "lo": 0.0837,
+      "hi": 0.2375,
+      "interval": "above zero",
+      "scope": "held_out",
+      "role": "a",
+      "kind": "secondary",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid@answerai-colbert-small",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0382,
+      "lo": -0.0127,
+      "hi": 0.0925,
+      "interval": "covers zero",
+      "scope": "held_out",
+      "role": "a",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.0526,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": 0.0382,
+        "lo": -0.0261,
+        "hi": 0.1088,
+        "deciding": false
+      }
+    },
+    {
+      "config": "fixture:dense_only@colbertv2",
+      "reference": "fixture:dense_only@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0488,
+      "lo": -0.0405,
+      "hi": 0.1352,
+      "interval": "covers zero",
+      "scope": "held_out",
+      "role": "a",
+      "kind": "secondary",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid@colbertv2",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0003,
+      "lo": -0.05,
+      "hi": 0.0512,
+      "interval": "covers zero",
+      "scope": "held_out",
+      "role": "a",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.0506,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": 0.0003,
+        "lo": -0.0613,
+        "hi": 0.0698,
+        "deciding": false
+      }
+    },
+    {
+      "config": "fixture:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0469,
+      "lo": -0.0022,
+      "hi": 0.0997,
+      "interval": "covers zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.0509,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": 0.0469,
+        "lo": -0.0141,
+        "hi": 0.1133,
+        "deciding": false
+      }
+    },
+    {
+      "config": "fixture:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "fixture:hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.0554,
+      "lo": -0.1041,
+      "hi": -0.0075,
+      "interval": "below zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "fixture:hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": 0.1185,
+      "lo": 0.0648,
+      "hi": 0.1691,
+      "interval": "above zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "fixture:hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.0475,
+      "lo": -0.088,
+      "hi": -0.0078,
+      "interval": "below zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "reference",
+      "plan": true
+    },
+    {
+      "config": "fixture:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0689,
+      "lo": -0.1245,
+      "hi": -0.0108,
+      "interval": "below zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.0568,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": -0.0689,
+        "lo": -0.1384,
+        "hi": 0.0073,
+        "deciding": false
+      }
+    },
+    {
+      "config": "fixture:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "fixture:hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.1712,
+      "lo": -0.2247,
+      "hi": -0.1159,
+      "interval": "below zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "fixture:hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": 0.0027,
+      "lo": -0.0251,
+      "hi": 0.0285,
+      "interval": "covers zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "fixture:hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.1633,
+      "lo": -0.2067,
+      "hi": -0.1176,
+      "interval": "below zero",
+      "scope": "held_out",
+      "role": "b",
+      "kind": "reference",
+      "plan": true
+    },
+    {
+      "config": "fixture:hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.1023,
+      "lo": 0.0465,
+      "hi": 0.1642,
+      "interval": "above zero",
+      "scope": "held_out",
+      "role": "reference",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0716,
+      "lo": -0.1288,
+      "hi": -0.0094,
+      "interval": "below zero",
+      "scope": "held_out",
+      "role": "reference",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "fixture:hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "reference": "fixture:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0944,
+      "lo": 0.0416,
+      "hi": 0.1499,
+      "interval": "above zero",
+      "scope": "held_out",
+      "role": "reference",
+      "kind": "reference",
+      "plan": false
+    }
+  ]
+}
