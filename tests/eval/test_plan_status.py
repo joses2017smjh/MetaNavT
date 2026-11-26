@@ -10,12 +10,21 @@ headline row against each of its references, must have its claim, so a recorded 
 the cells link to, except a served default written as "`SETTING` (default N)", which must equal the default in the
 served code. This test reads the code's defaults as text: CI's eval job does not install llama_index, which
 app/engine/retriever.py imports.
+
+M51 (the small rerankers at cheaper shapes) states its verdicts per dataset, "`<row>` on SciFact covers zero vs
+`hybrid@bge-small`", read off the three shapes files (the fixture's held-out half), with every F1 cell on every dataset
+stated, and its answers as "F1 answer: <level>" and "F2 answer: <level>", which must be the frontier file's (and
+Phase 2's "F3 answer: <level>", its own frontier's, once committed). The
+B27 claim form above does not read a dataset-qualified claim.
 """
 
 import json
 import re
 from pathlib import Path
 
+import pytest
+
+from app.eval import late_interaction as li
 from app.eval.report import verdict
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +33,17 @@ VERDICT_FILES = ("bench/results/main.json", "bench/results/neural.json", "bench/
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: its verdicts are of exact match (`em`), not nDCG@10
 ADAPTED_FILE = "bench/results/adapted_embedders.json"  # M48: its held-out half's verdicts; the bar's word is bar_table's
 ADAPTED_PHASE = "1.8"
+
+
+def late_interaction_files(root: Path = ROOT) -> tuple[str, ...]:
+    """M49: the deciding attempt's late-interaction files (the three `primary` files hold the plan-flagged claims; the
+    `extra` files their sensitivity and stretch entries), with dataset-qualified names (`fixture:`, `scifact:`, `fiqa:`)
+    so a row name in three files keeps one verdict per (row, reference)."""
+    attempt = li.deciding_attempt(root)
+    return tuple(rel for d in li.DATASETS for part in li.PARTS if (root / (rel := li.results_file(d, part, attempt))).exists())
+
+
+LATE_INTERACTION_FILES = late_interaction_files()
 CLAIM = re.compile(r"`([^`]+)` ((?:(?:above zero|covers zero|below zero) vs `[^`]+`(?:,? and |, )?)+)")
 SUB = re.compile(r"(above zero|covers zero|below zero) vs `([^`]+)`")
 DEFAULT = re.compile(r"`([A-Z][A-Z0-9_]+)` \(default (\d+)\)")
@@ -71,6 +91,8 @@ def recorded_verdicts(root: Path = ROOT) -> dict[tuple[str, str], set[str]]:
         out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
     for row, ref, block in adapted_held_out(root):
         out.setdefault((row, ref), set()).add(verdict(block))
+    for v in late_interaction_verdicts(root):
+        out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
     return out
 
 
@@ -82,6 +104,11 @@ def adapted_held_out(root: Path = ROOT) -> list[tuple[str, str, dict | None]]:
         return []
     blob = json.loads(path.read_text())
     return [(row["config"], block["reference"], block.get("ndcg@10")) for row in blob["held_out"]["results"] for block in row.get("deltas") or []]
+
+
+def late_interaction_verdicts(root: Path = ROOT) -> list[dict]:
+    """M49: every `verdicts` entry of the deciding attempt's late-interaction files (nDCG@10 in the bar's scope)."""
+    return [v for rel in late_interaction_files(root) for v in json.loads((root / rel).read_text())["verdicts"]]
 
 
 def search_policy_verdicts(root: Path = ROOT) -> list[dict]:
@@ -112,6 +139,7 @@ def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
         from app.eval.adapted_embedders import BAR_ARM
 
         pairs |= {(f"hybrid@{BAR_ARM}", "hybrid@bge-small"), (f"dense_only@{BAR_ARM}", "dense_only@bge-small")}
+    pairs |= {(v["config"], v["reference"]) for v in late_interaction_verdicts(root) if v["plan"]}  # M49: PLAN_FLAGS, all eighteen
     return pairs
 
 
@@ -187,3 +215,104 @@ def test_the_adapted_embedder_row_leads_with_the_bars_word():
     word = bar_table(ROOT)["outcome"]
     assert status.startswith(f"bar outcome: {word} ") or status.startswith(f"bar outcome: {word},"), status[:120]
     assert "nothing serves it" in status
+
+
+# ---- M51: the cheaper shapes, stated per dataset ("`<row>` on SciFact covers zero vs `hybrid@bge-small`") and the
+# answer per family ("F1 answer: NOT SHOWN at this n"), read off the three shapes files and the frontier file.
+SHAPES_DATASETS = {"the fixture": "fixture", "SciFact": "scifact", "FiQA": "fiqa"}
+SHAPES_CLAIM = re.compile(r"`([^`]+)` on (the fixture|SciFact|FiQA) (above zero|covers zero|below zero) vs `([^`]+)`")
+SHAPES_ANSWER = re.compile(r"\b(F1|F2|F3) answer: (YES|PASSES PER CELL, NOT AFTER ADJUSTMENT|NOT SHOWN at this n|NO)\b")
+
+
+def shapes_claims(text: str) -> list[tuple[str, str, str, str]]:
+    """(row, dataset, verdict, reference) for every dataset-qualified claim in the status column."""
+    return [(row, SHAPES_DATASETS[d], v, ref) for _, (_, status) in status_rows(text).items() for row, d, v, ref in SHAPES_CLAIM.findall(status)]
+
+
+def shapes_answers(text: str) -> dict[str, str]:
+    return {f: a for _, (_, status) in status_rows(text).items() for f, a in SHAPES_ANSWER.findall(status)}
+
+
+def shapes_verdicts(root: Path = ROOT) -> dict[tuple[str, str, str], str]:
+    """(row, reference, dataset) -> the verdict word of nDCG@10 in the shapes files (the fixture's held-out half)."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    out = {}
+    for dataset, rel in shapes.RESULTS.items():
+        blob = json.loads((root / rel).read_text())
+        if dataset == "fixture":
+            for row in blob["held_out"]["results"]:
+                for block in row.get("deltas") or []:
+                    out[(row["config"], block["reference"], dataset)] = verdict(block["ndcg@10"])
+        else:
+            for row in blob["results"]:
+                if row.get("delta_vs_parent"):
+                    out[(row["config"], row["delta_vs_parent"]["reference"], dataset)] = verdict(row["delta_vs_parent"]["ndcg@10"])
+    return out
+
+
+def test_every_cheaper_shape_claim_is_the_files_and_every_f1_cell_is_stated():
+    from app.eval import small_rerankers_shapes as shapes
+
+    text = (ROOT / "PLAN.md").read_text()
+    recorded = shapes_verdicts()
+    claims = shapes_claims(text)
+    wrong = [(row, d, said, ref, recorded.get((row, ref, d))) for row, d, said, ref in claims if recorded.get((row, ref, d)) != said]
+    assert wrong == [], f"PLAN.md cheaper-shape claims that differ from the results files: {wrong}"
+    stated = {(row, d) for row, d, _, ref in claims if ref == shapes.PARENT}
+    f1 = [shapes.row_name(*c) for c in shapes.family_cells("F1", ROOT)]
+    missing = [(row, d) for row in f1 for d in shapes.DATASETS if (row, d) not in stated]
+    assert missing == [], f"F1 cells whose verdict PLAN.md does not state per dataset: {missing}"
+    front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
+    expected = {f: front["answers"][f]["answer"] for f in ("F1", "F2")}
+    if (ROOT / shapes.ML256_FRONTIER_FILE).exists():  # Phase 2's own family, stated once its frontier is committed
+        expected["F3"] = json.loads((ROOT / shapes.ML256_FRONTIER_FILE).read_text())["answers"]["F3"]["answer"]
+    assert shapes_answers(text) == expected
+
+
+def test_the_cheaper_shape_parser_catches_a_drifted_verdict_and_a_drifted_answer():
+    from app.eval import small_rerankers_shapes as shapes
+
+    text = ("x\n## Status\n\n| Phase | Item | Status |\n|---|---|---|\n"
+            "| 9.9 | thing | F1 answer: NOT SHOWN at this n; F2 answer: NO; `a/top5` on SciFact covers zero vs `b`, `a/top5` on the fixture below zero vs `b` |\n\n---\n")
+    assert shapes_claims(text) == [("a/top5", "scifact", "covers zero", "b"), ("a/top5", "fixture", "below zero", "b")]
+    assert shapes_answers(text) == {"F1": "NOT SHOWN at this n", "F2": "NO"}
+    assert plan_claims(text) == []  # the B27 claim form does not read a dataset-qualified claim
+    real = (ROOT / "PLAN.md").read_text()
+    row, d, said, ref = shapes_claims(real)[0]
+    name = next(k for k, v in SHAPES_DATASETS.items() if v == d)
+    other = next(v for v in ("above zero", "covers zero", "below zero") if v != said)
+    drifted = real.replace(f"`{row}` on {name} {said} vs `{ref}`", f"`{row}` on {name} {other} vs `{ref}`", 1)
+    recorded = shapes_verdicts()
+    assert any(recorded.get((r, f, ds)) != v for r, ds, v, f in shapes_claims(drifted))
+    front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
+    answer = front["answers"]["F1"]["answer"]
+    other_answer = next(a for a, _ in shapes.ANSWER_LEVELS if a != answer)
+    assert shapes_answers(real.replace(f"F1 answer: {answer}", f"F1 answer: {other_answer}", 1))["F1"] != answer
+
+
+def test_each_late_interaction_verdict_word_is_the_one_its_stored_interval_gives():
+    """M44's check trusts a stored word; here the word is recomputed from the entry's own stored lo and hi."""
+    entries = late_interaction_verdicts()
+    if not entries:
+        pytest.skip("no late-interaction results file yet")
+    assert [v for v in entries if v["interval"] != verdict({"lo": v["lo"], "hi": v["hi"]})] == []
+    flagged = {(v["config"], v["reference"]) for v in entries if v["plan"]}
+    measured = {t for t in li.CANDIDATES if any(f"@{t}" in c or f"+{t}@" in c for c, _ in flagged)}
+    assert flagged == {tuple(f) for f in li.PLAN_FLAGS if any(f"@{t}" in f[0] or f"+{t}@" in f[0] for t in measured) and
+                       (ROOT / li.results_file(f[0].split(":")[0], "primary", li.deciding_attempt())).exists()}
+
+
+def test_row_4_2_states_the_outcome_the_bar_computes_from_the_committed_files():
+    """PLAN.md row 4.2's top-level outcome is the one late_interaction.bar_table reads off the deciding attempt's primary
+    files: 'measured: ... passes', 'measured, not adopted' or 'labelled a demo', with every OPEN clause, every named model
+    not measured, and every sensitivity or stretch row above zero on all three datasets."""
+    if not late_interaction_files():
+        pytest.skip("no late-interaction results file yet")
+    status = status_rows((ROOT / "PLAN.md").read_text())["4.2"][1]
+    out = li.bar_table(ROOT)["outcome"]
+    assert status.startswith(out["word"]), (status[:80], out["word"])
+    for clause in out["passing"] + out["open"] + out["outside_bar_all_three"]:
+        assert clause in status, clause
+    for tag in out["not_measured"]:
+        assert f"`{tag}` not measured" in status

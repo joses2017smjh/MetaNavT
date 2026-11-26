@@ -1,0 +1,4764 @@
+{
+  "dataset": "BEIR/scifact",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
+  "zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "expected_zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "files_sha256": {
+    "corpus.jsonl": "dec31c8182f3d744c7d2c09423756fd1d17cbef75808db13ba01cc0aab4d1ac6",
+    "queries.jsonl": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+    "qrels/test.tsv": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+  },
+  "corpus_sha256": "7394141cfad041e3b3cc0925871a7347213f880f40ed68ea27b7eaf351b0b7a1",
+  "runner_sha256": "438fa3530b93dc2afc567aa2b6cee9743c1c688b9a64ba9172282a2a20baf970",
+  "n_docs": 5183,
+  "n_queries": 300,
+  "full_split_queries": 300,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": {
+    "bm25_ndcg@10": 0.6789,
+    "source": "Anserini BEIR (v1.0.0) regression, SciFact, 'flat' BM25: title + text concatenated into one field, Lucene English analyzer (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "url": "https://github.com/castorini/anserini/blob/master/docs/regressions/regressions-beir-v1.0.0-scifact.flat.md",
+    "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "document_text": "title + ' ' + text (same as our rows)"
+  },
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "71bdae8",
+  "git_head": "71bdae8ff8eb35e39236f9e272c417d3de171e5c",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "438fa3530b93dc2afc567aa2b6cee9743c1c688b9a64ba9172282a2a20baf970",
+    "app/eval/late_interaction.py": "2bb92647c1715f603ef9176b4f534e9d154494dea2a7cf72b02054ba1268bf7a",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "233e90f1d4d0ee65b0ff875cd3228f0246a64cde52cec7d49dca56b1bc8e269e",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/small_rerankers.py": "f98655495b24f0c97c220e2570e5ff84bba0fa17fbfc55934f1a8908b789423f",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/multimodal/__init__.py": "fdfa04feab7d81f945512895f9e17061419bf5e2330629a6cf8f49f83ae89bd0",
+    "app/multimodal/colpali.py": "c27e2675708323e064785f49ec60f25ada8b30c8ad6220b49e309002d2e9fba0",
+    "app/multimodal/fusion.py": "ea8df6ab91b1446cf32ff8339385f98008fdd7ae1e58d56a1ac0563079fc45b8",
+    "app/multimodal/images.py": "5ffa9cb95bf074f7e4ebf6625d61b41cf12b10f7e7aa2ebf79016dc71a917eaf",
+    "app/multimodal/late_interaction.py": "cca5d810982100351a1fb75472d97dd303368bb8f481aed0f153ff2ad1d3d0c2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-25T19:21:01.379317+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --ladder late-interaction --part primary --data-dir <path>/data --out bench/results/beir_scifact_late_interaction.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 40,
+    "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 300,
+    "level": 0.95,
+    "comparisons": [
+      {
+        "row": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0013,
+          "lo": -0.0202,
+          "hi": 0.0182
+        },
+        "recall@10": {
+          "delta": -0.0077,
+          "lo": -0.0267,
+          "hi": 0.0123
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "other": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": 0.0413,
+          "lo": 0.0185,
+          "hi": 0.0657
+        },
+        "recall@10": {
+          "delta": 0.0078,
+          "lo": -0.0189,
+          "hi": 0.035
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "other": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0174,
+          "lo": -0.0404,
+          "hi": 0.0059
+        },
+        "recall@10": {
+          "delta": -0.0167,
+          "lo": -0.0367,
+          "hi": 0.0033
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0789,
+          "lo": -0.1102,
+          "hi": -0.0478
+        },
+        "recall@10": {
+          "delta": -0.0628,
+          "lo": -0.0973,
+          "hi": -0.0317
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "other": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.0362,
+          "lo": -0.0584,
+          "hi": -0.0156
+        },
+        "recall@10": {
+          "delta": -0.0473,
+          "lo": -0.0767,
+          "hi": -0.02
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      },
+      {
+        "row": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "other": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "ndcg@10": {
+          "delta": -0.095,
+          "lo": -0.126,
+          "hi": -0.065
+        },
+        "recall@10": {
+          "delta": -0.0718,
+          "lo": -0.1039,
+          "hi": -0.0411
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "config": "dense@bge-small",
+      "parent": null,
+      "settings": {
+        "name": "dense@bge-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.72,
+        "recall@10": 0.8452,
+        "recall@100": 0.9533,
+        "mrr@10": 0.6845,
+        "n_queries": 300
+      },
+      "latency": {
+        "embed": {
+          "n": 300,
+          "p50_ms": 11.72,
+          "p95_ms": 13.31,
+          "mean_ms": 12.0
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 1.43,
+          "p95_ms": 1.68,
+          "mean_ms": 1.45
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 13.14,
+          "p95_ms": 14.95,
+          "mean_ms": 13.47
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 12702.61,
+        "doc_embeddings_ms": 23.11,
+        "total_ms": 12725.72
+      },
+      "wall_ms": 4058.18,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "3a18515213f12f20c550c3ca229dc407599b8ee1d1779240212b59ed0fed79f3",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.72,
+          "lo": 0.6739,
+          "hi": 0.7612
+        },
+        "recall@10": {
+          "mean": 0.8452,
+          "lo": 0.8024,
+          "hi": 0.885
+        },
+        "recall@100": {
+          "mean": 0.9533,
+          "lo": 0.9267,
+          "hi": 0.9733
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    },
+    {
+      "config": "hybrid@bge-small",
+      "parent": null,
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7379,
+        "recall@10": 0.8596,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7065,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.73,
+          "p95_ms": 4.89,
+          "mean_ms": 2.79
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.09,
+          "p95_ms": 13.49,
+          "mean_ms": 12.23
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 1.61,
+          "p95_ms": 1.89,
+          "mean_ms": 1.6
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.11,
+          "p95_ms": 0.14,
+          "mean_ms": 0.11
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 16.62,
+          "p95_ms": 19.98,
+          "mean_ms": 16.76
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 23358.25,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.01,
+        "total_ms": 23358.26
+      },
+      "wall_ms": 5044.92,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "81ac6433eed3e205774ca2c3ed9e12eded15d8ad6354ec2ba1d1c5719423d58b",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7379,
+          "lo": 0.6935,
+          "hi": 0.7783
+        },
+        "recall@10": {
+          "mean": 0.8596,
+          "lo": 0.82,
+          "hi": 0.895
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    },
+    {
+      "config": "dense@answerai-colbert-small",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@answerai-colbert-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "mv:answerai-colbert-small",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7456,
+        "recall@10": 0.8457,
+        "recall@100": 0.956,
+        "mrr@10": 0.7185,
+        "n_queries": 300
+      },
+      "latency": {
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 0.01,
+          "p95_ms": 0.02,
+          "mean_ms": 0.01
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 930.84,
+        "token_store_ms": 22255.65,
+        "total_ms": 23186.49
+      },
+      "wall_ms": 11.38,
+      "models": {
+        "embedder": {
+          "mv_name": "mv:answerai-colbert-small",
+          "model": "answerdotai/answerai-colbert-small-v1",
+          "tag": "answerai-colbert-small",
+          "pinned_revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+          "licence": "apache-2.0",
+          "neural": true,
+          "kind": "named",
+          "document_length": 300,
+          "store_key": "1a4249f785632c61d25067ab51518399ba99a4804597d9edf41f014a2ef28e00",
+          "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+          "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+          "weights_bytes": 133610664,
+          "dtype": "torch.float32",
+          "all_parameters_dtype": [
+            "torch.float32"
+          ],
+          "requested_dtype": "float32",
+          "parameters": 33396864,
+          "device": "cuda:0",
+          "batch_size": 32,
+          "versions": {
+            "sentence_transformers": "6.1.0",
+            "transformers": "5.17.0",
+            "torch": "2.5.1+cu121"
+          },
+          "settings": {
+            "dim": 96,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 300,
+            "saved_document_length": 300,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512
+          },
+          "training": false,
+          "settings_read_back": {
+            "dim": 96,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 300,
+            "saved_document_length": 300,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512,
+            "asserted": [
+              "dim",
+              "document_length",
+              "expansion_attended",
+              "query_expansion",
+              "query_length",
+              "skiplist",
+              "markers"
+            ]
+          },
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 31.603561,
+            "score_other": 30.224949,
+            "score_answer_long": 31.080109,
+            "tokens": {
+              "query": 32,
+              "answer": 9,
+              "other": 31,
+              "answer_long": 280
+            },
+            "passed": true
+          },
+          "fingerprint": {
+            "query_shape": [
+              32,
+              96
+            ],
+            "document_0_shape": [
+              17,
+              96
+            ],
+            "card_scores": [
+              "30.5692",
+              "31.4895",
+              "31.3029",
+              "31.3072"
+            ],
+            "sentence_transformers": [
+              30.5692,
+              31.4895,
+              31.3029,
+              31.3072
+            ],
+            "maxsim": [
+              30.5692,
+              31.4895,
+              31.3029,
+              31.3072
+            ],
+            "max_abs_difference": {
+              "sentence_transformers": 4.0100097656647904e-05,
+              "maxsim": 4.3914794922272904e-05
+            },
+            "tolerance": 0.001,
+            "passed": true
+          },
+          "store": {
+            "documents": 5183,
+            "dim": 96,
+            "document_length": 300,
+            "cut_at_document_length": 2859,
+            "longest_tokenized": 1940,
+            "longest_scored": 290,
+            "zero_scored_tokens": 0,
+            "scored_vectors": 1221388,
+            "mean_scored_per_document": 235.653,
+            "bytes": {
+              "fp32": 469012992,
+              "fp16": 234506496,
+              "bge_small_fp32": 7961088
+            },
+            "ratio_to_bge_small": {
+              "fp32": 58.913,
+              "fp16": 29.457
+            },
+            "encode_seconds": 16.57,
+            "where": "memory only (never the shared embedding cache)",
+            "document_text": "title + ' ' + text"
+          },
+          "queries": {
+            "n": 300,
+            "query_length": 32,
+            "over_query_length": 54,
+            "longest_tokenized": 65,
+            "scored_rows": 9600
+          },
+          "batched_pass": {
+            "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+            "device": "cuda",
+            "block_bytes": 1073741824,
+            "wall_ms": 6458.02,
+            "ms_per_query_amortised": 21.527,
+            "ranking_ms": 139.02,
+            "queries": 300,
+            "documents": 5183,
+            "k": 100
+          },
+          "equivalence": {
+            "pairs": 200,
+            "max_abs_difference": {
+              "matrix_vs_maxsim": 4.35547249821866e-06,
+              "matrix_vs_sentence_transformers": 3.6512290257917357e-06
+            },
+            "tolerance": {
+              "maxsim": 1e-05,
+              "sentence_transformers": 0.0001
+            },
+            "within_tolerance": true,
+            "rank_agreement": {
+              "queries": 200,
+              "top": 100,
+              "same_order_as_sentence_transformers": 198,
+              "max_abs_difference": 5.811592728832693e-06,
+              "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+            }
+          },
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "8b5bfa3075f6d122314fd68ee5341287bb184b9480440fe4ee0fa7293e0fccdd",
+      "latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the embedder's batched_pass (wall time, amortised ms per query)",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7456,
+          "lo": 0.7005,
+          "hi": 0.7867
+        },
+        "recall@10": {
+          "mean": 0.8457,
+          "lo": 0.802,
+          "hi": 0.884
+        },
+        "recall@100": {
+          "mean": 0.956,
+          "lo": 0.93,
+          "hi": 0.9767
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": 0.0255,
+          "lo": -0.0051,
+          "hi": 0.0579
+        },
+        "recall@10": {
+          "delta": 0.0004,
+          "lo": -0.0389,
+          "hi": 0.0398
+        },
+        "recall@100": {
+          "delta": 0.0027,
+          "lo": -0.0253,
+          "hi": 0.03
+        }
+      }
+    },
+    {
+      "config": "hybrid@answerai-colbert-small",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@answerai-colbert-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "mv:answerai-colbert-small",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7244,
+        "recall@10": 0.8501,
+        "recall@100": 0.961,
+        "mrr@10": 0.6911,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.4,
+          "p95_ms": 4.21,
+          "mean_ms": 2.43
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.08,
+          "p95_ms": 0.11,
+          "mean_ms": 0.08
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 2.5,
+          "p95_ms": 4.31,
+          "mean_ms": 2.53
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "token_store_ms": 0.02,
+        "total_ms": 0.03
+      },
+      "wall_ms": 771.8,
+      "models": {
+        "embedder": {
+          "mv_name": "mv:answerai-colbert-small",
+          "model": "answerdotai/answerai-colbert-small-v1",
+          "tag": "answerai-colbert-small",
+          "pinned_revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+          "licence": "apache-2.0",
+          "neural": true,
+          "kind": "named",
+          "document_length": 300,
+          "store_key": "1a4249f785632c61d25067ab51518399ba99a4804597d9edf41f014a2ef28e00",
+          "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+          "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+          "weights_bytes": 133610664,
+          "dtype": "torch.float32",
+          "all_parameters_dtype": [
+            "torch.float32"
+          ],
+          "requested_dtype": "float32",
+          "parameters": 33396864,
+          "device": "cuda:0",
+          "batch_size": 32,
+          "versions": {
+            "sentence_transformers": "6.1.0",
+            "transformers": "5.17.0",
+            "torch": "2.5.1+cu121"
+          },
+          "settings": {
+            "dim": 96,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 300,
+            "saved_document_length": 300,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512
+          },
+          "training": false,
+          "settings_read_back": {
+            "dim": 96,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 300,
+            "saved_document_length": 300,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512,
+            "asserted": [
+              "dim",
+              "document_length",
+              "expansion_attended",
+              "query_expansion",
+              "query_length",
+              "skiplist",
+              "markers"
+            ]
+          },
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 31.603561,
+            "score_other": 30.224949,
+            "score_answer_long": 31.080109,
+            "tokens": {
+              "query": 32,
+              "answer": 9,
+              "other": 31,
+              "answer_long": 280
+            },
+            "passed": true
+          },
+          "fingerprint": {
+            "query_shape": [
+              32,
+              96
+            ],
+            "document_0_shape": [
+              17,
+              96
+            ],
+            "card_scores": [
+              "30.5692",
+              "31.4895",
+              "31.3029",
+              "31.3072"
+            ],
+            "sentence_transformers": [
+              30.5692,
+              31.4895,
+              31.3029,
+              31.3072
+            ],
+            "maxsim": [
+              30.5692,
+              31.4895,
+              31.3029,
+              31.3072
+            ],
+            "max_abs_difference": {
+              "sentence_transformers": 4.0100097656647904e-05,
+              "maxsim": 4.3914794922272904e-05
+            },
+            "tolerance": 0.001,
+            "passed": true
+          },
+          "store": {
+            "documents": 5183,
+            "dim": 96,
+            "document_length": 300,
+            "cut_at_document_length": 2859,
+            "longest_tokenized": 1940,
+            "longest_scored": 290,
+            "zero_scored_tokens": 0,
+            "scored_vectors": 1221388,
+            "mean_scored_per_document": 235.653,
+            "bytes": {
+              "fp32": 469012992,
+              "fp16": 234506496,
+              "bge_small_fp32": 7961088
+            },
+            "ratio_to_bge_small": {
+              "fp32": 58.913,
+              "fp16": 29.457
+            },
+            "encode_seconds": 16.57,
+            "where": "memory only (never the shared embedding cache)",
+            "document_text": "title + ' ' + text"
+          },
+          "queries": {
+            "n": 300,
+            "query_length": 32,
+            "over_query_length": 54,
+            "longest_tokenized": 65,
+            "scored_rows": 9600
+          },
+          "batched_pass": {
+            "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+            "device": "cuda",
+            "block_bytes": 1073741824,
+            "wall_ms": 6458.02,
+            "ms_per_query_amortised": 21.527,
+            "ranking_ms": 139.02,
+            "queries": 300,
+            "documents": 5183,
+            "k": 100
+          },
+          "equivalence": {
+            "pairs": 200,
+            "max_abs_difference": {
+              "matrix_vs_maxsim": 4.35547249821866e-06,
+              "matrix_vs_sentence_transformers": 3.6512290257917357e-06
+            },
+            "tolerance": {
+              "maxsim": 1e-05,
+              "sentence_transformers": 0.0001
+            },
+            "within_tolerance": true,
+            "rank_agreement": {
+              "queries": 200,
+              "top": 100,
+              "same_order_as_sentence_transformers": 198,
+              "max_abs_difference": 5.811592728832693e-06,
+              "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+            }
+          },
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "ab826b43ebd385a6ccf62e37fb3beb163eef90fe31c1aa6e0c6beb5f4926f5a1",
+      "latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the embedder's batched_pass (wall time, amortised ms per query)",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7244,
+          "lo": 0.6795,
+          "hi": 0.7662
+        },
+        "recall@10": {
+          "mean": 0.8501,
+          "lo": 0.8074,
+          "hi": 0.8884
+        },
+        "recall@100": {
+          "mean": 0.961,
+          "lo": 0.9367,
+          "hi": 0.9803
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0135,
+          "lo": -0.0349,
+          "hi": 0.0091
+        },
+        "recall@10": {
+          "delta": -0.0094,
+          "lo": -0.0356,
+          "hi": 0.0172
+        },
+        "recall@100": {
+          "delta": -0.0007,
+          "lo": -0.02,
+          "hi": 0.0167
+        }
+      }
+    },
+    {
+      "config": "dense@colbertv2",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@colbertv2",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "mv:colbertv2",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.6464,
+        "recall@10": 0.7574,
+        "recall@100": 0.8942,
+        "mrr@10": 0.6172,
+        "n_queries": 300
+      },
+      "latency": {
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.0,
+          "p95_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 0.01,
+          "p95_ms": 0.01,
+          "mean_ms": 0.01
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 1917.43,
+        "token_store_ms": 27329.81,
+        "total_ms": 29247.24
+      },
+      "wall_ms": 11.11,
+      "models": {
+        "embedder": {
+          "mv_name": "mv:colbertv2",
+          "model": "colbert-ir/colbertv2.0",
+          "tag": "colbertv2",
+          "pinned_revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+          "licence": "mit",
+          "neural": true,
+          "kind": "named",
+          "document_length": 180,
+          "store_key": "6eada142dae581c1e0629d3c73e16bd06878fc73e1ee2136df9980c655412ac4",
+          "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+          "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+          "weights_bytes": 438349816,
+          "dtype": "torch.float32",
+          "all_parameters_dtype": [
+            "torch.float32"
+          ],
+          "requested_dtype": "float32",
+          "parameters": 109580544,
+          "device": "cuda:0",
+          "batch_size": 32,
+          "versions": {
+            "sentence_transformers": "6.1.0",
+            "transformers": "5.17.0",
+            "torch": "2.5.1+cu121"
+          },
+          "settings": {
+            "dim": 128,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 180,
+            "saved_document_length": 180,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512
+          },
+          "training": false,
+          "settings_read_back": {
+            "dim": 128,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 180,
+            "saved_document_length": 180,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512,
+            "asserted": [
+              "dim",
+              "document_length",
+              "expansion_attended",
+              "query_expansion",
+              "query_length",
+              "skiplist",
+              "markers"
+            ]
+          },
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 29.358189,
+            "score_other": 4.386675,
+            "score_answer_long": 22.314949,
+            "tokens": {
+              "query": 32,
+              "answer": 9,
+              "other": 31,
+              "answer_long": 168
+            },
+            "passed": true
+          },
+          "store": {
+            "documents": 5183,
+            "dim": 128,
+            "document_length": 180,
+            "cut_at_document_length": 4730,
+            "longest_tokenized": 1940,
+            "longest_scored": 176,
+            "zero_scored_tokens": 0,
+            "scored_vectors": 815632,
+            "mean_scored_per_document": 157.367,
+            "bytes": {
+              "fp32": 417603584,
+              "fp16": 208801792,
+              "bge_small_fp32": 7961088
+            },
+            "ratio_to_bge_small": {
+              "fp32": 52.456,
+              "fp16": 26.228
+            },
+            "encode_seconds": 21.86,
+            "where": "memory only (never the shared embedding cache)",
+            "document_text": "title + ' ' + text"
+          },
+          "queries": {
+            "n": 300,
+            "query_length": 32,
+            "over_query_length": 54,
+            "longest_tokenized": 65,
+            "scored_rows": 9600
+          },
+          "batched_pass": {
+            "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+            "device": "cuda",
+            "block_bytes": 1073741824,
+            "wall_ms": 5171.17,
+            "ms_per_query_amortised": 17.237,
+            "ranking_ms": 142.86,
+            "queries": 300,
+            "documents": 5183,
+            "k": 100
+          },
+          "equivalence": {
+            "pairs": 200,
+            "max_abs_difference": {
+              "matrix_vs_maxsim": 2.804672300626976e-06,
+              "matrix_vs_sentence_transformers": 3.465594254237203e-06
+            },
+            "tolerance": {
+              "maxsim": 1e-05,
+              "sentence_transformers": 0.0001
+            },
+            "within_tolerance": true,
+            "rank_agreement": {
+              "queries": 200,
+              "top": 100,
+              "same_order_as_sentence_transformers": 199,
+              "max_abs_difference": 4.0761796284982665e-06,
+              "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+            }
+          },
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "83b1465e54860738282413c4b4bdf2b8e0c055d944d04166517a874b7f0a0701",
+      "latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the embedder's batched_pass (wall time, amortised ms per query)",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6464,
+          "lo": 0.5975,
+          "hi": 0.6939
+        },
+        "recall@10": {
+          "mean": 0.7574,
+          "lo": 0.7092,
+          "hi": 0.8031
+        },
+        "recall@100": {
+          "mean": 0.8942,
+          "lo": 0.857,
+          "hi": 0.9277
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0736,
+          "lo": -0.1081,
+          "hi": -0.0382
+        },
+        "recall@10": {
+          "delta": -0.0878,
+          "lo": -0.1259,
+          "hi": -0.0522
+        },
+        "recall@100": {
+          "delta": -0.0591,
+          "lo": -0.0918,
+          "hi": -0.028
+        }
+      }
+    },
+    {
+      "config": "hybrid@colbertv2",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@colbertv2",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "mv:colbertv2",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.6804,
+        "recall@10": 0.8053,
+        "recall@100": 0.9403,
+        "mrr@10": 0.6473,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.4,
+          "p95_ms": 4.54,
+          "mean_ms": 2.44
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 0.0,
+          "p95_ms": 0.01,
+          "mean_ms": 0.0
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.08,
+          "p95_ms": 0.11,
+          "mean_ms": 0.08
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 2.5,
+          "p95_ms": 4.64,
+          "mean_ms": 2.54
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "token_store_ms": 0.01,
+        "total_ms": 0.02
+      },
+      "wall_ms": 775.62,
+      "models": {
+        "embedder": {
+          "mv_name": "mv:colbertv2",
+          "model": "colbert-ir/colbertv2.0",
+          "tag": "colbertv2",
+          "pinned_revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+          "licence": "mit",
+          "neural": true,
+          "kind": "named",
+          "document_length": 180,
+          "store_key": "6eada142dae581c1e0629d3c73e16bd06878fc73e1ee2136df9980c655412ac4",
+          "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+          "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+          "weights_bytes": 438349816,
+          "dtype": "torch.float32",
+          "all_parameters_dtype": [
+            "torch.float32"
+          ],
+          "requested_dtype": "float32",
+          "parameters": 109580544,
+          "device": "cuda:0",
+          "batch_size": 32,
+          "versions": {
+            "sentence_transformers": "6.1.0",
+            "transformers": "5.17.0",
+            "torch": "2.5.1+cu121"
+          },
+          "settings": {
+            "dim": 128,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 180,
+            "saved_document_length": 180,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512
+          },
+          "training": false,
+          "settings_read_back": {
+            "dim": 128,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 180,
+            "saved_document_length": 180,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512,
+            "asserted": [
+              "dim",
+              "document_length",
+              "expansion_attended",
+              "query_expansion",
+              "query_length",
+              "skiplist",
+              "markers"
+            ]
+          },
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 29.358189,
+            "score_other": 4.386675,
+            "score_answer_long": 22.314949,
+            "tokens": {
+              "query": 32,
+              "answer": 9,
+              "other": 31,
+              "answer_long": 168
+            },
+            "passed": true
+          },
+          "store": {
+            "documents": 5183,
+            "dim": 128,
+            "document_length": 180,
+            "cut_at_document_length": 4730,
+            "longest_tokenized": 1940,
+            "longest_scored": 176,
+            "zero_scored_tokens": 0,
+            "scored_vectors": 815632,
+            "mean_scored_per_document": 157.367,
+            "bytes": {
+              "fp32": 417603584,
+              "fp16": 208801792,
+              "bge_small_fp32": 7961088
+            },
+            "ratio_to_bge_small": {
+              "fp32": 52.456,
+              "fp16": 26.228
+            },
+            "encode_seconds": 21.86,
+            "where": "memory only (never the shared embedding cache)",
+            "document_text": "title + ' ' + text"
+          },
+          "queries": {
+            "n": 300,
+            "query_length": 32,
+            "over_query_length": 54,
+            "longest_tokenized": 65,
+            "scored_rows": 9600
+          },
+          "batched_pass": {
+            "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+            "device": "cuda",
+            "block_bytes": 1073741824,
+            "wall_ms": 5171.17,
+            "ms_per_query_amortised": 17.237,
+            "ranking_ms": 142.86,
+            "queries": 300,
+            "documents": 5183,
+            "k": 100
+          },
+          "equivalence": {
+            "pairs": 200,
+            "max_abs_difference": {
+              "matrix_vs_maxsim": 2.804672300626976e-06,
+              "matrix_vs_sentence_transformers": 3.465594254237203e-06
+            },
+            "tolerance": {
+              "maxsim": 1e-05,
+              "sentence_transformers": 0.0001
+            },
+            "within_tolerance": true,
+            "rank_agreement": {
+              "queries": 200,
+              "top": 100,
+              "same_order_as_sentence_transformers": 199,
+              "max_abs_difference": 4.0761796284982665e-06,
+              "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+            }
+          },
+          "query_instruction": null
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "5be4f4508e5a3d3d97192975cb89ddc7c6c244aa112ceb5bab4756418f21c328",
+      "latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the embedder's batched_pass (wall time, amortised ms per query)",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6804,
+          "lo": 0.6325,
+          "hi": 0.7247
+        },
+        "recall@10": {
+          "mean": 0.8053,
+          "lo": 0.7605,
+          "hi": 0.8478
+        },
+        "recall@100": {
+          "mean": 0.9403,
+          "lo": 0.911,
+          "hi": 0.9653
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0574,
+          "lo": -0.0812,
+          "hi": -0.0331
+        },
+        "recall@10": {
+          "delta": -0.0543,
+          "lo": -0.0862,
+          "hi": -0.0247
+        },
+        "recall@100": {
+          "delta": -0.0213,
+          "lo": -0.0427,
+          "hi": -0.0033
+        }
+      }
+    },
+    {
+      "config": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "mv:answerai-colbert-small",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 300,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7525,
+        "recall@10": 0.8636,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7209,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 3.13,
+          "p95_ms": 5.26,
+          "mean_ms": 3.14
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 13.26,
+          "p95_ms": 13.56,
+          "mean_ms": 13.18
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.04,
+          "p95_ms": 2.15,
+          "mean_ms": 2.04
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.15,
+          "mean_ms": 0.13
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 91.77,
+          "p95_ms": 99.13,
+          "mean_ms": 92.23
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 110.35,
+          "p95_ms": 118.11,
+          "mean_ms": 110.77
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.01,
+        "doc_embeddings_ms": 0.01,
+        "reranker_load_ms": 0.01,
+        "total_ms": 0.03
+      },
+      "wall_ms": 33256.8,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "mv_name": "mv:answerai-colbert-small",
+          "model": "answerdotai/answerai-colbert-small-v1",
+          "tag": "answerai-colbert-small",
+          "pinned_revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+          "licence": "apache-2.0",
+          "neural": true,
+          "kind": "named",
+          "document_length": 300,
+          "store_key": "1a4249f785632c61d25067ab51518399ba99a4804597d9edf41f014a2ef28e00",
+          "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+          "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+          "weights_bytes": 133610664,
+          "dtype": "torch.float32",
+          "all_parameters_dtype": [
+            "torch.float32"
+          ],
+          "requested_dtype": "float32",
+          "parameters": 33396864,
+          "device": "cuda:0",
+          "batch_size": 32,
+          "versions": {
+            "sentence_transformers": "6.1.0",
+            "transformers": "5.17.0",
+            "torch": "2.5.1+cu121"
+          },
+          "settings": {
+            "dim": 96,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 300,
+            "saved_document_length": 300,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512
+          },
+          "training": false,
+          "settings_read_back": {
+            "dim": 96,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 300,
+            "saved_document_length": 300,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512,
+            "asserted": [
+              "dim",
+              "document_length",
+              "expansion_attended",
+              "query_expansion",
+              "query_length",
+              "skiplist",
+              "markers"
+            ]
+          },
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 31.603561,
+            "score_other": 30.224949,
+            "score_answer_long": 31.080109,
+            "tokens": {
+              "query": 32,
+              "answer": 9,
+              "other": 31,
+              "answer_long": 280
+            },
+            "passed": true
+          },
+          "fingerprint": {
+            "query_shape": [
+              32,
+              96
+            ],
+            "document_0_shape": [
+              17,
+              96
+            ],
+            "card_scores": [
+              "30.5692",
+              "31.4895",
+              "31.3029",
+              "31.3072"
+            ],
+            "sentence_transformers": [
+              30.5692,
+              31.4895,
+              31.3029,
+              31.3072
+            ],
+            "maxsim": [
+              30.5692,
+              31.4895,
+              31.3029,
+              31.3072
+            ],
+            "max_abs_difference": {
+              "sentence_transformers": 4.0100097656647904e-05,
+              "maxsim": 4.3914794922272904e-05
+            },
+            "tolerance": 0.001,
+            "passed": true
+          },
+          "store": {
+            "documents": 5183,
+            "dim": 96,
+            "document_length": 300,
+            "cut_at_document_length": 2859,
+            "longest_tokenized": 1940,
+            "longest_scored": 290,
+            "zero_scored_tokens": 0,
+            "scored_vectors": 1221388,
+            "mean_scored_per_document": 235.653,
+            "bytes": {
+              "fp32": 469012992,
+              "fp16": 234506496,
+              "bge_small_fp32": 7961088
+            },
+            "ratio_to_bge_small": {
+              "fp32": 58.913,
+              "fp16": 29.457
+            },
+            "encode_seconds": 16.57,
+            "where": "memory only (never the shared embedding cache)",
+            "document_text": "title + ' ' + text"
+          },
+          "queries": {
+            "n": 300,
+            "query_length": 32,
+            "over_query_length": 54,
+            "longest_tokenized": 65,
+            "scored_rows": 9600
+          },
+          "batched_pass": {
+            "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+            "device": "cuda",
+            "block_bytes": 1073741824,
+            "wall_ms": 6458.02,
+            "ms_per_query_amortised": 21.527,
+            "ranking_ms": 139.02,
+            "queries": 300,
+            "documents": 5183,
+            "k": 100
+          },
+          "equivalence": {
+            "pairs": 200,
+            "max_abs_difference": {
+              "matrix_vs_maxsim": 4.35547249821866e-06,
+              "matrix_vs_sentence_transformers": 3.6512290257917357e-06
+            },
+            "tolerance": {
+              "maxsim": 1e-05,
+              "sentence_transformers": 0.0001
+            },
+            "within_tolerance": true,
+            "rank_agreement": {
+              "queries": 200,
+              "top": 100,
+              "same_order_as_sentence_transformers": 198,
+              "max_abs_difference": 5.811592728832693e-06,
+              "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+            }
+          },
+          "role": "b",
+          "precision": "fp32",
+          "max_length": 300,
+          "score_scale": "MaxSim: the sum over query tokens of the best cosine with a document token",
+          "stored_vs_on_the_fly": {
+            "queries_checked": 300,
+            "queries_order_differs": 0,
+            "what": "the same candidates ordered by the role-(a) store's scores (documents encoded in corpus batches) against on-the-fly encoding; batch padding can change floats"
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "932f2d1daf84ffecbeec407077dc90e7b0cb8188eb5752d07ffa819b02b6769d",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7525,
+          "lo": 0.7089,
+          "hi": 0.7932
+        },
+        "recall@10": {
+          "mean": 0.8636,
+          "lo": 0.8216,
+          "hi": 0.9009
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.0146,
+          "lo": -0.0116,
+          "hi": 0.0439
+        },
+        "recall@10": {
+          "delta": 0.004,
+          "lo": -0.0252,
+          "hi": 0.0317
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "mv:colbertv2",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 180,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.6749,
+        "recall@10": 0.8084,
+        "recall@100": 0.9617,
+        "mrr@10": 0.638,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 3.13,
+          "p95_ms": 5.51,
+          "mean_ms": 3.19
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 13.26,
+          "p95_ms": 13.61,
+          "mean_ms": 13.27
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.04,
+          "p95_ms": 2.14,
+          "mean_ms": 2.05
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.15,
+          "mean_ms": 0.13
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 113.62,
+          "p95_ms": 120.87,
+          "mean_ms": 114.36
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 132.43,
+          "p95_ms": 140.07,
+          "mean_ms": 133.04
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 0.03,
+        "total_ms": 0.04
+      },
+      "wall_ms": 39940.54,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "mv_name": "mv:colbertv2",
+          "model": "colbert-ir/colbertv2.0",
+          "tag": "colbertv2",
+          "pinned_revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+          "licence": "mit",
+          "neural": true,
+          "kind": "named",
+          "document_length": 180,
+          "store_key": "6eada142dae581c1e0629d3c73e16bd06878fc73e1ee2136df9980c655412ac4",
+          "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+          "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+          "weights_bytes": 438349816,
+          "dtype": "torch.float32",
+          "all_parameters_dtype": [
+            "torch.float32"
+          ],
+          "requested_dtype": "float32",
+          "parameters": 109580544,
+          "device": "cuda:0",
+          "batch_size": 32,
+          "versions": {
+            "sentence_transformers": "6.1.0",
+            "transformers": "5.17.0",
+            "torch": "2.5.1+cu121"
+          },
+          "settings": {
+            "dim": 128,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 180,
+            "saved_document_length": 180,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512
+          },
+          "training": false,
+          "settings_read_back": {
+            "dim": 128,
+            "query_length": 32,
+            "query_expansion": true,
+            "expansion_attended": false,
+            "expansion_strategy": "fixed",
+            "document_length": 180,
+            "saved_document_length": 180,
+            "skiplist_words": [
+              "!",
+              "\"",
+              "#",
+              "$",
+              "%",
+              "&",
+              "'",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "\\",
+              "]",
+              "^",
+              "_",
+              "`",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "skiplist_ids": [
+              999,
+              1000,
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010,
+              1011,
+              1012,
+              1013,
+              1024,
+              1025,
+              1026,
+              1027,
+              1028,
+              1029,
+              1030,
+              1031,
+              1032,
+              1033,
+              1034,
+              1035,
+              1036,
+              1063,
+              1064,
+              1065,
+              1066
+            ],
+            "skiplist_tasks": [
+              "document"
+            ],
+            "markers": {
+              "query": {
+                "prompt": "[unused0] ",
+                "token": "[unused0]",
+                "piece": "[unused0]",
+                "id": 1,
+                "single_piece": true
+              },
+              "document": {
+                "prompt": "[unused1] ",
+                "token": "[unused1]",
+                "piece": "[unused1]",
+                "id": 2,
+                "single_piece": true
+              }
+            },
+            "do_lower_case": false,
+            "text_max_length_override": null,
+            "similarity_fn_name": "maxsim",
+            "modules": [
+              "Transformer",
+              "Dense",
+              "MultiVectorMask",
+              "Normalize"
+            ],
+            "max_seq_length": 512,
+            "asserted": [
+              "dim",
+              "document_length",
+              "expansion_attended",
+              "query_expansion",
+              "query_length",
+              "skiplist",
+              "markers"
+            ]
+          },
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 29.358189,
+            "score_other": 4.386675,
+            "score_answer_long": 22.314949,
+            "tokens": {
+              "query": 32,
+              "answer": 9,
+              "other": 31,
+              "answer_long": 168
+            },
+            "passed": true
+          },
+          "store": {
+            "documents": 5183,
+            "dim": 128,
+            "document_length": 180,
+            "cut_at_document_length": 4730,
+            "longest_tokenized": 1940,
+            "longest_scored": 176,
+            "zero_scored_tokens": 0,
+            "scored_vectors": 815632,
+            "mean_scored_per_document": 157.367,
+            "bytes": {
+              "fp32": 417603584,
+              "fp16": 208801792,
+              "bge_small_fp32": 7961088
+            },
+            "ratio_to_bge_small": {
+              "fp32": 52.456,
+              "fp16": 26.228
+            },
+            "encode_seconds": 21.86,
+            "where": "memory only (never the shared embedding cache)",
+            "document_text": "title + ' ' + text"
+          },
+          "queries": {
+            "n": 300,
+            "query_length": 32,
+            "over_query_length": 54,
+            "longest_tokenized": 65,
+            "scored_rows": 9600
+          },
+          "batched_pass": {
+            "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+            "device": "cuda",
+            "block_bytes": 1073741824,
+            "wall_ms": 5171.17,
+            "ms_per_query_amortised": 17.237,
+            "ranking_ms": 142.86,
+            "queries": 300,
+            "documents": 5183,
+            "k": 100
+          },
+          "equivalence": {
+            "pairs": 200,
+            "max_abs_difference": {
+              "matrix_vs_maxsim": 2.804672300626976e-06,
+              "matrix_vs_sentence_transformers": 3.465594254237203e-06
+            },
+            "tolerance": {
+              "maxsim": 1e-05,
+              "sentence_transformers": 0.0001
+            },
+            "within_tolerance": true,
+            "rank_agreement": {
+              "queries": 200,
+              "top": 100,
+              "same_order_as_sentence_transformers": 199,
+              "max_abs_difference": 4.0761796284982665e-06,
+              "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+            }
+          },
+          "role": "b",
+          "precision": "fp32",
+          "max_length": 180,
+          "score_scale": "MaxSim: the sum over query tokens of the best cosine with a document token",
+          "stored_vs_on_the_fly": {
+            "queries_checked": 300,
+            "queries_order_differs": 0,
+            "what": "the same candidates ordered by the role-(a) store's scores (documents encoded in corpus batches) against on-the-fly encoding; batch padding can change floats"
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "d5b3d4959f2f946bf6d1dd8d095b4613cbdd7d5df91f2c582ea56307c2788d27",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6749,
+          "lo": 0.6283,
+          "hi": 0.7205
+        },
+        "recall@10": {
+          "mean": 0.8084,
+          "lo": 0.7632,
+          "hi": 0.8516
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0629,
+          "lo": -0.0927,
+          "hi": -0.0324
+        },
+        "recall@10": {
+          "delta": -0.0511,
+          "lo": -0.0845,
+          "hi": -0.0172
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "BAAI/bge-reranker-v2-m3",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7538,
+        "recall@10": 0.8712,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7232,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 3.03,
+          "p95_ms": 5.36,
+          "mean_ms": 3.11
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.49,
+          "p95_ms": 14.18,
+          "mean_ms": 12.83
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.09,
+          "p95_ms": 2.26,
+          "mean_ms": 2.1
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.16,
+          "mean_ms": 0.13
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 682.46,
+          "p95_ms": 696.89,
+          "mean_ms": 682.05
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 700.4,
+          "p95_ms": 716.59,
+          "mean_ms": 700.27
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 4016.68,
+        "total_ms": 4016.68
+      },
+      "wall_ms": 210215.17,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "BAAI/bge-reranker-v2-m3",
+          "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+          "neural": true,
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999968,
+            "score_other": 1.6e-05,
+            "score_answer_long": 0.968841,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "0de00bbf026014d7add33686ce9f519e1c2f67300fd4efe2ec374c9ab6f3ecde",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7538,
+          "lo": 0.7107,
+          "hi": 0.794
+        },
+        "recall@10": {
+          "mean": 0.8712,
+          "lo": 0.8324,
+          "hi": 0.9083
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.0159,
+          "lo": -0.0073,
+          "hi": 0.0402
+        },
+        "recall@10": {
+          "delta": 0.0117,
+          "lo": -0.013,
+          "hi": 0.038
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "cross-encoder/ms-marco-MiniLM-L12-v2",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7111,
+        "recall@10": 0.8558,
+        "recall@100": 0.9617,
+        "mrr@10": 0.6736,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.89,
+          "p95_ms": 5.33,
+          "mean_ms": 2.98
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.76,
+          "p95_ms": 14.09,
+          "mean_ms": 12.66
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.09,
+          "p95_ms": 2.25,
+          "mean_ms": 2.08
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.17,
+          "mean_ms": 0.13
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 109.23,
+          "p95_ms": 118.68,
+          "mean_ms": 108.59
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 126.6,
+          "p95_ms": 138.3,
+          "mean_ms": 126.5
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 316.71,
+        "total_ms": 316.71
+      },
+      "wall_ms": 38042.69,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "cross-encoder/ms-marco-MiniLM-L12-v2",
+          "revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+          "neural": true,
+          "pinned_revision": "7b0235231ca2674cb8ca8f022859a6eba2b1c968",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.999925,
+            "score_other": 1.6e-05,
+            "score_answer_long": 0.982473,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "c5de50a2e0f6967bbf0fad26be104bcb65d9200e0cb8463f95f1dd714cda4b72",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7111,
+          "lo": 0.6665,
+          "hi": 0.7514
+        },
+        "recall@10": {
+          "mean": 0.8558,
+          "lo": 0.8144,
+          "hi": 0.8933
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0267,
+          "lo": -0.0529,
+          "hi": -0.0005
+        },
+        "recall@10": {
+          "delta": -0.0038,
+          "lo": -0.0314,
+          "hi": 0.0248
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    },
+    {
+      "config": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": "Alibaba-NLP/gte-reranker-modernbert-base",
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": 512,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7699,
+        "recall@10": 0.8802,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7383,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.89,
+          "p95_ms": 5.15,
+          "mean_ms": 2.98
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.28,
+          "p95_ms": 14.13,
+          "mean_ms": 12.65
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.05,
+          "p95_ms": 2.23,
+          "mean_ms": 2.05
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.16,
+          "mean_ms": 0.14
+        },
+        "rerank": {
+          "n": 300,
+          "p50_ms": 335.27,
+          "p95_ms": 346.11,
+          "mean_ms": 323.78
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 352.02,
+          "p95_ms": 365.47,
+          "mean_ms": 341.66
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "reranker_load_ms": 888.06,
+        "total_ms": 888.07
+      },
+      "wall_ms": 102616.57,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+        },
+        "reranker": {
+          "role": "reranker",
+          "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+          "revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+          "neural": true,
+          "pinned_revision": "f7481e6055501a30fb19d090657df9ec1f79ab2c",
+          "loaded": true,
+          "device": "cuda:0",
+          "precision": "fp32",
+          "dtype": "torch.float32",
+          "max_length": 512,
+          "score_scale": "sigmoid probability in [0, 1]",
+          "loaded_max_length": 512,
+          "default_prompt_name": null,
+          "default_prompt": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "score_answer": 0.980046,
+            "score_other": 0.199054,
+            "score_answer_long": 0.946022,
+            "passed": true
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "360cd68d203bf150cc678ce0c8c03c90598019d2fe8a3234e3bf1148a677fff8",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7699,
+          "lo": 0.7277,
+          "hi": 0.8093
+        },
+        "recall@10": {
+          "mean": 0.8802,
+          "lo": 0.8403,
+          "hi": 0.9153
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.032,
+          "lo": 0.0029,
+          "hi": 0.0608
+        },
+        "recall@10": {
+          "delta": 0.0207,
+          "lo": -0.0027,
+          "hi": 0.0445
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": 0.0,
+          "hi": 0.0
+        }
+      }
+    }
+  ],
+  "late_interaction": {
+    "milestone": "M49",
+    "attempt": 1,
+    "declarations_commit": "26585e8429556e7424a7679d4bbf28523862dd3e",
+    "dataset": "scifact",
+    "part": "primary",
+    "bar": {
+      "name": "M49's all-three bar",
+      "metric": "ndcg@10",
+      "interval": "paired percentile bootstrap over the queries, 2000 resamples, seed 0, alpha 0.05 (app/eval/stats.py defaults, as M43)",
+      "words": "app.eval.report.verdict on the lo and hi stored in the results file (rounded to four decimals): 'above zero' if and only if lo > 0; 'below zero' if and only if hi < 0; 'covers zero' otherwise, including a stored lo or hi of exactly 0.0000",
+      "parent": "hybrid@bge-small",
+      "datasets": {
+        "fixture": "fixture v1, the held-out (test) half of app.eval.rerank_arms.split_questions (n 68); the tune half and all 136 are reported beside it, nothing is chosen on either",
+        "scifact": "BEIR SciFact test (300 queries, 5,183 documents)",
+        "fiqa": "BEIR FiQA test (648 queries, 57,638 documents)"
+      },
+      "only_test_qrels": true,
+      "roles": {
+        "a": "hybrid@<tag> vs hybrid@bge-small: BM25 plus the MaxSim leg in place of bge-small, RRF k 60, equal weights (fixture retrieve_k 50, BEIR k 100)",
+        "b": "hybrid+<tag>@bge-small/fp32-doc<L>/top20 vs hybrid@bge-small: MaxSim reranks the fused top 20 (fixture: of the fused top 50, the tail in fused order; BEIR: of the fused top 100)"
+      },
+      "named_models": [
+        "answerai-colbert-small",
+        "colbertv2"
+      ],
+      "pass": "PASS if the model's bar comparison in that role is above zero on all three datasets",
+      "not_pass": "NOT PASS if it covers zero or is below zero on at least one dataset, with the triple written out; a loss on any dataset is written as a loss",
+      "open": "OPEN if at least one dataset is measured, none covers zero or is below zero, and at least one dataset has no row (its part did not finish, or could not before 2026-12-15); OPEN is never a pass. A model that loaded but has no row on any dataset is 'not measured: no row finished before 2026-12-15'",
+      "secondary": "dense@<tag> vs dense@bge-small (fixture: dense_only@), the leg alone: reported with its verdict, outside the bar",
+      "references": "each named role-(b) row vs hybrid+bge-rerank, hybrid+minilm-l12 and hybrid+gte-modernbert-base@bge-small/fp32-512/top20, recomputed in the same (primary) part: outside the bar",
+      "does_not_count": [
+        "the sensitivity rows (document length 512)",
+        "the stretch models",
+        "the tune half",
+        "the all-136 scope",
+        "recall",
+        "MRR",
+        "latency",
+        "storage",
+        "the CARD_CLAIM reading",
+        "the Bonferroni column"
+      ],
+      "plan_row_4_2": {
+        "pass": "measured: `<model>` passes in role (a|b) (claims) ...; against `gte-modernbert-base` (claims) ...; not on the default path: adopting it is an owner decision after the serving bar on the host",
+        "no_pass": "measured, not adopted: no named model at its saved settings passes the all-three bar in either role (claims); the MaxSim code stays as a measured, tested option off the default path",
+        "open": "appends: the bar is open for `<model>` in role (a|b): <dataset> not measured (<reason>)",
+        "sensitivity_or_stretch_all_three": "appends: `<row>` (sensitivity or stretch, outside the declared bar) is above zero on all three datasets; the verdict is unchanged",
+        "demo": "labelled a demo only if NO named model can be measured (both fail to load or the fidelity checks, or no GPU row can finish before 2026-12-15), naming the failed check's output, the job id and the NOTES entry",
+        "one_measured": "if one named model is measured and the other is not, the row is 'measured' for the measured model, its nine plan-flagged claims only, the other named as 'not measured: <reason>'",
+        "not_measured_means": "only a load failure, a failed fidelity check, or no row of that model finishing on any dataset before 2026-12-15; rows that loaded, passed the checks and scored are never withdrawn"
+      }
+    },
+    "settings": {
+      "precision": "fp32",
+      "batch_size": 32,
+      "primary_document_length": "each model's saved setting: CANDIDATES[tag]['saved']['document_length'] (300 answerai, 180 colbertv2)",
+      "sensitivity_document_length": 512,
+      "doc512_override": "the backbone Transformer module's document_length, set after loading, read back and asserted; the run records the longest document's token count to show it took effect",
+      "query_side": "the model's own markers and query expansion; no instruction or prompt beyond those markers",
+      "document_text": {
+        "fixture": "chunk.text, exactly what bge-small's dense leg reads (BM25 also reads search_context)",
+        "beir": "title + ' ' + text from app.eval.beir.load_corpus, as the parent"
+      },
+      "scoring": {
+        "role_a": "maxsim_scores: one batched float64 pass per token store and query set, scores rounded to 10 decimals (DENSE_SCORE_DECIMALS), ranked with hybrid.rank_by_score (ties in corpus order)",
+        "role_b": "app.multimodal.late_interaction.maxsim per (query, candidate), candidates encoded on the fly per query; stable sort, ties keep the fused order"
+      },
+      "maxsim_block_bytes": 1073741824,
+      "maxsim_dtype": "float64",
+      "fixture": {
+        "retrieve_k": 50,
+        "rerank_top": 20,
+        "candidates": "the fused top 50 chunks, the first 20 reranked, the tail in fused order"
+      },
+      "beir": {
+        "k": 100,
+        "rerank_top": 20,
+        "candidates": "the fused top 100 documents, the first 20 reranked",
+        "split": "test"
+      },
+      "rrf_k": 60,
+      "equivalence": {
+        "pairs_per_dataset": 200,
+        "maxsim_tolerance": 1e-05,
+        "sentence_transformers_tolerance": 0.0001
+      },
+      "fingerprint_tolerance": 0.001,
+      "runs": {
+        "gzip": "mtime 0, compresslevel 9",
+        "ids_only_if_beir_runs_exceed_bytes": 4000000
+      },
+      "device_order": "Turing first (-p gpu,eecs --constraint 'rtx8000|rtx2080'); an A40 only if neither started 12 h after submission"
+    },
+    "candidates": {
+      "answerai-colbert-small": {
+        "model": "answerdotai/answerai-colbert-small-v1",
+        "licence": "apache-2.0",
+        "parameters": 33396864,
+        "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+        "format": "stanford",
+        "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+        "weights_bytes": 133610664,
+        "readme_sha256": "5852bad161ce37c95108ffd1b1d862abdff536f2c9efb66bdc37db688571a7a1",
+        "saved": {
+          "dim": 96,
+          "query_length": 32,
+          "query_expansion": true,
+          "expansion_attended": false,
+          "document_length": 300,
+          "skiplist": "punctuation",
+          "markers": [
+            "[unused0]",
+            "[unused1]"
+          ]
+        },
+        "why": "33M parameters, the size of the parent bge-small and of the MiniLM-L12 cross-encoder"
+      },
+      "colbertv2": {
+        "model": "colbert-ir/colbertv2.0",
+        "licence": "mit",
+        "parameters": 109581056,
+        "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+        "format": "stanford",
+        "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+        "weights_bytes": 438349816,
+        "readme_sha256": "44e68292037d4fac7db91b9b24ae36535ae5807eef2b323adcc83a615b91751d",
+        "saved": {
+          "dim": 128,
+          "query_length": 32,
+          "query_expansion": true,
+          "expansion_attended": false,
+          "document_length": 180,
+          "skiplist": "punctuation",
+          "markers": [
+            "[unused0]",
+            "[unused1]"
+          ]
+        },
+        "why": "the 2021 reference model of late interaction"
+      }
+    },
+    "stretch": {
+      "gte-moderncolbert": {
+        "model": "lightonai/GTE-ModernColBERT-v1",
+        "licence": "apache-2.0",
+        "parameters": 149015808,
+        "revision": "25f6f7bb8237b7ae25ae1d9b805ce17c0d1cc639",
+        "format": "pylate",
+        "weights_sha256": "a08c46f4ef7c9ffd8486d6531844bf6c47188d42b260ed42db72e86d5304f0e9",
+        "weights_bytes": 596076280,
+        "readme_sha256": "8bac6a7e2d6c2de129f643aeb75e6f19e350d6c180e50362d86c0212a8c07b6c",
+        "saved": {
+          "dim": 128,
+          "query_length": 48,
+          "query_expansion": false,
+          "expansion_attended": false,
+          "document_length": 300,
+          "skiplist": "punctuation",
+          "markers": [
+            "[Q] ",
+            "[D] "
+          ]
+        },
+        "why": "chosen as the strongest current open English ColBERT model (a selection on published BEIR scores)"
+      },
+      "mxbai-edge-colbert-17m": {
+        "model": "mixedbread-ai/mxbai-edge-colbert-v0-17m",
+        "licence": "apache-2.0",
+        "parameters": 16797952,
+        "revision": "592c6417c1c6687572043408ed1ae5196bce16b1",
+        "format": "pylate",
+        "weights_sha256": "63e9d246f0166ceafa8bd63ee52cb929335ca30110efdb28e7f877c7aa641ca1",
+        "weights_bytes": 67195976,
+        "readme_sha256": "0d177ea3615e2842ea6523d144d60d35c0cbc9d0e534012c319b4eb6bf7b2fb6",
+        "saved": {
+          "dim": 48,
+          "query_length": 48,
+          "query_expansion": false,
+          "expansion_attended": false,
+          "document_length": 512,
+          "skiplist": "punctuation",
+          "markers": [
+            "[Q] ",
+            "[D] "
+          ]
+        },
+        "why": "the size that could serve on a CPU"
+      }
+    },
+    "multiplicity": {
+      "per_pass": "each PASS is an intersection-union test: three one-sided tests, each at 2.5% (the lower end of a 95% two-sided interval above zero); its false-PASS rate is at most about 2.5% per (model, role)",
+      "row_4_2": "row 4.2 moves on a union, 'at least one named model passes in at least one role': four named PASS claims give at most 10% for any false PASS (union bound), or at most 20% if the four stretch PASS claims are also reported as findings",
+      "bar_words": "the twelve per-dataset bar words are uncorrected 95% intervals: if every true effect were zero and the tests independent, about 46% of runs (1 - 0.95^12) would show at least one 'above zero' or 'below zero' word by chance",
+      "others": "every other interval is uncorrected too: the reference, secondary, sensitivity and stretch comparisons add 69 nDCG@10 intervals (23 per dataset: 11 in the primary part, 12 in the extra part) beside the 12 bar intervals, before the tune and all-136 scopes and before recall and MRR; each results file states its own count",
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "for": "the twelve bar comparisons (0.05 / 4)",
+        "draws": "the same bootstrap draws",
+        "deciding": false
+      },
+      "counts": {
+        "bar_per_dataset": 4,
+        "other_primary_per_dataset": 11,
+        "other_extra_per_dataset": 12,
+        "datasets": 3,
+        "bar_total": 12,
+        "other_total": 69
+      },
+      "this_file": {
+        "ndcg@10_intervals": 15,
+        "bar": 4,
+        "uncorrected": "every interval of this file is an uncorrected 95% interval; the Bonferroni column of the bar rows is reported, never deciding"
+      }
+    },
+    "card_claim": {
+      "card_line": "If you're interested in using this model as a re-ranker (it vastly outperforms cross-encoders its size!), you can do so via the [rerankers](https://github.com/AnswerDotAI/rerankers) library:",
+      "row": "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "comparator": "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "supported": "'supported here' only if the row is above zero against the comparator on all three datasets",
+      "contradicted": "'contradicted on <datasets>' if it is below zero against the comparator on at least one dataset",
+      "not_shown": "'not shown' otherwise, including a missing dataset",
+      "excluded": "the doc512 rows are sensitivity rows and are not part of this reading",
+      "caveats": [
+        "the comparator was chosen by parameter count while its rows were already known to be weak: its held-out row against the parent in bench/results/small_rerankers.json is below zero",
+        "unequal budgets: the MaxSim reranker reads 300 document tokens (answerai's saved length); the cross-encoder reads 512 tokens of query plus document"
+      ]
+    },
+    "published": {
+      "card": {
+        "url": "https://huggingface.co/answerdotai/answerai-colbert-small-v1",
+        "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+        "readme_sha256": "5852bad161ce37c95108ffd1b1d862abdff536f2c9efb66bdc37db688571a7a1",
+        "table": "Against ColBERTv2.0"
+      },
+      "metric": "nDCG@10 x 100",
+      "lines": {
+        "scifact": "| **SciFact**     |    **74.77**     |    69.3     |",
+        "fiqa": "| **FiQA2018**    |    **41.15**     |    35.6     |"
+      },
+      "values": {
+        "answerai-colbert-small": {
+          "scifact": "74.77",
+          "fiqa": "41.15"
+        },
+        "colbertv2": {
+          "scifact": "69.3",
+          "fiqa": "35.6"
+        }
+      },
+      "note": "other implementations; ColBERTv2's with approximate (PLAID) search; not every setting is stated: a tripwire, never a bar"
+    },
+    "tripwire": {
+      "low": {
+        "below_bm25": "below the nDCG@10 of the committed bm25 row of bench/results/beir_scifact.json, read from that file at run time",
+        "below_published_by": 0.05
+      },
+      "high": {
+        "above_published_by": 0.05
+      },
+      "truncation_explained": "a low trip of a model whose saved document length is below 512, whose dense@<tag>/doc512 SciFact row neither low-trips nor high-trips, is 'truncation-explained' and does not stop FiQA; a high trip has no exception; no exception if the doc512 row is missing",
+      "fixture_trip": "if the run's counts show no fixture chunk cut at a model's primary document length, its primary and doc512 fixture rows (dense_only, hybrid and role b) must have equal ranking sha256s, row by row; a difference trips, no exception"
+    },
+    "training_data": {
+      "answerai-colbert-small": {
+        "stated": "MS MARCO triplets, by the JaColBERTv2.5 recipe (artifact.metadata: triples, collection and queries under msmarco/)",
+        "source": "artifact.metadata and the model card at the pinned revision",
+        "lists_scifact_or_fiqa": false
+      },
+      "colbertv2": {
+        "stated": "MS MARCO Passage Ranking (the card: 'trained on the MS MARCO Passage Ranking task'; artifact.metadata: MSMARCO triples and collection)",
+        "source": "the model card and artifact.metadata at the pinned revision",
+        "lists_scifact_or_fiqa": false
+      },
+      "gte-moderncolbert": {
+        "stated": "knowledge distillation on MS MARCO (lightonai/ms-marco-en-bge-gemma), the card; the card's NanoSciFact and NanoFiQA2018 rows are evaluations",
+        "source": "the model card at the pinned revision",
+        "lists_scifact_or_fiqa": false
+      },
+      "mxbai-edge-colbert-17m": {
+        "stated": "not stated on the card, which cites its tech report ('Fantastic (small) Retrievers and How to Train Them'), not read here",
+        "source": "the model card at the pinned revision",
+        "lists_scifact_or_fiqa": null
+      },
+      "bge-small": {
+        "stated": "MTEB's training-data annotation of BAAI/bge-small-en-v1.5 (bge_training_data, from BAAI-MTP): NQ, NQHardNegatives, AmazonReviewsClassification, MLQARetrieval, DuRetrieval, and pretraining pairs not in MTEB (wudao, cmrc2018, simclue, csl, amazon_reviews_multi, wiki_atomic_edits, mlqa, xlsum, wikipedia, reddit, stackexchange, s2orc); neither SciFact nor FiQA; the annotation itself marks the sentence-transformers data as not checked",
+        "source": "mteb@551a5b54b1dfa07441deef71681a352b05c913b8 mteb/models/model_implementations/bge_models.py (sha256 4c7ae018...); the card at 5c38ec7c405e links BAAI-MTP",
+        "lists_scifact_or_fiqa": false,
+        "corpus_note": "s2orc (title, abstract) pairs: SciFact's corpus is S2ORC abstracts, so the parent may have read SciFact documents (not its claims or labels)"
+      },
+      "bge-rerank": {
+        "stated": "the card: 'a mixture of multilingual datasets': bge-m3-data, quora train data, fever train data; MTEB's annotation of bge-m3's data (bge_m3_training_data): MIRACL, Mr.TyDi, MS MARCO, NQ, HotpotQA, T2, DuRetrieval, CodeSearchNet and others, with s2orc among the pretraining data; neither SciFact nor FiQA",
+        "source": "BAAI/bge-reranker-v2-m3's card at 953dc6f6f85a; mteb@551a5b54b1df bge_models.py",
+        "lists_scifact_or_fiqa": false,
+        "corpus_note": "s2orc in bge-m3's pretraining: it may have read SciFact documents (not its claims or labels)"
+      },
+      "minilm-l12": {
+        "stated": "MS MARCO Passage Ranking (the card; datasets: sentence-transformers/msmarco)",
+        "source": "cross-encoder/ms-marco-MiniLM-L12-v2's card at 7b0235231ca2",
+        "lists_scifact_or_fiqa": false
+      },
+      "gte-modernbert-base": {
+        "stated": "not listed on the card, which refers to the mGTE paper's training scheme, not read here",
+        "source": "Alibaba-NLP/gte-reranker-modernbert-base's card at f7481e605550",
+        "lists_scifact_or_fiqa": null
+      }
+    },
+    "rows": [
+      "dense@bge-small",
+      "hybrid@bge-small",
+      "dense@answerai-colbert-small",
+      "hybrid@answerai-colbert-small",
+      "dense@colbertv2",
+      "hybrid@colbertv2",
+      "hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "hybrid+gte-modernbert-base@bge-small/fp32-512/top20"
+    ],
+    "stretch_status": {},
+    "expected_reproduction": "Expected, declared before any run (not defects): on a Turing GPU (RTX 8000 or 2080 Ti) FiQA's recomputed rankings equal the committed Turing rows; on an A40, FiQA's dense@bge-small, hybrid@bge-small and bge rows give ranking_equal false against beir_fiqa.json (adjacent near-tie swaps, equal metrics, M41); on SciFact the bge row's ranking differs between files of different GPU architectures. Retrieval-block equality is the criterion everywhere.",
+    "does_not_show": [
+      "a PLAID or compressed index: this is exhaustive, uncompressed MaxSim, the exact score PLAID-style search approximates; not ANN latency at scale; storage is for uncompressed vectors",
+      "that it serves: no pgvector MaxSim, no served path; HPC timings are indicative; the serving bar on the host is not decided here; the image's sentence-transformers is 6.3, 6.1 here",
+      "equivalence or 'no effect': a NOT PASS, and an interval that covers zero, is not evidence of equivalence; each dataset's paired half-width is the rough smallest gain that could have passed",
+      "first-stage recall on the fixture: role (a) ranks 71 chunks with retrieve_k 50, so the fixture's Recall@50 sits beside its random baseline and is no recall claim",
+      "results free of selection: the models were chosen knowing their published BEIR scores, which include SciFact and FiQA; only the fixture is free of that",
+      "a level field: RRF k 60, retrieve_k, the reranking depth and the 512 budget were set around bge-small; the MaxSim legs are not re-tuned",
+      "equal budgets in role (b): MaxSim reads 180 or 300 document tokens (512 in the sensitivity rows), the cross-encoders 512 of query plus document",
+      "fine-tuned or domain-adapted ColBERT: zero-shot only",
+      "that BEIR is free of training contamination: it cannot be checked from outside",
+      "answer quality or the real corpus: retrieval metrics only; the fixture is small (68 held-out questions), templated and judged by file",
+      "ColPali pages or image retrieval (PLAN rows 4.1, 4.3 and 4.4 unchanged)",
+      "late interaction in general: two named models at their saved settings plus one 512 sensitivity length, and two stretch models"
+    ],
+    "served_defaults_changed": false,
+    "other_scoring_jobs": [],
+    "runs": {
+      "bench/results/late_interaction_runs/scifact_answerai-colbert-small.run.gz": {
+        "sha256": "e8d010aa16cae824399291283b66995b0d48195bbc5203a3ec37c8826d7007bf",
+        "bytes": 297901,
+        "lines": 300
+      },
+      "bench/results/late_interaction_runs/scifact_colbertv2.run.gz": {
+        "sha256": "42e663db39fe798077ecf20e37425bbdb450b8cba44fffd53924ca3f848a007a",
+        "bytes": 308797,
+        "lines": 300
+      },
+      "bench/results/late_interaction_runs/scifact_rerank_answerai-colbert-small.json.gz": {
+        "sha256": "3330b1dbd11272ee73d90ac492bf41e5695c526aa9447c92cd1de16d357a85f7",
+        "bytes": 23886,
+        "lines": 300
+      },
+      "bench/results/late_interaction_runs/scifact_rerank_colbertv2.json.gz": {
+        "sha256": "6a013f1d7f33d04ac354dedccfbead0a493797005749a4a2c098426516b2acd1",
+        "bytes": 23938,
+        "lines": 300
+      },
+      "_rule": {
+        "leg_runs_with_scores_bytes": 606698,
+        "budget_bytes": 1265822,
+        "ids_only": false,
+        "pre_filter": "before run_config drops did == qid (BEIR's ignore-identical-ids); the rederive applies it after fusion"
+      }
+    },
+    "published_vs_measured": {
+      "answerai-colbert-small": {
+        "measured_ndcg@10": 0.7456,
+        "published_ndcg@10_x100": "74.77",
+        "difference": -0.0021
+      },
+      "colbertv2": {
+        "measured_ndcg@10": 0.6464,
+        "published_ndcg@10_x100": "69.3",
+        "difference": -0.0466
+      }
+    },
+    "legs": {
+      "mv:answerai-colbert-small": {
+        "model": "answerdotai/answerai-colbert-small-v1",
+        "kind": "named",
+        "document_length": 300,
+        "revision": "934fa8bb4ce2284f4c2baa232d81aca4d076fa5e",
+        "weights_sha256": "35bb6ef696cc88b3d18b7520273dfd25315f6c47d265142ba13bba38678c92b6",
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "versions": {
+          "sentence_transformers": "6.1.0",
+          "transformers": "5.17.0",
+          "torch": "2.5.1+cu121"
+        },
+        "settings_read_back": {
+          "dim": 96,
+          "query_length": 32,
+          "query_expansion": true,
+          "expansion_attended": false,
+          "expansion_strategy": "fixed",
+          "document_length": 300,
+          "saved_document_length": 300,
+          "skiplist_words": [
+            "!",
+            "\"",
+            "#",
+            "$",
+            "%",
+            "&",
+            "'",
+            "(",
+            ")",
+            "*",
+            "+",
+            ",",
+            "-",
+            ".",
+            "/",
+            ":",
+            ";",
+            "<",
+            "=",
+            ">",
+            "?",
+            "@",
+            "[",
+            "\\",
+            "]",
+            "^",
+            "_",
+            "`",
+            "{",
+            "|",
+            "}",
+            "~"
+          ],
+          "skiplist_ids": [
+            999,
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1024,
+            1025,
+            1026,
+            1027,
+            1028,
+            1029,
+            1030,
+            1031,
+            1032,
+            1033,
+            1034,
+            1035,
+            1036,
+            1063,
+            1064,
+            1065,
+            1066
+          ],
+          "skiplist_tasks": [
+            "document"
+          ],
+          "markers": {
+            "query": {
+              "prompt": "[unused0] ",
+              "token": "[unused0]",
+              "piece": "[unused0]",
+              "id": 1,
+              "single_piece": true
+            },
+            "document": {
+              "prompt": "[unused1] ",
+              "token": "[unused1]",
+              "piece": "[unused1]",
+              "id": 2,
+              "single_piece": true
+            }
+          },
+          "do_lower_case": false,
+          "text_max_length_override": null,
+          "similarity_fn_name": "maxsim",
+          "modules": [
+            "Transformer",
+            "Dense",
+            "MultiVectorMask",
+            "Normalize"
+          ],
+          "max_seq_length": 512,
+          "asserted": [
+            "dim",
+            "document_length",
+            "expansion_attended",
+            "query_expansion",
+            "query_length",
+            "skiplist",
+            "markers"
+          ]
+        },
+        "load_and_score": {
+          "query": "What is the capital of China?",
+          "score_answer": 31.603561,
+          "score_other": 30.224949,
+          "score_answer_long": 31.080109,
+          "tokens": {
+            "query": 32,
+            "answer": 9,
+            "other": 31,
+            "answer_long": 280
+          },
+          "passed": true
+        },
+        "fingerprint": {
+          "query_shape": [
+            32,
+            96
+          ],
+          "document_0_shape": [
+            17,
+            96
+          ],
+          "card_scores": [
+            "30.5692",
+            "31.4895",
+            "31.3029",
+            "31.3072"
+          ],
+          "sentence_transformers": [
+            30.5692,
+            31.4895,
+            31.3029,
+            31.3072
+          ],
+          "maxsim": [
+            30.5692,
+            31.4895,
+            31.3029,
+            31.3072
+          ],
+          "max_abs_difference": {
+            "sentence_transformers": 4.0100097656647904e-05,
+            "maxsim": 4.3914794922272904e-05
+          },
+          "tolerance": 0.001,
+          "passed": true
+        },
+        "store": {
+          "documents": 5183,
+          "dim": 96,
+          "document_length": 300,
+          "cut_at_document_length": 2859,
+          "longest_tokenized": 1940,
+          "longest_scored": 290,
+          "zero_scored_tokens": 0,
+          "scored_vectors": 1221388,
+          "mean_scored_per_document": 235.653,
+          "bytes": {
+            "fp32": 469012992,
+            "fp16": 234506496,
+            "bge_small_fp32": 7961088
+          },
+          "ratio_to_bge_small": {
+            "fp32": 58.913,
+            "fp16": 29.457
+          },
+          "encode_seconds": 16.57,
+          "where": "memory only (never the shared embedding cache)",
+          "document_text": "title + ' ' + text"
+        },
+        "queries": {
+          "n": 300,
+          "query_length": 32,
+          "over_query_length": 54,
+          "longest_tokenized": 65,
+          "scored_rows": 9600
+        },
+        "batched_pass": {
+          "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+          "device": "cuda",
+          "block_bytes": 1073741824,
+          "wall_ms": 6458.02,
+          "ms_per_query_amortised": 21.527,
+          "ranking_ms": 139.02,
+          "queries": 300,
+          "documents": 5183,
+          "k": 100
+        },
+        "equivalence": {
+          "pairs": 200,
+          "max_abs_difference": {
+            "matrix_vs_maxsim": 4.35547249821866e-06,
+            "matrix_vs_sentence_transformers": 3.6512290257917357e-06
+          },
+          "tolerance": {
+            "maxsim": 1e-05,
+            "sentence_transformers": 0.0001
+          },
+          "within_tolerance": true,
+          "rank_agreement": {
+            "queries": 200,
+            "top": 100,
+            "same_order_as_sentence_transformers": 198,
+            "max_abs_difference": 5.811592728832693e-06,
+            "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+          }
+        }
+      },
+      "mv:colbertv2": {
+        "model": "colbert-ir/colbertv2.0",
+        "kind": "named",
+        "document_length": 180,
+        "revision": "c1e84128e85ef755c096a95bdb06b47793b13acf",
+        "weights_sha256": "3f58890b1dfdfec066ef12ba431fa9d56992da9e30a53489242c4156e37e9017",
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "versions": {
+          "sentence_transformers": "6.1.0",
+          "transformers": "5.17.0",
+          "torch": "2.5.1+cu121"
+        },
+        "settings_read_back": {
+          "dim": 128,
+          "query_length": 32,
+          "query_expansion": true,
+          "expansion_attended": false,
+          "expansion_strategy": "fixed",
+          "document_length": 180,
+          "saved_document_length": 180,
+          "skiplist_words": [
+            "!",
+            "\"",
+            "#",
+            "$",
+            "%",
+            "&",
+            "'",
+            "(",
+            ")",
+            "*",
+            "+",
+            ",",
+            "-",
+            ".",
+            "/",
+            ":",
+            ";",
+            "<",
+            "=",
+            ">",
+            "?",
+            "@",
+            "[",
+            "\\",
+            "]",
+            "^",
+            "_",
+            "`",
+            "{",
+            "|",
+            "}",
+            "~"
+          ],
+          "skiplist_ids": [
+            999,
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1024,
+            1025,
+            1026,
+            1027,
+            1028,
+            1029,
+            1030,
+            1031,
+            1032,
+            1033,
+            1034,
+            1035,
+            1036,
+            1063,
+            1064,
+            1065,
+            1066
+          ],
+          "skiplist_tasks": [
+            "document"
+          ],
+          "markers": {
+            "query": {
+              "prompt": "[unused0] ",
+              "token": "[unused0]",
+              "piece": "[unused0]",
+              "id": 1,
+              "single_piece": true
+            },
+            "document": {
+              "prompt": "[unused1] ",
+              "token": "[unused1]",
+              "piece": "[unused1]",
+              "id": 2,
+              "single_piece": true
+            }
+          },
+          "do_lower_case": false,
+          "text_max_length_override": null,
+          "similarity_fn_name": "maxsim",
+          "modules": [
+            "Transformer",
+            "Dense",
+            "MultiVectorMask",
+            "Normalize"
+          ],
+          "max_seq_length": 512,
+          "asserted": [
+            "dim",
+            "document_length",
+            "expansion_attended",
+            "query_expansion",
+            "query_length",
+            "skiplist",
+            "markers"
+          ]
+        },
+        "load_and_score": {
+          "query": "What is the capital of China?",
+          "score_answer": 29.358189,
+          "score_other": 4.386675,
+          "score_answer_long": 22.314949,
+          "tokens": {
+            "query": 32,
+            "answer": 9,
+            "other": 31,
+            "answer_long": 168
+          },
+          "passed": true
+        },
+        "store": {
+          "documents": 5183,
+          "dim": 128,
+          "document_length": 180,
+          "cut_at_document_length": 4730,
+          "longest_tokenized": 1940,
+          "longest_scored": 176,
+          "zero_scored_tokens": 0,
+          "scored_vectors": 815632,
+          "mean_scored_per_document": 157.367,
+          "bytes": {
+            "fp32": 417603584,
+            "fp16": 208801792,
+            "bge_small_fp32": 7961088
+          },
+          "ratio_to_bge_small": {
+            "fp32": 52.456,
+            "fp16": 26.228
+          },
+          "encode_seconds": 21.86,
+          "where": "memory only (never the shared embedding cache)",
+          "document_text": "title + ' ' + text"
+        },
+        "queries": {
+          "n": 300,
+          "query_length": 32,
+          "over_query_length": 54,
+          "longest_tokenized": 65,
+          "scored_rows": 9600
+        },
+        "batched_pass": {
+          "label": "batched, amortised: one float64 pass over every (query, document) pair, then a top-k per query; the per-query `dense` stage of this row's latency only reads that list",
+          "device": "cuda",
+          "block_bytes": 1073741824,
+          "wall_ms": 5171.17,
+          "ms_per_query_amortised": 17.237,
+          "ranking_ms": 142.86,
+          "queries": 300,
+          "documents": 5183,
+          "k": 100
+        },
+        "equivalence": {
+          "pairs": 200,
+          "max_abs_difference": {
+            "matrix_vs_maxsim": 2.804672300626976e-06,
+            "matrix_vs_sentence_transformers": 3.465594254237203e-06
+          },
+          "tolerance": {
+            "maxsim": 1e-05,
+            "sentence_transformers": 0.0001
+          },
+          "within_tolerance": true,
+          "rank_agreement": {
+            "queries": 200,
+            "top": 100,
+            "same_order_as_sentence_transformers": 199,
+            "max_abs_difference": 4.0761796284982665e-06,
+            "note": "sentence-transformers scores in float32, so near-ties may swap; recorded for the tripwire checklist"
+          }
+        }
+      }
+    }
+  },
+  "reproduces": [
+    {
+      "file": "bench/results/beir_scifact.json",
+      "git_sha": "32972cf",
+      "device": "Quadro RTX 8000",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "dense@bge-small": {
+          "equal": true
+        },
+        "hybrid@bge-small": {
+          "equal": true
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "equal": true
+        }
+      },
+      "all": true
+    },
+    {
+      "file": "bench/results/beir_scifact_models_2026.json",
+      "git_sha": "23729b3",
+      "device": "NVIDIA A40",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "dense@bge-small": {
+          "equal": true,
+          "ranking_equal": true
+        },
+        "hybrid@bge-small": {
+          "equal": true,
+          "ranking_equal": true
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "equal": true,
+          "ranking_equal": false
+        }
+      },
+      "all": false
+    },
+    {
+      "file": "bench/results/beir_scifact_small_rerankers.json",
+      "git_sha": "a43f2be",
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "hybrid@bge-small": {
+          "equal": true,
+          "ranking_equal": true
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "equal": true,
+          "ranking_equal": true
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+          "equal": true,
+          "ranking_equal": true
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+          "equal": true,
+          "ranking_equal": true
+        }
+      },
+      "all": true
+    }
+  ],
+  "verdicts": [
+    {
+      "config": "scifact:dense@answerai-colbert-small",
+      "reference": "scifact:dense@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0255,
+      "lo": -0.0051,
+      "hi": 0.0579,
+      "interval": "covers zero",
+      "scope": "test",
+      "role": "a",
+      "kind": "secondary",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid@answerai-colbert-small",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0135,
+      "lo": -0.0349,
+      "hi": 0.0091,
+      "interval": "covers zero",
+      "scope": "test",
+      "role": "a",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.022,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": -0.0135,
+        "lo": -0.0402,
+        "hi": 0.0153,
+        "deciding": false
+      }
+    },
+    {
+      "config": "scifact:dense@colbertv2",
+      "reference": "scifact:dense@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0736,
+      "lo": -0.1081,
+      "hi": -0.0382,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "a",
+      "kind": "secondary",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid@colbertv2",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0574,
+      "lo": -0.0812,
+      "hi": -0.0331,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "a",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.024,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": -0.0574,
+        "lo": -0.0883,
+        "hi": -0.0254,
+        "deciding": false
+      }
+    },
+    {
+      "config": "scifact:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0146,
+      "lo": -0.0116,
+      "hi": 0.0439,
+      "interval": "covers zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.0278,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": 0.0146,
+        "lo": -0.0165,
+        "hi": 0.0503,
+        "deciding": false
+      }
+    },
+    {
+      "config": "scifact:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0629,
+      "lo": -0.0927,
+      "hi": -0.0324,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "bar",
+      "plan": true,
+      "half_width": 0.0302,
+      "bonferroni": {
+        "alpha": 0.0125,
+        "level": 0.9875,
+        "delta": -0.0629,
+        "lo": -0.104,
+        "hi": -0.0234,
+        "deciding": false
+      }
+    },
+    {
+      "config": "scifact:hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.0159,
+      "lo": -0.0073,
+      "hi": 0.0402,
+      "interval": "covers zero",
+      "scope": "test",
+      "role": "reference",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": -0.0267,
+      "lo": -0.0529,
+      "hi": -0.0005,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "reference",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "reference": "scifact:hybrid@bge-small",
+      "metric": "ndcg@10",
+      "delta": 0.032,
+      "lo": 0.0029,
+      "hi": 0.0608,
+      "interval": "above zero",
+      "scope": "test",
+      "role": "reference",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "scifact:hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.0013,
+      "lo": -0.0202,
+      "hi": 0.0182,
+      "interval": "covers zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "scifact:hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": 0.0413,
+      "lo": 0.0185,
+      "hi": 0.0657,
+      "interval": "above zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+answerai-colbert-small@bge-small/fp32-doc300/top20",
+      "reference": "scifact:hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.0174,
+      "lo": -0.0404,
+      "hi": 0.0059,
+      "interval": "covers zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "reference",
+      "plan": true
+    },
+    {
+      "config": "scifact:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "scifact:hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.0789,
+      "lo": -0.1102,
+      "hi": -0.0478,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "scifact:hybrid+minilm-l12@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.0362,
+      "lo": -0.0584,
+      "hi": -0.0156,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "reference",
+      "plan": false
+    },
+    {
+      "config": "scifact:hybrid+colbertv2@bge-small/fp32-doc180/top20",
+      "reference": "scifact:hybrid+gte-modernbert-base@bge-small/fp32-512/top20",
+      "metric": "ndcg@10",
+      "delta": -0.095,
+      "lo": -0.126,
+      "hi": -0.065,
+      "interval": "below zero",
+      "scope": "test",
+      "role": "b",
+      "kind": "reference",
+      "plan": true
+    }
+  ]
+}

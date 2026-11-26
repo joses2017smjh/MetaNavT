@@ -1313,6 +1313,137 @@ their test questions are about, though no test question and no label. Quality
 on the real corpus with the owner's hand-written questions: a later bar, on a
 CPU, from these committed files. Each student is one training run with one seed.
 
+### Cheaper shapes (M51)
+
+At the served shape every small model's API process is over the api container's
+memory limit on the indicative CPU, so M51 asks the quality question again at
+shapes that cost less. The two MiniLM cross-encoders, their students,
+gte-reranker-modernbert-base and bge-reranker-v2-m3 are each scored at every
+depth and cap of the grid, fp32, in the same runs as the unreranked parent, on
+the same three datasets and the same GPU class as M43's rows; the
+parent and the six rows at the served shape must reproduce M43's committed rows
+before a run counts, and they do, query for query. The rows are in
+[the generated block](../README.md#bench-small-rerankers-shapes), and
+[the chart](figures/small-rerankers-shapes.svg) draws them against their
+indicative CPU p95.
+
+**Declared before any row ran.** `app/eval/small_rerankers_shapes.py` holds the
+grid, the budget bands, the three families (F1, F2 and the Phase-2 retrain's
+F3) and the four answer levels, pinned by
+tests, in a commit older than every results file. A cell's band comes from the
+committed CPU file and `api_memory_mib` alone, so it is blind to quality:
+under-indicative-budget is a p95 of at most 1000 ms with a peak of at most 0.9 of the limit, and borderline a p95 of at most 2500 ms within the limit.<!-- num: bench/results/small_rerankers_shapes.json#/small_rerankers/bands/p95_ms_under; #/small_rerankers/bands/headroom; #/small_rerankers/bands/p95_ms_borderline -->
+These are budgets on one HPC CPU, not on the host, which can be more than twice
+as slow. The question has one answer per family, read in a fixed order: YES
+needs one cell's Bonferroni-adjusted interval above zero on all three datasets;
+PASSES PER CELL, NOT AFTER ADJUSTMENT a cell above zero on all three at the
+unadjusted level only; NO every cell losing somewhere at that level; NOT SHOWN at this n is none of
+them. F1, the headline, holds the 6 under-indicative-budget cells; F2 adds the borderline ones, 16 cells in all, and never modifies F1.<!-- num: bench/results/small_rerankers_shapes_frontier.json#/answers/F1/k; #/answers/F2/k -->
+
+**The answer: NOT SHOWN at this n, in both families.** No cell in either
+family wins on all three datasets even before adjustment. The students' cells
+are the only cells of either family above the unreranked list on the
+fixture's held-out half, and every student cell ties on SciFact: `hybrid+student-minilm-l12@bge-small/fp32-256/top5`, the cheapest L12 student cell, is above it on FiQA by +0.0185 [+0.0092, +0.0282] and still above zero at the F1 level, [+0.0062, +0.0314], but on SciFact it is -0.0140 [-0.0324, +0.0044].<!-- num: bench/results/small_rerankers_shapes_frontier.json#/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/delta; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/hi; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/adjusted/F1/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/adjusted/F1/hi; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/delta; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/hi -->
+The fixture half says the least about the students: M43's near-twin caveat holds
+here too, since their synthetic fixture queries sit close to the templated gold
+questions (the count is in the generated block).
+The MiniLM-L6 cross-encoder loses on SciFact at every shape of the grid, and
+the L12 at all but one. Not every cell loses somewhere, so the answer is not
+NO either; it is not evidence that the cheap shapes do not help.
+
+**Cheapening cost the students.** A shallower rerank was expected to perturb
+less. For the zero-shot MiniLM models it mostly did not measurably change
+anything: against their own served-shape rows only three L12 cells differ, a
+loss on FiQA. For the students it cost. On SciFact every student cell at the
+shorter cap is below its served-shape row, while their shallower cells at the
+longer cap show no measured difference; `hybrid+student-minilm-l6@bge-small/fp32-256/top5` is below by -0.0268 [-0.0518, -0.0041].<!-- num: bench/results/small_rerankers_shapes_frontier.json#/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/delta; #/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/lo; #/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/hi -->
+On FiQA nine of the ten cheaper student cells are below their served-shape
+rows. Both students were trained at the served cap, so part of the SciFact
+cost might have been a train/test length mismatch. The Phase-2 retrain at the
+shorter cap (a second attempt, decided before any M51 number, its own family
+F3, never merged into F1 or F2) does not show that. F3 answer: NOT SHOWN at
+this n: every retrained cell still ties with the unreranked list on SciFact,
+and no retrained cell differs from the first-attempt student at the same
+shape on SciFact or FiQA; `hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top5` is +0.0014 [-0.0060, +0.0089] against it on SciFact.<!-- num: bench/results/small_rerankers_ml256_frontier.json#/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/delta; #/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/lo; #/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/hi -->
+That is no measured difference, not equivalence. The retrain changed only the
+cap of the student's own input: its distillation targets are still the
+teacher's logits scored at the longer cap, so it removes the length mismatch on
+the student's side alone. The first attempt trained both students on A40s. The L12
+retrain ran on an A40 as well, but the L6 retrain ran on another GPU class, as
+the queue placed it, so for L6 the training device is a second difference beside
+the cap; the manifests record each device.
+
+**What the cap does.** On the fixture no reranked pair is longer than the
+shorter cap, so there every row at the shorter cap ranks every question
+exactly as its twin at the longer one, and the cap axis measures nothing. On
+SciFact and FiQA every cell at the shorter cap cuts pairs and ranks some
+queries differently from its twin, and only queries with a cut pair: the per-query sidecars carry the truncation counts and the
+ranking hashes, and `make small-rerankers-shapes-rescore` checks that
+invariant, the depth invariants and every interval again on a CPU.
+
+**What the host would run.** The block prints the owner's host command for each
+F1 cell (a student is timed as the published model it started from); none has
+been run. What this does not show: the host's own timing and memory, more than
+one request at a time, the students on a corpus they have not read (their
+training documents cover the relevant documents of some SciFact and FiQA test
+queries, counted in `small_rerankers_shapes_exposure.json`, and every fixture
+question), and the publishers' training data, which is not audited for overlap
+with BEIR.
+
+## Late interaction (ColBERT MaxSim), measured
+
+`app/multimodal/late_interaction.py` has scored ColPali-style page patches by
+MaxSim since the multimodal prototype, but no text model produced token vectors
+and no results file scored it. This section measures text MaxSim against the
+default path, `hybrid@bge-small`, with two ColBERT checkpoints at their saved
+settings: answerdotai/answerai-colbert-small-v1, the size of bge-small, and
+colbert-ir/colbertv2.0, the original ColBERTv2 checkpoint. The rows are in
+[the generated block](../README.md#bench-late-interaction). Nothing here changes
+a default.
+
+**Two roles, one bar, declared before any row ran.** In role (a) the MaxSim leg
+replaces bge-small's dense leg and BM25 is kept; in role (b) MaxSim reranks the
+fused top twenty. `app/eval/late_interaction.py` holds the bar as constants,
+pinned by a test, in a commit that `make late-interaction-bar` checks is an
+ancestor of every results file: a model passes in a role when its paired nDCG@10
+delta against `hybrid@bge-small` is above zero on fixture v1's held-out
+questions and on BEIR SciFact and on BEIR FiQA. In role (a) the scoring is
+exhaustive MaxSim in float64 over every document's token vectors
+(`maxsim_scores`, the arithmetic of `maxsim`, batched): the exact score that
+PLAID-style search approximates, not an index. In role (b) the module's own
+`maxsim` scores each of the twenty candidates, in float32.
+
+**No named model passes in either role**, so the plan's row is "measured, not
+adopted" and the MaxSim code stays as a measured, tested option off the default
+path. The closest is answerai-colbert-small as a reranker, above the unreranked list on FiQA by +0.0473 [+0.0327, +0.0619] but covering zero on the fixture and on SciFact.<!-- num: bench/results/beir_fiqa_late_interaction.json#/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/delta_vs_parent/ndcg@10/delta; #/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/delta_vs_parent/ndcg@10/lo; #/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/delta_vs_parent/ndcg@10/hi -->
+Its card says that as a reranker it "vastly outperforms cross-encoders its
+size". The declared reading of that claim is "supported here": the same
+reranked row is above zero against the MiniLM-L12 cross-encoder, the one
+same-size cross-encoder among this run's references, on all three datasets;
+how much better ("vastly") is not tested. Two caveats were declared before the
+run: that comparator was chosen while its weak rows were known, and it reads a
+longer budget of query plus document. The same row loses to the two stronger
+references, the app's default reranker bge-reranker-v2-m3 and M43's passing
+small cross-encoder gte-reranker-modernbert-base: it is below zero against
+each on the fixture's held-out half and on FiQA, and covers zero against both
+on SciFact.
+Against bge-reranker-v2-m3 the deltas are -0.0554 on the fixture and -0.0136 on FiQA; against gte-reranker-modernbert-base, -0.0475 and -0.0428.<!-- num: bench/results/late_interaction.json#/held_out/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/deltas/[reference=hybrid+bge-rerank@bge-small~1fp32-512~1top20]/ndcg@10/delta; bench/results/beir_fiqa_late_interaction.json#/verdicts/9/delta; bench/results/late_interaction.json#/held_out/results/[config=hybrid+answerai-colbert-small@bge-small~1fp32-doc300~1top20]/deltas/[reference=hybrid+gte-modernbert-base@bge-small~1fp32-512~1top20]/ndcg@10/delta; bench/results/beir_fiqa_late_interaction.json#/verdicts/11/delta -->
+Outside the bar, the stretch model GTE-ModernColBERT's MaxSim
+leg alone is above bge-small's dense leg on all three datasets, yet fused with
+BM25 it covers zero on each; the verdict is unchanged.
+
+**What it costs.** The index holds one vector per token. On FiQA, answerai-colbert-small's uncompressed token index at its saved length is 31.724 times the size of bge-small's one float32 vector per document in fp32, and 15.862 times in fp16; the multimodal module carried an unmeasured estimate before.<!-- num: bench/results/beir_fiqa_late_interaction.json#/late_interaction/legs/mv:answerai-colbert-small/store/ratio_to_bge_small/fp32; #/late_interaction/legs/mv:answerai-colbert-small/store/ratio_to_bge_small/fp16 -->
+On the share node's Xeon Silver with two torch threads, reranking twenty passages on the fly, each cut at 300 document tokens, took a median of 4464.6 ms; the MiniLM-L12 cross-encoder on the same CPU model took 7967.1 ms at 512 tokens of query plus passage and 3525.8 ms at 256, so which is faster depends on the token budget: indicative only, another machine, not the serving bar.<!-- num: bench/results/late_interaction_cpu.json#/results/[tag=answerai-colbert-small]/document_length; #/results/[tag=answerai-colbert-small]/shapes/3/p50_ms; bench/results/small_rerankers_cpu.json#/results/3/shapes/[depth=20]/p50_ms; #/results/3/max_length; #/results/2/shapes/[depth=20]/p50_ms; #/results/2/max_length -->
+
+**What this does not show.** A PLAID or compressed index; a served path (there
+is no pgvector MaxSim); equivalence where an interval covers zero; BEIR results
+free of selection, since the models were chosen knowing their published BEIR
+scores; a level field, since fusion, depth and budget were set around
+bge-small; full-length queries for the named models' MaxSim legs, since each
+reads at most its saved query cap and no row varies it (the cut queries are
+counted under the generated block). The full list is in each results file's
+header and under the generated block.
+
 ## bge-small adapted to the test corpora on synthetic queries
 
 The live host embeds with the published `BAAI/bge-small-en-v1.5`. This section
@@ -2942,7 +3073,8 @@ app/agent/         retrieval loop, Deep Research, move-plan schema
 app/artifacts/     ACM bundles, Paper2Code, spec/patch/sandbox (prototype, not evaluated)
 app/rl/            Search-R1 env, reward, policy, GRPO training loop, held-out scoring (trained once, M44)
 app/mcp/           filesystem tools + stdio server
-app/multimodal/    MaxSim, ColPali-style pages, CLIP/SigLIP images (prototype, not evaluated)
+app/multimodal/    MaxSim (text: measured, see "Late interaction (ColBERT MaxSim), measured"); ColPali-style pages,
+                   CLIP/SigLIP images (prototype, not evaluated)
 app/database/      index manager, pgvector, BM25
 app/engine/        LlamaIndex agents, loaders, sandbox
 .frontend/         Next.js UI

@@ -121,8 +121,9 @@ def reproduces(root: Path, rel: str, results: list[dict], names: list[str], *, e
     """Whether the rows named `names`, recomputed in this run, equal the same-named rows of the committed file `rel`:
     every field of each row's retrieval block (rounded means; by category on the fixture). `extra(row, committed)`
     adds per-row checks (the BEIR runner compares the ranking's sha256 with a committed TREC run). Recorded whatever
-    the answer; a row that does not reproduce is reported, not an error. `scope` (M48) reads the committed rows from
-    that scope of the file (small_rerankers.json keeps its rows under held_out / tune / all_questions, not results)."""
+    the answer; a row that does not reproduce is reported, not an error. `scope` (added by M48 and M49 alike) reads the
+    committed rows from blob[scope]["results"]: small_rerankers.json has no top-level `results`, only held_out, tune and
+    all_questions. A file without that scope gives no committed rows (each row then reads "not in committed file")."""
     path = root / rel
     if not path.exists():
         return {"file": rel, "found": False, "all": False}

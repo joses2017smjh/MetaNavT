@@ -187,6 +187,8 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _file_depth_claims(root)
     out += _models_2026_claims(root)
     out += _small_reranker_claims(root)
+    out += _small_reranker_shape_claims(root)  # M51: the cheaper shapes, a row per family and per cell x dataset whose 95% interval excludes zero
+    out += _late_interaction_claims(root)
     out += _adapted_embedder_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
@@ -1009,12 +1011,7 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
     names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
     commands = {"fixture": "make bench-small-rerankers", "scifact": "make bench-beir-small-rerankers", "fiqa": "make bench-beir-fiqa-small-rerankers"}
     out: list[dict] = []
-    near = (_load("bench/distill/queries.meta.json", root) or {}).get("near_duplicates", {}).get("by_corpus", {}).get("fixture")
-    twins = ""
-    if near and near.get("at_other_thresholds", {}).get("cosine_at_least"):
-        low = min(near["at_other_thresholds"]["cosine_at_least"], key=float)
-        twins = (f"its synthetic fixture queries sit close to the templated gold questions: {near['at_other_thresholds']['cosine_at_least'][low]} of "
-                 f"{near['checked']} reach bge-small cosine {low} to one (bench/distill/queries.meta.json), so this row says less than the BEIR ones; ")
+    twins = _fixture_twins(root)
 
     def what(tag: str) -> str:
         if tag in sr.STUDENTS:
@@ -1053,6 +1050,67 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
                             "not_shown": f"verdict from the interval: {verdict(init)}; same architecture and cost, different weights; {seen}one training run, one seed; {shape}"})
     return out
 
+
+def _late_interaction_claims(root: Path = ROOT) -> list[dict]:
+    """M49: late interaction (ColBERT MaxSim) against hybrid@bge-small, M43's rule. A row only for a bar comparison
+    (hybrid@<tag> or hybrid+<tag>@bge-small/fp32-doc<L>/top20 against hybrid@bge-small) in the bar's scope, where that
+    (model, role) passes on all three datasets, or where its interval is below zero on that dataset (a recorded loss).
+    Stretch rows follow the same rule against their parent, labelled stretch. Never a tie, a single-dataset win of a
+    model that does not pass, a reference or secondary comparison, the card-claim reading, a sensitivity row, the tune
+    or all-136 scopes, recall or MRR."""
+    from app.eval import late_interaction as li
+    from app.eval.report import verdict
+
+    table = li.bar_table(root)
+    if not table["datasets"]:
+        return []
+    attempt = table["attempt"]
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-late-interaction PART=primary", "scifact": "make bench-beir-late-interaction PART=primary",
+                "fiqa": "make bench-beir-fiqa-late-interaction PART=primary"}
+    multiplicity = ("uncorrected 95% interval; a PASS needs all three datasets (each one-sided test at 2.5%); four named PASS claims give at most "
+                    "10% for any false PASS (union bound)")
+    # a stretch row is reported as a finding, so its note carries the declared bound that counts the stretch PASS claims too
+    stretch_multiplicity = ("uncorrected 95% interval; a PASS needs all three datasets (each one-sided test at 2.5%); "
+                            + li.MULTIPLICITY["row_4_2"].split(": ", 1)[1])
+    out: list[dict] = []
+    for tag, entry in table["models"].items():
+        for role in ("a", "b"):
+            e = entry[role]
+            what = (f"`{e['row']}` ({li.CANDIDATES[tag]['model']}, {li.CANDIDATES[tag]['parameters'] / 1e6:.1f}M parameters, "
+                    + ("the MaxSim leg in place of bge-small's, BM25 kept" if role == "a" else f"MaxSim reranking the fused top {li.SETTINGS['beir']['rerank_top']}") + ")")
+            for d, cell in e["datasets"].items():
+                if not (e["passes"] or cell["word"] == "below zero"):
+                    continue
+                meta = table["datasets"][d]
+                pvm = ((_load(li.results_file(d, "primary", attempt), root) or {}).get("late_interaction") or {}).get("published_vs_measured", {}).get(tag)
+                note = f"; its dense leg alone measured {pvm['measured_ndcg@10']} against the card's {pvm['published_ndcg@10_x100']} (nDCG@10 x 100, another implementation)" if pvm else ""
+                value, ci = _ci(cell, "delta", 4)
+                out.append({"claim": f"{names[d]}, {what} vs hybrid@bge-small, paired delta in nDCG@10", "value": value, "ci": ci, "n": meta["n"],
+                            "command": commands[d], "source": f"{meta['file']} @ {meta['git_sha']}",
+                            "not_shown": (f"verdict from the interval: {verdict(cell)}; the declared bar: {e['status']} ({e['triple']}); {multiplicity}{note}; "
+                                          "quality only, exhaustive MaxSim on one GPU: no served path, and the CPU timings are indicative")})
+    # stretch rows: the same rule against their parent, from the extra files
+    for tag in li.STRETCH:
+        for role, row in (("a", f"hybrid@{tag}"), ("b", f"hybrid+{tag}@bge-small/fp32-doc{li.STRETCH[tag]['saved']['document_length']}/top20")):
+            cells = {}
+            for d in li.DATASETS:
+                blob = _load(li.results_file(d, "extra", attempt), root)
+                v = next((v for v in (blob or {}).get("verdicts") or [] if v["config"] == f"{d}:{row}" and v["reference"] == f"{d}:{li.PARENT}"), None)
+                if v:
+                    cells[d] = (v, blob)
+            passes = len(cells) == 3 and all(v["interval"] == "above zero" for v, _ in cells.values())
+            for d, (v, blob) in cells.items():
+                if not (passes or v["interval"] == "below zero"):
+                    continue
+                value, ci = _ci(v, "delta", 4)
+                n = blob["held_out"]["bootstrap"]["n_queries"] if d == "fixture" else blob["n_queries"]
+                out.append({"claim": f"{names[d]}, STRETCH `{row}` ({li.STRETCH[tag]['model']}) vs hybrid@bge-small, paired delta in nDCG@10", "value": value,
+                            "ci": ci, "n": n, "command": commands[d].replace("PART=primary", "PART=extra"),
+                            "source": f"{li.results_file(d, 'extra', attempt)} @ {blob['git_sha']}",
+                            "not_shown": (f"verdict from the interval: {verdict(v)}; a stretch row, outside the declared bar: it never changes PLAN row 4.2; "
+                                          f"chosen knowing its published BEIR scores; {stretch_multiplicity}; quality only")})
+    return out
 
 
 def _adapted_embedder_claims(root: Path = ROOT) -> list[dict]:
@@ -1402,6 +1460,137 @@ def main(argv: list[str] | None = None) -> int:
     args.out.write_text(text)
     print(f"wrote {args.out} ({len(claims())} claims)")
     return 0
+
+
+SHAPE_TESTS = {"F1": "unadjusted, one of 18 cell x dataset tests in F1", "F2": "unadjusted, one of 48 cell x dataset tests in F2",
+               "F3": "unadjusted, one of 9 cell x dataset tests in F3"}
+
+
+def _shape_row(cell: dict, dataset: str, family: str, answer: dict, meta: dict, extra: str) -> dict:
+    """One evidence row for a family cell on one dataset. It cannot be built without its family's answer: a single
+    dataset's interval is one of many tests, and the row must say what the family concluded."""
+    if not answer or not answer.get("answer"):
+        raise ValueError(f"{cell['config']} on {dataset}: no {family} answer; a single-dataset row never stands alone")
+    from app.eval.report import verdict
+
+    e = cell["datasets"][dataset]
+    value, ci = _ci(e["vs_parent"], "delta", 4)
+    adj = e["adjusted"][family]
+    cost = cell["indicative_cpu"]
+    return {"claim": f"{meta['name']}, `{cell['tag']}` at depth {cell['depth']} and max_length {cell['max_length']} vs no reranker, both over hybrid@bge-small, "
+                     f"paired delta in nDCG@10 ({SHAPE_TESTS[family]})",
+            "value": value, "ci": ci, "n": meta["n"], "command": meta["command"], "source": meta["source"],
+            "not_shown": (f"verdict from the 95% interval: {verdict(e['vs_parent'])}; at the {family} level (k = {answer['k']}) the interval is "
+                          f"[{adj['lo']:+.4f}, {adj['hi']:+.4f}] ({verdict(adj)}); the {family} answer is {answer['answer']}"
+                          + (f" ({_shape_cells(answer)})" if answer.get("cells") and answer["answer"] != "NO" else "")
+                          + f"; band {cell['band']}, indicative cost {cost['p95_ms']:,.1f} ms p95 and {cost['peak_mib']:,} MiB peak on one HPC CPU, not the host; {extra}"
+                          "quality only: whether a shape fits the demo's host is not measured here (the host timing, scripts/time_reranker_on_host.py, "
+                          "is the owner's and unrun)")}
+
+
+def _fixture_twins(root: Path) -> str:
+    """M43's near-twin caveat for a student's fixture row, from the one figure report.fixture_near_twins reads."""
+    from app.eval.report import fixture_near_twins
+
+    t = fixture_near_twins(root)
+    return (f"its synthetic fixture queries sit close to the templated gold questions: {t['n']} of {t['checked']} reach bge-small cosine "
+            f"{t['cosine']} to one (bench/distill/queries.meta.json), so this row says less than the BEIR ones; ") if t else ""
+
+
+def _shape_cells(answer: dict) -> str:
+    return ", ".join(f"`{c}`" for c in answer["cells"])
+
+
+def _small_reranker_shape_claims(root: Path = ROOT) -> list[dict]:
+    """M51: the cheaper shapes. One row per family (F1, the headline, and F2) with its answer and deciding cells; a row
+    for each F1 / F2 cell and dataset whose 95% interval against no reranker excludes zero, in either direction, with
+    its family-level interval and its family's answer beside it; a cell's delta against the served 20/512 shape only
+    when that cell answers YES. Nothing for an over-budget cell."""
+    from app.eval import small_rerankers as sr
+    from app.eval import small_rerankers_shapes as shapes
+
+    front = _load(shapes.FRONTIER_FILE, root)
+    if not front:
+        return []
+    blobs = {d: _load(rel, root) for d, rel in shapes.RESULTS.items()}
+    exposure = (_load(shapes.EXPOSURE_FILE, root) or {}).get("datasets", {})
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-small-rerankers-shapes", "scifact": "make bench-beir-small-rerankers-shapes", "fiqa": "make bench-beir-fiqa-small-rerankers-shapes"}
+    twins = _fixture_twins(root)
+    frontier_src = f"{shapes.FRONTIER_FILE} @ {front['git_sha']}"
+    out: list[dict] = []
+    for family in ("F1", "F2"):
+        a = front["answers"][family]
+        k = a["k"]
+        what = "the under-indicative-budget cells (the headline)" if family == "F1" else "the under-indicative-budget and borderline cells (beside F1, never modifying it)"
+        out.append({"claim": f"Small rerankers at cheaper shapes, {family}: is any of {what} above no reranker on fixture v1's held-out half, SciFact and FiQA at once?",
+                    "value": a["answer"], "ci": "—", "n": k, "command": "make small-rerankers-shapes-frontier", "source": frontier_src,
+                    "not_shown": (f"deciding cells: {_shape_cells(a)}; " if a.get("cells") and a["answer"] != "NO" else "")
+                                 + f"Bonferroni level 1 - 0.05/{k} per cell on 20,000 resamples; each family controls its own family-wise error at 5%, the "
+                                   "families are not jointly controlled; bands from an indicative HPC-CPU budget, not the host; "
+                                 + ("NOT SHOWN at this n is not evidence that the cheap shapes do not help; " if a["answer"].startswith("NOT SHOWN") else "")
+                                 + "this search follows M43's failed search at the served shape"})
+    for cell in front["cells"]:
+        if not cell["families"]:
+            continue  # over budget: never answers the question
+        family = "F1" if "F1" in cell["families"] else "F2"
+        student = cell["tag"] in sr.STUDENTS
+        for d, e in cell["datasets"].items():
+            block = e.get("vs_parent")
+            if not block or not (block["lo"] > 0 or block["hi"] < 0):
+                continue
+            blob = blobs.get(d) or {}
+            meta = {"name": names[d], "n": shapes.N_QUERIES[d], "command": commands[d], "source": f"{shapes.RESULTS[d]} @ {blob.get('git_sha')}"}
+            extra = ""
+            if student and d == "fixture":
+                extra = "the student read every fixture chunk in training (never a gold question or label); " + twins
+            elif student and exposure.get(d):
+                x = exposure[d]
+                extra = (f"the student read a relevant document of {x['n_exposed_queries']} of {x['n_test_queries']} of these test queries in training "
+                         f"(never a query or label); re-read on the other {x['n_unexposed_queries']}: " + " ".join(_ci(e.get("exposure_excluded"), "delta", 4)) + "; ")
+            out.append(_shape_row(cell, d, family, front["answers"][family], meta, extra))
+            if front["answers"][family]["answer"] == "YES" and cell["config"] in front["answers"][family]["cells"] and e.get("vs_20_512"):
+                value, ci = _ci(e["vs_20_512"], "delta", 4)
+                out.append({"claim": f"{names[d]}, the cost of cheapening: `{cell['tag']}` at {cell['depth']}/{cell['max_length']} vs the same model at 20/512, paired delta in nDCG@10",
+                            "value": value, "ci": ci, "n": meta["n"], "command": meta["command"], "source": meta["source"],
+                            "not_shown": "descriptive, no adjustment; an interval covering zero is no measured difference, not equivalence"})
+    return out + _small_reranker_ml256_claims(root, exposure, twins)
+
+
+def _small_reranker_ml256_claims(root: Path, exposure: dict, twins: str) -> list[dict]:
+    """M51 Phase 2 (attempt 2): one row for the F3 answer and one per F3 cell x dataset whose 95% interval against no
+    reranker excludes zero, each with its F3-level interval and the F3 answer beside it."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    front = _load(shapes.ML256_FRONTIER_FILE, root)
+    if not front:
+        return []
+    a = front["answers"]["F3"]
+    out = [{"claim": ("Small rerankers retrained at max_length 256 (Phase 2, attempt 2, after M43's attempt-1 numbers were seen), F3: is any "
+                      "attempt-2 cell whose attempt-1 twin is under the indicative budget above no reranker on fixture v1's held-out half, SciFact and FiQA at once?"),
+            "value": a["answer"], "ci": "—", "n": a["k"], "command": "make small-rerankers-ml256-frontier", "source": f"{shapes.ML256_FRONTIER_FILE} @ {front['git_sha']}",
+            "not_shown": (f"deciding cells: {_shape_cells(a)}; " if a.get("cells") and a["answer"] != "NO" else "")
+                         + f"Bonferroni level 1 - 0.05/{a['k']} per cell on 20,000 resamples; F3 is its own family, never merged into F1 or F2; "
+                           "cost from the same-architecture attempt-1 row; one training run per student"}]
+    blobs = {d: _load(rel, root) for d, rel in shapes.ML256_RESULTS.items()}
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-small-rerankers-ml256", "scifact": "make bench-beir-small-rerankers-ml256", "fiqa": "make bench-beir-fiqa-small-rerankers-ml256"}
+    for cell in front["cells"]:
+        if "F3" not in cell["families"]:
+            continue
+        for d, e in cell["datasets"].items():
+            block = e.get("vs_parent")
+            if not block or not (block["lo"] > 0 or block["hi"] < 0):
+                continue
+            meta = {"name": names[d], "n": shapes.N_QUERIES[d], "command": commands[d], "source": f"{shapes.ML256_RESULTS[d]} @ {(blobs.get(d) or {}).get('git_sha')}"}
+            if d == "fixture":
+                extra = "the student read every fixture chunk in training (never a gold question or label); " + twins
+            else:
+                x = exposure.get(d) or {}
+                extra = (f"the student read a relevant document of {x.get('n_exposed_queries')} of {x.get('n_test_queries')} of these test queries in training "
+                         f"(never a query or label); re-read on the other {x.get('n_unexposed_queries')}: " + " ".join(_ci(e.get("exposure_excluded"), "delta", 4)) + "; ")
+            out.append(_shape_row(cell, d, "F3", a, meta, extra + "the cost is the same-architecture attempt-1 row's; "))
+    return out
 
 
 if __name__ == "__main__":
