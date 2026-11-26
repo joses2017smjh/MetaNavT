@@ -26,6 +26,11 @@ from app.retrieval.hybrid import InMemoryHybridIndex, RetrievalHit, RetrievalRes
 from app.retrieval.router import QueryRouter, RouteDecision, RouteType
 
 
+# The LLM prompt of expand_queries, filled with n_alt = n - 1 and the query (M46 reads it as a module constant; the text the
+# model receives is unchanged).
+MULTI_QUERY_PROMPT = "Write {n_alt} short alternative search queries for: {query}\nOne per line, no numbering."
+
+
 def expand_queries(
     query: str,
     n: int = 3,
@@ -35,10 +40,7 @@ def expand_queries(
     q = (query or "").strip()
     out: list[str] = [q] if q else [""]
     if llm and q:
-        raw = llm(
-            f"Write {n - 1} short alternative search queries for: {q}\n"
-            "One per line, no numbering."
-        ) or ""
+        raw = llm(MULTI_QUERY_PROMPT.format(n_alt=n - 1, query=q)) or ""
         for line in raw.splitlines():
             line = re.sub(r"^[\d.)\-\s]+", "", line).strip()
             if line and line.lower() not in {x.lower() for x in out}:

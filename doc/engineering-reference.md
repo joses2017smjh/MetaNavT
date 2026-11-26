@@ -1514,6 +1514,132 @@ interval re-scores from the committed per-query sidecars
 (`make adapted-embedders-rescore`, a CPU and no model), and nDCG recomputes
 from the committed TREC runs, but the checkpoints are not in the repository.
 
+## LLM query processing with real open LLMs
+
+Four query-processing prototypes live in the repository ([Cutting-edge query
+processing](#cutting-edge-query-processing)): HyDE, multi-query expansion,
+decomposition and corrective retrieval. Until M46 their benchmark rows ran
+keyword stand-ins instead of a model, labelled as such, and the one exception
+(HyDE written by qwen2.5:7b) was measured on the fixture alone. This section
+asks the question with real open LLMs, on fixture v1 and on BEIR SciFact and
+FiQA, at each place in the pipeline where the technique makes sense relative to
+the cross-encoder. The rows are in [the generated
+block](../README.md#bench-llm-query-arms). Nothing here changes a served
+default; the live demo is as it was.
+
+**The bar, declared before any LLM call.** `app/eval/llm_query_spec.py` holds
+every pinned value and `app/eval/llm_query_bar.py` the rules that apply them,
+both committed at the pre-probe commit D0, before the probe on development
+queries, and frozen at the declaration commit D1; `make llm-query-arms-check`
+shows that every generation shard and every scoring run holds them unchanged.
+An arm is compared with its exact parent, the same run with the LLM step as
+the only switch: `hybrid@bge-small` (P0) for the arms with no reranker, and
+`hybrid+bge-rerank@bge-small/fp32-512/top20` (P1, the served reranker shape)
+for the reranked ones. It passes when its paired nDCG@10 interval is above
+zero on SciFact and on FiQA and not below zero on the fixture's held-out half,
+where the reranked parent sits near the ceiling. Each interval is computed once
+and stored twice, rounded and raw; the verdict word comes from the raw bounds
+and is stored with it, and every reader (the README block, the evidence rows,
+the test behind PLAN.md's status column) uses the stored word, so a bound that
+rounds to zero cannot read two ways. qwen3.5:27b decides where each technique
+goes; gemma4:26b replicates it, with a label for every combination of
+outcomes; qwen3.5:122b is a scale comparison that decides nothing.
+
+**The arms, and why each placement.**
+
+- *HyDE.* The model writes a short passage that would answer the query; its
+  embedding, averaged with the query's own, replaces the query vector in the
+  dense leg, and BM25 still reads the query. Measured with no reranker and
+  before the reranker. After the reranker it is the older wiring: P1's list
+  re-sorted by RRF with the HyDE dense list, which overrides the reranker's
+  order; it is kept to measure exactly that wiring, not post-rerank HyDE in
+  general.
+- *Multi-query expansion.* The query and up to two alternatives the model
+  writes, each through the same first stage, fused by RRF; with no reranker,
+  and before the reranker on the fused list. Not after it: an RRF re-sort after
+  the reranker overrides it, as the HyDE row shows.
+- *Decomposition.* The query and up to four sub-questions, fused the same way.
+  Before the reranker in two ways: the union reranked against the original
+  question, or each list's head reranked against its own sub-question and the
+  units merged by their best score. The second (per-sub) is the only arm in
+  which the reranker reads anything but the original query, and its name says so.
+- *Corrective grading.* The model grades each of the parent list's top units
+  (yes or no); a "no" moves to the end. When no unit is "yes", a rewritten query
+  runs the placement's first stage once and its list goes first. With no
+  reranker, and after the reranker; not before it, because the reranker would
+  re-sort the head and undo a demotion.
+
+First-stage lists are built with the reranker off and the reranker runs once
+per arm, as the table says, so a union-then-rerank arm cannot turn into an
+unlabelled per-sub arm (a test records the queries a fake reranker sees). Every
+arm's list is cut to its parent's length. On the fixture the same placements
+also run with the keyword stand-ins, tagged `[heuristic]`, and the three HyDE
+placements with the committed qwen2.5:7b hypotheses; both get verdict words
+only. The stand-ins' keyword rules were written with every fixture question in
+view, held-out half included, and their rows say so.
+
+**The prompts and the request.** The prototypes' own prompts, verbatim:
+HyDE's, the multi-query prompt of `expand_queries` and the decomposition prompt
+of `llm_decompose`, the last two now module constants with the text unchanged.
+The grader and the rewrite have new prompts, pinned with the rest. Only the
+query text, and for the grader one unit's text, reaches a prompt; a test feeds
+a gold question whose answer and paths are sentinels, and none reaches a prompt.
+Each call is one request to Ollama's `/api/generate` at a time: temperature
+zero, seed zero, reasoning off, a capped generation length per kind of call, the
+model pinned by its digest, the server's context fixed. A reply that failed,
+came back empty, did not parse or overflowed the context makes the arm behave as
+its parent for that query (a grade counts as "yes"; a rewrite is skipped); each
+is counted and printed as a fallback label, and no heuristic is ever put in its
+place.
+
+**What is cached, and how it re-scores.** The worklist, every prompt of a
+dataset and the same for every model, is made after P0 and P1 are recomputed
+and, on BEIR, checked against the committed ranking hashes. Generation reads no
+qrels (the jobs do not even copy them) and appends one line per call, so a job
+stopped by its time limit resumes. The merged outputs and their manifest are
+committed in `bench/llm_query/`; the scoring targets read them and call no LLM,
+and `make llm-query-arms-rescore` recomputes every interval, word, cost block
+and decision sentence on a CPU from the per-query sidecars and that directory.
+
+**Cost.** Each arm's LLM calls, prompt and generated tokens, and seconds per
+query are the sum of the cached calls it reads, run one at a time on the GPU the
+file names. Cost is printed beside each decision and is never part of the bar.
+
+**The audit.** `make llm-query-audit` asks, from the cache, how often an
+output contains a fixture question's gold answer or a gold file path that the
+question itself does not name (beside a control path from the same directory),
+how long a run of words a HyDE passage shares verbatim with a relevant BEIR
+document (and with the parent's top non-relevant one), and how often the grader's
+"yes" agrees with the qrels. Every share there is descriptive.
+
+**Results.** No placement of any of the four techniques passes the declared bar, for either model, so each technique's generated sentence in [the block](../README.md#bench-llm-query-arms) says that no placement passes it, and the gemma4:26b replication reads "neither model passes any arm".
+The bar needs the interval above zero on SciFact and on FiQA, and no LLM arm of either model is above zero on SciFact; what follows decides nothing.
+HyDE is above zero on FiQA before and after the reranker for both models, +0.0120 [+0.0041, +0.0198] for qwen3.5:27b before it, and covers zero at every placement on SciFact, -0.0016 [-0.0080, +0.0053] at that one.<!-- num: bench/results/beir_fiqa_llm_query_arms.json#/scopes/test/comparisons/2/ndcg@10/delta; #/scopes/test/comparisons/2/ndcg@10/lo; #/scopes/test/comparisons/2/ndcg@10/hi; bench/results/beir_scifact_llm_query_arms.json#/scopes/test/comparisons/2/ndcg@10/delta; #/scopes/test/comparisons/2/ndcg@10/lo; #/scopes/test/comparisons/2/ndcg@10/hi -->
+Corrective grading is the largest effect, and it is below zero on SciFact for both models at both placements: -0.2106 [-0.2584, -0.1607] for qwen3.5:27b with no reranker, -0.2848 [-0.3375, -0.2304] for gemma4:26b after the reranker.<!-- num: bench/results/beir_scifact_llm_query_arms.json#/scopes/test/comparisons/9/ndcg@10/delta; #/scopes/test/comparisons/9/ndcg@10/lo; #/scopes/test/comparisons/9/ndcg@10/hi; #/scopes/test/comparisons/20/ndcg@10/delta; #/scopes/test/comparisons/20/ndcg@10/lo; #/scopes/test/comparisons/20/ndcg@10/hi -->
+The audit's grader table shows why: on SciFact a "yes" covers 0.6028 of the relevant documents qwen3.5:27b graded and 0.5177 of those gemma4:26b graded, so a relevant document in the top five is often moved to the end, while on FiQA the same shares are 0.8978 and 0.8964.<!-- num: bench/results/llm_query_audit.json#/grader_vs_qrels/scifact/qwen3.5-27b/recall_of_yes; #/grader_vs_qrels/scifact/gemma4-26b/recall_of_yes; #/grader_vs_qrels/fiqa/qwen3.5-27b/recall_of_yes; #/grader_vs_qrels/fiqa/gemma4-26b/recall_of_yes -->
+On FiQA the grader with no reranker is above zero for both models, +0.0211 [+0.0072, +0.0355] for qwen3.5:27b, and after the reranker it covers zero.<!-- num: bench/results/beir_fiqa_llm_query_arms.json#/scopes/test/comparisons/9/ndcg@10/delta; #/scopes/test/comparisons/9/ndcg@10/lo; #/scopes/test/comparisons/9/ndcg@10/hi -->
+Decomposition with each sub-question reranked against itself is below zero on FiQA for both models, -0.0352 [-0.0493, -0.0195] for qwen3.5:27b; the union reranked against the original question covers zero on all three datasets for both.<!-- num: bench/results/beir_fiqa_llm_query_arms.json#/scopes/test/comparisons/8/ndcg@10/delta; #/scopes/test/comparisons/8/ndcg@10/lo; #/scopes/test/comparisons/8/ndcg@10/hi -->
+Multi-query expansion covers zero on SciFact and FiQA at both of its placements for both models; with no reranker it is below zero on the fixture's held-out half for qwen3.5:27b.
+The cross-encoder itself covers zero against P0 on SciFact, +0.0159 [-0.0073, +0.0402], and is above zero on FiQA and on the fixture's held-out half.<!-- num: bench/results/beir_scifact_llm_query_arms.json#/scopes/test/comparisons/0/ndcg@10/delta; #/scopes/test/comparisons/0/ndcg@10/lo; #/scopes/test/comparisons/0/ndcg@10/hi -->
+The memorisation audit finds no HyDE passage that shares a run of 13 or more words verbatim with a relevant BEIR document, and few fixture outputs that hold a gold answer (gemma4:26b's HyDE passages, 4 of the 80 simple factual questions) or name a gold path; pretraining exposure stays unknown.<!-- num: bench/results/llm_query_audit.json#/beir_verbatim/scifact/span; #/fixture/answers/models/gemma4-26b/hyde/hits; #/fixture/answers/models/gemma4-26b/hyde/n -->
+The declared parser's numbering-and-bullet strip also removes leading digits that belong to the text ("401k plan" becomes "k plan"): the audit counts 16 kept multi-query alternatives altered that way, in 15 (model, query) pairs, on SciFact 1 for qwen3.5:27b and 1 for gemma4:26b and on FiQA 4 and 10, and none among the sub-questions or on the fixture; the scored rows used them as altered, and a corrected parser would be a second attempt, so their effect is not measured.<!-- num: bench/results/llm_query_audit.json#/parser_digits/total/kept_lines_losing_digits; #/parser_digits/total/model_query_pairs; #/parser_digits/datasets/scifact/qwen3.5-27b/multiquery/kept_lines_losing_digits; #/parser_digits/datasets/scifact/gemma4-26b/multiquery/kept_lines_losing_digits; #/parser_digits/datasets/fiqa/qwen3.5-27b/multiquery/kept_lines_losing_digits; #/parser_digits/datasets/fiqa/gemma4-26b/multiquery/kept_lines_losing_digits -->
+One defect of the frozen decision code is left as it is: the generated HyDE sentence prints the name as "hyDE"; changing that code after the declaration would make a second attempt.
+
+**What this does not show.** Answer quality: these are rankings only, and the
+agent loops' answers are another milestone's. The variability of the LLM: one
+generation per prompt at temperature zero on one GPU type, so the intervals
+cover query sampling only. Prompt engineering: one untuned prompt per technique
+for every dataset, so these rows are a lower bound for tuned variants (SciFact's
+queries are claims, not questions). Frontier API models or reasoning: two
+quantised open models served by Ollama with reasoning off. Pretraining exposure
+to BEIR or to this repository, which the audit bounds only for verbatim copying
+and path mentions. A stronger first stage or reranker: bge-small and
+bge-reranker-v2-m3 only, and stronger ones may leave less room. Multi-query
+after the reranker, corrective before it, combinations of techniques, more than
+one corrective round: not measured. What the kept lines whose leading digits the
+frozen parser stripped did to any interval: counted by the audit, not measured.
+No correction for multiplicity.
+
 ## The API serves the benchmarked pipeline
 
 `POST /api/retrieve/` is the same hybrid pipeline over Postgres + pgvector:

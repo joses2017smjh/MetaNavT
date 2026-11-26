@@ -70,20 +70,25 @@ def heuristic_decompose(query: str) -> list[str]:
     return [q]
 
 
+# The LLM prompt of llm_decompose, filled with max_subs and the query (M46 reads it as a module constant; the text the
+# model receives is unchanged).
+DECOMPOSE_PROMPT = (
+    "Break the following question into independent sub-questions that "
+    "can each be answered by searching a file corpus. Each sub-question "
+    "should be self-contained. Return at most {max_subs} sub-questions, "
+    "one per line, no numbering. If the question is already simple, "
+    "return it unchanged.\n\n"
+    "Question: {query}\n\nSub-questions:"
+)
+
+
 def llm_decompose(
     query: str,
     complete: Callable[[str], str],
     max_subs: int = 4,
 ) -> list[str]:
     """Use an LLM to decompose a query into sub-queries."""
-    prompt = (
-        "Break the following question into independent sub-questions that "
-        "can each be answered by searching a file corpus. Each sub-question "
-        f"should be self-contained. Return at most {max_subs} sub-questions, "
-        "one per line, no numbering. If the question is already simple, "
-        "return it unchanged.\n\n"
-        f"Question: {query}\n\nSub-questions:"
-    )
+    prompt = DECOMPOSE_PROMPT.format(max_subs=max_subs, query=query)
     raw = (complete(prompt) or "").strip()
     if not raw:
         return heuristic_decompose(query)

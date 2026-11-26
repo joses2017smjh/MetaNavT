@@ -190,6 +190,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _small_reranker_shape_claims(root)  # M51: the cheaper shapes, a row per family and per cell x dataset whose 95% interval excludes zero
     out += _late_interaction_claims(root)
     out += _adapted_embedder_claims(root)
+    out += _llm_query_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -1224,6 +1225,72 @@ def _adapted_embedder_rows(root: Path, table: dict, small: dict) -> list[dict]:
                 out.append({"claim": f"{names[d]}, `{row}` vs `{ref}` ({what}), paired delta in nDCG@10",
                             "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": f"{meta['file']} @ {meta['git_sha']}",
                             "not_shown": "; ".join(parts)})
+    return out
+
+
+def _llm_query_claims(root: Path = ROOT) -> list[dict]:
+    """M46: one row per (model, arm) of qwen3.5:27b and gemma4:26b, whatever the outcome (at most 20), never a cell picked
+    for its interval: the declared bar's reading, the three cells with their stored words (ties included), the
+    gemma4:26b replication label, the queries whose nDCG@10 changed, "1 of N uncorrected intervals", cost and GPU, the
+    LLM fallbacks and the audit. No secondary, stand-in, qwen2.5:7b or qwen3.5:122b row gives one."""
+    from app.eval import llm_query_bar as bar
+    from app.eval import llm_query_spec as spec
+
+    blobs = bar.load_blobs(root)
+    if not blobs:
+        return []
+    names = {"fixture": "fixture v1 held-out", "scifact": "SciFact", "fiqa": "FiQA"}
+    every = {"fixture": "fixture v1, all questions", "scifact": "SciFact", "fiqa": "FiQA"}  # cost and fallbacks: every query
+    commands = {"fixture": "make bench-llm-query-arms", "scifact": "make bench-beir-llm-query-arms", "fiqa": "make bench-beir-fiqa-llm-query-arms"}
+    total = bar.n_intervals(blobs).get("total", 0)
+    audit = _load("bench/results/llm_query_audit.json", root)
+    phrase = {"none": "with no reranker, against P0 (hybrid@bge-small)", **{k: f"{v}, against P1 (the reranked hybrid)" for k, v in spec.PLACEMENT_PHRASES.items()}}
+    out: list[dict] = []
+    for tag in spec.BAR_MODELS:
+        for row in bar.bar_rows(blobs, tag):
+            measured = [d for d in spec.DATASETS if d in blobs and any(r["config"] == row["config"] for r in blobs[d].get("rows") or [])]
+            if not measured:
+                continue
+            cells, changed, costs, fallbacks = [], [], [], []
+            for d in spec.DATASETS:
+                if d not in measured:
+                    cells.append(f"{names[d]}: not run")
+                    continue
+                scope = blobs[d]["scopes"][bar.BAR_SCOPE[d]]
+                block = bar.find_block(scope, row["config"], row["parent"])
+                cells.append(f"{names[d]}: {bar.fmt_block(block)} {row['words'][d]}")
+                changed.append(f"{names[d]} {block['n_changed']} of {scope['n']}" if block else f"{names[d]} —")
+                r = next(x for x in blobs[d]["rows"] if x["config"] == row["config"])
+                cost = r.get("cost") or {}
+                if cost.get("llm_ms_per_query"):
+                    costs.append(f"{every[d]} {cost['llm_calls_per_query']:.2f} calls, {cost['prompt_tokens_per_query']:.0f} prompt and "
+                                 f"{cost['generated_tokens_per_query']:.0f} generated tokens, p50 {cost['llm_ms_per_query']['p50'] / 1000:.2f} s per query on "
+                                 f"{', '.join(cost.get('gpu') or ['?'])}")
+                if r.get("llm_fallbacks"):
+                    fallbacks.append(f"{every[d]}: {'; '.join(r['llm_fallbacks'])}")
+            ns = " / ".join(str(blobs[d]["scopes"][bar.BAR_SCOPE[d]]["n"]) for d in measured)
+            src = "; ".join(f"{bar.RESULTS[d]} @ {blobs[d].get('git_sha')}" for d in measured)
+            audit_note = ""
+            if audit:
+                fx = ((audit.get("fixture") or {}).get("answers") or {}).get("models", {}).get(tag, {}).get(row["technique"] if row["technique"] != "corrective" else "rewrite")
+                if fx:
+                    audit_note = f"audit: {fx['hits']} of {fx['n']} of its fixture outputs contain the gold answer (bench/results/llm_query_audit.json); "
+                digits = audit.get("parser_digits")
+                if digits and row["technique"] in ("multiquery", "decompose"):
+                    parts = [f"{every[d]} {x['kept_lines_losing_digits']} of {x['kept_lines']}" for d in measured
+                             if (x := ((digits["datasets"].get(d) or {}).get(tag) or {}).get(row["technique"]))]
+                    audit_note += (f"kept LLM lines whose leading digits the declared (frozen) parser stripped, used as altered and not "
+                                   f"re-measured: {', '.join(parts)} (audit parser_digits); ")
+            out.append({
+                "claim": (f"{spec.MODELS[tag]['name']}: {spec.TECHNIQUE_NAMES[row['technique']]} {phrase[row['placement']]}, `{row['config']}` minus "
+                          f"`{row['parent']}`, paired delta in nDCG@10 on the three datasets of M46's declared bar"),
+                "value": {"passes": "passes the bar", "does not pass": "does not pass", "open": "open", "withheld": "withheld"}[row["passes"]],
+                "ci": "; ".join(cells), "n": ns, "command": ", ".join(commands[d] for d in measured), "source": src,
+                "not_shown": (f"the bar: above zero on SciFact and FiQA and not below zero on the fixture's held-out half, words read from the raw "
+                              f"bounds; above zero on all three: {row['all_three']}; gemma4:26b replication: {row.get('replication')}; queries whose "
+                              f"nDCG@10 differs from the parent: {', '.join(changed)}; 1 of {total} uncorrected paired nDCG@10 intervals in the milestone; "
+                              f"cost: {'; '.join(costs) or 'none recorded'}; LLM fallbacks: {'; '.join(fallbacks) or 'none'}; {audit_note}"
+                              f"retrieval ranking only (no answers), one temperature-0 generation per prompt, Q4 weights through Ollama, reasoning off")})
     return out
 
 
