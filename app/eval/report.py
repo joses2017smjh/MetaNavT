@@ -3124,6 +3124,46 @@ def _shape_cell(block: dict | None, word: str | None) -> str:
     return f"{_delta4(block)} {SHAPE_VERDICT[word]}" if block else "not run"
 
 
+def fixture_near_twins(root: Path | None) -> dict | None:
+    """M43's near-twin count for fixture v1 (bench/distill/queries.meta.json): of the synthetic fixture queries the
+    filter checked, how many reach the lowest bge-small cosine it counted to a gold question. M43's evidence rows and
+    M51's block and evidence rows all quote this one figure, so they cannot disagree."""
+    near = (((_load(root, DISTILL_QUERIES_META) or {}).get("near_duplicates") or {}).get("by_corpus") or {}).get("fixture")
+    at = ((near or {}).get("at_other_thresholds") or {}).get("cosine_at_least")
+    if not at:
+        return None
+    low = min(at, key=float)
+    return {"n": at[low], "checked": near["checked"], "cosine": low}
+
+
+def _near_twin_line(root: Path | None, who: str) -> list[str]:
+    t = fixture_near_twins(root)
+    if not t:
+        return []
+    return ["", f"M43's near-twin caveat on {who} fixture cells: the students were trained on synthetic queries over every fixture chunk (never a "
+                f"gold question or label), and those queries sit close to fixture v1's templated gold questions: {t['n']} of {t['checked']} reach "
+                f"bge-small cosine {t['cosine']} to one (`{DISTILL_QUERIES_META}`). A student's fixture win says less than its SciFact and FiQA rows."]
+
+
+def _training_lines(root: Path | None, manifest: dict) -> tuple[str, str]:
+    """(where each attempt-2 student trained, against where attempt 1 trained its twin; the distillation targets)."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    before = (_load(root, DISTILL_STUDENTS) or {}).get("students") or {}
+    trained, targets = [], []
+    for tag, e in (manifest.get("students") or {}).items():
+        twin = shapes.PHASE2["students"].get(tag)
+        device, was = e.get("training_device"), (((before.get(twin) or {}).get("machine") or {}).get("device_name"))
+        part = f"`{tag}` on {device}, epoch {e.get('chosen_epoch')} kept"
+        if was:
+            part += f", where attempt 1 trained `{twin}` on {was}" + (" (the same device class)" if was == device else ": a second difference beside max_length")
+        trained.append(part)
+        target = (e.get("recipe") or {}).get("targets")
+        if target and target not in targets:
+            targets.append(target)
+    return "; ".join(trained), " / ".join(targets)
+
+
 def _ml256_lines(root: Path | None, named) -> list[str]:
     """M51 Phase 2: the students retrained at max_length 256 (attempt 2), their family F3 and its answer, each cell
     against no reranker, against the attempt-1 student and against the init; or that no Phase-2 result is committed."""
@@ -3136,12 +3176,14 @@ def _ml256_lines(root: Path | None, named) -> list[str]:
     a = front["answers"]["F3"]
     blobs = {d: _load(root, rel) for d, rel in shapes.ML256_RESULTS.items()}
     manifest = _load(root, shapes.PHASE2["manifest"]) or {}
-    trained = "; ".join(f"`{tag}` on {e.get('training_device')}, epoch {e.get('chosen_epoch')} kept" for tag, e in (manifest.get("students") or {}).items())
+    trained, targets = _training_lines(root, manifest)
     runs = "; ".join(f"{label}: {_device(blobs[d])}, results sha {_sha(blobs[d])}" for d, label in SHAPE_FILES if blobs.get(d))
     out = ["", head + f": **F3 answer: {a['answer']}**{named(a)} (the {a['k']} attempt-2 cells whose attempt-1 twin is under-indicative-budget; "
                       f"Bonferroni percentiles {a['percentiles'][0]:g} / {a['percentiles'][1]:g}). Both students were retrained once by M43's recipe "
-                      f"with only max_length changed to 256 ({trained}), and run beside the attempt-1 students and their inits at the same shapes ({runs}). "
-                      "A cell's cost is the same-architecture attempt-1 row's (same architecture, tokenizer and cap), not measured again.", "",
+                      f"with only the recipe's max_length changed to 256 ({trained}), and run beside the attempt-1 students and their inits at the same shapes ({runs}). "
+                      + (f"The distillation targets did not change: {targets} (the manifest's `recipe.targets`), so only the student's own input "
+                         "is cut at 256. " if targets else "")
+                      + "A cell's cost is the same-architecture attempt-1 row's (same architecture, tokenizer and cap), not measured again.", "",
            "| cell | cost of the attempt-1 row: p95 ms / peak MiB | band | " + " | ".join(f"{label}: Δ vs no reranker" for _, label in SHAPE_DATASETS)
            + " | F3-level verdicts | vs the attempt-1 student: " + ", ".join(label for _, label in SHAPE_DATASETS) + " | vs the init: " + ", ".join(label for _, label in SHAPE_DATASETS) + " |",
            "|---|---:|---|" + "---:|" * len(SHAPE_DATASETS) + "---|---|---|"]
@@ -3152,6 +3194,7 @@ def _ml256_lines(root: Path | None, named) -> list[str]:
         vs1 = "; ".join(_delta4(c["datasets"][d].get("vs_attempt_1")) for d, _ in SHAPE_DATASETS)
         vsi = "; ".join(_delta4(c["datasets"][d].get("vs_init")) for d, _ in SHAPE_DATASETS)
         out.append(f"| `{c['tag']}` {c['depth']}/{c['max_length']} | {cost['p95_ms']:,.1f} / {cost['peak_mib']:,} | {c['band']} | {cells} | {fam} | {vs1} | {vsi} |")
+    out += _near_twin_line(root, "the retrained students'")
     notes = []
     for d, label in SHAPE_FILES:
         x = (front.get("anchors") or {}).get(d) or {}
@@ -3220,6 +3263,7 @@ def small_rerankers_shapes_table(root: Path | None) -> str:
                 f"{exposure['fiqa']['n_exposed_queries']}/{exposure['fiqa']['n_test_queries']}") if c["tag"] in sr.STUDENTS and exposure.get("fiqa") else "—"
         lines.append(f"| {c['tag']} | {c['depth']} / {c['max_length']} | {cost['p95_ms']:,.1f} / {cost['peak_mib']:,} | {c['band']} | {cells} | "
                      f"{'**yes**' if c['passes_at_95'] else 'no'} | {fam} | {seen} |")
+    lines += _near_twin_line(root, "the students'")
     lines += ["", "The cost of cheapening: each cell against the same model at the served 20/512 shape, paired, 95% (descriptive, no "
                   "adjustment, not part of the answer; an interval covering zero is no measured difference, not equivalence, least of all at n = 68), "
                   "and a student against the published model it started from at the same shape:", "",
@@ -3245,7 +3289,8 @@ def small_rerankers_shapes_table(root: Path | None) -> str:
                          + " | ".join(f"{_delta4(e)} (n = {e['n']})" if e else "—" for e in ex) + " |")
     cut = {d: sum((c["datasets"][d].get("truncated_pairs") or {}).get("total", 0) for c in front["cells"] if c["max_length"] == 256) for d, _ in SHAPE_FILES}
     same = {d: sum(1 for c in front["cells"] if c["max_length"] == 256 and c["datasets"][d].get("n_queries_ranked_unlike_512") == 0) for d, _ in SHAPE_FILES}
-    lines += ["", "What the 256-token cap did: reranked pairs cut at 256 tokens, summed over the 18 cap-256 cells, "
+    lines += ["", "What the 256-token cap did: reranked pairs cut at 256 tokens, summed over the 18 cap-256 cells and over every question "
+              "of each run (on the fixture both halves, while the deltas above are the held-out half's), "
               + "; ".join(f"{label} {cut[d]:,}" for d, label in SHAPE_FILES)
               + "; cap-256 cells that rank every query as their 512 twin: " + "; ".join(f"{label} {same[d]} of 18" for d, label in SHAPE_FILES)
               + ". On the fixture no pair is longer than 256 tokens, so there the cap measures nothing and every 256 row ranks as its 512 row."]
@@ -3279,12 +3324,26 @@ def small_rerankers_shapes_table(root: Path | None) -> str:
     if root is None or (Path(root) / SMALL_RERANKERS_SHAPES_FIGURE).exists():
         lines += ["", f"![Paired change in nDCG@10 against no reranker for each cell, against its indicative CPU p95, one panel per dataset, with the band edges]({SMALL_RERANKERS_SHAPES_FIGURE})",
                   "", "*`make figures`, from the frontier file: quality from the GPU runs, cost from the indicative CPU file.*"]
+    from app.eval.served_stack import COMPOSE_API_ENV
+
+    others = [t for t in sr.CANDIDATES if t not in shapes.MODELS]
+    cpu = _load(root, shapes.CPU_FILE) or {}
+    peaks = [min((s["memory_mib"]["VmHWM"] for e in cpu.get("results") or [] if e["tag"] == t for s in e["shapes"]), default=None) for t in others]
+    other_line = (f"The other M43 candidates ({_and([f'`{t}`' for t in others])}) are not re-measured: their cheapest committed peaks "
+                  f"({_and([f'{p:,}' for p in peaks])} MiB in `{shapes.CPU_FILE}`) are over {limit:,} MiB at every shape. "
+                  if others and all(p is not None for p in peaks) else "")
+    students_line = ("The attempt-1 students at 256 as trained: both were trained at 512, so their 256 rows above may carry a train/test length "
+                     "mismatch; Phase 2 above retrains them at 256 (attempt 2, its own family). "
+                     if _load(root, shapes.ML256_FRONTIER_FILE) else "Students trained at 256 (both were trained at 512; Phase 2 measures it). ")
     lines += ["", "**What this does not show.** Host timing and memory (the serving bar, unrun): the t3.small's 2 vCPUs are two hyperthreads of one core in "
                   "standard credit mode, and the CPU file ran the CUDA torch wheel; one request at a time; worst-case latency (every passage cut at the cap). "
-                  "The cap on the fixture (no pair exceeds 256 tokens). Students trained at 256 (both were trained at 512; Phase 2 measures it). "
+                  "The cap on the fixture (no pair exceeds 256 tokens). " + students_line +
                   f"A student result on an unseen corpus: the students read documents of all three test corpora ({exp} have a relevant document among them), never a query or a label. "
-                  "The publishers' and the teacher's training data are not audited for overlap with BEIR. Equivalence to the served shape. "
-                  "Seed variance: one inference run, one training run per student. Quantised or ONNX serving, another first stage, the real corpus, answer quality.",
+                  "The publishers' and the teacher's training data are not audited for overlap with BEIR. Equivalence to the served shape. " + other_line +
+                  f"The final context: the served path passes the top `RERANK_TOP_N` passages on ({COMPOSE_API_ENV['RERANK_TOP_N']} in docker-compose.yml); "
+                  "nDCG@10 is the measured proxy. "
+                  "Seed variance: one inference run, one training run per student. Quantised or ONNX serving, fp16 on CPU, another first stage, the real corpus, "
+                  "answer quality.",
               "", "Results: " + " · ".join(f"[{rel}]({rel})" for rel in (*shapes.RESULTS.values(), shapes.FRONTIER_FILE, shapes.EXPOSURE_FILE))
               + (f" · [{shapes.REPLICATE_FILE}]({shapes.REPLICATE_FILE})" if rep else "")
               + " (each run with its per-query sidecar; `make small-rerankers-shapes-rescore` recomputes every interval, total, invariant and the frontier on a CPU)."]

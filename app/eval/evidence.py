@@ -1009,12 +1009,7 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
     names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
     commands = {"fixture": "make bench-small-rerankers", "scifact": "make bench-beir-small-rerankers", "fiqa": "make bench-beir-fiqa-small-rerankers"}
     out: list[dict] = []
-    near = (_load("bench/distill/queries.meta.json", root) or {}).get("near_duplicates", {}).get("by_corpus", {}).get("fixture")
-    twins = ""
-    if near and near.get("at_other_thresholds", {}).get("cosine_at_least"):
-        low = min(near["at_other_thresholds"]["cosine_at_least"], key=float)
-        twins = (f"its synthetic fixture queries sit close to the templated gold questions: {near['at_other_thresholds']['cosine_at_least'][low]} of "
-                 f"{near['checked']} reach bge-small cosine {low} to one (bench/distill/queries.meta.json), so this row says less than the BEIR ones; ")
+    twins = _fixture_twins(root)
 
     def what(tag: str) -> str:
         if tag in sr.STUDENTS:
@@ -1361,7 +1356,17 @@ def _shape_row(cell: dict, dataset: str, family: str, answer: dict, meta: dict, 
                           f"[{adj['lo']:+.4f}, {adj['hi']:+.4f}] ({verdict(adj)}); the {family} answer is {answer['answer']}"
                           + (f" ({_shape_cells(answer)})" if answer.get("cells") and answer["answer"] != "NO" else "")
                           + f"; band {cell['band']}, indicative cost {cost['p95_ms']:,.1f} ms p95 and {cost['peak_mib']:,} MiB peak on one HPC CPU, not the host; {extra}"
-                          "quality only: whether a shape fits the demo's host is measured on the host")}
+                          "quality only: whether a shape fits the demo's host is not measured here (the host timing, scripts/time_reranker_on_host.py, "
+                          "is the owner's and unrun)")}
+
+
+def _fixture_twins(root: Path) -> str:
+    """M43's near-twin caveat for a student's fixture row, from the one figure report.fixture_near_twins reads."""
+    from app.eval.report import fixture_near_twins
+
+    t = fixture_near_twins(root)
+    return (f"its synthetic fixture queries sit close to the templated gold questions: {t['n']} of {t['checked']} reach bge-small cosine "
+            f"{t['cosine']} to one (bench/distill/queries.meta.json), so this row says less than the BEIR ones; ") if t else ""
 
 
 def _shape_cells(answer: dict) -> str:
@@ -1383,12 +1388,7 @@ def _small_reranker_shape_claims(root: Path = ROOT) -> list[dict]:
     exposure = (_load(shapes.EXPOSURE_FILE, root) or {}).get("datasets", {})
     names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
     commands = {"fixture": "make bench-small-rerankers-shapes", "scifact": "make bench-beir-small-rerankers-shapes", "fiqa": "make bench-beir-fiqa-small-rerankers-shapes"}
-    near = (_load("bench/distill/queries.meta.json", root) or {}).get("near_duplicates", {}).get("by_corpus", {}).get("fixture")
-    twins = ""
-    if near and near.get("at_other_thresholds", {}).get("cosine_at_least"):
-        low = min(near["at_other_thresholds"]["cosine_at_least"], key=float)
-        twins = (f"its synthetic fixture queries sit close to the templated gold questions: {near['at_other_thresholds']['cosine_at_least'][low]} of "
-                 f"{near['checked']} reach bge-small cosine {low} to one (bench/distill/queries.meta.json), so this row says less than the BEIR ones; ")
+    twins = _fixture_twins(root)
     frontier_src = f"{shapes.FRONTIER_FILE} @ {front['git_sha']}"
     out: list[dict] = []
     for family in ("F1", "F2"):

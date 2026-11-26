@@ -78,3 +78,51 @@ def test_the_chart_is_drawn_from_the_frontier(tmp_path):
     svg = out[0].read_text()
     assert svg.startswith("<svg") and "1,000 ms" in svg and "2,500 ms" in svg and svg.count("<polyline") == 3 * len(shapes.MODELS)
     assert (ROOT / "doc" / "figures" / "small-rerankers-shapes.svg").read_text() == svg
+
+
+PHASE2_COMMITTED = (ROOT / shapes.ML256_FRONTIER_FILE).exists() and (ROOT / shapes.PHASE2["manifest"]).exists()
+
+
+@needs_files
+def test_the_readme_block_names_the_near_twin_caveat_the_other_candidates_and_the_final_context():
+    """The fixture student wins carry M43's near-twin count; the not-shown paragraph names the three M43 candidates left
+    out (with their cheapest committed peaks) and the final context, as the frontier's does_not_show list does."""
+    from app.eval import small_rerankers as sr
+    from app.eval.report import fixture_near_twins, small_rerankers_shapes_table
+    from app.eval.served_stack import COMPOSE_API_ENV
+
+    text = small_rerankers_shapes_table(ROOT)
+    twins = fixture_near_twins(ROOT)
+    assert twins and twins["checked"] > twins["n"] > 0
+    assert text.count(f"{twins['n']} of {twins['checked']} reach bge-small cosine {twins['cosine']} to one") == 1 + PHASE2_COMMITTED
+    front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
+    others = [t for t in sr.CANDIDATES if t not in shapes.MODELS]
+    assert len(others) == 3 and all(t in " ".join(front["does_not_show"]) for t in others)
+    cpu = shapes.load_cpu(ROOT)
+    peaks = [min(s["memory_mib"]["VmHWM"] for e in cpu["results"] if e["tag"] == t for s in e["shapes"]) for t in others]
+    assert all(p > front["limit_mib"] for p in peaks)
+    paragraph = text[text.index("**What this does not show.**"):]
+    assert all(f"`{t}`" in paragraph for t in others) and all(f"{p:,}" in paragraph for p in peaks)
+    assert f"`RERANK_TOP_N` passages on ({COMPOSE_API_ENV['RERANK_TOP_N']} in docker-compose.yml)" in paragraph and "nDCG@10 is the measured proxy" in paragraph
+    assert "fp16 on CPU" in paragraph and ("Phase 2 above retrains them at 256" in paragraph) == PHASE2_COMMITTED
+
+
+@pytest.mark.skipif(not PHASE2_COMMITTED, reason="Phase 2's frontier and manifest are committed after its runs")
+def test_the_phase2_lines_state_the_device_and_the_unchanged_targets():
+    """The brief: attempt 1 trained on A40s, and a Phase-2 student trained elsewhere is a second stated difference; the
+    targets stay the teacher's logits scored at 512."""
+    from app.eval import small_rerankers as sr
+    from app.eval.report import _ml256_lines
+
+    text = "\n".join(_ml256_lines(ROOT, lambda a: ""))
+    before = json.loads((ROOT / sr.STUDENT_MANIFEST).read_text())["students"]
+    after = json.loads((ROOT / shapes.PHASE2["manifest"]).read_text())["students"]
+    differ = 0
+    for tag, e in after.items():
+        twin = shapes.PHASE2["students"][tag]
+        was = before[twin]["machine"]["device_name"]
+        assert f"`{tag}` on {e['training_device']}" in text and f"attempt 1 trained `{twin}` on {was}" in text
+        differ += e["training_device"] != was
+        assert "max_length 512" in e["recipe"]["targets"] and e["recipe"]["targets"] in text
+    assert differ >= 1 and text.count("second difference beside max_length") == differ
+    assert "M43's near-twin caveat on the retrained students' fixture cells" in text

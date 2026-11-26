@@ -1328,7 +1328,8 @@ before a run counts, and they do, query for query. The rows are in
 indicative CPU p95.
 
 **Declared before any row ran.** `app/eval/small_rerankers_shapes.py` holds the
-grid, the budget bands, the two families and the four answer levels, pinned by
+grid, the budget bands, the three families (F1, F2 and the Phase-2 retrain's
+F3) and the four answer levels, pinned by
 tests, in a commit older than every results file. A cell's band comes from the
 committed CPU file and `api_memory_mib` alone, so it is blind to quality:
 under-indicative-budget is a p95 of at most 1000 ms with a peak of at most 0.9 of the limit, and borderline a p95 of at most 2500 ms within the limit.<!-- num: bench/results/small_rerankers_shapes.json#/small_rerankers/bands/p95_ms_under; #/small_rerankers/bands/headroom; #/small_rerankers/bands/p95_ms_borderline -->
@@ -1343,6 +1344,9 @@ them. F1, the headline, holds the 6 under-indicative-budget cells; F2 adds the b
 family wins on all three datasets even before adjustment. The students' cells
 are the only cells of either family above the unreranked list on the
 fixture's held-out half, and every student cell ties on SciFact: `hybrid+student-minilm-l12@bge-small/fp32-256/top5`, the cheapest L12 student cell, is above it on FiQA by +0.0185 [+0.0092, +0.0282] and still above zero at the F1 level, [+0.0062, +0.0314], but on SciFact it is -0.0140 [-0.0324, +0.0044].<!-- num: bench/results/small_rerankers_shapes_frontier.json#/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/delta; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/vs_parent/hi; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/adjusted/F1/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/fiqa/adjusted/F1/hi; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/delta; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/lo; #/cells/[config=hybrid+student-minilm-l12@bge-small~1fp32-256~1top5]/datasets/scifact/vs_parent/hi -->
+The fixture half says the least about the students: M43's near-twin caveat holds
+here too, since their synthetic fixture queries sit close to the templated gold
+questions (the count is in the generated block).
 The MiniLM-L6 cross-encoder loses on SciFact at every shape of the grid, and
 the L12 at all but one. Not every cell loses somewhere, so the answer is not
 NO either; it is not evidence that the cheap shapes do not help.
@@ -1361,8 +1365,13 @@ F3, never merged into F1 or F2) does not show that. F3 answer: NOT SHOWN at
 this n: every retrained cell still ties with the unreranked list on SciFact,
 and no retrained cell differs from the first-attempt student at the same
 shape on SciFact or FiQA; `hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top5` is +0.0014 [-0.0060, +0.0089] against it on SciFact.<!-- num: bench/results/small_rerankers_ml256_frontier.json#/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/delta; #/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/lo; #/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/hi -->
-That is no measured difference, not equivalence. The two retrained students
-ran on different GPU classes, as the queue placed them; the manifest records each.
+That is no measured difference, not equivalence. The retrain changed only the
+cap of the student's own input: its distillation targets are still the
+teacher's logits scored at the longer cap, so it removes the length mismatch on
+the student's side alone. The first attempt trained both students on A40s. The L12
+retrain ran on an A40 as well, but the L6 retrain ran on another GPU class, as
+the queue placed it, so for L6 the training device is a second difference beside
+the cap; the manifests record each device.
 
 **What the cap does.** On the fixture no reranked pair is longer than the
 shorter cap, so there every row at the shorter cap ranks every question
