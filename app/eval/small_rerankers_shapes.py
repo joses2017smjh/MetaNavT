@@ -1267,9 +1267,30 @@ def _scope_fields(blob: dict, scope: str, name: str) -> dict | None:
     return {k: row.get(k) for k in ("retrieval", "ci", "deltas")} if row else None
 
 
+_ABSENT_A, _ABSENT_B = object(), object()  # a value one side lacks never equals the other side's (or its own absence)
+
+
+def _column_differences(ids_a: list, col_a: list, ids_b: list, col_b: list) -> int:
+    """How many per-query values of two columns differ, matched by query id: a query on one side only, a column shorter
+    than its ids, or a value past the end of its ids counts as a difference (a zip would count them as equal)."""
+    a = {q: col_a[i] if i < len(col_a) else _ABSENT_A for i, q in enumerate(ids_a)}
+    b = {q: col_b[i] if i < len(col_b) else _ABSENT_B for i, q in enumerate(ids_b)}
+    extra = max(0, len(col_a) - len(ids_a)) + max(0, len(col_b) - len(ids_b))
+    return extra + sum(1 for q in [*a, *(q for q in b if q not in a)] if a.get(q, _ABSENT_A) != b.get(q, _ABSENT_B))
+
+
+def _score_column(sidecar: dict, name: str, metric: str) -> list:
+    return (sidecar["scores"].get(name) or {}).get(metric) or []
+
+
+def _rank_column(sidecar: dict, name: str) -> list:
+    return (((sidecar.get("per_query_extra") or {}).get(name) or {}).get("rank_hash") or {}).get("ranking") or []
+
+
 def replicate(root: Path | None = None) -> dict[str, Any]:
     """The replicate's files against the result's, per dataset and row: whether every retrieval field, ci and delta is
-    equal; how many per-query metric values differ; how many per-query ranking hashes differ."""
+    equal; how many per-query metric values differ; how many per-query ranking hashes differ. Values are matched by
+    query id, and a row, metric or query that one side lacks counts as differing, never as equal."""
     from datetime import datetime, timezone
 
     from app.eval.provenance import command_line, git_sha, git_state, run_provenance, sha256_file
@@ -1284,7 +1305,8 @@ def replicate(root: Path | None = None) -> dict[str, Any]:
             continue
         (ra, sa), (rb, sb) = a, b
         rows = {}
-        for name in sa["scores"]:
+        ids_a, ids_b = sa.get("ids") or [], sb.get("ids") or []
+        for name in [*sa["scores"], *(n for n in sb["scores"] if n not in sa["scores"])]:
             if dataset == "fixture":
                 equal = all(_scope_fields(ra, scope, name) == _scope_fields(rb, scope, name) for scope in sr.SCOPES)
             else:
@@ -1292,8 +1314,10 @@ def replicate(root: Path | None = None) -> dict[str, Any]:
                 y = {r["config"]: r for r in rb["results"]}.get(name, {})
                 equal = all(x.get(k) == y.get(k) for k in ("retrieval", "ci", "delta_vs_parent"))
                 equal = equal and [c for c in ra["bootstrap"].get("comparisons") or [] if c["row"] == name] == [c for c in rb["bootstrap"].get("comparisons") or [] if c["row"] == name]
-            values = sum(1 for m in sa["metrics"] for p, q in zip(sa["scores"][name][m], sb["scores"].get(name, {}).get(m, [])) if p != q)
-            hashes = sum(1 for p, q in zip(sa["per_query_extra"][name]["rank_hash"]["ranking"], sb["per_query_extra"].get(name, {}).get("rank_hash", {}).get("ranking", [])) if p != q)
+            equal = equal and name in sa["scores"] and name in sb["scores"]
+            values = sum(_column_differences(ids_a, _score_column(sa, name, m), ids_b, _score_column(sb, name, m))
+                         for m in [*sa["metrics"], *(m for m in sb["metrics"] if m not in sa["metrics"])])
+            hashes = _column_differences(ids_a, _rank_column(sa, name), ids_b, _rank_column(sb, name))
             rows[name] = {"fields_equal": equal, "per_query_metric_values_differ": values, "ranking_hashes_differ": hashes}
         out[dataset] = {"compared": True, "result_device": (ra.get("device") or {}).get("device_name"), "replicate_device": (rb.get("device") or {}).get("device_name"),
                         "result_git_sha": ra.get("git_sha"), "replicate_git_sha": rb.get("git_sha"),
