@@ -1360,6 +1360,14 @@ training query, and by the reading declared before training the fixture leg is
 published model, dense and hybrid, for every seed, the control and MNRL; the
 bar's form holds for none of the seeds. Why FiQA lost is not tested here.
 
+**What it costs, and a CPU re-run.** An adapted arm is the same network as
+bge-small with other weights, so a query costs what it costs today; the
+block's CPU line checks that on one machine, as an indicative timing. The
+fixture rows were also run again on a CPU from the checkpoints
+([the CPU re-run](../bench/results/adapted_embedders_cpu_rerun.json),
+`make adapted-embedders-cpu-rerun`, never read against the bar): every paired
+delta and verdict in it equals the GPU run's.
+
 **What it does not show.** The block lists it: not the live host's quality
 (the host adds a query instruction, these rows embed queries bare), not
 transfer to an unseen corpus, and not a re-measurement from a clone. Every
