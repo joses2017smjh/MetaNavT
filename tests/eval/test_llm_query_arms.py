@@ -13,6 +13,7 @@ import gzip
 import json
 import math
 import os
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -908,9 +909,24 @@ def test_the_check_allows_only_the_declared_d0_to_d1_changes(tmp_path):
 # ---------------------------------------------------------------- reproduction, reproduce-only, the probe's counters
 
 
+# The reading of the committed FiQA runs, per Python version CI runs. M43's sidecar holds per-query scores computed under
+# Python 3.11; Python 3.12's built-in sum() of floats is compensated, so beir.graded_ndcg_at_k (which M46 does not change)
+# moves the last bits of some per-query ndcg@10 values (at most 2.2e-16) while every 4-decimal mean and every ranking hash
+# stays equal. Captured from the code at e8400d9 (graded_ndcg_at_k) and from M46's beir_scores: identical on each version.
+FIQA_READING = {
+    "3.11": {"status": "reproduces", "queries_differ": {}},
+    "3.12": {"status": "failed", "queries_differ": {spec.P0: {"ndcg@10": 30}, spec.P1: {"ndcg@10": 34}}},
+}
+
+
 def test_the_beir_reproduction_reads_reproduces_on_the_committed_fiqa_runs():
     """The positive path: P0, P1 and dense@bge-small ranked exactly as the committed TREC runs give the committed hashes,
-    the committed means and M43's per-query scores; the reading is 'reproduces'."""
+    the committed means and M43's per-query scores; the reading is 'reproduces'. Under Python 3.12 only the per-query
+    ndcg@10 equality with M43's 3.11 sidecar fails, by at most a few ulp (FIQA_READING)."""
+    version = "%d.%d" % sys.version_info[:2]
+    if version not in FIQA_READING:
+        pytest.skip(f"the reading was captured for Python {sorted(FIQA_READING)} only")
+    want = FIQA_READING[version]
     trec = ROOT / "bench" / "results" / "beir_fiqa_trec"
     qids = json.loads((trec / "query_ids.json").read_text())
     qrels: dict = {}
@@ -930,8 +946,16 @@ def test_the_beir_reproduction_reads_reproduces_on_the_committed_fiqa_runs():
     ranked = {"rows": rows, "inputs": inputs}
     scores = arms.beir_scores(qids, qrels, ranked)
     rep = arms._beir_reproduction(ROOT, "fiqa", qids, ranked, scores)
-    assert rep["status"] == "reproduces", json.dumps(rep, indent=1)[:2000]
+    assert rep["status"] == want["status"], json.dumps(rep, indent=1)[:2000]
     assert sum(1 for c in rep["checks"] if c.get("ranking_equal") is True) == 5  # 3 rows in beir_fiqa.json, 2 in the M43 file
+    assert all(c.get("means_equal", True) for c in rep["checks"]) and len(rep["checks"]) == 5
+    small = "bench/results/beir_fiqa_small_rerankers.json"
+    assert {c["row"]: c["queries_differ"] for c in rep["checks"] if "queries_differ" in c} == want["queries_differ"]
+    assert all(c["file"] == small for c in rep["checks"] if c.get("scores_equal") is False)
+    side = json.loads((ROOT / "bench" / "results" / "beir_fiqa_small_rerankers.per_query.json").read_text())
+    for name in (spec.P0, spec.P1):
+        committed = side["scores"][name]["ndcg@10"]
+        assert all(math.isclose(a, b, rel_tol=0, abs_tol=1e-15) for a, b in zip(committed, scores[name]["ndcg@10"])), name
     swapped = copy.deepcopy(ranked)
     swapped["rows"][spec.P1][0] = swapped["rows"][spec.P1][0][:2][::-1] + swapped["rows"][spec.P1][0][2:]
     rep = arms._beir_reproduction(ROOT, "fiqa", qids, swapped, arms.beir_scores(qids, qrels, swapped))
