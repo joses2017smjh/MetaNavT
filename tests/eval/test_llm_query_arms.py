@@ -783,6 +783,18 @@ def test_every_interval_word_and_llm_block_rescores_from_the_sidecar_and_the_cac
     assert any("cost.llm_calls" in p for p in bar.rescore_llm_blocks(tmp_root, moved))
 
 
+def test_the_repository_sidecar_check_rescores_an_m46_sidecar_with_the_bar(fixture_pipeline):
+    """tests/eval/test_per_question.py checks every committed sidecar through per_question.differences: an M46 sidecar
+    goes to llm_query_bar.rescore_blob, as M43's go to its own rescore."""
+    from app.eval import per_question
+
+    blob, sidecar, _ = fixture_pipeline
+    assert sidecar["schema"] == bar.SIDECAR_SCHEMA and per_question.differences(blob, sidecar) == []
+    moved = copy.deepcopy(blob)
+    moved["scopes"]["held_out"]["comparisons"][3]["ndcg@10"]["hi_raw"] += 1e-9
+    assert any("hi_raw" in p for p in per_question.differences(moved, sidecar))
+
+
 def test_the_bar_withholds_a_dataset_whose_parents_did_not_reproduce(fixture_pipeline, tmp_root):
     blobs = bar.load_blobs(tmp_root)
     assert set(blobs) == {"fixture"} and blobs["fixture"]["reproduction"]["status"] == "failed"  # hash embedder, not bge-small

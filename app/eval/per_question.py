@@ -87,7 +87,9 @@ def recompute(blob: dict, sidecar: dict) -> tuple[list[dict], dict]:
 
 def _other_schema(blob: dict, sidecar: dict) -> list[str]:
     """A sidecar written by another runner is checked by that runner's own recomputation (M43: the small-rerankers
-    fixture file and its BEIR files, `make small-rerankers-rescore`); any other schema is a difference."""
+    fixture file and its BEIR files, `make small-rerankers-rescore`; M46: the LLM query arms' files, whose every scope
+    `llm_query_bar.rescore_blob` recomputes, as `make llm-query-arms-rescore` does); any other schema is a difference."""
+    from app.eval import llm_query_bar
     from app.eval import small_rerankers as sr
     from app.eval.beir import PER_QUERY_SCHEMA
 
@@ -96,6 +98,8 @@ def _other_schema(blob: dict, sidecar: dict) -> list[str]:
         return sr.rescore_fixture(blob, sidecar)
     if schema == PER_QUERY_SCHEMA and "small_rerankers" in blob:
         return sr.rescore_beir(blob, sidecar)
+    if schema == llm_query_bar.SIDECAR_SCHEMA:
+        return llm_query_bar.rescore_blob(blob, sidecar)
     return [f"sidecar schema {schema!r}, expected {SCHEMA!r}"]
 
 
