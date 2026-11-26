@@ -1109,7 +1109,7 @@ def _llm_query_claims(root: Path = ROOT) -> list[dict]:
                 "not_shown": (f"the bar: above zero on SciFact and FiQA and not below zero on the fixture's held-out half, words read from the raw "
                               f"bounds; above zero on all three: {row['all_three']}; gemma4:26b replication: {row.get('replication')}; queries whose "
                               f"nDCG@10 differs from the parent: {', '.join(changed)}; 1 of {total} uncorrected paired nDCG@10 intervals in the milestone; "
-                              f"cost: {'; '.join(costs) or 'none recorded'}; LLM fallbacks: {' | '.join(fallbacks) or 'none'}; {audit_note}"
+                              f"cost: {'; '.join(costs) or 'none recorded'}; LLM fallbacks: {'; '.join(fallbacks) or 'none'}; {audit_note}"
                               f"retrieval ranking only (no answers), one temperature-0 generation per prompt, Q4 weights through Ollama, reasoning off")})
     return out
 

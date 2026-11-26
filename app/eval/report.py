@@ -3133,6 +3133,19 @@ def _llm_rows(blobs: dict, dataset: str) -> dict:
     return {r["config"]: r for r in (blobs.get(dataset) or {}).get("rows") or []}
 
 
+def _llm_query_stretch_status(spec, stretch: dict) -> str:
+    """The qwen3.5:122b stretch's status from the committed files alone: scored where its results file exists, "not
+    scored" elsewhere. Whether its generation ran, is pending or never started is not in a committed file (NOTES)."""
+    name = spec.MODELS[spec.STRETCH_MODEL]["name"]
+    if not stretch:
+        return f"The {name} stretch: not scored; no stretch results file is committed."
+    labels = dict(LLM_QUERY_DATASETS)
+    done = [labels[d] for d, _ in LLM_QUERY_DATASETS if d in stretch]
+    missing = [labels[d] for d, _ in LLM_QUERY_DATASETS if d not in stretch]
+    return (f"The {name} stretch: scored on {_and(done)} (its own files, above)"
+            + (f"; not scored on {_and(missing)} (no stretch results file is committed for them)." if missing else "."))
+
+
 def llm_query_arms_table(root: Path | None) -> str:
     """M46: every LLM arm against its exact parent on the three datasets, the declared bar, the gemma4:26b replication,
     one decision sentence per technique (all from the stored verdict words), cost, the reference and stand-in rows, the
@@ -3265,7 +3278,7 @@ def llm_query_arms_table(root: Path | None) -> str:
                   "evidence row names its arm, not a selected cell.",
               "", "LLM fallbacks (each call that failed, came back empty, did not parse or was cut, and what the arm did instead): "
                   + ("; ".join(fallbacks) if fallbacks else "none") + ".",
-              "", ("The qwen3.5:122b stretch: " + (f"scored on {_and([LLM_QUERY_DATASETS[spec.DATASETS.index(d)][1] for d in stretch])} (its own files, above)." if stretch else "not run.")),
+              "", _llm_query_stretch_status(spec, stretch),
               "", "**What this does not show.** " + " ".join((next(iter(blobs.values())).get("does_not_show") or [])),
               "", "Results: " + " · ".join(f"[{bar.RESULTS[d]}]({bar.RESULTS[d]})" for d, _ in present)
               + " (each with its per-query sidecar; `make llm-query-arms-rescore` recomputes every interval and word from those on a CPU, "

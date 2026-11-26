@@ -982,6 +982,24 @@ def test_every_row_of_every_m46_results_file_appears_in_the_readme_block(fixture
     assert "_bench/results/llm_query_arms.json is missing" in report.llm_query_arms_table(tmp_root / "nowhere")
 
 
+def test_the_stretch_status_says_only_what_the_committed_files_show(fixture_pipeline, tmp_root):
+    """No qwen3.5:122b results file means "not scored", not "not run": the stretch's generation can be finished or
+    pending while nothing is scored (the brief keeps "not run" for a stretch that never started)."""
+    from app.eval import report
+
+    text = report.llm_query_arms_table(tmp_root)
+    assert "The qwen3.5:122b stretch: not scored; no stretch results file is committed." in text
+    assert "stretch: not run" not in text
+    path = tmp_root / bar.STRETCH_RESULTS["fixture"]
+    path.write_text((tmp_root / bar.RESULTS["fixture"]).read_text())
+    try:
+        text = report.llm_query_arms_table(tmp_root)
+        assert ("The qwen3.5:122b stretch: scored on fixture v1, held-out (its own files, above); not scored on BEIR SciFact "
+                "and BEIR FiQA (no stretch results file is committed for them).") in text
+    finally:
+        path.unlink()
+
+
 def test_one_evidence_row_per_measured_arm_of_the_two_bar_models(fixture_pipeline, tmp_root):
     from app.eval.evidence import _llm_query_claims
 
