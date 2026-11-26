@@ -1355,8 +1355,14 @@ shorter cap is below its served-shape row, while their shallower cells at the
 longer cap show no measured difference; `hybrid+student-minilm-l6@bge-small/fp32-256/top5` is below by -0.0268 [-0.0518, -0.0041].<!-- num: bench/results/small_rerankers_shapes_frontier.json#/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/delta; #/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/lo; #/cells/[config=hybrid+student-minilm-l6@bge-small~1fp32-256~1top5]/datasets/scifact/vs_20_512/hi -->
 On FiQA nine of the ten cheaper student cells are below their served-shape
 rows. Both students were trained at the served cap, so part of the SciFact
-cost may be a train/test length mismatch: the Phase-2 retrain at the shorter cap (a second
-attempt, its own family F3, never merged into F1 or F2) measures it.
+cost might have been a train/test length mismatch. The Phase-2 retrain at the
+shorter cap (a second attempt, decided before any M51 number, its own family
+F3, never merged into F1 or F2) does not show that. F3 answer: NOT SHOWN at
+this n: every retrained cell still ties with the unreranked list on SciFact,
+and no retrained cell differs from the first-attempt student at the same
+shape on SciFact or FiQA; `hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top5` is +0.0014 [-0.0060, +0.0089] against it on SciFact.<!-- num: bench/results/small_rerankers_ml256_frontier.json#/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/delta; #/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/lo; #/cells/[config=hybrid+student-minilm-l6-ml256@bge-small~1fp32-256~1top5]/datasets/scifact/vs_attempt_1/hi -->
+That is no measured difference, not equivalence. The two retrained students
+ran on different GPU classes, as the queue placed them; the manifest records each.
 
 **What the cap does.** On the fixture no reranked pair is longer than the
 shorter cap, so there every row at the shorter cap ranks every question

@@ -13,7 +13,8 @@ app/engine/retriever.py imports.
 
 M51 (the small rerankers at cheaper shapes) states its verdicts per dataset, "`<row>` on SciFact covers zero vs
 `hybrid@bge-small`", read off the three shapes files (the fixture's held-out half), with every F1 cell on every dataset
-stated, and its answers as "F1 answer: <level>" and "F2 answer: <level>", which must be the frontier file's. The
+stated, and its answers as "F1 answer: <level>" and "F2 answer: <level>", which must be the frontier file's (and
+Phase 2's "F3 answer: <level>", its own frontier's, once committed). The
 B27 claim form above does not read a dataset-qualified claim.
 """
 
@@ -166,7 +167,7 @@ def test_claim_parser_reads_lists_and_reports_a_drifted_verdict(tmp_path):
 # answer per family ("F1 answer: NOT SHOWN at this n"), read off the three shapes files and the frontier file.
 SHAPES_DATASETS = {"the fixture": "fixture", "SciFact": "scifact", "FiQA": "fiqa"}
 SHAPES_CLAIM = re.compile(r"`([^`]+)` on (the fixture|SciFact|FiQA) (above zero|covers zero|below zero) vs `([^`]+)`")
-SHAPES_ANSWER = re.compile(r"\b(F1|F2) answer: (YES|PASSES PER CELL, NOT AFTER ADJUSTMENT|NOT SHOWN at this n|NO)\b")
+SHAPES_ANSWER = re.compile(r"\b(F1|F2|F3) answer: (YES|PASSES PER CELL, NOT AFTER ADJUSTMENT|NOT SHOWN at this n|NO)\b")
 
 
 def shapes_claims(text: str) -> list[tuple[str, str, str, str]]:
@@ -209,7 +210,10 @@ def test_every_cheaper_shape_claim_is_the_files_and_every_f1_cell_is_stated():
     missing = [(row, d) for row in f1 for d in shapes.DATASETS if (row, d) not in stated]
     assert missing == [], f"F1 cells whose verdict PLAN.md does not state per dataset: {missing}"
     front = json.loads((ROOT / shapes.FRONTIER_FILE).read_text())
-    assert shapes_answers(text) == {f: front["answers"][f]["answer"] for f in ("F1", "F2")}
+    expected = {f: front["answers"][f]["answer"] for f in ("F1", "F2")}
+    if (ROOT / shapes.ML256_FRONTIER_FILE).exists():  # Phase 2's own family, stated once its frontier is committed
+        expected["F3"] = json.loads((ROOT / shapes.ML256_FRONTIER_FILE).read_text())["answers"]["F3"]["answer"]
+    assert shapes_answers(text) == expected
 
 
 def test_the_cheaper_shape_parser_catches_a_drifted_verdict_and_a_drifted_answer():
