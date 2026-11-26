@@ -1024,6 +1024,7 @@ def main(argv: list[str] | None = None) -> int:
     sidecar = per_query_sidecar(blob, per_query) if per_query is not None else None
     if seen is not None:
         blob, sidecar = ae.finish_beir(blob, per_query, seen, root)
+        blob["adapted_embedders"]["file_role"] = ae.file_role(out, root)
     out.write_text(json.dumps(blob, indent=2) + "\n")
     if sidecar is not None:
         from app.eval import per_question

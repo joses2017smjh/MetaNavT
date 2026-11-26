@@ -3163,7 +3163,10 @@ def _adapted_table(table: dict, present: list[tuple[str, str]], kind: str, count
     lines = [head + (" | the bar's form |" if kind == "hybrid" else " |"), "|---|" + "---:|---:|" * len(present) + (":---:|" if kind == "hybrid" else "")]
     k = 1 if kind == "hybrid" else 0
     base_cells = " | ".join(f"{_mean_ci(table['datasets'][d]['parent'].get(ae.row_names(parent, d)[k]))} | —" for d, _ in present)
-    lines.append(f"| `{ae.row_names(parent, 'beir')[k]}` (published, recomputed in the run) | {base_cells}" + (" | — |" if kind == "hybrid" else " |"))
+    label = f"`{ae.row_names(parent, 'beir')[k]}`"
+    if any(d == "fixture" for d, _ in present) and ae.row_names(parent, "fixture")[k] != ae.row_names(parent, "beir")[k]:
+        label += f" (fixture: `{ae.row_names(parent, 'fixture')[k]}`)"
+    lines.append(f"| {label} (published, recomputed in the run) | {base_cells}" + (" | — |" if kind == "hybrid" else " |"))
     for arm in table["arms"]:
         tag = arm["tag"]
         bar_row = tag == base_arm and not table["base"]
@@ -3212,10 +3215,19 @@ def _adapted_training_lines(manifest: dict | None, scale: dict | None) -> list[s
         curve = ", ".join(f"{ep['validation_macro']:.4f}" for ep in e["epochs"])
         devices = _and(sorted({s.get("device") or "?" for s in e.get("segments") or []}))
         last = (" (the last: the validation curve had not flattened)" if e.get("chosen_is_last") else "")
-        lines.append(f"`{tag}` (attempt {e['attempt']}): s = {e['s']:.4f} (1/s = {1 / e['s']:.5f}), fixed before training by the label-free rule; "
-                     f"{sum(e['lists']['train'].values()):,} training lists, {e['steps_per_epoch']:,} steps an epoch, {len(e['epochs'])} epochs "
-                     f"({devices}; {_plural(len(e.get('segments') or []), 'resume segment')}). Validation MarginMSE on the held-out documents' "
-                     f"synthetic queries, macro over the corpora: {e['validation_before_training']['macro']:.4f} before training, then {curve}; "
+        run = (f"{len(e['epochs'])} epochs ({devices}; {_plural(len(e.get('segments') or []), 'resume segment')})")
+        if ae.ARMS.get(tag, {}).get("loss") == "mnrl":  # no fitted s: cosine at the library's scale, on the lists where the teacher ranks the source first
+            m = e.get("mnrl") or {}
+            elig = m.get("eligibility") or {}
+            head = (f"`{tag}` (attempt {e['attempt']}): the hand-written masked MNRL loss on {ae.RECIPE['mnrl']['scale']:g} · cosine (no fitted s); "
+                    f"{sum(c['eligible'] for c in elig.values()):,} of {sum(c['lists'] for c in elig.values()):,} training lists eligible (the teacher "
+                    f"ranks the source first), {m.get('queries_per_batch')}-query batches, {e['steps_per_epoch']:,} steps an epoch, {run}. Validation: "
+                    f"the same masked loss on the eligible validation lists")
+        else:
+            head = (f"`{tag}` (attempt {e['attempt']}): s = {e['s']:.4f} (1/s = {1 / e['s']:.5f}), fixed before training by the label-free rule; "
+                    f"{sum(e['lists']['train'].values()):,} training lists, {e['steps_per_epoch']:,} steps an epoch, {run}. Validation MarginMSE "
+                    f"on the held-out documents' synthetic queries")
+        lines.append(f"{head}, macro over the corpora: {e['validation_before_training']['macro']:.4f} before training, then {curve}; "
                      f"epoch {e['chosen_epoch']} kept{last}" + ("" if e.get("beats_epoch_0", True) else "; no epoch beat the untrained model")
                      + f". Weights sha256 `{e['weights_sha256'][:16]}`, not in the repository.")
     if scale:
@@ -3251,11 +3263,16 @@ def adapted_embedders_table(root: Path | None) -> str:
     from app.eval import adapted_embedders as ae
 
     table = ae.bar_table(root)
+    if not table["datasets"] and table["refused"]:
+        return ("_No adapted-embedders results file is read: " + " ".join(f"`{r['file']}` is refused ({'; '.join(r['reasons'])})."
+                                                                     for r in table["refused"].values()) + "_")
     if not table["datasets"]:
         return (f"_{ae.RESULTS['fixture']} is missing; run `make bench-adapted-embedders`, `make bench-beir-adapted-embedders` and "
                 f"`make bench-beir-fiqa-adapted-embedders` (need .[ml], a GPU and the checkpoints)._")
     blobs = {d: _load(root, rel) for d, rel in ae.RESULTS.items()}
     present = [(d, label) for d, label in ADAPTED_DATASETS if d in table["datasets"]]
+    refused = [f"`{r['file']}`: " + "; ".join(r["reasons"] + r["flags"]) for r in table["refused"].values()]
+    flagged = [f"`{m['file']}`: " + "; ".join(m["flags"]) for m in table["datasets"].values() if m.get("flags")]
     runs = "; ".join(f"{label}: `{ADAPTED_COMMANDS[d]}`, {_device(blobs[d])}, results sha {_sha(blobs[d])}" for d, label in present)
     count = _Intervals()
     legs = table["legs"]
@@ -3263,14 +3280,17 @@ def adapted_embedders_table(root: Path | None) -> str:
         f"bge-small adapted to the three test corpora (M48): `BAAI/bge-small-en-v1.5` fine-tuned on M43's synthetic queries with the "
         f"teacher's scores of each query's fused top 20 (MarginMSE, the GPL recipe; `make embedder-train`), against the published model "
         f"recomputed in the same run, on the same device, every document matrix computed in the run ({runs}). This is unsupervised domain "
-        f"adaptation: the bar row has read the documents of all three test corpora in training, never a test query or a label. Nothing serves "
+        f"adaptation: the bar row has read the documents of all three test corpora in training, never a test query, a gold relevance label "
+        f"or a qrel (its training targets are the teacher's scores of synthetic queries). Nothing serves "
         f"it: the live host still serves the published bge-small, and a swap would need a re-index and the owner's decision.",
         "",
         f"**The bar, declared before any run** (`app/eval/adapted_embedders.py`): `hybrid@{ae.BAR_ARM}` (seed 0) passes iff its paired "
         f"nDCG@10 delta against `hybrid@bge-small` has a 95% interval above zero on fixture v1's held-out half and on SciFact and on FiQA, read "
         f"from the first complete run of each. **Outcome: {table['outcome']}.**"
         + (f" A recorded loss on {_and(table['losses'])}." if table["losses"] else "")
-        + f" The legs: " + "; ".join(f"{label} {_delta(legs.get(d), 4)} ({verdict(legs.get(d)) if legs.get(d) else 'not measured'})" for d, label in ADAPTED_DATASETS) + ".",
+        + f" The legs: " + "; ".join(f"{label} {_delta(legs.get(d), 4)} ({verdict(legs.get(d)) if legs.get(d) else 'not measured'})" for d, label in ADAPTED_DATASETS) + "."
+        + (" **Refused, not read** (not a run of the committed checkpoints): " + " ".join(refused) if refused else "")
+        + (" **Flagged** (read; recorded beside its verdict): " + " ".join(flagged) if flagged else ""),
         "",
         "Hybrid (BM25 + the embedder, RRF k = 60), the served shape and the bar:",
         "",
@@ -3325,6 +3345,9 @@ def adapted_embedders_table(root: Path | None) -> str:
         lines += ["", f"bge-base, exploratory, in its own files ({_and([f'[{ae.BASE_RESULTS[d]}]({ae.BASE_RESULTS[d]})' for d, _ in base_present])}): "
                       f"the same bar form for `hybrid@{ae.BASE_ARM}` against `hybrid@bge-base` reads **{base_table['outcome']}** (exploratory).", "",
                   *_adapted_table(base_table, base_present, "hybrid", count)]
+    if base_table["refused"]:
+        lines += ["", "bge-base files refused, not read (not a run of the committed checkpoints): "
+                      + " ".join(f"`{r['file']}`: {'; '.join(r['reasons'])}." for r in base_table["refused"].values())]
     notes = []
     for d, label in present:
         notes.append(f"{label}: " + _reproduction((blobs[d] or {}).get("reproduces") or (blobs[d] or {}).get("reproduce")))
@@ -3333,11 +3356,15 @@ def adapted_embedders_table(root: Path | None) -> str:
     lines += ["", f"**Reading the exploratory intervals.** This block shows {count.n} exploratory intervals besides the bar's three legs. With "
                   f"no real effect anywhere, about 2.5% of them ({chance:.1f}) would sit above zero by chance alone (one-sided), so a lone "
                   f"exploratory win is not evidence by itself."]
+    variance = ae.variance_note(seeds.get("ran") or []).removeprefix("not variance-robust: ")
     lines += ["", "**What this does not show.** The live host's quality: the host embeds queries with LlamaIndex's bge instruction, every "
                   "row here embeds them bare. Transfer to an unseen corpus: only the control's fixture rows measure it, on one small templated "
                   "corpus. Re-measurement from a clone: every interval re-scores from the per-query sidecars (`make adapted-embedders-rescore`) "
                   "and nDCG recomputes from the committed TREC runs, but the checkpoints are not in the repository. Card independence on FiQA: "
-                  "the rankings are specific to the card they ran on. Variance: one run per arm; only the bar recipe has three seeds. GPL "
+                  "the rankings are specific to the card they ran on; bge-small's own FiQA rankings differ between cards (near-tied documents "
+                  "swapping adjacent places below the top ten), and how far an adapted model's rankings move across cards is not measured. "
+                  f"Variance: {variance}. A clean \"what the fixture data added\": the control-vs-bar delta is confounded by s, the number of "
+                  "training lists and the corpus mix. A paired comparison with Qwen3 or harrier: their rows come from other runs. GPL "
                   "itself: other queries, another teacher, a cosine model with a fixed scale and about 5k steps.",
               "", "Results: " + " · ".join(f"[{ae.RESULTS[d]}]({ae.RESULTS[d]})" for d, _ in present)
               + (f" · [{ae.CPU_FILE}]({ae.CPU_FILE})" if _load(root, ae.CPU_FILE) else "")

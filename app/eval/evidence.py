@@ -1067,11 +1067,19 @@ def _adapted_embedder_claims(root: Path = ROOT) -> list[dict]:
         return []
     names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
     commands = {"fixture": "make bench-adapted-embedders", "scifact": "make bench-beir-adapted-embedders", "fiqa": "make bench-beir-fiqa-adapted-embedders"}
-    twins = _load(ae.TWINS_FILE, root) or {}
-    held = ((twins.get("subgroups") or {}).get("fixture") or {}).get("all_held_out") or {}
-    reading = (table.get("fixture_reading") or {}).get("reading", "not measured")
-    twin_note = (f"{held.get('0.85')} of {held.get('n')} held-out questions have a training query at bge-small cosine 0.85 or more "
-                 f"({ae.TWINS_FILE}); the declared fixture reading: {reading}; " if held else f"the declared fixture reading: {reading}; ")
+    fixture_twins = ((_load(ae.TWINS_FILE, root) or {}).get("subgroups") or {}).get("fixture") or {}
+    reading = (table.get("fixture_reading") or {}).get("reading", ae.NOT_MEASURED)
+    sets = {"all": "all three corpora", "beir": "SciFact and FiQA"}
+
+    def twin_note(tag: str) -> str:
+        """The arm's own twin rate on the held-out half (its training set's flags), then the fixture reading, which is the
+        bar row's: an arm other than the bar row carries it labelled as the bar row's."""
+        held = fixture_twins.get(f"{ae.ARMS[tag]['training_set']}_held_out") or {}
+        rate = (f"{held.get('0.85')} of {held.get('n')} held-out questions have one of this arm's training or validation queries "
+                f"({sets[ae.ARMS[tag]['training_set']]}) at bge-small cosine 0.85 or more ({ae.TWINS_FILE}); " if held else "")
+        whose = "the declared fixture reading" if tag == ae.BAR_ARM else f"the bar row's declared fixture reading (read on {ae.BAR_ARM} only)"
+        return f"{rate}{whose}: {reading}"
+
     seeds = ae.seeds_line(table)
     out: list[dict] = []
     for arm in table["arms"]:
@@ -1091,7 +1099,9 @@ def _adapted_embedder_claims(root: Path = ROOT) -> list[dict]:
                 bdense, bhybrid = ae.row_names("bge-small", d)
                 row, ref = (hybrid_name, bhybrid) if kind == "hybrid" else (dense_name, bdense)
                 read = ("the model never read this corpus's documents in training (zero-shot transfer from SciFact and FiQA)"
-                        if tag == ae.CONTROL_ARM and d == "fixture" else "the model read this corpus's documents in training (unsupervised domain adaptation; no test query, no label)")
+                        if tag == ae.CONTROL_ARM and d == "fixture" else ("the model read this corpus's documents in training (unsupervised domain "
+                                                                           "adaptation; no test query, no gold relevance label or qrel: its targets "
+                                                                           "are the teacher's scores of synthetic queries)"))
                 parts = [f"verdict from the interval: {verdict(block)}", f"the bar ({ae.BAR_ARM}, hybrid, three datasets): {table['outcome']}"]
                 if tag != ae.BAR_ARM:
                     parts.append("exploratory: not the bar row")
@@ -1099,8 +1109,9 @@ def _adapted_embedder_claims(root: Path = ROOT) -> list[dict]:
                     parts.append("secondary read; the served shape is hybrid")
                 parts += [read, f"selected because its interval excludes zero; {n_intervals} intervals in this file, unadjusted"]
                 if d == "fixture":
-                    parts.append(twin_note.rstrip("; "))
+                    parts.append(twin_note(tag))
                 parts += [seeds, f"one GPU ({meta['device']}); the checkpoints are not committed; the host is unchanged (it serves the published bge-small)"]
+                parts += [f"flagged: {f}" for f in meta.get("flags") or []]
                 value, ci = _ci(block, "delta", 4)
                 out.append({"claim": f"{names[d]}, `{row}` vs `{ref}` (bge-small fine-tuned on synthetic queries vs as published), paired delta in nDCG@10",
                             "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": f"{meta['file']} @ {meta['git_sha']}",

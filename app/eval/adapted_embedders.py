@@ -563,18 +563,71 @@ def m43_provenance(root: Path | None = None) -> dict[str, Any]:
             "near_duplicate_rule": "dropped if normalised-equal, token Jaccard >= 0.7 or bge-small cosine >= 0.90 against any of the 1,084 test queries (M43)"}
 
 
-NOT_SHOWN = (
-    "not the live host's quality: the host embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
-    "not the host's latency: HPC timings are indicative (adapted_embedders_cpu.json); the structural identity is the argument",
-    "not transfer to an unseen corpus: the bar row read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); only the control's fixture rows measure transfer, on one small templated corpus",
-    "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, and nDCG recomputes from the committed TREC runs where they exist, but the checkpoints are not committed",
-    "not card-independent on FiQA: rankings are specific to the card they ran on",
-    "not a clean 'what the fixture data added': the control differs from the bar row in s, in its number of training lists and in its corpus mix",
-    "not label-free in the strict sense: the teacher's and bge-small's own training data are unknown and may include these benchmarks' train splits",
-    "not GPL itself: gemma4:12b queries, an mxbai-rerank-large-v2 teacher, a cosine model with a fixed scale and about 5k steps",
-    "not variance-robust: one run per arm; only the bar recipe has three seeds",
-    "no reranked rows: the served shape has no reranker",
-)
+def _lists_and_steps(training_set: str) -> tuple[int, int]:
+    """(training lists, steps an epoch) of a training set, from RECIPE's committed list counts."""
+    n = sum(RECIPE["train_lists"][c] for c in TRAINING_SETS[training_set])
+    return n, -(-n // RECIPE["lists_per_step"])
+
+
+def variance_note(seeds_ran: Sequence[str], base: bool = False) -> str:
+    """The "not variance-robust" line, from the bar recipe's seed arms that ran (never a hard-coded seed count)."""
+    if base:
+        return "not variance-robust: one run (bge-base, seed 0)"
+    seeds = [ARMS[t]["seed"] for t in SEED_ARMS if t in seeds_ran]
+    if len(seeds) > 1:
+        return (f"not variance-robust: one run per arm, except the bar recipe, which ran with {len(seeds)} seeds "
+                f"({', '.join(str(s) for s in seeds)}); the bar is read on seed 0 alone")
+    return "not variance-robust: one run per arm, the bar recipe included (seed 0 only); the bar is read on that one run"
+
+
+def not_shown(seeds_ran: Sequence[str], base: bool = False) -> list[str]:
+    """What a results file does not show (the brief's list, in its order); the seed line is derived from the arms that ran."""
+    bar_lists, bar_steps = _lists_and_steps(ARMS[BAR_ARM]["training_set"])
+    control_lists, control_steps = _lists_and_steps(ARMS[CONTROL_ARM]["training_set"])
+    return [
+        "not the live host's quality: the host embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
+        "not the host's latency: HPC timings are indicative (adapted_embedders_cpu.json); the structural identity is the argument",
+        "not transfer to an unseen corpus: the bar row read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); only the control's fixture rows measure transfer, on one small templated corpus",
+        "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, and nDCG recomputes from the committed TREC runs where they exist, but the checkpoints are not committed",
+        ("not card-independent on FiQA: rankings are specific to the card they ran on; M41 found that bge-small's own FiQA rankings "
+         "differ between cards (near-tied documents swapping adjacent places below the top ten, with no metric change); how far an "
+         "adapted model's rankings move across cards is not measured"),
+        (f"not a clean 'what the fixture data added': the control differs from the bar row in its scale s, in its number of training "
+         f"lists ({control_lists:,} vs {bar_lists:,}; {control_steps:,} vs {bar_steps:,} steps an epoch) and in its two-corpus "
+         f"square-root-of-size mix; the control-vs-bar delta is confounded by all three"),
+        "not label-free in the strict sense: the teacher's and bge-small's own training data are unknown and may include these benchmarks' train splits",
+        "not GPL itself: gemma4:12b queries, an mxbai-rerank-large-v2 teacher, a cosine model with a fixed scale and about 5k steps",
+        variance_note(seeds_ran, base),
+        "no reranked rows: the served shape has no reranker",
+        "no comparison with Qwen3 or harrier except across runs (their rows are in other files, from other runs), so no paired delta",
+    ]
+
+
+def selection_record(entry: dict | None) -> dict[str, Any] | None:
+    """How an arm's checkpoint was chosen, copied from its manifest entry for the results header: the chosen epoch, whether
+    it is the last one (then the validation curve had not flattened) and whether any epoch beat epoch 0 (the untrained
+    init). The loss named is the arm's own validation loss (MarginMSE, or the masked MNRL loss for bge-small-mnrl)."""
+    if not entry:
+        return None
+    epochs = entry.get("epochs") or []
+    chosen, last, beats = entry.get("chosen_epoch"), entry.get("chosen_is_last"), entry.get("beats_epoch_0")
+    words = [f"epoch {chosen} of {len(epochs)} kept (the lowest validation loss on the held-out documents' synthetic queries)"
+             if chosen and epochs else "the chosen epoch is not recorded in the manifest"]
+    if last:
+        words.append("the chosen epoch is the last one: the validation curve had not flattened")
+    if beats is False:
+        words.append("no epoch beat epoch 0's validation loss (the untrained init); the chosen epoch is still evaluated")
+    elif beats:
+        words.append("the chosen epoch beats epoch 0's validation loss (the untrained init)")
+    return {"chosen_epoch": chosen, "epochs": len(epochs), "chosen_is_last": last, "beats_epoch_0": beats,
+            "validation_before_training": (entry.get("validation_before_training") or {}).get("macro"),
+            "validation_curve": [e.get("validation_macro") for e in epochs], "statement": "; ".join(words)}
+
+
+def manifest_entry_sha256(entry: dict | None) -> str | None:
+    """The sha256 of one manifest entry as canonical JSON: a later commit adds bge-base's entry to the manifest without
+    changing the others, so a results file is tied to its arms' entries, not to the whole file's sha256."""
+    return hashlib.sha256(json.dumps(entry, sort_keys=True, separators=(",", ":")).encode()).hexdigest() if entry else None
 
 
 def arm_status(root: Path | None = None, base: bool = False) -> dict[str, str]:
@@ -588,21 +641,33 @@ def header(rows: Sequence[str], *, root: Path | None = None, base: bool = False,
     """The results header's `adapted_embedders` block: the bar and its arms, the M43 provenance, the twin file, the
     precision flags and device, and what the file does not show."""
     root = root or _repo()
-    manifest = read_manifest(root) or {}
+    entries = (read_manifest(root) or {}).get("arms") or {}
     twins = root / TWINS_FILE
     from app.eval.embedder_train import sha256_of
 
-    return {"bar": BAR, "arms": {t: {**ARMS[t], "status": s, "weights_sha256": ((manifest.get("arms") or {}).get(t) or {}).get("weights_sha256")}
-                                for t, s in arm_status(root, base).items()},
+    status = arm_status(root, base)
+    ran = [t for t, s in status.items() if s == "trained"]
+    return {"bar": BAR, "arms": {t: {**ARMS[t], "status": s, "weights_sha256": (entries.get(t) or {}).get("weights_sha256"),
+                                     "selection": selection_record(entries.get(t)) if s == "trained" else None}
+                                for t, s in status.items()},
+            "bar_outcome_rule": ("this file holds one leg of the bar (bar_leg, written after its rows); the bar's outcome word over the "
+                                 "three files (passes / does not pass / open / not run) is bar_table's reading of the three declared files "
+                                 "(make adapted-embedders-bar, the README block); one leg not above zero is enough for 'does not pass'"),
             "attempt": ATTEMPT, "recipe": RECIPE, "inits": INITS, "encoding": ENCODING, "declarations_sha256": declarations_sha256(),
             "rows": list(rows), "m43": m43_provenance(root),
             "twins_file": {"file": TWINS_FILE, "sha256": sha256_of(twins) if twins.exists() else None},
-            "manifest": {"file": MANIFEST_FILE, "sha256": sha256_of(root / MANIFEST_FILE) if (root / MANIFEST_FILE).exists() else None},
-            "tf32": flags, "device": device, "llm_judge": "no metric uses an LLM judge",
+            "manifest": {"file": MANIFEST_FILE, "sha256": sha256_of(root / MANIFEST_FILE) if (root / MANIFEST_FILE).exists() else None,
+                         "arms_sha256": {t: manifest_entry_sha256(entries.get(t)) for t in ran}},
+            "tf32": flags, "device": device,
+            "tf32_note": ("torch.backends.cudnn.allow_tf32 is recorded as torch sets it; it governs cuDNN convolutions only, and this "
+                          "encoder has none, so it does not touch these numbers (TF32 also exists only on Ampere and newer cards)"),
+            "llm_judge": "no metric uses an LLM judge",
             "mnrl_twins": "bge-small-mnrl's twin flags are against the all-three query set, a superset of what it trained on: an upper bound",
+            "mnrl_seen_documents": ("bge-small-mnrl's BEIR seen-document flags are computed from every training list, a superset of the "
+                                    "lists it trained on (those where the teacher ranks the source first): an upper bound"),
             "load_and_score": "every embedder first ranks the check's answer above an unrelated passage with the loaded instance, or the run stops (app/eval/models_2026.py); an adapted one also reproduces its manifest's reference embeddings",
             "exploratory": "every delta other than the bar row's hybrid delta on the three datasets is descriptive and exploratory",
-            "served_defaults_changed": False, "not_shown": list(NOT_SHOWN)}
+            "served_defaults_changed": False, "not_shown": not_shown(ran, base)}
 
 
 # ---------------------------------------------------------------- fixture v1 (make bench-adapted-embedders)
@@ -723,7 +788,8 @@ def run_fixture(root: Path | None = None, *, arms: Sequence[str] | None = None, 
         if scope != "held_out":
             block.pop("subgroups")  # the twin splits are read on the held-out half
         blob[scope] = block
-    committed = [{"config": r["config"], "retrieval": r["retrieval"]} for r in blob["all_questions"]["results"]]
+    blob["adapted_embedders"]["bar_leg"] = bar_leg(blob, "fixture")
+    committed =[{"config": r["config"], "retrieval": r["retrieval"]} for r in blob["all_questions"]["results"]]
     held = [{"config": r["config"], "retrieval": r["retrieval"]} for r in blob["held_out"]["results"]]
     blob["reproduces"] = [reproduces(root, rel, committed, [n for n in rows if n in scores]) for rel, rows in FIXTURE_REPRODUCE.items()]
     rel, scope, rows = HELD_OUT_REPRODUCE
@@ -787,6 +853,7 @@ def finish_beir(blob: dict[str, Any], per_query: dict[str, list[dict]], seen: di
     from app.eval.embedder_train import tf32_flags
 
     blob["adapted_embedders"].update(tf32=tf32_flags(), device=(blob.get("device") or {}).get("device_name"))
+    blob["adapted_embedders"]["bar_leg"] = bar_leg(blob, dataset)
     sidecar = {"schema": SIDECAR_SCHEMA, "dataset": blob["dataset"], "split": blob["split"],
                "about": ("per-query scores of the results file with the same name (.json), in the run's query order and unrounded, with "
                          "each query's twin cosine and Jaccard per training-query set and its two seen-document flags: "
@@ -828,11 +895,14 @@ def rescore_fixture(blob: dict, sidecar: dict) -> list[str]:
     subsets = {"held_out": sidecar["split"]["held_out"], "tune": sidecar["split"]["tune"], "all_questions": list(range(n))}
     metrics = tuple(sidecar["metrics"])
     twins_cos = {name: t["cosine"] for name, t in sidecar["twins"].items()}
+    held_again = None
     for scope in SCOPES:
         stored = blob[scope]["results"]
         names = [r["config"] for r in stored]
         pairs = [(r["config"], d["reference"]) for r in stored for d in r.get("deltas", [])]
         again = _scope_blocks(sidecar["scores"], names, subsets[scope], pairs, metrics, twins_cos)
+        if scope == "held_out":
+            held_again = again
         _leaf_differences(f"{scope}.bootstrap", blob[scope]["bootstrap"], again["bootstrap"], out)
         for a, b in zip(stored, again["results"]):
             for key in ("n", "ci", "deltas"):
@@ -845,6 +915,9 @@ def rescore_fixture(blob: dict, sidecar: dict) -> list[str]:
         _leaf_differences(f"{scope}.seed_mean", blob[scope].get("seed_mean"), again["seed_mean"], out)
         if "subgroups" in blob[scope]:
             _leaf_differences(f"{scope}.subgroups", blob[scope]["subgroups"], again["subgroups"], out)
+    if "adapted_embedders" in blob:  # the header's leg of the bar, from the recomputed held-out rows
+        leg = bar_leg({"adapted_embedders": blob["adapted_embedders"], "held_out": held_again}, "fixture")
+        _leaf_differences("adapted_embedders.bar_leg", blob["adapted_embedders"].get("bar_leg"), leg, out)
     return out
 
 
@@ -874,9 +947,13 @@ def rescore_beir(blob: dict, sidecar: dict) -> list[str]:
             mean = round(sum(column) / len(column), 4)
             if stored["retrieval"].get(m) != mean:
                 out.append(f"{stored['config']}.retrieval.{m}: results file {stored['retrieval'].get(m)!r}, mean of the sidecar {mean!r}")
-    extras = beir_extras(sidecar["scores"], sidecar["ids"], boot, sidecar["twins"], sidecar["seen"], blob["dataset"].split("/")[-1])
+    dataset = blob["dataset"].split("/")[-1]
+    extras = beir_extras(sidecar["scores"], sidecar["ids"], boot, sidecar["twins"], sidecar["seen"], dataset)
     for key in ("subgroups", "seed_mean"):
         _leaf_differences(key, blob["adapted_embedders"].get(key), extras[key], out)
+    if "arms" in blob["adapted_embedders"]:  # the header's leg of the bar, from the recomputed rows
+        leg = bar_leg({"adapted_embedders": blob["adapted_embedders"], "results": rows, "bootstrap": again, "split": blob.get("split")}, dataset)
+        _leaf_differences("adapted_embedders.bar_leg", blob["adapted_embedders"].get("bar_leg"), leg, out)
     return out
 
 
@@ -939,21 +1016,87 @@ def outcome(legs: Sequence[dict | None], trained: bool = True) -> str:
     return "open"
 
 
+def bar_leg(blob: dict, dataset: str) -> dict[str, Any]:
+    """One results file's leg of the bar, written into its header after its rows exist (and recomputed by the rescore):
+    the bar row's paired nDCG@10 delta against its parent, whether its stored lower end is above zero, and its
+    report.verdict word. One file cannot give the bar's outcome over the three files (bar_table reads that); what it can
+    say is that a leg not above zero makes the bar "does not pass" whatever the other two show. In a bge-base file the
+    leg is bge-base's same bar form, exploratory."""
+    from app.eval.report import verdict
+
+    arms = (blob.get("adapted_embedders") or {}).get("arms") or {}
+    base = BASE_ARM in arms
+    arm = BASE_ARM if base else BAR_ARM
+    row, parent = row_names(arm, dataset)[1], row_names(base_tag(arm), dataset)[1]
+    rows, boot, _ = _scope(blob, dataset)
+    block = _delta(rows, row, parent, boot)
+    leg: dict[str, Any] = {"row": row, "parent": parent, "dataset": dataset, "scope": "held_out" if dataset == "fixture" else blob.get("split", "test"),
+                           "metric": "ndcg@10"}
+    if base:
+        leg["label"] = "exploratory: bge-base's same bar form against hybrid@bge-base, never the bar"
+    if block is None:
+        trained = (arms.get(arm) or {}).get("status") == "trained"
+        leg.update(measured=False, outcome_from_this_leg="not measured in this file" if trained else "not run")
+        return leg
+    above = block["lo"] > 0
+    leg.update(measured=True, delta=block["delta"], lo=block["lo"], hi=block["hi"], lo_above_zero=above, verdict=verdict(block),
+               outcome_from_this_leg=("not decided by this leg alone: the bar passes only if the other two legs are above zero too" if above
+                                      else "does not pass: this leg's stored lower end is not above zero"
+                                      + ("; its upper end is below zero, a recorded loss" if block["hi"] < 0 else "")))
+    return leg
+
+
+NOT_MEASURED = "not measured"  # the fixture reading when the file holds no held-out twin split of the bar row
+
+
 def fixture_reading(block: dict | None, arm: str = BAR_ARM) -> dict[str, Any]:
     """The declared reading of the fixture leg: "adaptation beyond templated twins" only when the not-twinned held-out
-    subgroup at cosine 0.85 has at least 10 questions and its bar-delta interval is above zero."""
+    subgroup at cosine 0.85 has at least 10 questions and its bar-delta interval is above zero; "not measured" when
+    there is no such split to read (no fixture file, or no bar row in it)."""
     t = TWINS["fixture_reading_threshold"]
     groups = [g for g in (block or {}).get("subgroups") or [] if g["split"] == f"twin_cosine_{t:.2f}" and g["row"] == f"hybrid@{arm}"
               and g["other"] == "hybrid@bge-small"]
+    if not groups:
+        return {"reading": NOT_MEASURED, "threshold": t, "not_twinned": None, "twinned": None}
     clean = next((g for g in groups if g["group"] == "not flagged"), None)
     twinned = next((g for g in groups if g["group"] == "flagged"), None)
     ok = bool(clean and clean["n"] >= TWINS["min_subgroup"] and clean.get("ndcg@10") and clean["ndcg@10"]["lo"] > 0)
     return {"reading": FIXTURE_READINGS[0] if ok else FIXTURE_READINGS[1], "threshold": t, "not_twinned": clean, "twinned": twinned}
 
 
+def file_problems(blob: dict, root: Path | None = None, base: bool = False) -> tuple[list[str], list[str]]:
+    """(why a results file is refused, what is flagged beside it) before bar_table reads it: the file must be a run of
+    the committed checkpoints. Refused, so its rows are not read and its legs are not measured: no header with its arms;
+    an arm whose status (ran / not run) differs from the committed manifest's; an arm whose weights sha256 or manifest
+    entry differs from the committed one. Flagged, read and shown beside its rows: written from a working tree with
+    uncommitted changes (the first run is never replaced; a defect is recorded beside its verdict). Entries are compared
+    one by one, not the manifest's sha256, because bge-base's entry is added to the manifest in a later commit."""
+    root = root or _repo()
+    ext = blob.get("adapted_embedders")
+    if not isinstance(ext, dict) or not isinstance(ext.get("arms"), dict):
+        return ["no adapted_embedders header with its arms: not a file of this eval"], []
+    entries = (read_manifest(root) or {}).get("arms") or {}
+    hashes = (ext.get("manifest") or {}).get("arms_sha256") or {}
+    refused = []
+    for tag, committed in arm_status(root, base).items():
+        got = ext["arms"].get(tag) or {}
+        ran = got.get("status") == "trained"
+        if ran != (committed == "trained"):
+            refused.append(f"{tag}: {'trained' if ran else 'not run'} in the file, {committed} in the committed {MANIFEST_FILE}")
+        elif ran and got.get("weights_sha256") != entries[tag]["weights_sha256"]:
+            refused.append(f"{tag}: the file's weights sha256 {str(got.get('weights_sha256'))[:16]} is not the committed manifest's "
+                           f"{entries[tag]['weights_sha256'][:16]}")
+        elif ran and hashes.get(tag) != manifest_entry_sha256(entries[tag]):
+            refused.append(f"{tag}: the manifest entry the file ran with is not the committed one")
+    flags = ["written from a working tree with uncommitted changes (working_tree_dirty true)"] if blob.get("working_tree_dirty") else []
+    return refused, flags
+
+
 def bar_table(root: Path | None = None, base: bool = False) -> dict[str, Any]:
     """The bar read off the committed files: per arm and dataset its dense and hybrid deltas against the base rows and
-    the verdict word; the bar row's outcome (BAR["outcomes"]); the seed line; the fixture twin reading; the control."""
+    the verdict word; the bar row's outcome (BAR["outcomes"]); the seed line; the fixture twin reading; the control. A
+    file that is not a run of the committed checkpoints is refused (file_problems): it is listed with the reasons, and
+    its rows are not read."""
     from app.eval.report import verdict
 
     root = root or _repo()
@@ -961,13 +1104,17 @@ def bar_table(root: Path | None = None, base: bool = False) -> dict[str, Any]:
     blobs = {d: json.loads((root / rel).read_text()) for d, rel in files.items() if (root / rel).exists()}
     status = arm_status(root, base)
     bar_arm = BASE_ARM if base else BAR_ARM
-    table: dict[str, Any] = {"base": base, "bar_arm": bar_arm, "datasets": {}, "arms": [], "status": status}
+    table: dict[str, Any] = {"base": base, "bar_arm": bar_arm, "datasets": {}, "arms": [], "status": status, "refused": {}}
     scopes = {}
     for dataset, blob in blobs.items():
+        refused, flags = file_problems(blob, root, base)
+        if refused:
+            table["refused"][dataset] = {"file": files[dataset], "git_sha": blob.get("git_sha"), "reasons": refused, "flags": flags}
+            continue
         rows, boot, extra = _scope(blob, dataset)
         scopes[dataset] = (rows, boot, extra)
         table["datasets"][dataset] = {"file": files[dataset], "git_sha": blob.get("git_sha"), "device": (blob.get("device") or {}).get("device_name"),
-                                      "n": (boot or {}).get("n_queries"), "dirty": blob.get("working_tree_dirty"),
+                                      "n": (boot or {}).get("n_queries"), "dirty": blob.get("working_tree_dirty"), "flags": flags,
                                       "parent": {row_names(base_tag(bar_arm), dataset)[k]: (rows.get(row_names(base_tag(bar_arm), dataset)[k]) or {}).get("ci", {}).get("ndcg@10") for k in (0, 1)}}
     for tag in [bar_arm] if base else list(BGE_SMALL_ARMS):
         entry: dict[str, Any] = {"tag": tag, "role": ARMS[tag]["role"], "status": status.get(tag), "datasets": {}}
@@ -1023,6 +1170,21 @@ def fixture_reading_at(block: dict | None, threshold: float, arm: str = BAR_ARM)
             "twinned": next((g for g in groups if g["group"] == "flagged"), None)}
 
 
+def file_role(out: Path | str, root: Path | None = None) -> str:
+    """Whether a results file is on a path the bar reads (BAR["read_from"]), stated in its header when it is written."""
+    root = root or _repo()
+    try:
+        rel = Path(out).resolve().relative_to(Path(root).resolve()).as_posix()
+    except ValueError:
+        rel = None
+    if rel in RESULTS.values():
+        return ("a path the bar reads (BAR['read_from']): read against the bar only when written by the first complete eval run of its "
+                "dataset at the C3 (manifest) commit, and only as a run of the committed checkpoints (file_problems)")
+    if rel in BASE_RESULTS.values():
+        return "bge-base's own file: exploratory, never read against the bar"
+    return "not a path the bar reads (a re-run, the CPU re-run or a rehearsal): never read against the bar"
+
+
 def seeds_line(table: dict[str, Any]) -> str:
     """'the bar's form holds for k of n seeds' (n = the seeds that ran), or 'one run (seed 0)'."""
     s = table.get("seeds") or {}
@@ -1066,6 +1228,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if problems else 0
     if args.bar:
         table = bar_table(root, base=args.base)
+        for r in table["refused"].values():
+            print(f"REFUSED {r['file']} (not read): " + "; ".join(r["reasons"] + r["flags"]))
+        for meta in table["datasets"].values():
+            for flag in meta.get("flags") or []:
+                print(f"flagged {meta['file']}: {flag}")
         for arm in table["arms"]:
             cells = "; ".join(f"{d} {_fmt(c['hybrid_vs_base'])}" for d, c in arm["datasets"].items())
             print(f"{arm['form_holds']:14s} {arm['tag']:32s} {cells}")
@@ -1087,6 +1254,7 @@ def main(argv: list[str] | None = None) -> int:
 
         blob, sidecar = run_fixture(root, arms=arms, checkpoint_dir=args.checkpoint_dir, device=args.device, base=args.base)
         out = args.out if args.out.is_absolute() else root / args.out
+        blob["adapted_embedders"]["file_role"] = file_role(out, root)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob, indent=2) + "\n")
         per_question.write(per_question.sidecar_path(out), sidecar)
