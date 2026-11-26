@@ -1444,6 +1444,76 @@ reads at most its saved query cap and no row varies it (the cut queries are
 counted under the generated block). The full list is in each results file's
 header and under the generated block.
 
+## bge-small adapted to the test corpora on synthetic queries
+
+The live host embeds with the published `BAAI/bge-small-en-v1.5`. This section
+asks whether fine-tuning that same model on the material M43 left (synthetic
+queries over the three test corpora, each with the current retriever's fused
+candidates scored by a large cross-encoder) improves the served shape, hybrid
+retrieval, at no added cost per query: only the weights would change, not the
+architecture. The rows are in
+[the generated block](../README.md#bench-adapted-embedders). Nothing here
+changes a default, and the live host is as it was.
+
+**The bar, declared before any run.** `app/eval/adapted_embedders.py` holds the
+bar, the recipe and every arm as constants pinned by tests, committed before
+any job read a training list. One named checkpoint is the fine-tuned model,
+`bge-small-marginmse`. It passes when its hybrid row's paired nDCG@10 delta
+against `hybrid@bge-small`, recomputed in the same run on the same device, has a 95% interval
+whose stored lower end is above zero on fixture v1's held-out half and on BEIR
+SciFact and on BEIR FiQA, read from the first complete run of each dataset. The
+three intervals form one intersection-union test; every other delta in the
+files is descriptive and labelled exploratory.
+The generated block holds 91 exploratory intervals beside the bar's three legs; with no real effect anywhere, about 2.5% of them would sit above zero by chance alone (one-sided), so a lone exploratory win is not evidence by itself.<!-- num: README.md:"This block shows {} exploratory intervals besides the bar's three legs"; app/eval/report.py:"about {}% of them" -->
+
+**The recipe.** GPL's ingredients, taken as M43 committed them: synthetic
+queries written by a local open model, hard negatives mined by the current
+retriever, and a cross-encoder teacher's scores as pseudo-labels. The loss is
+MarginMSE over every pair of a query's list, so the model learns the teacher's
+margins instead of a label that calls only the source document relevant, a
+label the teacher itself disagrees with on part of FiQA and of the fixture.
+The cosine scale is fixed before training by a label-free rule (the spread of
+the teacher's margins over the spread of the published model's), the
+optimisation is M43's, and the epoch is chosen on synthetic validation queries
+of held-out source documents. No step of training reads a test query, a gold
+label or a qrel; a test patches the file opens of the trainer and the scale
+step to check it. Beside the bar row the same files hold a control trained on
+SciFact and FiQA only, two more seeds of the bar recipe, and the MNRL
+loss with in-batch negatives (the loss not chosen). bge-base, trained the same
+way, is evaluated in its own files.
+
+**What the rows show.** The bar does not pass. On fixture v1's held-out half the bar row's hybrid delta is +0.0324 [-0.0220, +0.0892], an interval that covers zero.<!-- num: bench/results/adapted_embedders.json#/adapted_embedders/bar_leg/delta; #/adapted_embedders/bar_leg/lo; #/adapted_embedders/bar_leg/hi -->
+On SciFact it is -0.0067 [-0.0236, +0.0104], covering zero.<!-- num: bench/results/beir_scifact_adapted_embedders.json#/adapted_embedders/bar_leg/delta; #/adapted_embedders/bar_leg/lo; #/adapted_embedders/bar_leg/hi -->
+On FiQA it is -0.0287 [-0.0390, -0.0184], below zero: a recorded loss.<!-- num: bench/results/beir_fiqa_adapted_embedders.json#/adapted_embedders/bar_leg/delta; #/adapted_embedders/bar_leg/lo; #/adapted_embedders/bar_leg/hi -->
+The dense row alone gains on the fixture's held-out half, +0.1760 [+0.0876, +0.2585], but that gain does not carry into the hybrid row, whose interval covers zero.<!-- num: bench/results/adapted_embedders.json#/held_out/results/[config=dense_only@bge-small-marginmse]/deltas/[reference=dense_only@bge-small]/ndcg@10/delta; #/held_out/results/[config=dense_only@bge-small-marginmse]/deltas/[reference=dense_only@bge-small]/ndcg@10/lo; #/held_out/results/[config=dense_only@bge-small-marginmse]/deltas/[reference=dense_only@bge-small]/ndcg@10/hi -->
+That half is the templated one: many of its questions sit close to a synthetic
+training query, and by the reading declared before training the fixture leg is
+"not separable from templated twins". On FiQA every adapted row is below the
+published model, dense and hybrid, for every seed, the control and MNRL; the
+bar's form holds for none of the seeds. Why FiQA lost is not tested here.
+bge-base, trained the same way and read in its own files against
+`hybrid@bge-base` recomputed in the same runs, does not pass that form either:
+it loses on the fixture's held-out half and on FiQA (exploratory). Its dense
+row alone gains on the fixture's held-out half, and, as with bge-small, that
+gain does not carry into its hybrid row.
+
+**What it costs, and a CPU re-run.** An adapted arm is the same network as
+bge-small with other weights, so a query costs what it costs today; the
+block's CPU line checks that on one machine, as an indicative timing. The
+fixture rows were also run again on a CPU from the checkpoints
+([the CPU re-run](../bench/results/adapted_embedders_cpu_rerun.json),
+`make adapted-embedders-cpu-rerun`, never read against the bar): every paired
+delta and verdict in it equals the GPU run's.
+
+**What it does not show.** The block lists it: not the live host's quality
+(the host adds a query instruction, these rows embed queries bare), not
+transfer to an unseen corpus, not label-free in the strict sense (the
+teacher's and the published models' own training data are unknown), and not
+a re-measurement from a clone. Every
+interval re-scores from the committed per-query sidecars
+(`make adapted-embedders-rescore`, a CPU and no model), and nDCG recomputes
+from the committed TREC runs, but the checkpoints are not in the repository.
+
 ## LLM query processing with real open LLMs
 
 Four query-processing prototypes live in the repository ([Cutting-edge query

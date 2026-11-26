@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-v3-models-2026", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction", "bench-llm-query-arms")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-v3-models-2026", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction", "bench-llm-query-arms"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-v3-models-2026", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction", "bench-adapted-embedders", "bench-llm-query-arms")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-v3-models-2026", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction", "bench-adapted-embedders", "bench-llm-query-arms"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: the RL search policy, trained once
 FRONTIER_FILE = "bench/results/frontier.json"
@@ -123,6 +123,9 @@ SOURCES = {
     "bench-small-rerankers-shapes": ("bench/results/small_rerankers_shapes_frontier.json, the three small_rerankers_shapes results files, "
                                      "small_rerankers_shapes_exposure.json and small_rerankers_shapes_replicate.json"),
     "bench-late-interaction": "bench/results/late_interaction*.json, bench/results/beir_*_late_interaction*.json and bench/results/late_interaction_runs/",
+    "bench-adapted-embedders": ("bench/results/adapted_embedders.json, bench/results/beir_scifact_adapted_embedders.json, "
+                                "bench/results/beir_fiqa_adapted_embedders.json, bench/results/adapted_embedders_cpu.json, the *_adapted_embedders_base.json "
+                                "files and bench/distill/"),
     "bench-llm-query-arms": f"{LLM_QUERY_FILE}, {BEIR_LLM_QUERY_FILE}, {BEIR_FIQA_LLM_QUERY_FILE} and bench/llm_query/",
 }
 NEURAL_REFERENCE = "bm25_only"
@@ -3958,6 +3961,309 @@ def late_interaction_table(root: Path | None) -> str:
     return "\n".join(lines)
 
 
+# ---- M48: bge-small adapted to the three test corpora on M43's synthetic queries (app/eval/adapted_embedders.py)
+
+ADAPTED_DATASETS = (("fixture", "fixture v1, held-out"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA"))
+ADAPTED_COMMANDS = {"fixture": "make bench-adapted-embedders", "scifact": "make bench-beir-adapted-embedders",
+                    "fiqa": "make bench-beir-fiqa-adapted-embedders"}
+ADAPTED_SPLIT_WORDS = {"twin_cosine_0.80": "twinned at cosine 0.80", "twin_cosine_0.85": "twinned at cosine 0.85",
+                       "relevant_is_training_source": "a relevant document was a training source",
+                       "relevant_in_training_list": "a relevant document was in a training list"}
+
+
+class _Intervals:
+    """Counts the exploratory intervals a block shows (every paired interval except the bar row's three hybrid legs)."""
+
+    def __init__(self):
+        self.n = 0
+
+    def cell(self, block: dict | None, exploratory: bool = True) -> str:
+        if not block:
+            return "—"
+        if exploratory and "lo" in block:
+            self.n += 1
+        return f"{_delta(block, 4)} ({verdict(block)}{', exploratory' if exploratory else ''})"
+
+    def group(self, block: dict | None) -> str:
+        """A subgroup: its size and mean delta, and its interval when it has one (descriptive; covering zero is 'not shown')."""
+        if not block:
+            return "—"
+        if block.get("n", 0) == 0:
+            return "n = 0"
+        interval = block.get("ndcg@10")
+        if not interval:
+            return f"n = {block['n']}, {block['delta']:+.4f} (no interval: {block.get('interval', 'fewer than 10 queries').removeprefix('none: ')})"
+        self.n += 1
+        word = "not shown" if interval["lo"] <= 0.0 <= interval["hi"] else verdict(interval)
+        return f"n = {block['n']}, {_delta(interval, 4)} ({word})"
+
+
+def _adapted_arm_label(tag: str) -> str:
+    from app.eval import adapted_embedders as ae
+
+    role = {ae.BAR_ARM: "**the bar row**", ae.CONTROL_ARM: "control: no fixture training data", ae.MNRL_ARM: "MNRL, the loss not chosen",
+            ae.BASE_ARM: "bge-base, optional"}.get(tag, f"seed {ae.ARMS[tag]['seed']}")
+    return f"`{tag}` ({role})"
+
+
+def _adapted_table(table: dict, present: list[tuple[str, str]], kind: str, count: _Intervals) -> list[str]:
+    """The hybrid (the bar) or the dense (secondary) table: the base row, then every arm, "not run" kept."""
+    from app.eval import adapted_embedders as ae
+
+    base_arm = ae.BASE_ARM if table["base"] else ae.BAR_ARM
+    parent = "bge-base" if table["base"] else "bge-small"
+    head = "| arm | " + " | ".join(f"{label} (n = {table['datasets'][d]['n']}): nDCG@10 [95% CI] | Δ vs {parent} [95% CI]" for d, label in present)
+    lines = [head + (" | the bar's form |" if kind == "hybrid" else " |"), "|---|" + "---:|---:|" * len(present) + (":---:|" if kind == "hybrid" else "")]
+    k = 1 if kind == "hybrid" else 0
+    base_cells = " | ".join(f"{_mean_ci(table['datasets'][d]['parent'].get(ae.row_names(parent, d)[k]))} | —" for d, _ in present)
+    label = f"`{ae.row_names(parent, 'beir')[k]}`"
+    if any(d == "fixture" for d, _ in present) and ae.row_names(parent, "fixture")[k] != ae.row_names(parent, "beir")[k]:
+        label += f" (fixture: `{ae.row_names(parent, 'fixture')[k]}`)"
+    lines.append(f"| {label} (published, recomputed in the run) | {base_cells}" + (" | — |" if kind == "hybrid" else " |"))
+    for arm in table["arms"]:
+        tag = arm["tag"]
+        bar_row = tag == base_arm and not table["base"]
+        if arm["status"] != "trained":
+            lines.append(f"| {_adapted_arm_label(tag)} | " + " | ".join("not run | —" for _ in present) + (" | not run |" if kind == "hybrid" else " |"))
+            continue
+        cells = []
+        for d, _ in present:
+            cell = arm["datasets"].get(d)
+            if not cell:
+                cells.append("not measured | —")
+                continue
+            cells.append(f"{_mean_ci(cell[kind])} | {count.cell(cell[f'{kind}_vs_base'], exploratory=not (bar_row and kind == 'hybrid'))}")
+        form = f"**{arm['form_holds']}**" if bar_row else f"{arm['form_holds']} (exploratory)"
+        lines.append(f"| {_adapted_arm_label(tag)} | " + " | ".join(cells) + (f" | {form} |" if kind == "hybrid" else " |"))
+    return lines
+
+
+def _adapted_other_pairs(table: dict, present: list[tuple[str, str]], count: _Intervals) -> list[str]:
+    """Every other declared paired delta, exploratory: hybrid against the arm's own dense row, the control and each seed
+    against the bar row."""
+    from app.eval import adapted_embedders as ae
+
+    lines = ["| arm | comparison | " + " | ".join(label for _, label in present) + " |", "|---|---|" + "---:|" * len(present)]
+    for arm in table["arms"]:
+        if arm["status"] != "trained":
+            continue
+        tag = arm["tag"]
+        pairs = [("hybrid_vs_dense", f"`hybrid@{tag}` vs its own dense row")]
+        if tag != ae.BAR_ARM and not table["base"] and (tag == ae.CONTROL_ARM or tag in ae.SEED_ARMS):
+            what = "what the fixture data added; confounded, see below" if tag == ae.CONTROL_ARM else "seed against seed 0"
+            pairs += [("hybrid_vs_bar", f"hybrid vs the bar row ({what})"), ("dense_vs_bar", f"dense vs the bar row's dense ({what})")]
+        for key, words in pairs:
+            lines.append(f"| `{tag}` | {words} | " + " | ".join(count.cell((arm["datasets"].get(d) or {}).get(key)) for d, _ in present) + " |")
+    return lines
+
+
+def _adapted_training_lines(manifest: dict | None, scale: dict | None) -> list[str]:
+    """How each arm was trained, from bench/distill/embedders.json and embedder_scale.json."""
+    from app.eval import adapted_embedders as ae
+
+    if not manifest:
+        return [f"_No arm is in {ae.MANIFEST_FILE} yet._"]
+    lines = []
+    for tag, e in manifest["arms"].items():
+        curve = ", ".join(f"{ep['validation_macro']:.4f}" for ep in e["epochs"])
+        devices = _and(sorted({s.get("device") or "?" for s in e.get("segments") or []}))
+        last = (" (the last: the validation curve had not flattened)" if e.get("chosen_is_last")
+                else " (not the last)" if e.get("chosen_is_last") is False else "")
+        n_segments = len(e.get("segments") or [])
+        segments = _plural(n_segments, "training segment") + (", never resumed" if n_segments == 1 else " joined by resume" if n_segments > 1 else "")
+        run = f"{len(e['epochs'])} epochs ({devices}; {segments})"
+        if ae.ARMS.get(tag, {}).get("loss") == "mnrl":  # no fitted s: cosine at the library's scale, on the lists where the teacher ranks the source first
+            m = e.get("mnrl") or {}
+            elig = m.get("eligibility") or {}
+            head = (f"`{tag}` (attempt {e['attempt']}): the hand-written masked MNRL loss on {ae.RECIPE['mnrl']['scale']:g} · cosine (no fitted s); "
+                    f"{sum(c['eligible'] for c in elig.values()):,} of {sum(c['lists'] for c in elig.values()):,} training lists eligible (the teacher "
+                    f"ranks the source first), {m.get('queries_per_batch')}-query batches, {e['steps_per_epoch']:,} steps an epoch, {run}. Validation: "
+                    f"the same masked loss on the eligible validation lists")
+        else:
+            head = (f"`{tag}` (attempt {e['attempt']}): s = {e['s']:.4f} (1/s = {1 / e['s']:.5f}), fixed before training by the label-free rule; "
+                    f"{sum(e['lists']['train'].values()):,} training lists, {e['steps_per_epoch']:,} steps an epoch, {run}. Validation MarginMSE "
+                    f"on the held-out documents' synthetic queries")
+        lines.append(f"{head}, macro over the corpora: {e['validation_before_training']['macro']:.4f} before training, then {curve}; "
+                     f"epoch {e['chosen_epoch']} kept{last}" + ("" if e.get("beats_epoch_0", True) else "; no epoch beat the untrained model")
+                     + f". Weights sha256 `{e['weights_sha256'][:16]}`, not in the repository.")
+    if scale:
+        lines.append(f"The scales of every training set ({ae.SCALE_FILE}): "
+                     + "; ".join(f"{k} s = {v['s']:.4f}" for k, v in scale["entries"].items()) + ".")
+    return lines
+
+
+def _adapted_cpu_lines(cpu: dict | None) -> list[str]:
+    from app.eval import adapted_embedders as ae
+
+    if not cpu:
+        return [f"_{ae.CPU_FILE} is missing; run `make adapted-embedders-cpu` (CPU only)._"]
+    d = cpu["device"]
+    lines = [f"**What it costs on a CPU, indicative only** (`make adapted-embedders-cpu`; {d.get('cpu_model') or 'CPU model not recorded'}, "
+             f"{d.get('threads')} threads; results sha {_sha(cpu)}). The claim is structural: an adapted arm is the same network as bge-small "
+             f"with other weights, so a query costs the same. The timing checks it on one machine: \"unchanged\" when the arm/base time ratio's "
+             f"interval lies inside [{cpu['band'][0]}, {cpu['band'][1]}], \"inconclusive (noisy node)\" when the base-again/base interval does not.", ""]
+    for row in cpu["results"]:
+        ident, t = row["structural_identity"], row["timing"]
+        lines.append(f"- `{row['arm']}`: structurally {'identical' if ident['identical'] else '**not identical**'} to bge-small "
+                     f"({ident['token_ids']['equal']} of {ident['token_ids']['texts']} texts tokenized alike, {ident['parameters']['count']} parameters); "
+                     f"timing {t['reading']}: arm/base {t['arm_over_base']['ratio']} [{t['arm_over_base']['lo']}, {t['arm_over_base']['hi']}], "
+                     f"base again/base {t['base_again_over_base']['ratio']} [{t['base_again_over_base']['lo']}, {t['base_again_over_base']['hi']}] "
+                     f"({t['n_questions']} questions x {t['rounds']} rounds).")
+    return lines
+
+
+ADAPTED_SCOPE_WORDS = {"held_out": "held-out half", "tune": "tune half", "all_questions": "all questions"}
+
+
+def _adapted_reproduction(blobs: dict[str, dict | None], present: list[tuple[str, str]]) -> list[str]:
+    """Per dataset, whether the run's recomputed base rows equal the committed ones (_reproduction), each check labelled
+    by the scope it compared: the fixture runner compares its all-questions rows with neural.json and its held-out rows
+    with small_rerankers.json (its `scope`), so a single "held-out" label would misname the first."""
+    notes = []
+    for d, label in present:
+        blob = blobs.get(d) or {}
+        blocks = blob.get("reproduces") or blob.get("reproduce")
+        if d != "fixture" or not isinstance(blocks, list):
+            notes.append(f"{label}: " + _reproduction(blocks))
+            continue
+        for b in blocks:
+            scope = b.get("scope")
+            where = ADAPTED_SCOPE_WORDS.get(scope, scope) if scope else f"all {blob.get('n_gold') or 'the'} questions"
+            notes.append(f"fixture v1, {where}: " + _reproduction([b]))
+    return notes
+
+
+def adapted_embedders_table(root: Path | None) -> str:
+    """M48: bge-small fine-tuned on M43's synthetic queries and teacher scores, against the published model recomputed in
+    the same run, on the three datasets: the bar, every arm (losers and "not run" kept), the twin and seen-document
+    splits, the seeds, the training and the CPU cost."""
+    from app.eval import adapted_embedders as ae
+    from app.eval.beir import COMMITTED_FILES
+
+    table = ae.bar_table(root)
+    if not table["datasets"] and table["refused"]:
+        return ("_No adapted-embedders results file is read: " + " ".join(f"`{r['file']}` is refused ({'; '.join(r['reasons'])})."
+                                                                     for r in table["refused"].values()) + "_")
+    if not table["datasets"]:
+        return (f"_{ae.RESULTS['fixture']} is missing; run `make bench-adapted-embedders`, `make bench-beir-adapted-embedders` and "
+                f"`make bench-beir-fiqa-adapted-embedders` (need .[ml], a GPU and the checkpoints)._")
+    blobs = {d: _load(root, rel) for d, rel in ae.RESULTS.items()}
+    present = [(d, label) for d, label in ADAPTED_DATASETS if d in table["datasets"]]
+    refused = [f"`{r['file']}`: " + "; ".join(r["reasons"] + r["flags"]) for r in table["refused"].values()]
+    flagged = [f"`{m['file']}`: " + "; ".join(m["flags"]) for m in table["datasets"].values() if m.get("flags")]
+    runs = "; ".join(f"{label}: `{ADAPTED_COMMANDS[d]}`, {_device(blobs[d])}, results sha {_sha(blobs[d])}" for d, label in present)
+    count = _Intervals()
+    legs = table["legs"]
+    lines = [
+        f"bge-small adapted to the three test corpora (M48): `BAAI/bge-small-en-v1.5` fine-tuned on M43's synthetic queries with the "
+        f"teacher's scores of each query's fused top 20 (MarginMSE, the GPL recipe; `make embedder-train`), against the published model "
+        f"recomputed in the same run, on the same device, every document matrix computed in the run ({runs}). This is unsupervised domain "
+        f"adaptation: the bar row has read the documents of all three test corpora in training, never a test query, a gold relevance label "
+        f"or a qrel (its training targets are the teacher's scores of synthetic queries). Nothing serves "
+        f"it: the live host still serves the published bge-small, and a swap would need a re-index and the owner's decision.",
+        "",
+        f"**The bar, declared before any run** (`app/eval/adapted_embedders.py`): `hybrid@{ae.BAR_ARM}` (seed 0) passes iff its paired "
+        f"nDCG@10 delta against `hybrid@bge-small` has a 95% interval above zero on fixture v1's held-out half and on SciFact and on FiQA, read "
+        f"from the first complete run of each. **Outcome: {table['outcome']}.**"
+        + (f" A recorded loss on {_and([dict(ADAPTED_DATASETS)[d] for d in table['losses']])}." if table["losses"] else "")
+        + f" The legs: " + "; ".join(f"{label} {_delta(legs.get(d), 4)} ({verdict(legs.get(d)) if legs.get(d) else 'not measured'})" for d, label in ADAPTED_DATASETS) + "."
+        + (" **Refused, not read** (not a run of the committed checkpoints): " + " ".join(refused) if refused else "")
+        + (" **Flagged** (read; recorded beside its verdict): " + " ".join(flagged) if flagged else ""),
+        "",
+        "Hybrid (BM25 + the embedder, RRF k = 60), the served shape and the bar:",
+        "",
+        *_adapted_table(table, present, "hybrid", count),
+        "",
+        "Dense alone (a secondary read; the served shape is hybrid):",
+        "",
+        *_adapted_table(table, present, "dense", count),
+        "",
+        "Other paired deltas declared before any run, all exploratory:",
+        "",
+        *_adapted_other_pairs(table, present, count),
+    ]
+    reading = table.get("fixture_reading") or {}
+    at80 = table.get("fixture_reading_080") or {}
+    lines += ["", f"**Templated twins on the fixture leg.** The fixture's gold questions follow a few templates, and many sit close to a synthetic "
+                  f"training query ({ae.TWINS_FILE}, committed before any training). The declared reading: \"adaptation beyond templated twins\" "
+                  f"only when the held-out questions with no training query at bge-small cosine 0.85 number at least 10 and their bar delta's "
+                  f"interval is above zero. **Fixture reading: {reading.get('reading', 'not measured')}.** At cosine 0.85: not twinned "
+                  f"{count.group(reading.get('not_twinned'))}; twinned {count.group(reading.get('twinned'))}. At 0.80: not twinned "
+                  f"{count.group(at80.get('not_twinned'))}; twinned {count.group(at80.get('twinned'))}."]
+    beir_lines = []
+    for d, label in present:
+        if d == "fixture":
+            continue
+        groups = [g for g in ((blobs[d] or {}).get("adapted_embedders") or {}).get("subgroups") or []
+                  if g["row"] == f"hybrid@{ae.BAR_ARM}" and g["other"] == "hybrid@bge-small"]
+        by = {}
+        for g in groups:
+            by.setdefault(g["split"], {})[g["group"]] = g
+        cells = "; ".join(f"{ADAPTED_SPLIT_WORDS.get(s, s)}: yes {count.group(v.get('flagged'))}, no {count.group(v.get('not flagged'))}" for s, v in by.items())
+        if cells:
+            beir_lines.append(f"- {label}, the bar row's hybrid delta split by query (descriptive only): {cells}.")
+    if beir_lines:
+        lines += ["", *beir_lines]
+    seeds = table.get("seeds") or {}
+    line = ae.seeds_line(table)
+    seed_text = f"**Seeds.** {line[:1].upper() + line[1:]}"
+    if seeds.get("n", 0) > 1:
+        means = "; ".join(f"{label} {count.cell((seeds['mean'].get(d) or {}).get('ndcg@10'))}" for d, label in present)
+        seed_text += f"; the mean hybrid delta over the {seeds['n']} seeds that ran (M44's form, exploratory): {means}"
+    lines += ["", seed_text + ". The verdict is read on seed 0 alone, the one checkpoint that would be served."]
+    control = next((a for a in table["arms"] if a["tag"] == ae.CONTROL_ARM), None)
+    if control and control["status"] == "trained":
+        lines += ["", f"**The control** (`{ae.CONTROL_ARM}`) trained on SciFact and FiQA only, so its fixture rows are zero-shot transfer to "
+                      f"a corpus it never read. Against the bar row it shows what the fixture data added, confounded by three differences: its "
+                      f"scale s, its number of training lists and its two-corpus mix. It is never read as separating twins from adaptation."]
+    lines += ["", *_adapted_training_lines(_load(root, ae.MANIFEST_FILE), _load(root, ae.SCALE_FILE)), "", *_adapted_cpu_lines(_load(root, ae.CPU_FILE))]
+    base_table = ae.bar_table(root, base=True)
+    if base_table["datasets"]:
+        base_present = [(d, label) for d, label in ADAPTED_DATASETS if d in base_table["datasets"]]
+        base_blobs = {d: _load(root, rel) for d, rel in ae.BASE_RESULTS.items()}
+        timed = ["`" + r["arm"] + "`" for r in (_load(root, ae.CPU_FILE) or {}).get("results") or []]
+        cost = "its CPU cost is not measured: " + (f"{ae.CPU_FILE} times {_and(timed)} only" if timed else f"{ae.CPU_FILE} is missing")
+        committed = ["`" + COMMITTED_FILES[d] + "`" for d, _ in base_present if d in COMMITTED_FILES]
+        no_parent = (f"Said before any run: {_and(committed)} {'holds' if len(committed) == 1 else 'hold'} no bge-base row, so its BEIR "
+                     f"parents have no committed row to reproduce. " if committed else "")
+        lines += ["", f"bge-base, exploratory, in its own files ({_and([f'[{ae.BASE_RESULTS[d]}]({ae.BASE_RESULTS[d]})' for d, _ in base_present])}): "
+                      f"the same bar form for `hybrid@{ae.BASE_ARM}` against `hybrid@bge-base` reads **{base_table['outcome']}** (exploratory). "
+                      f"Its rows are paired with `dense@bge-base` and `hybrid@bge-base` recomputed in the same run. {no_parent}bge-base is not "
+                      f"the served architecture, and {cost}.", "",
+                  "Hybrid (the bar's form):", "", *_adapted_table(base_table, base_present, "hybrid", count), "",
+                  "Dense alone (a secondary read):", "", *_adapted_table(base_table, base_present, "dense", count), "",
+                  "Other paired deltas declared before any run, all exploratory:", "", *_adapted_other_pairs(base_table, base_present, count), "",
+                  "Do bge-base's recomputed base rows reproduce the committed ones? " + " ".join(_adapted_reproduction(base_blobs, base_present))]
+    if base_table["refused"]:
+        lines += ["", "bge-base files refused, not read (not a run of the committed checkpoints): "
+                      + " ".join(f"`{r['file']}`: {'; '.join(r['reasons'])}." for r in base_table["refused"].values())]
+    lines += ["", "Do the bge-small files' recomputed base rows reproduce the committed ones? " + " ".join(_adapted_reproduction(blobs, present))]
+    chance = count.n * 0.025
+    lines += ["", f"**Reading the exploratory intervals.** This block shows {count.n} exploratory intervals besides the bar's three legs. With "
+                  f"no real effect anywhere, about 2.5% of them ({chance:.1f}) would sit above zero by chance alone (one-sided), so a lone "
+                  f"exploratory win is not evidence by itself."]
+    variance = ae.variance_note(seeds.get("ran") or []).removeprefix("not variance-robust: ")
+    lines += ["", "**What this does not show.** The live host's quality: the host embeds queries with LlamaIndex's bge instruction, every "
+                  "row here embeds them bare. Transfer to an unseen corpus: only the control's fixture rows measure it, on one small templated "
+                  "corpus. Re-measurement from a clone: every interval re-scores from the per-query sidecars (`make adapted-embedders-rescore`) "
+                  "and nDCG recomputes from the committed TREC runs, but the checkpoints are not in the repository. Card independence on FiQA: "
+                  "the rankings are specific to the run they came from: bge-small's own FiQA rankings differ between cards (M41: near-tied "
+                  "documents swapping adjacent places below the top ten) and can differ between runs on the same card model (the reproduction "
+                  "lines above say whether this run's base rows rank every query as the committed runs do); how far an adapted model's rankings "
+                  "move across cards is not measured. "
+                  f"Variance: {variance}. A clean \"what the fixture data added\": the control-vs-bar delta is confounded by s, the number of "
+                  "training lists and the corpus mix. Label-free in the strict sense: this pipeline read no test query, gold label or qrel, "
+                  "but the teacher's and the published models' own training data are unknown and may include these benchmarks' train "
+                  "splits. Reranked rows: the served shape has no reranker, so none is measured here. A paired comparison with Qwen3 or "
+                  "harrier: their rows come from other runs. GPL itself: other queries, another teacher, a cosine model with a fixed scale "
+                  "and about 5k steps.",
+              "", "Results: " + " · ".join(f"[{ae.RESULTS[d]}]({ae.RESULTS[d]})" for d, _ in present)
+              + (f" · [{ae.CPU_FILE}]({ae.CPU_FILE})" if _load(root, ae.CPU_FILE) else "")
+              + f" · [{ae.MANIFEST_FILE}]({ae.MANIFEST_FILE}) · [{ae.TWINS_FILE}]({ae.TWINS_FILE})"
+              + " (each results file with its per-query sidecar)."]
+    return "\n".join(lines)
+
+
 def _llm_cost(row: dict | None) -> str:
     """'calls / prompt+generated tokens / p50 s' per query, from a results row's cost block."""
     cost = (row or {}).get("cost")
@@ -4185,6 +4491,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-small-rerankers": small_rerankers_table(root),
         "bench-small-rerankers-shapes": small_rerankers_shapes_table(root),
         "bench-late-interaction": late_interaction_table(root),
+        "bench-adapted-embedders": adapted_embedders_table(root),
         "bench-llm-query-arms": llm_query_arms_table(root),
     }
 

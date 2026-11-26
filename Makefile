@@ -592,6 +592,50 @@ late-interaction-tripwire: ## the plausibility tripwire over the fixture and Sci
 late-interaction-cpu: ## indicative CPU cost of the two named ColBERT models in the API process (2 threads, CUDA hidden): query encode, rerank on the fly and from stored token matrices at depths 5/10/20, the fixture first stage, beside bge-small's (needs .[ml]) -> bench/results/late_interaction_cpu.json
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) scripts/measure_late_interaction_cpu.py --out bench/results/late_interaction_cpu.json
 
+# ---- M48: bge-small adapted to the three test corpora on M43's synthetic queries (app/eval/adapted_embedders.py) ----
+# BAR, RECIPE and ARMS were committed before any job; the trainer is app/eval/embedder_train.py. Checkpoints are not
+# committed: CHECKPOINTS=<dir> names them, and every row records their sha256. BASE=1 writes the bge-base arm's own files.
+ARM ?= bge-small-marginmse
+EMBEDDER_TIME_LIMIT ?= 225
+.PHONY: adapted-embedders-check embedder-scale embedder-twins embedder-train embedder-manifest
+adapted-embedders-check: ## load bge-small (and each trained arm, by sha256 and its reference embeddings) and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>; DEVICE=cpu) -> stdout
+	$(PYTHON) -m app.eval.adapted_embedders --check $(if $(BASE),--base) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(DEVICE),--device $(DEVICE))
+
+embedder-scale: ## the fixed scale s of each (init, training set) by the declared label-free rule, and the epoch-0 validation loss (needs .[ml] and a GPU) -> bench/distill/embedder_scale.json
+	$(PYTHON) -m app.eval.embedder_train scale --data-dir $(BEIR_DATA_DIR)
+
+embedder-twins: ## per test query, the max bge-small cosine and token Jaccard to each training-query set; asserts none at 0.90 (reads test-query text only; needs .[ml]) -> bench/distill/embedder_twins.json
+	$(PYTHON) -m app.eval.adapted_embedders --twins --data-dir $(BEIR_DATA_DIR)
+
+embedder-train: ## train one arm by the declared recipe: ARM=<tag>, CHECKPOINTS=<dir>, RESUME=<dir> (resumes from it); TRAIN_MICRO=n for a GPU under 40 GB (needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(ARM)/ (not committed)
+	$(PYTHON) -m app.eval.embedder_train train --arm $(ARM) --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(RESUME),--resume-dir $(RESUME)) --time-limit-min $(EMBEDDER_TIME_LIMIT) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO))
+
+embedder-manifest: ## each trained arm's weights sha256, recipe, loss curve, resume segments and reference embeddings, from its checkpoint (CHECKPOINTS=<dir>) -> bench/distill/embedders.json
+	$(PYTHON) -m app.eval.embedder_train manifest --checkpoint-dir $(CHECKPOINTS)
+
+.PHONY: bench-adapted-embedders bench-beir-adapted-embedders bench-beir-fiqa-adapted-embedders adapted-embedders-rescore adapted-embedders-bar
+bench-adapted-embedders: ## fixture v1: base rows and every trained arm's dense_only / hybrid rows on the held-out half (the bar), the tune half and all 136 questions (needs .[ml]; CHECKPOINTS=<dir>; BASE=1 for the bge-base file) -> bench/results/adapted_embedders.json
+	$(PYTHON) -m app.eval.adapted_embedders --out $(if $(BASE),bench/results/adapted_embedders_base.json,bench/results/adapted_embedders.json) $(if $(BASE),--base) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-beir-adapted-embedders: ## BEIR SciFact: the same rows, every document matrix computed in the run; gzipped TREC runs of bge-small and the bar row (needs .[ml] and a GPU; CHECKPOINTS=<dir>; BASE=1) -> bench/results/beir_scifact_adapted_embedders.json
+	$(PYTHON) -m app.eval.beir --ladder $(if $(BASE),adapted-embedders-base,adapted-embedders) --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(if $(BASE),bench/results/beir_scifact_adapted_embedders_base.json,bench/results/beir_scifact_adapted_embedders.json)
+
+bench-beir-fiqa-adapted-embedders: ## BEIR FiQA: the same rows (needs .[ml] and a GPU; CHECKPOINTS=<dir>; BASE=1) -> bench/results/beir_fiqa_adapted_embedders.json
+	$(PYTHON) -m app.eval.beir --ladder $(if $(BASE),adapted-embedders-base,adapted-embedders) --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(if $(BASE),bench/results/beir_fiqa_adapted_embedders_base.json,bench/results/beir_fiqa_adapted_embedders.json)
+
+adapted-embedders-rescore: ## recompute every interval, paired delta, subgroup split and seed mean of the adapted-embedders files from their per-query sidecars (CPU; no model, dataset or qrels); exit 1 unless all equal the files
+	$(PYTHON) -m app.eval.adapted_embedders --rescore
+
+adapted-embedders-bar: ## print the bar arm by arm from the committed files (BASE=1: the bge-base arm) -> stdout
+	$(PYTHON) -m app.eval.adapted_embedders --bar $(if $(BASE),--base)
+
+.PHONY: adapted-embedders-cpu adapted-embedders-cpu-rerun
+adapted-embedders-cpu: ## indicative CPU cost: structural identity, then base / adapted / base timings interleaved per query, 2 threads, CUDA hidden (CHECKPOINTS=<dir>; BEIR_DATA_DIR for the test queries' text) -> bench/results/adapted_embedders_cpu.json
+	CUDA_VISIBLE_DEVICES= $(PYTHON) scripts/measure_embed_cpu.py --threads 2 --checkpoint-dir $(CHECKPOINTS) --data-dir $(BEIR_DATA_DIR) --out bench/results/adapted_embedders_cpu.json
+
+adapted-embedders-cpu-rerun: ## the fixture rows again on a CPU from the checkpoints (a reproducibility check, never read against the bar; CHECKPOINTS=<dir>) -> bench/results/adapted_embedders_cpu_rerun.json
+	CUDA_VISIBLE_DEVICES= $(PYTHON) -m app.eval.adapted_embedders --device cpu --out bench/results/adapted_embedders_cpu_rerun.json --checkpoint-dir $(CHECKPOINTS)
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)

@@ -192,6 +192,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _small_reranker_claims(root)
     out += _small_reranker_shape_claims(root)  # M51: the cheaper shapes, a row per family and per cell x dataset whose 95% interval excludes zero
     out += _late_interaction_claims(root)
+    out += _adapted_embedder_claims(root)
     out += _llm_query_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
@@ -1114,6 +1115,120 @@ def _late_interaction_claims(root: Path = ROOT) -> list[dict]:
                             "source": f"{li.results_file(d, 'extra', attempt)} @ {blob['git_sha']}",
                             "not_shown": (f"verdict from the interval: {verdict(v)}; a stretch row, outside the declared bar: it never changes PLAN row 4.2; "
                                           f"chosen knowing its published BEIR scores; {stretch_multiplicity}; quality only")})
+    return out
+
+
+def _adapted_embedder_claims(root: Path = ROOT) -> list[dict]:
+    """M48: bge-small adapted on M43's synthetic queries. A row only where the paired interval excludes zero, in the
+    scope the bar reads (fixture v1's held-out half, SciFact test, FiQA test), as the brief lists them:
+    - the bar row's hybrid and dense deltas against the published model, per dataset;
+    - the control's fixture deltas against its base rows (hybrid and dense);
+    - every other declared comparison below zero (a recorded loss): any arm against its base row, an arm's hybrid row
+      against its own dense row, the control and each seed against the bar row, and the same comparisons of bge-base in
+      its own files (exploratory, never read against the bar).
+    Deliberately not rows: ties (they are in the generated table); exploratory wins other than the two named above (a
+    seed or the control above the bar row, a hybrid row above its own dense row, bge-base's dense gain: README block
+    only); the seed mean (a summary of the three seeds, each a row of its own where its interval excludes zero); the
+    subgroup splits (declared descriptive); and the tune and all-136 scopes (the bar reads the held-out half)."""
+    from app.eval import adapted_embedders as ae
+
+    table = ae.bar_table(root)
+    if not table["datasets"]:
+        return []
+    out = _adapted_embedder_rows(root, table, table)
+    base_table = ae.bar_table(root, base=True)
+    if base_table["datasets"]:
+        out += _adapted_embedder_rows(root, base_table, table)
+    return out
+
+
+def _adapted_embedder_rows(root: Path, table: dict, small: dict) -> list[dict]:
+    """The evidence rows of one bar table (the bge-small files, or bge-base's own files): see _adapted_embedder_claims.
+    `small` is the bge-small table, whose outcome is the bar's and whose fixture reading is the bar row's."""
+    from app.eval import adapted_embedders as ae
+    from app.eval.report import verdict
+
+    base = table["base"]
+    files = ae.BASE_RESULTS if base else ae.RESULTS
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-adapted-embedders", "scifact": "make bench-beir-adapted-embedders", "fiqa": "make bench-beir-fiqa-adapted-embedders"}
+    if base:
+        commands = {d: f"{c} BASE=1" for d, c in commands.items()}
+    fixture_twins = ((_load(ae.TWINS_FILE, root) or {}).get("subgroups") or {}).get("fixture") or {}
+    reading = (small.get("fixture_reading") or {}).get("reading", ae.NOT_MEASURED)
+    sets = {"all": "all three corpora", "beir": "SciFact and FiQA"}
+
+    def twin_note(tag: str) -> str:
+        """The arm's own twin rate on the held-out half (its training set's flags), then the fixture reading, which is the
+        bar row's: an arm other than the bar row carries it labelled as the bar row's."""
+        held = fixture_twins.get(f"{ae.ARMS[tag]['training_set']}_held_out") or {}
+        rate = (f"{held.get('0.85')} of {held.get('n')} held-out questions have one of this arm's training or validation queries "
+                f"({sets[ae.ARMS[tag]['training_set']]}) at bge-small cosine 0.85 or more ({ae.TWINS_FILE}); " if held else "")
+        whose = "the declared fixture reading" if tag == ae.BAR_ARM else f"the bar row's declared fixture reading (read on {ae.BAR_ARM} only)"
+        return f"{rate}{whose}: {reading}"
+
+    seeds = f"one run ({ae.BASE_ARM}, seed 0)" if base else ae.seeds_line(small)
+    read_docs = ("the model read this corpus's documents in training (unsupervised domain adaptation; no test query, no gold relevance "
+                 "label or qrel: its targets are the teacher's scores of synthetic queries)")
+    # (cell key, the row's shape): each arm's two deltas against its base rows first (the rows this builder has always
+    # written), then hybrid against the arm's own dense row, then the control or a seed against the bar row
+    keys = (("hybrid_vs_base", "hybrid"), ("dense_vs_base", "dense"), ("hybrid_vs_dense", "hybrid"), ("hybrid_vs_bar", "hybrid"),
+            ("dense_vs_bar", "dense"))
+    out: list[dict] = []
+    for arm in table["arms"]:
+        tag = arm["tag"]
+        init = ae.base_tag(tag)
+        for d, cell in arm["datasets"].items():
+            meta = table["datasets"][d]
+            blob = _load(files[d], root) or {}
+            n_intervals = ae.interval_count(blob)
+            dense_name, hybrid_name = ae.row_names(tag, d)
+            bdense, bhybrid = ae.row_names(init, d)
+            bar_dense, bar_hybrid = ae.row_names(ae.BAR_ARM, d)
+            for key, kind in keys:
+                block = cell.get(key)
+                if not block or not (block["lo"] > 0 or block["hi"] < 0):
+                    continue
+                against_base = key.endswith("_vs_base")
+                wanted = block["hi"] < 0 or (against_base and not base and (tag == ae.BAR_ARM or (tag == ae.CONTROL_ARM and d == "fixture")))
+                if not wanted:
+                    continue
+                row = hybrid_name if kind == "hybrid" else dense_name
+                if against_base:
+                    ref, what = (bhybrid if kind == "hybrid" else bdense), f"{init} fine-tuned on synthetic queries vs as published"
+                elif key == "hybrid_vs_dense":
+                    ref, what = dense_name, f"the same fine-tuned {init} with BM25 fused by RRF vs alone"
+                else:
+                    ref = bar_hybrid if kind == "hybrid" else bar_dense
+                    what = ("fine-tuned without vs with the fixture's synthetic queries" if tag == ae.CONTROL_ARM
+                            else f"seed {ae.ARMS[tag]['seed']} vs seed 0 of the bar recipe")
+                read = read_docs
+                if tag == ae.CONTROL_ARM and d == "fixture":
+                    read = "the model never read this corpus's documents in training (zero-shot transfer from SciFact and FiQA)"
+                    if key.endswith("_vs_bar"):
+                        read += f"; {ae.BAR_ARM}, which it is compared with, did"
+                parts = [f"verdict from the interval: {verdict(block)}", f"the bar ({ae.BAR_ARM}, hybrid, three datasets): {small['outcome']}"]
+                if base:
+                    parts.append(f"exploratory: {ae.BASE_ARM} in its own files, never read against the bar; bge-base's same bar form: {table['outcome']}")
+                elif tag != ae.BAR_ARM:
+                    parts.append("exploratory: not the bar row")
+                elif not against_base:
+                    parts.append("exploratory: not the bar comparison (the bar is the hybrid row against hybrid@bge-small)")
+                if kind == "dense":
+                    parts.append("secondary read; the served shape is hybrid")
+                if key == "hybrid_vs_dense":
+                    parts.append("the arm's hybrid row against its own dense row: what fusing BM25 does to this model")
+                if key.endswith("_vs_bar") and tag == ae.CONTROL_ARM:
+                    parts.append("what the fixture data added, confounded by the scale s, the number of training lists and the corpus mix")
+                parts += [read, f"selected because its interval excludes zero; {n_intervals} intervals in this file, unadjusted"]
+                if d == "fixture":
+                    parts.append(twin_note(tag))
+                parts += [seeds, f"one GPU ({meta['device']}); the checkpoints are not committed; the host is unchanged (it serves the published bge-small)"]
+                parts += [f"flagged: {f}" for f in meta.get("flags") or []]
+                value, ci = _ci(block, "delta", 4)
+                out.append({"claim": f"{names[d]}, `{row}` vs `{ref}` ({what}), paired delta in nDCG@10",
+                            "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": f"{meta['file']} @ {meta['git_sha']}",
+                            "not_shown": "; ".join(parts)})
     return out
 
 

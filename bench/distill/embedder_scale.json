@@ -1,0 +1,163 @@
+{
+  "git_sha": "5942f95",
+  "git_head": "5942f9544daaf2fdb14a2fc18aa1cda4ef5b69dc",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/adapted_embedders.py": "e0703f93bd78641bf5b18cbc21ca2d94a028a6b0772e5d9cc8b512ef6fb6dab8",
+    "app/eval/beir.py": "f997fca4ee3af967a09ae2d8461ae8c450ce096d686a8b07d0deeef9d77731d5",
+    "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+    "app/eval/distill_teacher.py": "b57b4bf8fefd80c68b5417ed2e015e269df76d965b3694745e7f7c286c3f1880",
+    "app/eval/distill_train.py": "084981daaa0c56cb31e6a103de0877a5cac752f584cf34368708efa457600704",
+    "app/eval/embedder_train.py": "2259a0bf837e97a11d1e27cefcf0732cc8e605b39257818e472458da4811a4ac",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "b04d7d600968a046ff144c545a4b8771a856bb64b76fb2374f8ffe468f43cc59",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "3d215bb853a95c6c588a4b1f35319d3e1d070b6a74abd9b84c940ba55de65344",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/small_rerankers.py": "f98655495b24f0c97c220e2570e5ff84bba0fa17fbfc55934f1a8908b789423f",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/embedders.py": "bb37ef6b453f192a07b7115ad0de5c775d9f2dd8df42306649d34756ac758c9b",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-25T19:39:38.213276+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.embedder_train scale --data-dir <path>/data",
+  "machine": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 40,
+    "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "data": {
+    "queries.jsonl.gz": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050",
+    "teacher_scores.jsonl.gz": "fb1972427a2159e3140f61a4a17c1af261360ffd1da81e88f78888cb4f707705"
+  },
+  "sources_sha256": {
+    "app/eval/embedder_train.py": "2259a0bf837e97a11d1e27cefcf0732cc8e605b39257818e472458da4811a4ac",
+    "app/eval/distill_train.py": "084981daaa0c56cb31e6a103de0877a5cac752f584cf34368708efa457600704",
+    "declarations": "e49481400ca9236f5f75ded29555478bf2d42d960693f51c2d7c7e9014d31093"
+  },
+  "teacher_and_query_writer": "not re-run: see bench/distill/queries.meta.json and teacher_scores.meta.json",
+  "tf32": {
+    "cuda.matmul.allow_tf32": false,
+    "float32_matmul_precision": "highest",
+    "cudnn.allow_tf32": true
+  },
+  "rule": "s is fixed per init and training set before training, by a label-free rule: s = std(t_i - t_j) / std(c_i - c_j), numpy std with ddof 0 in float64, pooled over every pair i < j (the list's committed order) of every training list of that training set, t the teacher's logit and c the init model's cosine; recorded with 1/s and the epoch-0 validation loss in bench/distill/embedder_scale.json",
+  "sample": null,
+  "entries": {
+    "bge-small/all": {
+      "init": "bge-small",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "training_set": "all",
+      "corpora": [
+        "fixture",
+        "scifact",
+        "fiqa"
+      ],
+      "s": 55.921498643180534,
+      "temperature": 0.01788221031737223,
+      "std_teacher_margins": 3.5014625943178865,
+      "std_cosine_margins": 0.06261389053000424,
+      "pairs": 1922210,
+      "lists": 10087,
+      "validation_epoch_0": {
+        "loss": {
+          "fiqa": 16.451942,
+          "fixture": 8.463222,
+          "scifact": 9.308413
+        },
+        "macro": 11.407859,
+        "source_mean_rank": {
+          "fiqa": 2.8778,
+          "fixture": 5.619,
+          "scifact": 1.0717
+        }
+      },
+      "device": "NVIDIA GeForce RTX 2080 Ti"
+    },
+    "bge-small/beir": {
+      "init": "bge-small",
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "training_set": "beir",
+      "corpora": [
+        "scifact",
+        "fiqa"
+      ],
+      "s": 56.3004447009235,
+      "temperature": 0.017761849045991585,
+      "std_teacher_margins": 3.5604481581265652,
+      "std_cosine_margins": 0.06324014272072283,
+      "pairs": 1790320,
+      "lists": 9396,
+      "validation_epoch_0": {
+        "loss": {
+          "fiqa": 16.617367,
+          "scifact": 9.310712
+        },
+        "macro": 12.964039,
+        "source_mean_rank": {
+          "fiqa": 2.8778,
+          "scifact": 1.0717
+        }
+      },
+      "device": "NVIDIA GeForce RTX 2080 Ti"
+    },
+    "bge-base/all": {
+      "init": "bge-base",
+      "model": "BAAI/bge-base-en-v1.5",
+      "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+      "training_set": "all",
+      "corpora": [
+        "fixture",
+        "scifact",
+        "fiqa"
+      ],
+      "s": 49.86801288602706,
+      "temperature": 0.020052934579236032,
+      "std_teacher_margins": 3.5014625943178865,
+      "std_cosine_margins": 0.07021460033549864,
+      "pairs": 1922210,
+      "lists": 10087,
+      "validation_epoch_0": {
+        "loss": {
+          "fiqa": 11.673096,
+          "fixture": 6.982659,
+          "scifact": 7.704896
+        },
+        "macro": 8.786884,
+        "source_mean_rank": {
+          "fiqa": 2.2926,
+          "fixture": 2.7857,
+          "scifact": 1.0448
+        }
+      },
+      "device": "NVIDIA GeForce RTX 2080 Ti"
+    }
+  },
+  "use": "the trainer reads s from here; nothing here read a gold question, a BEIR query or a qrel"
+}

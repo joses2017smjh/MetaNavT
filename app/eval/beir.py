@@ -234,6 +234,31 @@ SMALL_RERANKERS_REPRODUCE = {"scifact": (("bench/results/beir_scifact.json", ("h
                                          ("bench/results/beir_scifact_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",))),
                              "fiqa": (("bench/results/beir_fiqa.json", ("hybrid@bge-small", RERANK_FP32_512)),
                                       ("bench/results/beir_fiqa_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",)))}
+
+
+def adapted_embedder_configs(base: bool = False) -> list[BeirConfig]:
+    """M48: the adapted embedders of app/eval/adapted_embedders.py beside the base rows, recomputed in the same run: bm25,
+    dense@bge-small, hybrid@bge-small (and bge-base's two rows for the bge-base files), then dense@<tag> and hybrid@<tag>
+    per arm the committed manifest holds (bench/distill/embedders.json), each the bge-small config with the embedder
+    swapped for ft:<tag> and paired with its base counterpart. Before any arm is trained: the base rows only."""
+    from app.eval import adapted_embedders as ae
+
+    by = {c.name: c for c in DEFAULT_CONFIGS}
+    configs = [replace(by["bm25"]), replace(by["dense@bge-small"]), replace(by["hybrid@bge-small"])]
+    if base:
+        emb = ae.INITS["bge-base"]["embedder"]
+        configs += [BeirConfig(name="dense@bge-base", mode="dense", embedder=emb, parent="dense@bge-small"),
+                    BeirConfig(name="hybrid@bge-base", mode="hybrid", embedder=emb, parent="hybrid@bge-small")]
+    for tag in [t for t in ae.trained_arms() if (t == ae.BASE_ARM) == base]:
+        dense, hybrid = ae.row_names(tag, "beir")
+        bdense, bhybrid = ae.row_names(ae.base_tag(tag), "beir")
+        configs.append(replace(by["dense@bge-small"], name=dense, embedder=ae.embedder_name(tag), parent=bdense))
+        configs.append(replace(by["hybrid@bge-small"], name=hybrid, embedder=ae.embedder_name(tag), parent=bhybrid))
+    return configs
+
+
+ADAPTED_LADDER, ADAPTED_BASE_LADDER = "adapted-embedders", "adapted-embedders-base"
+ADAPTED_PARENTS = ("bm25", "dense@bge-small", "hybrid@bge-small", "dense@bge-base", "hybrid@bge-base")
 LATE_INTERACTION_LADDER = "late-interaction"  # M49: two parts (--part primary|extra), app/eval/late_interaction.py ROWS
 
 
@@ -247,7 +272,8 @@ def late_interaction_configs(part: str = "primary") -> list[BeirConfig]:
 LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS,
            **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()},
            SMALL_RERANKERS_LADDER: small_reranker_configs(), SMALL_RERANKER_SHAPES_LADDER: small_reranker_shape_configs(),
-           SMALL_RERANKER_ML256_LADDER: small_reranker_ml256_configs(), LATE_INTERACTION_LADDER: late_interaction_configs("primary")}
+           SMALL_RERANKER_ML256_LADDER: small_reranker_ml256_configs(), LATE_INTERACTION_LADDER: late_interaction_configs("primary"),
+           ADAPTED_LADDER: adapted_embedder_configs(), ADAPTED_BASE_LADDER: adapted_embedder_configs(base=True)}
 
 
 def models_2026_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
@@ -414,6 +440,35 @@ def write_trec_outputs(directory: Path, cfg: BeirConfig, rankings: dict[str, lis
             "query_order": sanitize_path(str(query_order_path)), "query_order_sha256": sha256_of(query_order_path)}
 
 
+def _gz_write(path: Path, text: str) -> str:
+    """`text` gzipped with no file name or timestamp in the header (the same text gives the same bytes); its sha256."""
+    import gzip
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as fh:
+        fh.write(text.encode("utf-8"))
+    return sha256_of(path)
+
+
+def write_trec_gz(directory: Path, cfg: BeirConfig, rankings: dict[str, list[str]], qrels: dict[str, dict[str, int]], *, root: Path | None = None) -> dict:
+    """M48: a row's rankings (top cfg.k) as a gzipped TREC run, and the qrels and query order beside it, so that nDCG can
+    be recomputed on a CPU from the committed files. The run decompresses to the text whose sha256 is ranking_sha256."""
+    directory = Path(directory)
+    for qid, ids in rankings.items():
+        if len(ids) != len(set(ids)) or any(any(c.isspace() for c in value) for value in [qid, *ids]):
+            raise ValueError("TREC ids must be unique per ranking and contain no whitespace")
+    run_path = directory / f"{_slug(cfg.name)}.run.gz"
+    qrels_path = directory / "qrels.txt.gz"
+    order_path = directory / "query_ids.json"
+    run_sha = _gz_write(run_path, trec_run_text(cfg, rankings))
+    qrels_sha = _gz_write(qrels_path, "".join(f"{qid} 0 {did} {grade}\n" for qid, docs in qrels.items() for did, grade in docs.items()))
+    order_path.write_text(json.dumps(list(rankings)) + "\n")
+    base = Path(root) if root else None
+    rel = lambda p: p.relative_to(base).as_posix() if base and p.is_absolute() and p.is_relative_to(base) else sanitize_path(str(p))  # noqa: E731
+    return {"run": rel(run_path), "run_gz_sha256": run_sha, "decompresses_to": "the text whose sha256 is ranking_sha256",
+            "qrels": rel(qrels_path), "qrels_gz_sha256": qrels_sha, "query_order": rel(order_path), "query_order_sha256": sha256_of(order_path)}
+
+
 def chunks_from_corpus(corpus: dict[str, str]) -> list[Chunk]:
     return [Chunk(chunk_id=did, path=did, text=text, start_byte=0, end_byte=len(text.encode("utf-8"))) for did, text in corpus.items()]
 
@@ -429,16 +484,22 @@ class Engine:
     """Shares indexes, embeddings and models across configs; caches doc embeddings on disk."""
 
     def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto", check_models: bool = False,
-                 resolve_reranker=None, per_query_extras=None):
+                 resolve_reranker=None, resolve_embedder=None, in_run_matrices: bool = False, per_query_extras=None):
         """check_models (M41): every model, once loaded, passes its load-and-score check (app/eval/models_2026.py; recorded
         in its provenance) or the run stops. resolve_reranker (M43): name -> (what to load, what the row records about
         it, a check of the loaded model or None); it may raise (a cached revision that is not the pinned one, a
-        student's checkpoint whose sha256 is not the manifest's). per_query_extras (M51): (model, query, passages) -> each
-        pair's token count; when set, every row also records per query the name-independent hashes of its ranking and,
-        for a reranked row, how many reranked pairs are longer than its cap, both computed outside the timed stages."""
+        student's checkpoint whose sha256 is not the manifest's). resolve_embedder (M48): name -> (the loaded embedder,
+        what the row records) or None for a name it does not own (an adapted embedder's ft:<tag>, an init at its pinned
+        revision). in_run_matrices (M48): every document matrix is computed in this run; the on-disk cache is read only to
+        record how far it is from the computed matrix, and nothing is written to it. per_query_extras (M51): (model,
+        query, passages) -> each pair's token count; when set, every row also records per query the name-independent
+        hashes of its ranking and, for a reranked row, how many reranked pairs are longer than its cap, both computed
+        outside the timed stages."""
         self.check_models = check_models
         self.per_query_extras = per_query_extras
         self.resolve_reranker = resolve_reranker
+        self.resolve_embedder = resolve_embedder
+        self.in_run_matrices = in_run_matrices
         self.chunks = chunks
         self.by_id = {c.chunk_id: c for c in chunks}
         self.cache_dir = cache_dir
@@ -486,7 +547,13 @@ class Engine:
         if name.startswith("mv:"):  # M49: a multi-vector model (the MaxSim leg), not a single-vector embedder
             return self.mv_leg(name).encoder
         if name not in self._embedders:
-            if name == "hash":
+            resolved = self.resolve_embedder(name) if self.resolve_embedder is not None else None
+            record: dict[str, Any] = {}
+            if resolved is not None:
+                self._embedders[name], record = resolved
+                if self.device != "auto":
+                    self._embedders[name]._model.to(self.device)
+            elif name == "hash":
                 self._embedders[name] = HashEmbedder()
             elif name.startswith("st:"):
                 from app.retrieval.embedders import SentenceTransformerEmbedder
@@ -498,25 +565,46 @@ class Engine:
                 raise ValueError(f"unknown embedder {name!r}")
             emb = self._embedders[name]
             self.provenance[name] = {
-                **model_provenance(name, "embedder"),
+                **(model_provenance(name, "embedder") if not name.startswith("ft:") else {"role": "embedder"}),
+                **record,  # M48: an adapted embedder's weights sha256 and reference check, never its path; an init's pinned revision
                 "dim": int(emb.dim),
                 "device": model_device(getattr(emb, "_model", None)),
                 "query_instruction": None,  # bge-v1.5 recommends a query prefix; not used
                 # the query prompt, dtype and batch size of a sentence-transformers embedder (M41)
                 **(emb.provenance() if hasattr(emb, "provenance") else {}),
             }
-            if self.check_models and name.startswith("st:"):
+            if self.check_models and name.startswith(("st:", "ft:")):
                 from app.eval.models_2026 import check_embedder
 
                 self.provenance[name]["load_and_score"] = check_embedder(emb)
         return self._embedders[name]
 
+    def cache_path(self, name: str) -> Path | None:
+        """The on-disk cache file of an embedder's document matrix: keyed by the corpus, the name and the model's revision,
+        and for an adapted embedder (M48) by its weights sha256 (a local checkpoint has no revision: a retrained model
+        must never read another's matrix)."""
+        if not self.cache_dir:
+            return None
+        prov = self.provenance.get(name) or {}
+        rev = prov.get("weights_sha256") or prov.get("revision") or "norev"
+        return self.cache_dir / f"{self.corpus_sha256}.{_slug(name)}.{rev}.{len(self.chunks)}.npy"
+
     def doc_matrix(self, name: str) -> np.ndarray:
         if name in self._doc_mats:
             return self._doc_mats[name]
         emb = self.embedder(name)
-        rev = self.provenance[name].get("revision") or "norev"
-        cache = self.cache_dir / f"{self.corpus_sha256}.{_slug(name)}.{rev}.{len(self.chunks)}.npy" if self.cache_dir else None
+        cache = self.cache_path(name)
+        if self.in_run_matrices:  # M48: computed here, on this run's device; the cache only compared, never written
+            mat = emb.encode([c.text for c in self.chunks])
+            compare: dict[str, Any] = {"cache_file_found": bool(cache and cache.exists())}
+            if cache and cache.exists():
+                cached = np.load(cache)
+                compare["max_abs_difference"] = (float(np.max(np.abs(cached.astype(np.float64) - mat.astype(np.float64))))
+                                                 if cached.shape == mat.shape else f"shape {cached.shape} vs {mat.shape}")
+            self.provenance[name]["doc_embeddings"] = "computed in this run, on this run's device (the shared cache is never read for rows)"
+            self.provenance[name]["doc_embeddings_vs_cache"] = compare
+            self._doc_mats[name] = mat
+            return mat
         if cache and cache.exists():
             mat = np.load(cache)
             if mat.shape != (len(self.chunks), emb.dim) or not np.isfinite(mat).all():
@@ -698,7 +786,8 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
     return ids
 
 
-def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]], *, trec_dir: Path | None = None, require_trec_eval: bool = False) -> dict[str, Any]:
+def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: dict[str, dict[str, int]], *, trec_dir: Path | None = None, require_trec_eval: bool = False,
+               keep_rankings: bool = False) -> dict[str, Any]:
     if cfg.precision in {"fp16", "bf16"} and cfg.reranker not in {None, "overlap"}:
         import torch
         if engine.device == "cpu" or not torch.cuda.is_available():
@@ -768,6 +857,7 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         # trec.run_sha256 says whether a recomputed row ranks every query identically (M41)
         "ranking_sha256": hashlib.sha256(trec_run_text(cfg, rankings).encode("utf-8")).hexdigest(),
         "_per_query": per_query,
+        **({"_rankings": rankings} if keep_rankings else {}),
         **({"_extra": extra} if extra is not None else {}),
         **({"_capture": capture} if capture is not None else {}),
         **({"latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the "
@@ -863,6 +953,9 @@ def run(
     header: dict[str, Any] | None = None,
     resolve_reranker=None,
     keep_per_query: bool = False,
+    resolve_embedder=None,
+    in_run_matrices: bool = False,
+    trec_gz: tuple[Path, tuple[str, ...]] | None = None,
     per_query_extras=None,
     reproduce_extra=None,
 ) -> dict[str, Any]:
@@ -871,6 +964,8 @@ def run(
     run or recorded its ranking's sha256), recorded whatever the answer; `header` adds fields to the results header.
     M43: `reproduce` may be several such pairs (a list of blocks is recorded); `resolve_reranker` (Engine);
     `keep_per_query` returns every row's per-query scores under "_per_query" for the caller's sidecar (per_query_sidecar).
+    M48: `resolve_embedder` and `in_run_matrices` (Engine); `trec_gz` = (directory, row names): those rows' rankings
+    as gzipped TREC run files, with the qrels and the query order beside them.
     M51: `per_query_extras` (Engine) returns every row's per-query extras under "_per_query_extra"; `reproduce_extra`
     replaces _same_ranking as the per-row check of `reproduce`."""
     if dataset not in DATASETS:
@@ -894,10 +989,15 @@ def run(
     if missing_docs:
         raise ValueError(f"qrels reference {len(missing_docs)} missing documents")
     engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device, check_models=check_models,
-                    resolve_reranker=resolve_reranker, per_query_extras=per_query_extras)
+                    resolve_reranker=resolve_reranker, resolve_embedder=resolve_embedder, in_run_matrices=in_run_matrices,
+                    per_query_extras=per_query_extras)
     results = []
     for i, cfg in enumerate(configs):
-        results.append(run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval))
+        results.append(run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval,
+                                  keep_rankings=bool(trec_gz and cfg.name in trec_gz[1])))
+        rankings = results[-1].pop("_rankings", None)
+        if rankings is not None:
+            results[-1]["trec_gz"] = write_trec_gz(trec_gz[0], cfg, rankings, qrels, root=root)
         engine.release_unused(configs[i + 1:])
     per_query = {row["config"]: row["_per_query"] for row in results} if keep_per_query else None  # attach_confidence drops them
     per_query_extra = {row["config"]: row.pop("_extra") for row in results if "_extra" in row} or None
@@ -1022,7 +1122,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ladder", choices=tuple(LADDERS), default="default", help="the config list: the default ladder, or bm25-ablation (analyzer only, k1/b only, both)")
     p.add_argument("--only", default=None, help="comma-separated config names (from the chosen ladder)")
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
-    p.add_argument("--checkpoint-dir", type=Path, default=None, help="small-rerankers: where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS)")
+    p.add_argument("--checkpoint-dir", type=Path, default=None, help="small-rerankers: where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS); adapted-embedders: the arms' (default: $ADAPTED_EMBEDDER_CHECKPOINTS)")
     p.add_argument("--rows", choices=("all", "anchors"), default="all", help="small-rerankers-shapes: every row, or the parent and M43's six 20/512 rows only")
     p.add_argument("--ml256-checkpoint-dir", type=Path, default=None, help="small-rerankers-ml256: where the attempt-2 checkpoints are (default: $SMALL_RERANKER_ML256_CHECKPOINTS)")
     p.add_argument("--part", choices=("primary", "extra"), default="primary", help="late-interaction: which part of the ladder (two results files per dataset)")
@@ -1060,6 +1160,23 @@ def main(argv: list[str] | None = None) -> int:
         m41 = dict(check_models=True, comparisons=small_reranker_comparisons(configs), keep_per_query=True,
                    reproduce=tuple((rel, tuple(n for n in rows if n in names)) for rel, rows in SMALL_RERANKERS_REPRODUCE[args.dataset]),
                    header={"small_rerankers": sr.header([c.name for c in configs])}, resolve_reranker=sr.resolver(args.checkpoint_dir, root))
+    seen = None
+    if args.ladder in (ADAPTED_LADDER, ADAPTED_BASE_LADDER):  # M48: in-run matrices, every model checked, a sidecar with twins and seen flags
+        from app.eval import adapted_embedders as ae
+
+        if args.checkpoint_dir is not None:
+            os.environ[ae.CHECKPOINT_ENV] = str(args.checkpoint_dir)
+        base = args.ladder == ADAPTED_BASE_LADDER
+        names = [c.name for c in configs]
+        parents = {(c.name, c.parent) for c in configs}
+        ae.read_twins(root)  # the 0.90 assertion on the committed flags, before any row
+        seen = ae.seen_flags(root, args.dataset, load_beir(download_dataset(args.data_dir, args.dataset, sha256=args.dataset_sha256), args.split)[2])
+        m41 = dict(check_models=True, keep_per_query=True, in_run_matrices=True,
+                   comparisons=[p for p in ae.comparisons(names, args.dataset) if p not in parents],
+                   reproduce=((COMMITTED_FILES[args.dataset], tuple(n for n in ADAPTED_PARENTS if n in names)),),
+                   header={"adapted_embedders": ae.header(names, root=root, base=base)},
+                   resolve_embedder=lambda name: ae.resolve_embedder(name, args.checkpoint_dir, root),
+                   trec_gz=None if base else (root / ae.TREC_DIRS[args.dataset], tuple(n for n in ae.TREC_ROWS if n in names)))
     if args.ladder == SMALL_RERANKER_SHAPES_LADDER:  # M51: M43's conventions at every shape, plus per-query extras and the anchors
         from app.eval import small_rerankers as sr
         from app.eval import small_rerankers_shapes as shapes
@@ -1094,11 +1211,15 @@ def main(argv: list[str] | None = None) -> int:
         shapes.annotate_beir(blob, per_query_extra, shapes.N_ML256_ANCHOR_ROWS)
     if args.ladder == LATE_INTERACTION_LADDER:  # the committed runs go beside the results file (bench/results/late_interaction_runs/)
         li.finish_beir(blob, per_query, captures, out.parent / "late_interaction_runs", args.dataset)
+    sidecar = per_query_sidecar(blob, per_query, per_query_extra) if per_query is not None else None
+    if seen is not None:
+        blob, sidecar = ae.finish_beir(blob, per_query, seen, root)
+        blob["adapted_embedders"]["file_role"] = ae.file_role(out, root)
     out.write_text(json.dumps(blob, indent=2) + "\n")
-    if per_query is not None:
+    if sidecar is not None:
         from app.eval import per_question
 
-        per_question.write(per_question.sidecar_path(out), per_query_sidecar(blob, per_query, per_query_extra))
+        per_question.write(per_question.sidecar_path(out), sidecar)
     print(markdown_table(blob))
     if blob.get("reproduces"):  # recorded whatever the answer; a parent that differs is not an error
         print("reproduces", json.dumps(blob["reproduces"]))
