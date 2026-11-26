@@ -1,0 +1,1595 @@
+{
+  "dataset": "BEIR/scifact",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
+  "zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "expected_zip_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "files_sha256": {
+    "corpus.jsonl": "dec31c8182f3d744c7d2c09423756fd1d17cbef75808db13ba01cc0aab4d1ac6",
+    "queries.jsonl": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+    "qrels/test.tsv": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+  },
+  "corpus_sha256": "7394141cfad041e3b3cc0925871a7347213f880f40ed68ea27b7eaf351b0b7a1",
+  "runner_sha256": "6dcd160f7fb0a4bd72f2e4884eb63a13f0ee601f1e3cf2fd350d42b90b67d311",
+  "n_docs": 5183,
+  "n_queries": 300,
+  "full_split_queries": 300,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": {
+    "bm25_ndcg@10": 0.6789,
+    "source": "Anserini BEIR (v1.0.0) regression, SciFact, 'flat' BM25: title + text concatenated into one field, Lucene English analyzer (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "url": "https://github.com/castorini/anserini/blob/master/docs/regressions/regressions-beir-v1.0.0-scifact.flat.md",
+    "analyzer": "Lucene English (Porter stemming + stopwords), k1=0.9, b=0.4",
+    "document_text": "title + ' ' + text (same as our rows)"
+  },
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "57a8567",
+  "git_head": "57a856739287949381803303fc0233c057085709",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/adapted_embedders.py": "f2838f0eb1cd9eff7be84a3dd7633cfb55e6c5a05e5bf2d3a4f367d151b22b2e",
+    "app/eval/beir.py": "6dcd160f7fb0a4bd72f2e4884eb63a13f0ee601f1e3cf2fd350d42b90b67d311",
+    "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+    "app/eval/distill_teacher.py": "b57b4bf8fefd80c68b5417ed2e015e269df76d965b3694745e7f7c286c3f1880",
+    "app/eval/distill_train.py": "084981daaa0c56cb31e6a103de0877a5cac752f584cf34368708efa457600704",
+    "app/eval/embedder_train.py": "2259a0bf837e97a11d1e27cefcf0732cc8e605b39257818e472458da4811a4ac",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "b04d7d600968a046ff144c545a4b8771a856bb64b76fb2374f8ffe468f43cc59",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "3d215bb853a95c6c588a4b1f35319d3e1d070b6a74abd9b84c940ba55de65344",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/small_rerankers.py": "f98655495b24f0c97c220e2570e5ff84bba0fa17fbfc55934f1a8908b789423f",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/embedders.py": "bb37ef6b453f192a07b7115ad0de5c775d9f2dd8df42306649d34756ac758c9b",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-26T09:40:17.655972+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --ladder adapted-embedders-base --data-dir <path>/data --checkpoint-dir <path>/checkpoints --out bench/results/beir_scifact_adapted_embedders_base.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 40,
+    "cpu_model": "Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "NVIDIA GeForce RTX 2080 Ti",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 300,
+    "level": 0.95,
+    "comparisons": [
+      {
+        "row": "hybrid@bge-base-marginmse",
+        "other": "dense@bge-base-marginmse",
+        "ndcg@10": {
+          "delta": -0.0044,
+          "lo": -0.0268,
+          "hi": 0.0184
+        },
+        "recall@10": {
+          "delta": 0.0166,
+          "lo": -0.0108,
+          "hi": 0.0456
+        },
+        "recall@100": {
+          "delta": 0.0,
+          "lo": -0.02,
+          "hi": 0.0167
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "config": "bm25",
+      "parent": null,
+      "settings": {
+        "name": "bm25",
+        "mode": "bm25",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.6767,
+        "recall@10": 0.803,
+        "recall@100": 0.9287,
+        "mrr@10": 0.642,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.21,
+          "p95_ms": 3.97,
+          "mean_ms": 2.26
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 2.22,
+          "p95_ms": 3.99,
+          "mean_ms": 2.27
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 21537.7,
+        "total_ms": 21537.7
+      },
+      "wall_ms": 690.71,
+      "models": {},
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "9e4f9760f3ad4a1c1afaa8cc73d06599b70b8fc765e54a27069a70870094ffe4",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.6767,
+          "lo": 0.6299,
+          "hi": 0.719
+        },
+        "recall@10": {
+          "mean": 0.803,
+          "lo": 0.7573,
+          "hi": 0.845
+        },
+        "recall@100": {
+          "mean": 0.9287,
+          "lo": 0.8993,
+          "hi": 0.9557
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null,
+      "vs_published": {
+        "published_bm25_ndcg@10": 0.6789,
+        "delta": -0.0022
+      }
+    },
+    {
+      "config": "dense@bge-small",
+      "parent": "bm25",
+      "settings": {
+        "name": "dense@bge-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "bm25",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.72,
+        "recall@10": 0.8452,
+        "recall@100": 0.9533,
+        "mrr@10": 0.6845,
+        "n_queries": 300
+      },
+      "latency": {
+        "embed": {
+          "n": 300,
+          "p50_ms": 11.66,
+          "p95_ms": 12.02,
+          "mean_ms": 11.59
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 1.46,
+          "p95_ms": 1.62,
+          "mean_ms": 1.47
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 13.14,
+          "p95_ms": 13.63,
+          "mean_ms": 13.08
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 13158.85,
+        "doc_embeddings_ms": 19722.74,
+        "total_ms": 32881.59
+      },
+      "wall_ms": 3940.52,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "pinned_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": true,
+            "max_abs_difference": 0.0
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "3a18515213f12f20c550c3ca229dc407599b8ee1d1779240212b59ed0fed79f3",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.72,
+          "lo": 0.6739,
+          "hi": 0.7612
+        },
+        "recall@10": {
+          "mean": 0.8452,
+          "lo": 0.8024,
+          "hi": 0.885
+        },
+        "recall@100": {
+          "mean": 0.9533,
+          "lo": 0.9267,
+          "hi": 0.9733
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0433,
+          "lo": 0.0108,
+          "hi": 0.0769
+        },
+        "recall@10": {
+          "delta": 0.0422,
+          "lo": 0.0017,
+          "hi": 0.0837
+        },
+        "recall@100": {
+          "delta": 0.0247,
+          "lo": -0.005,
+          "hi": 0.0577
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0433,
+          "lo": 0.0108,
+          "hi": 0.0769
+        },
+        "recall@10": {
+          "delta": 0.0422,
+          "lo": 0.0017,
+          "hi": 0.0837
+        },
+        "recall@100": {
+          "delta": 0.0247,
+          "lo": -0.005,
+          "hi": 0.0577
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7379,
+        "recall@10": 0.8596,
+        "recall@100": 0.9617,
+        "mrr@10": 0.7065,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.59,
+          "p95_ms": 4.47,
+          "mean_ms": 2.64
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 11.72,
+          "p95_ms": 12.1,
+          "mean_ms": 11.66
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 1.56,
+          "p95_ms": 1.68,
+          "mean_ms": 1.56
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.11,
+          "p95_ms": 0.13,
+          "mean_ms": 0.11
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 15.91,
+          "p95_ms": 18.31,
+          "mean_ms": 16.0
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.0
+      },
+      "wall_ms": 4816.11,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "pinned_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": true,
+            "max_abs_difference": 0.0
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "81ac6433eed3e205774ca2c3ed9e12eded15d8ad6354ec2ba1d1c5719423d58b",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7379,
+          "lo": 0.6935,
+          "hi": 0.7783
+        },
+        "recall@10": {
+          "mean": 0.8596,
+          "lo": 0.82,
+          "hi": 0.895
+        },
+        "recall@100": {
+          "mean": 0.9617,
+          "lo": 0.9367,
+          "hi": 0.9817
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0612,
+          "lo": 0.0391,
+          "hi": 0.0833
+        },
+        "recall@10": {
+          "delta": 0.0566,
+          "lo": 0.0266,
+          "hi": 0.0882
+        },
+        "recall@100": {
+          "delta": 0.033,
+          "lo": 0.014,
+          "hi": 0.056
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": 0.0179,
+          "lo": -0.0068,
+          "hi": 0.0414
+        },
+        "recall@10": {
+          "delta": 0.0143,
+          "lo": -0.019,
+          "hi": 0.0468
+        },
+        "recall@100": {
+          "delta": 0.0083,
+          "lo": -0.015,
+          "hi": 0.0317
+        }
+      }
+    },
+    {
+      "config": "dense@bge-base",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-base",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-base-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7376,
+        "recall@10": 0.8659,
+        "recall@100": 0.97,
+        "mrr@10": 0.7004,
+        "n_queries": 300
+      },
+      "latency": {
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.32,
+          "p95_ms": 12.74,
+          "mean_ms": 12.35
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 3.01,
+          "p95_ms": 3.13,
+          "mean_ms": 3.02
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 15.36,
+          "p95_ms": 15.86,
+          "mean_ms": 15.4
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 469.67,
+        "doc_embeddings_ms": 43255.5,
+        "total_ms": 43725.17
+      },
+      "wall_ms": 4641.18,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-base-en-v1.5",
+          "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "neural": true,
+          "pinned_revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.873047,
+            "cosine_other": 0.321801,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "71703aa90c1043581b43aaad5e4f6fb1d42b3a414fb1eeae043be24b3d971805",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7376,
+          "lo": 0.693,
+          "hi": 0.779
+        },
+        "recall@10": {
+          "mean": 0.8659,
+          "lo": 0.8263,
+          "hi": 0.9021
+        },
+        "recall@100": {
+          "mean": 0.97,
+          "lo": 0.95,
+          "hi": 0.9867
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.061,
+          "lo": 0.0261,
+          "hi": 0.0958
+        },
+        "recall@10": {
+          "delta": 0.0629,
+          "lo": 0.0234,
+          "hi": 0.1036
+        },
+        "recall@100": {
+          "delta": 0.0413,
+          "lo": 0.013,
+          "hi": 0.073
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": 0.0176,
+          "lo": -0.0052,
+          "hi": 0.0409
+        },
+        "recall@10": {
+          "delta": 0.0207,
+          "lo": -0.0103,
+          "hi": 0.0507
+        },
+        "recall@100": {
+          "delta": 0.0167,
+          "lo": 0.0033,
+          "hi": 0.0333
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-base",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-base",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-base-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7418,
+        "recall@10": 0.8641,
+        "recall@100": 0.9727,
+        "mrr@10": 0.71,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.88,
+          "p95_ms": 4.94,
+          "mean_ms": 2.9
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.35,
+          "p95_ms": 12.69,
+          "mean_ms": 12.34
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 3.02,
+          "p95_ms": 3.09,
+          "mean_ms": 3.03
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.15,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 18.39,
+          "p95_ms": 20.69,
+          "mean_ms": 18.42
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 5545.03,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-base-en-v1.5",
+          "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "neural": true,
+          "pinned_revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.873047,
+            "cosine_other": 0.321801,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "03d7d975cb58cf38478a3304ef3cb71f425a457960d8a4e934d0dc1f1fbd6577",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7418,
+          "lo": 0.6982,
+          "hi": 0.7822
+        },
+        "recall@10": {
+          "mean": 0.8641,
+          "lo": 0.8247,
+          "hi": 0.8988
+        },
+        "recall@100": {
+          "mean": 0.9727,
+          "lo": 0.9527,
+          "hi": 0.9893
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0652,
+          "lo": 0.0447,
+          "hi": 0.0861
+        },
+        "recall@10": {
+          "delta": 0.0611,
+          "lo": 0.0322,
+          "hi": 0.0926
+        },
+        "recall@100": {
+          "delta": 0.044,
+          "lo": 0.0217,
+          "hi": 0.0683
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": 0.0039,
+          "lo": -0.0109,
+          "hi": 0.0213
+        },
+        "recall@10": {
+          "delta": 0.0046,
+          "lo": -0.0149,
+          "hi": 0.0254
+        },
+        "recall@100": {
+          "delta": 0.011,
+          "lo": -0.003,
+          "hi": 0.0267
+        }
+      }
+    },
+    {
+      "config": "dense@bge-base-marginmse",
+      "parent": "dense@bge-base",
+      "settings": {
+        "name": "dense@bge-base-marginmse",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-base-marginmse",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-base",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.747,
+        "recall@10": 0.8602,
+        "recall@100": 0.965,
+        "mrr@10": 0.7135,
+        "n_queries": 300
+      },
+      "latency": {
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.28,
+          "p95_ms": 13.8,
+          "mean_ms": 12.5
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.94,
+          "p95_ms": 3.11,
+          "mean_ms": 2.96
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 15.26,
+          "p95_ms": 16.92,
+          "mean_ms": 15.49
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 2038.92,
+        "doc_embeddings_ms": 44264.69,
+        "total_ms": 46303.61
+      },
+      "wall_ms": 4666.69,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-base-marginmse",
+          "init": "BAAI/bge-base-en-v1.5",
+          "init_revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "weights_sha256": "fc5e53c6d41dd358208eb49f850b4771bbf63d2651d1bf27e6f94e5f0b428d60",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 2e-07,
+            "tolerance": 0.0001
+          },
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.909329,
+            "cosine_other": 0.456658,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "48e46648089aff89f7539a3f8a51ab131003985e7ed61ef96e9b06ffb43ac447",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.747,
+          "lo": 0.7004,
+          "hi": 0.7879
+        },
+        "recall@10": {
+          "mean": 0.8602,
+          "lo": 0.8182,
+          "hi": 0.8961
+        },
+        "recall@100": {
+          "mean": 0.965,
+          "lo": 0.9433,
+          "hi": 0.9833
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0704,
+          "lo": 0.039,
+          "hi": 0.1032
+        },
+        "recall@10": {
+          "delta": 0.0572,
+          "lo": 0.0208,
+          "hi": 0.0944
+        },
+        "recall@100": {
+          "delta": 0.0363,
+          "lo": 0.01,
+          "hi": 0.064
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-base",
+        "ndcg@10": {
+          "delta": 0.0094,
+          "lo": -0.0141,
+          "hi": 0.0322
+        },
+        "recall@10": {
+          "delta": -0.0057,
+          "lo": -0.035,
+          "hi": 0.0233
+        },
+        "recall@100": {
+          "delta": -0.005,
+          "lo": -0.02,
+          "hi": 0.01
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-base-marginmse",
+      "parent": "hybrid@bge-base",
+      "settings": {
+        "name": "hybrid@bge-base-marginmse",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-base-marginmse",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-base",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.7426,
+        "recall@10": 0.8768,
+        "recall@100": 0.965,
+        "mrr@10": 0.7072,
+        "n_queries": 300
+      },
+      "latency": {
+        "bm25": {
+          "n": 300,
+          "p50_ms": 2.84,
+          "p95_ms": 4.84,
+          "mean_ms": 2.87
+        },
+        "embed": {
+          "n": 300,
+          "p50_ms": 12.04,
+          "p95_ms": 12.62,
+          "mean_ms": 12.1
+        },
+        "dense": {
+          "n": 300,
+          "p50_ms": 2.9,
+          "p95_ms": 3.04,
+          "mean_ms": 2.92
+        },
+        "fuse": {
+          "n": 300,
+          "p50_ms": 0.13,
+          "p95_ms": 0.15,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 300,
+          "p50_ms": 17.9,
+          "p95_ms": 20.41,
+          "mean_ms": 18.04
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 5432.02,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-base-marginmse",
+          "init": "BAAI/bge-base-en-v1.5",
+          "init_revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+          "weights_sha256": "fc5e53c6d41dd358208eb49f850b4771bbf63d2651d1bf27e6f94e5f0b428d60",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 2e-07,
+            "tolerance": 0.0001
+          },
+          "dim": 768,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.909329,
+            "cosine_other": 0.456658,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "7f44d136176015ad588b02eb55bb38c72dcfec2850a6d6dededfbb3855bb5017",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.7426,
+          "lo": 0.6996,
+          "hi": 0.7807
+        },
+        "recall@10": {
+          "mean": 0.8768,
+          "lo": 0.8392,
+          "hi": 0.9098
+        },
+        "recall@100": {
+          "mean": 0.965,
+          "lo": 0.9417,
+          "hi": 0.9833
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.066,
+          "lo": 0.0455,
+          "hi": 0.0869
+        },
+        "recall@10": {
+          "delta": 0.0738,
+          "lo": 0.0442,
+          "hi": 0.1059
+        },
+        "recall@100": {
+          "delta": 0.0363,
+          "lo": 0.018,
+          "hi": 0.0573
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-base",
+        "ndcg@10": {
+          "delta": 0.0008,
+          "lo": -0.0118,
+          "hi": 0.0138
+        },
+        "recall@10": {
+          "delta": 0.0127,
+          "lo": -0.006,
+          "hi": 0.0327
+        },
+        "recall@100": {
+          "delta": -0.0077,
+          "lo": -0.022,
+          "hi": 0.005
+        }
+      }
+    }
+  ],
+  "adapted_embedders": {
+    "bar": {
+      "name": "M48's bar: the adapted small embedder",
+      "row": "hybrid@bge-small-marginmse",
+      "parent": "hybrid@bge-small",
+      "metric": "ndcg@10",
+      "passes": "the paired nDCG@10 delta of hybrid@bge-small-marginmse against hybrid@bge-small has a 95% interval whose lower end is strictly above zero (the stored 4-decimal lower end > 0; a stored 0.0 is not above zero) on fixture v1's held-out half (68 questions) AND on BEIR SciFact test (300) AND on BEIR FiQA test (648)",
+      "datasets": {
+        "fixture": 68,
+        "scifact": 300,
+        "fiqa": 648
+      },
+      "one_seed": "the verdict is read on seed 0 alone, because what would be served is one checkpoint; seeds 1 and 2 are reported beside it",
+      "parent_rule": "hybrid@bge-small recomputed in the same run, on the same device, from the same code path; on BEIR its document matrix is computed in that run, never read from the shared cache",
+      "hybrid": "BM25 plus the embedder fused by RRF, k = 60, equal weights, exactly as the committed hybrid@bge-small rows build it; fixture: the harness settings (retrieve_k 50, router, reranker and staleness off, mtimes from the manifest); BEIR: the runner's hybrid@bge-small config with the embedder swapped",
+      "held_out": "fixture v1: the test half of app.eval.rerank_arms.split_questions; no choice of any kind is made on the tune half, whose rows and the all-136 rows are reported beside it; BEIR: the test split",
+      "read_from": [
+        "bench/results/adapted_embedders.json (scope held_out)",
+        "bench/results/beir_scifact_adapted_embedders.json",
+        "bench/results/beir_fiqa_adapted_embedders.json"
+      ],
+      "which_run": "the first complete eval run per dataset at the C3 (manifest) commit; a re-run for any reason goes to <name>_rerun<k>.json and never replaces it; a defect found later is recorded beside the first run's verdict",
+      "interval": "percentile bootstrap over queries, paired, 2000 resamples, seed 0 (app/eval/stats.py); one index matrix per dataset and scope, shared by every row",
+      "outcomes": {
+        "passes": "above zero on all three",
+        "does not pass": "any measured leg not above zero; a leg whose upper end is below zero is also a recorded loss",
+        "open": "a leg is not measured and no measured leg fails; an open bar is not passed",
+        "not run": "the bar row was not trained by the cutoff; no other arm is read in its place"
+      },
+      "multiple_testing": "one pre-declared conjunctive test (intersection-union): three two-sided 95% intervals whose lower ends must all be above zero give an overall one-sided level of at most 2.5%; every other delta is descriptive and labelled exploratory",
+      "secondary": [
+        "dense@bge-small-marginmse (fixture dense_only@) against the base dense row on the same three datasets",
+        "if its arm runs, the same bar form for hybrid@bge-base-marginmse against hybrid@bge-base",
+        "the mean delta over the bar recipe's seeds that ran (0 to 2), beside the seed-0 verdict"
+      ],
+      "llm_judge": "no metric uses an LLM judge; the teacher's logits are training targets and the validation loss only"
+    },
+    "arms": {
+      "bge-base-marginmse": {
+        "init": "bge-base",
+        "loss": "marginmse",
+        "training_set": "all",
+        "seed": 0,
+        "role": "base",
+        "about": "optional, exploratory: bge-base by the same recipe with its own s; its own eval files",
+        "status": "trained",
+        "weights_sha256": "fc5e53c6d41dd358208eb49f850b4771bbf63d2651d1bf27e6f94e5f0b428d60",
+        "selection": {
+          "chosen_epoch": 2,
+          "epochs": 4,
+          "chosen_is_last": false,
+          "beats_epoch_0": true,
+          "validation_before_training": 8.786885,
+          "validation_curve": [
+            4.007025,
+            3.748311,
+            3.819536,
+            3.793834
+          ],
+          "statement": "epoch 2 of 4 kept (the lowest validation loss on the held-out documents' synthetic queries); the chosen epoch beats epoch 0's validation loss (the untrained init)"
+        }
+      }
+    },
+    "bar_outcome_rule": "this file holds one leg of the bar (bar_leg, written after its rows); the bar's outcome word over the three files (passes / does not pass / open / not run) is bar_table's reading of the three declared files (make adapted-embedders-bar, the README block); one leg not above zero is enough for 'does not pass'",
+    "attempt": 1,
+    "recipe": {
+      "data": "bench/distill/queries.jsonl.gz and teacher_scores.jsonl.gz as committed by M43, never regenerated; the trainer refuses to run if either file's sha256 differs from its meta; every training id must be in queries.jsonl.gz with split train",
+      "train_lists": {
+        "fixture": 691,
+        "scifact": 4267,
+        "fiqa": 5129
+      },
+      "validation_lists": {
+        "fixture": 42,
+        "scifact": 223,
+        "fiqa": 270
+      },
+      "teacher": "mixedbread-ai/mxbai-rerank-large-v2 (not re-run): its raw logits, fp32, max_length 512, one per candidate",
+      "list": "the fused top 20 of hybrid@bge-small for a synthetic query, plus its source document when it is not among them, in the committed order",
+      "student_score": "s * cos(E(q), E(d)): E is the SentenceTransformer forward (Transformer, CLS pooling, Normalize) on the model's own preprocess() output, the path encode() takes, so training and serving cut a long passage at the same token; each unique text is tokenized once; queries and documents bare (no prompt)",
+      "scale": "s is fixed per init and training set before training, by a label-free rule: s = std(t_i - t_j) / std(c_i - c_j), numpy std with ddof 0 in float64, pooled over every pair i < j (the list's committed order) of every training list of that training set, t the teacher's logit and c the init model's cosine; recorded with 1/s and the epoch-0 validation loss in bench/distill/embedder_scale.json",
+      "loss": "MarginMSE over every pair of one list: the mean over i < j of ((s_i - s_j) - (t_i - t_j))^2, s the student's score and t the teacher's logit (M43's definition); the first step is checked, torch against numpy",
+      "lists_per_step": 8,
+      "epochs": 4,
+      "steps_per_epoch": "ceil(training lists / lists_per_step)",
+      "optimizer": "AdamW, betas (0.9, 0.999), no weight decay on biases and LayerNorm weights",
+      "learning_rate": 2e-05,
+      "weight_decay": 0.01,
+      "schedule": "linear warm-up over the first 10% of the steps, then linear decay to zero",
+      "warmup_fraction": 0.1,
+      "max_grad_norm": 1.0,
+      "corpus_mixing": "each list of a step comes from a corpus drawn with probability proportional to the square root of that corpus's number of training lists; inside a corpus lists are drawn without replacement and reshuffled when exhausted",
+      "precision": "float32 throughout: torch.backends.cuda.matmul.allow_tf32 False and float32 matmul precision 'highest'; both, with torch.backends.cudnn.allow_tf32, recorded in training.json and every results header",
+      "memory": "micro_lists (M43) on a GPU under 40 GB, recorded per resume segment: a memory setting, never a hyper-parameter",
+      "validation": "the synthetic queries of the held-out source documents (M43's split field): never a gold question, a tune-half question or a BEIR query",
+      "selection": "the epoch end (1 to 4) with the lowest macro validation MarginMSE (each corpus's mean list loss, then the mean over the arm's corpora); ties go to the earlier epoch; whether the chosen epoch is the last is recorded; the source document's mean rank inside its validation list is recorded per epoch as a diagnostic and is not used",
+      "seeds": "0 for every arm; 1 and 2 for the bar recipe only, as an exploratory spread",
+      "prompts": null,
+      "mnrl": {
+        "formula": "cross-entropy over 20 * cos(q, every in-batch candidate), query to document (sentence-transformers 6.1 MultipleNegativesRankingLoss defaults), hand-written so that it can mask",
+        "scale": 20.0,
+        "lists": "only the lists where the teacher ranks the source document first; the source is the positive",
+        "hard_negatives": 7,
+        "hard_negative_rule": "the teacher's bottom half of the list (the 10 lowest-scored candidates of a 20- or 21-candidate list), the first 7 of those in the list's order",
+        "queries_per_batch": 32,
+        "batches": "all 32 queries from one corpus, the corpus drawn with probability proportional to the square root of its eligible lists; no source document twice in a batch: a list whose source is already in the batch is deferred to that corpus's next batch, never dropped; deferrals counted per epoch",
+        "mask": "for each anchor, every in-batch candidate whose doc id equals the anchor's own positive doc id scores -inf, except the anchor's own positive column; masked entries counted per epoch",
+        "steps_per_epoch": "ceil(eligible training lists / queries_per_batch)",
+        "selection": "the epoch end with the lowest masked loss on the validation lists where the teacher ranks the source first, in batches built once with seed 0 (each corpus's mean, then the mean over corpora)",
+        "hardware": "a card of 40 GB or more, no micro-batching; resumed only onto such a card"
+      }
+    },
+    "inits": {
+      "bge-small": {
+        "model": "BAAI/bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "licence": "mit",
+        "embedder": "st:BAAI/bge-small-en-v1.5"
+      },
+      "bge-base": {
+        "model": "BAAI/bge-base-en-v1.5",
+        "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+        "licence": "mit",
+        "embedder": "st:BAAI/bge-base-en-v1.5",
+        "optional": true
+      }
+    },
+    "encoding": {
+      "pooling": "cls",
+      "normalize": true,
+      "max_seq_length": 512,
+      "do_lower_case": true,
+      "dtype": "float32",
+      "query_prompt": null,
+      "document_prompt": null
+    },
+    "declarations_sha256": "e49481400ca9236f5f75ded29555478bf2d42d960693f51c2d7c7e9014d31093",
+    "rows": [
+      "bm25",
+      "dense@bge-small",
+      "hybrid@bge-small",
+      "dense@bge-base",
+      "hybrid@bge-base",
+      "dense@bge-base-marginmse",
+      "hybrid@bge-base-marginmse"
+    ],
+    "m43": {
+      "queries": {
+        "sha256": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050",
+        "n": 10622,
+        "fields": "id, corpus, doc_id, form, query, split"
+      },
+      "teacher_scores": {
+        "name": "teacher_scores.jsonl.gz",
+        "sha256": "fb1972427a2159e3140f61a4a17c1af261360ffd1da81e88f78888cb4f707705",
+        "n": 10622,
+        "fields": "id, corpus, candidates (fused order, the source appended last when absent), source_rank (1-based in the fused top; null: appended), scores (the teacher's raw logits, one per candidate)"
+      },
+      "teacher": {
+        "model": "mixedbread-ai/mxbai-rerank-large-v2",
+        "revision": "ca7e1ee484c37c0ddd8d178a9a5c33cec575c5e6",
+        "precision": "fp32",
+        "max_length": 512,
+        "scores": "raw logits (no activation)"
+      },
+      "query_writer": {
+        "model": "gemma4:12b",
+        "revision": "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+        "ollama_version": "0.40.16",
+        "options": {
+          "temperature": 0.0,
+          "seed": 0,
+          "num_ctx": 4096,
+          "num_predict": 600
+        },
+        "request": {
+          "think": false,
+          "format": "json"
+        }
+      },
+      "prompt_sha256": "ae1734aacc541e2dbd1bcf9337c40df77406ae4c2ff1bd1ced18bca09f0d7140",
+      "near_duplicates": {
+        "fixture": {
+          "checked": 779,
+          "dropped": 46,
+          "cosine_at_least": {
+            "0.80": 390,
+            "0.85": 178,
+            "0.90": 46,
+            "0.95": 7
+          }
+        },
+        "scifact": {
+          "checked": 4498,
+          "dropped": 8,
+          "cosine_at_least": {
+            "0.80": 207,
+            "0.85": 49,
+            "0.90": 8,
+            "0.95": 0
+          }
+        },
+        "fiqa": {
+          "checked": 5400,
+          "dropped": 1,
+          "cosine_at_least": {
+            "0.80": 257,
+            "0.85": 32,
+            "0.90": 1,
+            "0.95": 0
+          }
+        }
+      },
+      "near_duplicate_rule": "dropped if normalised-equal, token Jaccard >= 0.7 or bge-small cosine >= 0.90 against any of the 1,084 test queries (M43)"
+    },
+    "twins_file": {
+      "file": "bench/distill/embedder_twins.json",
+      "sha256": "803c23e6c7e848ca75c1be7bd2fee094ff434803d083e5467260a38b2226a629"
+    },
+    "manifest": {
+      "file": "bench/distill/embedders.json",
+      "sha256": "4044e9fa4d964d31e0347a064abdccf6dcd465e26d04aeb7d0cb64d97bec4a60",
+      "arms_sha256": {
+        "bge-base-marginmse": "5d45672cc6dd52f00a0fca67a9313720c4afc04640eaea7126da5e997bc1177d"
+      }
+    },
+    "tf32": {
+      "cuda.matmul.allow_tf32": false,
+      "float32_matmul_precision": "highest",
+      "cudnn.allow_tf32": true
+    },
+    "device": "NVIDIA GeForce RTX 2080 Ti",
+    "tf32_note": "torch.backends.cudnn.allow_tf32 is recorded as torch sets it; it governs cuDNN convolutions only, and this encoder has none, so it does not touch these numbers (TF32 also exists only on Ampere and newer cards)",
+    "llm_judge": "no metric uses an LLM judge",
+    "mnrl_twins": "bge-small-mnrl's twin flags are against the all-three query set, a superset of what it trained on: an upper bound",
+    "mnrl_seen_documents": "bge-small-mnrl's BEIR seen-document flags are computed from every training list, a superset of the lists it trained on (those where the teacher ranks the source first): an upper bound",
+    "load_and_score": "every embedder first ranks the check's answer above an unrelated passage with the loaded instance, or the run stops (app/eval/models_2026.py); an adapted one also reproduces its manifest's reference embeddings",
+    "exploratory": "every delta other than the bar row's hybrid delta on the three datasets is descriptive and exploratory",
+    "served_defaults_changed": false,
+    "not_shown": [
+      "not the live host's quality: the host embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
+      "not the host's latency: HPC timings are indicative (adapted_embedders_cpu.json); the structural identity is the argument",
+      "not transfer to an unseen corpus: the bar row read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); only the control's fixture rows measure transfer, on one small templated corpus",
+      "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, and nDCG recomputes from the committed TREC runs where they exist, but the checkpoints are not committed",
+      "not card-independent on FiQA: rankings are specific to the card they ran on; M41 found that bge-small's own FiQA rankings differ between cards (near-tied documents swapping adjacent places below the top ten, with no metric change); how far an adapted model's rankings move across cards is not measured",
+      "not a clean 'what the fixture data added': the control differs from the bar row in its scale s, in its number of training lists (9,396 vs 10,087; 1,175 vs 1,261 steps an epoch) and in its two-corpus square-root-of-size mix; the control-vs-bar delta is confounded by all three",
+      "not label-free in the strict sense: the teacher's and bge-small's own training data are unknown and may include these benchmarks' train splits",
+      "not GPL itself: gemma4:12b queries, an mxbai-rerank-large-v2 teacher, a cosine model with a fixed scale and about 5k steps",
+      "not variance-robust: one run (bge-base, seed 0)",
+      "no reranked rows: the served shape has no reranker",
+      "no comparison with Qwen3 or harrier except across runs (their rows are in other files, from other runs), so no paired delta"
+    ],
+    "subgroups": [
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "flagged",
+        "n": 91,
+        "delta": -0.0016,
+        "ndcg@10": {
+          "delta": -0.0016,
+          "lo": -0.0411,
+          "hi": 0.0375
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "not flagged",
+        "n": 209,
+        "delta": 0.0142,
+        "ndcg@10": {
+          "delta": 0.0142,
+          "lo": -0.0142,
+          "hi": 0.0424
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "flagged",
+        "n": 91,
+        "delta": 0.0042,
+        "ndcg@10": {
+          "delta": 0.0042,
+          "lo": -0.0207,
+          "hi": 0.0293
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "not flagged",
+        "n": 209,
+        "delta": -0.0007,
+        "ndcg@10": {
+          "delta": -0.0007,
+          "lo": -0.0151,
+          "hi": 0.0131
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "flagged",
+        "n": 28,
+        "delta": -0.0113,
+        "ndcg@10": {
+          "delta": -0.0113,
+          "lo": -0.0324,
+          "hi": 0.0068
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "not flagged",
+        "n": 272,
+        "delta": 0.0115,
+        "ndcg@10": {
+          "delta": 0.0115,
+          "lo": -0.0138,
+          "hi": 0.0371
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "flagged",
+        "n": 28,
+        "delta": -0.0145,
+        "ndcg@10": {
+          "delta": -0.0145,
+          "lo": -0.046,
+          "hi": 0.0095
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "not flagged",
+        "n": 272,
+        "delta": 0.0024,
+        "ndcg@10": {
+          "delta": 0.0024,
+          "lo": -0.0111,
+          "hi": 0.016
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "flagged",
+        "n": 76,
+        "delta": -0.014,
+        "ndcg@10": {
+          "delta": -0.014,
+          "lo": -0.0686,
+          "hi": 0.0386
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "not flagged",
+        "n": 224,
+        "delta": 0.0173,
+        "ndcg@10": {
+          "delta": 0.0173,
+          "lo": -0.0065,
+          "hi": 0.0424
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "flagged",
+        "n": 76,
+        "delta": 0.0115,
+        "ndcg@10": {
+          "delta": 0.0115,
+          "lo": -0.0139,
+          "hi": 0.0363
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "not flagged",
+        "n": 224,
+        "delta": -0.0028,
+        "ndcg@10": {
+          "delta": -0.0028,
+          "lo": -0.0174,
+          "hi": 0.0111
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "flagged",
+        "n": 300,
+        "delta": 0.0094,
+        "ndcg@10": {
+          "delta": 0.0094,
+          "lo": -0.0141,
+          "hi": 0.0322
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-base-marginmse",
+        "other": "dense@bge-base",
+        "group": "not flagged",
+        "n": 0
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "flagged",
+        "n": 300,
+        "delta": 0.0008,
+        "ndcg@10": {
+          "delta": 0.0008,
+          "lo": -0.0118,
+          "hi": 0.0138
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-base-marginmse",
+        "other": "hybrid@bge-base",
+        "group": "not flagged",
+        "n": 0
+      }
+    ],
+    "seed_mean": null,
+    "subgroup_note": "descriptive only (BEIR): twins at bge-small cosine 0.80 / 0.85 to the arm's training and validation queries; seen-document flags from qrels and the committed lists",
+    "bar_leg": {
+      "row": "hybrid@bge-base-marginmse",
+      "parent": "hybrid@bge-base",
+      "dataset": "scifact",
+      "scope": "test",
+      "metric": "ndcg@10",
+      "label": "exploratory: bge-base's same bar form against hybrid@bge-base, never the bar",
+      "measured": true,
+      "delta": 0.0008,
+      "lo": -0.0118,
+      "hi": 0.0138,
+      "lo_above_zero": false,
+      "verdict": "covers zero",
+      "outcome_from_this_leg": "does not pass: this leg's stored lower end is not above zero"
+    },
+    "file_role": "bge-base's own file: exploratory, never read against the bar"
+  },
+  "reproduces": [
+    {
+      "file": "bench/results/beir_scifact.json",
+      "git_sha": "32972cf",
+      "device": "Quadro RTX 8000",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "bm25": {
+          "equal": true
+        },
+        "dense@bge-small": {
+          "equal": true
+        },
+        "hybrid@bge-small": {
+          "equal": true
+        },
+        "dense@bge-base": {
+          "in_committed_file": false,
+          "equal": false
+        },
+        "hybrid@bge-base": {
+          "in_committed_file": false,
+          "equal": false
+        }
+      },
+      "all": false
+    }
+  ]
+}

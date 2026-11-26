@@ -1359,6 +1359,9 @@ training query, and by the reading declared before training the fixture leg is
 "not separable from templated twins". On FiQA every adapted row is below the
 published model, dense and hybrid, for every seed, the control and MNRL; the
 bar's form holds for none of the seeds. Why FiQA lost is not tested here.
+bge-base, trained the same way and read in its own files against
+`hybrid@bge-base` recomputed in the same runs, does not pass that form either:
+it loses on the fixture's held-out half and on FiQA (exploratory).
 
 **What it costs, and a CPU re-run.** An adapted arm is the same network as
 bge-small with other weights, so a query costs what it costs today; the
