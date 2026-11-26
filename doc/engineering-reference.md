@@ -1463,7 +1463,8 @@ against `hybrid@bge-small`, recomputed in the same run on the same device, has a
 whose stored lower end is above zero on fixture v1's held-out half and on BEIR
 SciFact and on BEIR FiQA, read from the first complete run of each dataset. The
 three intervals form one intersection-union test; every other delta in the
-files is descriptive and labelled exploratory, and the block counts them.
+files is descriptive and labelled exploratory.
+The generated block holds 85 exploratory intervals beside the bar's three legs; with no real effect anywhere, about 2.5% of them would sit above zero by chance alone (one-sided), so a lone exploratory win is not evidence by itself.<!-- num: README.md:"This block shows {} exploratory intervals besides the bar's three legs"; app/eval/report.py:"about {}% of them" -->
 
 **The recipe.** GPL's ingredients, taken as M43 committed them: synthetic
 queries written by a local open model, hard negatives mined by the current
