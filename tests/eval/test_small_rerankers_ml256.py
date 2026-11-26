@@ -251,3 +251,17 @@ def test_the_readme_lines_and_evidence_rows_of_phase2_render_with_the_f3_answer(
     for r in rows[1:]:  # only F3 cells, only where the 95% interval excludes zero, each with the F3 answer beside it
         assert "one of 9 cell x dataset tests in F3" in r["claim"] and f"the F3 answer is {answer}" in r["not_shown"]
         assert any(f"`{c.split('+')[1].split('@')[0]}` at depth {c.split('top')[1]}" in r["claim"] for c in f3)
+
+
+def test_the_phase2_anchor_target_parses_its_files():
+    """--anchors takes a list of files: a flag after it ends the list, so --phase2 must come first (the first Phase-2
+    job's in-job anchor step failed on that order; its files were checked on the CPU instead)."""
+    import shlex
+
+    make = (ROOT / "Makefile").read_text()
+    recipe = make[make.index("small-rerankers-ml256-anchors:"):].split("\n")[1].strip()
+    argv = shlex.split(recipe.replace("$(PYTHON) -m app.eval.small_rerankers_shapes", "").replace("$(FILES)", "a.json b.json"))
+    args = shapes._parse(argv)
+    assert args.phase2 is True and args.anchors == [Path("a.json"), Path("b.json")]
+    with pytest.raises(SystemExit):
+        shapes._parse(["--anchors", "--phase2", "a.json"])

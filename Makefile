@@ -476,7 +476,7 @@ bench-beir-fiqa-small-rerankers-ml256: ## Phase 2 on BEIR FiQA (needs .[ml] and 
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_ml256.json)
 
 small-rerankers-ml256-anchors: ## Phase 2: the parent, the attempt-1 students and their inits at 5/10/20 x 256 of each Phase-2 file against M51's committed shapes rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
-	$(PYTHON) -m app.eval.small_rerankers_shapes --anchors --phase2 $(FILES)
+	$(PYTHON) -m app.eval.small_rerankers_shapes --phase2 --anchors $(FILES)
 
 small-rerankers-ml256-frontier: ## Phase 2: per attempt-2 cell its cost (the attempt-1 row's), deltas vs no reranker (95% and F3's Bonferroni level), vs the attempt-1 student and vs the init, and the F3 answer (CPU) -> bench/results/small_rerankers_ml256_frontier.json
 	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier --phase2
