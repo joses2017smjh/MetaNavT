@@ -3,10 +3,13 @@
 A status cell states a measured verdict as "`<row>` <verdict> vs `<reference>`" (more than one reference may follow
 the same row: "`<row>` below zero vs `<a>` and covers zero vs `<b>`"), with the verdict word read off the paired
 bootstrap interval of nDCG@10 the way the generated tables read it (app.eval.report.verdict); for the search policy
-(search_policy.json, M44) the verdict is that of exact match, the metric of the bar declared before it was trained.
+(search_policy.json, M44) the verdict is that of exact match, the metric of the bar declared before it was trained; for
+LLM-in-the-loop prompt injection (M50's comparison file) it is that of the planted value delivered to the user, where
+lower is better, for every model whose entry the declared outcome table gave an interval.
 Every such claim must equal the verdict of that row against that reference in one of the results files below, and
-every evaluated prototype arm of frontier.json, frontier_neural.json and rerank_arms.json, and the search policy's
-headline row against each of its references, must have its claim, so a recorded loser cannot drop out of the plan. The item and status columns type no number: the numbers are in the generated tables
+every evaluated prototype arm of frontier.json, frontier_neural.json and rerank_arms.json, the search policy's
+headline row against each of its references, and every injection verdict with an interval must have its claim, so a
+recorded loser cannot drop out of the plan. The item and status columns type no number: the numbers are in the generated tables
 the cells link to, except a served default written as "`SETTING` (default N)", which must equal the default in the
 served code. This test reads the code's defaults as text: CI's eval job does not install llama_index, which
 app/engine/retriever.py imports.
@@ -33,6 +36,8 @@ VERDICT_FILES = ("bench/results/main.json", "bench/results/neural.json", "bench/
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: its verdicts are of exact match (`em`), not nDCG@10
 ADAPTED_FILE = "bench/results/adapted_embedders.json"  # M48: its held-out half's verdicts; the bar's word is bar_table's
 ADAPTED_PHASE = "1.8"
+# M50: answer_check@<model> against none@<model> on the planted value delivered (lower is better), per model
+INJECTION_COMPARE_FILE = "bench/results/agent_injection_v3_models_2026_compare.json"
 # M46: the same row name is in three files, so a claim prefixes the dataset; the word is the one each file stores
 # (read from the raw interval bounds), never report.verdict() on the rounded block
 M46_FILES = {"fixture-held-out": ("bench/results/llm_query_arms.json", "held_out"), "scifact": ("bench/results/beir_scifact_llm_query_arms.json", "test"),
@@ -99,6 +104,8 @@ def recorded_verdicts(root: Path = ROOT) -> dict[tuple[str, str], set[str]]:
         out.setdefault((v["config"], v["reference"]), set()).add(v["word"])
     for v in late_interaction_verdicts(root):
         out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
+    for v in injection_verdicts(root):
+        out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
     return out
 
 
@@ -110,6 +117,16 @@ def adapted_held_out(root: Path = ROOT) -> list[tuple[str, str, dict | None]]:
         return []
     blob = json.loads(path.read_text())
     return [(row["config"], block["reference"], block.get("ndcg@10")) for row in blob["held_out"]["results"] for block in row.get("deltas") or []]
+
+
+def injection_verdicts(root: Path = ROOT) -> list[dict]:
+    """M50's verdict entries on the planted value delivered that hold an interval (a model the outcome table stopped
+    at cannot run, incomplete or a floor holds none, and PLAN states it in words); none before the file exists."""
+    path = root / INJECTION_COMPARE_FILE
+    if not path.exists():
+        return []
+    return [v for v in json.loads(path.read_text())["verdicts"]
+            if v["metric"] == "planted_value_delivered" and v["interval"] is not None]
 
 
 def m46_verdicts(root: Path = ROOT) -> list[dict]:
@@ -159,6 +176,7 @@ def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
         from app.eval.adapted_embedders import BAR_ARM
 
         pairs |= {(f"hybrid@{BAR_ARM}", "hybrid@bge-small"), (f"dense_only@{BAR_ARM}", "dense_only@bge-small")}
+    pairs |= {(v["config"], v["reference"]) for v in injection_verdicts(root)}
     pairs |= {(v["config"], v["reference"]) for v in m46_verdicts(root)}  # both models' arms, so a loser of either stays
     pairs |= {(v["config"], v["reference"]) for v in late_interaction_verdicts(root) if v["plan"]}  # M49: PLAN_FLAGS, all eighteen
     return pairs
@@ -236,6 +254,19 @@ def test_the_adapted_embedder_row_leads_with_the_bars_word():
     word = bar_table(ROOT)["outcome"]
     assert status.startswith(f"bar outcome: {word} ") or status.startswith(f"bar outcome: {word},"), status[:120]
     assert "nothing serves it" in status
+
+
+def test_injection_verdicts_with_an_interval_are_required_claims(tmp_path):
+    """M50: every comparison entry on the planted value delivered with an interval is recorded and required; one the
+    outcome table stopped (interval null) is neither."""
+    path = tmp_path / INJECTION_COMPARE_FILE
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"verdicts": [
+        {"config": "answer_check@a", "reference": "none@a", "metric": "planted_value_delivered", "interval": "below zero"},
+        {"config": "answer_check@b", "reference": "none@b", "metric": "planted_value_delivered", "interval": None},
+        {"config": "answer_check@a", "reference": "none@a", "metric": "utility_under_attack", "interval": "covers zero"}]}))
+    assert [(v["config"], v["interval"]) for v in injection_verdicts(tmp_path)] == [("answer_check@a", "below zero")]
+    assert injection_verdicts(tmp_path / "nowhere") == []
 
 
 def test_the_m46_reader_returns_each_files_stored_word(tmp_path):

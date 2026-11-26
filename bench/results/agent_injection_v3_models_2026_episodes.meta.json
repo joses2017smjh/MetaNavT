@@ -1,0 +1,1960 @@
+{
+  "benchmark": "agent_injection_v3",
+  "reconstructed": false,
+  "segments": [
+    {
+      "started_utc": "2026-11-25T19:06:53.094298+00:00",
+      "finished_utc": "2026-11-25T19:12:03.164724+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q011 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q011.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q011_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA H100 80GB HBM3"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 310.0,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q011_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:53:28.818943+00:00",
+      "finished_utc": "2026-11-26T01:04:15.900545+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q019 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q019.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q019_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 646.9,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q019_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:56:15.026640+00:00",
+      "finished_utc": "2026-11-26T01:07:20.621711+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q021 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q021.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q021_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 665.5,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q021_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:56:02.305024+00:00",
+      "finished_utc": "2026-11-26T01:03:06.663304+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q028 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q028.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q028_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "top_p                          0.95\ndraft_num_predict              3\ntemperature                    1\ntop_k                          64",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 424.2,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "top_p                          0.95\ndraft_num_predict              3\ntemperature                    1\ntop_k                          64",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q028_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T01:08:26.973021+00:00",
+      "finished_utc": "2026-11-26T01:20:01.849524+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q046 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q046.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q046_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 694.8,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q046_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T01:15:51.121781+00:00",
+      "finished_utc": "2026-11-26T01:26:57.308203+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q054 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q054.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q054_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 666.0,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q054_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T01:21:08.204198+00:00",
+      "finished_utc": "2026-11-26T01:31:46.607887+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q058 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q058.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q058_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "temperature                    1\ntop_k                          64\ntop_p                          0.95\ndraft_num_predict              3",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 638.2,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "temperature                    1\ntop_k                          64\ntop_p                          0.95\ndraft_num_predict              3",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q058_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T01:24:00.355057+00:00",
+      "finished_utc": "2026-11-26T01:34:44.067056+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q064 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q064.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q064_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "temperature                    1\ntop_k                          64\ntop_p                          0.95\ndraft_num_predict              3",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 643.5,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "temperature                    1\ntop_k                          64\ntop_p                          0.95\ndraft_num_predict              3",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q064_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T01:28:13.548735+00:00",
+      "finished_utc": "2026-11-26T01:39:33.628985+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q066 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q066.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q066_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 679.9,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "draft_num_predict              3\ntemperature                    1\ntop_k                          64\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q066_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T01:32:55.712895+00:00",
+      "finished_utc": "2026-11-26T01:43:27.485315+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models gemma4:26b --questions q078 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q078.json --episodes bench/results/agent_injection_v3_models_2026_shards/gemma4-26b-q078_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "top_p                          0.95\ndraft_num_predict              3\ntemperature                    1\ntop_k                          64",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1218413853
+          }
+        }
+      },
+      "models": [
+        "gemma4:26b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 631.6,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "gemma4:26b": {
+            "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+            "quantization": "Q4_K_M",
+            "parameter_size": "25.2B",
+            "parameters": "top_p                          0.95\ndraft_num_predict              3\ntemperature                    1\ntop_k                          64",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "gemma4-large",
+            "parser": "gemma4",
+            "family": "gemma4"
+          }
+        },
+        "running": {
+          "gemma4:26b": {
+            "context_length": 32768,
+            "size_vram": 1394627049
+          }
+        }
+      },
+      "shard": "gemma4-26b-q078_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T19:03:59.835802+00:00",
+      "finished_utc": "2026-11-25T19:21:10.627631+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q011 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q011.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q011_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA H100 80GB HBM3"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "top_k                          20\ntop_p                          0.95\npresence_penalty               1.5\ntemperature                    1",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 1030.7,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "top_k                          20\ntop_p                          0.95\npresence_penalty               1.5\ntemperature                    1",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q011_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T19:28:07.933303+00:00",
+      "finished_utc": "2026-11-25T19:33:12.372705+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q019 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q019.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q019_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA H100 80GB HBM3"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "interrupted": true,
+      "wall_s": 304.4,
+      "episodes_after": 160,
+      "errors_after": 6,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q019_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T23:32:24.513581+00:00",
+      "finished_utc": "2026-11-25T23:42:34.716815+00:00",
+      "episodes_before": 154,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q019 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q019.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q019_episodes.jsonl --resume",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA H100 80GB HBM3"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 610.1,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q019_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T23:09:29.174015+00:00",
+      "finished_utc": "2026-11-25T23:43:39.876913+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q021 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q021.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q021_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 2050.6,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q021_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T23:35:12.277491+00:00",
+      "finished_utc": "2026-11-25T23:50:38.040186+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q028 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q028.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q028_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA H100 80GB HBM3"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 925.7,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q028_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T23:44:21.823254+00:00",
+      "finished_utc": "2026-11-26T00:19:11.242641+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q046 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q046.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q046_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 2089.3,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q046_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-25T23:55:06.272816+00:00",
+      "finished_utc": "2026-11-26T00:26:02.303711+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q054 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q054.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q054_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 1855.9,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q054_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:01:53.242471+00:00",
+      "finished_utc": "2026-11-26T00:46:27.979620+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q058 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q058.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q058_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 2674.6,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q058_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:19:49.364542+00:00",
+      "finished_utc": "2026-11-26T00:55:02.290696+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q064 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q064.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q064_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "top_k                          20\ntop_p                          0.95\npresence_penalty               1.5\ntemperature                    1",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 2112.8,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "top_k                          20\ntop_p                          0.95\npresence_penalty               1.5\ntemperature                    1",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q064_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:26:37.233121+00:00",
+      "finished_utc": "2026-11-26T01:00:42.108413+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q066 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q066.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q066_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "NVIDIA A40"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 2044.8,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q066_episodes.jsonl"
+    },
+    {
+      "started_utc": "2026-11-26T00:47:06.020422+00:00",
+      "finished_utc": "2026-11-26T01:32:36.498659+00:00",
+      "episodes_before": 0,
+      "git_head": "4dcd710fa60c51abc64297273465607baa33c98c",
+      "working_tree_dirty": false,
+      "module_sha256": "ebb8c9685f9978f71c5405263de109350cb96c020af12193c34d5bd044e8e324",
+      "command": "CUDA_VISIBLE_DEVICES=0 python -m app.eval.agent_injection --benchmark agent_injection_v3 --models qwen3.5:27b --questions q078 --k 4 --think off --chat-timeout 600 --no-summary --bar m50 --out bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q078.json --episodes bench/results/agent_injection_v3_models_2026_shards/qwen3.5-27b-q078_episodes.jsonl",
+      "corpus_mtimes": {
+        "source": "manifest",
+        "file": "bench/corpus/MANIFEST.json",
+        "field": "files[].mtime"
+      },
+      "device": {
+        "gpu": "Quadro RTX 8000"
+      },
+      "ollama": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "top_k                          20\ntop_p                          0.95\npresence_penalty               1.5\ntemperature                    1",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "models": [
+        "qwen3.5:27b"
+      ],
+      "request": {
+        "think": "off",
+        "num_predict": 384,
+        "temperature": 0.7,
+        "max_turns": 6,
+        "workers": 8,
+        "chat_timeout_s": 600.0,
+        "server_context": 32768,
+        "num_parallel": 1
+      },
+      "wall_s": 2730.4,
+      "episodes_after": 464,
+      "errors_after": 0,
+      "ollama_after": {
+        "base_url_scheme": "http",
+        "version": "0.40.16",
+        "models": {
+          "qwen3.5:27b": {
+            "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+            "quantization": "Q4_K_M",
+            "parameter_size": "26.9B",
+            "parameters": "top_k                          20\ntop_p                          0.95\npresence_penalty               1.5\ntemperature                    1",
+            "capabilities": [
+              "completion",
+              "vision",
+              "tools",
+              "thinking"
+            ],
+            "renderer": "qwen3.5",
+            "parser": "qwen3.5",
+            "family": "qwen35"
+          }
+        },
+        "running": {
+          "qwen3.5:27b": {
+            "context_length": 32768,
+            "size_vram": 18750719917
+          }
+        }
+      },
+      "shard": "qwen3.5-27b-q078_episodes.jsonl"
+    }
+  ],
+  "merged": {
+    "shards": [
+      {
+        "file": "gemma4-26b-q011_episodes.jsonl",
+        "episodes_sha256": "9c19714b00ce0984bee182ed98d5224024e4191db8b1162c54e551840e906e8b",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q019_episodes.jsonl",
+        "episodes_sha256": "906e1a3d03b2307438aa984230cd91c737b3681f42aacee986fa41a2f44f80dc",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q021_episodes.jsonl",
+        "episodes_sha256": "3787ce835efa97e8434fee7b709d8ef355bdd79d03e881fc627b3674b914d9eb",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q028_episodes.jsonl",
+        "episodes_sha256": "d6436e3707e97ceb6cd139d0c4ee49d6f935e1bec982b1dfc2d8624f8da6ff17",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q046_episodes.jsonl",
+        "episodes_sha256": "58071c1abad0ed3a9d5fd6e8ea15194d92083942894bf1491df720dd3f81fed7",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q054_episodes.jsonl",
+        "episodes_sha256": "aadf777612b5e2504ad22e06298fbd504a1e9cfb3ba794b5519a4f19a7ce0996",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q058_episodes.jsonl",
+        "episodes_sha256": "c673c5899b394bea0c587c13c35ea87071ab8092cf653b0088fbff577bcb67f5",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q064_episodes.jsonl",
+        "episodes_sha256": "bf14c4282d9fc0003cb4e1087b89bfacc11187928571b9c81ce4cc5972f94c14",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q066_episodes.jsonl",
+        "episodes_sha256": "b932f1228036ea4f92f525a58f99c2a163952d5ec09115870bffc0f7d26ff902",
+        "n_episodes": 464
+      },
+      {
+        "file": "gemma4-26b-q078_episodes.jsonl",
+        "episodes_sha256": "43a904c3d17975abc1ae438e33708751b1ac3406c1cd4e01b65f057991af7daa",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q011_episodes.jsonl",
+        "episodes_sha256": "23bea05ff30da38510b37144d9e676fa7b894f2b2be4acf6ae17fa1a97851296",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q019_episodes.jsonl",
+        "episodes_sha256": "5600a9cc37943d0ca63189bea236c31255ab1ffc4cb5251679c81a03eae14321",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q021_episodes.jsonl",
+        "episodes_sha256": "6c4940066a275cff470aad3fe827ace2c5e6665d91b04d30515ce72120cdb153",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q028_episodes.jsonl",
+        "episodes_sha256": "5c30053c1ecc6f046c5505048671c4ab92f4939f5235aa7e0aee84ec1f56d9f5",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q046_episodes.jsonl",
+        "episodes_sha256": "a6638bad5ceaf9945788fa764cfff29bc78550149303bae69d6ae5da7b100608",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q054_episodes.jsonl",
+        "episodes_sha256": "e5d00ce7b30dbafb76b21dc145c8202597739e9b78f4ec84b3be43a0a0723506",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q058_episodes.jsonl",
+        "episodes_sha256": "293e1ebe47461b5204aca219210f5287c920a4b0ce485c4e1b6a5ddb6c2da5e6",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q064_episodes.jsonl",
+        "episodes_sha256": "10fdf779bd83839fb3d5f9eb7c874958e8ccdcd45f37327bcabf1f60ac521faa",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q066_episodes.jsonl",
+        "episodes_sha256": "e865b83bf7d64b7afcdd08756429c08208ecdb4b891dacdc71c794125fc30c29",
+        "n_episodes": 464
+      },
+      {
+        "file": "qwen3.5-27b-q078_episodes.jsonl",
+        "episodes_sha256": "4dcb2dfeaf89f819832a9a304314dc2025e068ffeec7ff612a1e7d9b4bc018f8",
+        "n_episodes": 464
+      }
+    ],
+    "order": "model (--models order), task (build_tasks order), configuration (BENCHMARK_DEFENSES order), trial"
+  }
+}

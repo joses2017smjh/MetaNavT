@@ -108,6 +108,7 @@ NOT_RESULTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("psycopg2 2.9", "a library version"),
         ("pgvector 0.8 or later", "a library version"),
         ("Phase 10", "a section number of PLAN.md"),
+        ("2026 open models", "a year: the open models current in 2026, the agents of M50's injection run"),
     ),
     README: (
         ("independent 2026 work", "a year"),
@@ -116,6 +117,7 @@ NOT_RESULTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("Python **3.11 or 3.12**", "the Python versions a clean clone supports"),
         ("results sha 2583576", "a commit id"),
         ("GeForce RTX 2080 Ti", "a GPU's name"),
+        ("the 2026 open models as the agent", "a year: the open models current in 2026 (M50's injection run)"),
     ),
 }
 
