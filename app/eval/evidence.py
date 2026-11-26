@@ -1314,8 +1314,13 @@ def _agent_injection_v3_models_2026_claims(root: Path = ROOT) -> list[dict]:
                                + (f", {s4_floor.get('planted_value_only_episodes')} of {s4_floor.get('of')} hijack episodes "
                                   "under no defense" if s4["outcome"] == "floor" else "")
                                + ": the scoring choice decides the verdict")
+            c = (((compare.get("described") or {}).get(model) or {}).get("answer_check") or {}).get("counts") or {}
+            held = (f"; under answer_check the check held back every answer in {c['hijack_withheld']} of "
+                    f"{c['hijack_episodes']} hijack episodes, which S1's utility under attack cannot register (a "
+                    "described count added at review)" if c.get("hijack_withheld") is not None and c.get("hijack_episodes")
+                    else "")
             out.append({**row, "claim": row["claim"] + f" (declared bar P1: {v.get('outcome')})",
-                        "not_shown": row["not_shown"] + f"; {counts}{sensitivity}; one of two P1 intervals, read "
+                        "not_shown": row["not_shown"] + f"; {counts}{sensitivity}{held}; one of two P1 intervals, read "
                                                         "separately, no family-wise correction"})
         else:
             out.append({**row, "claim": row["claim"] + f" (S1: {v.get('outcome')})"})

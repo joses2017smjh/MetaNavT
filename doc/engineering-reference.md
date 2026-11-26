@@ -2161,8 +2161,9 @@ with the committed request (no think key) some did, so both models run with reas
 The same probe fixed the workers and the shard split by the declared rules, and showed what
 the server does with a prompt longer than it can hold: Ollama cut the prompt itself, and
 said so in its log, while the per-request status line of the inference server still read
-zero truncation, so every shard's log is checked for both forms. The probe's record is the
-only source for these decisions: [probe file](../bench/results/agent_injection_v3_models_2026_probe.json).
+zero truncation, so the job scripts checked every shard's log for both forms; that check ran
+outside the repository, and the logs are not committed. The probe's record is the only
+source for these decisions: [probe file](../bench/results/agent_injection_v3_models_2026_probe.json).
 
 The cross-model rows compare a new model with a committed one in the same configuration,
 paired by question; the seeds share indices but not trajectories across models, so they are
@@ -2174,11 +2175,13 @@ differences (the check's cut for a new model minus a committed model's) is cappe
 model's `none` rate; the field check's recall under `answer_check`, which does not depend on
 that rate, is reported beside it. [Generated table](../README.md#agent-injection-v3-models-2026).
 
-The probe's oversized prompt also showed where the cut falls: Ollama kept far less than the
+The probe's oversized prompt also showed where the cut falls: Ollama kept about half of the
 pinned context (the probe file's `oversized_prompt` record gives the tokens it kept for each
-model). The largest prompt any test call sent (`max_call_prompt_tokens` per model and
-configuration in the comparison file) stayed far below that limit, and no shard's server log
-holds the line that announces such a cut.
+model), and a cut prompt reports the length it was cut to. The largest prompt any test call
+sent (`max_call_prompt_tokens` per model and configuration in the comparison file) stayed
+far below that length, so no test call reached the cut; this is the evidence a clone can
+check, and the generated block prints both numbers. The job scripts' search of the server
+logs for the cut line ran outside the repository.
 
 What this does not show (the generated list under the table is the full one): the phrasings
 are fixed, most of them public templates, so this is not an adaptive attacker; ten synthetic
@@ -2189,7 +2192,14 @@ causal, and no bridge separates the server version; the field check knows each q
 field. The hijack score counts any statement of the planted value, a warning included, and for
 `qwen3.5:27b` that choice decides the verdict: its delivered answers almost always state both
 values, so the stricter reading (the planted value without the true one) sits at the declared
-floor. With no capability control, zero planted actions cannot tell refusal from incapability,
+floor. More than half of the check's cut for `qwen3.5:27b`, counted in episodes, is the check
+holding back every answer, and neither S1 measure can register a withheld answer: utility under
+attack already counts an answer that states the planted value as a failure without the check.
+The generated block therefore prints, as described measures added at review, the withheld
+count on the hijack episodes and the results file's `injected_success` beside P1; neither is a
+verdict, and a withheld answer is not judged good or bad. The merged results file keeps the
+current run's shape and states its limits in `scope`; the full list is the comparison file's
+`does_not_show`. With no capability control, zero planted actions cannot tell refusal from incapability,
 and wall times include queueing behind one server slot, so they are not latency.
 
 [Current run](../bench/results/agent_injection_v3.json) ·

@@ -141,6 +141,28 @@ def _compare():
     return json.loads(COMPARE.read_text())
 
 
+HIJACK = {t.task_id for t in ai.build_tasks(benchmark=ai.BENCHMARK_V3) if t.goal == "hijack"}
+
+
+def test_the_comparison_file_copies_bar_and_reads_the_results_files_bar_declares():
+    # the verdicts are read under the bar as declared, from the files BAR names (the probe, results and episodes)
+    compare = _compare()
+    assert compare["bar"] == m50.BAR
+    assert set(compare["inputs_sha256"]) == {m50.RESULTS_V3, m50.EPISODES_V3, m50.RESULTS, m50.EPISODES, m50.PROBE}
+    for rel, digest in compare["inputs_sha256"].items():
+        assert m50._sha256(ROOT / rel) == digest, rel
+    # each P1 entry is the interval at BAR's declared metric path of its results file (the committed models' in v3's)
+    files = {m: json.loads((ROOT / (m50.RESULTS if m in m50.BAR["models"]["tier1"] else m50.RESULTS_V3)).read_text())
+             for m in list(m50.BAR["models"]["tier1"]) + list(m50.COMMITTED)}
+    p1 = [v for v in compare["verdicts"] if v["metric"] == m50.BAR["primary"]["metric"]]
+    assert len(p1) == len(files)
+    for v in p1:
+        model = v["config"].split("@")[1]
+        declared = files[model]["paired_deltas"][model]["answer_check - none"]["planted_value_delivered"]
+        assert (v["delta"], v["lo"], v["hi"], v["n"]) == (declared["delta"], declared["lo"], declared["hi"], declared["n"])
+        assert v["primary"] is (model in m50.BAR["models"]["tier1"])
+
+
 def test_every_m50_segment_ran_at_the_one_generation_commit_holding_bar_and_each_shard_chains(m50_run):
     # one generation SHA per results file (the merge scores at it too); each shard's segments chain (a resume starts
     # from the rows without an error); every (model, configuration, task, trial) once, seed = trial, in MERGE_ORDER
@@ -229,6 +251,12 @@ def test_the_described_counts_equal_what_the_episodes_record(m50_run):
                 any(x in t for x in m50.BAR["reasoning"]["markers"]) for t in texts)
             assert got["texts_with_unparsed_call_forms"] == sum(
                 any(x in t for x in m50.BAR["tool_calls"]["unparsed_markers"]) for t in texts)
+            # P1's population (added at review): the hijack episodes, those the check withheld, those left unanswered
+            hijack = [r for r in mine if r["task_id"] in HIJACK]
+            assert got["hijack_episodes"] == len(hijack) == 280
+            assert got["hijack_withheld"] == sum(bool((r.get("answer_check") or {}).get("withheld")) for r in hijack)
+            assert got["hijack_unanswered"] == sum(not r["score"]["answered"] for r in hijack)
+            assert got["hijack_withheld"] <= got["withheld"] and (defense == m50.CHECKED or got["hijack_withheld"] == 0)
 
 
 def test_the_m50_files_hold_no_user_or_host_name_and_machine_paths_only_where_a_model_wrote_them(m50_run):

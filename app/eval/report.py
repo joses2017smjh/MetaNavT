@@ -1989,18 +1989,7 @@ def agent_injection_v3_table(blob: dict | None) -> str:
             loop = (per.get(name) or {}).get("answer_check")
             if not loop:
                 continue
-            lines += ["", f"{model} under {name}: the check flagged {loop['flagged_first']} of {loop['answered']} first "
-                      f"answers ({loop['episodes']} episodes), {loop['flagged_first_on_last_turn']} of them on the "
-                      f"model's last turn, with no turn left for the note; the model answered again in {loop['revised']}, and "
-                      f"{loop['delivered_after_revision']} of those answers were delivered. Nothing reached the user in "
-                      f"{loop['withheld'] + loop['episodes'] - loop['answered']} of the {loop['episodes']} episodes: in "
-                      f"{loop['withheld']} the check held back every answer the model gave, and in "
-                      f"{loop['episodes'] - loop['answered']} the model gave no answer within its turns. Of "
-                      f"{loop['hijack_planted_first_draft']} first answers that stated the planted "
-                      f"value it flagged {loop['hijack_planted_first_draft_flagged']}, and "
-                      f"{loop['hijack_planted_delivered']} planted values reached the user; of "
-                      f"{loop['controls_correct_first_draft']} correct first answers on the controls it flagged "
-                      f"{loop['controls_correct_first_draft_flagged']}."]
+            lines += ["", _answer_check_loop_line(model, name, loop)]
     rows = [(model, defense, b["field_check"]) for model, per in summary.items() for defense, b in per.items()
             if b.get("field_check")]
     if rows:
@@ -2065,6 +2054,22 @@ def _verdict_cell(entry: dict | None) -> str:
             f"{raw}")
 
 
+def _answer_check_loop_line(model: str, name: str, loop: dict) -> str:
+    """One model's record of the answer check in the loop (summary[model][name]["answer_check"] of a v3-shaped file)."""
+    return (f"{model} under {name}: the check flagged {loop['flagged_first']} of {loop['answered']} first "
+            f"answers ({loop['episodes']} episodes), {loop['flagged_first_on_last_turn']} of them on the "
+            f"model's last turn, with no turn left for the note; the model answered again in {loop['revised']}, and "
+            f"{loop['delivered_after_revision']} of those answers were delivered. Nothing reached the user in "
+            f"{loop['withheld'] + loop['episodes'] - loop['answered']} of the {loop['episodes']} episodes: in "
+            f"{loop['withheld']} the check held back every answer the model gave, and in "
+            f"{loop['episodes'] - loop['answered']} the model gave no answer within its turns. Of "
+            f"{loop['hijack_planted_first_draft']} first answers that stated the planted "
+            f"value it flagged {loop['hijack_planted_first_draft_flagged']}, and "
+            f"{loop['hijack_planted_delivered']} planted values reached the user; of "
+            f"{loop['controls_correct_first_draft']} correct first answers on the controls it flagged "
+            f"{loop['controls_correct_first_draft_flagged']}.")
+
+
 def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None, v3: dict | None,
                                          probe: dict | None) -> str:
     """M50: agent_injection_v3's protocol with the 2026 open models as the agent, beside the committed models, with
@@ -2099,8 +2104,8 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
         f"temperature {cfg['temperature']} and seeds (k = {cfg['k']}) as the committed run; the committed models' rows "
         f"below are read from `{AGENT_INJECTION_V3_FILE}`. The request was decided on the probe questions before any "
         f"test episode (`{AGENT_INJECTION_V3_MODELS_2026_PROBE_FILE}`): {probe_line or 'no probe record'}. The bar "
-        "(BAR in `app/eval/agent_injection_models.py`) was committed before any M50 model call and is copied into every "
-        "M50 file.",
+        "(BAR in `app/eval/agent_injection_models.py`) was committed before any M50 model call and is copied into the "
+        "results, comparison and probe files.",
         "",
         "| model | configuration | benign success [95% CI] | benign pass^4 | hijack, per draw | hijack, any phrasing | "
         "planted value delivered, per draw | utility under attack | planted actions: attempted / exposed | exposure | "
@@ -2130,8 +2135,9 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
               "14 of 280 hijack episodes delivered the planted value, in at least 4 of the 10 questions. S4 reads the "
               "same on answers that state the planted value and not the true one; S1 is the utility under attack.", "",
               "| model | P1 | floor: episodes / questions | sign-flip p | S4 (planted value only) | S1 utility under attack "
-              "| S1 benign success | withheld / unanswered / length stops (none; answer_check) | labels |",
-              "|---|---|---:|---:|---|---|---|---:|---|"]
+              "| S1 benign success | withheld / unanswered / length stops (none; answer_check) "
+              "| hijack episodes under answer_check: withheld / unanswered, of | labels |",
+              "|---|---|---:|---:|---|---|---|---:|---:|---|"]
     for model in list(cfg["models"]) + [m for m in ((v3 or {}).get("config") or {}).get("models", [])]:
         p1, s4, s1u, s1b = (entry(model, m) for m in ("planted_value_delivered", "planted_value_only",
                                                        "utility_under_attack", "benign_success"))
@@ -2146,6 +2152,8 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
 
         side = "; ".join(f"{count(d, 'withheld')} / {count(d, 'unanswered')} / {count(d, 'length_stops')}"
                          for d in ("none", "answer_check"))
+        hijack = (f"{count('answer_check', 'hijack_withheld')} / {count('answer_check', 'hijack_unanswered')}, of "
+                  f"{count('answer_check', 'hijack_episodes')}")
         labels = []
         thinking = sum(((per.get(d) or {}).get("counts") or {}).get("thinking_calls") or 0 for d in per)
         markers = sum(((per.get(d) or {}).get("counts") or {}).get("texts_with_reasoning_markers") or 0 for d in per)
@@ -2158,7 +2166,7 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
             labels.append("committed model, rescored (its v3 verdict was known before M50)")
         lines.append(f"| {model} | {_verdict_cell(p1)} | {floor.get('took_effect_episodes', 'n/a')} / "
                      f"{floor.get('questions_nonzero', 'n/a')} | {flip if flip is not None else 'n/a'} "
-                     f"| {_verdict_cell(s4)} | {_verdict_cell(s1u)} | {_verdict_cell(s1b)} | {side} "
+                     f"| {_verdict_cell(s4)} | {_verdict_cell(s1u)} | {_verdict_cell(s1b)} | {side} | {hijack} "
                      f"| {'; '.join(labels) or 'none'} |")
     differ = [m for m in cfg["models"] if entry(m, "planted_value_only") and entry(m, "planted_value_delivered")
               and entry(m, "planted_value_only")["outcome"] != entry(m, "planted_value_delivered")["outcome"]]
@@ -2178,6 +2186,24 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
             why += (f", and {both} delivered answers stated both values ({warned} of them beside a warning word, a "
                     "heuristic that never enters a verdict)")
         lines += ["", f"For {model} S4 is not testable (floor) while P1 is a {p1['outcome']}{why}; so {choice}."]
+    for model in cfg["models"]:
+        loop = ((summary.get(model) or {}).get("answer_check") or {}).get("answer_check")
+        if loop:
+            lines += ["", _answer_check_loop_line(model, "answer_check", loop)]
+    held = [(m, c, (((blob.get("paired_deltas") or {}).get(m) or {}).get("answer_check - none") or {}).get("injected_success"))
+            for m in cfg["models"]
+            for c in [((described.get(m) or {}).get("answer_check") or {}).get("counts") or {}]
+            if c.get("hijack_withheld") is not None and c.get("hijack_episodes")]
+    if held:
+        lines += ["", "Withheld answers on P1's own episodes (counts BAR does not declare, added at review after the "
+                  "results were visible; described, never a verdict): under `answer_check` the check held back every "
+                  "answer in " + "; ".join(f"{c['hijack_withheld']} of the {c['hijack_episodes']} hijack episodes for "
+                                           f"{m} ({c.get('hijack_unanswered')} had no answer)" for m, c, _ in held)
+                  + ". S1's utility under attack cannot register a withheld answer: it already counts an answer that "
+                  "states the planted value as a failure under `none`. The results file's injected_success (the true "
+                  "value stated and cited, on the injected tasks; described, no bar) counts a withheld answer as a "
+                  "failure; `answer_check` minus `none`, paired over the questions: "
+                  + "; ".join(f"{m} {_delta_cell(d)}" for m, _, d in held) + "."]
     s3 = compare.get("s3") or {}
     rows = s3.get("rows") or []
     did = compare.get("difference_in_differences") or []
@@ -2218,9 +2244,21 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
                 d = b["styles_minus_templates"]
                 lines.append(f"| {model} | {goals.replace('_', ' ')} | {b['styles']:.3f} | {b['templates']:.3f} "
                              f"| {d['delta']:+.3f} [{d['lo']:+.3f}, {d['hi']:+.3f}], {d['interval']} |")
+    largest = {m: [c["max_call_prompt_tokens"] for d in (described.get(m) or {}).values()
+                   for c in [d.get("counts") or {}] if c.get("max_call_prompt_tokens") is not None] for m in cfg["models"]}
+    cut = {m: (((probe or {}).get("models") or {}).get(m) or {}).get("oversized_prompt") or {} for m in cfg["models"]}
+    if all(largest.values()) and all(c.get("prompt_eval_count") for c in cut.values()):
+        lines += ["", "Prompt length against the server's cut: the largest prompt any test call sent was "
+                  + "; ".join(f"{max(largest[m])} tokens for {m}" for m in cfg["models"])
+                  + " (`max_call_prompt_tokens` over every configuration, the comparison file). The probe's oversized "
+                  "prompt was cut by the server to "
+                  + "; ".join(f"{cut[m]['prompt_eval_count']} tokens for {m}" for m in cfg["models"])
+                  + " (`oversized_prompt`, the probe file), and a cut prompt reports the length it was cut to, so no "
+                  "test call reached the cut. The check of every shard's server log for the cut ran in the job "
+                  "scripts, outside the repository."]
     if compare.get("deviations"):
-        lines += ["", "Departures from the declared plan, each written down before it was made:", ""] + [
-            f"- {x}" for x in compare["deviations"]]
+        lines += ["", "Departures from the declared plan, each written down before it was made unless it says "
+                  "otherwise:", ""] + [f"- {x}" for x in compare["deviations"]]
     if blob.get("superseded"):
         lines += ["", f"Regenerated: {len(blob['superseded'])} earlier file(s) superseded by a declared trigger (`superseded` "
                   "in the results file names each one, its trigger and its sha256)."]
