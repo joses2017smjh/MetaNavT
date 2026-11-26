@@ -633,6 +633,17 @@ def test_bar_table_refuses_a_file_that_is_not_a_run_of_the_committed_checkpoints
         table = ae.bar_table(root)
         assert "scifact" in table["refused"] and "scifact" not in table["datasets"], name
         assert table["outcome"] == "open" and table["legs"]["scifact"] is None, name  # a refused file's leg is not measured
+    # an arm trained after the cutoff (in a later manifest commit, e.g. bge-base's) is flagged, never a reason to refuse
+    root = tmp_path / "late"
+    _write_files(root, (win, win, win))
+    late = {ae.BAR_ARM: {"weights_sha256": "0" * 64}, "bge-small-marginmse-s1": {"weights_sha256": "1" * 64}}
+    (root / ae.MANIFEST_FILE).write_text(json.dumps({"arms": late}))
+    table = ae.bar_table(root)
+    assert table["outcome"] == "passes" and not table["refused"]
+    assert table["status"]["bge-small-marginmse-s1"] == "not run" and table["seeds"]["n"] == 1  # "not run" in these files
+    assert all("bge-small-marginmse-s1: not run in the file" in " ".join(m["flags"]) for m in table["datasets"].values())
+    (root / ae.MANIFEST_FILE).write_text(json.dumps({"arms": {"bge-small-marginmse-s1": late["bge-small-marginmse-s1"]}}))
+    assert set(ae.bar_table(root)["refused"]) == set(ae.CORPORA)  # the bar row missing from the manifest is still refused
     root = tmp_path / "dirty"
     _write_files(root, (win, win, win))
     path = root / ae.RESULTS["fixture"]

@@ -1069,26 +1069,32 @@ def file_problems(blob: dict, root: Path | None = None, base: bool = False) -> t
     the committed checkpoints. Refused, so its rows are not read and its legs are not measured: no header with its arms;
     an arm whose status (ran / not run) differs from the committed manifest's; an arm whose weights sha256 or manifest
     entry differs from the committed one. Flagged, read and shown beside its rows: written from a working tree with
-    uncommitted changes (the first run is never replaced; a defect is recorded beside its verdict). Entries are compared
-    one by one, not the manifest's sha256, because bge-base's entry is added to the manifest in a later commit."""
+    uncommitted changes (the first run is never replaced; a defect is recorded beside its verdict); an arm other than the
+    bar row that the file records as not run but the committed manifest holds (trained after the cutoff: it stays "not
+    run" in these files and is never evaluated in them later, as declared). Entries are compared one by one, not the
+    manifest's sha256, because bge-base's entry is added to the manifest in a later commit."""
     root = root or _repo()
     ext = blob.get("adapted_embedders")
     if not isinstance(ext, dict) or not isinstance(ext.get("arms"), dict):
         return ["no adapted_embedders header with its arms: not a file of this eval"], []
     entries = (read_manifest(root) or {}).get("arms") or {}
     hashes = (ext.get("manifest") or {}).get("arms_sha256") or {}
-    refused = []
+    refused, flags = [], []
     for tag, committed in arm_status(root, base).items():
         got = ext["arms"].get(tag) or {}
         ran = got.get("status") == "trained"
-        if ran != (committed == "trained"):
+        if not ran and committed == "trained" and tag != (BASE_ARM if base else BAR_ARM):
+            flags.append(f"{tag}: not run in the file, in the committed {MANIFEST_FILE}: trained after this run, so \"not run\" in these "
+                         "files and never evaluated in them")
+        elif ran != (committed == "trained"):
             refused.append(f"{tag}: {'trained' if ran else 'not run'} in the file, {committed} in the committed {MANIFEST_FILE}")
         elif ran and got.get("weights_sha256") != entries[tag]["weights_sha256"]:
             refused.append(f"{tag}: the file's weights sha256 {str(got.get('weights_sha256'))[:16]} is not the committed manifest's "
                            f"{entries[tag]['weights_sha256'][:16]}")
         elif ran and hashes.get(tag) != manifest_entry_sha256(entries[tag]):
             refused.append(f"{tag}: the manifest entry the file ran with is not the committed one")
-    flags = ["written from a working tree with uncommitted changes (working_tree_dirty true)"] if blob.get("working_tree_dirty") else []
+    if blob.get("working_tree_dirty"):
+        flags.append("written from a working tree with uncommitted changes (working_tree_dirty true)")
     return refused, flags
 
 
@@ -1116,6 +1122,9 @@ def bar_table(root: Path | None = None, base: bool = False) -> dict[str, Any]:
         table["datasets"][dataset] = {"file": files[dataset], "git_sha": blob.get("git_sha"), "device": (blob.get("device") or {}).get("device_name"),
                                       "n": (boot or {}).get("n_queries"), "dirty": blob.get("working_tree_dirty"), "flags": flags,
                                       "parent": {row_names(base_tag(bar_arm), dataset)[k]: (rows.get(row_names(base_tag(bar_arm), dataset)[k]) or {}).get("ci", {}).get("ndcg@10") for k in (0, 1)}}
+    if scopes:  # an arm counts as trained here only if the files read ran it: one trained after the cutoff stays "not run"
+        ran = {t for d in scopes for t, a in blobs[d]["adapted_embedders"]["arms"].items() if a.get("status") == "trained"}
+        status = table["status"] = {t: ("trained" if s == "trained" and t in ran else "not run") for t, s in status.items()}
     for tag in [bar_arm] if base else list(BGE_SMALL_ARMS):
         entry: dict[str, Any] = {"tag": tag, "role": ARMS[tag]["role"], "status": status.get(tag), "datasets": {}}
         for dataset, (rows, boot, extra) in scopes.items():
