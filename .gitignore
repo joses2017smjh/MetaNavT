@@ -51,6 +51,11 @@ bench/results/*.json
 !bench/results/beir_scifact_bm25_ablation.json
 !bench/results/beir_scifact_rerank_cap.json
 !bench/results/beir_fiqa.json
+# M49 late interaction (app/eval/late_interaction.py): each dataset's primary and extra files with their sidecars, the
+# ATTEMPT 2 files if any, and the indicative CPU file; the committed runs (.gz) under late_interaction_runs/ are not ignored
+!bench/results/late_interaction*.json
+!bench/results/beir_scifact_late_interaction*.json
+!bench/results/beir_fiqa_late_interaction*.json
 # the served path at FiQA scale and pgvector on its table (make bench-served-scale)
 !bench/results/served_scale_fiqa.json
 !bench/results/served_scale_fiqa_pre_m20.json
@@ -160,6 +165,51 @@ bench/results/agent_injection_adaptive_tune/
 !bench/results/beir_fiqa_small_rerankers.json
 !bench/results/beir_fiqa_small_rerankers.per_query.json
 !bench/results/small_rerankers_cpu.json
+# M46: LLM query processing with real open LLMs, each results file with its per-query sidecar (make bench-llm-query-arms,
+# bench-beir-llm-query-arms, bench-beir-fiqa-llm-query-arms; MODEL=qwen3.5-122b for the stretch's _122b files) and the audit
+!bench/results/llm_query_arms.json
+!bench/results/llm_query_arms.per_query.json
+!bench/results/beir_scifact_llm_query_arms.json
+!bench/results/beir_scifact_llm_query_arms.per_query.json
+!bench/results/beir_fiqa_llm_query_arms.json
+!bench/results/beir_fiqa_llm_query_arms.per_query.json
+!bench/results/llm_query_arms_122b.json
+!bench/results/llm_query_arms_122b.per_query.json
+!bench/results/beir_scifact_llm_query_arms_122b.json
+!bench/results/beir_scifact_llm_query_arms_122b.per_query.json
+!bench/results/beir_fiqa_llm_query_arms_122b.json
+!bench/results/beir_fiqa_llm_query_arms_122b.per_query.json
+!bench/results/llm_query_audit.json
+# M51: the same small rerankers at cheaper shapes (depth 5/10/20 x max_length 256/512; app/eval/small_rerankers_shapes.py):
+# which BEIR test queries the students' synthetic training documents touch (make small-rerankers-shapes-exposure).
+!bench/results/small_rerankers_shapes_exposure.json
+# The rows at every shape with their per-query sidecars (make bench-small-rerankers-shapes, bench-beir-small-rerankers-shapes,
+# bench-beir-fiqa-small-rerankers-shapes), the replicate on the other device (OUT_SUFFIX=_rep), the frontier and the
+# replicate comparison (CPU, from those files).
+!bench/results/small_rerankers_shapes.json
+!bench/results/small_rerankers_shapes.per_query.json
+!bench/results/beir_scifact_small_rerankers_shapes.json
+!bench/results/beir_scifact_small_rerankers_shapes.per_query.json
+!bench/results/beir_fiqa_small_rerankers_shapes.json
+!bench/results/beir_fiqa_small_rerankers_shapes.per_query.json
+!bench/results/small_rerankers_shapes_rep.json
+!bench/results/small_rerankers_shapes_rep.per_query.json
+!bench/results/beir_scifact_small_rerankers_shapes_rep.json
+!bench/results/beir_scifact_small_rerankers_shapes_rep.per_query.json
+!bench/results/beir_fiqa_small_rerankers_shapes_rep.json
+!bench/results/beir_fiqa_small_rerankers_shapes_rep.per_query.json
+!bench/results/small_rerankers_shapes_frontier.json
+!bench/results/small_rerankers_shapes_replicate.json
+# M51 Phase 2 (attempt 2): the students retrained at max_length 256, their rows beside the attempt-1 students and
+# inits at depth 5/10/20 x 256 with per-query sidecars (make bench-small-rerankers-ml256, bench-beir-small-rerankers-ml256,
+# bench-beir-fiqa-small-rerankers-ml256) and the F3 frontier (make small-rerankers-ml256-frontier).
+!bench/results/small_rerankers_ml256.json
+!bench/results/small_rerankers_ml256.per_query.json
+!bench/results/beir_scifact_small_rerankers_ml256.json
+!bench/results/beir_scifact_small_rerankers_ml256.per_query.json
+!bench/results/beir_fiqa_small_rerankers_ml256.json
+!bench/results/beir_fiqa_small_rerankers_ml256.per_query.json
+!bench/results/small_rerankers_ml256_frontier.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

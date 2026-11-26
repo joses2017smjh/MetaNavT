@@ -190,16 +190,64 @@ def small_reranker_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str
     return out
 
 
+def small_reranker_shape_configs(rows: str = "all") -> list[BeirConfig]:
+    """M51: the six models of app/eval/small_rerankers_shapes.py at every shape of its grid (depth 5/10/20 x max_length
+    256/512, fp32) over hybrid@bge-small, each paired with the unreranked hybrid, its parent. A model's rows are next to
+    each other, grouped by cap, so each (model, cap) is loaded once and released after its last row. rows "anchors":
+    the parent and the six 20/512 rows only (M43's committed rows, so the smoke computes no new number)."""
+    from app.eval import small_rerankers as sr
+    from app.eval import small_rerankers_shapes as shapes
+
+    if rows not in ("all", "anchors"):
+        raise ValueError(f"unknown row filter {rows!r}; expected all or anchors")
+    by = {c.name: c for c in DEFAULT_CONFIGS}
+    configs = [replace(by[sr.PARENT], parent=None)]
+    for tag, depth, cap in shapes.GRID:
+        if rows == "anchors" and (depth, cap) != shapes.ANCHOR:
+            continue
+        configs.append(BeirConfig(name=shapes.row_name(tag, depth, cap), mode="hybrid", embedder=BGE_SMALL, reranker=tag if tag in sr.STUDENTS else sr.model_of(tag),
+                                  rerank_top=depth, precision=shapes.PRECISION, max_length=cap, parent=sr.PARENT))
+    return configs
+
+
+def small_reranker_ml256_configs() -> list[BeirConfig]:
+    """M51 Phase 2: the parent, the attempt-1 students and their inits at depth 5/10/20 x max_length 256 (anchors: they
+    must equal M51's committed shapes rows) and the two students retrained at 256 (attempt 2) at the same shapes."""
+    from app.eval import small_rerankers as sr
+    from app.eval import small_rerankers_shapes as shapes
+
+    by = {c.name: c for c in DEFAULT_CONFIGS}
+    configs = [replace(by[sr.PARENT], parent=None)]
+    for name, tag, depth, cap in shapes.ml256_rows():
+        student = tag in sr.STUDENTS or tag in shapes.PHASE2["students"]
+        configs.append(BeirConfig(name=name, mode="hybrid", embedder=BGE_SMALL, reranker=tag if student else sr.model_of(tag),
+                                  rerank_top=depth, precision=shapes.PRECISION, max_length=cap, parent=sr.PARENT))
+    return configs
+
+
 SMALL_RERANKERS_LADDER = "small-rerankers"
+SMALL_RERANKER_SHAPES_LADDER = "small-rerankers-shapes"
+SMALL_RERANKER_ML256_LADDER = "small-rerankers-ml256"
 # The committed files a small-rerankers run compares its recomputed rows with: the parent and the app's default reranker
 # with the dataset's first file, the teacher with M41's row of the same name.
 SMALL_RERANKERS_REPRODUCE = {"scifact": (("bench/results/beir_scifact.json", ("hybrid@bge-small", RERANK_FP32_512)),
                                          ("bench/results/beir_scifact_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",))),
                              "fiqa": (("bench/results/beir_fiqa.json", ("hybrid@bge-small", RERANK_FP32_512)),
                                       ("bench/results/beir_fiqa_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",)))}
+LATE_INTERACTION_LADDER = "late-interaction"  # M49: two parts (--part primary|extra), app/eval/late_interaction.py ROWS
+
+
+def late_interaction_configs(part: str = "primary") -> list[BeirConfig]:
+    """M49: the rows of a part of the late-interaction ladder (the parents, the MaxSim legs and rerankers, the references)."""
+    from app.eval import late_interaction as li
+
+    return li.beir_configs(part)
+
+
 LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS,
            **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()},
-           SMALL_RERANKERS_LADDER: small_reranker_configs()}
+           SMALL_RERANKERS_LADDER: small_reranker_configs(), SMALL_RERANKER_SHAPES_LADDER: small_reranker_shape_configs(),
+           SMALL_RERANKER_ML256_LADDER: small_reranker_ml256_configs(), LATE_INTERACTION_LADDER: late_interaction_configs("primary")}
 
 
 def models_2026_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
@@ -381,12 +429,15 @@ class Engine:
     """Shares indexes, embeddings and models across configs; caches doc embeddings on disk."""
 
     def __init__(self, chunks: list[Chunk], cache_dir: Path | None = None, *, device: str = "auto", check_models: bool = False,
-                 resolve_reranker=None):
+                 resolve_reranker=None, per_query_extras=None):
         """check_models (M41): every model, once loaded, passes its load-and-score check (app/eval/models_2026.py; recorded
         in its provenance) or the run stops. resolve_reranker (M43): name -> (what to load, what the row records about
         it, a check of the loaded model or None); it may raise (a cached revision that is not the pinned one, a
-        student's checkpoint whose sha256 is not the manifest's)."""
+        student's checkpoint whose sha256 is not the manifest's). per_query_extras (M51): (model, query, passages) -> each
+        pair's token count; when set, every row also records per query the name-independent hashes of its ranking and,
+        for a reranked row, how many reranked pairs are longer than its cap, both computed outside the timed stages."""
         self.check_models = check_models
+        self.per_query_extras = per_query_extras
         self.resolve_reranker = resolve_reranker
         self.chunks = chunks
         self.by_id = {c.chunk_id: c for c in chunks}
@@ -400,6 +451,7 @@ class Engine:
         self._doc_mats: dict[str, np.ndarray] = {}
         self._unit_mats: dict[str, np.ndarray] = {}
         self._rerankers: dict[str, Any] = {}
+        self._mv: dict[str, Any] = {}  # M49: `mv:` name -> app.eval.late_interaction.MvLeg (a multi-vector model at one document length)
         self.provenance: dict[str, dict] = {}
 
     def bm25(self, analyzer: str, k1: float, b: float) -> BM25Index:
@@ -410,7 +462,29 @@ class Engine:
             )
         return self._bm25[key]
 
+    def mv_leg(self, name: str):
+        """M49: the MaxSim leg of an `mv:<tag>[/doc<L>]` name, loaded once (settings asserted, load-and-score and the card's
+        fingerprint checked; app.eval.late_interaction.MvLeg). Its token store lives in memory only: never doc_matrix's
+        shared .npy cache."""
+        if name not in self._mv:
+            from app.eval import late_interaction as li
+
+            leg = li.MvLeg(name, self.chunks, corpus_sha256=self.corpus_sha256, device=None if self.device == "auto" else self.device,
+                           check_models=self.check_models)
+            self._mv[name] = leg
+            self.provenance[name] = leg.provenance
+        return self._mv[name]
+
+    def prepare(self, cfg, queries: dict[str, str]) -> None:
+        """M49: a multi-vector row's batched pass over every query of the run, before the warm-up (no-op for other rows)."""
+        if cfg.mode in {"dense", "hybrid"} and cfg.embedder and cfg.embedder.startswith("mv:"):
+            leg = self.mv_leg(cfg.embedder)
+            leg.build_store()
+            leg.prepare(queries, cfg.k)
+
     def embedder(self, name: str):
+        if name.startswith("mv:"):  # M49: a multi-vector model (the MaxSim leg), not a single-vector embedder
+            return self.mv_leg(name).encoder
         if name not in self._embedders:
             if name == "hash":
                 self._embedders[name] = HashEmbedder()
@@ -471,6 +545,12 @@ class Engine:
 
     def reranker(self, name: str, precision: str = "fp32", max_length: int | None = None):
         key = self.reranker_key(name, precision, max_length)
+        if name.startswith("mv:"):  # M49: MaxSim as the reranker (role b): the same leg, its candidates encoded on the fly
+            leg = self.mv_leg(name)
+            if key not in self.provenance:
+                self.provenance[key] = {**leg.provenance, "role": "b", "precision": precision, "max_length": max_length,
+                                        "score_scale": "MaxSim: the sum over query tokens of the best cosine with a document token"}
+            return leg
         if key not in self._rerankers:
             if name == "overlap":
                 self._rerankers[key] = OverlapReranker()
@@ -509,6 +589,12 @@ class Engine:
         embedders = {c.embedder for c in later if c.mode in {"dense", "hybrid"} and c.embedder}
         rerankers = {self.reranker_key(c.reranker, c.precision, c.max_length) for c in later if c.reranker}
         dropped = [n for n in self._embedders if n not in embedders] + [k for k in self._rerankers if k not in rerankers]
+        # M49: a leg stays while a later row reads it as its embedder or as its reranker (role b's cross-check reads the
+        # role-(a) score matrix); its token store was dropped after the batched pass already
+        legs = {c.embedder for c in later if c.embedder} | {c.reranker for c in later if c.reranker}
+        for name in [n for n in self._mv if n not in legs]:
+            self._mv.pop(name).release()
+            dropped.append(name)
         for name in dropped:
             self._embedders.pop(name, None)
             self._doc_mats.pop(name, None)
@@ -528,6 +614,10 @@ class Engine:
 
     def rerank(self, cfg, query: str, pairs: list[tuple[Chunk, float]]) -> list[tuple[Chunk, float]]:
         model = self.reranker(cfg.reranker, cfg.precision, cfg.max_length)
+        if cfg.reranker.startswith("mv:"):  # M49: maxsim per (query, candidate), stable sort (app.eval.late_interaction.MvLeg.rerank)
+            ranked = model.rerank(query, pairs)
+            self.provenance[self.reranker_key(cfg.reranker, cfg.precision, cfg.max_length)]["stored_vs_on_the_fly"] = model.cross_check()
+            return ranked
         if cfg.reranker == "overlap":
             return model(query, pairs)
         scores = cross_encoder_scores(model, [(query, c.text) for c, _ in pairs])
@@ -542,7 +632,14 @@ class Engine:
             t = time.perf_counter()
             self.bm25(cfg.analyzer, cfg.k1, cfg.b)
             parts["bm25_index_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
-        if cfg.mode in {"dense", "hybrid"}:
+        if cfg.mode in {"dense", "hybrid"} and cfg.embedder and cfg.embedder.startswith("mv:"):
+            t = time.perf_counter()
+            self.mv_leg(cfg.embedder)
+            parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+            t = time.perf_counter()
+            self.mv_leg(cfg.embedder).build_store()  # M49: every document's token vectors, in memory (none if already scored)
+            parts["token_store_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+        elif cfg.mode in {"dense", "hybrid"}:
             t = time.perf_counter()
             self.embedder(cfg.embedder)
             parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
@@ -566,7 +663,10 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
     if cfg.mode in {"bm25", "hybrid"}:
         with timer.stage("bm25"):
             bm25_hits = engine.bm25(cfg.analyzer, cfg.k1, cfg.b).search(query, k=cfg.k)
-    if cfg.mode in {"dense", "hybrid"}:
+    if cfg.mode in {"dense", "hybrid"} and cfg.embedder and cfg.embedder.startswith("mv:"):
+        with timer.stage("dense"):  # M49: the MaxSim leg's top k from the batched pass (Engine.prepare), rounded as the dense leg's
+            dense_hits = engine.mv_leg(cfg.embedder).hits(query, cfg.k)
+    elif cfg.mode in {"dense", "hybrid"}:
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
         unit = engine.unit_matrix(cfg.embedder)
         with timer.stage("embed"):
@@ -604,17 +704,34 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         if engine.device == "cpu" or not torch.cuda.is_available():
             raise RuntimeError(f"{cfg.precision} ablations require CUDA; CPU fallback would not measure precision")
     build = engine.build(cfg)  # index, embeddings, model loads: reported separately, never inside a query
+    engine.prepare(cfg, queries)  # M49: a multi-vector leg's batched pass over every query (nothing for other rows)
+    mv_leg = bool(cfg.embedder and cfg.embedder.startswith("mv:") and cfg.mode == "dense")
+    mv_head = bool(cfg.reranker and cfg.reranker.startswith("mv:"))
+    capture: dict[str, dict] | None = {"leg": {}} if mv_leg else ({"head": {}} if mv_head else None)
     first = next(iter(queries.values()))
     retrieve(engine, cfg, first, StageTimer())  # warm-up (CUDA kernels, caches); excluded from the stats
     timer = StageTimer()
     per_query: list[dict[str, float]] = []
     rankings: dict[str, list[str]] = {}
+    extra: dict[str, Any] | None = {"truncated_pairs": [], "rank_hash": {"top10": [], "top10_set": [], "ranking": []}} if engine.per_query_extras else None
     t0 = time.perf_counter()
     for qid, text in queries.items():
         ids = retrieve(engine, cfg, text, timer)
+        if extra is not None:  # M51, after the timed stages: the reranked pairs the cap cut (the head before the id filter)
+            extra["truncated_pairs"].append(_truncated_pairs(engine, cfg, text, ids) if cfg.reranker else None)
+        if capture is not None:  # M49: the committed runs are PRE-filter (what RRF fuses / what the reranker returned)
+            if mv_leg:
+                capture["leg"][qid] = engine.mv_leg(cfg.embedder).hits(text, cfg.k)
+            else:
+                capture["head"][qid] = list(ids[: cfg.rerank_top])
         # Match BEIR's default ignore_identical_ids convention.
         ids = [did for did in ids if did != qid]
         rankings[qid] = ids
+        if extra is not None:
+            from app.eval.small_rerankers_shapes import rank_hashes
+
+            for key, value in rank_hashes(ids).items():  # name-independent: equal for rows that rank this query alike
+                extra["rank_hash"][key].append(value)
         relevant = list(qrels[qid])
         per_query.append(
             {
@@ -651,7 +768,19 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         # trec.run_sha256 says whether a recomputed row ranks every query identically (M41)
         "ranking_sha256": hashlib.sha256(trec_run_text(cfg, rankings).encode("utf-8")).hexdigest(),
         "_per_query": per_query,
+        **({"_extra": extra} if extra is not None else {}),
+        **({"_capture": capture} if capture is not None else {}),
+        **({"latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the "
+                            "embedder's batched_pass (wall time, amortised ms per query)"} if cfg.embedder and cfg.embedder.startswith("mv:") else {}),
     }
+
+
+def _truncated_pairs(engine: Engine, cfg: BeirConfig, query: str, ids: list[str]) -> int:
+    """How many of a query's reranked (query, passage) pairs are longer than the row's cap, by the loaded model's own
+    tokenizer (special tokens on, truncation and padding off): the pairs of the reranked head."""
+    model = engine.reranker(cfg.reranker, cfg.precision, cfg.max_length)
+    lengths = engine.per_query_extras(model, query, [engine.by_id[d].text for d in ids[: cfg.rerank_top]])
+    return sum(1 for n in lengths if n > cfg.max_length)
 
 
 def attach_confidence(results: list[dict], n_queries: int, seed: int = DEFAULT_SEED, n_boot: int = DEFAULT_N_BOOT, *, published: dict | None = PUBLISHED,
@@ -734,12 +863,16 @@ def run(
     header: dict[str, Any] | None = None,
     resolve_reranker=None,
     keep_per_query: bool = False,
+    per_query_extras=None,
+    reproduce_extra=None,
 ) -> dict[str, Any]:
     """M41: `check_models` (Engine), `comparisons` (attach_confidence), `reproduce` = (committed file, row names): whether
     those rows, recomputed here, equal the file's (retrieval block; and the ranking, where the committed row wrote a TREC
     run or recorded its ranking's sha256), recorded whatever the answer; `header` adds fields to the results header.
     M43: `reproduce` may be several such pairs (a list of blocks is recorded); `resolve_reranker` (Engine);
-    `keep_per_query` returns every row's per-query scores under "_per_query" for the caller's sidecar (per_query_sidecar)."""
+    `keep_per_query` returns every row's per-query scores under "_per_query" for the caller's sidecar (per_query_sidecar).
+    M51: `per_query_extras` (Engine) returns every row's per-query extras under "_per_query_extra"; `reproduce_extra`
+    replaces _same_ranking as the per-row check of `reproduce`."""
     if dataset not in DATASETS:
         raise ValueError(f"unsupported dataset {dataset!r}")
     if configs is not None and not configs:
@@ -761,12 +894,14 @@ def run(
     if missing_docs:
         raise ValueError(f"qrels reference {len(missing_docs)} missing documents")
     engine = Engine(chunks_from_corpus(corpus), cache_dir=data_dir / "cache", device=device, check_models=check_models,
-                    resolve_reranker=resolve_reranker)
+                    resolve_reranker=resolve_reranker, per_query_extras=per_query_extras)
     results = []
     for i, cfg in enumerate(configs):
         results.append(run_config(engine, cfg, queries, qrels, trec_dir=trec_dir, require_trec_eval=require_trec_eval))
         engine.release_unused(configs[i + 1:])
     per_query = {row["config"]: row["_per_query"] for row in results} if keep_per_query else None  # attach_confidence drops them
+    per_query_extra = {row["config"]: row.pop("_extra") for row in results if "_extra" in row} or None
+    captures = {row["config"]: row.pop("_capture") for row in results if "_capture" in row}  # M49: the committed runs (pre-filter)
     # A published full-test reference is inapplicable to a query subset.
     published = spec["published"] if split == "test" and len(queries) == full_query_count else None
     boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot, published=published, comparisons=comparisons)
@@ -775,10 +910,11 @@ def run(
         from app.eval.models_2026 import reproduces
 
         repo = Path(root or Path(__file__).resolve().parents[2])
+        check = reproduce_extra or _same_ranking
         if isinstance(reproduce[0], str):
-            reproduced = reproduces(repo, reproduce[0], results, list(reproduce[1]), extra=_same_ranking)
+            reproduced = reproduces(repo, reproduce[0], results, list(reproduce[1]), extra=check)
         else:
-            reproduced = [reproduces(repo, rel, results, list(names), extra=_same_ranking) for rel, names in reproduce]
+            reproduced = [reproduces(repo, rel, results, list(names), extra=check) for rel, names in reproduce]
     zip_path = data_dir / f"{dataset}.zip"
     return {
         "dataset": f"BEIR/{dataset}",
@@ -807,7 +943,16 @@ def run(
         **(header or {}),
         **({"reproduces": reproduced} if reproduced is not None else {}),
         **({"_per_query": per_query} if per_query is not None else {}),
+        **({"_per_query_extra": per_query_extra} if per_query_extra is not None else {}),
+        **({"_captures": captures} if captures else {}),
     }
+
+
+def _same_ranking_and_intervals(row: dict, committed: dict) -> dict:
+    """M51's reproduces() extra for M43's anchor rows: _same_ranking, and whether the row's 95% intervals and its delta
+    against its parent equal the committed row's (the same queries, seed and resample count draw the same matrix)."""
+    return {**_same_ranking(row, committed), "ci_equal": row.get("ci") == committed.get("ci"),
+            "delta_vs_parent_equal": row.get("delta_vs_parent") == committed.get("delta_vs_parent")}
 
 
 def _same_ranking(row: dict, committed: dict) -> dict:
@@ -821,16 +966,18 @@ PER_QUERY_SCHEMA = "beir-per-query-scores-v1"
 PER_QUERY_METRICS = ("ndcg@10", "recall@10", "recall@100", "mrr@10")
 
 
-def per_query_sidecar(blob: dict, per_query: dict[str, list[dict]]) -> dict[str, Any]:
+def per_query_sidecar(blob: dict, per_query: dict[str, list[dict]], extra: dict[str, dict] | None = None) -> dict[str, Any]:
     """The per-query scores of a BEIR results file, column by column and unrounded, so that every interval and paired
     delta in it can be recomputed without a model (M43: python -m app.eval.small_rerankers --rescore). Query ids in the
-    run's order (the bootstrap's); nothing else: no ranking, no command, no path."""
+    run's order (the bootstrap's); nothing else: no ranking, no command, no path. M51: `extra` (per row: per-query
+    truncation counts and ranking hashes) goes under "per_query_extra", outside "scores", which every rescore reads."""
     first = next(iter(per_query.values()))
     return {"schema": PER_QUERY_SCHEMA,
             "about": "per-query scores of the results file with the same name (.json), in the run's query order and unrounded",
             "git_sha": blob.get("git_sha"), "timestamp": blob.get("timestamp"), "dataset": blob.get("dataset"), "split": blob.get("split"),
             "metrics": list(PER_QUERY_METRICS), "ids": [r["id"] for r in first],
-            "scores": {name: {m: [float(r[m]) for r in rows] for m in PER_QUERY_METRICS} for name, rows in per_query.items()}}
+            "scores": {name: {m: [float(r[m]) for r in rows] for m in PER_QUERY_METRICS} for name, rows in per_query.items()},
+            **({"per_query_extra": extra} if extra else {})}
 
 
 def _fmt(block: dict | None, key: str = "mean") -> str:
@@ -876,10 +1023,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--only", default=None, help="comma-separated config names (from the chosen ladder)")
     p.add_argument("--n-boot", type=int, default=DEFAULT_N_BOOT)
     p.add_argument("--checkpoint-dir", type=Path, default=None, help="small-rerankers: where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS)")
+    p.add_argument("--rows", choices=("all", "anchors"), default="all", help="small-rerankers-shapes: every row, or the parent and M43's six 20/512 rows only")
+    p.add_argument("--ml256-checkpoint-dir", type=Path, default=None, help="small-rerankers-ml256: where the attempt-2 checkpoints are (default: $SMALL_RERANKER_ML256_CHECKPOINTS)")
+    p.add_argument("--part", choices=("primary", "extra"), default="primary", help="late-interaction: which part of the ladder (two results files per dataset)")
+    p.add_argument("--skip-stretch", default=None, help="late-interaction extra part: run without the stretch rows, recorded as 'not run: <this reason>'")
+    p.add_argument("--other-jobs", type=Path, default=None, help="late-interaction: a JSON list of the other scoring jobs at the same commit and attempt, recorded in the header")
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    configs = list(LADDERS[args.ladder])
+    configs = list(small_reranker_shape_configs(args.rows) if args.ladder == SMALL_RERANKER_SHAPES_LADDER else LADDERS[args.ladder])
+    late: dict[str, Any] = {}
+    if args.ladder == LATE_INTERACTION_LADDER:  # M49: the part's rows, without a stretch model that does not load (recorded)
+        from app.eval import late_interaction as li
+
+        late["skip"], late["status"] = li.stretch_gate(args.part, args.skip_stretch, args.device)
+        configs = li.beir_configs(args.part, late["skip"])
     if args.rerank_top is not None:  # the first SciFact sweep silently ran every depth row at 20 because of a default here
         configs = [BeirConfig(**{**asdict(c), "rerank_top": args.rerank_top}) for c in configs]
     if args.only:
@@ -902,15 +1060,45 @@ def main(argv: list[str] | None = None) -> int:
         m41 = dict(check_models=True, comparisons=small_reranker_comparisons(configs), keep_per_query=True,
                    reproduce=tuple((rel, tuple(n for n in rows if n in names)) for rel, rows in SMALL_RERANKERS_REPRODUCE[args.dataset]),
                    header={"small_rerankers": sr.header([c.name for c in configs])}, resolve_reranker=sr.resolver(args.checkpoint_dir, root))
+    if args.ladder == SMALL_RERANKER_SHAPES_LADDER:  # M51: M43's conventions at every shape, plus per-query extras and the anchors
+        from app.eval import small_rerankers as sr
+        from app.eval import small_rerankers_shapes as shapes
+
+        names = {c.name for c in configs}
+        m41 = dict(check_models=True, comparisons=shapes.comparisons([c.name for c in configs], with_parent=False), keep_per_query=True,
+                   reproduce=((sr.RESULTS[args.dataset], tuple(n for n in shapes.anchor_rows() if n in names)),),
+                   reproduce_extra=_same_ranking_and_intervals, per_query_extras=shapes.pair_token_lengths,
+                   header={"small_rerankers": shapes.header([c.name for c in configs], rows=args.rows)},
+                   resolve_reranker=shapes.resolver(args.checkpoint_dir, root))
+    if args.ladder == SMALL_RERANKER_ML256_LADDER:  # M51 Phase 2: the same conventions, anchored on M51's committed shapes files
+        from app.eval import small_rerankers_shapes as shapes
+
+        names = {c.name for c in configs}
+        m41 = dict(check_models=True, comparisons=shapes.comparisons([c.name for c in configs], with_parent=False), keep_per_query=True,
+                   reproduce=((shapes.RESULTS[args.dataset], tuple(n for n in shapes.ml256_anchor_rows() if n in names)),),
+                   reproduce_extra=_same_ranking_and_intervals, per_query_extras=shapes.pair_token_lengths,
+                   header={"small_rerankers": shapes.header([c.name for c in configs], phase2=True)},
+                   resolve_reranker=shapes.resolver(args.checkpoint_dir, root, args.ml256_checkpoint_dir))
+    if args.ladder == LATE_INTERACTION_LADDER:  # M49: M43's conventions, the declared comparisons, the reproduction pairs, the header
+        others = json.loads(args.other_jobs.read_text()) if args.other_jobs else []
+        m41 = li.beir_run_kwargs(args.dataset, args.part, configs, late["status"], others, root)
     blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval, **m41)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
+    captures = blob.pop("_captures", None)
     per_query = blob.pop("_per_query", None)
+    per_query_extra = blob.pop("_per_query_extra", None)
+    if args.ladder == SMALL_RERANKER_SHAPES_LADDER:
+        shapes.annotate_beir(blob, per_query_extra)  # per row: ranking_digest, n_top10_differs_from_parent, truncation totals
+    if args.ladder == SMALL_RERANKER_ML256_LADDER:
+        shapes.annotate_beir(blob, per_query_extra, shapes.N_ML256_ANCHOR_ROWS)
+    if args.ladder == LATE_INTERACTION_LADDER:  # the committed runs go beside the results file (bench/results/late_interaction_runs/)
+        li.finish_beir(blob, per_query, captures, out.parent / "late_interaction_runs", args.dataset)
     out.write_text(json.dumps(blob, indent=2) + "\n")
     if per_query is not None:
         from app.eval import per_question
 
-        per_question.write(per_question.sidecar_path(out), per_query_sidecar(blob, per_query))
+        per_question.write(per_question.sidecar_path(out), per_query_sidecar(blob, per_query, per_query_extra))
     print(markdown_table(blob))
     if blob.get("reproduces"):  # recorded whatever the answer; a parent that differs is not an error
         print("reproduces", json.dumps(blob["reproduces"]))

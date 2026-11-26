@@ -106,6 +106,23 @@ def test_the_manifest_refuses_a_smoke_run_a_dirty_tree_and_changed_weights(tmp_p
         tr.build_manifest(tmp_path / "moved", ["student-minilm-l6"])
 
 
+def test_a_later_attempts_manifest_refuses_another_attempt_and_names_the_training_device(tmp_path):
+    for tag in ("student-minilm-l6-ml256", "student-minilm-l12-ml256"):
+        _trained(tmp_path / "p2", tag, attempt=2, machine={"device_name": "Quadro RTX 8000"})
+    manifest = tr.build_manifest(tmp_path / "p2", ["student-minilm-l6-ml256", "student-minilm-l12-ml256"], 2)
+    entry = manifest["students"]["student-minilm-l6-ml256"]
+    assert entry["attempt"] == 2 and entry["training_device"] == "Quadro RTX 8000" and entry["directory"] == "student-minilm-l6-ml256"
+    with pytest.raises(SystemExit, match="records attempt 2, not 1"):
+        tr.build_manifest(tmp_path / "p2", ["student-minilm-l6-ml256"], 1)
+    _trained(tmp_path / "a1", "student-minilm-l6")
+    with pytest.raises(SystemExit, match="records attempt 1, not 2"):
+        tr.build_manifest(tmp_path / "a1", ["student-minilm-l6"], 2)
+    out = tmp_path / "students_ml256.json"
+    assert tr.main(["manifest", "--checkpoint-dir", str(tmp_path / "p2"), "--students", "student-minilm-l6-ml256,student-minilm-l12-ml256",
+                    "--attempt", "2", "--out", str(out)]) == 0
+    assert set(json.loads(out.read_text())["students"]) == {"student-minilm-l6-ml256", "student-minilm-l12-ml256"}
+
+
 def test_the_manifest_command_writes_the_committed_file(tmp_path):
     for tag in ("student-minilm-l6", "student-minilm-l12"):
         _trained(tmp_path / "ckpt", tag)
@@ -120,7 +137,41 @@ def test_the_manifest_command_writes_the_committed_file(tmp_path):
 def test_the_training_module_sets_no_hyper_parameter_of_its_own():
     source = (ROOT / "app" / "eval" / "distill_train.py").read_text()
     for key in ("learning_rate", "weight_decay", "epochs", "lists_per_step", "warmup_fraction", "max_grad_norm", "max_length", "seed"):
-        assert f'RECIPE["{key}"]' in source, key  # read from the declaration, where a test pins it
+        assert f'recipe["{key}"]' in source, key  # read from the recipe train() is given, RECIPE by default (below)
+    train = source[source.index("def train("): source.index("def reference_logits(")]
+    assert 'RECIPE["' not in train and "recipe: dict[str, Any] = RECIPE" in train
+
+
+def test_the_default_recipe_is_m43s_and_a_later_attempt_changes_max_length_only():
+    """M51 Phase 2: train() defaults to M43's RECIPE (the very object), ATTEMPT and the student's own tag, so M43's
+    path is unchanged; --max-length 256 gives a copy of RECIPE with only max_length changed, which the CLI accepts only
+    as a later attempt under its own tag. RECIPE itself is never edited."""
+    import inspect
+
+    from app.eval import small_rerankers_shapes as shapes
+    from app.eval.small_rerankers import ATTEMPT
+
+    params = inspect.signature(tr.train).parameters
+    assert params["recipe"].default is RECIPE and params["attempt"].default == ATTEMPT == 1 and params["tag"].default is None
+    assert tr.recipe_for() is RECIPE and tr.recipe_for(RECIPE["max_length"]) is RECIPE and RECIPE["max_length"] == 512
+    later = tr.recipe_for(256)
+    assert later is not RECIPE and {k for k in RECIPE if later[k] != RECIPE[k]} == {"max_length"} and set(later) == set(RECIPE)
+    assert later == {**RECIPE, **shapes.PHASE2["recipe_delta"]} and RECIPE["max_length"] == 512
+    for argv in (["--max-length", "256"], ["--max-length", "256", "--attempt", "2"], ["--max-length", "256", "--tag", "student-minilm-l6-ml256"],
+                 ["--max-length", "256", "--attempt", "1", "--tag", "student-minilm-l6-ml256"]):
+        with pytest.raises(SystemExit, match="later attempt under its own tag"):
+            tr.main(["train", "--student", "student-minilm-l6", "--checkpoint-dir", "unused", *argv])
+
+
+def test_the_phase2_make_targets_train_and_record_what_phase2_declares():
+    from app.eval import small_rerankers_shapes as shapes
+
+    make = (ROOT / "Makefile").read_text()
+    train = make[make.index("distill-train-ml256:"):].split("\n\n")[0]
+    assert f"--max-length {shapes.PHASE2['recipe_delta']['max_length']} --attempt {shapes.PHASE2['attempt']} --tag $(STUDENT)-ml256" in train
+    assert {f"{student}-ml256" for student in shapes.PHASE2["students"].values()} == set(shapes.PHASE2["students"])
+    manifest = make[make.index("distill-manifest-ml256:"):].split("\n\n")[0]
+    assert f"--students {','.join(shapes.PHASE2['students'])} --attempt {shapes.PHASE2['attempt']} --out {shapes.PHASE2['manifest']}" in manifest
 
 
 def test_micro_batches_cover_a_step_in_order_and_their_losses_add_up_to_the_steps_mean():

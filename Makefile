@@ -418,12 +418,179 @@ small-rerankers-rescore: ## recompute every interval and paired delta of the thr
 small-rerankers-bar: ## print the quality bar row by row from the three committed files -> stdout
 	$(PYTHON) -m app.eval.small_rerankers --bar
 
+# ---- M46: LLM query processing measured with real open LLMs (app/eval/llm_query_*.py; milestones2 brief M46) ----
+# HyDE, multi-query expansion, decomposition and corrective grading, each at its placements relative to the
+# cross-encoder, against its exact parent on fixture v1's held-out half, BEIR SciFact and FiQA. The bar and every pinned
+# value are in app/eval/llm_query_spec.py. The worklist and the generation read no qrels; every LLM output is cached in
+# bench/llm_query, and the scoring targets call no LLM. LLM_QUERY_WORK holds the worklists, the per-shard call logs and
+# the reranker-score cache (not committed).
+LLM_QUERY_WORK ?= bench/external/llm_query
+DATASET ?= fixture
+QUERIES ?= test
+SHARD ?= 1/1
+LLM_QUERY_STRETCH = $(if $(filter qwen3.5-122b,$(MODEL)),_122b)
+.PHONY: llm-query-ids llm-query-worklist llm-query-generate llm-query-merge bench-llm-query-arms bench-beir-llm-query-arms bench-beir-fiqa-llm-query-arms llm-query-arms-rescore llm-query-arms-bar
+llm-query-ids: ## the test and dev query ids (reads the qrels' query-id column only; BEIR_DATA_DIR) -> bench/llm_query/query_ids.json
+	$(PYTHON) -m app.eval.llm_query_gen ids --data-dir $(BEIR_DATA_DIR)
+
+llm-query-worklist: ## every prompt of DATASET=fixture|scifact|fiqa (QUERIES=dev for the probe), after P0 and P1 and (BEIR test) their committed ranking hashes; no qrels (needs .[ml] and a GPU) -> $(LLM_QUERY_WORK)/worklist
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_gen worklist --dataset $(DATASET) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --rerank-cache-dir $(LLM_QUERY_WORK)/rerank_cache $(if $(REPRODUCED),--reproduced $(REPRODUCED))
+
+llm-query-generate: ## the calls of DATASET, MODEL=qwen3.5-27b|gemma4-26b|qwen3.5-122b, SHARD=i/n through Ollama at OLLAMA_BASE_URL, resumable (DEADLINE=epoch seconds) -> $(LLM_QUERY_WORK)/cache
+	$(PYTHON) -m app.eval.llm_query_gen generate --dataset $(DATASET) --model $(MODEL) --shard $(SHARD) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --cache-dir $(LLM_QUERY_WORK)/cache $(if $(DEADLINE),--deadline $(DEADLINE))
+
+llm-query-merge: ## every fully generated (dataset, model) into bench/llm_query with parents.json.gz and the manifest (MODELS=qwen3.5-122b: manifest_122b.json); CPU
+	$(PYTHON) -m app.eval.llm_query_gen merge --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --cache-dir $(LLM_QUERY_WORK)/cache $(if $(MODELS),--models $(MODELS))
+
+bench-llm-query-arms: ## fixture v1: P0, P1, every arm of the merged models (MODELS=; MODEL=qwen3.5-122b: the stretch), the [heuristic] and qwen2.5:7b rows; no LLM (needs .[ml], a GPU or a slow CPU) -> bench/results/llm_query_arms$(LLM_QUERY_STRETCH).json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_arms --dataset fixture $(if $(MODEL),--models $(MODEL),$(if $(MODELS),--models $(MODELS))) --rerank-cache $(LLM_QUERY_WORK)/rerank_cache/fixture.jsonl --out bench/results/llm_query_arms$(LLM_QUERY_STRETCH).json
+
+bench-beir-llm-query-arms: ## BEIR SciFact test: the same rows and dense@bge-small; no LLM -> bench/results/beir_scifact_llm_query_arms$(LLM_QUERY_STRETCH).json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_arms --dataset scifact --data-dir $(BEIR_DATA_DIR) $(if $(MODEL),--models $(MODEL),$(if $(MODELS),--models $(MODELS))) --rerank-cache $(LLM_QUERY_WORK)/rerank_cache/scifact.jsonl --out bench/results/beir_scifact_llm_query_arms$(LLM_QUERY_STRETCH).json
+
+bench-beir-fiqa-llm-query-arms: ## BEIR FiQA test: the same rows and dense@bge-small; no LLM -> bench/results/beir_fiqa_llm_query_arms$(LLM_QUERY_STRETCH).json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_arms --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(MODEL),--models $(MODEL),$(if $(MODELS),--models $(MODELS))) --rerank-cache $(LLM_QUERY_WORK)/rerank_cache/fiqa.jsonl --out bench/results/beir_fiqa_llm_query_arms$(LLM_QUERY_STRETCH).json
+
+llm-query-arms-rescore: ## every interval, mean and verdict word of the M46 results files from their sidecars, and every LLM and cost block from bench/llm_query (CPU, no model, no dataset); exit 1 unless all equal
+	$(PYTHON) -m app.eval.llm_query_bar --rescore
+
+llm-query-arms-bar: ## the declared bar, the replication labels and the placement decision from the committed files -> stdout
+	$(PYTHON) -m app.eval.llm_query_bar --bar
+
+.PHONY: llm-query-audit
+llm-query-audit: ## the memorisation and grader audit from the cached outputs: gold answers and paths in the outputs (fixture), verbatim runs shared with relevant documents (BEIR), the grader against qrels; descriptive (CPU; reads the BEIR qrels) -> bench/results/llm_query_audit.json
+	$(PYTHON) -m app.eval.llm_query_audit --data-dir $(BEIR_DATA_DIR) $(if $(MODELS),--models $(MODELS))
+
+.PHONY: llm-query-arms-check
+llm-query-arms-check: ## every test generation shard and scoring run is at D1 or a descendant with parts (a)-(d) byte-identical to D1; D1 descends from D0; D0..D1 changed (a) only in NUM_PREDICT and (c) not at all (bench/llm_query/declaration.json)
+	$(PYTHON) -m app.eval.llm_query_gen check
+
 .PHONY: distill-train distill-manifest
 distill-train: ## train one student by the declared recipe: STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir>; TRAIN_MICRO=n accumulates over chunks of n lists for a GPU under 16 GB (needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)/ (not committed)
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO))
 
 distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
 	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)
+
+# ---- M51 Phase 2: the two students retrained by M43's RECIPE with only max_length 256 (attempt 2; declared in
+# app/eval/small_rerankers_shapes.py PHASE2 before any M51 row ran). Reads M43's synthetic queries and teacher scores
+# only: no test query, gold question or label. The checkpoints are not committed; the manifest is.
+.PHONY: distill-train-ml256 distill-manifest-ml256
+distill-train-ml256: ## M51 Phase 2: retrain one student at max_length 256 as attempt 2 under the tag <student>-ml256 (STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir>; TRAIN_MICRO=n; TRAIN_MAX_STEPS=n is a smoke run the manifest refuses; needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)-ml256/ (not committed)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --max-length 256 --attempt 2 --tag $(STUDENT)-ml256 --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO)) $(if $(TRAIN_MAX_STEPS),--max-steps $(TRAIN_MAX_STEPS))
+
+distill-manifest-ml256: ## M51 Phase 2: the retrained students' weights sha256, recipe, loss curve, training device and reference logits, from their checkpoints (CHECKPOINTS=<dir>; refuses a smoke run, a dirty tree or another attempt) -> bench/distill/students_ml256.json
+	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS) --students student-minilm-l6-ml256,student-minilm-l12-ml256 --attempt 2 --out bench/distill/students_ml256.json
+
+# ---- M51: the small rerankers at cheaper shapes (app/eval/small_rerankers_shapes.py) ----
+# The grid (6 models x depth 5/10/20 x max_length 256/512), the budget bands, the families and the answer levels were
+# declared before any row at a new shape was measured; these two targets are CPU-only and read committed files.
+.PHONY: small-rerankers-shapes-mde small-rerankers-shapes-exposure
+small-rerankers-shapes-mde: ## the design-time Bonferroni half-widths (F1 k=6, F2 k=16) of the paired nDCG@10 delta, from M43's committed sidecars (CPU, seconds) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --mde
+
+small-rerankers-shapes-exposure: ## which BEIR SciFact / FiQA test queries have a relevant document among the students' synthetic source documents (CPU; needs BEIR_DATA_DIR) -> bench/results/small_rerankers_shapes_exposure.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --exposure --data-dir $(BEIR_DATA_DIR)
+
+# The rows (GPU): every model at every shape over hybrid@bge-small, the parent recomputed, the six 20/512 rows checked
+# against M43's committed rows (the anchors). OUT= writes elsewhere (the replicate: *_shapes_rep.json); ROWS=anchors
+# runs only the parent and the six 20/512 rows on BEIR (the smoke). CHECKPOINTS=<dir> holds the students' checkpoints.
+.PHONY: small-rerankers-shapes-check small-rerankers-shapes-smoke bench-small-rerankers-shapes bench-beir-small-rerankers-shapes bench-beir-fiqa-small-rerankers-shapes
+small-rerankers-shapes-check: ## load the six models at max_length 256 and 512 (fp32), check each pin, read loaded_max_length and the dtype back and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --check $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+small-rerankers-shapes-smoke: ## fixture v1: the parent and the six 20/512 rows against M43's file (three scopes), every other shape on the tune half only with the depth and truncation invariants pass/fail; writes nothing (needs .[ml] and a GPU; CHECKPOINTS=<dir>) -> stdout
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --smoke $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-small-rerankers-shapes: ## fixture v1 at every shape: held-out half (the bar), tune half, all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --out $(or $(OUT),bench/results/small_rerankers_shapes.json) $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-beir-small-rerankers-shapes: ## BEIR SciFact at every shape (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>; ROWS=anchors) -> bench/results/beir_scifact_small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-shapes --rows $(or $(ROWS),all) --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_scifact_small_rerankers_shapes.json)
+
+bench-beir-fiqa-small-rerankers-shapes: ## BEIR FiQA at every shape (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>; ROWS=anchors) -> bench/results/beir_fiqa_small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-shapes --rows $(or $(ROWS),all) --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_shapes.json)
+
+# From the committed files (CPU, no model): the anchors, the frontier (quality x indicative cost per cell and the
+# answer per family), every number again from the sidecars, the bar, and the replicate against the result.
+.PHONY: small-rerankers-shapes-anchors small-rerankers-shapes-frontier small-rerankers-shapes-rescore small-rerankers-shapes-bar small-rerankers-shapes-replicate
+small-rerankers-shapes-anchors: ## the parent and the six 20/512 rows of each shapes file against M43's committed rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
+	$(PYTHON) -m app.eval.small_rerankers_shapes --anchors $(FILES)
+
+small-rerankers-shapes-frontier: ## per cell its band, indicative cost and deltas (95% and the family's Bonferroni level), and the F1 / F2 answers, from the committed files (CPU) -> bench/results/small_rerankers_shapes_frontier.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier
+
+small-rerankers-shapes-rescore: ## recompute every interval, per-row total and invariant of the three shapes files from their sidecars, and the frontier from them (CPU, no model, no dataset); exit 1 unless all equal
+	$(PYTHON) -m app.eval.small_rerankers_shapes --rescore
+
+small-rerankers-shapes-bar: ## print the 36 cells and both family answers from the frontier file -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --bar
+
+small-rerankers-shapes-replicate: ## the replicate's files (*_shapes_rep.json, the other device) against the result's, row by row (CPU) -> bench/results/small_rerankers_shapes_replicate.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --replicate
+
+# M51 Phase 2 rows: the two students retrained at 256 (attempt 2) at depth 5/10/20 x max_length 256, beside the
+# attempt-1 students and their inits at the same shapes (the anchors: they must equal the committed shapes rows).
+# CHECKPOINTS=<attempt-1 dir>, ML256_CHECKPOINTS=<attempt-2 dir>; the CPU targets read the committed files only.
+.PHONY: small-rerankers-ml256-check bench-small-rerankers-ml256 bench-beir-small-rerankers-ml256 bench-beir-fiqa-small-rerankers-ml256 small-rerankers-ml256-anchors small-rerankers-ml256-frontier small-rerankers-ml256-bar
+small-rerankers-ml256-check: ## Phase 2: load the attempt-2 students, the attempt-1 students and their inits at max_length 256, check each pin and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --check --phase2 $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS))
+
+bench-small-rerankers-ml256: ## Phase 2 on fixture v1: held-out half, tune half, all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --phase2 --out $(or $(OUT),bench/results/small_rerankers_ml256.json) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS))
+
+bench-beir-small-rerankers-ml256: ## Phase 2 on BEIR SciFact (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/beir_scifact_small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_scifact_small_rerankers_ml256.json)
+
+bench-beir-fiqa-small-rerankers-ml256: ## Phase 2 on BEIR FiQA (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/beir_fiqa_small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_ml256.json)
+
+small-rerankers-ml256-anchors: ## Phase 2: the parent, the attempt-1 students and their inits at 5/10/20 x 256 of each Phase-2 file against M51's committed shapes rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
+	$(PYTHON) -m app.eval.small_rerankers_shapes --phase2 --anchors $(FILES)
+
+small-rerankers-ml256-frontier: ## Phase 2: per attempt-2 cell its cost (the attempt-1 row's), deltas vs no reranker (95% and F3's Bonferroni level), vs the attempt-1 student and vs the init, and the F3 answer (CPU) -> bench/results/small_rerankers_ml256_frontier.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier --phase2
+
+small-rerankers-ml256-bar: ## Phase 2: print the six attempt-2 cells and the F3 answer from its frontier file -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --bar --phase2
+
+# ---- M49: late interaction (ColBERT MaxSim) on text, measured or retired (app/eval/late_interaction.py) ----
+# The bar, the rows, the tripwire and the models were declared in that module (commit 26585e8) before any row ran. Each
+# dataset runs in two parts, each its own results file: PART=primary (the parents, the two named models in both roles,
+# the three cross-encoder references) and PART=extra (the parents again, the 512-token sensitivity rows, the stretch
+# models). The token stores live in memory only. Every run writes per-query scores beside its results file and the
+# named rows' MaxSim lists and reranked heads under bench/results/late_interaction_runs/.
+.PHONY: late-interaction-check bench-late-interaction bench-beir-late-interaction bench-beir-fiqa-late-interaction late-interaction-rescore late-interaction-bar late-interaction-rederive late-interaction-tripwire late-interaction-cpu
+PART ?= primary
+# the results file's suffix: _extra for the extra part, _attempt2 once ATTEMPT is 2 (evaluated only when a target runs)
+li_suffix = $(if $(filter extra,$(PART)),_extra)$(shell $(PYTHON) -c "from app.eval.late_interaction import ATTEMPT; print('_attempt2' if ATTEMPT == 2 else '')")
+li_beir_flags = --ladder late-interaction --part $(PART) --data-dir $(BEIR_DATA_DIR) $(if $(SKIP_STRETCH),--skip-stretch "$(SKIP_STRETCH)") $(if $(OTHER_JOBS),--other-jobs $(OTHER_JOBS))
+late-interaction-check: ## fidelity checks 1-5 of the ColBERT models (settings read back, checkpoint tensors, load-and-score, the card's fingerprint and lines, maxsim = maxsim_scores = sentence-transformers); no benchmark data (needs .[ml]; MODELS=tag,...) -> stdout
+	$(PYTHON) -m app.eval.late_interaction --check $(if $(MODELS),--models $(MODELS))
+
+bench-late-interaction: ## fixture v1, one part (PART=primary|extra; SKIP_STRETCH="<reason>" runs extra without the stretch rows): the held-out half (the bar), the tune half and all 136 (needs .[ml] and a GPU) -> bench/results/late_interaction[_extra].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.late_interaction --out bench/results/late_interaction$(li_suffix).json --part $(PART) $(if $(SKIP_STRETCH),--skip-stretch "$(SKIP_STRETCH)")
+
+bench-beir-late-interaction: ## BEIR SciFact test, one part (PART=primary|extra) of the late-interaction ladder (needs .[ml] and a GPU) -> bench/results/beir_scifact_late_interaction[_extra].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir $(li_beir_flags) --out bench/results/beir_scifact_late_interaction$(li_suffix).json
+
+bench-beir-fiqa-late-interaction: ## BEIR FiQA test, one part (PART=primary|extra) of the late-interaction ladder (needs .[ml] and a GPU) -> bench/results/beir_fiqa_late_interaction[_extra].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa $(li_beir_flags) --out bench/results/beir_fiqa_late_interaction$(li_suffix).json
+
+late-interaction-rescore: ## recompute every interval, paired delta and verdict of the late-interaction files from their per-query sidecars (CPU, no model, no dataset); exit 1 unless all equal the files
+	$(PYTHON) -m app.eval.late_interaction --rescore
+
+late-interaction-bar: ## the declared bar from the three primary files (verdicts, Bonferroni column, half-widths), the card-claim reading, PLAN row 4.2's outcome, the cross-part parents, and the check that the declarations commit is an ancestor of every file with the same BAR, SETTINGS and CANDIDATES -> stdout
+	$(PYTHON) -m app.eval.late_interaction --bar
+
+late-interaction-rederive: ## re-derive the named models' rows on a CPU from the committed MaxSim lists and reranked heads, BM25 and the qrels (needs the sha-pinned BEIR zips in BEIR_DATA_DIR, which app/eval/beir.py downloads) -> stdout
+	$(PYTHON) -m app.eval.late_interaction --rederive --data-dir $(BEIR_DATA_DIR)
+
+late-interaction-tripwire: ## the plausibility tripwire over the fixture and SciFact files (after J2; RECORD=<file> keeps the record); exit 1 on a trip that is not truncation-explained
+	$(PYTHON) -m app.eval.late_interaction --tripwire $(if $(RECORD),--record $(RECORD))
+
+late-interaction-cpu: ## indicative CPU cost of the two named ColBERT models in the API process (2 threads, CUDA hidden): query encode, rerank on the fly and from stored token matrices at depths 5/10/20, the fixture first stage, beside bge-small's (needs .[ml]) -> bench/results/late_interaction_cpu.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) scripts/measure_late_interaction_cpu.py --out bench/results/late_interaction_cpu.json
 
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob

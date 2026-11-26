@@ -292,3 +292,14 @@ def test_the_search_policy_has_one_row_the_declared_bar_and_says_in_words_what_t
     (row,) = write([verdict("em", "policy-untrained", -0.0049, 0.0931, primary=True), verdict("reward", "policy-untrained", 0.04, 0.2)], uncited=(0.2, 0.0))
     assert "more than all of it from fewer uncited or empty answers" in row["not_shown"]
     assert _search_policy_claims(tmp_path / "nowhere") == []
+
+
+def test_every_claims_row_has_exactly_seven_cells():
+    """A '|' inside a cell is the Markdown column separator: the row gains cells that GitHub drops (M46's gemma4:26b
+    decomposition rows lost their SciFact and FiQA fallback counts and the rest of their limits that way)."""
+    import re
+
+    lines = render().split("## Claims", 1)[1].strip().split("\n\n", 1)[0].splitlines()
+    assert lines[0].startswith("| claim |") and len(lines) > 10
+    bad = [(i, line[:120]) for i, line in enumerate(lines) if len(re.findall(r"(?<!\\)\|", line)) != 8]
+    assert not bad, f"claims rows without exactly 7 cells: {bad}"

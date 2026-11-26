@@ -528,6 +528,7 @@ def write_from_results(root: Path) -> None:
             )
     write_models_2026_figures(root, out_dir)  # M41: nothing is drawn while its results files are missing
     write_small_rerankers_figure(root, out_dir)  # M43: likewise
+    write_small_rerankers_shapes_figure(root, out_dir)  # M51: likewise (from its frontier file)
 
 
 # ---- M41: the current open models beside the app's default ones (make figures; app/eval/models_2026.py)
@@ -861,6 +862,129 @@ def write_small_rerankers_figure(root: Path, out_dir: Path) -> list[Path]:
     out.write_text(svg)
     return [out]
 
+
+
+
+
+# ---- M51: the small rerankers at cheaper shapes, quality against indicative CPU p95 (make figures; app/eval/small_rerankers_shapes.py)
+
+SMALL_RERANKERS_SHAPES_FIGURE = "small-rerankers-shapes.svg"
+# The same three role hues as M43's chart (slots 1 to 3 of the reference palette's dark steps; all-pairs validated on
+# PANEL). Identity is never the hue alone: each model's six cells are joined by a line with its name at the end, and the
+# second model of a role is dashed. The verdict is the marker's shape.
+SHAPE_ROLE = {"minilm-l6": "candidate", "minilm-l12": "candidate", "student-minilm-l6": "student", "student-minilm-l12": "student",
+              "gte-modernbert-base": "default", "bge-rerank": "default"}
+SHAPE_DASHED = ("minilm-l12", "student-minilm-l12", "bge-rerank")
+SHAPE_ROLE_LABELS = {"candidate": "published MiniLM cross-encoder", "student": "distilled student (attempt 1)", "default": "larger reference (over budget at every shape)"}
+VERDICT_WORD = {"win": "above zero", "tie": "covers zero", "loss": "below zero"}
+
+
+def write_small_rerankers_shapes_figure(root: Path, out_dir: Path) -> list[Path]:
+    """M51's chart: every cell's paired change in nDCG@10 against no reranker (95% interval) on the three datasets,
+    against its indicative CPU p95, with the 1,000 and 2,500 ms band edges. Nothing is drawn without the frontier file."""
+    import math
+
+    from app.eval import small_rerankers_shapes as shapes
+
+    path = root / shapes.FRONTIER_FILE
+    if not path.exists():
+        return []
+    front = json.loads(path.read_text())
+    cells = front["cells"]
+    datasets = (("fixture", "fixture v1, held-out half"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA"))
+    w, left, right = 1040, 96, 190
+    plot_w = w - left - right
+    panel_h, panel_gap = 190, 50
+    font = 'font-family="ui-sans-serif, system-ui, sans-serif"'
+    secs = [c["indicative_cpu"]["p95_ms"] / 1000.0 for c in cells]
+    x_lo, x_hi = min(secs) / 1.4, max(secs) * 1.4
+    sx = lambda v: left + plot_w * (math.log10(v) - math.log10(x_lo)) / (math.log10(x_hi) - math.log10(x_lo))  # noqa: E731
+    rules = shapes.BAND_RULES
+    subtitle = [
+        "Paired change in nDCG@10 against hybrid@bge-small with no reranker (markers, with 95% bootstrap intervals) for each model at depth 5, 10 and 20",
+        f"and max_length 256 and 512; x is the cell's indicative p95 for one rerank call on one HPC CPU ({front['limit_mib']} MiB api limit), not the demo's host.",
+        f"Dashed verticals: the {rules['p95_ms_under']:g} ms and {rules['p95_ms_borderline']:g} ms band edges; a cell left of an edge can still be in a higher band by its memory peak.",
+        f"F1 answer (under-indicative-budget cells): {front['answers']['F1']['answer']}; F2 answer (with the borderline cells): {front['answers']['F2']['answer']}.",
+    ]
+    top = 70 + 16 * len(subtitle) + 18
+    h = top + len(datasets) * (panel_h + panel_gap) + 70
+    parts = []
+    for i, (d, label) in enumerate(datasets):
+        y0 = top + i * (panel_h + panel_gap)
+        blocks = [(c, c["datasets"][d]["vs_parent"]) for c in cells if c["datasets"][d].get("vs_parent")]
+        values = [0.0] + [v for _, b in blocks for v in (b["lo"], b["hi"])]
+        step = _nice_step(max(values) - min(values))
+        y_lo, y_hi = math.floor(min(values) / step) * step, math.ceil(max(values) / step) * step
+        sy = lambda v, y0=y0, y_lo=y_lo, y_hi=y_hi: y0 + panel_h * (y_hi - v) / (y_hi - y_lo)  # noqa: E731
+        parts.append(f'<text x="{left}" y="{y0 - 12}" fill="{TEXT}" {font} font-size="13" font-weight="700">{_esc(label)}</text>')
+        for k in range(round((y_hi - y_lo) / step) + 1):
+            v = y_lo + k * step
+            zero = abs(v) < step / 1000
+            parts.append(f'<line x1="{left}" y1="{sy(v):.1f}" x2="{left + plot_w}" y2="{sy(v):.1f}" stroke="{MUTED if zero else GRID}" stroke-width="{1.4 if zero else 1}"/>'
+                         f'<text x="{left - 8}" y="{sy(v) + 4:.1f}" text-anchor="end" fill="{MUTED}" {font} font-size="10.5">{v:+.2f}</text>')
+        for edge in (rules["p95_ms_under"] / 1000.0, rules["p95_ms_borderline"] / 1000.0):
+            parts.append(f'<line x1="{sx(edge):.1f}" y1="{y0}" x2="{sx(edge):.1f}" y2="{y0 + panel_h}" stroke="{MUTED}" stroke-width="1" stroke-dasharray="5 4"/>')
+            if i == 0:
+                parts.append(f'<text x="{sx(edge) + 4:.1f}" y="{y0 + 12}" fill="{MUTED}" {font} font-size="10.5">{edge * 1000:,.0f} ms</text>')
+        for v in _log_ticks(x_lo, x_hi):
+            parts.append(f'<line x1="{sx(v):.1f}" y1="{y0 + panel_h}" x2="{sx(v):.1f}" y2="{y0 + panel_h + 4}" stroke="{MUTED}" stroke-width="1"/>')
+            if i == len(datasets) - 1:
+                parts.append(f'<text x="{sx(v):.1f}" y="{y0 + panel_h + 17}" text-anchor="middle" fill="{MUTED}" {font} font-size="10.5">{v:g} s</text>')
+        ends = [[sy(0.0), left + plot_w - 6, "no reranker", MUTED]]  # the zero line is labelled in the margin, with the models
+        for tag in shapes.MODELS:
+            mine = sorted(((c, b) for c, b in blocks if c["tag"] == tag), key=lambda cb: cb[0]["indicative_cpu"]["p95_ms"])
+            if not mine:
+                continue
+            color = ROLE_COLORS[SHAPE_ROLE[tag]]
+            dash = ' stroke-dasharray="6 4"' if tag in SHAPE_DASHED else ""
+            pts = " ".join(f"{sx(c['indicative_cpu']['p95_ms'] / 1000.0):.1f},{sy(b['delta']):.1f}" for c, b in mine)
+            parts.append(f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2"{dash} opacity="0.85"/>')
+            for c, b in mine:
+                x = sx(c["indicative_cpu"]["p95_ms"] / 1000.0)
+                whisker = f"M{x:.1f},{sy(b['hi']):.1f}V{sy(b['lo']):.1f}"
+                parts.append(f'<path d="{whisker}" stroke="{PANEL}" stroke-width="4" fill="none"/><path d="{whisker}" stroke="{TEXT}" stroke-width="1.2" fill="none" opacity="0.7"/>')
+                parts.append(_marker(x, sy(b["delta"]), VERDICT_WORD[shapes.verdict(b)], color))
+            last_c, last_b = mine[-1]
+            ends.append([sy(last_b["delta"]), sx(last_c["indicative_cpu"]["p95_ms"] / 1000.0), tag, color])
+        ends.sort()
+        previous = -1e9
+        for e in ends:  # labels in the right margin, top to bottom, at least 13 px apart, each with a leader to its line's end
+            previous = max(e[0], previous + 13)
+            e.append(previous)
+        for y, x, tag, color, ly in ends:
+            lx = left + plot_w + 14
+            parts.append(f'<line x1="{x + 6:.1f}" y1="{y:.1f}" x2="{lx - 3}" y2="{ly:.1f}" stroke="{GRID}" stroke-width="1"/>'
+                         f'<text x="{lx}" y="{ly + 4:.1f}" fill="{MUTED if color == MUTED else TEXT}" {font} font-size="11">{_esc(tag)}</text>')
+        parts.append(f'<text x="{left - 62}" y="{y0 + panel_h / 2:.0f}" fill="{MUTED}" {font} font-size="10.5" text-anchor="middle" '
+                     f'transform="rotate(-90 {left - 62} {y0 + panel_h / 2:.0f})">Δ nDCG@10</text>')
+    base = top + len(datasets) * (panel_h + panel_gap) - panel_gap
+    parts.append(f'<text x="{left + plot_w / 2:.0f}" y="{base + 36}" text-anchor="middle" fill="{MUTED}" {font} font-size="11.5">'
+                 f'indicative p95 of one rerank call on the HPC CPU, seconds (log scale)</text>')
+    x = left - 60
+    for key in ("candidate", "student", "default"):
+        parts.append(f'<circle cx="{x + 5}" cy="{base + 58}" r="5" fill="{ROLE_COLORS[key]}"/>'
+                     f'<text x="{x + 16}" y="{base + 62}" fill="{TEXT}" {font} font-size="11.5">{_esc(SHAPE_ROLE_LABELS[key])}</text>')
+        x += 26 + 6.2 * len(SHAPE_ROLE_LABELS[key])
+    x = left - 60  # the verdict's marker shapes on a row of their own, under the colours
+    for shape, text in (("above zero", "95% interval above zero"), ("covers zero", "covers zero"), ("below zero", "below zero")):
+        parts.append(_marker(x + 6, base + 80, shape, MUTED) + f'<text x="{x + 18}" y="{base + 84}" fill="{TEXT}" {font} font-size="11.5">{text}</text>')
+        x += 30 + 6.2 * len(text)
+    sub = "".join(f'<text x="32" y="{64 + 16 * i}" fill="{MUTED}" {font} font-size="12">{_esc(line)}</text>' for i, line in enumerate(subtitle))
+    title = "Small rerankers at cheaper shapes  ·  quality against indicative CPU p95"
+    h += 20
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" aria-label="{_esc(title)}">
+  <rect width="{w}" height="{h}" fill="{BG}"/>
+  <rect x="12" y="12" width="{w - 24}" height="{h - 24}" rx="16" fill="{PANEL}" stroke="{GRID}"/>
+  <text x="32" y="44" fill="{TEXT}" {font} font-size="18" font-weight="700">{_esc(title)}</text>
+  {sub}
+  {"".join(parts)}
+  <text x="32" y="{h - 26}" fill="{MUTED}" {font} font-size="11">{_esc("make figures, from " + shapes.FRONTIER_FILE + " at " + str(front.get("git_sha")) + "; dashed: the second model of a colour.")}</text>
+</svg>
+'''
+    out = out_dir / SMALL_RERANKERS_SHAPES_FIGURE
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(svg)
+    return [out]
 
 
 def main() -> None:

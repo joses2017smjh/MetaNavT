@@ -1,0 +1,524 @@
+{
+ "git_sha": "6e9a2df",
+ "git_head": "6e9a2dfd6b43652c33000517260fb535a8a59c2a",
+ "working_tree_dirty": false,
+ "source_sha256": {
+  "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "app/agent/__init__.py": "b0d3045af83a80e8fa46c8fde1dcc3744d8a9f244c66d7d2ea1e20e70743a998",
+  "app/agent/decompose.py": "d77de10ec9b533b2f6724c38c6a008f1d40374687ad7a539f68bb3c0eeb73914",
+  "app/agent/deep_research.py": "58068ab6fadb1954d5d298990ae7923b671d37f17faa35104eeb45482d022191",
+  "app/agent/retrieval_loop.py": "b5af513800fa0ab9df52e49fab40930356d09767495741b0627214eb9be19f1d",
+  "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+  "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+  "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+  "app/eval/llm_query_arms.py": "c7c7e348f03e1b401c3c5338f3cec69c1f2d30ce10f221d1225857c8c1be40ff",
+  "app/eval/llm_query_audit.py": "0706a289f7757b8490b941be2f29fd58a661c1c350242a4a430108e419da5fcb",
+  "app/eval/llm_query_bar.py": "d1598949a2e1bc5c89e2c666c570e465539dcf3cd3f3e57eae77c2fd365d3800",
+  "app/eval/llm_query_parse.py": "3159e5b3ad17b0ff169800ec6b91e168c464c9aa741811382f47ac11b2300b58",
+  "app/eval/llm_query_spec.py": "8b0ed6a75a0430401c8070d8607851da9808ad5537be3229c261c2e0558b9b4f",
+  "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+  "app/graph/__init__.py": "65052777718d171f92bd51f5773712749c5f62983120169036aeb1ada05ac12b",
+  "app/graph/conflicts.py": "8e5053d77aabb1f5715bb9a52ccc234cfbaf48f3e0571ebd5a7b1b30df12705d",
+  "app/graph/file_graph.py": "fcfbb24a2089194d7e902a9bdf03615d1105dacfc8b62635c869507511982dd4",
+  "app/graph/graphrag.py": "8d042c623a77b0a54aac472f8adfc1c9dfb38c9976d6a297d4864d17fdbe2c8f",
+  "app/graph/hipporag.py": "56b1c37b3837270654cd2712af295ff81bd83b0b37a69e966632096cc5519e18",
+  "app/graph/staleness.py": "e05adb3f012a7d1403f5cee77837147bf136c0a854419d24c410056ce958ae53",
+  "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+  "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+  "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+  "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+  "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+  "app/retrieval/hyde.py": "e0f81e2283a3411317e692531bb6bdd49db4f40468d378ed63fec0266b62db4b",
+  "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+  "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+ },
+ "timestamp": "2026-11-26T05:35:39.339482+00:00",
+ "command": "python -m app.eval.llm_query_audit --data-dir <path>/data",
+ "models": [
+  "qwen3.5-27b",
+  "gemma4-26b"
+ ],
+ "about": "python -m app.eval.llm_query_audit --data-dir <beir> --out bench/results/llm_query_audit.json",
+ "fixture": {
+  "answers": {
+   "rule": "judge.contains_bounded on lowercased text; the simple_factual questions",
+   "question_text": {
+    "n": 80,
+    "hits": 0,
+    "share": 0.0
+   },
+   "models": {
+    "qwen3.5-27b": {
+     "hyde": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     },
+     "multiquery": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     },
+     "decompose": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     },
+     "rewrite": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     }
+    },
+    "gemma4-26b": {
+     "hyde": {
+      "n": 80,
+      "hits": 4,
+      "share": 0.05
+     },
+     "multiquery": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     },
+     "decompose": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     },
+     "rewrite": {
+      "n": 80,
+      "hits": 0,
+      "share": 0.0
+     }
+    }
+   }
+  },
+  "paths": {
+   "rule": "a gold relevant path or its basename in the output where the question text has neither; control: the basename of the first other file (sorted) in the first gold file's directory, likewise",
+   "models": {
+    "qwen3.5-27b": {
+     "hyde": {
+      "gold": {
+       "n": 136,
+       "hits": 1,
+       "share": 0.0074
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     },
+     "multiquery": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     },
+     "decompose": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     },
+     "rewrite": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     }
+    },
+    "gemma4-26b": {
+     "hyde": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     },
+     "multiquery": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     },
+     "decompose": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     },
+     "rewrite": {
+      "gold": {
+       "n": 136,
+       "hits": 0,
+       "share": 0.0
+      },
+      "control": {
+       "n": 130,
+       "hits": 0,
+       "share": 0.0
+      }
+     }
+    }
+   }
+  }
+ },
+ "beir_verbatim": {
+  "scifact": {
+   "span": 13,
+   "models": {
+    "qwen3.5-27b": {
+     "hyde_outputs": 300,
+     "relevant": {
+      "n": 300,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 9
+     },
+     "p0_top_nonrelevant": {
+      "n": 300,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 8
+     },
+     "hyde_delta_vs_P0": {
+      "all": {
+       "n": 300,
+       "mean": 0.0112
+      },
+      "without_a_run": {
+       "n": 300,
+       "mean": 0.0112
+      },
+      "label": "subgroup selected by a relevance-correlated variable (it reads qrels): biased, descriptive only"
+     }
+    },
+    "gemma4-26b": {
+     "hyde_outputs": 300,
+     "relevant": {
+      "n": 300,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 10
+     },
+     "p0_top_nonrelevant": {
+      "n": 300,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 6
+     },
+     "hyde_delta_vs_P0": {
+      "all": {
+       "n": 300,
+       "mean": 0.0055
+      },
+      "without_a_run": {
+       "n": 300,
+       "mean": 0.0055
+      },
+      "label": "subgroup selected by a relevance-correlated variable (it reads qrels): biased, descriptive only"
+     }
+    }
+   }
+  },
+  "fiqa": {
+   "span": 13,
+   "models": {
+    "qwen3.5-27b": {
+     "hyde_outputs": 648,
+     "relevant": {
+      "n": 648,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 9
+     },
+     "p0_top_nonrelevant": {
+      "n": 648,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 7
+     },
+     "hyde_delta_vs_P0": {
+      "all": {
+       "n": 648,
+       "mean": 0.0096
+      },
+      "without_a_run": {
+       "n": 648,
+       "mean": 0.0096
+      },
+      "label": "subgroup selected by a relevance-correlated variable (it reads qrels): biased, descriptive only"
+     }
+    },
+    "gemma4-26b": {
+     "hyde_outputs": 648,
+     "relevant": {
+      "n": 648,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 9
+     },
+     "p0_top_nonrelevant": {
+      "n": 648,
+      "hits": 0,
+      "share": 0.0,
+      "max_run": 8
+     },
+     "hyde_delta_vs_P0": {
+      "all": {
+       "n": 648,
+       "mean": 0.0099
+      },
+      "without_a_run": {
+       "n": 648,
+       "mean": 0.0099
+      },
+      "label": "subgroup selected by a relevance-correlated variable (it reads qrels): biased, descriptive only"
+     }
+    }
+   }
+  }
+ },
+ "grader_vs_qrels": {
+  "fixture": {
+   "qwen3.5-27b": {
+    "graded": 986,
+    "unusable": 0,
+    "tp": 177,
+    "fp": 179,
+    "fn": 44,
+    "tn": 586,
+    "precision_of_yes": 0.4972,
+    "recall_of_yes": 0.8009
+   },
+   "gemma4-26b": {
+    "graded": 986,
+    "unusable": 0,
+    "tp": 160,
+    "fp": 171,
+    "fn": 61,
+    "tn": 594,
+    "precision_of_yes": 0.4834,
+    "recall_of_yes": 0.724
+   }
+  },
+  "scifact": {
+   "qwen3.5-27b": {
+    "graded": 2080,
+    "unusable": 0,
+    "tp": 170,
+    "fp": 133,
+    "fn": 112,
+    "tn": 1665,
+    "precision_of_yes": 0.5611,
+    "recall_of_yes": 0.6028
+   },
+   "gemma4-26b": {
+    "graded": 2080,
+    "unusable": 0,
+    "tp": 146,
+    "fp": 119,
+    "fn": 136,
+    "tn": 1679,
+    "precision_of_yes": 0.5509,
+    "recall_of_yes": 0.5177
+   }
+  },
+  "fiqa": {
+   "qwen3.5-27b": {
+    "graded": 4815,
+    "unusable": 0,
+    "tp": 615,
+    "fp": 1785,
+    "fn": 70,
+    "tn": 2345,
+    "precision_of_yes": 0.2562,
+    "recall_of_yes": 0.8978
+   },
+   "gemma4-26b": {
+    "graded": 4815,
+    "unusable": 0,
+    "tp": 614,
+    "fp": 1663,
+    "fn": 71,
+    "tn": 2467,
+    "precision_of_yes": 0.2697,
+    "recall_of_yes": 0.8964
+   }
+  }
+ },
+ "parser_digits": {
+  "rule": "a kept multi-query alternative or sub-question (read as scoring reads it: part (b)'s parser, its truncation rule, the first reply line that gives the kept text) whose numbering-and-bullet strip (^[\\d.)\\-*\\s]+, repeated with the quote and markdown strip) removed a digit that is not part of a list number (digits followed by '.' or ')'): \"401k plan\" -> \"k plan\", \"1. 401k plan\" -> \"k plan\"; \"2) index funds\" loses nothing",
+  "datasets": {
+   "fixture": {
+    "qwen3.5-27b": {
+     "multiquery": {
+      "calls": 136,
+      "kept_lines": 272,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     },
+     "decompose": {
+      "calls": 136,
+      "kept_lines": 220,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    },
+    "gemma4-26b": {
+     "multiquery": {
+      "calls": 136,
+      "kept_lines": 272,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     },
+     "decompose": {
+      "calls": 136,
+      "kept_lines": 110,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    }
+   },
+   "scifact": {
+    "qwen3.5-27b": {
+     "multiquery": {
+      "calls": 300,
+      "kept_lines": 600,
+      "kept_lines_losing_digits": 1,
+      "queries": 1,
+      "qids": [
+       "3"
+      ]
+     },
+     "decompose": {
+      "calls": 300,
+      "kept_lines": 1097,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    },
+    "gemma4-26b": {
+     "multiquery": {
+      "calls": 300,
+      "kept_lines": 600,
+      "kept_lines_losing_digits": 1,
+      "queries": 1,
+      "qids": [
+       "3"
+      ]
+     },
+     "decompose": {
+      "calls": 300,
+      "kept_lines": 813,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    }
+   },
+   "fiqa": {
+    "qwen3.5-27b": {
+     "multiquery": {
+      "calls": 648,
+      "kept_lines": 1296,
+      "kept_lines_losing_digits": 4,
+      "queries": 3,
+      "qids": [
+       "1393",
+       "6002",
+       "8974"
+      ]
+     },
+     "decompose": {
+      "calls": 648,
+      "kept_lines": 2571,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    },
+    "gemma4-26b": {
+     "multiquery": {
+      "calls": 648,
+      "kept_lines": 1296,
+      "kept_lines_losing_digits": 10,
+      "queries": 10,
+      "qids": [
+       "10558",
+       "10932",
+       "11039",
+       "1393",
+       "3085",
+       "570",
+       "6002",
+       "8475",
+       "9188",
+       "9961"
+      ]
+     },
+     "decompose": {
+      "calls": 648,
+      "kept_lines": 2127,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    }
+   }
+  },
+  "total": {
+   "kept_lines_losing_digits": 16,
+   "model_query_pairs": 15
+  }
+ },
+ "does_not_show": [
+  "Pretraining exposure to BEIR or to this repository cannot be excluded: the audit bounds verbatim copying (c) and mentions of gold answers and paths (a, b) only.",
+  "Whether bench/gold/questions.jsonl (in the repository since 2026-08-22) is in any model's training data is unknown.",
+  "The subgroup delta of (c) is chosen by a variable that reads the qrels: it is biased and descriptive, not an estimate.",
+  "The grader's precision and recall (d) are against qrels that are sparse on SciFact; they explain the corrective rows and are not a judge metric.",
+  "The declared line parser (part (b), frozen at D1) also strips leading digits that belong to the text (\"401k plan\" -> \"k plan\"); (e) counts the kept lines it altered, and the scored rows used those lines as altered. A corrected parser would be a second attempt and was not run, so what those lines did to any interval is not measured."
+ ]
+}

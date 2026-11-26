@@ -1,0 +1,1067 @@
+{
+  "git_sha": "0171494",
+  "git_head": "017149485f8020fd7d715f050be113487f51900a",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/per_question.py": "04fd21dd79390d0ae457cdd5924a25f57309c96538fc90e2615465ad130df689",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/small_rerankers.py": "723f7f81c64d37bb77ff7a44bea32ce4e4364efbb1624ada88479165d206bc79",
+    "app/eval/small_rerankers_shapes.py": "89280ce9107e0b221d393dc6fe4bbb73132749455ef02d2c1f563991c485bb47",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2"
+  },
+  "timestamp": "2026-11-26T00:51:05.719801+00:00",
+  "command": "python -m app.eval.small_rerankers_shapes --frontier --phase2",
+  "label": "M51 Phase 2 (attempt 2, retrained at 256 after M43's attempt-1 numbers were seen): quality x indicative CPU cost per cell, and the F3 answer (CPU, from committed files only)",
+  "inputs_sha256": {
+    "bench/results/small_rerankers_ml256.json": "dfcc69409f3ee21c0c2f0d76c7df02f12680ceeda48c0e33c2802b386a33ed5c",
+    "bench/results/beir_scifact_small_rerankers_ml256.json": "1bd2e6324e992f8afcecbeb03f7ba64cac51e7c4e75fb2f3adbe8bc65e88c534",
+    "bench/results/beir_fiqa_small_rerankers_ml256.json": "78286de40a0855444c97340f7cabdaa2c3091b99225c5e4f7504ea9d4a39acc3",
+    "bench/results/small_rerankers_ml256.per_query.json": "d603c7c032121a964c4b7c74ea413e0bc94fcb90d8da2a81ee54a628464549a5",
+    "bench/results/beir_scifact_small_rerankers_ml256.per_query.json": "c3c82745ca9a80948b554c8cfb5265d6355a2c24ce537b0060544be0bf5e3e40",
+    "bench/results/beir_fiqa_small_rerankers_ml256.per_query.json": "23182f7cfd9d1fb78397270c90760d9d391fa4025ec024f65d942a57de1b4747",
+    "bench/results/small_rerankers_cpu.json": "8c8c6a7f497c5cbcd433926487cb245cbc43f6fe14f28795c2fbaf510fd05215",
+    "infra/modules/single-host/variables.tf": "fe4a7519c081dde9825496147ceb0455c2424d76f58eec1814a46b4f9e049b5f",
+    "bench/results/small_rerankers_shapes_exposure.json": "c0d0777c7df71ac9f1484b19df45c5e8a0705b78b958b3d14fbc1014327f2e2d",
+    "bench/distill/students_ml256.json": "3ec661ad65a15b1e632f329ec423c212ed365c409a73f5608618ae330b2eb759",
+    "bench/results/small_rerankers_shapes.json": "1c1ca52bced70ae17a5465f5171bae93f450505a5b9b94927d527e5d5ce38d24",
+    "bench/results/beir_scifact_small_rerankers_shapes.json": "f7c5918f83a5d784d360c3060921f0e77bee91adc7fa52af2b171a090c1953d7",
+    "bench/results/beir_fiqa_small_rerankers_shapes.json": "55f351e9764b285e984969764f88b13a268d78054bdaf921992876570f3ab368"
+  },
+  "devices": {
+    "fixture": "NVIDIA GeForce RTX 2080 Ti",
+    "scifact": "NVIDIA GeForce RTX 2080 Ti",
+    "fiqa": "NVIDIA GeForce RTX 2080 Ti"
+  },
+  "limit_mib": 1024,
+  "family": {
+    "F3": {
+      "k": 3,
+      "headline": false,
+      "about": "Phase 2 only (attempt 2): the retrained students' cells whose attempt-1 twin is under-indicative-budget; its own answer, never merged into F1 or F2",
+      "cells": [
+        "hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top5",
+        "hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top10",
+        "hybrid+student-minilm-l12-ml256@bge-small/fp32-256/top5"
+      ],
+      "alpha": 0.016666666666666666
+    }
+  },
+  "settings": {
+    "ci95": "the stored 95% intervals of the three files (2000 resamples, seed 0)",
+    "adjusted": {
+      "n_boot": 20000,
+      "seed": 0,
+      "rng": "numpy.random.RandomState.randint (app.eval.stats.resample_indices)",
+      "level": "1 - 0.05/k",
+      "percentiles": "100 * (0.05/k) / 2 and 100 * (1 - (0.05/k) / 2), np.percentile linear interpolation",
+      "matrix": "its own index matrix per dataset (fixture: drawn over the 68 held-out queries)",
+      "rounding": "4 decimals; read with the same rule (lo > 0 on the stored value)"
+    },
+    "sensitivity": {
+      "permutation": {
+        "draws": 20000,
+        "seed": 0,
+        "statistic": "mean paired nDCG@10 difference",
+        "p_value": "two-sided, (1 + #{|mean of sign-flipped differences| >= |observed|}) / (1 + draws)"
+      },
+      "exposure_excluded": "the SciFact and FiQA test queries with no relevant document among the students' source documents"
+    },
+    "exposure_excluded_interval": "95%, 2000 resamples, seed 0, over the unexposed queries"
+  },
+  "answers": {
+    "F3": {
+      "answer": "NOT SHOWN at this n",
+      "cells": [],
+      "k": 3,
+      "percentiles": [
+        0.8333,
+        99.1667
+      ]
+    }
+  },
+  "family_control": "F3 is its own family, never merged into F1 or F2; it does not modify the headline",
+  "cells": [
+    {
+      "config": "hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top5",
+      "tag": "student-minilm-l6-ml256",
+      "attempt": 2,
+      "attempt_1_twin": "hybrid+student-minilm-l6@bge-small/fp32-256/top5",
+      "depth": 5,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 443.5,
+        "p95_ms": 447.1,
+        "peak_mib": 879,
+        "n": 30
+      },
+      "cost_source": "cost of the same-architecture attempt-1 row: the attempt-1 student's CPU row (same architecture, tokenizer and cap)",
+      "families": [
+        "F3"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0748,
+            "lo": 0.0407,
+            "hi": 0.1133
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F3": {
+              "delta": 0.0748,
+              "lo": 0.0319,
+              "hi": 0.1225
+            }
+          },
+          "sign_flip_p": 0.0001,
+          "vs_attempt_1": {
+            "delta": 0.008,
+            "lo": -0.0008,
+            "hi": 0.0198
+          },
+          "vs_init": {
+            "delta": 0.0861,
+            "lo": 0.0476,
+            "hi": 0.1276
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 118,
+          "ranking_digest": "8839efa455c14149088664e4422f39aea4749505a85dcb7dce2e32b752eeef0d"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0136,
+            "lo": -0.0329,
+            "hi": 0.0047
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F3": {
+              "delta": -0.0136,
+              "lo": -0.0362,
+              "hi": 0.0096
+            }
+          },
+          "sign_flip_p": 0.15974,
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0152,
+            "lo": -0.0388,
+            "hi": 0.0084
+          },
+          "vs_attempt_1": {
+            "delta": 0.0014,
+            "lo": -0.006,
+            "hi": 0.0089
+          },
+          "vs_init": {
+            "delta": 0.0132,
+            "lo": -0.0012,
+            "hi": 0.027
+          },
+          "truncated_pairs": {
+            "total": 1304,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 271,
+          "ranking_digest": "e46a3cce98ed9bc885d394237f5007735abc60ce64708e27eb46d4f034bd1896"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0123,
+            "lo": 0.0024,
+            "hi": 0.0225
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F3": {
+              "delta": 0.0123,
+              "lo": 0.0004,
+              "hi": 0.0246
+            }
+          },
+          "sign_flip_p": 0.0138,
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0143,
+            "lo": 0.0038,
+            "hi": 0.0248
+          },
+          "vs_attempt_1": {
+            "delta": 0.0002,
+            "lo": -0.003,
+            "hi": 0.0037
+          },
+          "vs_init": {
+            "delta": 0.0058,
+            "lo": -0.0005,
+            "hi": 0.0121
+          },
+          "truncated_pairs": {
+            "total": 1656,
+            "queries_with_any": 620
+          },
+          "n_top10_differs_from_parent": 615,
+          "ranking_digest": "ffca41fbf58aba21fc30ce20153f489cccbac415b00fcae29adaee85f5f80cd9"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top10",
+      "tag": "student-minilm-l6-ml256",
+      "attempt": 2,
+      "attempt_1_twin": "hybrid+student-minilm-l6@bge-small/fp32-256/top10",
+      "depth": 10,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 871.0,
+        "p95_ms": 874.7,
+        "peak_mib": 896,
+        "n": 30
+      },
+      "cost_source": "cost of the same-architecture attempt-1 row: the attempt-1 student's CPU row (same architecture, tokenizer and cap)",
+      "families": [
+        "F3"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0938,
+            "lo": 0.0551,
+            "hi": 0.1362
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F3": {
+              "delta": 0.0938,
+              "lo": 0.0457,
+              "hi": 0.1451
+            }
+          },
+          "sign_flip_p": 0.0001,
+          "vs_attempt_1": {
+            "delta": 0.0071,
+            "lo": -0.0055,
+            "hi": 0.0207
+          },
+          "vs_init": {
+            "delta": 0.1286,
+            "lo": 0.0915,
+            "hi": 0.1674
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "b6bd2b29a3c60262af9f37368932cdc0b9526d43c5cc7c01b4e250c4bd41e802"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0123,
+            "lo": -0.0346,
+            "hi": 0.0104
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F3": {
+              "delta": -0.0123,
+              "lo": -0.0386,
+              "hi": 0.0151
+            }
+          },
+          "sign_flip_p": 0.27824,
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0143,
+            "lo": -0.0414,
+            "hi": 0.0132
+          },
+          "vs_attempt_1": {
+            "delta": -0.0005,
+            "lo": -0.0095,
+            "hi": 0.008
+          },
+          "vs_init": {
+            "delta": 0.0184,
+            "lo": 0.0009,
+            "hi": 0.0347
+          },
+          "truncated_pairs": {
+            "total": 2627,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "76359a1658f87423d989f1c0e836c41f73f29ec211e6657cbdc6729b32e1de98"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0076,
+            "lo": -0.0032,
+            "hi": 0.0183
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F3": {
+              "delta": 0.0076,
+              "lo": -0.0054,
+              "hi": 0.0207
+            }
+          },
+          "sign_flip_p": 0.17199,
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0093,
+            "lo": -0.0017,
+            "hi": 0.0204
+          },
+          "vs_attempt_1": {
+            "delta": -0.0006,
+            "lo": -0.0046,
+            "hi": 0.0034
+          },
+          "vs_init": {
+            "delta": 0.004,
+            "lo": -0.0034,
+            "hi": 0.0114
+          },
+          "truncated_pairs": {
+            "total": 3282,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "104300e213da93151088a9cf41f921f84dec0d8bbe26295774f88845d24c65ae"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l6-ml256@bge-small/fp32-256/top20",
+      "tag": "student-minilm-l6-ml256",
+      "attempt": 2,
+      "attempt_1_twin": "hybrid+student-minilm-l6@bge-small/fp32-256/top20",
+      "depth": 20,
+      "max_length": 256,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1758.9,
+        "p95_ms": 1770.5,
+        "peak_mib": 1019,
+        "n": 30
+      },
+      "cost_source": "cost of the same-architecture attempt-1 row: the attempt-1 student's CPU row (same architecture, tokenizer and cap)",
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.1241,
+            "lo": 0.0715,
+            "hi": 0.1825
+          },
+          "verdict": "win",
+          "vs_attempt_1": {
+            "delta": 0.0097,
+            "lo": -0.0009,
+            "hi": 0.0229
+          },
+          "vs_init": {
+            "delta": 0.1401,
+            "lo": 0.0984,
+            "hi": 0.179
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "6b549305d343bfa2838ba5826a5ff18370b25a2a4a66c56cce7e408cd55f02c9"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0121,
+            "lo": -0.0377,
+            "hi": 0.014
+          },
+          "verdict": "tie",
+          "vs_attempt_1": {
+            "delta": 0.0017,
+            "lo": -0.0083,
+            "hi": 0.0118
+          },
+          "vs_init": {
+            "delta": 0.0292,
+            "lo": 0.0087,
+            "hi": 0.05
+          },
+          "truncated_pairs": {
+            "total": 5237,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "0f13c670d2ce44f9cacd015b1731f465ee45db1901c200f81b0ff2a630d9832e"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0231,
+            "lo": 0.0082,
+            "hi": 0.0379
+          },
+          "verdict": "win",
+          "vs_attempt_1": {
+            "delta": -0.0026,
+            "lo": -0.0081,
+            "hi": 0.0032
+          },
+          "vs_init": {
+            "delta": 0.0116,
+            "lo": 0.0018,
+            "hi": 0.0214
+          },
+          "truncated_pairs": {
+            "total": 6398,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "b21fa6a175b7d6876effd2e24eec0fd456b5816e5c18db1ea791d04d42fe5da7"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12-ml256@bge-small/fp32-256/top5",
+      "tag": "student-minilm-l12-ml256",
+      "attempt": 2,
+      "attempt_1_twin": "hybrid+student-minilm-l12@bge-small/fp32-256/top5",
+      "depth": 5,
+      "max_length": 256,
+      "band": "under-indicative-budget",
+      "indicative_cpu": {
+        "p50_ms": 875.4,
+        "p95_ms": 880.4,
+        "peak_mib": 905,
+        "n": 30
+      },
+      "cost_source": "cost of the same-architecture attempt-1 row: the attempt-1 student's CPU row (same architecture, tokenizer and cap)",
+      "families": [
+        "F3"
+      ],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0751,
+            "lo": 0.0423,
+            "hi": 0.112
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F3": {
+              "delta": 0.0751,
+              "lo": 0.0337,
+              "hi": 0.1206
+            }
+          },
+          "sign_flip_p": 0.0001,
+          "vs_attempt_1": {
+            "delta": -0.0004,
+            "lo": -0.0035,
+            "hi": 0.0023
+          },
+          "vs_init": {
+            "delta": 0.1358,
+            "lo": 0.0944,
+            "hi": 0.1791
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 120,
+          "ranking_digest": "96bf72f8146bc1f300561df0aa64e94733050c538c8c86dd0f30b87a34d1a5fc"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0135,
+            "lo": -0.0315,
+            "hi": 0.0047
+          },
+          "verdict": "tie",
+          "adjusted": {
+            "F3": {
+              "delta": -0.0135,
+              "lo": -0.0356,
+              "hi": 0.0085
+            }
+          },
+          "sign_flip_p": 0.14899,
+          "exposure_excluded": {
+            "n": 222,
+            "delta": -0.0136,
+            "lo": -0.036,
+            "hi": 0.0091
+          },
+          "vs_attempt_1": {
+            "delta": 0.0005,
+            "lo": -0.0064,
+            "hi": 0.0074
+          },
+          "vs_init": {
+            "delta": 0.0125,
+            "lo": -0.0032,
+            "hi": 0.0277
+          },
+          "truncated_pairs": {
+            "total": 1304,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 275,
+          "ranking_digest": "4011bf602e685bae6c4b85c86511c455b61d2f574daceb9a08443b082e97b03a"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0173,
+            "lo": 0.0079,
+            "hi": 0.0269
+          },
+          "verdict": "win",
+          "adjusted": {
+            "F3": {
+              "delta": 0.0173,
+              "lo": 0.0058,
+              "hi": 0.0294
+            }
+          },
+          "sign_flip_p": 0.00025,
+          "exposure_excluded": {
+            "n": 596,
+            "delta": 0.0184,
+            "lo": 0.0082,
+            "hi": 0.0288
+          },
+          "vs_attempt_1": {
+            "delta": -0.0012,
+            "lo": -0.0045,
+            "hi": 0.002
+          },
+          "vs_init": {
+            "delta": 0.0106,
+            "lo": 0.0045,
+            "hi": 0.0165
+          },
+          "truncated_pairs": {
+            "total": 1656,
+            "queries_with_any": 620
+          },
+          "n_top10_differs_from_parent": 618,
+          "ranking_digest": "3975d99aa7b378dbd5496e82927276299d8101dc8fa4af5072a78832f722d559"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12-ml256@bge-small/fp32-256/top10",
+      "tag": "student-minilm-l12-ml256",
+      "attempt": 2,
+      "attempt_1_twin": "hybrid+student-minilm-l12@bge-small/fp32-256/top10",
+      "depth": 10,
+      "max_length": 256,
+      "band": "borderline",
+      "indicative_cpu": {
+        "p50_ms": 1750.7,
+        "p95_ms": 1764.6,
+        "peak_mib": 950,
+        "n": 30
+      },
+      "cost_source": "cost of the same-architecture attempt-1 row: the attempt-1 student's CPU row (same architecture, tokenizer and cap)",
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.0943,
+            "lo": 0.0569,
+            "hi": 0.1336
+          },
+          "verdict": "win",
+          "vs_attempt_1": {
+            "delta": 0.0104,
+            "lo": 0.0008,
+            "hi": 0.0213
+          },
+          "vs_init": {
+            "delta": 0.1737,
+            "lo": 0.1291,
+            "hi": 0.2171
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 131,
+          "ranking_digest": "ba775fe930934aadb96304cdaa1615e3c7cef4ca9462a5697e615f4e57e84589"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0099,
+            "lo": -0.0312,
+            "hi": 0.012
+          },
+          "verdict": "tie",
+          "vs_attempt_1": {
+            "delta": -0.0002,
+            "lo": -0.0084,
+            "hi": 0.0076
+          },
+          "vs_init": {
+            "delta": 0.0132,
+            "lo": -0.005,
+            "hi": 0.0311
+          },
+          "truncated_pairs": {
+            "total": 2627,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "80aa6fa0db6051e8e9dc69654ff88803ed0cdd46c21057a22611b573bdacba79"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0159,
+            "lo": 0.005,
+            "hi": 0.0269
+          },
+          "verdict": "win",
+          "vs_attempt_1": {
+            "delta": -0.0016,
+            "lo": -0.006,
+            "hi": 0.0024
+          },
+          "vs_init": {
+            "delta": 0.0101,
+            "lo": 0.0023,
+            "hi": 0.0175
+          },
+          "truncated_pairs": {
+            "total": 3282,
+            "queries_with_any": 641
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "9e7a3aa4c3a29c853ac969b1d8af3b102b258c26b0607ced6936ca2146f25adc"
+        }
+      },
+      "passes_at_95": false
+    },
+    {
+      "config": "hybrid+student-minilm-l12-ml256@bge-small/fp32-256/top20",
+      "tag": "student-minilm-l12-ml256",
+      "attempt": 2,
+      "attempt_1_twin": "hybrid+student-minilm-l12@bge-small/fp32-256/top20",
+      "depth": 20,
+      "max_length": 256,
+      "band": "over-budget",
+      "indicative_cpu": {
+        "p50_ms": 3460.3,
+        "p95_ms": 3485.4,
+        "peak_mib": 1040,
+        "n": 30
+      },
+      "cost_source": "cost of the same-architecture attempt-1 row: the attempt-1 student's CPU row (same architecture, tokenizer and cap)",
+      "families": [],
+      "datasets": {
+        "fixture": {
+          "vs_parent": {
+            "delta": 0.1091,
+            "lo": 0.0598,
+            "hi": 0.1619
+          },
+          "verdict": "win",
+          "vs_attempt_1": {
+            "delta": 0.0146,
+            "lo": 0.0029,
+            "hi": 0.0267
+          },
+          "vs_init": {
+            "delta": 0.1808,
+            "lo": 0.1316,
+            "hi": 0.2285
+          },
+          "truncated_pairs": {
+            "total": 0,
+            "queries_with_any": 0
+          },
+          "n_top10_differs_from_parent": 136,
+          "ranking_digest": "525952b58113afa0a53b4802af5c7e2f249fa6c8e13a17c2d06843162696d995"
+        },
+        "scifact": {
+          "vs_parent": {
+            "delta": -0.0115,
+            "lo": -0.0384,
+            "hi": 0.0148
+          },
+          "verdict": "tie",
+          "vs_attempt_1": {
+            "delta": -0.0017,
+            "lo": -0.0112,
+            "hi": 0.0074
+          },
+          "vs_init": {
+            "delta": 0.0193,
+            "lo": -0.0042,
+            "hi": 0.0424
+          },
+          "truncated_pairs": {
+            "total": 5237,
+            "queries_with_any": 300
+          },
+          "n_top10_differs_from_parent": 300,
+          "ranking_digest": "2d57f258028a3e3cc07d5648a36fca61120f3f5acfb44799e9f6d7be3ef65ce8"
+        },
+        "fiqa": {
+          "vs_parent": {
+            "delta": 0.0373,
+            "lo": 0.0228,
+            "hi": 0.0526
+          },
+          "verdict": "win",
+          "vs_attempt_1": {
+            "delta": -0.0015,
+            "lo": -0.0068,
+            "hi": 0.0038
+          },
+          "vs_init": {
+            "delta": 0.0206,
+            "lo": 0.0107,
+            "hi": 0.0303
+          },
+          "truncated_pairs": {
+            "total": 6398,
+            "queries_with_any": 647
+          },
+          "n_top10_differs_from_parent": 648,
+          "ranking_digest": "6b74f3f5b883831a97b777519c13ace05cb839413f4d933873b206ef3dd01c34"
+        }
+      },
+      "passes_at_95": false
+    }
+  ],
+  "anchors": {
+    "fixture": {
+      "file": "bench/results/small_rerankers_shapes.json",
+      "git_sha": "43a1e0b",
+      "device": "NVIDIA GeForce RTX 2080 Ti",
+      "compared": "retrieval, ci, the delta against hybrid@bge-small and a student's delta against its init at the row's shape, per scope",
+      "scopes": {
+        "held_out": {
+          "rows": {
+            "hybrid@bge-small": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top5 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top10 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top5 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top10 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top20 equal": true,
+              "equal": true
+            }
+          },
+          "n_compared": 13,
+          "all": true
+        },
+        "tune": {
+          "rows": {
+            "hybrid@bge-small": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top5 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top10 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top5 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top10 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top20 equal": true,
+              "equal": true
+            }
+          },
+          "n_compared": 13,
+          "all": true
+        },
+        "all_questions": {
+          "rows": {
+            "hybrid@bge-small": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l6@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+minilm-l12@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top5 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top10 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l6@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l6@bge-small/fp32-256/top20 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top5": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top5 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top10": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top10 equal": true,
+              "equal": true
+            },
+            "hybrid+student-minilm-l12@bge-small/fp32-256/top20": {
+              "retrieval_equal": true,
+              "ci_equal": true,
+              "delta_vs hybrid@bge-small equal": true,
+              "delta_vs hybrid+minilm-l12@bge-small/fp32-256/top20 equal": true,
+              "equal": true
+            }
+          },
+          "n_compared": 13,
+          "all": true
+        }
+      },
+      "all": true
+    },
+    "scifact": {
+      "file": "bench/results/beir_scifact_small_rerankers_shapes.json",
+      "n_compared": 13,
+      "metrics_equal": true,
+      "metric_differences": [],
+      "ranking_differences": []
+    },
+    "fiqa": {
+      "file": "bench/results/beir_fiqa_small_rerankers_shapes.json",
+      "n_compared": 13,
+      "metrics_equal": true,
+      "metric_differences": [],
+      "ranking_differences": []
+    }
+  },
+  "anchor_per_query_differences_vs_m51": {
+    "fixture": 0,
+    "scifact": 0,
+    "fiqa": 0
+  },
+  "does_not_show": [
+    "host timing and memory (the serving bar, unrun): the t3.small's 2 vCPUs are two hyperthreads of one core and it runs in standard credit mode, so it can be well over twice as slow as the HPC CPU; a band is an indicative HPC-CPU budget, never a statement that a shape fits the host",
+    "resident memory on the host: the CPU file ran the torch 2.5.1+cu121 wheel; the image installs the CPU wheel",
+    "concurrency: one request at a time",
+    "typical latency: the CPU timings cut every passage at the cap (600-word passages), the worst case per shape",
+    "the cap on the fixture: no fixture pair exceeds 256 tokens; only SciFact and FiQA say anything about the cap",
+    "absence of an effect: NOT SHOWN is not evidence that the cheap shapes do not help",
+    "the attempt-2 students are one training run each (seed 0), retrained after M43's attempt-1 numbers were seen; their cost is the same-architecture attempt-1 row's (not timed again)",
+    "the training corpora: like attempt 1, they read every fixture chunk and 1,500 SciFact and 1,800 FiQA documents (never a test query or label)",
+    "equivalence: a delta against 20/512 that covers zero does not show the cheap shape is as good",
+    "the other M43 candidates (mxbai-xsmall-v1, mxbai-base-v1, bge-reranker-base): over 1,024 MiB at every shape",
+    "quantised or ONNX serving, fp16 on CPU, or another first stage; the real corpus; the final context (RERANK_TOP_N); answer quality",
+    "variance across training seeds: one inference run, one training run per student",
+    "a student YES on an unseen corpus: the students read documents of all three test corpora (never a query or a label)",
+    "a fresh search: M51's question follows M43's failed 20/512 search over 8 small rows",
+    "the publishers' (and the teacher's) training data: not audited for overlap with the BEIR test sets"
+  ]
+}
