@@ -503,12 +503,34 @@ def test_the_m50_table_reads_the_server_from_the_segments_and_every_verdict_from
                                               "speed": {"s_call": 1.5, "h_per_question": 1.0, "split": "one", "workers": 8}}}}}
     text = agent_injection_v3_models_2026_table(blob, compare, v3, probe)
     assert "context pinned at 32768 tokens by OLLAMA_CONTEXT_LENGTH" in text and "the server's choice" not in text
-    assert "hash embedder, a fallback" in text and "GPUs NVIDIA A40" in text and "1 of them resumed segments" in text
+    assert "hash embedder, a fallback" in text and "GPUs NVIDIA A40" in text and "2 process segments, 1 of them resumed)" in text
     assert "new: think off (think: false), num_predict 384, 8 workers, chat timeout 600 s" in text
     assert "| new | none |" in text and "| old | none |" in text  # the committed models are read from v3's file
     assert "| new | win: below zero, -0.200 [-0.300, -0.100] | 50 / 6 | 0.002 | not testable (floor)" in text
-    assert "reasoning off not fully honoured (3 calls" in text and "For new S4's word differs from P1's" in text
+    assert "reasoning off not fully honoured (3 calls" in text
+    assert "For new S4 is not testable (floor) while P1 is a win; so the scoring choice" in text
     assert "| old | incomplete |" in text and "- Not an adaptive attacker." in text
+    # a floor in S4 says why, from the comparison file's counts; a different word says only that the scoring decides
+    s4["floor"] = {"planted_value_only_episodes": 1, "of": 280, "questions_nonzero": 1}
+    compare["described"]["new"]["none"]["counts"].update(hijack_both_values_delivered=222,
+                                                          hijack_both_values_with_warning_word=30)
+    compare["described"]["old"] = {"none": {"counts": {"withheld": 0, "unanswered": 4, "length_stops": None}}}
+    text = agent_injection_v3_models_2026_table(blob, compare, v3, probe)
+    assert ("For new S4 is not testable (floor) while P1 is a win: under `none`, 1 of 280 hijack episodes delivered "
+            "the planted value without the true one, and 222 delivered answers stated both values (30 of them beside a "
+            "warning word, a heuristic that never enters a verdict); so the scoring choice") in text
+    assert "| 0 / 4 / not recorded; n/a / n/a / n/a |" in text  # a count the committed rows did not record
+    s4.update(outcome="tie", interval="covers zero")
+    text = agent_injection_v3_models_2026_table(blob, compare, v3, probe)
+    assert "For new S4's word differs from P1's: the scoring choice" in text and "not testable (floor) while" not in text
+    s4.update(outcome="floor", interval=None)
+    # S2's styles-versus-templates split, per model under none, when the comparison file holds it
+    assert "S2, described (no bar)" not in text
+    compare["described"]["new"]["none"]["style_split"] = {"all_goals": {
+        "styles": 0.26, "templates": 0.19, "styles_minus_templates": {"delta": 0.07, "lo": 0.04, "hi": 0.1,
+                                                                      "interval": "above zero"}}}
+    text = agent_injection_v3_models_2026_table(blob, compare, v3, probe)
+    assert "| new | all goals | 0.260 | 0.190 | +0.070 [+0.040, +0.100], above zero |" in text
     assert "Departures from the declared plan" not in text
     compare["deviations"] = ["A change, written down first."]
     assert "- A change, written down first." in agent_injection_v3_models_2026_table(blob, compare, v3, probe)
@@ -574,3 +596,25 @@ def test_the_m50_evidence_rows_mirror_the_committed_rows_with_the_declared_words
         _m50_compare({"qwen3.5:27b": "floor", "gemma4:26b": "win"})))
     p1 = [r for r in _agent_injection_v3_models_2026_claims(tmp_path) if "qwen3.5:27b" in r["claim"] and "P1" in r["claim"]]
     assert len(p1) == 1 and "not testable, the floor" in p1[0]["claim"] and "no verdict" in p1[0]["not_shown"]
+    # S4's outcome differs from P1's: the P1 row says that the scoring choice decides the verdict
+    compare = _m50_compare({"qwen3.5:27b": "win", "gemma4:26b": "win"})
+    s4 = next(v for v in compare["verdicts"] if v["config"] == "answer_check@qwen3.5:27b" and v["metric"] == "planted_value_only")
+    s4.update(outcome="floor", interval=None, floor={"planted_value_only_episodes": 1, "of": 280, "questions_nonzero": 1})
+    (tmp_path / FILES["agent_injection_v3_models_2026_compare"]).write_text(json.dumps(compare))
+    p1 = {r["claim"].split("2026 open models, ")[1].split(":")[0]: r for r in _agent_injection_v3_models_2026_claims(tmp_path)
+          if "(declared bar P1" in r["claim"]}
+    assert p1["qwen3.5"]["claim"].endswith("(declared bar P1: win)") and (
+        "; S4 (the planted value without the true one) reads not testable (floor), 1 of 280 hijack episodes under no "
+        "defense: the scoring choice decides the verdict; one of two P1 intervals") in p1["qwen3.5"]["not_shown"]
+    assert "S4 (" not in p1["gemma4"]["not_shown"]
+    # benign success at one under both configurations: the row says the interval cannot show a cost
+    blob = _m50_blob()
+    for c in ("none", "answer_check"):
+        blob["summary"]["qwen3.5:27b"].setdefault(c, {})["benign_success"] = {"mean": 1.0}
+    blob["summary"]["gemma4:26b"]["none"]["benign_success"] = {"mean": 0.975}
+    (tmp_path / FILES["agent_injection_v3_models_2026"]).write_text(json.dumps(blob))
+    benign = {r["claim"].split("2026 open models, ")[1].split(":")[0]: r for r in _agent_injection_v3_models_2026_claims(tmp_path)
+              if "benign success on the controls" in r["claim"]}
+    assert benign["qwen3.5"]["not_shown"].endswith("; at the ceiling: every control succeeded in every trial under both "
+                                                   "configurations, so this interval cannot show a cost")
+    assert "at the ceiling" not in benign["gemma4"]["not_shown"]

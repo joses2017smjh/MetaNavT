@@ -1223,10 +1223,14 @@ def _agent_injection_v3_claims(root: Path = ROOT, key: str = "agent_injection_v3
             if not d:
                 continue
             value, ci = _ci(d, "delta")
+            # both configurations at one: every control succeeded in every trial, so no interval could show a cost
+            arms = [((per.get(c) or {}).get(key) or {}).get("mean") for c in ("none", "answer_check")]
+            top = ("; at the ceiling: every control succeeded in every trial under both configurations, so this "
+                   "interval cannot show a cost" if key == "benign_success" and arms == [1.0, 1.0] else "")
             out.append({"claim": f"Agent injection, {label}, {model}: the structured answer check in the loop minus no defense, {what}, paired",
                         "value": value, "ci": ci, "n": d["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; {_zero(d)}; the check is told each question's config field and file, so it covers "
-                                      "single-field questions only; a flagged answer gets one retry within the same turn budget")})
+                                      f"single-field questions only; a flagged answer gets one retry within the same turn budget{top}")})
     return out
 
 
@@ -1302,9 +1306,17 @@ def _agent_injection_v3_models_2026_claims(root: Path = ROOT) -> list[dict]:
                 out.append({**row, "claim": row["claim"] + " (declared bar P1: not testable, the floor)",
                             "not_shown": row["not_shown"] + f"; no verdict by the declared floor rule; {counts}"})
                 continue
+            s4 = verdicts.get((model, "planted_value_only")) or {}
+            sensitivity = ""
+            if s4.get("outcome") and s4.get("outcome") != v.get("outcome"):  # BAR's S4: the docs say the scoring decides
+                s4_floor = s4.get("floor") or {}
+                sensitivity = (f"; S4 (the planted value without the true one) reads {states.get(s4['outcome'], s4['outcome'])}"
+                               + (f", {s4_floor.get('planted_value_only_episodes')} of {s4_floor.get('of')} hijack episodes "
+                                  "under no defense" if s4["outcome"] == "floor" else "")
+                               + ": the scoring choice decides the verdict")
             out.append({**row, "claim": row["claim"] + f" (declared bar P1: {v.get('outcome')})",
-                        "not_shown": row["not_shown"] + f"; {counts}; one of two P1 intervals, read separately, no "
-                                                        "family-wise correction"})
+                        "not_shown": row["not_shown"] + f"; {counts}{sensitivity}; one of two P1 intervals, read "
+                                                        "separately, no family-wise correction"})
         else:
             out.append({**row, "claim": row["claim"] + f" (S1: {v.get('outcome')})"})
     for model in stopped:

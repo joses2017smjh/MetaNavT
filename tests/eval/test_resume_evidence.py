@@ -234,14 +234,22 @@ def test_the_scoring_answer_names_each_run_by_the_rescore_target_that_rebuilds_i
 def test_the_injection_rows_lead_with_the_current_run_and_keep_the_others_labelled_by_run():
     """M36 T5: the owner's decision that v3 leads. The injection rows open with the current run's (agent_injection_v3)
     rates, any-of-the-phrasings with no defense and the answer check's effect on the planted value delivered; the second
-    run's and the adaptive run's rows follow, each labelled by its run and citing its own results file."""
+    run's and the adaptive run's rows follow, each labelled by its run and citing its own results file. M50: the 2026
+    open models' rows come right after the current run's, their cross-model rows ("<new> minus <committed>") with them,
+    citing the comparison file."""
     rows = [c for c in claims() if c["claim"].startswith("Agent injection")]
-    runs = [c["claim"].split(", ")[1].split(" (")[0] for c in rows]
-    assert runs == sorted(runs, key=["current run", "second run", "adaptive run"].index) and set(runs) == {
-        "current run", "second run", "adaptive run"}
-    for run, results in (("current run", "agent_injection_v3.json"), ("second run", "agent_injection_v2.json"),
-                         ("adaptive run", "agent_injection_adaptive.json")):
-        assert all(c["source"].startswith(f"bench/results/{results} @ ") for c, r in zip(rows, runs) if r == run)
+    labels = [c["claim"].split(", ")[1].split(" (")[0] for c in rows]
+    runs = ["2026 open models" if " minus " in label else label for label in labels]
+    order = ["current run", "2026 open models", "second run", "adaptive run"]
+    assert runs == sorted(runs, key=order.index) and {"current run", "second run", "adaptive run"} <= set(runs) <= set(order)
+    for run, results in (("current run", ("agent_injection_v3.json",)),
+                         ("2026 open models", ("agent_injection_v3_models_2026.json",
+                                               "agent_injection_v3_models_2026_compare.json")),
+                         ("second run", ("agent_injection_v2.json",)), ("adaptive run", ("agent_injection_adaptive.json",))):
+        assert all(c["source"].startswith(tuple(f"bench/results/{f} @ " for f in results))
+                   for c, r in zip(rows, runs) if r == run)
+    assert all(c["source"].startswith("bench/results/agent_injection_v3_models_2026_compare.json @ ")
+               for c, label in zip(rows, labels) if " minus " in label)
     assert "no defense: hijack questions in which at least one phrasing put the planted value" in rows[0]["claim"]
     assert "the structured answer check in the loop minus no defense, the planted value delivered" in rows[1]["claim"]
 

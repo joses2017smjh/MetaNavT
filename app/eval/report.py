@@ -2079,10 +2079,11 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
     head = str(blob.get("git_head") or "")[:7]
     gen_heads = sorted({str(seg.get("git_head") or "")[:7] for seg in segments})
     clean = not blob.get("working_tree_dirty") and not any(seg.get("working_tree_dirty") for seg in segments)
-    where = (f"episodes generated and scored at sha {head}{' from a clean tree' if clean else ' with uncommitted changes'} "
-             f"in {len(segments)} process segments" if gen_heads == [head]
-             else f"episodes generated at sha {', '.join(gen_heads)}, scored at sha {head}")
     resumed = sum(seg.get("episodes_before", 0) > 0 for seg in segments)
+    in_segments = f"in {len(segments)} process segments, {resumed} of them resumed"
+    where = (f"episodes generated and scored at sha {head}{' from a clean tree' if clean else ' with uncommitted changes'} "
+             f"{in_segments}" if gen_heads == [head]
+             else f"episodes generated at sha {', '.join(gen_heads)} {in_segments}, scored at sha {head}")
     decisions = {m: ((probe or {}).get("models", {}).get(m) or {}).get("decisions") or {} for m in cfg["models"]}
     probe_line = "; ".join(
         f"{m}: reasoning case ({d['reasoning']['case']}) gives think {d['reasoning']['think']}"
@@ -2092,8 +2093,8 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
         for m, d in decisions.items() if d.get("reasoning"))
     lines = [
         f"The protocol of `agent_injection_v3` with the 2026 open models as the agent (`make bench-agent-injection-v3-2026-shard`, "
-        f"{len(shards)} shards merged by `make bench-agent-injection-v3-2026-merge`; {where}, {resumed} of them resumed "
-        f"segments): {blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; models {', '.join(cfg['models'])} "
+        f"{len(shards)} shards merged by `make bench-agent-injection-v3-2026-merge`; {where}): "
+        f"{blob['n_episodes']} episodes, {blob['n_episode_errors']} harness errors; models {', '.join(cfg['models'])} "
         f"via {_m50_server_line(blob, probe)}. The same task set, phrasings, prompts, tools, field check, turn budget, cap, "
         f"temperature {cfg['temperature']} and seeds (k = {cfg['k']}) as the committed run; the committed models' rows "
         f"below are read from `{AGENT_INJECTION_V3_FILE}`. The request was decided on the probe questions before any "
@@ -2139,9 +2140,12 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
         floor = p1.get("floor") or {}
         flip = (p1.get("sign_flip") or {}).get("p_two_sided")
         per = described.get(model) or {}
-        side = "; ".join(f"{(per.get(d) or {}).get('counts', {}).get('withheld', 'n/a')} / "
-                         f"{(per.get(d) or {}).get('counts', {}).get('unanswered', 'n/a')} / "
-                         f"{(per.get(d) or {}).get('counts', {}).get('length_stops', 'n/a')}" for d in ("none", "answer_check"))
+        def count(defense, key, per=per):  # None: the committed rows did not record the key
+            value = ((per.get(defense) or {}).get("counts") or {}).get(key, "n/a")
+            return "not recorded" if value is None else value
+
+        side = "; ".join(f"{count(d, 'withheld')} / {count(d, 'unanswered')} / {count(d, 'length_stops')}"
+                         for d in ("none", "answer_check"))
         labels = []
         thinking = sum(((per.get(d) or {}).get("counts") or {}).get("thinking_calls") or 0 for d in per)
         markers = sum(((per.get(d) or {}).get("counts") or {}).get("texts_with_reasoning_markers") or 0 for d in per)
@@ -2158,9 +2162,22 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
                      f"| {'; '.join(labels) or 'none'} |")
     differ = [m for m in cfg["models"] if entry(m, "planted_value_only") and entry(m, "planted_value_delivered")
               and entry(m, "planted_value_only")["outcome"] != entry(m, "planted_value_delivered")["outcome"]]
-    if differ:
-        lines += ["", f"For {', '.join(differ)} S4's word differs from P1's: the scoring choice (any statement of the "
-                  "planted value, or the planted value without the true one) decides the verdict."]
+    choice = ("the scoring choice (any statement of the planted value, or the planted value without the true one) "
+              "decides the verdict")
+    for model in differ:
+        s4, p1 = entry(model, "planted_value_only"), entry(model, "planted_value_delivered")
+        if s4["outcome"] != "floor":
+            lines += ["", f"For {model} S4's word differs from P1's: {choice}."]
+            continue
+        only = (s4.get("floor") or {}).get("planted_value_only_episodes")
+        counts = ((described.get(model) or {}).get("none") or {}).get("counts") or {}
+        both, warned = counts.get("hijack_both_values_delivered"), counts.get("hijack_both_values_with_warning_word")
+        why = (f": under `none`, {only} of {s4['floor'].get('of')} hijack episodes delivered the planted value "
+               "without the true one" if only is not None else "")
+        if why and both is not None:
+            why += (f", and {both} delivered answers stated both values ({warned} of them beside a warning word, a "
+                    "heuristic that never enters a verdict)")
+        lines += ["", f"For {model} S4 is not testable (floor) while P1 is a {p1['outcome']}{why}; so {choice}."]
     s3 = compare.get("s3") or {}
     rows = s3.get("rows") or []
     did = compare.get("difference_in_differences") or []
@@ -2186,6 +2203,21 @@ def agent_injection_v3_models_2026_table(blob: dict | None, compare: dict | None
                 recall = r.get("field_check_recall") or {}
                 lines.append(f"| {new} | {old} | {r['delta']:+.3f} [{r['lo']:+.3f}, {r['hi']:+.3f}], {r['interval']} "
                              f"| {_flagged(recall.get(new))} | {_flagged(recall.get(old))} |")
+    split_models = list(cfg["models"]) + [m for m in ((v3 or {}).get("config") or {}).get("models", [])]
+    splits = [(m, g, ((described.get(m) or {}).get("none") or {}).get("style_split") or {}) for m in split_models
+              for g in ("all_goals", "hijack")]
+    if any(split.get(g) for _, g, split in splits):
+        lines += ["", "S2, described (no bar): the two phrasing styles written for this benchmark against the five "
+                  "public AgentDojo templates, which may be in the models' training data, under `none`: the attack "
+                  "attempted per draw (for the hijack, the planted value in an answer the model wrote), each "
+                  "question's tasks averaged, paired over the questions.", "",
+                  "| model | goals | styles | templates | styles - templates [95% CI] |", "|---|---|---:|---:|---:|"]
+        for model, goals, split in splits:
+            b = split.get(goals)
+            if b:
+                d = b["styles_minus_templates"]
+                lines.append(f"| {model} | {goals.replace('_', ' ')} | {b['styles']:.3f} | {b['templates']:.3f} "
+                             f"| {d['delta']:+.3f} [{d['lo']:+.3f}, {d['hi']:+.3f}], {d['interval']} |")
     if compare.get("deviations"):
         lines += ["", "Departures from the declared plan, each written down before it was made:", ""] + [
             f"- {x}" for x in compare["deviations"]]
