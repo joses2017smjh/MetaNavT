@@ -1,0 +1,5666 @@
+{
+  "schema": "llm-query-arms-v1",
+  "dataset": "fiqa",
+  "git_sha": "d1b659e",
+  "git_head": "d1b659e385d859f2ba7aad2a47ea6722f1484585",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/agent/__init__.py": "b0d3045af83a80e8fa46c8fde1dcc3744d8a9f244c66d7d2ea1e20e70743a998",
+    "app/agent/decompose.py": "d77de10ec9b533b2f6724c38c6a008f1d40374687ad7a539f68bb3c0eeb73914",
+    "app/agent/deep_research.py": "58068ab6fadb1954d5d298990ae7923b671d37f17faa35104eeb45482d022191",
+    "app/agent/retrieval_loop.py": "b5af513800fa0ab9df52e49fab40930356d09767495741b0627214eb9be19f1d",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/beir.py": "ad32aa870ab9ead1d73eb51abfde77d7002511e56a2e739d578bbbf8a47fd8ca",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/llm_query_arms.py": "c7c7e348f03e1b401c3c5338f3cec69c1f2d30ce10f221d1225857c8c1be40ff",
+    "app/eval/llm_query_bar.py": "d1598949a2e1bc5c89e2c666c570e465539dcf3cd3f3e57eae77c2fd365d3800",
+    "app/eval/llm_query_gen.py": "8ad129fd9a7188042dee1700711a891e3fa0adc8ef6e56f4777d3b741a8f1d3f",
+    "app/eval/llm_query_parse.py": "3159e5b3ad17b0ff169800ec6b91e168c464c9aa741811382f47ac11b2300b58",
+    "app/eval/llm_query_spec.py": "8b0ed6a75a0430401c8070d8607851da9808ad5537be3229c261c2e0558b9b4f",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "8c1da1e317a3a023a9532aaa048b44479df851a721c8d1424173fed5b57c19e1",
+    "app/eval/per_question.py": "04fd21dd79390d0ae457cdd5924a25f57309c96538fc90e2615465ad130df689",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/small_rerankers.py": "f98655495b24f0c97c220e2570e5ff84bba0fa17fbfc55934f1a8908b789423f",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/graph/__init__.py": "65052777718d171f92bd51f5773712749c5f62983120169036aeb1ada05ac12b",
+    "app/graph/conflicts.py": "8e5053d77aabb1f5715bb9a52ccc234cfbaf48f3e0571ebd5a7b1b30df12705d",
+    "app/graph/file_graph.py": "fcfbb24a2089194d7e902a9bdf03615d1105dacfc8b62635c869507511982dd4",
+    "app/graph/graphrag.py": "8d042c623a77b0a54aac472f8adfc1c9dfb38c9976d6a297d4864d17fdbe2c8f",
+    "app/graph/hipporag.py": "56b1c37b3837270654cd2712af295ff81bd83b0b37a69e966632096cc5519e18",
+    "app/graph/staleness.py": "e05adb3f012a7d1403f5cee77837147bf136c0a854419d24c410056ce958ae53",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/embedders.py": "46a9380028dc70610c21d25ddbea2b8db39e59bd0e09042f679f8fa5d59994e8",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/hyde.py": "e0f81e2283a3411317e692531bb6bdd49db4f40468d378ed63fec0266b62db4b",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-26T03:27:15.779064+00:00",
+  "command": "BGE_ALLOW_DOWNLOAD=1 HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.llm_query_arms --dataset fiqa --data-dir <path>/data --rerank-cache <path>/fiqa.jsonl --out bench/results/beir_fiqa_llm_query_arms.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 40,
+    "cpu_model": "Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "corpus_sha256": "f66ef26f25dae42254b1494d4672e6b0118709ee62cee13b763d99d25066356a",
+  "n_queries": 648,
+  "n_docs": 57638,
+  "split": "test",
+  "document_text": "title + ' ' + text",
+  "embedder": {
+    "role": "embedder",
+    "model": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "neural": true,
+    "dim": 384,
+    "device": "cuda:0",
+    "query_instruction": null,
+    "query_prompt_name": null,
+    "query_prompt": null,
+    "dtype_requested": null,
+    "dtype": "torch.float32",
+    "batch_size": null,
+    "max_seq_length": 512,
+    "snapshot_view": null,
+    "doc_embeddings": "read from the on-disk cache (an earlier run computed them)"
+  },
+  "llm_query": {
+    "spec": {
+      "bar": {
+        "name": "M46's declared bar",
+        "metric": "nDCG@10 (BEIR: graded qrels, beir.graded_ndcg_at_k; fixture: file-level gold paths, aggregate_retrieval)",
+        "comparison": "each arm minus its exact parent (same run, same queries, same first stage, same reranker shape; the LLM step is the only switch)",
+        "parents": {
+          "P0": "hybrid@bge-small",
+          "P1": "hybrid+bge-rerank@bge-small/fp32-512/top20: bge-reranker-v2-m3 over the fused top 20 against the ORIGINAL query, max_length 512, fp32, tail in fused order"
+        },
+        "interval": "paired percentile bootstrap over queries: 2000 resamples, seed 0, 95%, one index matrix per dataset scope (app/eval/stats.py); each interval computed once and stored rounded to 4 decimals (delta, lo, hi) and raw (delta_raw, lo_raw, hi_raw)",
+        "verdict": "from the RAW bounds: 'above zero' when lo_raw > 0, 'below zero' when hi_raw < 0, 'covers zero' otherwise (a bound exactly 0.0 covers zero); stored in the comparison block, and every reader uses the stored word",
+        "passes": "'above zero' on SciFact AND 'above zero' on FiQA AND not 'below zero' on the fixture's held-out half; 'open' when a cell is missing; 'withheld' when a dataset's parents did not reproduce",
+        "why_the_fixture_needs_only_not_a_loss": "the held-out half has 68 questions and P1 is near the fixture's ceiling there (--bar prints P1's held-out nDCG@10 and Recall@50 from small_rerankers.json)",
+        "also_reported": "M43's stricter reading, above zero on all three, as a column; not a decision",
+        "applies_to": "every LLM arm of qwen3.5:27b and gemma4:26b; the placement decision uses qwen3.5:27b, gemma4:26b replicates",
+        "verdict_words_only": "the qwen3.5:122b stretch rows, the heuristic stand-in rows, the qwen2.5:7b rows and every secondary comparison",
+        "datasets": {
+          "fixture": "fixture v1, held-out half: the test half of rerank_arms.split_questions (68); the tune half and all 136 reported beside it, no choice made on either",
+          "scifact": "BEIR SciFact test: 300 queries, corpus 5,183",
+          "fiqa": "BEIR FiQA test: 648 queries, corpus 57,638",
+          "never_scored": "no BEIR train or dev query is scored for the record"
+        },
+        "multiplicity": "no correction, as elsewhere in the repository; each results file stores n_intervals by kind"
+      },
+      "arms": [
+        [
+          "hyde",
+          "none",
+          "P0",
+          "hybrid+hyde[{m}]@bge-small"
+        ],
+        [
+          "hyde",
+          "pre",
+          "P1",
+          "hybrid+hyde[{m}]+bge-rerank@bge-small/fp32-512/top20"
+        ],
+        [
+          "hyde",
+          "post",
+          "P1",
+          "hybrid+bge-rerank+hyde[{m}]@bge-small/fp32-512/top20"
+        ],
+        [
+          "multiquery",
+          "none",
+          "P0",
+          "hybrid+multiquery[{m}]@bge-small"
+        ],
+        [
+          "multiquery",
+          "pre",
+          "P1",
+          "hybrid+multiquery[{m}]+bge-rerank@bge-small/fp32-512/top20"
+        ],
+        [
+          "decompose",
+          "none",
+          "P0",
+          "hybrid+decompose[{m}]@bge-small"
+        ],
+        [
+          "decompose",
+          "union",
+          "P1",
+          "hybrid+decompose[{m}]+bge-rerank@bge-small/fp32-512/top20"
+        ],
+        [
+          "decompose",
+          "per-sub",
+          "P1",
+          "hybrid+decompose[{m}]+bge-rerank-per-sub@bge-small/fp32-512/top20"
+        ],
+        [
+          "corrective",
+          "none",
+          "P0",
+          "hybrid+corrective[{m}]@bge-small"
+        ],
+        [
+          "corrective",
+          "post",
+          "P1",
+          "hybrid+bge-rerank+corrective[{m}]@bge-small/fp32-512/top20"
+        ]
+      ],
+      "not_measured": {
+        "multiquery post": "an RRF re-sort after the reranker overrides it, which HyDE's post-rerank arm already shows",
+        "corrective pre": "the reranker re-sorts the head and undoes a demotion"
+      },
+      "request": {
+        "endpoint": "/api/generate",
+        "stream": false,
+        "think": false,
+        "keep_alive": "60m",
+        "options": "OPTIONS_BASE plus num_predict = NUM_PREDICT[kind]",
+        "num_ctx": "not sent (the server's OLLAMA_CONTEXT_LENGTH)",
+        "server": {
+          "OLLAMA_CONTEXT_LENGTH": 8192,
+          "OLLAMA_NUM_PARALLEL": 1,
+          "OLLAMA_NOPRUNE": 1,
+          "OLLAMA_NO_CLOUD": 1,
+          "LLAMA_ARG_THREADS": 4,
+          "LLAMA_ARG_THREADS_BATCH": 4,
+          "cpus": 4,
+          "stretch": {
+            "LLAMA_ARG_THREADS": 16,
+            "LLAMA_ARG_THREADS_BATCH": 16,
+            "cpus": 16
+          }
+        },
+        "overflow_guard": "a call is prompt-overflowed when prompt_eval_count + num_predict > OLLAMA_CONTEXT_LENGTH, or the shard's server log reports a truncated prompt; it is counted and treated as failed",
+        "retries": "a transport error is retried at most twice; there is no retry for content (temperature 0 repeats itself)",
+        "load_check": "the job exits 5 unless /api/ps reports size == size_vram and the server log reports every layer offloaded"
+      },
+      "num_predict": {
+        "hyde": 256,
+        "multiquery": 256,
+        "decompose": 256,
+        "rewrite": 256,
+        "grade": 16
+      },
+      "truncation": {
+        "hyde": "used as written: it is still a passage",
+        "multiquery": "the lines completed before the cut are used; the cut line is dropped",
+        "decompose": "the lines completed before the cut are used; the cut line is dropped",
+        "rewrite": "used only if its first line ended before the cut; otherwise there is no rewrite",
+        "grade": "parsed from its first word as usual"
+      },
+      "g": 5,
+      "prompts_sha256": {
+        "hyde": "a36945663af31bfac16870150c10763436a8b45ed9ea6cd7ab837b330894d7f5",
+        "multiquery": "5dd70e6b8c91952ddf946fa28979c11094ffc56e5bf13e212142981c5fe41de4",
+        "decompose": "38ac293964f0c0110898a506bb3cbd2efadad064c4fcc7e7b4ed6d542f90a191",
+        "rewrite": "a41d2f5c1d9a2371c37abb3a240567ded3ac50078059fbabb52b63b22298188e",
+        "grade": "3d402010462a920d444bbd7e566992d5c79adcf0a10fefd3d826c936f633f7c4"
+      },
+      "rerank": {
+        "model": "BAAI/bge-reranker-v2-m3",
+        "top": 20,
+        "max_length": 512,
+        "precision": "fp32"
+      },
+      "k": {
+        "fixture": 50,
+        "beir": 100
+      }
+    },
+    "declaration": {
+      "D0": "7d39a29a56552083e61aa477b50165abbccef259",
+      "D1": "5d895f1fed71afb11bbedd3af704721e16154945",
+      "D0_time": "2026-11-25T10:54:24-08:00",
+      "D1_time": "2026-11-25T13:07:48-08:00",
+      "d0_to_d1": {
+        "files": [
+          "Makefile",
+          "README.md",
+          "app/eval/evidence.py",
+          "app/eval/llm_query_audit.py",
+          "app/eval/llm_query_gen.py",
+          "app/eval/report.py",
+          "doc/engineering-reference.md",
+          "tests/eval/test_llm_query_arms.py",
+          "tests/eval/test_plan_status.py"
+        ],
+        "changed_functions": {
+          "b": [],
+          "d": []
+        },
+        "num_predict": {
+          "D0": {
+            "hyde": 256,
+            "multiquery": 256,
+            "decompose": 256,
+            "rewrite": 256,
+            "grade": 16
+          },
+          "D1": {
+            "hyde": 256,
+            "multiquery": 256,
+            "decompose": 256,
+            "rewrite": 256,
+            "grade": 16
+          }
+        }
+      },
+      "rule": "between D0 and D1: (a) only NUM_PREDICT (syntax tree), (b) parser fixes the probe showed, (c) byte-identical, (d) only a wiring bug the probe exposed with a failing test first, (e) plumbing; after D1 parts (a)-(d) are frozen",
+      "attempt": 1
+    },
+    "models": {
+      "qwen3.5-27b": {
+        "model": "qwen3.5:27b",
+        "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59"
+      },
+      "gemma4-26b": {
+        "model": "gemma4:26b",
+        "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c"
+      }
+    },
+    "manifest_sha256": "2d9af9bd268dbe72b42826a049d6dd0de84d30abcaef941b0037df4e95006e9b",
+    "cache_files": {
+      "fiqa.gemma4-26b": {
+        "counts": {
+          "decompose": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 613,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 35,
+            "unparseable": 0
+          },
+          "grade": {
+            "calls": 4814,
+            "empty": 0,
+            "failed": 0,
+            "ok": 4814,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "hyde": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "multiquery": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "rewrite": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          }
+        },
+        "duplicate_prompt_lines": [
+          {
+            "kind": "grade",
+            "qid": "3694",
+            "same_prompt_as": {
+              "qid": "3694",
+              "unit": "207813"
+            },
+            "unit": "217427"
+          }
+        ],
+        "file": "bench/llm_query/fiqa.gemma4-26b.jsonl.gz",
+        "model": {
+          "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+          "family": "gemma4",
+          "licence": "apache-2.0",
+          "name": "gemma4:26b",
+          "parameters": "25.2B",
+          "quantization": "Q4_K_M",
+          "role": "replication"
+        },
+        "n_calls": 7406,
+        "n_rows": 7407,
+        "sha256": "d1ae29e34d8936c07cf787f69210d9591cf87b5fd6cb51c15bd7783fad328725",
+        "shards": [
+          {
+            "calls_logged": 3693,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-26T01:05:19.498190+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152495"
+            ],
+            "latest": "2026-11-26T01:23:15.393108+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152495",
+                "load_check": "passed",
+                "load_seconds": 44,
+                "memory_used_mib": 19209,
+                "model": "gemma4:26b",
+                "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+                "server_log_truncated": 0,
+                "size": 1168082205,
+                "size_vram": 1168082205,
+                "threads": 4
+              }
+            ],
+            "shard": "1/2"
+          },
+          {
+            "calls_logged": 3713,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-26T00:34:07.739527+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152496"
+            ],
+            "latest": "2026-11-26T00:52:18.346379+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152496",
+                "load_check": "passed",
+                "load_seconds": 13,
+                "memory_used_mib": 19209,
+                "model": "gemma4:26b",
+                "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+                "server_log_truncated": 0,
+                "size": 1168082205,
+                "size_vram": 1168082205,
+                "threads": 4
+              }
+            ],
+            "shard": "2/2"
+          }
+        ],
+        "worklist_sha256": "5640a3d454e000a92cffcf7d321d733089d6e2fd39f0e74143da6eb3f179c777"
+      },
+      "fiqa.qwen3.5-27b": {
+        "counts": {
+          "decompose": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "grade": {
+            "calls": 4814,
+            "empty": 0,
+            "failed": 0,
+            "ok": 4814,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "hyde": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "multiquery": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "rewrite": {
+            "calls": 648,
+            "empty": 0,
+            "failed": 0,
+            "ok": 648,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          }
+        },
+        "duplicate_prompt_lines": [
+          {
+            "kind": "grade",
+            "qid": "3694",
+            "same_prompt_as": {
+              "qid": "3694",
+              "unit": "207813"
+            },
+            "unit": "217427"
+          }
+        ],
+        "file": "bench/llm_query/fiqa.qwen3.5-27b.jsonl.gz",
+        "model": {
+          "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+          "family": "qwen35",
+          "licence": "apache-2.0",
+          "name": "qwen3.5:27b",
+          "parameters": "26.9B",
+          "quantization": "Q4_K_M",
+          "role": "main"
+        },
+        "n_calls": 7406,
+        "n_rows": 7407,
+        "sha256": "be2280c54292523b448a7d403c65a7432a2d13d10e4ab586e5b098bc22b42b5f",
+        "shards": [
+          {
+            "calls_logged": 3693,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-25T23:24:39.967216+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152491"
+            ],
+            "latest": "2026-11-26T00:37:58.568716+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152491",
+                "load_check": "passed",
+                "load_seconds": 14,
+                "memory_used_mib": 17410,
+                "model": "qwen3.5:27b",
+                "offloaded": "offloaded 65/65 layers",
+                "server_log_truncated": 0,
+                "size": 17089775533,
+                "size_vram": 17089775533,
+                "threads": 4
+              }
+            ],
+            "shard": "1/2"
+          },
+          {
+            "calls_logged": 3713,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-25T23:59:12.999793+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152492"
+            ],
+            "latest": "2026-11-26T01:14:25.629451+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152492",
+                "load_check": "passed",
+                "load_seconds": 14,
+                "memory_used_mib": 17416,
+                "model": "qwen3.5:27b",
+                "offloaded": "offloaded 65/65 layers",
+                "server_log_truncated": 0,
+                "size": 17089775533,
+                "size_vram": 17089775533,
+                "threads": 4
+              }
+            ],
+            "shard": "2/2"
+          }
+        ],
+        "worklist_sha256": "5640a3d454e000a92cffcf7d321d733089d6e2fd39f0e74143da6eb3f179c777"
+      },
+      "fixture.gemma4-26b": {
+        "counts": {
+          "decompose": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 63,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 73,
+            "unparseable": 0
+          },
+          "grade": {
+            "calls": 986,
+            "empty": 0,
+            "failed": 0,
+            "ok": 986,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "hyde": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 136,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "multiquery": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 136,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "rewrite": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 136,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          }
+        },
+        "duplicate_prompt_lines": [],
+        "file": "bench/llm_query/fixture.gemma4-26b.jsonl.gz",
+        "model": {
+          "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+          "family": "gemma4",
+          "licence": "apache-2.0",
+          "name": "gemma4:26b",
+          "parameters": "25.2B",
+          "quantization": "Q4_K_M",
+          "role": "replication"
+        },
+        "n_calls": 1530,
+        "n_rows": 1530,
+        "sha256": "9d6c6138277e185b32e411f2b09a00e5fa0d4d601cfd8cd0b78939ab6e1fa700",
+        "shards": [
+          {
+            "calls_logged": 1530,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 19,
+              "n": 20
+            },
+            "earliest": "2026-11-26T00:28:46.446440+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152493"
+            ],
+            "latest": "2026-11-26T00:33:31.822668+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152493",
+                "load_check": "passed",
+                "load_seconds": 17,
+                "memory_used_mib": 19209,
+                "model": "gemma4:26b",
+                "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+                "server_log_truncated": 0,
+                "size": 1168082205,
+                "size_vram": 1168082205,
+                "threads": 4
+              }
+            ],
+            "shard": "1/1"
+          }
+        ],
+        "worklist_sha256": "0446a12c8be7fbdd4aaf284cea6049967659cd08dda9f2f7e31fef143ceedf94"
+      },
+      "fixture.qwen3.5-27b": {
+        "counts": {
+          "decompose": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 134,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 2,
+            "unparseable": 0
+          },
+          "grade": {
+            "calls": 986,
+            "empty": 0,
+            "failed": 0,
+            "ok": 986,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "hyde": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 136,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "multiquery": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 136,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "rewrite": {
+            "calls": 136,
+            "empty": 0,
+            "failed": 0,
+            "ok": 136,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          }
+        },
+        "duplicate_prompt_lines": [],
+        "file": "bench/llm_query/fixture.qwen3.5-27b.jsonl.gz",
+        "model": {
+          "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+          "family": "qwen35",
+          "licence": "apache-2.0",
+          "name": "qwen3.5:27b",
+          "parameters": "26.9B",
+          "quantization": "Q4_K_M",
+          "role": "main"
+        },
+        "n_calls": 1530,
+        "n_rows": 1530,
+        "sha256": "f615a0198ab3710d59081618fa0aa35df28399dc5e88ceb04da6d7448d417317",
+        "shards": [
+          {
+            "calls_logged": 1530,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-25T23:04:11.496954+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152489"
+            ],
+            "latest": "2026-11-25T23:23:50.804606+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152489",
+                "load_check": "passed",
+                "load_seconds": 13,
+                "memory_used_mib": 17410,
+                "model": "qwen3.5:27b",
+                "offloaded": "offloaded 65/65 layers",
+                "server_log_truncated": 0,
+                "size": 17089775533,
+                "size_vram": 17089775533,
+                "threads": 4
+              }
+            ],
+            "shard": "1/1"
+          }
+        ],
+        "worklist_sha256": "0446a12c8be7fbdd4aaf284cea6049967659cd08dda9f2f7e31fef143ceedf94"
+      },
+      "scifact.gemma4-26b": {
+        "counts": {
+          "decompose": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 295,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 5,
+            "unparseable": 0
+          },
+          "grade": {
+            "calls": 2080,
+            "empty": 0,
+            "failed": 0,
+            "ok": 2080,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "hyde": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "multiquery": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "rewrite": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          }
+        },
+        "duplicate_prompt_lines": [],
+        "file": "bench/llm_query/scifact.gemma4-26b.jsonl.gz",
+        "model": {
+          "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+          "family": "gemma4",
+          "licence": "apache-2.0",
+          "name": "gemma4:26b",
+          "parameters": "25.2B",
+          "quantization": "Q4_K_M",
+          "role": "replication"
+        },
+        "n_calls": 3280,
+        "n_rows": 3280,
+        "sha256": "db1b35eae3d508c85fe87d56d3c121cc0d903ac36fd0d6d43c5fa3239e97880f",
+        "shards": [
+          {
+            "calls_logged": 3280,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-26T00:38:51.192617+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152494"
+            ],
+            "latest": "2026-11-26T00:54:50.673474+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152494",
+                "load_check": "passed",
+                "load_seconds": 17,
+                "memory_used_mib": 19204,
+                "model": "gemma4:26b",
+                "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+                "server_log_truncated": 0,
+                "size": 1168082205,
+                "size_vram": 1168082205,
+                "threads": 4
+              }
+            ],
+            "shard": "1/1"
+          }
+        ],
+        "worklist_sha256": "6d2ef7c4aca3aa1c88e002ca76fbb371980a6e5bda6538743826f117f4afeff9"
+      },
+      "scifact.qwen3.5-27b": {
+        "counts": {
+          "decompose": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "grade": {
+            "calls": 2080,
+            "empty": 0,
+            "failed": 0,
+            "ok": 2080,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "hyde": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "multiquery": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          },
+          "rewrite": {
+            "calls": 300,
+            "empty": 0,
+            "failed": 0,
+            "ok": 300,
+            "overflowed": 0,
+            "thinking": 0,
+            "truncated": 0,
+            "unchanged": 0,
+            "unparseable": 0
+          }
+        },
+        "duplicate_prompt_lines": [],
+        "file": "bench/llm_query/scifact.qwen3.5-27b.jsonl.gz",
+        "model": {
+          "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+          "family": "qwen35",
+          "licence": "apache-2.0",
+          "name": "qwen3.5:27b",
+          "parameters": "26.9B",
+          "quantization": "Q4_K_M",
+          "role": "main"
+        },
+        "n_calls": 3280,
+        "n_rows": 3280,
+        "sha256": "e791af2f94125831b9470f81f8a2ca5b1ef3ea427fc5c84fc944ebaac016223b",
+        "shards": [
+          {
+            "calls_logged": 3280,
+            "code_sha": [
+              "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+            ],
+            "determinism": {
+              "byte_identical": 20,
+              "n": 20
+            },
+            "earliest": "2026-11-25T23:14:15.306673+00:00",
+            "gpu": [
+              "Quadro RTX 8000"
+            ],
+            "jobs": [
+              "22152490"
+            ],
+            "latest": "2026-11-26T00:27:37.964187+00:00",
+            "server": [
+              {
+                "context_length": 8192,
+                "cpus": 4,
+                "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+                "generate_exit": 0,
+                "gpu": "Quadro RTX 8000",
+                "job": "22152490",
+                "load_check": "passed",
+                "load_seconds": 13,
+                "memory_used_mib": 17415,
+                "model": "qwen3.5:27b",
+                "offloaded": "offloaded 65/65 layers",
+                "server_log_truncated": 0,
+                "size": 17089775533,
+                "size_vram": 17089775533,
+                "threads": 4
+              }
+            ],
+            "shard": "1/1"
+          }
+        ],
+        "worklist_sha256": "6d2ef7c4aca3aa1c88e002ca76fbb371980a6e5bda6538743826f117f4afeff9"
+      }
+    },
+    "stretch": false
+  },
+  "reranker": {
+    "model": "BAAI/bge-reranker-v2-m3",
+    "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "device": "cuda:0",
+    "dtype": "torch.float32",
+    "loaded_max_length": 512,
+    "default_prompt_name": null,
+    "default_prompt": null,
+    "load_and_score": {
+      "query": "What is the capital of China?",
+      "score_answer": 0.999968,
+      "score_other": 1.6e-05,
+      "score_answer_long": 0.968841,
+      "passed": true
+    },
+    "shape": {
+      "model": "BAAI/bge-reranker-v2-m3",
+      "top": 20,
+      "max_length": 512,
+      "precision": "fp32"
+    }
+  },
+  "rerank_cache": {
+    "entries_reused": 104132,
+    "computed": 108548,
+    "gpu": "Quadro RTX 8000",
+    "note": "reranker scores cached by (sha256 of the query text, unit, reranker revision, GPU name); an entry is reused only on the same GPU type"
+  },
+  "reproduction": {
+    "status": "reproduces",
+    "checks": [
+      {
+        "row": "hybrid@bge-small",
+        "file": "bench/results/beir_fiqa.json",
+        "means_equal": true,
+        "ranking_equal": true
+      },
+      {
+        "row": "hybrid@bge-small",
+        "file": "bench/results/beir_fiqa_small_rerankers.json",
+        "ranking_equal": true,
+        "compared_as": "hybrid@bge-small",
+        "scores_equal": true
+      },
+      {
+        "row": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "file": "bench/results/beir_fiqa.json",
+        "means_equal": true,
+        "ranking_equal": true
+      },
+      {
+        "row": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "file": "bench/results/beir_fiqa_small_rerankers.json",
+        "ranking_equal": true,
+        "compared_as": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+        "scores_equal": true
+      },
+      {
+        "row": "dense@bge-small",
+        "file": "bench/results/beir_fiqa.json",
+        "means_equal": true,
+        "ranking_equal": true
+      }
+    ]
+  },
+  "rows": [
+    {
+      "config": "hybrid@bge-small",
+      "kind": "parent",
+      "ranking_sha256": "9bd457adaef231454eec743bbf94df0c5736a2b347da96e38ca739c7725ca115",
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "parent",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "776398a4e999726e636196959a670d1b1a66db87f2f6e996cae0b9980716ddef",
+      "fallbacks": []
+    },
+    {
+      "config": "dense@bge-small",
+      "kind": "reference",
+      "ranking_sha256": "b640892ae86307a5f971f25d13a6f29a3998f69929d263413ff0f55564aa1569",
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+hyde[qwen3.5-27b]@bge-small",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "hyde",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "31b746bfbb77a9173af979afdc45805447238deca903defdc4fb52f142e86426",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 647,
+        "queries_with_hypothesis": 648,
+        "work": {
+          "first_stage_searches_per_query": 1.0,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 74.39,
+        "generated_tokens_per_query": 79.44,
+        "llm_ms_per_query": {
+          "p50": 3628.5,
+          "p95": 5110.7,
+          "mean": 3769.8
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+hyde[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "hyde",
+      "placement": "pre",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "ce6f16916697ac0def0f11275248bb4d7e72519bdfab91fb61ef2f6a41fe1b63",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 556,
+        "queries_with_hypothesis": 648,
+        "work": {
+          "first_stage_searches_per_query": 1.0,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 74.39,
+        "generated_tokens_per_query": 79.44,
+        "llm_ms_per_query": {
+          "p50": 3628.5,
+          "p95": 5110.7,
+          "mean": 3769.8
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+bge-rerank+hyde[qwen3.5-27b]@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "hyde",
+      "placement": "post",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "070469d0f29e7b3cef5c4b58b602b0f2b78e3005645f6a9623c31e2e725d9a1d",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 648,
+        "queries_with_hypothesis": 648,
+        "work": {
+          "first_stage_searches_per_query": 2.0,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 1.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 74.39,
+        "generated_tokens_per_query": 79.44,
+        "llm_ms_per_query": {
+          "p50": 3628.5,
+          "p95": 5110.7,
+          "mean": 3769.8
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+multiquery[qwen3.5-27b]@bge-small",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "multiquery",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "c414274dc2067250083d774185390e852eab84d222bb9bb82dee32e26b765ce4",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 648,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 3.0,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 2.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 42.39,
+        "generated_tokens_per_query": 21.17,
+        "llm_ms_per_query": {
+          "p50": 1097.4,
+          "p95": 1595.8,
+          "mean": 1134.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+multiquery[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "multiquery",
+      "placement": "pre",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "c800233b24170840c102993114eb9c923742bb3f9f76ff0b8b9997d526801385",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 625,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 3.0,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 2.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 42.39,
+        "generated_tokens_per_query": 21.17,
+        "llm_ms_per_query": {
+          "p50": 1097.4,
+          "p95": 1595.8,
+          "mean": 1134.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+decompose[qwen3.5-27b]@bge-small",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "decompose",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "87670a099c3d0632b1a572d95fd9f0b09d66e63f3952cb220ea501276a3cf56e",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 647,
+        "more_than_one_sub": 647,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 4.968,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 3.968,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 88.39,
+        "generated_tokens_per_query": 62.27,
+        "llm_ms_per_query": {
+          "p50": 2986.2,
+          "p95": 3980.7,
+          "mean": 3027.9
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+decompose[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "decompose",
+      "placement": "union",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "e2c454992d9312d830aeef153c4bde47fbbc0a5aeb691b0e8a29ffaafcdfcb8e",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 628,
+        "more_than_one_sub": 647,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 4.968,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 3.968,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 88.39,
+        "generated_tokens_per_query": 62.27,
+        "llm_ms_per_query": {
+          "p50": 2986.2,
+          "p95": 3980.7,
+          "mean": 3027.9
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+decompose[qwen3.5-27b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "decompose",
+      "placement": "per-sub",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "eba952bb9b9a2c4977c3810f8d89eb6708d5736260dc580e248acf8f5567ed87",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 640,
+        "more_than_one_sub": 647,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 4.968,
+          "reranked_pairs_per_query": 99.352,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 3.968,
+            "reranked_pairs_per_query": 79.352
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 88.39,
+        "generated_tokens_per_query": 62.27,
+        "llm_ms_per_query": {
+          "p50": 2986.2,
+          "p95": 3980.7,
+          "mean": 3027.9
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+corrective[qwen3.5-27b]@bge-small",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "corrective",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "5d799beb0e09e2d80807b0be642f73b44315b0eeec754917a2e2f867fb486afd",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 556,
+        "top10_differs": 556,
+        "queries_with_demotions": 556,
+        "units_demoted": 1659,
+        "rewrites": 85,
+        "work": {
+          "first_stage_searches_per_query": 1.131,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.131,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 3325,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 3325,
+        "llm_calls_per_query": 5.1312,
+        "prompt_tokens_per_query": 1610.47,
+        "generated_tokens_per_query": 11.79,
+        "llm_ms_per_query": {
+          "p50": 3465.4,
+          "p95": 4453.3,
+          "mean": 3510.2
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+bge-rerank+corrective[qwen3.5-27b]@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "qwen3.5-27b",
+      "technique": "corrective",
+      "placement": "post",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "2acf3498f5294b605dd41180e76d198425959982d6bc40be37f9c237953c35f4",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 493,
+        "top10_differs": 493,
+        "queries_with_demotions": 493,
+        "units_demoted": 1359,
+        "rewrites": 55,
+        "work": {
+          "first_stage_searches_per_query": 1.085,
+          "reranked_pairs_per_query": 21.698,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.085,
+            "reranked_pairs_per_query": 1.698
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 348.84,
+          "p95": 390.81,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 3295,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 3295,
+        "llm_calls_per_query": 5.0849,
+        "prompt_tokens_per_query": 1584.54,
+        "generated_tokens_per_query": 11.1,
+        "llm_ms_per_query": {
+          "p50": 3409.6,
+          "p95": 4340.2,
+          "mean": 3441.2
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+hyde[gemma4-26b]@bge-small",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "hyde",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "85994c76b4f91c8275eda2bb06d689f56d8303f6445fbf0dbdfbc76b0b9ae7ae",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 648,
+        "queries_with_hypothesis": 648,
+        "work": {
+          "first_stage_searches_per_query": 1.0,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 76.42,
+        "generated_tokens_per_query": 63.39,
+        "llm_ms_per_query": {
+          "p50": 706.2,
+          "p95": 1004.0,
+          "mean": 733.4
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+hyde[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "hyde",
+      "placement": "pre",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "58e0cdaf09ffba3e5f92f5a361c38c7bdcbd6851b029ec967dbcaca528319de6",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 565,
+        "queries_with_hypothesis": 648,
+        "work": {
+          "first_stage_searches_per_query": 1.0,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 76.42,
+        "generated_tokens_per_query": 63.39,
+        "llm_ms_per_query": {
+          "p50": 706.2,
+          "p95": 1004.0,
+          "mean": 733.4
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+bge-rerank+hyde[gemma4-26b]@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "hyde",
+      "placement": "post",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "ccb88ba60fa9a32cf50f66165232625602e17fc119205b77f72dcaf75fe90b0b",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 648,
+        "queries_with_hypothesis": 648,
+        "work": {
+          "first_stage_searches_per_query": 2.0,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 1.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 76.42,
+        "generated_tokens_per_query": 63.39,
+        "llm_ms_per_query": {
+          "p50": 706.2,
+          "p95": 1004.0,
+          "mean": 733.4
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+multiquery[gemma4-26b]@bge-small",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "multiquery",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "bf0333f79036c086ed82bb0f11712c25c145f5a361029c6fec9721d13415086a",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 648,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 3.0,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 2.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 43.42,
+        "generated_tokens_per_query": 18.9,
+        "llm_ms_per_query": {
+          "p50": 261.7,
+          "p95": 359.0,
+          "mean": 265.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+multiquery[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "multiquery",
+      "placement": "pre",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "13c5b64e698b24d0e99427c81741961979526679affdb0cb83260778ae31199d",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 648,
+        "top10_differs": 625,
+        "queries_with_extra_lists": 648,
+        "work": {
+          "first_stage_searches_per_query": 3.0,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 2.0,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 43.42,
+        "generated_tokens_per_query": 18.9,
+        "llm_ms_per_query": {
+          "p50": 261.7,
+          "p95": 359.0,
+          "mean": 265.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+decompose[gemma4-26b]@bge-small",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "decompose",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "fa2c619dc79d32c50e50c41c3ddd014347ccb547fbc98e671fd7e760e3ca58cb",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 613,
+        "top10_differs": 610,
+        "more_than_one_sub": 590,
+        "queries_with_extra_lists": 613,
+        "work": {
+          "first_stage_searches_per_query": 4.282,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 3.282,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 35,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 91.42,
+        "generated_tokens_per_query": 50.18,
+        "llm_ms_per_query": {
+          "p50": 539.6,
+          "p95": 778.4,
+          "mean": 523.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [
+        "parent behaviour on 35 of 648 queries (the decomposition reply repeated the query)"
+      ],
+      "fallbacks": [
+        "parent behaviour on 35 of 648 queries (the decomposition reply repeated the query)"
+      ]
+    },
+    {
+      "config": "hybrid+decompose[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "decompose",
+      "placement": "union",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "a945a3b064b20f10856d69726750e9f329548581b7ec2da9614b7d0545d0365c",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 613,
+        "top10_differs": 583,
+        "more_than_one_sub": 590,
+        "queries_with_extra_lists": 613,
+        "work": {
+          "first_stage_searches_per_query": 4.282,
+          "reranked_pairs_per_query": 20.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 3.282,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 35,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 91.42,
+        "generated_tokens_per_query": 50.18,
+        "llm_ms_per_query": {
+          "p50": 539.6,
+          "p95": 778.4,
+          "mean": 523.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [
+        "parent behaviour on 35 of 648 queries (the decomposition reply repeated the query)"
+      ],
+      "fallbacks": [
+        "parent behaviour on 35 of 648 queries (the decomposition reply repeated the query)"
+      ]
+    },
+    {
+      "config": "hybrid+decompose[gemma4-26b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "decompose",
+      "placement": "per-sub",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "ebd6fac2f275742a026b30b2b5719b8e66a4637b0f897363adda85a19e0396d8",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 613,
+        "top10_differs": 602,
+        "more_than_one_sub": 590,
+        "queries_with_extra_lists": 613,
+        "work": {
+          "first_stage_searches_per_query": 4.282,
+          "reranked_pairs_per_query": 85.648,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 3.282,
+            "reranked_pairs_per_query": 65.648
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 648,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 35,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 648,
+        "llm_calls_per_query": 1.0,
+        "prompt_tokens_per_query": 91.42,
+        "generated_tokens_per_query": 50.18,
+        "llm_ms_per_query": {
+          "p50": 539.6,
+          "p95": 778.4,
+          "mean": 523.3
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [
+        "parent behaviour on 35 of 648 queries (the decomposition reply repeated the query)"
+      ],
+      "fallbacks": [
+        "parent behaviour on 35 of 648 queries (the decomposition reply repeated the query)"
+      ]
+    },
+    {
+      "config": "hybrid+corrective[gemma4-26b]@bge-small",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "corrective",
+      "placement": "none",
+      "parent": "hybrid@bge-small",
+      "ranking_sha256": "de241d8b74996747a513dfea045810dd3e9abe5c46db6503d2b82b073a9ec6c2",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 571,
+        "top10_differs": 571,
+        "queries_with_demotions": 571,
+        "units_demoted": 1742,
+        "rewrites": 87,
+        "work": {
+          "first_stage_searches_per_query": 1.134,
+          "reranked_pairs_per_query": 0.0,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.134,
+            "reranked_pairs_per_query": 0.0
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 3327,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 3327,
+        "llm_calls_per_query": 5.1343,
+        "prompt_tokens_per_query": 1631.31,
+        "generated_tokens_per_query": 12.17,
+        "llm_ms_per_query": {
+          "p50": 1083.6,
+          "p95": 1377.0,
+          "mean": 1101.7
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    },
+    {
+      "config": "hybrid+bge-rerank+corrective[gemma4-26b]@bge-small/fp32-512/top20",
+      "kind": "arm",
+      "model": "gemma4-26b",
+      "technique": "corrective",
+      "placement": "post",
+      "parent": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+      "ranking_sha256": "b7c0b16cde2e7ffc74c3a9639e2e81fbccd60f1629f94c8e58601bb29013017d",
+      "fired": {
+        "n_queries": 648,
+        "lists_changed": 532,
+        "top10_differs": 532,
+        "queries_with_demotions": 532,
+        "units_demoted": 1451,
+        "rewrites": 49,
+        "work": {
+          "first_stage_searches_per_query": 1.076,
+          "reranked_pairs_per_query": 21.512,
+          "added_vs_parent": {
+            "first_stage_searches_per_query": 0.076,
+            "reranked_pairs_per_query": 1.512
+          },
+          "note": "the arm's whole pipeline per query (a dense-only search counts as a search); P0 is one search, P1 adds its reranked top 20"
+        },
+        "ranking_ms": {
+          "p50": 298.83,
+          "p95": 347.41,
+          "note": "indicative: the source's arms per query divided evenly, LLM output from the cache, reranker scores partly from the on-disk score cache"
+        }
+      },
+      "llm_counts": {
+        "calls": 3289,
+        "failed": 0,
+        "empty": 0,
+        "unparseable": 0,
+        "unchanged": 0,
+        "truncated": 0,
+        "overflowed": 0,
+        "thinking": 0
+      },
+      "cost": {
+        "llm_calls": 3289,
+        "llm_calls_per_query": 5.0756,
+        "prompt_tokens_per_query": 1604.39,
+        "generated_tokens_per_query": 11.18,
+        "llm_ms_per_query": {
+          "p50": 1068.0,
+          "p95": 1327.3,
+          "mean": 1081.0
+        },
+        "gpu": [
+          "Quadro RTX 8000"
+        ],
+        "note": "the sum of the cached calls the arm reads per query, sequential, client wall time on the GPU named"
+      },
+      "llm_fallbacks": [],
+      "fallbacks": []
+    }
+  ],
+  "scopes": {
+    "test": {
+      "n": 648,
+      "bootstrap": {
+        "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+        "rng": "numpy.random.RandomState.randint",
+        "seed": 0,
+        "n_boot": 2000,
+        "n_queries": 648,
+        "level": 0.95,
+        "permutation": {
+          "n": 10000,
+          "seed": 0,
+          "method": "paired sign-flip of the per-query differences, one sign matrix per scope (numpy RandomState(seed).randint(0, 2)), two-sided, p = (1 + #|mean| >= |observed|) / (1 + n)"
+        }
+      },
+      "rows": [
+        {
+          "config": "hybrid@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3645,
+              "lo": 0.336,
+              "hi": 0.3895
+            },
+            "recall@10": {
+              "mean": 0.4365,
+              "lo": 0.4052,
+              "hi": 0.4655
+            },
+            "recall@100": {
+              "mean": 0.6911,
+              "lo": 0.662,
+              "hi": 0.7177
+            },
+            "mrr@10": {
+              "mean": 0.438,
+              "lo": 0.4038,
+              "hi": 0.4688
+            },
+            "input_recall@20": {
+              "mean": 0.5225,
+              "lo": 0.4909,
+              "hi": 0.5515
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3645,
+            "recall@10": 0.4365,
+            "recall@100": 0.6911,
+            "mrr@10": 0.438,
+            "input_recall@20": 0.5225
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4254,
+              "lo": 0.3949,
+              "hi": 0.4517
+            },
+            "recall@10": {
+              "mean": 0.4835,
+              "lo": 0.452,
+              "hi": 0.5127
+            },
+            "recall@100": {
+              "mean": 0.6911,
+              "lo": 0.662,
+              "hi": 0.7177
+            },
+            "mrr@10": {
+              "mean": 0.5184,
+              "lo": 0.4827,
+              "hi": 0.5504
+            },
+            "input_recall@20": {
+              "mean": 0.5225,
+              "lo": 0.4909,
+              "hi": 0.5515
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4254,
+            "recall@10": 0.4835,
+            "recall@100": 0.6911,
+            "mrr@10": 0.5184,
+            "input_recall@20": 0.5225
+          }
+        },
+        {
+          "config": "dense@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3848,
+              "lo": 0.3559,
+              "hi": 0.4111
+            },
+            "recall@10": {
+              "mean": 0.4396,
+              "lo": 0.4081,
+              "hi": 0.469
+            },
+            "recall@100": {
+              "mean": 0.6866,
+              "lo": 0.6577,
+              "hi": 0.7142
+            },
+            "mrr@10": {
+              "mean": 0.465,
+              "lo": 0.4294,
+              "hi": 0.4974
+            },
+            "input_recall@20": {
+              "mean": 0.5125,
+              "lo": 0.4813,
+              "hi": 0.5425
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3848,
+            "recall@10": 0.4396,
+            "recall@100": 0.6866,
+            "mrr@10": 0.465,
+            "input_recall@20": 0.5125
+          }
+        },
+        {
+          "config": "hybrid+hyde[qwen3.5-27b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.374,
+              "lo": 0.3464,
+              "hi": 0.3987
+            },
+            "recall@10": {
+              "mean": 0.4535,
+              "lo": 0.4216,
+              "hi": 0.4812
+            },
+            "recall@100": {
+              "mean": 0.7184,
+              "lo": 0.6898,
+              "hi": 0.7442
+            },
+            "mrr@10": {
+              "mean": 0.4513,
+              "lo": 0.4171,
+              "hi": 0.4822
+            },
+            "input_recall@20": {
+              "mean": 0.5494,
+              "lo": 0.5179,
+              "hi": 0.5782
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.374,
+            "recall@10": 0.4535,
+            "recall@100": 0.7184,
+            "mrr@10": 0.4513,
+            "input_recall@20": 0.5494
+          }
+        },
+        {
+          "config": "hybrid+hyde[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4374,
+              "lo": 0.4079,
+              "hi": 0.4634
+            },
+            "recall@10": {
+              "mean": 0.4961,
+              "lo": 0.4633,
+              "hi": 0.5244
+            },
+            "recall@100": {
+              "mean": 0.7184,
+              "lo": 0.6898,
+              "hi": 0.7442
+            },
+            "mrr@10": {
+              "mean": 0.5345,
+              "lo": 0.499,
+              "hi": 0.5673
+            },
+            "input_recall@20": {
+              "mean": 0.5494,
+              "lo": 0.5179,
+              "hi": 0.5782
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4374,
+            "recall@10": 0.4961,
+            "recall@100": 0.7184,
+            "mrr@10": 0.5345,
+            "input_recall@20": 0.5494
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank+hyde[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4395,
+              "lo": 0.4093,
+              "hi": 0.4649
+            },
+            "recall@10": {
+              "mean": 0.4978,
+              "lo": 0.4656,
+              "hi": 0.5277
+            },
+            "recall@100": {
+              "mean": 0.6911,
+              "lo": 0.662,
+              "hi": 0.7177
+            },
+            "mrr@10": {
+              "mean": 0.5305,
+              "lo": 0.495,
+              "hi": 0.5614
+            },
+            "input_recall@20": {
+              "mean": 0.5225,
+              "lo": 0.4909,
+              "hi": 0.5515
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4395,
+            "recall@10": 0.4978,
+            "recall@100": 0.6911,
+            "mrr@10": 0.5305,
+            "input_recall@20": 0.5225
+          }
+        },
+        {
+          "config": "hybrid+multiquery[qwen3.5-27b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.362,
+              "lo": 0.336,
+              "hi": 0.3875
+            },
+            "recall@10": {
+              "mean": 0.459,
+              "lo": 0.4286,
+              "hi": 0.4895
+            },
+            "recall@100": {
+              "mean": 0.721,
+              "lo": 0.6927,
+              "hi": 0.746
+            },
+            "mrr@10": {
+              "mean": 0.4191,
+              "lo": 0.3864,
+              "hi": 0.4509
+            },
+            "input_recall@20": {
+              "mean": 0.5473,
+              "lo": 0.5155,
+              "hi": 0.5779
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.362,
+            "recall@10": 0.459,
+            "recall@100": 0.721,
+            "mrr@10": 0.4191,
+            "input_recall@20": 0.5473
+          }
+        },
+        {
+          "config": "hybrid+multiquery[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4325,
+              "lo": 0.4035,
+              "hi": 0.4598
+            },
+            "recall@10": {
+              "mean": 0.4923,
+              "lo": 0.4599,
+              "hi": 0.5223
+            },
+            "recall@100": {
+              "mean": 0.721,
+              "lo": 0.6927,
+              "hi": 0.746
+            },
+            "mrr@10": {
+              "mean": 0.525,
+              "lo": 0.489,
+              "hi": 0.5577
+            },
+            "input_recall@20": {
+              "mean": 0.5473,
+              "lo": 0.5155,
+              "hi": 0.5779
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4325,
+            "recall@10": 0.4923,
+            "recall@100": 0.721,
+            "mrr@10": 0.525,
+            "input_recall@20": 0.5473
+          }
+        },
+        {
+          "config": "hybrid+decompose[qwen3.5-27b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3639,
+              "lo": 0.336,
+              "hi": 0.3893
+            },
+            "recall@10": {
+              "mean": 0.453,
+              "lo": 0.421,
+              "hi": 0.4832
+            },
+            "recall@100": {
+              "mean": 0.7289,
+              "lo": 0.7012,
+              "hi": 0.7541
+            },
+            "mrr@10": {
+              "mean": 0.4252,
+              "lo": 0.3902,
+              "hi": 0.4561
+            },
+            "input_recall@20": {
+              "mean": 0.5511,
+              "lo": 0.52,
+              "hi": 0.5807
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3639,
+            "recall@10": 0.453,
+            "recall@100": 0.7289,
+            "mrr@10": 0.4252,
+            "input_recall@20": 0.5511
+          }
+        },
+        {
+          "config": "hybrid+decompose[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4315,
+              "lo": 0.4031,
+              "hi": 0.4574
+            },
+            "recall@10": {
+              "mean": 0.4962,
+              "lo": 0.4636,
+              "hi": 0.5254
+            },
+            "recall@100": {
+              "mean": 0.7289,
+              "lo": 0.7012,
+              "hi": 0.7541
+            },
+            "mrr@10": {
+              "mean": 0.5266,
+              "lo": 0.4913,
+              "hi": 0.5589
+            },
+            "input_recall@20": {
+              "mean": 0.5511,
+              "lo": 0.52,
+              "hi": 0.5807
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4315,
+            "recall@10": 0.4962,
+            "recall@100": 0.7289,
+            "mrr@10": 0.5266,
+            "input_recall@20": 0.5511
+          }
+        },
+        {
+          "config": "hybrid+decompose[qwen3.5-27b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3902,
+              "lo": 0.3628,
+              "hi": 0.4164
+            },
+            "recall@10": {
+              "mean": 0.4735,
+              "lo": 0.4419,
+              "hi": 0.5034
+            },
+            "recall@100": {
+              "mean": 0.7241,
+              "lo": 0.696,
+              "hi": 0.75
+            },
+            "mrr@10": {
+              "mean": 0.4626,
+              "lo": 0.4272,
+              "hi": 0.4972
+            },
+            "input_recall@20": {
+              "mean": 0.663,
+              "lo": 0.6348,
+              "hi": 0.6902
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3902,
+            "recall@10": 0.4735,
+            "recall@100": 0.7241,
+            "mrr@10": 0.4626,
+            "input_recall@20": 0.663
+          }
+        },
+        {
+          "config": "hybrid+corrective[qwen3.5-27b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3856,
+              "lo": 0.3561,
+              "hi": 0.4132
+            },
+            "recall@10": {
+              "mean": 0.4266,
+              "lo": 0.3956,
+              "hi": 0.4563
+            },
+            "recall@100": {
+              "mean": 0.6881,
+              "lo": 0.6596,
+              "hi": 0.7146
+            },
+            "mrr@10": {
+              "mean": 0.4863,
+              "lo": 0.451,
+              "hi": 0.5186
+            },
+            "input_recall@20": {
+              "mean": 0.4961,
+              "lo": 0.464,
+              "hi": 0.5261
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3856,
+            "recall@10": 0.4266,
+            "recall@100": 0.6881,
+            "mrr@10": 0.4863,
+            "input_recall@20": 0.4961
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank+corrective[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4154,
+              "lo": 0.3865,
+              "hi": 0.4418
+            },
+            "recall@10": {
+              "mean": 0.4477,
+              "lo": 0.4159,
+              "hi": 0.4768
+            },
+            "recall@100": {
+              "mean": 0.6874,
+              "lo": 0.658,
+              "hi": 0.7138
+            },
+            "mrr@10": {
+              "mean": 0.5279,
+              "lo": 0.4923,
+              "hi": 0.561
+            },
+            "input_recall@20": {
+              "mean": 0.529,
+              "lo": 0.4976,
+              "hi": 0.5577
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4154,
+            "recall@10": 0.4477,
+            "recall@100": 0.6874,
+            "mrr@10": 0.5279,
+            "input_recall@20": 0.529
+          }
+        },
+        {
+          "config": "hybrid+hyde[gemma4-26b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3744,
+              "lo": 0.3467,
+              "hi": 0.3996
+            },
+            "recall@10": {
+              "mean": 0.4546,
+              "lo": 0.4236,
+              "hi": 0.4837
+            },
+            "recall@100": {
+              "mean": 0.7133,
+              "lo": 0.6852,
+              "hi": 0.7384
+            },
+            "mrr@10": {
+              "mean": 0.4478,
+              "lo": 0.415,
+              "hi": 0.4781
+            },
+            "input_recall@20": {
+              "mean": 0.5528,
+              "lo": 0.5224,
+              "hi": 0.5814
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3744,
+            "recall@10": 0.4546,
+            "recall@100": 0.7133,
+            "mrr@10": 0.4478,
+            "input_recall@20": 0.5528
+          }
+        },
+        {
+          "config": "hybrid+hyde[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4359,
+              "lo": 0.4066,
+              "hi": 0.4618
+            },
+            "recall@10": {
+              "mean": 0.4995,
+              "lo": 0.4688,
+              "hi": 0.5287
+            },
+            "recall@100": {
+              "mean": 0.7133,
+              "lo": 0.6852,
+              "hi": 0.7384
+            },
+            "mrr@10": {
+              "mean": 0.5292,
+              "lo": 0.4943,
+              "hi": 0.5612
+            },
+            "input_recall@20": {
+              "mean": 0.5528,
+              "lo": 0.5224,
+              "hi": 0.5814
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4359,
+            "recall@10": 0.4995,
+            "recall@100": 0.7133,
+            "mrr@10": 0.5292,
+            "input_recall@20": 0.5528
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank+hyde[gemma4-26b]@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4391,
+              "lo": 0.409,
+              "hi": 0.4653
+            },
+            "recall@10": {
+              "mean": 0.4899,
+              "lo": 0.4579,
+              "hi": 0.5205
+            },
+            "recall@100": {
+              "mean": 0.6911,
+              "lo": 0.662,
+              "hi": 0.7177
+            },
+            "mrr@10": {
+              "mean": 0.533,
+              "lo": 0.4959,
+              "hi": 0.5644
+            },
+            "input_recall@20": {
+              "mean": 0.5225,
+              "lo": 0.4909,
+              "hi": 0.5515
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4391,
+            "recall@10": 0.4899,
+            "recall@100": 0.6911,
+            "mrr@10": 0.533,
+            "input_recall@20": 0.5225
+          }
+        },
+        {
+          "config": "hybrid+multiquery[gemma4-26b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3474,
+              "lo": 0.3207,
+              "hi": 0.3719
+            },
+            "recall@10": {
+              "mean": 0.4454,
+              "lo": 0.414,
+              "hi": 0.4748
+            },
+            "recall@100": {
+              "mean": 0.7177,
+              "lo": 0.6888,
+              "hi": 0.7433
+            },
+            "mrr@10": {
+              "mean": 0.4046,
+              "lo": 0.3713,
+              "hi": 0.435
+            },
+            "input_recall@20": {
+              "mean": 0.5435,
+              "lo": 0.5115,
+              "hi": 0.5721
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3474,
+            "recall@10": 0.4454,
+            "recall@100": 0.7177,
+            "mrr@10": 0.4046,
+            "input_recall@20": 0.5435
+          }
+        },
+        {
+          "config": "hybrid+multiquery[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4297,
+              "lo": 0.4007,
+              "hi": 0.4561
+            },
+            "recall@10": {
+              "mean": 0.4866,
+              "lo": 0.454,
+              "hi": 0.5154
+            },
+            "recall@100": {
+              "mean": 0.7177,
+              "lo": 0.6888,
+              "hi": 0.7433
+            },
+            "mrr@10": {
+              "mean": 0.5241,
+              "lo": 0.4882,
+              "hi": 0.5573
+            },
+            "input_recall@20": {
+              "mean": 0.5435,
+              "lo": 0.5115,
+              "hi": 0.5721
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4297,
+            "recall@10": 0.4866,
+            "recall@100": 0.7177,
+            "mrr@10": 0.5241,
+            "input_recall@20": 0.5435
+          }
+        },
+        {
+          "config": "hybrid+decompose[gemma4-26b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3591,
+              "lo": 0.331,
+              "hi": 0.3857
+            },
+            "recall@10": {
+              "mean": 0.4436,
+              "lo": 0.4133,
+              "hi": 0.472
+            },
+            "recall@100": {
+              "mean": 0.7227,
+              "lo": 0.694,
+              "hi": 0.748
+            },
+            "mrr@10": {
+              "mean": 0.4264,
+              "lo": 0.3925,
+              "hi": 0.4594
+            },
+            "input_recall@20": {
+              "mean": 0.5385,
+              "lo": 0.508,
+              "hi": 0.5693
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3591,
+            "recall@10": 0.4436,
+            "recall@100": 0.7227,
+            "mrr@10": 0.4264,
+            "input_recall@20": 0.5385
+          }
+        },
+        {
+          "config": "hybrid+decompose[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4294,
+              "lo": 0.4001,
+              "hi": 0.4568
+            },
+            "recall@10": {
+              "mean": 0.4872,
+              "lo": 0.4561,
+              "hi": 0.5185
+            },
+            "recall@100": {
+              "mean": 0.7227,
+              "lo": 0.694,
+              "hi": 0.748
+            },
+            "mrr@10": {
+              "mean": 0.5256,
+              "lo": 0.489,
+              "hi": 0.5575
+            },
+            "input_recall@20": {
+              "mean": 0.5385,
+              "lo": 0.508,
+              "hi": 0.5693
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4294,
+            "recall@10": 0.4872,
+            "recall@100": 0.7227,
+            "mrr@10": 0.5256,
+            "input_recall@20": 0.5385
+          }
+        },
+        {
+          "config": "hybrid+decompose[gemma4-26b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3909,
+              "lo": 0.3633,
+              "hi": 0.4161
+            },
+            "recall@10": {
+              "mean": 0.4693,
+              "lo": 0.438,
+              "hi": 0.4977
+            },
+            "recall@100": {
+              "mean": 0.7223,
+              "lo": 0.6948,
+              "hi": 0.7483
+            },
+            "mrr@10": {
+              "mean": 0.4663,
+              "lo": 0.4308,
+              "hi": 0.4987
+            },
+            "input_recall@20": {
+              "mean": 0.631,
+              "lo": 0.5997,
+              "hi": 0.6597
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3909,
+            "recall@10": 0.4693,
+            "recall@100": 0.7223,
+            "mrr@10": 0.4663,
+            "input_recall@20": 0.631
+          }
+        },
+        {
+          "config": "hybrid+corrective[gemma4-26b]@bge-small",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.3895,
+              "lo": 0.3596,
+              "hi": 0.4157
+            },
+            "recall@10": {
+              "mean": 0.4246,
+              "lo": 0.3943,
+              "hi": 0.4538
+            },
+            "recall@100": {
+              "mean": 0.6902,
+              "lo": 0.6616,
+              "hi": 0.7171
+            },
+            "mrr@10": {
+              "mean": 0.498,
+              "lo": 0.4614,
+              "hi": 0.5299
+            },
+            "input_recall@20": {
+              "mean": 0.4993,
+              "lo": 0.4682,
+              "hi": 0.5288
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.3895,
+            "recall@10": 0.4246,
+            "recall@100": 0.6902,
+            "mrr@10": 0.498,
+            "input_recall@20": 0.4993
+          }
+        },
+        {
+          "config": "hybrid+bge-rerank+corrective[gemma4-26b]@bge-small/fp32-512/top20",
+          "n": 648,
+          "ci": {
+            "ndcg@10": {
+              "mean": 0.4223,
+              "lo": 0.3921,
+              "hi": 0.4484
+            },
+            "recall@10": {
+              "mean": 0.4538,
+              "lo": 0.4223,
+              "hi": 0.4826
+            },
+            "recall@100": {
+              "mean": 0.6916,
+              "lo": 0.6623,
+              "hi": 0.718
+            },
+            "mrr@10": {
+              "mean": 0.5348,
+              "lo": 0.4981,
+              "hi": 0.5666
+            },
+            "input_recall@20": {
+              "mean": 0.5317,
+              "lo": 0.5002,
+              "hi": 0.5607
+            }
+          },
+          "retrieval": {
+            "ndcg@10": 0.4223,
+            "recall@10": 0.4538,
+            "recall@100": 0.6916,
+            "mrr@10": 0.5348,
+            "input_recall@20": 0.5317
+          }
+        }
+      ],
+      "comparisons": [
+        {
+          "row": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid@bge-small",
+          "kind": "reference",
+          "ndcg@10": {
+            "delta": 0.0609,
+            "lo": 0.0453,
+            "hi": 0.0769,
+            "delta_raw": 0.06090553103085863,
+            "lo_raw": 0.04527505804302597,
+            "hi_raw": 0.0768596945690514
+          },
+          "recall@10": {
+            "delta": 0.0471,
+            "lo": 0.032,
+            "hi": 0.0628,
+            "delta_raw": 0.047055002610558165,
+            "lo_raw": 0.03204057773502218,
+            "hi_raw": 0.06282078571719776
+          },
+          "recall@100": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "mrr@10": {
+            "delta": 0.0804,
+            "lo": 0.0562,
+            "hi": 0.1035,
+            "delta_raw": 0.08041470703507742,
+            "lo_raw": 0.056212307711150315,
+            "hi_raw": 0.10352412184009405
+          },
+          "input_recall@20": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "verdict": "above zero",
+          "n_changed": 337,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+hyde[qwen3.5-27b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0096,
+            "lo": 0.0009,
+            "hi": 0.0184,
+            "delta_raw": 0.009559119317801332,
+            "lo_raw": 0.0009333616290211347,
+            "hi_raw": 0.01840823882943961
+          },
+          "recall@10": {
+            "delta": 0.017,
+            "lo": 0.0056,
+            "hi": 0.029,
+            "delta_raw": 0.016995461671387598,
+            "lo_raw": 0.005609420372151854,
+            "hi_raw": 0.029036579418523844
+          },
+          "recall@100": {
+            "delta": 0.0273,
+            "lo": 0.0141,
+            "hi": 0.04,
+            "delta_raw": 0.027286126938904715,
+            "lo_raw": 0.014102549970605529,
+            "hi_raw": 0.039972552203454956
+          },
+          "mrr@10": {
+            "delta": 0.0133,
+            "lo": -0.0001,
+            "hi": 0.0269,
+            "delta_raw": 0.013289364099549283,
+            "lo_raw": -9.759883891828403e-05,
+            "hi_raw": 0.026919688786008235
+          },
+          "input_recall@20": {
+            "delta": 0.0269,
+            "lo": 0.0136,
+            "hi": 0.0409,
+            "delta_raw": 0.026947383891828335,
+            "lo_raw": 0.013627186213991772,
+            "hi_raw": 0.04090819738389182
+          },
+          "verdict": "above zero",
+          "n_changed": 240,
+          "permutation_p": 0.026097390260973904
+        },
+        {
+          "row": "hybrid+hyde[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.012,
+            "lo": 0.0041,
+            "hi": 0.0198,
+            "delta_raw": 0.011985359259762839,
+            "lo_raw": 0.004137289949836335,
+            "hi_raw": 0.01980797801364735
+          },
+          "recall@10": {
+            "delta": 0.0126,
+            "lo": 0.0001,
+            "hi": 0.0254,
+            "delta_raw": 0.012628600823045268,
+            "lo_raw": 0.00014008303938859598,
+            "hi_raw": 0.025385802469135802
+          },
+          "recall@100": {
+            "delta": 0.0273,
+            "lo": 0.0141,
+            "hi": 0.04,
+            "delta_raw": 0.027286126938904715,
+            "lo_raw": 0.014102549970605529,
+            "hi_raw": 0.039972552203454956
+          },
+          "mrr@10": {
+            "delta": 0.0161,
+            "lo": 0.0064,
+            "hi": 0.0266,
+            "delta_raw": 0.01605060748579267,
+            "lo_raw": 0.006400769155398786,
+            "hi_raw": 0.026590929967666068
+          },
+          "input_recall@20": {
+            "delta": 0.0269,
+            "lo": 0.0136,
+            "hi": 0.0409,
+            "delta_raw": 0.026947383891828335,
+            "lo_raw": 0.013627186213991772,
+            "hi_raw": 0.04090819738389182
+          },
+          "verdict": "above zero",
+          "n_changed": 136,
+          "permutation_p": 0.0036996300369963003
+        },
+        {
+          "row": "hybrid+bge-rerank+hyde[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0141,
+            "lo": 0.0012,
+            "hi": 0.0256,
+            "delta_raw": 0.014113639093934979,
+            "lo_raw": 0.0012189025430231276,
+            "hi_raw": 0.025611699285366454
+          },
+          "recall@10": {
+            "delta": 0.0143,
+            "lo": -0.0013,
+            "hi": 0.029,
+            "delta_raw": 0.014280909419798309,
+            "lo_raw": -0.0012964340828924164,
+            "hi_raw": 0.02897556372382759
+          },
+          "recall@100": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "mrr@10": {
+            "delta": 0.0121,
+            "lo": -0.0056,
+            "hi": 0.0293,
+            "delta_raw": 0.012095825984714873,
+            "lo_raw": -0.005552187438761515,
+            "hi_raw": 0.029265995492847346
+          },
+          "input_recall@20": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "verdict": "above zero",
+          "n_changed": 300,
+          "permutation_p": 0.025797420257974202
+        },
+        {
+          "row": "hybrid+multiquery[qwen3.5-27b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.0025,
+            "lo": -0.0198,
+            "hi": 0.0163,
+            "delta_raw": -0.002463160118853534,
+            "lo_raw": -0.0198439442098552,
+            "hi_raw": 0.016323573193090645
+          },
+          "recall@10": {
+            "delta": 0.0225,
+            "lo": 0.0017,
+            "hi": 0.0445,
+            "delta_raw": 0.022499782453486158,
+            "lo_raw": 0.0016710276606109952,
+            "hi_raw": 0.04448583009925602
+          },
+          "recall@100": {
+            "delta": 0.0299,
+            "lo": 0.0137,
+            "hi": 0.0467,
+            "delta_raw": 0.029918581075988483,
+            "lo_raw": 0.013727415952531696,
+            "hi_raw": 0.04667777909676055
+          },
+          "mrr@10": {
+            "delta": -0.0189,
+            "lo": -0.045,
+            "hi": 0.0085,
+            "delta_raw": -0.01893187830687831,
+            "lo_raw": -0.044960455246913576,
+            "hi_raw": 0.008476034318048182
+          },
+          "input_recall@20": {
+            "delta": 0.0248,
+            "lo": 0.0051,
+            "hi": 0.0448,
+            "delta_raw": 0.02482532042717228,
+            "lo_raw": 0.005084360619661547,
+            "hi_raw": 0.04480373332514536
+          },
+          "verdict": "covers zero",
+          "n_changed": 379,
+          "permutation_p": 0.7883211678832117
+        },
+        {
+          "row": "hybrid+multiquery[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0071,
+            "lo": -0.004,
+            "hi": 0.0186,
+            "delta_raw": 0.007147647698866815,
+            "lo_raw": -0.004010276429374199,
+            "hi_raw": 0.018556296172273577
+          },
+          "recall@10": {
+            "delta": 0.0088,
+            "lo": -0.0083,
+            "hi": 0.0255,
+            "delta_raw": 0.008771706688373355,
+            "lo_raw": -0.008254705471140655,
+            "hi_raw": 0.025486754115226336
+          },
+          "recall@100": {
+            "delta": 0.0299,
+            "lo": 0.0137,
+            "hi": 0.0467,
+            "delta_raw": 0.029918581075988483,
+            "lo_raw": 0.013727415952531696,
+            "hi_raw": 0.04667777909676055
+          },
+          "mrr@10": {
+            "delta": 0.0066,
+            "lo": -0.0084,
+            "hi": 0.0218,
+            "delta_raw": 0.006557417205565352,
+            "lo_raw": -0.008445629409171075,
+            "hi_raw": 0.02183135226827356
+          },
+          "input_recall@20": {
+            "delta": 0.0248,
+            "lo": 0.0051,
+            "hi": 0.0448,
+            "delta_raw": 0.02482532042717228,
+            "lo_raw": 0.005084360619661547,
+            "hi_raw": 0.04480373332514536
+          },
+          "verdict": "covers zero",
+          "n_changed": 218,
+          "permutation_p": 0.21907809219078092
+        },
+        {
+          "row": "hybrid+decompose[qwen3.5-27b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.0006,
+            "lo": -0.0191,
+            "hi": 0.0188,
+            "delta_raw": -0.0005662886400724455,
+            "lo_raw": -0.01907220955521531,
+            "hi_raw": 0.018820777104648592
+          },
+          "recall@10": {
+            "delta": 0.0166,
+            "lo": -0.006,
+            "hi": 0.0406,
+            "delta_raw": 0.01655295150665521,
+            "lo_raw": -0.006003744733490103,
+            "hi_raw": 0.040578938058683414
+          },
+          "recall@100": {
+            "delta": 0.0378,
+            "lo": 0.0201,
+            "hi": 0.0554,
+            "delta_raw": 0.037842228930191894,
+            "lo_raw": 0.02007063859494415,
+            "hi_raw": 0.05541436786807156
+          },
+          "mrr@10": {
+            "delta": -0.0128,
+            "lo": -0.0384,
+            "hi": 0.0138,
+            "delta_raw": -0.012779247501469726,
+            "lo_raw": -0.038413479203409755,
+            "hi_raw": 0.013808651161081697
+          },
+          "input_recall@20": {
+            "delta": 0.0287,
+            "lo": 0.0081,
+            "hi": 0.05,
+            "delta_raw": 0.028650314877166728,
+            "lo_raw": 0.008062642518661034,
+            "hi_raw": 0.049962382867475424
+          },
+          "verdict": "covers zero",
+          "n_changed": 373,
+          "permutation_p": 0.9555044495550445
+        },
+        {
+          "row": "hybrid+decompose[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0061,
+            "lo": -0.0057,
+            "hi": 0.0184,
+            "delta_raw": 0.006148865128666683,
+            "lo_raw": -0.00574676586052057,
+            "hi_raw": 0.01844022082719688
+          },
+          "recall@10": {
+            "delta": 0.0127,
+            "lo": -0.006,
+            "hi": 0.0314,
+            "delta_raw": 0.012678816382520088,
+            "lo_raw": -0.006048739711934157,
+            "hi_raw": 0.03144689704585536
+          },
+          "recall@100": {
+            "delta": 0.0378,
+            "lo": 0.0201,
+            "hi": 0.0554,
+            "delta_raw": 0.037842228930191894,
+            "lo_raw": 0.02007063859494415,
+            "hi_raw": 0.05541436786807156
+          },
+          "mrr@10": {
+            "delta": 0.0082,
+            "lo": -0.0066,
+            "hi": 0.0235,
+            "delta_raw": 0.008162477954144619,
+            "lo_raw": -0.006588067068391145,
+            "hi_raw": 0.023521381417793447
+          },
+          "input_recall@20": {
+            "delta": 0.0287,
+            "lo": 0.0081,
+            "hi": 0.05,
+            "delta_raw": 0.028650314877166728,
+            "lo_raw": 0.008062642518661034,
+            "hi_raw": 0.049962382867475424
+          },
+          "verdict": "covers zero",
+          "n_changed": 232,
+          "permutation_p": 0.31256874312568744
+        },
+        {
+          "row": "hybrid+decompose[qwen3.5-27b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.0352,
+            "lo": -0.0493,
+            "hi": -0.0195,
+            "delta_raw": -0.035171937369912816,
+            "lo_raw": -0.049278620479616425,
+            "hi_raw": -0.01954022720819188
+          },
+          "recall@10": {
+            "delta": -0.01,
+            "lo": -0.031,
+            "hi": 0.0105,
+            "delta_raw": -0.010049959471255768,
+            "lo_raw": -0.03098972251171325,
+            "hi_raw": 0.010457294227548845
+          },
+          "recall@100": {
+            "delta": 0.033,
+            "lo": 0.0138,
+            "hi": 0.0514,
+            "delta_raw": 0.03303072099368396,
+            "lo_raw": 0.013760189142133589,
+            "hi_raw": 0.051360351753870256
+          },
+          "mrr@10": {
+            "delta": -0.0558,
+            "lo": -0.0757,
+            "hi": -0.0346,
+            "delta_raw": -0.05577356456986087,
+            "lo_raw": -0.0757430524936312,
+            "hi_raw": -0.03455479619831473
+          },
+          "input_recall@20": {
+            "delta": 0.1406,
+            "lo": 0.121,
+            "hi": 0.1614,
+            "delta_raw": 0.14058123803494174,
+            "lo_raw": 0.12103465485988633,
+            "hi_raw": 0.16140654206047725
+          },
+          "verdict": "below zero",
+          "n_changed": 330,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+corrective[qwen3.5-27b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0211,
+            "lo": 0.0072,
+            "hi": 0.0355,
+            "delta_raw": 0.021082313024525325,
+            "lo_raw": 0.007218049624714783,
+            "hi_raw": 0.03547237603683704
+          },
+          "recall@10": {
+            "delta": -0.0099,
+            "lo": -0.0257,
+            "hi": 0.0058,
+            "delta_raw": -0.009891852831667646,
+            "lo_raw": -0.025712770061728393,
+            "hi_raw": 0.005754488781109133
+          },
+          "recall@100": {
+            "delta": -0.003,
+            "lo": -0.0114,
+            "hi": 0.005,
+            "delta_raw": -0.0029578189300411527,
+            "lo_raw": -0.011445473251028807,
+            "hi_raw": 0.005015432098765432
+          },
+          "mrr@10": {
+            "delta": 0.0483,
+            "lo": 0.0305,
+            "hi": 0.0671,
+            "delta_raw": 0.04832022829708015,
+            "lo_raw": 0.030472562095825984,
+            "hi_raw": 0.0671017814275916
+          },
+          "input_recall@20": {
+            "delta": -0.0264,
+            "lo": -0.0417,
+            "hi": -0.0114,
+            "delta_raw": -0.02637899651788541,
+            "lo_raw": -0.041653576940035276,
+            "hi_raw": -0.011408069489666715
+          },
+          "verdict": "above zero",
+          "n_changed": 245,
+          "permutation_p": 0.004999500049995001
+        },
+        {
+          "row": "hybrid+bge-rerank+corrective[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.01,
+            "lo": -0.0234,
+            "hi": 0.0026,
+            "delta_raw": -0.010012810776991456,
+            "lo_raw": -0.023371575304500056,
+            "hi_raw": 0.0026247658395756016
+          },
+          "recall@10": {
+            "delta": -0.0358,
+            "lo": -0.052,
+            "hi": -0.0205,
+            "delta_raw": -0.0358440170940171,
+            "lo_raw": -0.051966638685388686,
+            "hi_raw": -0.020535449311490993
+          },
+          "recall@100": {
+            "delta": -0.0037,
+            "lo": -0.0112,
+            "hi": 0.0035,
+            "delta_raw": -0.0037294238683127576,
+            "lo_raw": -0.011188271604938271,
+            "hi_raw": 0.003472222222222222
+          },
+          "mrr@10": {
+            "delta": 0.0095,
+            "lo": -0.0075,
+            "hi": 0.0252,
+            "delta_raw": 0.009493190280227317,
+            "lo_raw": -0.007504271384479719,
+            "hi_raw": 0.025247388178522435
+          },
+          "input_recall@20": {
+            "delta": 0.0066,
+            "lo": 0.0015,
+            "hi": 0.0127,
+            "delta_raw": 0.006558641975308642,
+            "lo_raw": 0.0015432098765432098,
+            "hi_raw": 0.01273148148148148
+          },
+          "verdict": "covers zero",
+          "n_changed": 178,
+          "permutation_p": 0.15398460153984603
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0099,
+            "lo": -0.0001,
+            "hi": 0.0197,
+            "delta_raw": 0.009890698045395477,
+            "lo_raw": -0.00013454055989828913,
+            "hi_raw": 0.019723795551399737
+          },
+          "recall@10": {
+            "delta": 0.0182,
+            "lo": 0.0044,
+            "hi": 0.0321,
+            "delta_raw": 0.01815108759553204,
+            "lo_raw": 0.00441177371154223,
+            "hi_raw": 0.032059924921614726
+          },
+          "recall@100": {
+            "delta": 0.0222,
+            "lo": 0.0089,
+            "hi": 0.0358,
+            "delta_raw": 0.022202107734515142,
+            "lo_raw": 0.00889212392973967,
+            "hi_raw": 0.03583895431985709
+          },
+          "mrr@10": {
+            "delta": 0.0098,
+            "lo": -0.004,
+            "hi": 0.0238,
+            "delta_raw": 0.009773050166568688,
+            "lo_raw": -0.003973841980207721,
+            "hi_raw": 0.023768310307662157
+          },
+          "input_recall@20": {
+            "delta": 0.0304,
+            "lo": 0.0145,
+            "hi": 0.0465,
+            "delta_raw": 0.0303687781697041,
+            "lo_raw": 0.014522615373309818,
+            "hi_raw": 0.04646857547031157
+          },
+          "verdict": "covers zero",
+          "n_changed": 264,
+          "permutation_p": 0.04179582041795821
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0106,
+            "lo": 0.0035,
+            "hi": 0.0184,
+            "delta_raw": 0.010572988590137729,
+            "lo_raw": 0.0035204566370849104,
+            "hi_raw": 0.018428615959224244
+          },
+          "recall@10": {
+            "delta": 0.016,
+            "lo": 0.0038,
+            "hi": 0.029,
+            "delta_raw": 0.016026112090926907,
+            "lo_raw": 0.0038009044924554184,
+            "hi_raw": 0.028989656819517932
+          },
+          "recall@100": {
+            "delta": 0.0222,
+            "lo": 0.0089,
+            "hi": 0.0358,
+            "delta_raw": 0.022202107734515142,
+            "lo_raw": 0.00889212392973967,
+            "hi_raw": 0.03583895431985709
+          },
+          "mrr@10": {
+            "delta": 0.0108,
+            "lo": 0.0028,
+            "hi": 0.02,
+            "delta_raw": 0.010800631981187536,
+            "lo_raw": 0.0027979711689202426,
+            "hi_raw": 0.02004220862727807
+          },
+          "input_recall@20": {
+            "delta": 0.0304,
+            "lo": 0.0145,
+            "hi": 0.0465,
+            "delta_raw": 0.0303687781697041,
+            "lo_raw": 0.014522615373309818,
+            "hi_raw": 0.04646857547031157
+          },
+          "verdict": "above zero",
+          "n_changed": 140,
+          "permutation_p": 0.004199580041995801
+        },
+        {
+          "row": "hybrid+bge-rerank+hyde[gemma4-26b]@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0137,
+            "lo": 0.0011,
+            "hi": 0.0254,
+            "delta_raw": 0.01369977768994781,
+            "lo_raw": 0.0010581893930632993,
+            "hi_raw": 0.025424009629514677
+          },
+          "recall@10": {
+            "delta": 0.0064,
+            "lo": -0.0094,
+            "hi": 0.0219,
+            "delta_raw": 0.006378695036102442,
+            "lo_raw": -0.009350180747750195,
+            "hi_raw": 0.021874070823723592
+          },
+          "recall@100": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "mrr@10": {
+            "delta": 0.0146,
+            "lo": -0.0038,
+            "hi": 0.0328,
+            "delta_raw": 0.01455148932000784,
+            "lo_raw": -0.0038377088232412313,
+            "hi_raw": 0.03280490642759161
+          },
+          "input_recall@20": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "verdict": "above zero",
+          "n_changed": 295,
+          "permutation_p": 0.029197080291970802
+        },
+        {
+          "row": "hybrid+multiquery[gemma4-26b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.017,
+            "lo": -0.0351,
+            "hi": 0.0015,
+            "delta_raw": -0.017027220100215994,
+            "lo_raw": -0.03513909411303956,
+            "hi_raw": 0.0015256145547543087
+          },
+          "recall@10": {
+            "delta": 0.0089,
+            "lo": -0.0138,
+            "hi": 0.0308,
+            "delta_raw": 0.008938832086980235,
+            "lo_raw": -0.01377268800301208,
+            "hi_raw": 0.030789019793649418
+          },
+          "recall@100": {
+            "delta": 0.0266,
+            "lo": 0.0116,
+            "hi": 0.0426,
+            "delta_raw": 0.026592012240160383,
+            "lo_raw": 0.011649351484420927,
+            "hi_raw": 0.04261402606310012
+          },
+          "mrr@10": {
+            "delta": -0.0334,
+            "lo": -0.0573,
+            "hi": -0.0082,
+            "delta_raw": -0.03343253968253969,
+            "lo_raw": -0.05725989920145013,
+            "hi_raw": -0.00821440819126007
+          },
+          "input_recall@20": {
+            "delta": 0.0211,
+            "lo": 0.0002,
+            "hi": 0.0415,
+            "delta_raw": 0.021089661367439148,
+            "lo_raw": 0.00017820860124100947,
+            "hi_raw": 0.04146685565377693
+          },
+          "verdict": "covers zero",
+          "n_changed": 376,
+          "permutation_p": 0.0674932506749325
+        },
+        {
+          "row": "hybrid+multiquery[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0043,
+            "lo": -0.0092,
+            "hi": 0.0166,
+            "delta_raw": 0.0043057127330210455,
+            "lo_raw": -0.009174900264725528,
+            "hi_raw": 0.01663134092163683
+          },
+          "recall@10": {
+            "delta": 0.0031,
+            "lo": -0.0151,
+            "hi": 0.0204,
+            "delta_raw": 0.003075859325859326,
+            "lo_raw": -0.015125304650767614,
+            "hi_raw": 0.020390285832994157
+          },
+          "recall@100": {
+            "delta": 0.0266,
+            "lo": 0.0116,
+            "hi": 0.0426,
+            "delta_raw": 0.026592012240160383,
+            "lo_raw": 0.011649351484420927,
+            "hi_raw": 0.04261402606310012
+          },
+          "mrr@10": {
+            "delta": 0.0057,
+            "lo": -0.0107,
+            "hi": 0.0222,
+            "delta_raw": 0.005680482069370958,
+            "lo_raw": -0.010701869611013128,
+            "hi_raw": 0.022168271115030367
+          },
+          "input_recall@20": {
+            "delta": 0.0211,
+            "lo": 0.0002,
+            "hi": 0.0415,
+            "delta_raw": 0.021089661367439148,
+            "lo_raw": 0.00017820860124100947,
+            "hi_raw": 0.04146685565377693
+          },
+          "verdict": "covers zero",
+          "n_changed": 215,
+          "permutation_p": 0.5125487451254874
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.0054,
+            "lo": -0.0213,
+            "hi": 0.0124,
+            "delta_raw": -0.005398779900229936,
+            "lo_raw": -0.02133555948967636,
+            "hi_raw": 0.01244673819354826
+          },
+          "recall@10": {
+            "delta": 0.0072,
+            "lo": -0.0137,
+            "hi": 0.028,
+            "delta_raw": 0.007168710062228579,
+            "lo_raw": -0.013714701043983453,
+            "hi_raw": 0.028019119726295613
+          },
+          "recall@100": {
+            "delta": 0.0316,
+            "lo": 0.0162,
+            "hi": 0.0466,
+            "delta_raw": 0.03161008230452675,
+            "lo_raw": 0.016173206937095827,
+            "hi_raw": 0.04659024103468548
+          },
+          "mrr@10": {
+            "delta": -0.0116,
+            "lo": -0.0347,
+            "hi": 0.0126,
+            "delta_raw": -0.011594895159709975,
+            "lo_raw": -0.03468967396629435,
+            "hi_raw": 0.012640634185773044
+          },
+          "input_recall@20": {
+            "delta": 0.0161,
+            "lo": -0.0026,
+            "hi": 0.0357,
+            "delta_raw": 0.01607259766981989,
+            "lo_raw": -0.0026183433764452283,
+            "hi_raw": 0.03573332810022625
+          },
+          "verdict": "covers zero",
+          "n_changed": 336,
+          "permutation_p": 0.5369463053694631
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.0041,
+            "lo": -0.0064,
+            "hi": 0.0152,
+            "delta_raw": 0.004060786763926125,
+            "lo_raw": -0.006445484159554943,
+            "hi_raw": 0.015169857262039215
+          },
+          "recall@10": {
+            "delta": 0.0037,
+            "lo": -0.0122,
+            "hi": 0.0209,
+            "delta_raw": 0.0037294238683127576,
+            "lo_raw": -0.01220649924064276,
+            "hi_raw": 0.020863830099941204
+          },
+          "recall@100": {
+            "delta": 0.0316,
+            "lo": 0.0162,
+            "hi": 0.0466,
+            "delta_raw": 0.03161008230452675,
+            "lo_raw": 0.016173206937095827,
+            "hi_raw": 0.04659024103468548
+          },
+          "mrr@10": {
+            "delta": 0.0072,
+            "lo": -0.0066,
+            "hi": 0.0215,
+            "delta_raw": 0.007195522241818538,
+            "lo_raw": -0.006603453238291202,
+            "hi_raw": 0.021536534881442273
+          },
+          "input_recall@20": {
+            "delta": 0.0161,
+            "lo": -0.0026,
+            "hi": 0.0357,
+            "delta_raw": 0.01607259766981989,
+            "lo_raw": -0.0026183433764452283,
+            "hi_raw": 0.03573332810022625
+          },
+          "verdict": "covers zero",
+          "n_changed": 201,
+          "permutation_p": 0.45615438456154384
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.0345,
+            "lo": -0.0479,
+            "hi": -0.0203,
+            "delta_raw": -0.03449313818395055,
+            "lo_raw": -0.04785351855715411,
+            "hi_raw": -0.020294433599473565
+          },
+          "recall@10": {
+            "delta": -0.0142,
+            "lo": -0.0312,
+            "hi": 0.0037,
+            "delta_raw": -0.014191574029536991,
+            "lo_raw": -0.031247851085814043,
+            "hi_raw": 0.0036887879567277693
+          },
+          "recall@100": {
+            "delta": 0.0313,
+            "lo": 0.015,
+            "hi": 0.0481,
+            "delta_raw": 0.03125489907897315,
+            "lo_raw": 0.015011160714285711,
+            "hi_raw": 0.048078611845972945
+          },
+          "mrr@10": {
+            "delta": -0.0522,
+            "lo": -0.0711,
+            "hi": -0.0322,
+            "delta_raw": -0.05215620713305899,
+            "lo_raw": -0.07112825788751714,
+            "hi_raw": -0.032150098593964366
+          },
+          "input_recall@20": {
+            "delta": 0.1086,
+            "lo": 0.0914,
+            "hi": 0.127,
+            "delta_raw": 0.10855002336483817,
+            "lo_raw": 0.09139769192141876,
+            "hi_raw": 0.1270192166372722
+          },
+          "verdict": "below zero",
+          "n_changed": 295,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+corrective[gemma4-26b]@bge-small",
+          "other": "hybrid@bge-small",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": 0.025,
+            "lo": 0.0107,
+            "hi": 0.0391,
+            "delta_raw": 0.025001398189560667,
+            "lo_raw": 0.010745310044188536,
+            "hi_raw": 0.03910671797203316
+          },
+          "recall@10": {
+            "delta": -0.0119,
+            "lo": -0.0284,
+            "hi": 0.0045,
+            "delta_raw": -0.011866181657848326,
+            "lo_raw": -0.028386289315108757,
+            "hi_raw": 0.004458820179306282
+          },
+          "recall@100": {
+            "delta": -0.0009,
+            "lo": -0.0113,
+            "hi": 0.0098,
+            "delta_raw": -0.0009259259259259264,
+            "lo_raw": -0.01134323559670782,
+            "hi_raw": 0.009776877572016444
+          },
+          "mrr@10": {
+            "delta": 0.06,
+            "lo": 0.0417,
+            "hi": 0.0786,
+            "delta_raw": 0.05995676562806192,
+            "lo_raw": 0.041663283240250835,
+            "hi_raw": 0.07863568305408583
+          },
+          "input_recall@20": {
+            "delta": -0.0232,
+            "lo": -0.0401,
+            "hi": -0.0067,
+            "delta_raw": -0.023151115859449192,
+            "lo_raw": -0.04006249152082486,
+            "hi_raw": -0.00673995147085425
+          },
+          "verdict": "above zero",
+          "n_changed": 264,
+          "permutation_p": 0.0005999400059994001
+        },
+        {
+          "row": "hybrid+bge-rerank+corrective[gemma4-26b]@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "arm",
+          "ndcg@10": {
+            "delta": -0.0031,
+            "lo": -0.0181,
+            "hi": 0.011,
+            "delta_raw": -0.0030668907774407473,
+            "lo_raw": -0.018090466481548176,
+            "hi_raw": 0.011004914009113033
+          },
+          "recall@10": {
+            "delta": -0.0297,
+            "lo": -0.0474,
+            "hi": -0.0128,
+            "delta_raw": -0.029671177587844256,
+            "lo_raw": -0.0474096508558314,
+            "hi_raw": -0.012846028071722533
+          },
+          "recall@100": {
+            "delta": 0.0005,
+            "lo": -0.0085,
+            "hi": 0.0087,
+            "delta_raw": 0.0005144032921810699,
+            "lo_raw": -0.008487654320987654,
+            "hi_raw": 0.008744855967078188
+          },
+          "mrr@10": {
+            "delta": 0.0164,
+            "lo": -0.0011,
+            "hi": 0.0331,
+            "delta_raw": 0.016381295316480502,
+            "lo_raw": -0.0011392501959631579,
+            "hi_raw": 0.033062506123848714
+          },
+          "input_recall@20": {
+            "delta": 0.0093,
+            "lo": 0.0031,
+            "hi": 0.0162,
+            "delta_raw": 0.009259259259259259,
+            "lo_raw": 0.0030864197530864196,
+            "hi_raw": 0.016203703703703703
+          },
+          "verdict": "covers zero",
+          "n_changed": 199,
+          "permutation_p": 0.6743325667433256
+        },
+        {
+          "row": "hybrid+hyde[qwen3.5-27b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0513,
+            "lo": -0.0689,
+            "hi": -0.0347,
+            "delta_raw": -0.05134641171305729,
+            "lo_raw": -0.06888285784831787,
+            "hi_raw": -0.03469823934249959
+          },
+          "recall@10": {
+            "delta": -0.0301,
+            "lo": -0.0486,
+            "hi": -0.0116,
+            "delta_raw": -0.030059540939170567,
+            "lo_raw": -0.04859405758421963,
+            "hi_raw": -0.011577157624611334
+          },
+          "recall@100": {
+            "delta": 0.0273,
+            "lo": 0.0141,
+            "hi": 0.04,
+            "delta_raw": 0.027286126938904715,
+            "lo_raw": 0.014102549970605529,
+            "hi_raw": 0.039972552203454956
+          },
+          "mrr@10": {
+            "delta": -0.0671,
+            "lo": -0.092,
+            "hi": -0.0429,
+            "delta_raw": -0.06712534293552813,
+            "lo_raw": -0.09196479093180483,
+            "hi_raw": -0.042852978640015686
+          },
+          "input_recall@20": {
+            "delta": 0.0269,
+            "lo": 0.0136,
+            "hi": 0.0409,
+            "delta_raw": 0.026947383891828335,
+            "lo_raw": 0.013627186213991772,
+            "hi_raw": 0.04090819738389182
+          },
+          "verdict": "below zero",
+          "n_changed": 352,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+hyde[qwen3.5-27b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": -0.0108,
+            "lo": -0.0313,
+            "hi": 0.0089,
+            "delta_raw": -0.010805141574336525,
+            "lo_raw": -0.031301169170740134,
+            "hi_raw": 0.008884506922163178
+          },
+          "recall@10": {
+            "delta": 0.0138,
+            "lo": -0.0117,
+            "hi": 0.0385,
+            "delta_raw": 0.01382499530647679,
+            "lo_raw": -0.011724409528228973,
+            "hi_raw": 0.03852348429605372
+          },
+          "recall@100": {
+            "delta": 0.0318,
+            "lo": 0.012,
+            "hi": 0.052,
+            "delta_raw": 0.03178715574548908,
+            "lo_raw": 0.01197976374191652,
+            "hi_raw": 0.05204963921109754
+          },
+          "mrr@10": {
+            "delta": -0.0137,
+            "lo": -0.0424,
+            "hi": 0.0135,
+            "delta_raw": -0.013712522045855376,
+            "lo_raw": -0.042359365814226925,
+            "hi_raw": 0.013536430776014088
+          },
+          "input_recall@20": {
+            "delta": 0.0369,
+            "lo": 0.0146,
+            "hi": 0.0591,
+            "delta_raw": 0.036923189122263195,
+            "lo_raw": 0.014581359783906078,
+            "hi_raw": 0.05913675305747063
+          },
+          "verdict": "covers zero",
+          "n_changed": 391,
+          "permutation_p": 0.2946705329467053
+        },
+        {
+          "row": "hybrid+hyde[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank+hyde[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "kind": "secondary:pre-minus-post",
+          "ndcg@10": {
+            "delta": -0.0021,
+            "lo": -0.0147,
+            "hi": 0.0109,
+            "delta_raw": -0.0021282798341721414,
+            "lo_raw": -0.014663207084695411,
+            "hi_raw": 0.010894715083709212
+          },
+          "recall@10": {
+            "delta": -0.0017,
+            "lo": -0.0182,
+            "hi": 0.0154,
+            "delta_raw": -0.0016523085967530408,
+            "lo_raw": -0.018178279839159466,
+            "hi_raw": 0.015448020772094844
+          },
+          "recall@100": {
+            "delta": 0.0273,
+            "lo": 0.0141,
+            "hi": 0.04,
+            "delta_raw": 0.027286126938904715,
+            "lo_raw": 0.014102549970605529,
+            "hi_raw": 0.039972552203454956
+          },
+          "mrr@10": {
+            "delta": 0.004,
+            "lo": -0.0147,
+            "hi": 0.0232,
+            "delta_raw": 0.003954781501077796,
+            "lo_raw": -0.014673415147952187,
+            "hi_raw": 0.023211407505388987
+          },
+          "input_recall@20": {
+            "delta": 0.0269,
+            "lo": 0.0136,
+            "hi": 0.0409,
+            "delta_raw": 0.026947383891828335,
+            "lo_raw": 0.013627186213991772,
+            "hi_raw": 0.04090819738389182
+          },
+          "verdict": "covers zero",
+          "n_changed": 312,
+          "permutation_p": 0.7464253574642535
+        },
+        {
+          "row": "hybrid+multiquery[qwen3.5-27b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0634,
+            "lo": -0.0809,
+            "hi": -0.0452,
+            "delta_raw": -0.06336869114971216,
+            "lo_raw": -0.08088285787201649,
+            "hi_raw": -0.045193884489836945
+          },
+          "recall@10": {
+            "delta": -0.0246,
+            "lo": -0.0438,
+            "hi": -0.0041,
+            "delta_raw": -0.024555220157072004,
+            "lo_raw": -0.043771647805212616,
+            "hi_raw": -0.004140753365290407
+          },
+          "recall@100": {
+            "delta": 0.0299,
+            "lo": 0.0137,
+            "hi": 0.0467,
+            "delta_raw": 0.029918581075988483,
+            "lo_raw": 0.013727415952531696,
+            "hi_raw": 0.04667777909676055
+          },
+          "mrr@10": {
+            "delta": -0.0993,
+            "lo": -0.1262,
+            "hi": -0.071,
+            "delta_raw": -0.09934658534195571,
+            "lo_raw": -0.12615358000195964,
+            "hi_raw": -0.07096684854497357
+          },
+          "input_recall@20": {
+            "delta": 0.0248,
+            "lo": 0.0051,
+            "hi": 0.0448,
+            "delta_raw": 0.02482532042717228,
+            "lo_raw": 0.005084360619661547,
+            "hi_raw": 0.04480373332514536
+          },
+          "verdict": "below zero",
+          "n_changed": 375,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+multiquery[qwen3.5-27b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": -0.0228,
+            "lo": -0.0426,
+            "hi": -0.0028,
+            "delta_raw": -0.022827421010991392,
+            "lo_raw": -0.0426382378286791,
+            "hi_raw": -0.00277522148206277
+          },
+          "recall@10": {
+            "delta": 0.0193,
+            "lo": -0.0034,
+            "hi": 0.043,
+            "delta_raw": 0.01932931608857535,
+            "lo_raw": -0.003363585145992553,
+            "hi_raw": 0.042981931584362136
+          },
+          "recall@100": {
+            "delta": 0.0344,
+            "lo": 0.0136,
+            "hi": 0.0565,
+            "delta_raw": 0.034419609882572845,
+            "lo_raw": 0.013647655178326472,
+            "hi_raw": 0.05653455522957836
+          },
+          "mrr@10": {
+            "delta": -0.0459,
+            "lo": -0.0747,
+            "hi": -0.0179,
+            "delta_raw": -0.04593376445228297,
+            "lo_raw": -0.0746582739320008,
+            "hi_raw": -0.01794194285224379
+          },
+          "input_recall@20": {
+            "delta": 0.0348,
+            "lo": 0.0138,
+            "hi": 0.0567,
+            "delta_raw": 0.03480112565760714,
+            "lo_raw": 0.013817924081234263,
+            "hi_raw": 0.05667023380854398
+          },
+          "verdict": "below zero",
+          "n_changed": 384,
+          "permutation_p": 0.032896710328967106
+        },
+        {
+          "row": "hybrid+decompose[qwen3.5-27b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0615,
+            "lo": -0.0804,
+            "hi": -0.0428,
+            "delta_raw": -0.06147181967093107,
+            "lo_raw": -0.08035427661010056,
+            "hi_raw": -0.04283525737542995
+          },
+          "recall@10": {
+            "delta": -0.0305,
+            "lo": -0.0524,
+            "hi": -0.0086,
+            "delta_raw": -0.030502051103902958,
+            "lo_raw": -0.0523924582576203,
+            "hi_raw": -0.008620806062935709
+          },
+          "recall@100": {
+            "delta": 0.0378,
+            "lo": 0.0201,
+            "hi": 0.0554,
+            "delta_raw": 0.037842228930191894,
+            "lo_raw": 0.02007063859494415,
+            "hi_raw": 0.05541436786807156
+          },
+          "mrr@10": {
+            "delta": -0.0932,
+            "lo": -0.1193,
+            "hi": -0.0668,
+            "delta_raw": -0.09319395453654712,
+            "lo_raw": -0.11928168785518323,
+            "hi_raw": -0.0668411198069763
+          },
+          "input_recall@20": {
+            "delta": 0.0287,
+            "lo": 0.0081,
+            "hi": 0.05,
+            "delta_raw": 0.028650314877166728,
+            "lo_raw": 0.008062642518661034,
+            "hi_raw": 0.049962382867475424
+          },
+          "verdict": "below zero",
+          "n_changed": 365,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+decompose[qwen3.5-27b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": -0.0209,
+            "lo": -0.0422,
+            "hi": 0.001,
+            "delta_raw": -0.020930549532210303,
+            "lo_raw": -0.04216077046659299,
+            "hi_raw": 0.001004633741877204
+          },
+          "recall@10": {
+            "delta": 0.0134,
+            "lo": -0.0102,
+            "hi": 0.0384,
+            "delta_raw": 0.0133824851417444,
+            "lo_raw": -0.010203453739333368,
+            "hi_raw": 0.03840493461442536
+          },
+          "recall@100": {
+            "delta": 0.0423,
+            "lo": 0.0199,
+            "hi": 0.0655,
+            "delta_raw": 0.04234325773677625,
+            "lo_raw": 0.019920693803795658,
+            "hi_raw": 0.06547208749755044
+          },
+          "mrr@10": {
+            "delta": -0.0398,
+            "lo": -0.0697,
+            "hi": -0.0101,
+            "delta_raw": -0.03978113364687439,
+            "lo_raw": -0.06969723691945914,
+            "hi_raw": -0.010138659244562032
+          },
+          "input_recall@20": {
+            "delta": 0.0386,
+            "lo": 0.0147,
+            "hi": 0.0636,
+            "delta_raw": 0.03862612010760159,
+            "lo_raw": 0.014680830572034271,
+            "hi_raw": 0.06363176239912348
+          },
+          "verdict": "covers zero",
+          "n_changed": 390,
+          "permutation_p": 0.060493950604939506
+        },
+        {
+          "row": "hybrid+decompose[qwen3.5-27b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "other": "hybrid+decompose[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:per-sub-minus-union",
+          "ndcg@10": {
+            "delta": -0.0413,
+            "lo": -0.0568,
+            "hi": -0.024,
+            "delta_raw": -0.0413208024985795,
+            "lo_raw": -0.05677943309604077,
+            "hi_raw": -0.024017532503829153
+          },
+          "recall@10": {
+            "delta": -0.0227,
+            "lo": -0.0457,
+            "hi": 0.0009,
+            "delta_raw": -0.022728775853775852,
+            "lo_raw": -0.04573361202412128,
+            "hi_raw": 0.0009300135949441424
+          },
+          "recall@100": {
+            "delta": -0.0048,
+            "lo": -0.0159,
+            "hi": 0.0058,
+            "delta_raw": -0.004811507936507937,
+            "lo_raw": -0.015877516901822455,
+            "hi_raw": 0.005757688492063492
+          },
+          "mrr@10": {
+            "delta": -0.0639,
+            "lo": -0.0866,
+            "hi": -0.0399,
+            "delta_raw": -0.06393604252400549,
+            "lo_raw": -0.08662393751224769,
+            "hi_raw": -0.03986734212718009
+          },
+          "input_recall@20": {
+            "delta": 0.1119,
+            "lo": 0.0935,
+            "hi": 0.1313,
+            "delta_raw": 0.11193092315777502,
+            "lo_raw": 0.0935457472697056,
+            "hi_raw": 0.1313062891969142
+          },
+          "verdict": "below zero",
+          "n_changed": 357,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+corrective[qwen3.5-27b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0398,
+            "lo": -0.0568,
+            "hi": -0.0222,
+            "delta_raw": -0.039823218006333296,
+            "lo_raw": -0.05676264734173151,
+            "hi_raw": -0.022248617283908673
+          },
+          "recall@10": {
+            "delta": -0.0569,
+            "lo": -0.0754,
+            "hi": -0.0387,
+            "delta_raw": -0.056946855442225816,
+            "lo_raw": -0.07540167287273769,
+            "hi_raw": -0.03872696030392791
+          },
+          "recall@100": {
+            "delta": -0.003,
+            "lo": -0.0114,
+            "hi": 0.005,
+            "delta_raw": -0.0029578189300411527,
+            "lo_raw": -0.011445473251028807,
+            "hi_raw": 0.005015432098765432
+          },
+          "mrr@10": {
+            "delta": -0.0321,
+            "lo": -0.0562,
+            "hi": -0.0072,
+            "delta_raw": -0.032094478737997256,
+            "lo_raw": -0.056239313883989804,
+            "hi_raw": -0.007228300142073304
+          },
+          "input_recall@20": {
+            "delta": -0.0264,
+            "lo": -0.0417,
+            "hi": -0.0114,
+            "delta_raw": -0.02637899651788541,
+            "lo_raw": -0.041653576940035276,
+            "hi_raw": -0.011408069489666715
+          },
+          "verdict": "below zero",
+          "n_changed": 319,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+corrective[qwen3.5-27b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": 0.0007,
+            "lo": -0.0201,
+            "hi": 0.0213,
+            "delta_raw": 0.0007180521323874705,
+            "lo_raw": -0.020099281857777446,
+            "hi_raw": 0.021340121563135934
+          },
+          "recall@10": {
+            "delta": -0.0131,
+            "lo": -0.0378,
+            "hi": 0.0107,
+            "delta_raw": -0.013062319196578458,
+            "lo_raw": -0.037751685578653174,
+            "hi_raw": 0.010690140941877044
+          },
+          "recall@100": {
+            "delta": 0.0015,
+            "lo": -0.0173,
+            "hi": 0.0207,
+            "delta_raw": 0.0015432098765432113,
+            "lo_raw": -0.017276510141093476,
+            "hi_raw": 0.020744047619047613
+          },
+          "mrr@10": {
+            "delta": 0.0213,
+            "lo": -0.0063,
+            "hi": 0.0494,
+            "delta_raw": 0.021318342151675482,
+            "lo_raw": -0.006325859175974915,
+            "hi_raw": 0.049449619096609825
+          },
+          "input_recall@20": {
+            "delta": -0.0164,
+            "lo": -0.0385,
+            "hi": 0.0063,
+            "delta_raw": -0.016403191287450544,
+            "lo_raw": -0.03854412402155458,
+            "hi_raw": 0.0062891341768656385
+          },
+          "verdict": "covers zero",
+          "n_changed": 356,
+          "permutation_p": 0.9506049395060494
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]@bge-small",
+          "other": "hybrid+hyde[qwen3.5-27b]@bge-small",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": 0.0003,
+            "lo": -0.0075,
+            "hi": 0.0077,
+            "delta_raw": 0.0003315787275941467,
+            "lo_raw": -0.007500652824734032,
+            "hi_raw": 0.007718328936709934
+          },
+          "recall@10": {
+            "delta": 0.0012,
+            "lo": -0.0105,
+            "hi": 0.013,
+            "delta_raw": 0.0011556259241444428,
+            "lo_raw": -0.010489085353089983,
+            "hi_raw": 0.013024003816827884
+          },
+          "recall@100": {
+            "delta": -0.0051,
+            "lo": -0.0162,
+            "hi": 0.0067,
+            "delta_raw": -0.005084019204389576,
+            "lo_raw": -0.016231781550068585,
+            "hi_raw": 0.006686171124828512
+          },
+          "mrr@10": {
+            "delta": -0.0035,
+            "lo": -0.015,
+            "hi": 0.0078,
+            "delta_raw": -0.0035163139329805995,
+            "lo_raw": -0.014952861674505194,
+            "hi_raw": 0.007828743508720358
+          },
+          "input_recall@20": {
+            "delta": 0.0034,
+            "lo": -0.0084,
+            "hi": 0.0173,
+            "delta_raw": 0.0034213942778757588,
+            "lo_raw": -0.008369050680971976,
+            "hi_raw": 0.01731890248383304
+          },
+          "verdict": "covers zero",
+          "n_changed": 235,
+          "permutation_p": 0.9313068693130687
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.051,
+            "lo": -0.0685,
+            "hi": -0.0347,
+            "delta_raw": -0.051014832985463145,
+            "lo_raw": -0.0685335333067742,
+            "hi_raw": -0.03472714045935834
+          },
+          "recall@10": {
+            "delta": -0.0289,
+            "lo": -0.0468,
+            "hi": -0.0097,
+            "delta_raw": -0.028903915015026125,
+            "lo_raw": -0.0468223886453053,
+            "hi_raw": -0.009671803890553943
+          },
+          "recall@100": {
+            "delta": 0.0222,
+            "lo": 0.0089,
+            "hi": 0.0358,
+            "delta_raw": 0.022202107734515142,
+            "lo_raw": 0.00889212392973967,
+            "hi_raw": 0.03583895431985709
+          },
+          "mrr@10": {
+            "delta": -0.0706,
+            "lo": -0.0959,
+            "hi": -0.0473,
+            "delta_raw": -0.07064165686850872,
+            "lo_raw": -0.09585643555261611,
+            "hi_raw": -0.04725473985890655
+          },
+          "input_recall@20": {
+            "delta": 0.0304,
+            "lo": 0.0145,
+            "hi": 0.0465,
+            "delta_raw": 0.0303687781697041,
+            "lo_raw": 0.014522615373309818,
+            "hi_raw": 0.04646857547031157
+          },
+          "verdict": "below zero",
+          "n_changed": 350,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": -0.0105,
+            "lo": -0.0307,
+            "hi": 0.0107,
+            "delta_raw": -0.01047356284674238,
+            "lo_raw": -0.030664352365520425,
+            "hi_raw": 0.010683550047633671
+          },
+          "recall@10": {
+            "delta": 0.015,
+            "lo": -0.0097,
+            "hi": 0.0411,
+            "delta_raw": 0.014980621230621232,
+            "lo_raw": -0.00973649550038439,
+            "hi_raw": 0.041076852352894
+          },
+          "recall@100": {
+            "delta": 0.0267,
+            "lo": 0.0067,
+            "hi": 0.0472,
+            "delta_raw": 0.026703136541099504,
+            "lo_raw": 0.006690169291442439,
+            "hi_raw": 0.047167569227754405
+          },
+          "mrr@10": {
+            "delta": -0.0172,
+            "lo": -0.0451,
+            "hi": 0.0102,
+            "delta_raw": -0.017228835978835982,
+            "lo_raw": -0.04510409011855772,
+            "hi_raw": 0.010168099647266312
+          },
+          "input_recall@20": {
+            "delta": 0.0403,
+            "lo": 0.0182,
+            "hi": 0.0645,
+            "delta_raw": 0.04034458340013896,
+            "lo_raw": 0.0182351221095434,
+            "hi_raw": 0.06449443453494377
+          },
+          "verdict": "covers zero",
+          "n_changed": 389,
+          "permutation_p": 0.31586841315868414
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+hyde[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": -0.0014,
+            "lo": -0.008,
+            "hi": 0.0057,
+            "delta_raw": -0.0014123706696251086,
+            "lo_raw": -0.007981290513548308,
+            "hi_raw": 0.005704298227326746
+          },
+          "recall@10": {
+            "delta": 0.0034,
+            "lo": -0.0073,
+            "hi": 0.0154,
+            "delta_raw": 0.0033975112678816385,
+            "lo_raw": -0.007322194052518127,
+            "hi_raw": 0.015372728052126196
+          },
+          "recall@100": {
+            "delta": -0.0051,
+            "lo": -0.0162,
+            "hi": 0.0067,
+            "delta_raw": -0.005084019204389576,
+            "lo_raw": -0.016231781550068585,
+            "hi_raw": 0.006686171124828512
+          },
+          "mrr@10": {
+            "delta": -0.0052,
+            "lo": -0.0133,
+            "hi": 0.0028,
+            "delta_raw": -0.005249975504605134,
+            "lo_raw": -0.013288323045267489,
+            "hi_raw": 0.002792459705075442
+          },
+          "input_recall@20": {
+            "delta": 0.0034,
+            "lo": -0.0084,
+            "hi": 0.0173,
+            "delta_raw": 0.0034213942778757588,
+            "lo_raw": -0.008369050680971976,
+            "hi_raw": 0.01731890248383304
+          },
+          "verdict": "covers zero",
+          "n_changed": 101,
+          "permutation_p": 0.6825317468253175
+        },
+        {
+          "row": "hybrid+hyde[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank+hyde[gemma4-26b]@bge-small/fp32-512/top20",
+          "kind": "secondary:pre-minus-post",
+          "ndcg@10": {
+            "delta": -0.0031,
+            "lo": -0.0159,
+            "hi": 0.0099,
+            "delta_raw": -0.00312678909981008,
+            "lo_raw": -0.015946269805804006,
+            "hi_raw": 0.009852088924199092
+          },
+          "recall@10": {
+            "delta": 0.0096,
+            "lo": -0.0067,
+            "hi": 0.0276,
+            "delta_raw": 0.009647417054824463,
+            "lo_raw": -0.006705279888150257,
+            "hi_raw": 0.027560427077209473
+          },
+          "recall@100": {
+            "delta": 0.0222,
+            "lo": 0.0089,
+            "hi": 0.0358,
+            "delta_raw": 0.022202107734515142,
+            "lo_raw": 0.00889212392973967,
+            "hi_raw": 0.03583895431985709
+          },
+          "mrr@10": {
+            "delta": -0.0038,
+            "lo": -0.0227,
+            "hi": 0.0161,
+            "delta_raw": -0.0037508573388203028,
+            "lo_raw": -0.022709711199294533,
+            "hi_raw": 0.01611501506466784
+          },
+          "input_recall@20": {
+            "delta": 0.0304,
+            "lo": 0.0145,
+            "hi": 0.0465,
+            "delta_raw": 0.0303687781697041,
+            "lo_raw": 0.014522615373309818,
+            "hi_raw": 0.04646857547031157
+          },
+          "verdict": "covers zero",
+          "n_changed": 308,
+          "permutation_p": 0.6346365363463654
+        },
+        {
+          "row": "hybrid+bge-rerank+hyde[gemma4-26b]@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank+hyde[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": -0.0004,
+            "lo": -0.0076,
+            "hi": 0.0065,
+            "delta_raw": -0.0004138614039871673,
+            "lo_raw": -0.007619270632343832,
+            "hi_raw": 0.0065329551088509005
+          },
+          "recall@10": {
+            "delta": -0.0079,
+            "lo": -0.0199,
+            "hi": 0.0039,
+            "delta_raw": -0.007902214383695864,
+            "lo_raw": -0.01991105109739369,
+            "hi_raw": 0.00390294312169311
+          },
+          "recall@100": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "mrr@10": {
+            "delta": 0.0025,
+            "lo": -0.0091,
+            "hi": 0.0147,
+            "delta_raw": 0.0024556633352929656,
+            "lo_raw": -0.00909872256515775,
+            "hi_raw": 0.014654660861258068
+          },
+          "input_recall@20": {
+            "delta": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "delta_raw": 0.0,
+            "lo_raw": 0.0,
+            "hi_raw": 0.0
+          },
+          "verdict": "covers zero",
+          "n_changed": 210,
+          "permutation_p": 0.9064093590640936
+        },
+        {
+          "row": "hybrid+multiquery[gemma4-26b]@bge-small",
+          "other": "hybrid+multiquery[qwen3.5-27b]@bge-small",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": -0.0146,
+            "lo": -0.0298,
+            "hi": 0.0012,
+            "delta_raw": -0.014564059981362456,
+            "lo_raw": -0.029833583314805175,
+            "hi_raw": 0.0012005753624953091
+          },
+          "recall@10": {
+            "delta": -0.0136,
+            "lo": -0.0325,
+            "hi": 0.0053,
+            "delta_raw": -0.01356095036650592,
+            "lo_raw": -0.03249191341494582,
+            "hi_raw": 0.005345063565549653
+          },
+          "recall@100": {
+            "delta": -0.0033,
+            "lo": -0.0178,
+            "hi": 0.0107,
+            "delta_raw": -0.003326568835828096,
+            "lo_raw": -0.01784682417205565,
+            "hi_raw": 0.010674924676660789
+          },
+          "mrr@10": {
+            "delta": -0.0145,
+            "lo": -0.0374,
+            "hi": 0.0089,
+            "delta_raw": -0.014500661375661377,
+            "lo_raw": -0.03742156880756418,
+            "hi_raw": 0.008887067043895748
+          },
+          "input_recall@20": {
+            "delta": -0.0037,
+            "lo": -0.0223,
+            "hi": 0.0132,
+            "delta_raw": -0.003735659059733132,
+            "lo_raw": -0.022258954180250475,
+            "hi_raw": 0.013198924596494029
+          },
+          "verdict": "covers zero",
+          "n_changed": 353,
+          "permutation_p": 0.061193880611938804
+        },
+        {
+          "row": "hybrid+multiquery[gemma4-26b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0779,
+            "lo": -0.0964,
+            "hi": -0.0592,
+            "delta_raw": -0.07793275113107462,
+            "lo_raw": -0.09639171546807311,
+            "hi_raw": -0.059189921287905366
+          },
+          "recall@10": {
+            "delta": -0.0381,
+            "lo": -0.058,
+            "hi": -0.0171,
+            "delta_raw": -0.03811617052357793,
+            "lo_raw": -0.05795191080781358,
+            "hi_raw": -0.017143486229134405
+          },
+          "recall@100": {
+            "delta": 0.0266,
+            "lo": 0.0116,
+            "hi": 0.0426,
+            "delta_raw": 0.026592012240160383,
+            "lo_raw": 0.011649351484420927,
+            "hi_raw": 0.04261402606310012
+          },
+          "mrr@10": {
+            "delta": -0.1138,
+            "lo": -0.1411,
+            "hi": -0.0859,
+            "delta_raw": -0.11384724671761708,
+            "lo_raw": -0.14106288580246915,
+            "hi_raw": -0.08592600247403488
+          },
+          "input_recall@20": {
+            "delta": 0.0211,
+            "lo": 0.0002,
+            "hi": 0.0415,
+            "delta_raw": 0.021089661367439148,
+            "lo_raw": 0.00017820860124100947,
+            "hi_raw": 0.04146685565377693
+          },
+          "verdict": "below zero",
+          "n_changed": 388,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+multiquery[gemma4-26b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": -0.0374,
+            "lo": -0.0578,
+            "hi": -0.017,
+            "delta_raw": -0.03739148099235385,
+            "lo_raw": -0.05778277613161547,
+            "hi_raw": -0.01697190085607123
+          },
+          "recall@10": {
+            "delta": 0.0058,
+            "lo": -0.0177,
+            "hi": 0.0295,
+            "delta_raw": 0.005768365722069427,
+            "lo_raw": -0.017745571579483612,
+            "hi_raw": 0.0294614139290065
+          },
+          "recall@100": {
+            "delta": 0.0311,
+            "lo": 0.0098,
+            "hi": 0.0527,
+            "delta_raw": 0.031093041046744752,
+            "lo_raw": 0.009762471217911033,
+            "hi_raw": 0.05273814116696058
+          },
+          "mrr@10": {
+            "delta": -0.0604,
+            "lo": -0.0878,
+            "hi": -0.0317,
+            "delta_raw": -0.06043442582794434,
+            "lo_raw": -0.08781479644326867,
+            "hi_raw": -0.0317072524740349
+          },
+          "input_recall@20": {
+            "delta": 0.0311,
+            "lo": 0.0077,
+            "hi": 0.0537,
+            "delta_raw": 0.031065466597874004,
+            "lo_raw": 0.007675496978159017,
+            "hi_raw": 0.053671653706375895
+          },
+          "verdict": "below zero",
+          "n_changed": 386,
+          "permutation_p": 0.00029997000299970003
+        },
+        {
+          "row": "hybrid+multiquery[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+multiquery[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": -0.0028,
+            "lo": -0.0151,
+            "hi": 0.0079,
+            "delta_raw": -0.0028419349658457688,
+            "lo_raw": -0.015123840656503363,
+            "hi_raw": 0.007880529450708117
+          },
+          "recall@10": {
+            "delta": -0.0057,
+            "lo": -0.0223,
+            "hi": 0.0094,
+            "delta_raw": -0.005695847362514028,
+            "lo_raw": -0.022280904002547522,
+            "hi_raw": 0.009364998641619007
+          },
+          "recall@100": {
+            "delta": -0.0033,
+            "lo": -0.0178,
+            "hi": 0.0107,
+            "delta_raw": -0.003326568835828096,
+            "lo_raw": -0.01784682417205565,
+            "hi_raw": 0.010674924676660789
+          },
+          "mrr@10": {
+            "delta": -0.0009,
+            "lo": -0.0159,
+            "hi": 0.0127,
+            "delta_raw": -0.0008769351361943957,
+            "lo_raw": -0.015859987384871647,
+            "hi_raw": 0.01265871484910836
+          },
+          "input_recall@20": {
+            "delta": -0.0037,
+            "lo": -0.0223,
+            "hi": 0.0132,
+            "delta_raw": -0.003735659059733132,
+            "lo_raw": -0.022258954180250475,
+            "hi_raw": 0.013198924596494029
+          },
+          "verdict": "covers zero",
+          "n_changed": 189,
+          "permutation_p": 0.6285371462853715
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]@bge-small",
+          "other": "hybrid+decompose[qwen3.5-27b]@bge-small",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": -0.0048,
+            "lo": -0.0212,
+            "hi": 0.0111,
+            "delta_raw": -0.004832491260157489,
+            "lo_raw": -0.021196337114705956,
+            "hi_raw": 0.011117543873250728
+          },
+          "recall@10": {
+            "delta": -0.0094,
+            "lo": -0.0304,
+            "hi": 0.0109,
+            "delta_raw": -0.009384241444426629,
+            "lo_raw": -0.030359087179110324,
+            "hi_raw": 0.010916722059661854
+          },
+          "recall@100": {
+            "delta": -0.0062,
+            "lo": -0.0219,
+            "hi": 0.0093,
+            "delta_raw": -0.006232146625665145,
+            "lo_raw": -0.021946263934111154,
+            "hi_raw": 0.00929142712996878
+          },
+          "mrr@10": {
+            "delta": 0.0012,
+            "lo": -0.0228,
+            "hi": 0.0248,
+            "delta_raw": 0.0011843523417597503,
+            "lo_raw": -0.022825421320791694,
+            "hi_raw": 0.02479252400548695
+          },
+          "input_recall@20": {
+            "delta": -0.0126,
+            "lo": -0.0312,
+            "hi": 0.0056,
+            "delta_raw": -0.012577717207346836,
+            "lo_raw": -0.03124686152753282,
+            "hi_raw": 0.005613204632301855
+          },
+          "verdict": "covers zero",
+          "n_changed": 345,
+          "permutation_p": 0.555944405559444
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0663,
+            "lo": -0.0839,
+            "hi": -0.0479,
+            "delta_raw": -0.06630431093108856,
+            "lo_raw": -0.08390275499549484,
+            "hi_raw": -0.04788150690314345
+          },
+          "recall@10": {
+            "delta": -0.0399,
+            "lo": -0.0602,
+            "hi": -0.019,
+            "delta_raw": -0.03988629254832959,
+            "lo_raw": -0.06022605352466465,
+            "hi_raw": -0.01900987387098501
+          },
+          "recall@100": {
+            "delta": 0.0316,
+            "lo": 0.0162,
+            "hi": 0.0466,
+            "delta_raw": 0.03161008230452675,
+            "lo_raw": 0.016173206937095827,
+            "hi_raw": 0.04659024103468548
+          },
+          "mrr@10": {
+            "delta": -0.092,
+            "lo": -0.1195,
+            "hi": -0.0632,
+            "delta_raw": -0.09200960219478739,
+            "lo_raw": -0.11948452503429356,
+            "hi_raw": -0.06321737825788752
+          },
+          "input_recall@20": {
+            "delta": 0.0161,
+            "lo": -0.0026,
+            "hi": 0.0357,
+            "delta_raw": 0.01607259766981989,
+            "lo_raw": -0.0026183433764452283,
+            "hi_raw": 0.03573332810022625
+          },
+          "verdict": "below zero",
+          "n_changed": 374,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": -0.0258,
+            "lo": -0.0468,
+            "hi": -0.0051,
+            "delta_raw": -0.02576304079236779,
+            "lo_raw": -0.04678187081587939,
+            "hi_raw": -0.005108304724631354
+          },
+          "recall@10": {
+            "delta": 0.004,
+            "lo": -0.0198,
+            "hi": 0.0278,
+            "delta_raw": 0.003998243697317772,
+            "lo_raw": -0.019763288195001158,
+            "hi_raw": 0.02775817086291623
+          },
+          "recall@100": {
+            "delta": 0.0361,
+            "lo": 0.0149,
+            "hi": 0.0584,
+            "delta_raw": 0.036111111111111115,
+            "lo_raw": 0.014880493092298651,
+            "hi_raw": 0.058443103321575526
+          },
+          "mrr@10": {
+            "delta": -0.0386,
+            "lo": -0.0681,
+            "hi": -0.01,
+            "delta_raw": -0.03859678130511464,
+            "lo_raw": -0.06810770012737606,
+            "hi_raw": -0.01003922325102881
+          },
+          "input_recall@20": {
+            "delta": 0.026,
+            "lo": 0.0037,
+            "hi": 0.0488,
+            "delta_raw": 0.026048402900254754,
+            "lo_raw": 0.0036661798206937112,
+            "hi_raw": 0.048768539951989
+          },
+          "verdict": "below zero",
+          "n_changed": 379,
+          "permutation_p": 0.0164983501649835
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "other": "hybrid+decompose[qwen3.5-27b]+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": -0.0021,
+            "lo": -0.0114,
+            "hi": 0.008,
+            "delta_raw": -0.002088078364740557,
+            "lo_raw": -0.011419764530593924,
+            "hi_raw": 0.007962323727992217
+          },
+          "recall@10": {
+            "delta": -0.0089,
+            "lo": -0.0251,
+            "hi": 0.0074,
+            "delta_raw": -0.008949392514207328,
+            "lo_raw": -0.02512491120419361,
+            "hi_raw": 0.007438256295316477
+          },
+          "recall@100": {
+            "delta": -0.0062,
+            "lo": -0.0219,
+            "hi": 0.0093,
+            "delta_raw": -0.006232146625665145,
+            "lo_raw": -0.021946263934111154,
+            "hi_raw": 0.00929142712996878
+          },
+          "mrr@10": {
+            "delta": -0.001,
+            "lo": -0.0144,
+            "hi": 0.0121,
+            "delta_raw": -0.0009669557123260813,
+            "lo_raw": -0.014367437046835192,
+            "hi_raw": 0.012092473177542619
+          },
+          "input_recall@20": {
+            "delta": -0.0126,
+            "lo": -0.0312,
+            "hi": 0.0056,
+            "delta_raw": -0.012577717207346836,
+            "lo_raw": -0.03124686152753282,
+            "hi_raw": 0.005613204632301855
+          },
+          "verdict": "covers zero",
+          "n_changed": 209,
+          "permutation_p": 0.6812318768123188
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "other": "hybrid+decompose[qwen3.5-27b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": 0.0007,
+            "lo": -0.0116,
+            "hi": 0.0129,
+            "delta_raw": 0.0006787991859622649,
+            "lo_raw": -0.011606197233955624,
+            "hi_raw": 0.0129315219324548
+          },
+          "recall@10": {
+            "delta": -0.0041,
+            "lo": -0.0227,
+            "hi": 0.0138,
+            "delta_raw": -0.004141614558281224,
+            "lo_raw": -0.02266335644807867,
+            "hi_raw": 0.013761624178290802
+          },
+          "recall@100": {
+            "delta": -0.0018,
+            "lo": -0.0167,
+            "hi": 0.0141,
+            "delta_raw": -0.0017758219147108035,
+            "lo_raw": -0.016733661571624536,
+            "hi_raw": 0.014107556216931192
+          },
+          "mrr@10": {
+            "delta": 0.0036,
+            "lo": -0.0139,
+            "hi": 0.0211,
+            "delta_raw": 0.0036173574368018814,
+            "lo_raw": -0.013856769302371156,
+            "hi_raw": 0.021123389427787555
+          },
+          "input_recall@20": {
+            "delta": -0.032,
+            "lo": -0.0496,
+            "hi": -0.015,
+            "delta_raw": -0.03203121467010356,
+            "lo_raw": -0.049581012159137156,
+            "hi_raw": -0.014988758026952475
+          },
+          "verdict": "covers zero",
+          "n_changed": 308,
+          "permutation_p": 0.9171082891710829
+        },
+        {
+          "row": "hybrid+decompose[gemma4-26b]+bge-rerank-per-sub@bge-small/fp32-512/top20",
+          "other": "hybrid+decompose[gemma4-26b]+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:per-sub-minus-union",
+          "ndcg@10": {
+            "delta": -0.0386,
+            "lo": -0.0534,
+            "hi": -0.0243,
+            "delta_raw": -0.038553924947876676,
+            "lo_raw": -0.05343266475240031,
+            "hi_raw": -0.024283218776227054
+          },
+          "recall@10": {
+            "delta": -0.0179,
+            "lo": -0.0384,
+            "hi": 0.0012,
+            "delta_raw": -0.01792099789784975,
+            "lo_raw": -0.038418999017957346,
+            "hi_raw": 0.0012192819397680472
+          },
+          "recall@100": {
+            "delta": -0.0004,
+            "lo": -0.0079,
+            "hi": 0.0075,
+            "delta_raw": -0.0003551832255535958,
+            "lo_raw": -0.007883352929649227,
+            "hi_raw": 0.007518402165392901
+          },
+          "mrr@10": {
+            "delta": -0.0594,
+            "lo": -0.0803,
+            "hi": -0.0382,
+            "delta_raw": -0.059351729374877524,
+            "lo_raw": -0.08027907909563002,
+            "hi_raw": -0.0382474157358417
+          },
+          "input_recall@20": {
+            "delta": 0.0925,
+            "lo": 0.0734,
+            "hi": 0.1103,
+            "delta_raw": 0.09247742569501828,
+            "lo_raw": 0.07344831276833591,
+            "hi_raw": 0.11027567939604976
+          },
+          "verdict": "below zero",
+          "n_changed": 314,
+          "permutation_p": 9.999000099990002e-05
+        },
+        {
+          "row": "hybrid+corrective[gemma4-26b]@bge-small",
+          "other": "hybrid+corrective[qwen3.5-27b]@bge-small",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": 0.0039,
+            "lo": -0.0082,
+            "hi": 0.0154,
+            "delta_raw": 0.003919085165035339,
+            "lo_raw": -0.008181950537499047,
+            "hi_raw": 0.01542240888868234
+          },
+          "recall@10": {
+            "delta": -0.002,
+            "lo": -0.0156,
+            "hi": 0.0108,
+            "delta_raw": -0.0019743288261806777,
+            "lo_raw": -0.015609935332157553,
+            "hi_raw": 0.010834803057025276
+          },
+          "recall@100": {
+            "delta": 0.002,
+            "lo": -0.0087,
+            "hi": 0.0116,
+            "delta_raw": 0.002031893004115226,
+            "lo_raw": -0.008670267489711935,
+            "hi_raw": 0.011577289094650188
+          },
+          "mrr@10": {
+            "delta": 0.0116,
+            "lo": -0.0038,
+            "hi": 0.0264,
+            "delta_raw": 0.011636537330981776,
+            "lo_raw": -0.003753919263178521,
+            "hi_raw": 0.02644747881148344
+          },
+          "input_recall@20": {
+            "delta": 0.0032,
+            "lo": -0.0099,
+            "hi": 0.0161,
+            "delta_raw": 0.0032278806584362133,
+            "lo_raw": -0.00986496913580247,
+            "hi_raw": 0.016075424382716048
+          },
+          "verdict": "covers zero",
+          "n_changed": 127,
+          "permutation_p": 0.5166483351664833
+        },
+        {
+          "row": "hybrid+corrective[gemma4-26b]@bge-small",
+          "other": "hybrid+bge-rerank@bge-small/fp32-512/top20",
+          "kind": "secondary:no-rerank-minus-P1",
+          "ndcg@10": {
+            "delta": -0.0359,
+            "lo": -0.0532,
+            "hi": -0.0172,
+            "delta_raw": -0.03590413284129796,
+            "lo_raw": -0.05320318996836028,
+            "hi_raw": -0.017241846433729183
+          },
+          "recall@10": {
+            "delta": -0.0589,
+            "lo": -0.0789,
+            "hi": -0.0395,
+            "delta_raw": -0.05892118426840649,
+            "lo_raw": -0.07890063640063641,
+            "hi_raw": -0.03945842576918969
+          },
+          "recall@100": {
+            "delta": -0.0009,
+            "lo": -0.0113,
+            "hi": 0.0098,
+            "delta_raw": -0.0009259259259259264,
+            "lo_raw": -0.01134323559670782,
+            "hi_raw": 0.009776877572016444
+          },
+          "mrr@10": {
+            "delta": -0.0205,
+            "lo": -0.0443,
+            "hi": 0.0048,
+            "delta_raw": -0.02045794140701548,
+            "lo_raw": -0.044317925729962765,
+            "hi_raw": 0.004821857240838694
+          },
+          "input_recall@20": {
+            "delta": -0.0232,
+            "lo": -0.0401,
+            "hi": -0.0067,
+            "delta_raw": -0.023151115859449192,
+            "lo_raw": -0.04006249152082486,
+            "hi_raw": -0.00673995147085425
+          },
+          "verdict": "below zero",
+          "n_changed": 323,
+          "permutation_p": 0.00039996000399960006
+        },
+        {
+          "row": "hybrid+corrective[gemma4-26b]@bge-small",
+          "other": "dense@bge-small",
+          "kind": "secondary:no-rerank-minus-dense",
+          "ndcg@10": {
+            "delta": 0.0046,
+            "lo": -0.016,
+            "hi": 0.026,
+            "delta_raw": 0.00463713729742281,
+            "lo_raw": -0.016031615276593608,
+            "hi_raw": 0.02600255521185128
+          },
+          "recall@10": {
+            "delta": -0.015,
+            "lo": -0.0405,
+            "hi": 0.0098,
+            "delta_raw": -0.015036648022759133,
+            "lo_raw": -0.040450534440696476,
+            "hi_raw": 0.009802976301818879
+          },
+          "recall@100": {
+            "delta": 0.0036,
+            "lo": -0.016,
+            "hi": 0.0241,
+            "delta_raw": 0.0035751028806584356,
+            "lo_raw": -0.015956468621399177,
+            "hi_raw": 0.024060157627865956
+          },
+          "mrr@10": {
+            "delta": 0.033,
+            "lo": 0.005,
+            "hi": 0.0611,
+            "delta_raw": 0.03295487948265726,
+            "lo_raw": 0.004978382814030962,
+            "hi_raw": 0.06114359812855181
+          },
+          "input_recall@20": {
+            "delta": -0.0132,
+            "lo": -0.0371,
+            "hi": 0.0105,
+            "delta_raw": -0.013175310629014335,
+            "lo_raw": -0.037057830715238126,
+            "hi_raw": 0.010513417909251229
+          },
+          "verdict": "covers zero",
+          "n_changed": 363,
+          "permutation_p": 0.6757324267573243
+        },
+        {
+          "row": "hybrid+bge-rerank+corrective[gemma4-26b]@bge-small/fp32-512/top20",
+          "other": "hybrid+bge-rerank+corrective[qwen3.5-27b]@bge-small/fp32-512/top20",
+          "kind": "secondary:gemma-minus-qwen",
+          "ndcg@10": {
+            "delta": 0.0069,
+            "lo": -0.0042,
+            "hi": 0.0179,
+            "delta_raw": 0.006945919999550707,
+            "lo_raw": -0.004227627049624723,
+            "hi_raw": 0.017881196247162674
+          },
+          "recall@10": {
+            "delta": 0.0062,
+            "lo": -0.0059,
+            "hi": 0.0186,
+            "delta_raw": 0.006172839506172839,
+            "lo_raw": -0.005867412551440329,
+            "hi_raw": 0.018571244855967072
+          },
+          "recall@100": {
+            "delta": 0.0042,
+            "lo": -0.0031,
+            "hi": 0.0108,
+            "delta_raw": 0.004243827160493827,
+            "lo_raw": -0.0030864197530864196,
+            "hi_raw": 0.010802469135802469
+          },
+          "mrr@10": {
+            "delta": 0.0069,
+            "lo": -0.0068,
+            "hi": 0.0203,
+            "delta_raw": 0.006888105036253183,
+            "lo_raw": -0.0067641124093670395,
+            "hi_raw": 0.02032886598569468
+          },
+          "input_recall@20": {
+            "delta": 0.0027,
+            "lo": -0.0004,
+            "hi": 0.0069,
+            "delta_raw": 0.002700617283950617,
+            "lo_raw": -0.00038580246913580245,
+            "hi_raw": 0.006944444444444444
+          },
+          "verdict": "covers zero",
+          "n_changed": 108,
+          "permutation_p": 0.20567943205679431
+        }
+      ]
+    }
+  },
+  "n_intervals": {
+    "arm": 20,
+    "reference": 1,
+    "secondary:gemma-minus-qwen": 10,
+    "secondary:no-rerank-minus-P1": 8,
+    "secondary:no-rerank-minus-dense": 8,
+    "secondary:per-sub-minus-union": 2,
+    "secondary:pre-minus-post": 2
+  },
+  "does_not_show": [
+    "Retrieval ranking only: no answer quality (M47), no end-to-end latency on the demo host.",
+    "The intervals cover query sampling only. There is one temperature-0 generation per prompt on one GPU type, so the variability of LLM outputs, prompts and hardware is not in any interval.",
+    "One prompt per technique, untuned and shared by all datasets. The HyDE paper used per-task instructions, so these rows are a lower bound for prompt-engineered variants. SciFact's queries are claims, not questions; the prompts are used as written. Prompt sensitivity is not measured.",
+    "Two Q4_K_M open models served by Ollama, temperature 0, reasoning off. Not API frontier models, not reasoning on.",
+    "Latency on HPC GPUs, one request at a time, Q4 weights, prompt caching as Ollama does it. Five grader calls run in sequence where a server could batch them. Cost is in tokens and GPU seconds, not dollars.",
+    "Pretraining exposure to BEIR or the repository cannot be excluded. The audit bounds verbatim copying and path mentions only.",
+    "Fixture v1 is synthetic and small (61 files, 71 chunks, 68 held-out questions) and near its ceiling. A tie on the 68-question held-out half is not evidence of no effect.",
+    "bge-small as the first stage only. A stronger embedder (M41's Qwen3-Embedding-8B) may leave less room.",
+    "bge-reranker-v2-m3 is the only reranker. M43's hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20 row is above P1 on both BEIR sets in the committed files, so a stronger reranker may leave less room.",
+    "On FiQA, P0 (hybrid@bge-small) is below dense@bge-small in beir_fiqa.json. A no-rerank win against P0 there is not a win against the best committed no-LLM first stage (see the secondary column).",
+    "The HyDE post-rerank row is one wiring (an RRF re-sort that overrides the reranker), not post-rerank HyDE in general.",
+    "The corrective grader is an ungated component: it has no calibration, and its quality is seen only through its effect on rankings and the descriptive agreement with qrels.",
+    "One-round corrective, binary grader, no web search, G = 5 only. No combinations of techniques. Multi-query post-rerank and corrective pre-rerank are not measured. No multiplicity correction."
+  ]
+}
