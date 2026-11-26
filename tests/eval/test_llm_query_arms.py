@@ -1070,3 +1070,17 @@ def test_identical_grader_prompts_are_one_call_and_one_merged_row_per_worklist_l
                 f.unlink()
         for f, b in kept.items():
             f.write_bytes(b)
+
+
+def test_the_fixture_cost_and_fallbacks_are_labelled_with_every_question(fixture_pipeline, tmp_root):
+    """The cost and LLM-fallback blocks are computed over every fixture question (parents.json.gz), not the held-out
+    half the verdict cells use: the README block and the evidence rows label them so."""
+    from app.eval import evidence, report
+
+    block = report.llm_query_arms_table(tmp_root)
+    header = next(line for line in block.splitlines() if "LLM calls / tokens" in line)
+    assert header.split("LLM calls / tokens")[1].count("fixture v1, all questions") == 1
+    assert "fixture v1, held-out" not in header.split("LLM calls / tokens")[1]
+    rows = evidence._llm_query_claims(tmp_root)
+    assert rows and all("cost: fixture v1, all questions " in r["not_shown"] for r in rows)
+    assert not any("fixture v1 held-out" in r["not_shown"].split("cost: ")[1] for r in rows)

@@ -1066,6 +1066,7 @@ def _llm_query_claims(root: Path = ROOT) -> list[dict]:
     if not blobs:
         return []
     names = {"fixture": "fixture v1 held-out", "scifact": "SciFact", "fiqa": "FiQA"}
+    every = {"fixture": "fixture v1, all questions", "scifact": "SciFact", "fiqa": "FiQA"}  # cost and fallbacks: every query
     commands = {"fixture": "make bench-llm-query-arms", "scifact": "make bench-beir-llm-query-arms", "fiqa": "make bench-beir-fiqa-llm-query-arms"}
     total = bar.n_intervals(blobs).get("total", 0)
     audit = _load("bench/results/llm_query_audit.json", root)
@@ -1088,11 +1089,11 @@ def _llm_query_claims(root: Path = ROOT) -> list[dict]:
                 r = next(x for x in blobs[d]["rows"] if x["config"] == row["config"])
                 cost = r.get("cost") or {}
                 if cost.get("llm_ms_per_query"):
-                    costs.append(f"{names[d]} {cost['llm_calls_per_query']:.2f} calls, {cost['prompt_tokens_per_query']:.0f} prompt and "
+                    costs.append(f"{every[d]} {cost['llm_calls_per_query']:.2f} calls, {cost['prompt_tokens_per_query']:.0f} prompt and "
                                  f"{cost['generated_tokens_per_query']:.0f} generated tokens, p50 {cost['llm_ms_per_query']['p50'] / 1000:.2f} s per query on "
                                  f"{', '.join(cost.get('gpu') or ['?'])}")
                 if r.get("llm_fallbacks"):
-                    fallbacks.append(f"{names[d]}: {'; '.join(r['llm_fallbacks'])}")
+                    fallbacks.append(f"{every[d]}: {'; '.join(r['llm_fallbacks'])}")
             ns = " / ".join(str(blobs[d]["scopes"][bar.BAR_SCOPE[d]]["n"]) for d in measured)
             src = "; ".join(f"{bar.RESULTS[d]} @ {blobs[d].get('git_sha')}" for d in measured)
             audit_note = ""

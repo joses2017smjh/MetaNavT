@@ -79,6 +79,8 @@ BEIR_LLM_QUERY_FILE = "bench/results/beir_scifact_llm_query_arms.json"
 BEIR_FIQA_LLM_QUERY_FILE = "bench/results/beir_fiqa_llm_query_arms.json"
 LLM_QUERY_AUDIT_FILE = "bench/results/llm_query_audit.json"
 LLM_QUERY_DATASETS = (("fixture", "fixture v1, held-out"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA"))
+# the cost and LLM-fallback blocks are computed over every query of a dataset (parents.json.gz), the fixture's 136 too
+LLM_QUERY_COST_LABELS = {"fixture": "fixture v1, all questions", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
 LLM_QUERY_COMMANDS = {"fixture": "make bench-llm-query-arms", "scifact": "make bench-beir-llm-query-arms", "fiqa": "make bench-beir-fiqa-llm-query-arms"}
 PLACEMENT_LABELS = {"none": "no reranker (vs P0)", "pre": "before the reranker", "post": "after the reranker",
                     "union": "before the reranker (union, then rerank)", "per-sub": "each sub-question reranked against itself"}
@@ -3162,7 +3164,7 @@ def llm_query_arms_table(root: Path | None) -> str:
         lines += ["", f"**{spec.MODELS[tag]['name']}** ({'the placement decision' if tag == spec.MAIN_MODEL else 'the replication'}; "
                       f"Q4_K_M, Ollama, temperature 0, reasoning off)", "",
                   "| technique, placement | row | " + " | ".join(f"{label}: Δ nDCG@10 [95% CI] | word" for _, label in present)
-                  + " | passes | all three | replication | LLM calls / tokens (prompt+generated) / p50 s per query, " + ", ".join(label for _, label in present) + " |",
+                  + " | passes | all three | replication | LLM calls / tokens (prompt+generated) / p50 s per query, " + ", ".join(LLM_QUERY_COST_LABELS[d] for d, _ in present) + " |",
                   "|---|---|" + "---:|:---:|" * len(present) + ":---:|:---:|:---:|---|"]
         for row in rows:
             cells = []
@@ -3228,7 +3230,7 @@ def llm_query_arms_table(root: Path | None) -> str:
     for d, label in present:
         for r in blobs[d]["rows"]:
             if r.get("model") in spec.BAR_MODELS and r.get("llm_fallbacks"):
-                fallbacks.append(f"{label} `{r['config']}`: {'; '.join(r['llm_fallbacks'])}")
+                fallbacks.append(f"{LLM_QUERY_COST_LABELS[d]} `{r['config']}`: {'; '.join(r['llm_fallbacks'])}")
     stretch = {d: json.loads((root / rel).read_text()) for d, rel in bar.STRETCH_RESULTS.items() if (root / rel).exists()}
     if stretch:
         sp = [(d, label) for d, label in LLM_QUERY_DATASETS if d in stretch]
