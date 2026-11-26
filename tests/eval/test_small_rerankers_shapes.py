@@ -243,7 +243,13 @@ VOLATILE = ("git_sha", "git_head", "working_tree_dirty", "source_sha256", "times
 
 def test_m43s_fixture_run_is_byte_for_byte_what_it_was_before_m51():
     """Digests of M43's run_fixture output (hash embedder, the overlap stand-in, run-time fields removed), captured at
-    7a6aa83 before M51 touched app/eval/small_rerankers.py: the refactor must not change a field."""
+    7a6aa83 before M51 touched app/eval/small_rerankers.py: the refactor must not change a field. One set per Python
+    version CI runs, because Python 3.12's sum() of floats is compensated and moves some 4-decimal means by 1e-4."""
+    all_golden = json.loads((Path(__file__).parent / "fixtures" / "m43_run_fixture_standin.sha256.json").read_text())
+    version = "%d.%d" % sys.version_info[:2]
+    if version not in all_golden["python"]:
+        pytest.skip(f"digests captured at {all_golden['captured_at']} for Python {sorted(all_golden['python'])} only")
+    golden = all_golden["python"][version]
     sys.path.insert(0, str(Path(__file__).parent))
     from test_small_rerankers_bench import TAGS, _Overlap
 
@@ -254,6 +260,5 @@ def test_m43s_fixture_run_is_byte_for_byte_what_it_was_before_m51():
         info.pop("device", None)
     side = {k: v for k, v in side.items() if k not in ("git_sha", "timestamp")}
     digest = lambda v: hashlib.sha256(json.dumps(v, sort_keys=True).encode()).hexdigest()  # noqa: E731
-    golden = json.loads((Path(__file__).parent / "fixtures" / "m43_run_fixture_standin.sha256.json").read_text())
     assert {k: digest(v) for k, v in blob.items()} == golden["blob"]
     assert {k: digest(v) for k, v in side.items()} == golden["sidecar"]
