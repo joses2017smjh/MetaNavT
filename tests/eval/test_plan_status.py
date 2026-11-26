@@ -31,6 +31,10 @@ ROOT = Path(__file__).resolve().parents[2]
 VERDICT_FILES = ("bench/results/main.json", "bench/results/neural.json", "bench/results/frontier.json",
                  "bench/results/frontier_neural.json", "bench/results/rerank_arms.json")
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: its verdicts are of exact match (`em`), not nDCG@10
+# M46: the same row name is in three files, so a claim prefixes the dataset; the word is the one each file stores
+# (read from the raw interval bounds), never report.verdict() on the rounded block
+M46_FILES = {"fixture-held-out": ("bench/results/llm_query_arms.json", "held_out"), "scifact": ("bench/results/beir_scifact_llm_query_arms.json", "test"),
+             "fiqa": ("bench/results/beir_fiqa_llm_query_arms.json", "test")}
 
 
 def late_interaction_files(root: Path = ROOT) -> tuple[str, ...]:
@@ -87,8 +91,24 @@ def recorded_verdicts(root: Path = ROOT) -> dict[tuple[str, str], set[str]]:
                 out.setdefault((row["config"], dp["reference"]), set()).add(verdict(dp.get("ndcg@10")))
     for v in search_policy_verdicts(root):
         out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
+    for v in m46_verdicts(root):
+        out.setdefault((v["config"], v["reference"]), set()).add(v["word"])
     for v in late_interaction_verdicts(root):
         out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
+    return out
+
+
+def m46_verdicts(root: Path = ROOT) -> list[dict]:
+    """M46: every LLM arm of qwen3.5:27b and gemma4:26b against its parent, per dataset ("<dataset>:<row>"), with the
+    verdict word its results file stores. Only these give PLAN verdicts (no secondary, stand-in or stretch row)."""
+    out = []
+    for prefix, (rel, scope) in M46_FILES.items():
+        path = root / rel
+        if not path.exists():
+            continue
+        for c in json.loads(path.read_text())["scopes"][scope]["comparisons"]:
+            if c["kind"] == "arm":
+                out.append({"config": f"{prefix}:{c['row']}", "reference": c["other"], "word": c["verdict"]})
     return out
 
 
@@ -121,6 +141,7 @@ def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
             if row["config"] not in parents:
                 pairs |= {(row["config"], block["reference"]) for block in row.get("deltas") or []}
     pairs |= {(v["config"], v["reference"]) for v in search_policy_verdicts(root)}
+    pairs |= {(v["config"], v["reference"]) for v in m46_verdicts(root)}  # both models' arms, so a loser of either stays
     pairs |= {(v["config"], v["reference"]) for v in late_interaction_verdicts(root) if v["plan"]}  # M49: PLAN_FLAGS, all eighteen
     return pairs
 
@@ -183,6 +204,24 @@ def test_claim_parser_reads_lists_and_reports_a_drifted_verdict(tmp_path):
     drifted = real.replace(f"`{row}` {said} vs `{ref}`", f"`{row}` {other} vs `{ref}`", 1)
     recorded = recorded_verdicts()
     assert any(recorded.get((r, f)) != {v} for _, r, v, f in plan_claims(drifted))
+
+
+def test_the_m46_reader_returns_each_files_stored_word(tmp_path):
+    """A bound that rounds to 0.0 is read by its stored word (from the raw bound), not by report.verdict()."""
+    def comparison(lo_raw, hi_raw, word):
+        return {"row": "hybrid+hyde[qwen3.5-27b]@bge-small", "other": "hybrid@bge-small", "kind": "arm", "verdict": word,
+                "ndcg@10": {"delta": 0.001, "lo": round(lo_raw, 4), "hi": round(hi_raw, 4), "delta_raw": 0.001, "lo_raw": lo_raw, "hi_raw": hi_raw}}
+
+    cases = {"fixture-held-out": comparison(4e-05, 0.003, "above zero"), "scifact": comparison(0.0, 0.003, "covers zero"),
+             "fiqa": comparison(-0.003, -4e-05, "below zero")}
+    for prefix, (rel, scope) in M46_FILES.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        extra = {"row": "x", "other": "y", "kind": "secondary:gemma-minus-qwen", "verdict": "above zero", "ndcg@10": {}}
+        (tmp_path / rel).write_text(json.dumps({"scopes": {scope: {"comparisons": [cases[prefix], extra]}}}))
+    got = {v["config"].split(":", 1)[0]: v["word"] for v in m46_verdicts(tmp_path)}
+    assert got == {"fixture-held-out": "above zero", "scifact": "covers zero", "fiqa": "below zero"}
+    assert verdict(cases["fixture-held-out"]["ndcg@10"]) == "covers zero"  # what the rounded block would have said
+    assert len(m46_verdicts(tmp_path)) == 3  # a secondary gives no PLAN verdict
 
 
 # ---- M51: the cheaper shapes, stated per dataset ("`<row>` on SciFact covers zero vs `hybrid@bge-small`") and the

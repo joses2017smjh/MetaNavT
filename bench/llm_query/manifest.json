@@ -1,0 +1,983 @@
+{
+ "about": "the merged LLM caches of M46 (make llm-query-merge): one entry per worklist prompt, the first completed output per cache key; scoring reads only these files",
+ "earliest_cache_timestamp": "2026-11-25T23:04:11.496954+00:00",
+ "files": {
+  "fiqa.gemma4-26b": {
+   "counts": {
+    "decompose": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 613,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 35,
+     "unparseable": 0
+    },
+    "grade": {
+     "calls": 4814,
+     "empty": 0,
+     "failed": 0,
+     "ok": 4814,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "hyde": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "multiquery": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "rewrite": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    }
+   },
+   "duplicate_prompt_lines": [
+    {
+     "kind": "grade",
+     "qid": "3694",
+     "same_prompt_as": {
+      "qid": "3694",
+      "unit": "207813"
+     },
+     "unit": "217427"
+    }
+   ],
+   "file": "bench/llm_query/fiqa.gemma4-26b.jsonl.gz",
+   "model": {
+    "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+    "family": "gemma4",
+    "licence": "apache-2.0",
+    "name": "gemma4:26b",
+    "parameters": "25.2B",
+    "quantization": "Q4_K_M",
+    "role": "replication"
+   },
+   "n_calls": 7406,
+   "n_rows": 7407,
+   "sha256": "d1ae29e34d8936c07cf787f69210d9591cf87b5fd6cb51c15bd7783fad328725",
+   "shards": [
+    {
+     "calls_logged": 3693,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-26T01:05:19.498190+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152495"
+     ],
+     "latest": "2026-11-26T01:23:15.393108+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152495",
+       "load_check": "passed",
+       "load_seconds": 44,
+       "memory_used_mib": 19209,
+       "model": "gemma4:26b",
+       "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+       "server_log_truncated": 0,
+       "size": 1168082205,
+       "size_vram": 1168082205,
+       "threads": 4
+      }
+     ],
+     "shard": "1/2"
+    },
+    {
+     "calls_logged": 3713,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-26T00:34:07.739527+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152496"
+     ],
+     "latest": "2026-11-26T00:52:18.346379+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152496",
+       "load_check": "passed",
+       "load_seconds": 13,
+       "memory_used_mib": 19209,
+       "model": "gemma4:26b",
+       "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+       "server_log_truncated": 0,
+       "size": 1168082205,
+       "size_vram": 1168082205,
+       "threads": 4
+      }
+     ],
+     "shard": "2/2"
+    }
+   ],
+   "worklist_sha256": "5640a3d454e000a92cffcf7d321d733089d6e2fd39f0e74143da6eb3f179c777"
+  },
+  "fiqa.qwen3.5-27b": {
+   "counts": {
+    "decompose": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "grade": {
+     "calls": 4814,
+     "empty": 0,
+     "failed": 0,
+     "ok": 4814,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "hyde": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "multiquery": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "rewrite": {
+     "calls": 648,
+     "empty": 0,
+     "failed": 0,
+     "ok": 648,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    }
+   },
+   "duplicate_prompt_lines": [
+    {
+     "kind": "grade",
+     "qid": "3694",
+     "same_prompt_as": {
+      "qid": "3694",
+      "unit": "207813"
+     },
+     "unit": "217427"
+    }
+   ],
+   "file": "bench/llm_query/fiqa.qwen3.5-27b.jsonl.gz",
+   "model": {
+    "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+    "family": "qwen35",
+    "licence": "apache-2.0",
+    "name": "qwen3.5:27b",
+    "parameters": "26.9B",
+    "quantization": "Q4_K_M",
+    "role": "main"
+   },
+   "n_calls": 7406,
+   "n_rows": 7407,
+   "sha256": "be2280c54292523b448a7d403c65a7432a2d13d10e4ab586e5b098bc22b42b5f",
+   "shards": [
+    {
+     "calls_logged": 3693,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-25T23:24:39.967216+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152491"
+     ],
+     "latest": "2026-11-26T00:37:58.568716+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152491",
+       "load_check": "passed",
+       "load_seconds": 14,
+       "memory_used_mib": 17410,
+       "model": "qwen3.5:27b",
+       "offloaded": "offloaded 65/65 layers",
+       "server_log_truncated": 0,
+       "size": 17089775533,
+       "size_vram": 17089775533,
+       "threads": 4
+      }
+     ],
+     "shard": "1/2"
+    },
+    {
+     "calls_logged": 3713,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-25T23:59:12.999793+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152492"
+     ],
+     "latest": "2026-11-26T01:14:25.629451+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152492",
+       "load_check": "passed",
+       "load_seconds": 14,
+       "memory_used_mib": 17416,
+       "model": "qwen3.5:27b",
+       "offloaded": "offloaded 65/65 layers",
+       "server_log_truncated": 0,
+       "size": 17089775533,
+       "size_vram": 17089775533,
+       "threads": 4
+      }
+     ],
+     "shard": "2/2"
+    }
+   ],
+   "worklist_sha256": "5640a3d454e000a92cffcf7d321d733089d6e2fd39f0e74143da6eb3f179c777"
+  },
+  "fixture.gemma4-26b": {
+   "counts": {
+    "decompose": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 63,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 73,
+     "unparseable": 0
+    },
+    "grade": {
+     "calls": 986,
+     "empty": 0,
+     "failed": 0,
+     "ok": 986,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "hyde": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 136,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "multiquery": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 136,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "rewrite": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 136,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    }
+   },
+   "duplicate_prompt_lines": [],
+   "file": "bench/llm_query/fixture.gemma4-26b.jsonl.gz",
+   "model": {
+    "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+    "family": "gemma4",
+    "licence": "apache-2.0",
+    "name": "gemma4:26b",
+    "parameters": "25.2B",
+    "quantization": "Q4_K_M",
+    "role": "replication"
+   },
+   "n_calls": 1530,
+   "n_rows": 1530,
+   "sha256": "9d6c6138277e185b32e411f2b09a00e5fa0d4d601cfd8cd0b78939ab6e1fa700",
+   "shards": [
+    {
+     "calls_logged": 1530,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 19,
+      "n": 20
+     },
+     "earliest": "2026-11-26T00:28:46.446440+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152493"
+     ],
+     "latest": "2026-11-26T00:33:31.822668+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152493",
+       "load_check": "passed",
+       "load_seconds": 17,
+       "memory_used_mib": 19209,
+       "model": "gemma4:26b",
+       "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+       "server_log_truncated": 0,
+       "size": 1168082205,
+       "size_vram": 1168082205,
+       "threads": 4
+      }
+     ],
+     "shard": "1/1"
+    }
+   ],
+   "worklist_sha256": "0446a12c8be7fbdd4aaf284cea6049967659cd08dda9f2f7e31fef143ceedf94"
+  },
+  "fixture.qwen3.5-27b": {
+   "counts": {
+    "decompose": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 134,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 2,
+     "unparseable": 0
+    },
+    "grade": {
+     "calls": 986,
+     "empty": 0,
+     "failed": 0,
+     "ok": 986,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "hyde": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 136,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "multiquery": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 136,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "rewrite": {
+     "calls": 136,
+     "empty": 0,
+     "failed": 0,
+     "ok": 136,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    }
+   },
+   "duplicate_prompt_lines": [],
+   "file": "bench/llm_query/fixture.qwen3.5-27b.jsonl.gz",
+   "model": {
+    "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+    "family": "qwen35",
+    "licence": "apache-2.0",
+    "name": "qwen3.5:27b",
+    "parameters": "26.9B",
+    "quantization": "Q4_K_M",
+    "role": "main"
+   },
+   "n_calls": 1530,
+   "n_rows": 1530,
+   "sha256": "f615a0198ab3710d59081618fa0aa35df28399dc5e88ceb04da6d7448d417317",
+   "shards": [
+    {
+     "calls_logged": 1530,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-25T23:04:11.496954+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152489"
+     ],
+     "latest": "2026-11-25T23:23:50.804606+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152489",
+       "load_check": "passed",
+       "load_seconds": 13,
+       "memory_used_mib": 17410,
+       "model": "qwen3.5:27b",
+       "offloaded": "offloaded 65/65 layers",
+       "server_log_truncated": 0,
+       "size": 17089775533,
+       "size_vram": 17089775533,
+       "threads": 4
+      }
+     ],
+     "shard": "1/1"
+    }
+   ],
+   "worklist_sha256": "0446a12c8be7fbdd4aaf284cea6049967659cd08dda9f2f7e31fef143ceedf94"
+  },
+  "scifact.gemma4-26b": {
+   "counts": {
+    "decompose": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 295,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 5,
+     "unparseable": 0
+    },
+    "grade": {
+     "calls": 2080,
+     "empty": 0,
+     "failed": 0,
+     "ok": 2080,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "hyde": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "multiquery": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "rewrite": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    }
+   },
+   "duplicate_prompt_lines": [],
+   "file": "bench/llm_query/scifact.gemma4-26b.jsonl.gz",
+   "model": {
+    "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+    "family": "gemma4",
+    "licence": "apache-2.0",
+    "name": "gemma4:26b",
+    "parameters": "25.2B",
+    "quantization": "Q4_K_M",
+    "role": "replication"
+   },
+   "n_calls": 3280,
+   "n_rows": 3280,
+   "sha256": "db1b35eae3d508c85fe87d56d3c121cc0d903ac36fd0d6d43c5fa3239e97880f",
+   "shards": [
+    {
+     "calls_logged": 3280,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-26T00:38:51.192617+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152494"
+     ],
+     "latest": "2026-11-26T00:54:50.673474+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152494",
+       "load_check": "passed",
+       "load_seconds": 17,
+       "memory_used_mib": 19204,
+       "model": "gemma4:26b",
+       "offloaded": "offloaded 31/31 layers; offloaded 5/5 layers",
+       "server_log_truncated": 0,
+       "size": 1168082205,
+       "size_vram": 1168082205,
+       "threads": 4
+      }
+     ],
+     "shard": "1/1"
+    }
+   ],
+   "worklist_sha256": "6d2ef7c4aca3aa1c88e002ca76fbb371980a6e5bda6538743826f117f4afeff9"
+  },
+  "scifact.qwen3.5-27b": {
+   "counts": {
+    "decompose": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "grade": {
+     "calls": 2080,
+     "empty": 0,
+     "failed": 0,
+     "ok": 2080,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "hyde": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "multiquery": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    },
+    "rewrite": {
+     "calls": 300,
+     "empty": 0,
+     "failed": 0,
+     "ok": 300,
+     "overflowed": 0,
+     "thinking": 0,
+     "truncated": 0,
+     "unchanged": 0,
+     "unparseable": 0
+    }
+   },
+   "duplicate_prompt_lines": [],
+   "file": "bench/llm_query/scifact.qwen3.5-27b.jsonl.gz",
+   "model": {
+    "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+    "family": "qwen35",
+    "licence": "apache-2.0",
+    "name": "qwen3.5:27b",
+    "parameters": "26.9B",
+    "quantization": "Q4_K_M",
+    "role": "main"
+   },
+   "n_calls": 3280,
+   "n_rows": 3280,
+   "sha256": "e791af2f94125831b9470f81f8a2ca5b1ef3ea427fc5c84fc944ebaac016223b",
+   "shards": [
+    {
+     "calls_logged": 3280,
+     "code_sha": [
+      "6553d94581fb2fc1b604a38342706aa0c4f9c9f1"
+     ],
+     "determinism": {
+      "byte_identical": 20,
+      "n": 20
+     },
+     "earliest": "2026-11-25T23:14:15.306673+00:00",
+     "gpu": [
+      "Quadro RTX 8000"
+     ],
+     "jobs": [
+      "22152490"
+     ],
+     "latest": "2026-11-26T00:27:37.964187+00:00",
+     "server": [
+      {
+       "context_length": 8192,
+       "cpus": 4,
+       "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+       "generate_exit": 0,
+       "gpu": "Quadro RTX 8000",
+       "job": "22152490",
+       "load_check": "passed",
+       "load_seconds": 13,
+       "memory_used_mib": 17415,
+       "model": "qwen3.5:27b",
+       "offloaded": "offloaded 65/65 layers",
+       "server_log_truncated": 0,
+       "size": 17089775533,
+       "size_vram": 17089775533,
+       "threads": 4
+      }
+     ],
+     "shard": "1/1"
+    }
+   ],
+   "worklist_sha256": "6d2ef7c4aca3aa1c88e002ca76fbb371980a6e5bda6538743826f117f4afeff9"
+  }
+ },
+ "incomplete": {},
+ "kept_partial_caches": [],
+ "models": {
+  "gemma4-26b": {
+   "digest": "001e5dafc3c77684c2307ebc6ab8e336e10c9b18eca52acf547d72fc83c3ca8c",
+   "family": "gemma4",
+   "licence": "apache-2.0",
+   "name": "gemma4:26b",
+   "parameters": "25.2B",
+   "quantization": "Q4_K_M",
+   "role": "replication"
+  },
+  "qwen3.5-27b": {
+   "digest": "64ae5b1d651fb2709d5928ccb8dcfb4bb2cc9c2c8001ac34497e36a6cf905b59",
+   "family": "qwen35",
+   "licence": "apache-2.0",
+   "name": "qwen3.5:27b",
+   "parameters": "26.9B",
+   "quantization": "Q4_K_M",
+   "role": "main"
+  }
+ },
+ "num_predict": {
+  "decompose": 256,
+  "grade": 16,
+  "hyde": 256,
+  "multiquery": 256,
+  "rewrite": 256
+ },
+ "ollama": {
+  "ollama": "0.40.16",
+  "store": "mnt_work/ollama/models-2026"
+ },
+ "options_base": {
+  "seed": 0,
+  "temperature": 0
+ },
+ "parents_file": {
+  "file": "bench/llm_query/parents.json.gz",
+  "sha256": "dba2318e179ee34e78a3377773fc4849ed6aa1ba74919e076546c133c3efb774"
+ },
+ "prompts": {
+  "decompose": "Break the following question into independent sub-questions that can each be answered by searching a file corpus. Each sub-question should be self-contained. Return at most 4 sub-questions, one per line, no numbering. If the question is already simple, return it unchanged.\n\nQuestion: {query}\n\nSub-questions:",
+  "grade": "Does the passage below contain information that helps answer the search query? Reply with one word: yes or no.\n\nSearch query: {query}\n\nPassage:\n{passage}\n\nAnswer:",
+  "hyde": "Write a short paragraph (2-3 sentences) that would be a good document answering the following question. Do not say 'I don't know'. Write as if you are the document itself, stating facts directly.\n\nQuestion: {query}\n\nDocument:",
+  "multiquery": "Write 2 short alternative search queries for: {query}\nOne per line, no numbering.",
+  "rewrite": "Rewrite the search query below so that it retrieves the documents that answer it better. Keep its meaning. Reply with the rewritten query only, on one line.\n\nQuery: {query}\n\nRewritten query:"
+ },
+ "prompts_sha256": {
+  "decompose": "38ac293964f0c0110898a506bb3cbd2efadad064c4fcc7e7b4ed6d542f90a191",
+  "grade": "3d402010462a920d444bbd7e566992d5c79adcf0a10fefd3d826c936f633f7c4",
+  "hyde": "a36945663af31bfac16870150c10763436a8b45ed9ea6cd7ab837b330894d7f5",
+  "multiquery": "5dd70e6b8c91952ddf946fa28979c11094ffc56e5bf13e212142981c5fe41de4",
+  "rewrite": "a41d2f5c1d9a2371c37abb3a240567ded3ac50078059fbabb52b63b22298188e"
+ },
+ "request": {
+  "endpoint": "<path>/generate",
+  "keep_alive": "60m",
+  "load_check": "the job exits 5 unless <path>/ps reports size == size_vram and the server log reports every layer offloaded",
+  "num_ctx": "not sent (the server's OLLAMA_CONTEXT_LENGTH)",
+  "options": "OPTIONS_BASE plus num_predict = NUM_PREDICT[kind]",
+  "overflow_guard": "a call is prompt-overflowed when prompt_eval_count + num_predict > OLLAMA_CONTEXT_LENGTH, or the shard's server log reports a truncated prompt; it is counted and treated as failed",
+  "retries": "a transport error is retried at most twice; there is no retry for content (temperature 0 repeats itself)",
+  "server": {
+   "LLAMA_ARG_THREADS": 4,
+   "LLAMA_ARG_THREADS_BATCH": 4,
+   "OLLAMA_CONTEXT_LENGTH": 8192,
+   "OLLAMA_NOPRUNE": 1,
+   "OLLAMA_NO_CLOUD": 1,
+   "OLLAMA_NUM_PARALLEL": 1,
+   "cpus": 4,
+   "stretch": {
+    "LLAMA_ARG_THREADS": 16,
+    "LLAMA_ARG_THREADS_BATCH": 16,
+    "cpus": 16
+   }
+  },
+  "stream": false,
+  "think": false
+ },
+ "worklists": {
+  "fiqa": {
+   "by_kind": {
+    "decompose": 648,
+    "grade": 4815,
+    "hyde": 648,
+    "multiquery": 648,
+    "rewrite": 648
+   },
+   "code_sha": "5d895f1fed71afb11bbedd3af704721e16154945",
+   "committed_hash_check": {
+    "all_equal": true,
+    "checks": [
+     {
+      "equal": true,
+      "file": "bench/results/beir_fiqa_small_rerankers.json",
+      "row": "hybrid@bge-small"
+     },
+     {
+      "equal": true,
+      "file": "bench/results/beir_fiqa_small_rerankers.json",
+      "row": "hybrid+bge-rerank@bge-small/fp32-512/top20"
+     },
+     {
+      "equal": true,
+      "file": "bench/results/beir_fiqa.json",
+      "row": "hybrid@bge-small"
+     },
+     {
+      "equal": true,
+      "file": "bench/results/beir_fiqa.json",
+      "row": "hybrid+bge-rerank@bge-small/fp32-512/top20"
+     }
+    ],
+    "ranking_sha256": {
+     "hybrid+bge-rerank@bge-small/fp32-512/top20": "776398a4e999726e636196959a670d1b1a66db87f2f6e996cae0b9980716ddef",
+     "hybrid@bge-small": "9bd457adaef231454eec743bbf94df0c5736a2b347da96e38ca739c7725ca115"
+    }
+   },
+   "gpu": "Quadro RTX 8000",
+   "n_prompts": 7407,
+   "n_queries": 648,
+   "templates_sha256": {
+    "decompose": "38ac293964f0c0110898a506bb3cbd2efadad064c4fcc7e7b4ed6d542f90a191",
+    "grade": "3d402010462a920d444bbd7e566992d5c79adcf0a10fefd3d826c936f633f7c4",
+    "hyde": "a36945663af31bfac16870150c10763436a8b45ed9ea6cd7ab837b330894d7f5",
+    "multiquery": "5dd70e6b8c91952ddf946fa28979c11094ffc56e5bf13e212142981c5fe41de4",
+    "rewrite": "a41d2f5c1d9a2371c37abb3a240567ded3ac50078059fbabb52b63b22298188e"
+   },
+   "timestamp": "2026-11-25T22:25:49.629856+00:00",
+   "worklist_sha256": "5640a3d454e000a92cffcf7d321d733089d6e2fd39f0e74143da6eb3f179c777"
+  },
+  "fixture": {
+   "by_kind": {
+    "decompose": 136,
+    "grade": 986,
+    "hyde": 136,
+    "multiquery": 136,
+    "rewrite": 136
+   },
+   "code_sha": "5d895f1fed71afb11bbedd3af704721e16154945",
+   "committed_hash_check": null,
+   "gpu": "Quadro RTX 8000",
+   "n_prompts": 1530,
+   "n_queries": 136,
+   "templates_sha256": {
+    "decompose": "38ac293964f0c0110898a506bb3cbd2efadad064c4fcc7e7b4ed6d542f90a191",
+    "grade": "3d402010462a920d444bbd7e566992d5c79adcf0a10fefd3d826c936f633f7c4",
+    "hyde": "a36945663af31bfac16870150c10763436a8b45ed9ea6cd7ab837b330894d7f5",
+    "multiquery": "5dd70e6b8c91952ddf946fa28979c11094ffc56e5bf13e212142981c5fe41de4",
+    "rewrite": "a41d2f5c1d9a2371c37abb3a240567ded3ac50078059fbabb52b63b22298188e"
+   },
+   "timestamp": "2026-11-25T22:12:54.518745+00:00",
+   "worklist_sha256": "0446a12c8be7fbdd4aaf284cea6049967659cd08dda9f2f7e31fef143ceedf94"
+  },
+  "scifact": {
+   "by_kind": {
+    "decompose": 300,
+    "grade": 2080,
+    "hyde": 300,
+    "multiquery": 300,
+    "rewrite": 300
+   },
+   "code_sha": "5d895f1fed71afb11bbedd3af704721e16154945",
+   "committed_hash_check": {
+    "all_equal": true,
+    "checks": [
+     {
+      "equal": true,
+      "file": "bench/results/beir_scifact_small_rerankers.json",
+      "row": "hybrid@bge-small"
+     },
+     {
+      "equal": true,
+      "file": "bench/results/beir_scifact_small_rerankers.json",
+      "row": "hybrid+bge-rerank@bge-small/fp32-512/top20"
+     }
+    ],
+    "ranking_sha256": {
+     "hybrid+bge-rerank@bge-small/fp32-512/top20": "0de00bbf026014d7add33686ce9f519e1c2f67300fd4efe2ec374c9ab6f3ecde",
+     "hybrid@bge-small": "81ac6433eed3e205774ca2c3ed9e12eded15d8ad6354ec2ba1d1c5719423d58b"
+    }
+   },
+   "gpu": "Quadro RTX 8000",
+   "n_prompts": 3280,
+   "n_queries": 300,
+   "templates_sha256": {
+    "decompose": "38ac293964f0c0110898a506bb3cbd2efadad064c4fcc7e7b4ed6d542f90a191",
+    "grade": "3d402010462a920d444bbd7e566992d5c79adcf0a10fefd3d826c936f633f7c4",
+    "hyde": "a36945663af31bfac16870150c10763436a8b45ed9ea6cd7ab837b330894d7f5",
+    "multiquery": "5dd70e6b8c91952ddf946fa28979c11094ffc56e5bf13e212142981c5fe41de4",
+    "rewrite": "a41d2f5c1d9a2371c37abb3a240567ded3ac50078059fbabb52b63b22298188e"
+   },
+   "timestamp": "2026-11-25T22:16:37.753240+00:00",
+   "worklist_sha256": "6d2ef7c4aca3aa1c88e002ca76fbb371980a6e5bda6538743826f117f4afeff9"
+  }
+ }
+}

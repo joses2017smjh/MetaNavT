@@ -395,6 +395,53 @@ small-rerankers-rescore: ## recompute every interval and paired delta of the thr
 small-rerankers-bar: ## print the quality bar row by row from the three committed files -> stdout
 	$(PYTHON) -m app.eval.small_rerankers --bar
 
+# ---- M46: LLM query processing measured with real open LLMs (app/eval/llm_query_*.py; milestones2 brief M46) ----
+# HyDE, multi-query expansion, decomposition and corrective grading, each at its placements relative to the
+# cross-encoder, against its exact parent on fixture v1's held-out half, BEIR SciFact and FiQA. The bar and every pinned
+# value are in app/eval/llm_query_spec.py. The worklist and the generation read no qrels; every LLM output is cached in
+# bench/llm_query, and the scoring targets call no LLM. LLM_QUERY_WORK holds the worklists, the per-shard call logs and
+# the reranker-score cache (not committed).
+LLM_QUERY_WORK ?= bench/external/llm_query
+DATASET ?= fixture
+QUERIES ?= test
+SHARD ?= 1/1
+LLM_QUERY_STRETCH = $(if $(filter qwen3.5-122b,$(MODEL)),_122b)
+.PHONY: llm-query-ids llm-query-worklist llm-query-generate llm-query-merge bench-llm-query-arms bench-beir-llm-query-arms bench-beir-fiqa-llm-query-arms llm-query-arms-rescore llm-query-arms-bar
+llm-query-ids: ## the test and dev query ids (reads the qrels' query-id column only; BEIR_DATA_DIR) -> bench/llm_query/query_ids.json
+	$(PYTHON) -m app.eval.llm_query_gen ids --data-dir $(BEIR_DATA_DIR)
+
+llm-query-worklist: ## every prompt of DATASET=fixture|scifact|fiqa (QUERIES=dev for the probe), after P0 and P1 and (BEIR test) their committed ranking hashes; no qrels (needs .[ml] and a GPU) -> $(LLM_QUERY_WORK)/worklist
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_gen worklist --dataset $(DATASET) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --rerank-cache-dir $(LLM_QUERY_WORK)/rerank_cache $(if $(REPRODUCED),--reproduced $(REPRODUCED))
+
+llm-query-generate: ## the calls of DATASET, MODEL=qwen3.5-27b|gemma4-26b|qwen3.5-122b, SHARD=i/n through Ollama at OLLAMA_BASE_URL, resumable (DEADLINE=epoch seconds) -> $(LLM_QUERY_WORK)/cache
+	$(PYTHON) -m app.eval.llm_query_gen generate --dataset $(DATASET) --model $(MODEL) --shard $(SHARD) --queries $(QUERIES) --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --cache-dir $(LLM_QUERY_WORK)/cache $(if $(DEADLINE),--deadline $(DEADLINE))
+
+llm-query-merge: ## every fully generated (dataset, model) into bench/llm_query with parents.json.gz and the manifest (MODELS=qwen3.5-122b: manifest_122b.json); CPU
+	$(PYTHON) -m app.eval.llm_query_gen merge --data-dir $(BEIR_DATA_DIR) --worklist-dir $(LLM_QUERY_WORK)/worklist --cache-dir $(LLM_QUERY_WORK)/cache $(if $(MODELS),--models $(MODELS))
+
+bench-llm-query-arms: ## fixture v1: P0, P1, every arm of the merged models (MODELS=; MODEL=qwen3.5-122b: the stretch), the [heuristic] and qwen2.5:7b rows; no LLM (needs .[ml], a GPU or a slow CPU) -> bench/results/llm_query_arms$(LLM_QUERY_STRETCH).json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_arms --dataset fixture $(if $(MODEL),--models $(MODEL),$(if $(MODELS),--models $(MODELS))) --rerank-cache $(LLM_QUERY_WORK)/rerank_cache/fixture.jsonl --out bench/results/llm_query_arms$(LLM_QUERY_STRETCH).json
+
+bench-beir-llm-query-arms: ## BEIR SciFact test: the same rows and dense@bge-small; no LLM -> bench/results/beir_scifact_llm_query_arms$(LLM_QUERY_STRETCH).json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_arms --dataset scifact --data-dir $(BEIR_DATA_DIR) $(if $(MODEL),--models $(MODEL),$(if $(MODELS),--models $(MODELS))) --rerank-cache $(LLM_QUERY_WORK)/rerank_cache/scifact.jsonl --out bench/results/beir_scifact_llm_query_arms$(LLM_QUERY_STRETCH).json
+
+bench-beir-fiqa-llm-query-arms: ## BEIR FiQA test: the same rows and dense@bge-small; no LLM -> bench/results/beir_fiqa_llm_query_arms$(LLM_QUERY_STRETCH).json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.llm_query_arms --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(MODEL),--models $(MODEL),$(if $(MODELS),--models $(MODELS))) --rerank-cache $(LLM_QUERY_WORK)/rerank_cache/fiqa.jsonl --out bench/results/beir_fiqa_llm_query_arms$(LLM_QUERY_STRETCH).json
+
+llm-query-arms-rescore: ## every interval, mean and verdict word of the M46 results files from their sidecars, and every LLM and cost block from bench/llm_query (CPU, no model, no dataset); exit 1 unless all equal
+	$(PYTHON) -m app.eval.llm_query_bar --rescore
+
+llm-query-arms-bar: ## the declared bar, the replication labels and the placement decision from the committed files -> stdout
+	$(PYTHON) -m app.eval.llm_query_bar --bar
+
+.PHONY: llm-query-audit
+llm-query-audit: ## the memorisation and grader audit from the cached outputs: gold answers and paths in the outputs (fixture), verbatim runs shared with relevant documents (BEIR), the grader against qrels; descriptive (CPU; reads the BEIR qrels) -> bench/results/llm_query_audit.json
+	$(PYTHON) -m app.eval.llm_query_audit --data-dir $(BEIR_DATA_DIR) $(if $(MODELS),--models $(MODELS))
+
+.PHONY: llm-query-arms-check
+llm-query-arms-check: ## every test generation shard and scoring run is at D1 or a descendant with parts (a)-(d) byte-identical to D1; D1 descends from D0; D0..D1 changed (a) only in NUM_PREDICT and (c) not at all (bench/llm_query/declaration.json)
+	$(PYTHON) -m app.eval.llm_query_gen check
+
 .PHONY: distill-train distill-manifest
 distill-train: ## train one student by the declared recipe: STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir>; TRAIN_MICRO=n accumulates over chunks of n lists for a GPU under 16 GB (needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)/ (not committed)
 	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO))
