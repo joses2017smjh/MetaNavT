@@ -51,6 +51,11 @@ bench/results/*.json
 !bench/results/beir_scifact_bm25_ablation.json
 !bench/results/beir_scifact_rerank_cap.json
 !bench/results/beir_fiqa.json
+# M49 late interaction (app/eval/late_interaction.py): each dataset's primary and extra files with their sidecars, the
+# ATTEMPT 2 files if any, and the indicative CPU file; the committed runs (.gz) under late_interaction_runs/ are not ignored
+!bench/results/late_interaction*.json
+!bench/results/beir_scifact_late_interaction*.json
+!bench/results/beir_fiqa_late_interaction*.json
 # the served path at FiQA scale and pgvector on its table (make bench-served-scale)
 !bench/results/served_scale_fiqa.json
 !bench/results/served_scale_fiqa_pre_m20.json

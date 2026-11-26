@@ -234,10 +234,20 @@ SMALL_RERANKERS_REPRODUCE = {"scifact": (("bench/results/beir_scifact.json", ("h
                                          ("bench/results/beir_scifact_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",))),
                              "fiqa": (("bench/results/beir_fiqa.json", ("hybrid@bge-small", RERANK_FP32_512)),
                                       ("bench/results/beir_fiqa_models_2026.json", ("hybrid+mxbai-rerank-large-v2@bge-small/fp32-512/top20",)))}
+LATE_INTERACTION_LADDER = "late-interaction"  # M49: two parts (--part primary|extra), app/eval/late_interaction.py ROWS
+
+
+def late_interaction_configs(part: str = "primary") -> list[BeirConfig]:
+    """M49: the rows of a part of the late-interaction ladder (the parents, the MaxSim legs and rerankers, the references)."""
+    from app.eval import late_interaction as li
+
+    return li.beir_configs(part)
+
+
 LADDERS = {"default": DEFAULT_CONFIGS, "bm25-ablation": BM25_ABLATION_CONFIGS,
            **{name: models_2026_configs(which) for name, which in MODELS_2026_LADDERS.items()},
            SMALL_RERANKERS_LADDER: small_reranker_configs(), SMALL_RERANKER_SHAPES_LADDER: small_reranker_shape_configs(),
-           SMALL_RERANKER_ML256_LADDER: small_reranker_ml256_configs()}
+           SMALL_RERANKER_ML256_LADDER: small_reranker_ml256_configs(), LATE_INTERACTION_LADDER: late_interaction_configs("primary")}
 
 
 def models_2026_comparisons(configs: list[BeirConfig]) -> list[tuple[str, str]]:
@@ -441,6 +451,7 @@ class Engine:
         self._doc_mats: dict[str, np.ndarray] = {}
         self._unit_mats: dict[str, np.ndarray] = {}
         self._rerankers: dict[str, Any] = {}
+        self._mv: dict[str, Any] = {}  # M49: `mv:` name -> app.eval.late_interaction.MvLeg (a multi-vector model at one document length)
         self.provenance: dict[str, dict] = {}
 
     def bm25(self, analyzer: str, k1: float, b: float) -> BM25Index:
@@ -451,7 +462,29 @@ class Engine:
             )
         return self._bm25[key]
 
+    def mv_leg(self, name: str):
+        """M49: the MaxSim leg of an `mv:<tag>[/doc<L>]` name, loaded once (settings asserted, load-and-score and the card's
+        fingerprint checked; app.eval.late_interaction.MvLeg). Its token store lives in memory only: never doc_matrix's
+        shared .npy cache."""
+        if name not in self._mv:
+            from app.eval import late_interaction as li
+
+            leg = li.MvLeg(name, self.chunks, corpus_sha256=self.corpus_sha256, device=None if self.device == "auto" else self.device,
+                           check_models=self.check_models)
+            self._mv[name] = leg
+            self.provenance[name] = leg.provenance
+        return self._mv[name]
+
+    def prepare(self, cfg, queries: dict[str, str]) -> None:
+        """M49: a multi-vector row's batched pass over every query of the run, before the warm-up (no-op for other rows)."""
+        if cfg.mode in {"dense", "hybrid"} and cfg.embedder and cfg.embedder.startswith("mv:"):
+            leg = self.mv_leg(cfg.embedder)
+            leg.build_store()
+            leg.prepare(queries, cfg.k)
+
     def embedder(self, name: str):
+        if name.startswith("mv:"):  # M49: a multi-vector model (the MaxSim leg), not a single-vector embedder
+            return self.mv_leg(name).encoder
         if name not in self._embedders:
             if name == "hash":
                 self._embedders[name] = HashEmbedder()
@@ -512,6 +545,12 @@ class Engine:
 
     def reranker(self, name: str, precision: str = "fp32", max_length: int | None = None):
         key = self.reranker_key(name, precision, max_length)
+        if name.startswith("mv:"):  # M49: MaxSim as the reranker (role b): the same leg, its candidates encoded on the fly
+            leg = self.mv_leg(name)
+            if key not in self.provenance:
+                self.provenance[key] = {**leg.provenance, "role": "b", "precision": precision, "max_length": max_length,
+                                        "score_scale": "MaxSim: the sum over query tokens of the best cosine with a document token"}
+            return leg
         if key not in self._rerankers:
             if name == "overlap":
                 self._rerankers[key] = OverlapReranker()
@@ -550,6 +589,12 @@ class Engine:
         embedders = {c.embedder for c in later if c.mode in {"dense", "hybrid"} and c.embedder}
         rerankers = {self.reranker_key(c.reranker, c.precision, c.max_length) for c in later if c.reranker}
         dropped = [n for n in self._embedders if n not in embedders] + [k for k in self._rerankers if k not in rerankers]
+        # M49: a leg stays while a later row reads it as its embedder or as its reranker (role b's cross-check reads the
+        # role-(a) score matrix); its token store was dropped after the batched pass already
+        legs = {c.embedder for c in later if c.embedder} | {c.reranker for c in later if c.reranker}
+        for name in [n for n in self._mv if n not in legs]:
+            self._mv.pop(name).release()
+            dropped.append(name)
         for name in dropped:
             self._embedders.pop(name, None)
             self._doc_mats.pop(name, None)
@@ -569,6 +614,10 @@ class Engine:
 
     def rerank(self, cfg, query: str, pairs: list[tuple[Chunk, float]]) -> list[tuple[Chunk, float]]:
         model = self.reranker(cfg.reranker, cfg.precision, cfg.max_length)
+        if cfg.reranker.startswith("mv:"):  # M49: maxsim per (query, candidate), stable sort (app.eval.late_interaction.MvLeg.rerank)
+            ranked = model.rerank(query, pairs)
+            self.provenance[self.reranker_key(cfg.reranker, cfg.precision, cfg.max_length)]["stored_vs_on_the_fly"] = model.cross_check()
+            return ranked
         if cfg.reranker == "overlap":
             return model(query, pairs)
         scores = cross_encoder_scores(model, [(query, c.text) for c, _ in pairs])
@@ -583,7 +632,14 @@ class Engine:
             t = time.perf_counter()
             self.bm25(cfg.analyzer, cfg.k1, cfg.b)
             parts["bm25_index_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
-        if cfg.mode in {"dense", "hybrid"}:
+        if cfg.mode in {"dense", "hybrid"} and cfg.embedder and cfg.embedder.startswith("mv:"):
+            t = time.perf_counter()
+            self.mv_leg(cfg.embedder)
+            parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+            t = time.perf_counter()
+            self.mv_leg(cfg.embedder).build_store()  # M49: every document's token vectors, in memory (none if already scored)
+            parts["token_store_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
+        elif cfg.mode in {"dense", "hybrid"}:
             t = time.perf_counter()
             self.embedder(cfg.embedder)
             parts["embedder_load_ms"] = round((time.perf_counter() - t) * 1000.0, 2)
@@ -607,7 +663,10 @@ def retrieve(engine: Engine, cfg: BeirConfig, query: str, timer: StageTimer) -> 
     if cfg.mode in {"bm25", "hybrid"}:
         with timer.stage("bm25"):
             bm25_hits = engine.bm25(cfg.analyzer, cfg.k1, cfg.b).search(query, k=cfg.k)
-    if cfg.mode in {"dense", "hybrid"}:
+    if cfg.mode in {"dense", "hybrid"} and cfg.embedder and cfg.embedder.startswith("mv:"):
+        with timer.stage("dense"):  # M49: the MaxSim leg's top k from the batched pass (Engine.prepare), rounded as the dense leg's
+            dense_hits = engine.mv_leg(cfg.embedder).hits(query, cfg.k)
+    elif cfg.mode in {"dense", "hybrid"}:
         assert cfg.embedder, f"{cfg.name}: dense/hybrid needs an embedder"
         unit = engine.unit_matrix(cfg.embedder)
         with timer.stage("embed"):
@@ -645,6 +704,10 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         if engine.device == "cpu" or not torch.cuda.is_available():
             raise RuntimeError(f"{cfg.precision} ablations require CUDA; CPU fallback would not measure precision")
     build = engine.build(cfg)  # index, embeddings, model loads: reported separately, never inside a query
+    engine.prepare(cfg, queries)  # M49: a multi-vector leg's batched pass over every query (nothing for other rows)
+    mv_leg = bool(cfg.embedder and cfg.embedder.startswith("mv:") and cfg.mode == "dense")
+    mv_head = bool(cfg.reranker and cfg.reranker.startswith("mv:"))
+    capture: dict[str, dict] | None = {"leg": {}} if mv_leg else ({"head": {}} if mv_head else None)
     first = next(iter(queries.values()))
     retrieve(engine, cfg, first, StageTimer())  # warm-up (CUDA kernels, caches); excluded from the stats
     timer = StageTimer()
@@ -656,6 +719,11 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         ids = retrieve(engine, cfg, text, timer)
         if extra is not None:  # M51, after the timed stages: the reranked pairs the cap cut (the head before the id filter)
             extra["truncated_pairs"].append(_truncated_pairs(engine, cfg, text, ids) if cfg.reranker else None)
+        if capture is not None:  # M49: the committed runs are PRE-filter (what RRF fuses / what the reranker returned)
+            if mv_leg:
+                capture["leg"][qid] = engine.mv_leg(cfg.embedder).hits(text, cfg.k)
+            else:
+                capture["head"][qid] = list(ids[: cfg.rerank_top])
         # Match BEIR's default ignore_identical_ids convention.
         ids = [did for did in ids if did != qid]
         rankings[qid] = ids
@@ -701,6 +769,9 @@ def run_config(engine: Engine, cfg: BeirConfig, queries: dict[str, str], qrels: 
         "ranking_sha256": hashlib.sha256(trec_run_text(cfg, rankings).encode("utf-8")).hexdigest(),
         "_per_query": per_query,
         **({"_extra": extra} if extra is not None else {}),
+        **({"_capture": capture} if capture is not None else {}),
+        **({"latency_note": "the MaxSim leg's per-query `dense` stage reads the top k of one batched pass over every query; its cost is the "
+                            "embedder's batched_pass (wall time, amortised ms per query)"} if cfg.embedder and cfg.embedder.startswith("mv:") else {}),
     }
 
 
@@ -830,6 +901,7 @@ def run(
         engine.release_unused(configs[i + 1:])
     per_query = {row["config"]: row["_per_query"] for row in results} if keep_per_query else None  # attach_confidence drops them
     per_query_extra = {row["config"]: row.pop("_extra") for row in results if "_extra" in row} or None
+    captures = {row["config"]: row.pop("_capture") for row in results if "_capture" in row}  # M49: the committed runs (pre-filter)
     # A published full-test reference is inapplicable to a query subset.
     published = spec["published"] if split == "test" and len(queries) == full_query_count else None
     boot = attach_confidence(results, len(queries), seed=seed, n_boot=n_boot, published=published, comparisons=comparisons)
@@ -872,6 +944,7 @@ def run(
         **({"reproduces": reproduced} if reproduced is not None else {}),
         **({"_per_query": per_query} if per_query is not None else {}),
         **({"_per_query_extra": per_query_extra} if per_query_extra is not None else {}),
+        **({"_captures": captures} if captures else {}),
     }
 
 
@@ -952,10 +1025,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--checkpoint-dir", type=Path, default=None, help="small-rerankers: where the students' checkpoints are (default: $SMALL_RERANKER_CHECKPOINTS)")
     p.add_argument("--rows", choices=("all", "anchors"), default="all", help="small-rerankers-shapes: every row, or the parent and M43's six 20/512 rows only")
     p.add_argument("--ml256-checkpoint-dir", type=Path, default=None, help="small-rerankers-ml256: where the attempt-2 checkpoints are (default: $SMALL_RERANKER_ML256_CHECKPOINTS)")
+    p.add_argument("--part", choices=("primary", "extra"), default="primary", help="late-interaction: which part of the ladder (two results files per dataset)")
+    p.add_argument("--skip-stretch", default=None, help="late-interaction extra part: run without the stretch rows, recorded as 'not run: <this reason>'")
+    p.add_argument("--other-jobs", type=Path, default=None, help="late-interaction: a JSON list of the other scoring jobs at the same commit and attempt, recorded in the header")
     args = p.parse_args(argv)
     if args.device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     configs = list(small_reranker_shape_configs(args.rows) if args.ladder == SMALL_RERANKER_SHAPES_LADDER else LADDERS[args.ladder])
+    late: dict[str, Any] = {}
+    if args.ladder == LATE_INTERACTION_LADDER:  # M49: the part's rows, without a stretch model that does not load (recorded)
+        from app.eval import late_interaction as li
+
+        late["skip"], late["status"] = li.stretch_gate(args.part, args.skip_stretch, args.device)
+        configs = li.beir_configs(args.part, late["skip"])
     if args.rerank_top is not None:  # the first SciFact sweep silently ran every depth row at 20 because of a default here
         configs = [BeirConfig(**{**asdict(c), "rerank_top": args.rerank_top}) for c in configs]
     if args.only:
@@ -997,15 +1079,21 @@ def main(argv: list[str] | None = None) -> int:
                    reproduce_extra=_same_ranking_and_intervals, per_query_extras=shapes.pair_token_lengths,
                    header={"small_rerankers": shapes.header([c.name for c in configs], phase2=True)},
                    resolve_reranker=shapes.resolver(args.checkpoint_dir, root, args.ml256_checkpoint_dir))
+    if args.ladder == LATE_INTERACTION_LADDER:  # M49: M43's conventions, the declared comparisons, the reproduction pairs, the header
+        others = json.loads(args.other_jobs.read_text()) if args.other_jobs else []
+        m41 = li.beir_run_kwargs(args.dataset, args.part, configs, late["status"], others, root)
     blob = run(args.data_dir, configs, device=args.device, n_boot=args.n_boot, root=root, dataset=args.dataset, split=args.split, dataset_sha256=args.dataset_sha256, max_queries=args.max_queries, trec_dir=args.trec_dir, require_trec_eval=args.require_trec_eval, **m41)
     out = args.out if args.out.is_absolute() else root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
+    captures = blob.pop("_captures", None)
     per_query = blob.pop("_per_query", None)
     per_query_extra = blob.pop("_per_query_extra", None)
     if args.ladder == SMALL_RERANKER_SHAPES_LADDER:
         shapes.annotate_beir(blob, per_query_extra)  # per row: ranking_digest, n_top10_differs_from_parent, truncation totals
     if args.ladder == SMALL_RERANKER_ML256_LADDER:
         shapes.annotate_beir(blob, per_query_extra, shapes.N_ML256_ANCHOR_ROWS)
+    if args.ladder == LATE_INTERACTION_LADDER:  # the committed runs go beside the results file (bench/results/late_interaction_runs/)
+        li.finish_beir(blob, per_query, captures, out.parent / "late_interaction_runs", args.dataset)
     out.write_text(json.dumps(blob, indent=2) + "\n")
     if per_query is not None:
         from app.eval import per_question

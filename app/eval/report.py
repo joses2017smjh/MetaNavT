@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: the RL search policy, trained once
 FRONTIER_FILE = "bench/results/frontier.json"
@@ -103,6 +103,7 @@ SOURCES = {
     "bench-small-rerankers": f"{SMALL_RERANKERS_FILE}, {BEIR_SMALL_RERANKERS_FILE}, {BEIR_FIQA_SMALL_RERANKERS_FILE}, {SMALL_RERANKERS_CPU_FILE} and bench/distill/",
     "bench-small-rerankers-shapes": ("bench/results/small_rerankers_shapes_frontier.json, the three small_rerankers_shapes results files, "
                                      "small_rerankers_shapes_exposure.json and small_rerankers_shapes_replicate.json"),
+    "bench-late-interaction": "bench/results/late_interaction*.json, bench/results/beir_*_late_interaction*.json and bench/results/late_interaction_runs/",
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -3110,8 +3111,6 @@ def small_rerankers_table(root: Path | None) -> str:
     return "\n".join(lines)
 
 
-
-
 # M51: the same small rerankers at cheaper shapes (app/eval/small_rerankers_shapes.py): the frontier file holds the
 # cells, their bands, their family-level intervals and the answers; the three results files the runs.
 SMALL_RERANKERS_SHAPES_FIGURE = "doc/figures/small-rerankers-shapes.svg"
@@ -3350,6 +3349,352 @@ def small_rerankers_shapes_table(root: Path | None) -> str:
     return "\n".join(lines)
 
 
+# ---- M49: late interaction (ColBERT MaxSim) on text, against hybrid@bge-small (app/eval/late_interaction.py)
+
+LATE_INTERACTION_CPU_FILE = "bench/results/late_interaction_cpu.json"
+LI_DATASETS = (("fixture", "fixture v1, held-out"), ("scifact", "BEIR SciFact"), ("fiqa", "BEIR FiQA"))
+LI_KIND = {"parent": "parent", "bar": "**bar**", "secondary": "secondary (the leg alone)", "reference": "reference (M43's cross-encoder)",
+           "sensitivity": "sensitivity (document length 512)", "stretch": "stretch"}
+
+
+def _li_rows(blob: dict | None, dataset: str) -> dict[str, dict]:
+    if not blob:
+        return {}
+    scope = blob["held_out"] if dataset == "fixture" else blob
+    return {r["config"]: r for r in scope["results"]}
+
+
+def _li_name(name: str, dataset: str) -> str:
+    return name.replace("dense@", "dense_only@", 1) if dataset == "fixture" else name
+
+
+def _li_cell(blobs: dict, dataset: str, name: str, reference: str | None) -> str:
+    """'nDCG@10 · Δ [95% CI] word' of a row in whichever part holds it; '—' for a part or a row that is not there."""
+    for blob in blobs.get(dataset) or []:
+        row = _li_rows(blob, dataset).get(_li_name(name, dataset))
+        if row is None:
+            continue
+        mean = row["ci"]["ndcg@10"]["mean"]
+        if reference is None:
+            return f"{mean:.4f}"
+        v = next((v for v in blob.get("verdicts") or [] if v["config"] == f"{dataset}:{_li_name(name, dataset)}"
+                  and v["reference"] == f"{dataset}:{_li_name(reference, dataset)}"), None)
+        return f"{mean:.4f} · {_delta4(v)} {v['interval']}" if v else f"{mean:.4f}"
+    return "not run"
+
+
+def _li_outside_bar_all_three(blobs: dict) -> list[str]:
+    """Sensitivity and stretch rows whose stored verdict against their own parent (hybrid@bge-small, or dense@bge-small
+    for the leg alone) is above zero on all three datasets, as '`row` above zero vs `parent`' (the fixture's dense_only@
+    names read as dense@). bar_table's clause counts only the comparisons against hybrid@bge-small, the bar's shape."""
+    words: dict[tuple[str, str], dict[str, str]] = {}
+    for d, parts in blobs.items():
+        for blob in parts:
+            for v in blob.get("verdicts") or []:
+                if v.get("kind") in ("sensitivity", "stretch"):
+                    key = tuple(x.split(":", 1)[1].replace("dense_only@", "dense@", 1) for x in (v["config"], v["reference"]))
+                    words.setdefault(key, {})[d] = v["interval"]
+    return [f"`{row}` above zero vs `{parent}`" for (row, parent), w in sorted(words.items())
+            if len(w) == len(LI_DATASETS) and set(w.values()) == {"above zero"}]
+
+
+def _li_storage_lines(root: Path | None) -> list[str]:
+    """The measured index size per corpus (app.eval.late_interaction.storage_table: the runs' token counts)."""
+    from app.eval import late_interaction as li
+
+    names = dict(LI_DATASETS)
+    lines = ["| model, document length | corpus | documents | scored token vectors | index, fp32 | index, fp16 | bge-small, one fp32 vector per document | ratio fp32 / fp16 |",
+             "|---|---|---:|---:|---:|---:|---:|---:|"]
+    for r in li.storage_table(root):
+        b = r["bytes"]
+        lines.append(f"| {r['model']}, {r['document_length']} | {names[r['dataset']].split(',')[0]} | {r['documents']} | {r['scored_vectors']} | {_mib(b['fp32'])} | "
+                     f"{_mib(b['fp16'])} | {_mib(b['bge_small_fp32'])} | {r['ratio_to_bge_small']['fp32']} / {r['ratio_to_bge_small']['fp16']} |")
+    return lines
+
+
+def _li_truncation(root: Path | None) -> tuple[list[str], str | None]:
+    """The truncation the runs recorded (each leg's `store` and `queries`, read through storage_table): per model and
+    length, the documents cut at the document length and the queries over the query cap on each corpus; and, when a
+    named model cuts any query, the does-not-show clause for the query side, which no row varies."""
+    from app.eval import late_interaction as li
+
+    entries = li.storage_table(root)
+    if not entries:
+        return [], None
+    short = {d: label.split(",")[0] for d, label in LI_DATASETS}
+    present = [d for d, _ in LI_DATASETS if any(e["dataset"] == d for e in entries)]
+    by: dict[tuple[str, int], dict[str, dict]] = {}
+    for e in entries:
+        by.setdefault((e["model"], e["document_length"]), {})[e["dataset"]] = e
+
+    def cell(e: dict | None) -> str:
+        if e is None:
+            return "—"
+        q = e.get("queries") or {}
+        queries = (f"{q['over_query_length']} of {q['n']} queries over {q['query_length']} tokens (longest {q['longest_tokenized']})"
+                   if q else "queries not recorded")
+        return f"{e['cut_at_document_length']} of {e['documents']} documents cut · {queries}"
+
+    lines = ["**Truncation, as the runs recorded it** (each leg's token counts): the documents cut at the model's document length, and the "
+             "queries longer than its query cap, on each corpus.", "",
+             "| model, document length | " + " | ".join(short[d] for d in present) + " |", "|---|" + "---|" * len(present)]
+    lines += [f"| {model}, {length} | " + " | ".join(cell(cells.get(d)) for d in present) + " |" for (model, length), cells in by.items()]
+    zero = [e for e in entries if e.get("zero_scored_tokens") is None or e["zero_scored_tokens"] > 0]
+    lines += ["", "No document has zero scored tokens at any length." if not zero else
+              "Documents with no scored token: " + "; ".join(f"{e['model']}, {e['document_length']} on {short[e['dataset']]}: "
+                                                              f"{e.get('zero_scored_tokens', 'not recorded')}" for e in zero) + "."]
+    named = [e for e in entries if e["model"] in li.CANDIDATES and e.get("queries")]
+    caps = sorted({e["queries"]["query_length"] for e in named})
+    cut: list[str] = []
+    for d in present:
+        counts = {(e["queries"]["over_query_length"], e["queries"]["n"]) for e in named if e["dataset"] == d}
+        if len(counts) == 1:
+            over, n = next(iter(counts))
+            if over:
+                cut.append(f"{short[d]} {over} of {n}")
+        else:
+            cut += [f"{short[d]} {e['queries']['over_query_length']} of {e['queries']['n']} (`{e['model']}`, {e['document_length']})"
+                    for e in named if e["dataset"] == d and e["queries"]["over_query_length"]]
+    if not (named and cut):
+        return lines, None
+    caps_text = " or ".join(str(c) for c in caps)
+    lines[-1] += (f" The named models' query cap is their saved {caps_text} tokens, and no row varies it: the {li.SENSITIVITY_LENGTH}-token rows lengthen the document "
+                  f"side only, so the same queries are cut in both roles and at both document lengths ({_and(cut)} queries over the cap). bge-small's "
+                  f"dense leg has a {li.SENSITIVITY_LENGTH}-token budget for the query alone, and BM25 reads the whole query in every hybrid row.")
+    clause = (f"full-length queries for the named models' MaxSim legs (from the runs' recorded counts, not in the headers' list): each reads at most "
+              f"its saved {caps_text} query tokens, no row varies that cap, and {_and(cut)} queries are longer and are cut in both roles")
+    return lines, clause
+
+
+def _li_cpu_lines(root: Path | None) -> list[str]:
+    cpu, small = _load(root, LATE_INTERACTION_CPU_FILE), _load(root, SMALL_RERANKERS_CPU_FILE)
+    if not cpu:
+        return [f"_{LATE_INTERACTION_CPU_FILE} is missing; run `make late-interaction-cpu` (needs .[ml]; CPU only)._"]
+    d = cpu["device"]
+    same = small and (small.get("device") or {}).get("cpu_model") == d.get("cpu_model")
+    lines = [f"**What it costs on a CPU, indicative only** (`make late-interaction-cpu`; {d.get('cpu_model') or 'CPU model not recorded'}, "
+             f"{d.get('threads')} threads; results sha {_sha(cpu)}): the API process as the single host runs it (the app and bge-small, then the "
+             f"ColBERT model in fp32), one fresh process per model; passages are cut at the model's document length. Another machine's CPU: it "
+             f"says which shapes are worth trying on the host, not whether one fits it.", "",
+             "| model | query encode | rerank on the fly, depth 5 / 10 / 20 | rerank from stored tokens, depth 5 / 10 / 20 | first stage over the fixture's chunks | "
+             "bge-small first stage, same process | peak MiB |", "|---|---:|---:|---:|---:|---:|---:|"]
+    for row in cpu["results"]:
+        by = {(s["shape"], s.get("depth")): s for s in row["shapes"]}
+        cell = lambda key: f"{by[key]['p50_ms']} / {by[key]['p95_ms']}" if key in by else "—"  # noqa: E731
+        lines.append(f"| {row['tag']} ({row['document_length']}) | {cell(('query_encode', None))} | "
+                     + " · ".join(cell(("rerank_on_the_fly", n)) for n in (5, 10, 20)) + " | "
+                     + " · ".join(cell(("rerank_stored", n)) for n in (5, 10, 20)) + f" | {cell(('first_stage', None))} | {cell(('parent_first_stage', None))} | "
+                     f"{max(s['memory_mib']['VmHWM'] for s in row['shapes'])} |")
+    lines += ["", "p50 / p95 ms per call."]
+    gaps = []
+    for row in cpu["results"]:
+        by = {(s["shape"], s.get("depth")): s["p50_ms"] for s in row["shapes"]}
+        if ("rerank_stored", 20) in by and ("query_encode", None) in by:
+            gap = f"`{row['tag']}` {by[('rerank_stored', 20)] - by[('query_encode', None)]:.1f} ms"
+            if ("first_stage", None) in by:
+                gap += f" (first stage {by[('first_stage', None)] - by[('query_encode', None)]:.1f} ms)"
+            gaps.append(gap)
+    if gaps:
+        lines[-1] += (" The stored-token shapes hardly move with depth, yet at depth 20 each sits above the query encode alone by a p50 gap of "
+                      + _and(gaps) + ". That gap is not the MaxSim arithmetic, which grows with depth; the cause is not established here, "
+                      "and the shapes stand as measured.")
+    if same:
+        ref: dict[str, list[dict]] = {}
+        for r in small["results"]:
+            if r["tag"] in ("minilm-l12", "gte-modernbert-base"):
+                ref.setdefault(r["tag"], []).append(r)
+        cells = "; ".join(f"`{tag}` depth 20 " + ", ".join(f"at max_length {r['max_length']}: {next(s for s in r['shapes'] if s['depth'] == 20)['p50_ms']} / "
+                                                           f"{next(s for s in r['shapes'] if s['depth'] == 20)['p95_ms']} ms" for r in rows)
+                          for tag, rows in ref.items())
+        lines[-1] += (f" The cross-encoders on the same CPU model ([{SMALL_RERANKERS_CPU_FILE}]({SMALL_RERANKERS_CPU_FILE})): {cells}. The budgets "
+                      "differ, so the speeds do not compare like for like: the ColBERT model reads each passage up to the document length beside its "
+                      "name and the query separately, while a cross-encoder at max_length L reads L tokens of query plus passage together.")
+    else:
+        lines[-1] += " The cross-encoders' CPU file was measured on another CPU model, so no comparison is drawn."
+    return lines
+
+
+def late_interaction_table(root: Path | None) -> str:
+    """M49: the MaxSim leg as the first stage (role a) and as the reranker (role b) against hybrid@bge-small on the
+    three datasets, the declared bar with its Bonferroni column and half-widths, the references, the card claim, the
+    multiplicity statement, storage and CPU cost, and what this does not show."""
+    from app.eval import late_interaction as li
+
+    attempt = li.deciding_attempt(root)
+    primary = {d: _load(root, li.results_file(d, "primary", attempt)) for d in li.DATASETS}
+    extra = {d: _load(root, li.results_file(d, "extra", attempt)) for d in li.DATASETS}
+    if not any(primary.values()):
+        return ("_bench/results/late_interaction.json and its BEIR siblings are missing; run `make bench-late-interaction`, "
+                "`make bench-beir-late-interaction` and `make bench-beir-fiqa-late-interaction`, each with PART=primary and PART=extra (need .[ml] and a GPU)._")
+    blobs = {d: [b for b in (primary[d], extra[d]) if b] for d in li.DATASETS}
+    table = li.bar_table(root)
+    present = [(d, label) for d, label in LI_DATASETS if primary.get(d)]
+    n = {d: table["datasets"][d]["n"] for d, _ in present}
+    parts = [b for d, _ in present for b in (primary[d], extra.get(d)) if b]
+    if len({(_device(b), _sha(b)) for b in parts}) == 1:
+        runs = f"both parts of {_and([label.split(',')[0] for _, label in present])}: {_device(parts[0])}, results sha {_sha(parts[0])}"
+    else:
+        runs = "; ".join(f"{label}: {_device(primary[d])}, results sha {_sha(primary[d])}" + (f" (extra part: {_device(extra[d])}, sha {_sha(extra[d])})" if extra.get(d) else "")
+                         for d, label in present)
+    head = " | ".join(f"{label} (n = {n[d]}): nDCG@10 · Δ vs parent [95% CI]" for d, label in present)
+    lines = [
+        f"Late interaction (ColBERT MaxSim) against `{li.PARENT}`, the default path ({runs}). Attempt {attempt}. **The bar was declared before any row "
+        f"ran** (`app/eval/late_interaction.py`, commit `{(li.DECLARATIONS_COMMIT or '')[:7]}`; `make late-interaction-bar` checks it is an ancestor of every results "
+        f"file): a named model passes in a role when its paired nDCG@10 delta against `{li.PARENT}` is above zero on fixture v1's held-out questions and on "
+        f"BEIR SciFact and on BEIR FiQA. Two roles: (a) the MaxSim leg in place of bge-small's dense leg, BM25 kept, RRF k 60; (b) MaxSim reranking the "
+        f"fused top 20. Role (a) scores exhaustive MaxSim in float64 over every document's token vectors: the exact score PLAID-style search approximates; "
+        f"role (b) scores each of the top 20 with the module's `maxsim`, in float32. No default changed.",
+        "",
+        "**Role (a): the MaxSim leg as the first stage.**",
+        "",
+        f"| row | kind | {head} | bar |",
+        "|---|---|" + "---:|" * len(present) + ":---:|",
+    ]
+
+    def status(tag: str, role: str) -> str:
+        return {"PASS": "**passes**", "NOT PASS": "no", "OPEN": "open", "not measured": "not measured"}[table["models"][tag][role]["status"]]
+
+    role_a = [("hybrid@bge-small", "parent", None), ("dense@bge-small", "parent", None)]
+    for tag in li.CANDIDATES:
+        role_a += [(f"hybrid@{tag}", "bar", tag), (f"dense@{tag}", "secondary", None)]
+    for tag in li.CANDIDATES:
+        role_a += [(f"hybrid@{tag}/doc512", "sensitivity", None), (f"dense@{tag}/doc512", "sensitivity", None)]
+    for tag in li.STRETCH:
+        role_a += [(f"hybrid@{tag}", "stretch", None), (f"dense@{tag}", "stretch", None)]
+    for name, kind, tag in role_a:
+        ref = None if kind == "parent" else ("hybrid@bge-small" if name.startswith("hybrid@") else "dense@bge-small")
+        cells = " | ".join(_li_cell(blobs, d, name, ref) for d, _ in present)
+        lines.append(f"| `{name}` | {LI_KIND[kind]} | {cells} | {status(tag, 'a') if tag else '—'} |")
+    lines += ["", "**Role (b): MaxSim reranking the fused top 20** (the tail keeps the fused order; candidates encoded per query, as a served reranker "
+                  "without a token index would). The references are M43's cross-encoders at its shape (fp32, max_length 512), recomputed in the same run.", "",
+              f"| row | kind | {head.replace('Δ vs parent', 'Δ vs no reranker')} | bar |", "|---|---|" + "---:|" * len(present) + ":---:|"]
+    role_b = [(li.bar_row(tag, "b"), "bar", tag) for tag in li.CANDIDATES]
+    role_b += [(r["name"], "reference", None) for r in li.ROWS["beir"]["primary"] if r["role"] == "reference"]
+    role_b += [(f"hybrid+{tag}@bge-small/fp32-doc512/top20", "sensitivity", None) for tag in li.CANDIDATES]
+    role_b += [(f"hybrid+{tag}@bge-small/fp32-doc{c['saved']['document_length']}/top20", "stretch", None) for tag, c in li.STRETCH.items()]
+    for name, kind, tag in role_b:
+        cells = " | ".join(_li_cell(blobs, d, name, li.PARENT) for d, _ in present)
+        lines.append(f"| `{name}` | {LI_KIND[kind]} | {cells} | {status(tag, 'b') if tag else '—'} |")
+    lines += ["", "The named role-(b) rows against the three cross-encoders, paired, in the same part (Δ nDCG@10 [95% CI], uncorrected):", "",
+              "| row | " + " | ".join(f"vs `{ref.split('@')[0].replace('hybrid+', '')}`, {label}" for ref in (li.BGE_ROW, li.MINILM_ROW, li.GTE_ROW) for _, label in present) + " |",
+              "|---|" + "---:|" * (3 * len(present))]
+    for tag in li.CANDIDATES:
+        name = li.bar_row(tag, "b")
+        cells = []
+        for ref in (li.BGE_ROW, li.MINILM_ROW, li.GTE_ROW):
+            for d, _ in present:
+                v = ((table["models"][tag]["b"]["datasets"].get(d) or {}).get("references") or {}).get(ref)
+                cells.append(f"{_delta4(v)} {v['interval']}" if v else "—")
+        lines.append(f"| `{name}` | " + " | ".join(cells) + " |")
+    # the bar, with its Bonferroni column and half-widths
+    lines += ["", "**The bar, model by model.** Per dataset: the stored 95% interval and its word; beside it, reported and never deciding, the "
+                  "Bonferroni 98.75% interval from the same bootstrap draws (alpha 0.05 / 4 for the four (model, role) claims) and the interval's "
+                  "half-width, roughly the smallest gain that could have passed.", "",
+              "| model | role | " + " | ".join(f"{label}: 95% (word) · Bonferroni 98.75%, reported, not deciding · half-width" for _, label in present) + " | verdict |",
+              "|---|---|" + "---|" * len(present) + "---|"]
+    for tag in li.CANDIDATES:
+        for role in ("a", "b"):
+            e = table["models"][tag][role]
+            cells = []
+            for d, _ in present:
+                c = e["datasets"].get(d)
+                cells.append(f"{_delta4(c)} ({c['word']}) · {_delta4(c.get('bonferroni'))} · {c.get('half_width')}" if c else "not measured")
+            verdict_text = {"PASS": "**PASS**", "NOT PASS": f"NOT PASS ({e['triple']})", "OPEN": f"OPEN ({e['triple']})", "not measured": "not measured"}[e["status"]]
+            lines.append(f"| `{tag}` | ({role}) `{e['row']}` | " + " | ".join(cells) + f" | {verdict_text} |")
+    out = table["outcome"]
+    lines += ["", f"PLAN.md row 4.2 by the declared mapping: **{out['word']}**"
+              + (f" ({_and(out['passing'])})" if out["passing"] else "") + "."
+              + (" " + " ".join(c[0].upper() + c[1:] + "." for c in out["open"]) if out["open"] else "")
+              + (f" Not measured: {_and([f'`{t}`' for t in out['not_measured']])}." if out["not_measured"] else "")
+              + (f" Outside the declared bar, above zero on all three datasets (sensitivity or stretch; the verdict is unchanged): {_and(out['outside_bar_all_three'])}."
+                 if out["outside_bar_all_three"] else "")]
+    own = _li_outside_bar_all_three(blobs)
+    if own:
+        lines[-1] += (" Every sensitivity or stretch row above zero against its own parent on all three datasets, the leg-alone rows "
+                      f"included (the fixture names them `dense_only@`; outside the declared bar, the verdict is unchanged): {_and(own)}.")
+    # the card claim
+    cc = table["card_claim"]
+    small = _load(root, SMALL_RERANKERS_FILE)
+    minilm = next((blk["ndcg@10"] for r in (small or {}).get("held_out", {}).get("results", []) if r["config"] == li.MINILM_ROW
+                   for blk in r.get("deltas", []) if blk["reference"] == li.PARENT), None)
+    lines += ["", f"**The answerai card's claim**, that as a reranker it \"vastly outperforms cross-encoders its size\": read here as `{li.CARD_CLAIM['row']}` "
+                  f"against `{li.CARD_CLAIM['comparator']}` on all three datasets, outside the bar. Reading: **{cc['reading']}** ("
+                  + "; ".join(f"{dict(LI_DATASETS)[d]} {_delta4(v)} {v['interval']}" for d, v in cc["datasets"].items()) + "). Two caveats, declared before "
+                  f"any run: the comparator was chosen by parameter count while its rows were already known to be weak (its held-out delta against the parent "
+                  f"in [{SMALL_RERANKERS_FILE}]({SMALL_RERANKERS_FILE}) is {_delta4(minilm)}); and the budgets differ: MaxSim reads 300 document tokens, the "
+                  f"cross-encoder 512 tokens of query plus document."]
+    # multiplicity
+    counts = [f"{dict(LI_DATASETS)[d]} {p}: {(b['late_interaction']['multiplicity'].get('this_file') or {}).get('ndcg@10_intervals')}"
+              for d in li.DATASETS for p, b in (("primary", primary[d]), ("extra", extra[d])) if b]
+    m = li.MULTIPLICITY
+    lines += ["", f"**Multiplicity.** {m['per_pass'][0].upper() + m['per_pass'][1:]}. {m['row_4_2'][0].upper() + m['row_4_2'][1:]}. "
+                  f"{m['bar_words'][0].upper() + m['bar_words'][1:]}. {m['others'][0].upper() + m['others'][1:]}. nDCG@10 intervals per file in its bar scope: "
+                  + "; ".join(counts) + "."]
+    # recall on the fixture, the tripwire, the published figures, the checks
+    fixture_rows = _li_rows(primary.get("fixture"), "fixture")
+    if fixture_rows:
+        rr = "; ".join(f"`{name}` {fixture_rows[name]['retrieval'].get('recall@50'):.4f} (random {fixture_rows[name]['retrieval'].get('random_recall@50'):.4f})"
+                       for name in [_li_name(x, "fixture") for x in ("hybrid@bge-small", "dense@bge-small")] + [_li_name(f"{p}@{t}", "fixture") for t in li.CANDIDATES for p in ("hybrid", "dense")]
+                       if name in fixture_rows and fixture_rows[name]["retrieval"].get("random_recall@50") is not None)
+        lines += ["", f"Fixture Recall@50 on the held-out half, beside the random baseline of each row's list (71 chunks ranked into a top 50, so this is "
+                      f"no first-stage recall test and no recall claim is made): {rr}."]
+    wire = li.tripwire(root, attempt)
+    lines += ["", f"**Plausibility tripwire** (declared; not a bar), over the fixture and SciFact files: **{wire['status']}**. "
+                  + " ".join(f"`{t}`: SciFact dense nDCG@10 {w['scifact_dense'].get('value')} against the committed bm25 row {w['scifact_dense'].get('bm25')} and the "
+                             f"card's {w['scifact_dense'].get('published')}"
+                             + (f", at 512 tokens {w['scifact_dense_doc512'].get('value')}" if w["scifact_dense_doc512"].get("value") is not None else "")
+                             + f" ({w['status']})." for t, w in wire["models"].items())]
+    pvm = "; ".join(f"{dict(LI_DATASETS)[d]} `{t}` {x['measured_ndcg@10']} against {x['published_ndcg@10_x100']} x 0.01 ({x['difference']:+.4f})"
+                    for d in ("scifact", "fiqa") if primary.get(d) for t, x in primary[d]["late_interaction"].get("published_vs_measured", {}).items())
+    if pvm:
+        lines += ["", f"Measured against the card's published figures (printed as nDCG@10 x 100; other implementations, ColBERTv2's with approximate "
+                      f"PLAID search; a tripwire, never a bar), the dense leg alone: {pvm}."]
+    truncation, query_clause = _li_truncation(root)
+    lines += ["", "**Index size, measured from the runs' token counts** (the multimodal module's \"10-20x\" was an estimate): bytes of the uncompressed "
+                  "token index against bge-small's one 384-dimension float32 vector per document.", "", *_li_storage_lines(root)]
+    if truncation:
+        lines += ["", *truncation]
+    lines += ["", *_li_cpu_lines(root)]
+    # training data, reproduction, what this does not show: as the headers froze them, not as the module says today
+    header = next(b for b in primary.values() if b)["late_interaction"]
+    training = header["training_data"]
+    flagged = [t for t, x in training.items() if x["lists_scifact_or_fiqa"]]
+    unknown = [t for t, x in training.items() if x["lists_scifact_or_fiqa"] is None]
+    notes = [f"`{t}`: {x['corpus_note']}" for t, x in training.items() if x.get("corpus_note")]
+    lines += ["", "**Training data on both sides** (stated, from the model cards, artifact.metadata and MTEB's annotation; recorded in every header): "
+                  + (f"lists SciFact or FiQA: {_and([f'`{t}`' for t in flagged])}; " if flagged else "no model's statement lists SciFact or FiQA; ")
+                  + (f"not stated: {_and([f'`{t}`' for t in unknown])}. " if unknown else "")
+                  + " ".join(n + "." for n in notes)
+                  + " Contamination cannot be ruled out from outside, and the models were chosen knowing their published BEIR scores, which include "
+                  "SciFact and FiQA: a BEIR win with a fixture tie or loss is read in that light. Fixture v1 is free of both."]
+    repro = []
+    for d, label in present:
+        for part, b in (("primary", primary[d]), ("extra", extra[d])):
+            if b and b.get("reproduces"):
+                repro.append(f"{label} {part}: " + _reproduction(b["reproduces"]))
+    cross = li.cross_part_parents(root, attempt)
+    if cross:
+        repro.append("The extra parts' recomputed parents against the primary parts': " + "; ".join(
+            f"{dict(LI_DATASETS)[d]} " + ", ".join(f"`{name}` " + ("equal" if r["retrieval_equal"] else "DIFFERENT") + (" (ranking too)" if r.get("ranking_equal") else "")
+                                                    for name, r in c["rows"].items()) for d, c in cross.items()) + ".")
+    doc512 = li.doc512_rankings(root, attempt)
+    if doc512:
+        same = [f"{dict(LI_DATASETS)[d]} `{a}`" for d, x in doc512.items() for a, y in x["pairs"].items() if not y["ranking_differs"]]
+        repro.append("A named model's primary and 512-token rows come from different token stores; on BEIR their rankings "
+                     + ("differ for every pair, as they must." if not same else f"are EQUAL for {_and(same)}, which the leakage check flags."))
+    expected = next((b["late_interaction"]["expected_reproduction"] for b in primary.values()
+                     if b and b["late_interaction"].get("expected_reproduction")), None)  # the BEIR headers carry it
+    lines += ["", "Do the recomputed parents and references reproduce the committed rows? " + " ".join(repro)
+              + (f" {expected}" if expected else "")]
+    lines += ["", "**What this does not show.** " + " ".join(s[0].upper() + s[1:] + "." for s in [*header["does_not_show"], *([query_clause] if query_clause else [])])]
+    files = [li.results_file(d, p, attempt) for d in li.DATASETS for p in li.PARTS if (primary if p == "primary" else extra).get(d)]
+    lines += ["", "Results: " + " · ".join(f"[{f}]({f})" for f in files) + (f" · [{LATE_INTERACTION_CPU_FILE}]({LATE_INTERACTION_CPU_FILE})" if _load(root, LATE_INTERACTION_CPU_FILE) else "")
+              + f" (each with its per-query sidecar; the named rows' MaxSim lists and reranked heads in [{li.RUNS_DIR}/]({li.RUNS_DIR}/)). "
+                "`make late-interaction-rescore` recomputes every interval and verdict from the sidecars and `make late-interaction-rederive` the named "
+                "rows from the committed lists, both on a CPU with no model; `make late-interaction-bar` prints the bar."]
+    return "\n".join(lines)
+
+
 def render(blob: dict, root: Path | None = None) -> dict[str, str]:
     root = root if root is not None else Path(__file__).resolve().parents[2]
     return {
@@ -3385,6 +3730,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "search-policy": search_policy_table(_load(root, SEARCH_POLICY_FILE)),
         "bench-small-rerankers": small_rerankers_table(root),
         "bench-small-rerankers-shapes": small_rerankers_shapes_table(root),
+        "bench-late-interaction": late_interaction_table(root),
     }
 
 
