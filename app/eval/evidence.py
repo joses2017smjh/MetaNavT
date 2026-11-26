@@ -187,6 +187,7 @@ def claims(root: Path = ROOT) -> list[dict]:
     out += _file_depth_claims(root)
     out += _models_2026_claims(root)
     out += _small_reranker_claims(root)
+    out += _late_interaction_claims(root)
     beir = _load(FILES["beir"], root)
     if beir:
         by = _rows(beir)
@@ -1050,6 +1051,68 @@ def _small_reranker_claims(root: Path = ROOT) -> list[dict]:
                 out.append({"claim": f"{names[d]}, what distillation added: `{tag}` vs `{sr.STUDENTS[tag]}`, the published model it started from, paired delta in nDCG@10",
                             "value": value, "ci": ci, "n": meta["n"], "command": commands[d], "source": src,
                             "not_shown": f"verdict from the interval: {verdict(init)}; same architecture and cost, different weights; {seen}one training run, one seed; {shape}"})
+    return out
+
+
+def _late_interaction_claims(root: Path = ROOT) -> list[dict]:
+    """M49: late interaction (ColBERT MaxSim) against hybrid@bge-small, M43's rule. A row only for a bar comparison
+    (hybrid@<tag> or hybrid+<tag>@bge-small/fp32-doc<L>/top20 against hybrid@bge-small) in the bar's scope, where that
+    (model, role) passes on all three datasets, or where its interval is below zero on that dataset (a recorded loss).
+    Stretch rows follow the same rule against their parent, labelled stretch. Never a tie, a single-dataset win of a
+    model that does not pass, a reference or secondary comparison, the card-claim reading, a sensitivity row, the tune
+    or all-136 scopes, recall or MRR."""
+    from app.eval import late_interaction as li
+    from app.eval.report import verdict
+
+    table = li.bar_table(root)
+    if not table["datasets"]:
+        return []
+    attempt = table["attempt"]
+    names = {"fixture": "Fixture v1 (held-out half)", "scifact": "BEIR SciFact", "fiqa": "BEIR FiQA"}
+    commands = {"fixture": "make bench-late-interaction PART=primary", "scifact": "make bench-beir-late-interaction PART=primary",
+                "fiqa": "make bench-beir-fiqa-late-interaction PART=primary"}
+    multiplicity = ("uncorrected 95% interval; a PASS needs all three datasets (each one-sided test at 2.5%); four named PASS claims give at most "
+                    "10% for any false PASS (union bound)")
+    # a stretch row is reported as a finding, so its note carries the declared bound that counts the stretch PASS claims too
+    stretch_multiplicity = ("uncorrected 95% interval; a PASS needs all three datasets (each one-sided test at 2.5%); "
+                            + li.MULTIPLICITY["row_4_2"].split(": ", 1)[1])
+    out: list[dict] = []
+    for tag, entry in table["models"].items():
+        for role in ("a", "b"):
+            e = entry[role]
+            what = (f"`{e['row']}` ({li.CANDIDATES[tag]['model']}, {li.CANDIDATES[tag]['parameters'] / 1e6:.1f}M parameters, "
+                    + ("the MaxSim leg in place of bge-small's, BM25 kept" if role == "a" else f"MaxSim reranking the fused top {li.SETTINGS['beir']['rerank_top']}") + ")")
+            for d, cell in e["datasets"].items():
+                if not (e["passes"] or cell["word"] == "below zero"):
+                    continue
+                meta = table["datasets"][d]
+                pvm = ((_load(li.results_file(d, "primary", attempt), root) or {}).get("late_interaction") or {}).get("published_vs_measured", {}).get(tag)
+                note = f"; its dense leg alone measured {pvm['measured_ndcg@10']} against the card's {pvm['published_ndcg@10_x100']} (nDCG@10 x 100, another implementation)" if pvm else ""
+                value, ci = _ci(cell, "delta", 4)
+                out.append({"claim": f"{names[d]}, {what} vs hybrid@bge-small, paired delta in nDCG@10", "value": value, "ci": ci, "n": meta["n"],
+                            "command": commands[d], "source": f"{meta['file']} @ {meta['git_sha']}",
+                            "not_shown": (f"verdict from the interval: {verdict(cell)}; the declared bar: {e['status']} ({e['triple']}); {multiplicity}{note}; "
+                                          "quality only, exhaustive MaxSim on one GPU: no served path, and the CPU timings are indicative")})
+    # stretch rows: the same rule against their parent, from the extra files
+    for tag in li.STRETCH:
+        for role, row in (("a", f"hybrid@{tag}"), ("b", f"hybrid+{tag}@bge-small/fp32-doc{li.STRETCH[tag]['saved']['document_length']}/top20")):
+            cells = {}
+            for d in li.DATASETS:
+                blob = _load(li.results_file(d, "extra", attempt), root)
+                v = next((v for v in (blob or {}).get("verdicts") or [] if v["config"] == f"{d}:{row}" and v["reference"] == f"{d}:{li.PARENT}"), None)
+                if v:
+                    cells[d] = (v, blob)
+            passes = len(cells) == 3 and all(v["interval"] == "above zero" for v, _ in cells.values())
+            for d, (v, blob) in cells.items():
+                if not (passes or v["interval"] == "below zero"):
+                    continue
+                value, ci = _ci(v, "delta", 4)
+                n = blob["held_out"]["bootstrap"]["n_queries"] if d == "fixture" else blob["n_queries"]
+                out.append({"claim": f"{names[d]}, STRETCH `{row}` ({li.STRETCH[tag]['model']}) vs hybrid@bge-small, paired delta in nDCG@10", "value": value,
+                            "ci": ci, "n": n, "command": commands[d].replace("PART=primary", "PART=extra"),
+                            "source": f"{li.results_file(d, 'extra', attempt)} @ {blob['git_sha']}",
+                            "not_shown": (f"verdict from the interval: {verdict(v)}; a stretch row, outside the declared bar: it never changes PLAN row 4.2; "
+                                          f"chosen knowing its published BEIR scores; {stretch_multiplicity}; quality only")})
     return out
 
 

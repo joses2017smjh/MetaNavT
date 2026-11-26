@@ -402,6 +402,44 @@ distill-train: ## train one student by the declared recipe: STUDENT=student-mini
 distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
 	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)
 
+# ---- M49: late interaction (ColBERT MaxSim) on text, measured or retired (app/eval/late_interaction.py) ----
+# The bar, the rows, the tripwire and the models were declared in that module (commit 26585e8) before any row ran. Each
+# dataset runs in two parts, each its own results file: PART=primary (the parents, the two named models in both roles,
+# the three cross-encoder references) and PART=extra (the parents again, the 512-token sensitivity rows, the stretch
+# models). The token stores live in memory only. Every run writes per-query scores beside its results file and the
+# named rows' MaxSim lists and reranked heads under bench/results/late_interaction_runs/.
+.PHONY: late-interaction-check bench-late-interaction bench-beir-late-interaction bench-beir-fiqa-late-interaction late-interaction-rescore late-interaction-bar late-interaction-rederive late-interaction-tripwire late-interaction-cpu
+PART ?= primary
+# the results file's suffix: _extra for the extra part, _attempt2 once ATTEMPT is 2 (evaluated only when a target runs)
+li_suffix = $(if $(filter extra,$(PART)),_extra)$(shell $(PYTHON) -c "from app.eval.late_interaction import ATTEMPT; print('_attempt2' if ATTEMPT == 2 else '')")
+li_beir_flags = --ladder late-interaction --part $(PART) --data-dir $(BEIR_DATA_DIR) $(if $(SKIP_STRETCH),--skip-stretch "$(SKIP_STRETCH)") $(if $(OTHER_JOBS),--other-jobs $(OTHER_JOBS))
+late-interaction-check: ## fidelity checks 1-5 of the ColBERT models (settings read back, checkpoint tensors, load-and-score, the card's fingerprint and lines, maxsim = maxsim_scores = sentence-transformers); no benchmark data (needs .[ml]; MODELS=tag,...) -> stdout
+	$(PYTHON) -m app.eval.late_interaction --check $(if $(MODELS),--models $(MODELS))
+
+bench-late-interaction: ## fixture v1, one part (PART=primary|extra; SKIP_STRETCH="<reason>" runs extra without the stretch rows): the held-out half (the bar), the tune half and all 136 (needs .[ml] and a GPU) -> bench/results/late_interaction[_extra].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.late_interaction --out bench/results/late_interaction$(li_suffix).json --part $(PART) $(if $(SKIP_STRETCH),--skip-stretch "$(SKIP_STRETCH)")
+
+bench-beir-late-interaction: ## BEIR SciFact test, one part (PART=primary|extra) of the late-interaction ladder (needs .[ml] and a GPU) -> bench/results/beir_scifact_late_interaction[_extra].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir $(li_beir_flags) --out bench/results/beir_scifact_late_interaction$(li_suffix).json
+
+bench-beir-fiqa-late-interaction: ## BEIR FiQA test, one part (PART=primary|extra) of the late-interaction ladder (needs .[ml] and a GPU) -> bench/results/beir_fiqa_late_interaction[_extra].json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --dataset fiqa $(li_beir_flags) --out bench/results/beir_fiqa_late_interaction$(li_suffix).json
+
+late-interaction-rescore: ## recompute every interval, paired delta and verdict of the late-interaction files from their per-query sidecars (CPU, no model, no dataset); exit 1 unless all equal the files
+	$(PYTHON) -m app.eval.late_interaction --rescore
+
+late-interaction-bar: ## the declared bar from the three primary files (verdicts, Bonferroni column, half-widths), the card-claim reading, PLAN row 4.2's outcome, the cross-part parents, and the check that the declarations commit is an ancestor of every file with the same BAR, SETTINGS and CANDIDATES -> stdout
+	$(PYTHON) -m app.eval.late_interaction --bar
+
+late-interaction-rederive: ## re-derive the named models' rows on a CPU from the committed MaxSim lists and reranked heads, BM25 and the qrels (needs the sha-pinned BEIR zips in BEIR_DATA_DIR, which app/eval/beir.py downloads) -> stdout
+	$(PYTHON) -m app.eval.late_interaction --rederive --data-dir $(BEIR_DATA_DIR)
+
+late-interaction-tripwire: ## the plausibility tripwire over the fixture and SciFact files (after J2; RECORD=<file> keeps the record); exit 1 on a trip that is not truncation-explained
+	$(PYTHON) -m app.eval.late_interaction --tripwire $(if $(RECORD),--record $(RECORD))
+
+late-interaction-cpu: ## indicative CPU cost of the two named ColBERT models in the API process (2 threads, CUDA hidden): query encode, rerank on the fly and from stored token matrices at depths 5/10/20, the fixture first stage, beside bge-small's (needs .[ml]) -> bench/results/late_interaction_cpu.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) scripts/measure_late_interaction_cpu.py --out bench/results/late_interaction_cpu.json
+
 .PHONY: robotics-verify bench-robotics bench-robotics-chunking bench-robotics-multiquery
 robotics-verify: ## verify real experiment source hashes, evidence spans and family split; prints the files that differ from their tracked blob
 	$(PYTHON) -m app.eval.robotics verify --snapshot $(ROBOTICS_SNAPSHOT)

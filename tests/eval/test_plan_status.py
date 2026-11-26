@@ -16,12 +16,26 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
+from app.eval import late_interaction as li
 from app.eval.report import verdict
 
 ROOT = Path(__file__).resolve().parents[2]
 VERDICT_FILES = ("bench/results/main.json", "bench/results/neural.json", "bench/results/frontier.json",
                  "bench/results/frontier_neural.json", "bench/results/rerank_arms.json")
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: its verdicts are of exact match (`em`), not nDCG@10
+
+
+def late_interaction_files(root: Path = ROOT) -> tuple[str, ...]:
+    """M49: the deciding attempt's late-interaction files (the three `primary` files hold the plan-flagged claims; the
+    `extra` files their sensitivity and stretch entries), with dataset-qualified names (`fixture:`, `scifact:`, `fiqa:`)
+    so a row name in three files keeps one verdict per (row, reference)."""
+    attempt = li.deciding_attempt(root)
+    return tuple(rel for d in li.DATASETS for part in li.PARTS if (root / (rel := li.results_file(d, part, attempt))).exists())
+
+
+LATE_INTERACTION_FILES = late_interaction_files()
 CLAIM = re.compile(r"`([^`]+)` ((?:(?:above zero|covers zero|below zero) vs `[^`]+`(?:,? and |, )?)+)")
 SUB = re.compile(r"(above zero|covers zero|below zero) vs `([^`]+)`")
 DEFAULT = re.compile(r"`([A-Z][A-Z0-9_]+)` \(default (\d+)\)")
@@ -67,7 +81,14 @@ def recorded_verdicts(root: Path = ROOT) -> dict[tuple[str, str], set[str]]:
                 out.setdefault((row["config"], dp["reference"]), set()).add(verdict(dp.get("ndcg@10")))
     for v in search_policy_verdicts(root):
         out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
+    for v in late_interaction_verdicts(root):
+        out.setdefault((v["config"], v["reference"]), set()).add(v["interval"])
     return out
+
+
+def late_interaction_verdicts(root: Path = ROOT) -> list[dict]:
+    """M49: every `verdicts` entry of the deciding attempt's late-interaction files (nDCG@10 in the bar's scope)."""
+    return [v for rel in late_interaction_files(root) for v in json.loads((root / rel).read_text())["verdicts"]]
 
 
 def search_policy_verdicts(root: Path = ROOT) -> list[dict]:
@@ -94,6 +115,7 @@ def evaluated_arms(root: Path = ROOT) -> set[tuple[str, str]]:
             if row["config"] not in parents:
                 pairs |= {(row["config"], block["reference"]) for block in row.get("deltas") or []}
     pairs |= {(v["config"], v["reference"]) for v in search_policy_verdicts(root)}
+    pairs |= {(v["config"], v["reference"]) for v in late_interaction_verdicts(root) if v["plan"]}  # M49: PLAN_FLAGS, all eighteen
     return pairs
 
 
@@ -155,3 +177,30 @@ def test_claim_parser_reads_lists_and_reports_a_drifted_verdict(tmp_path):
     drifted = real.replace(f"`{row}` {said} vs `{ref}`", f"`{row}` {other} vs `{ref}`", 1)
     recorded = recorded_verdicts()
     assert any(recorded.get((r, f)) != {v} for _, r, v, f in plan_claims(drifted))
+
+
+def test_each_late_interaction_verdict_word_is_the_one_its_stored_interval_gives():
+    """M44's check trusts a stored word; here the word is recomputed from the entry's own stored lo and hi."""
+    entries = late_interaction_verdicts()
+    if not entries:
+        pytest.skip("no late-interaction results file yet")
+    assert [v for v in entries if v["interval"] != verdict({"lo": v["lo"], "hi": v["hi"]})] == []
+    flagged = {(v["config"], v["reference"]) for v in entries if v["plan"]}
+    measured = {t for t in li.CANDIDATES if any(f"@{t}" in c or f"+{t}@" in c for c, _ in flagged)}
+    assert flagged == {tuple(f) for f in li.PLAN_FLAGS if any(f"@{t}" in f[0] or f"+{t}@" in f[0] for t in measured) and
+                       (ROOT / li.results_file(f[0].split(":")[0], "primary", li.deciding_attempt())).exists()}
+
+
+def test_row_4_2_states_the_outcome_the_bar_computes_from_the_committed_files():
+    """PLAN.md row 4.2's top-level outcome is the one late_interaction.bar_table reads off the deciding attempt's primary
+    files: 'measured: ... passes', 'measured, not adopted' or 'labelled a demo', with every OPEN clause, every named model
+    not measured, and every sensitivity or stretch row above zero on all three datasets."""
+    if not late_interaction_files():
+        pytest.skip("no late-interaction results file yet")
+    status = status_rows((ROOT / "PLAN.md").read_text())["4.2"][1]
+    out = li.bar_table(ROOT)["outcome"]
+    assert status.startswith(out["word"]), (status[:80], out["word"])
+    for clause in out["passing"] + out["open"] + out["outside_bar_all_three"]:
+        assert clause in status, clause
+    for tag in out["not_measured"]:
+        assert f"`{tag}` not measured" in status
