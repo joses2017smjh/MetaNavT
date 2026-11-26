@@ -1,6 +1,6 @@
 {
- "git_sha": "bbdf1fc",
- "git_head": "bbdf1fc88a1cb197788b424500349599b057ecce",
+ "git_sha": "6e9a2df",
+ "git_head": "6e9a2dfd6b43652c33000517260fb535a8a59c2a",
  "working_tree_dirty": false,
  "source_sha256": {
   "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -12,7 +12,7 @@
   "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
   "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
   "app/eval/llm_query_arms.py": "c7c7e348f03e1b401c3c5338f3cec69c1f2d30ce10f221d1225857c8c1be40ff",
-  "app/eval/llm_query_audit.py": "e57333f2506bb09fa7dd1da9cb278408211c313076200dd18bf2f5f7552be517",
+  "app/eval/llm_query_audit.py": "0706a289f7757b8490b941be2f29fd58a661c1c350242a4a430108e419da5fcb",
   "app/eval/llm_query_bar.py": "d1598949a2e1bc5c89e2c666c570e465539dcf3cd3f3e57eae77c2fd365d3800",
   "app/eval/llm_query_parse.py": "3159e5b3ad17b0ff169800ec6b91e168c464c9aa741811382f47ac11b2300b58",
   "app/eval/llm_query_spec.py": "8b0ed6a75a0430401c8070d8607851da9808ad5537be3229c261c2e0558b9b4f",
@@ -32,8 +32,8 @@
   "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
   "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
  },
- "timestamp": "2026-11-26T03:51:57.139713+00:00",
- "command": "python -m app.eval.llm_query_audit --data-dir <path>/beir_external",
+ "timestamp": "2026-11-26T05:35:39.339482+00:00",
+ "command": "python -m app.eval.llm_query_audit --data-dir <path>/data",
  "models": [
   "qwen3.5-27b",
   "gemma4-26b"
@@ -384,10 +384,141 @@
    }
   }
  },
+ "parser_digits": {
+  "rule": "a kept multi-query alternative or sub-question (read as scoring reads it: part (b)'s parser, its truncation rule, the first reply line that gives the kept text) whose numbering-and-bullet strip (^[\\d.)\\-*\\s]+, repeated with the quote and markdown strip) removed a digit that is not part of a list number (digits followed by '.' or ')'): \"401k plan\" -> \"k plan\", \"1. 401k plan\" -> \"k plan\"; \"2) index funds\" loses nothing",
+  "datasets": {
+   "fixture": {
+    "qwen3.5-27b": {
+     "multiquery": {
+      "calls": 136,
+      "kept_lines": 272,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     },
+     "decompose": {
+      "calls": 136,
+      "kept_lines": 220,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    },
+    "gemma4-26b": {
+     "multiquery": {
+      "calls": 136,
+      "kept_lines": 272,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     },
+     "decompose": {
+      "calls": 136,
+      "kept_lines": 110,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    }
+   },
+   "scifact": {
+    "qwen3.5-27b": {
+     "multiquery": {
+      "calls": 300,
+      "kept_lines": 600,
+      "kept_lines_losing_digits": 1,
+      "queries": 1,
+      "qids": [
+       "3"
+      ]
+     },
+     "decompose": {
+      "calls": 300,
+      "kept_lines": 1097,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    },
+    "gemma4-26b": {
+     "multiquery": {
+      "calls": 300,
+      "kept_lines": 600,
+      "kept_lines_losing_digits": 1,
+      "queries": 1,
+      "qids": [
+       "3"
+      ]
+     },
+     "decompose": {
+      "calls": 300,
+      "kept_lines": 813,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    }
+   },
+   "fiqa": {
+    "qwen3.5-27b": {
+     "multiquery": {
+      "calls": 648,
+      "kept_lines": 1296,
+      "kept_lines_losing_digits": 4,
+      "queries": 3,
+      "qids": [
+       "1393",
+       "6002",
+       "8974"
+      ]
+     },
+     "decompose": {
+      "calls": 648,
+      "kept_lines": 2571,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    },
+    "gemma4-26b": {
+     "multiquery": {
+      "calls": 648,
+      "kept_lines": 1296,
+      "kept_lines_losing_digits": 10,
+      "queries": 10,
+      "qids": [
+       "10558",
+       "10932",
+       "11039",
+       "1393",
+       "3085",
+       "570",
+       "6002",
+       "8475",
+       "9188",
+       "9961"
+      ]
+     },
+     "decompose": {
+      "calls": 648,
+      "kept_lines": 2127,
+      "kept_lines_losing_digits": 0,
+      "queries": 0,
+      "qids": []
+     }
+    }
+   }
+  },
+  "total": {
+   "kept_lines_losing_digits": 16,
+   "model_query_pairs": 15
+  }
+ },
  "does_not_show": [
   "Pretraining exposure to BEIR or to this repository cannot be excluded: the audit bounds verbatim copying (c) and mentions of gold answers and paths (a, b) only.",
   "Whether bench/gold/questions.jsonl (in the repository since 2026-08-22) is in any model's training data is unknown.",
   "The subgroup delta of (c) is chosen by a variable that reads the qrels: it is biased and descriptive, not an estimate.",
-  "The grader's precision and recall (d) are against qrels that are sparse on SciFact; they explain the corrective rows and are not a judge metric."
+  "The grader's precision and recall (d) are against qrels that are sparse on SciFact; they explain the corrective rows and are not a judge metric.",
+  "The declared line parser (part (b), frozen at D1) also strips leading digits that belong to the text (\"401k plan\" -> \"k plan\"); (e) counts the kept lines it altered, and the scored rows used those lines as altered. A corrected parser would be a second attempt and was not run, so what those lines did to any interval is not measured."
  ]
 }

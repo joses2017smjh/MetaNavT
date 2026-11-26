@@ -3133,6 +3133,26 @@ def _llm_rows(blobs: dict, dataset: str) -> dict:
     return {r["config"]: r for r in (blobs.get(dataset) or {}).get("rows") or []}
 
 
+def _llm_query_parser_digits(root: Path, spec) -> str:
+    """The audit's (e) count, when the audit file has it: kept LLM lines whose leading digits the declared (frozen)
+    parser stripped. Not a fallback: the arm used the line, altered."""
+    path = root / LLM_QUERY_AUDIT_FILE
+    digits = json.loads(path.read_text()).get("parser_digits") if path.exists() else None
+    if not digits:
+        return ""
+    kinds = {"multiquery": "multi-query alternatives", "decompose": "decomposition sub-questions"}
+    hits = [f"{LLM_QUERY_COST_LABELS[d]} {spec.MODELS[t]['name']} {kinds[k]}: {x['kept_lines_losing_digits']} of {x['kept_lines']} kept "
+            f"lines, in {x['queries']} queries"
+            for d, _ in LLM_QUERY_DATASETS for t, by_kind in (digits["datasets"].get(d) or {}).items()
+            for k, x in by_kind.items() if x["kept_lines_losing_digits"]]
+    total = digits["total"]
+    return ("Kept but altered (not a fallback): the declared parser's numbering-and-bullet strip also removed leading digits that "
+            "belong to the text (\"401k plan\" became \"k plan\") from " + f"{total['kept_lines_losing_digits']} kept LLM lines in "
+            f"{total['model_query_pairs']} (model, query) pairs" + (": " + "; ".join(hits) + "; none in any other dataset, model or kind" if hits else "")
+            + ". The parser is frozen at D1, so the scored rows used these lines as altered; a corrected parser would be a second "
+            f"attempt and was not run, so their effect is not measured (`make llm-query-audit`, {LLM_QUERY_AUDIT_FILE} `parser_digits`).")
+
+
 def _llm_query_stretch_status(spec, stretch: dict) -> str:
     """The qwen3.5:122b stretch's status from the committed files alone: scored where its results file exists, "not
     scored" elsewhere. Whether its generation ran, is pending or never started is not in a committed file (NOTES)."""
@@ -3277,7 +3297,9 @@ def llm_query_arms_table(root: Path | None) -> str:
               "", f"{total.get('total', 0)} paired nDCG@10 intervals in the milestone's files, none corrected for multiplicity; each "
                   "evidence row names its arm, not a selected cell.",
               "", "LLM fallbacks (each call that failed, came back empty, did not parse or was cut, and what the arm did instead): "
-                  + ("; ".join(fallbacks) if fallbacks else "none") + ".",
+                  + ("; ".join(fallbacks) if fallbacks else "none") + "."]
+    digits = _llm_query_parser_digits(root, spec)
+    lines += ([""] + [digits] if digits else []) + [
               "", _llm_query_stretch_status(spec, stretch),
               "", "**What this does not show.** " + " ".join((next(iter(blobs.values())).get("does_not_show") or [])),
               "", "Results: " + " · ".join(f"[{bar.RESULTS[d]}]({bar.RESULTS[d]})" for d, _ in present)

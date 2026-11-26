@@ -1024,6 +1024,33 @@ def test_the_stretch_status_says_only_what_the_committed_files_show(fixture_pipe
         path.unlink()
 
 
+def test_the_parser_digit_count_reaches_the_readme_block_and_the_evidence_rows(fixture_pipeline, tmp_root):
+    """The audit's (e) count is printed beside the fallbacks (not as one) and in the multi-query and decomposition
+    evidence rows; with no audit file, neither says anything."""
+    from app.eval import evidence, report
+    from app.eval import llm_query_audit as audit
+    from app.eval.llm_query_arms import load_parents
+
+    path = tmp_root / "bench" / "results" / "llm_query_audit.json"
+    assert not path.exists()
+    assert "Kept but altered" not in report.llm_query_arms_table(tmp_root)
+    digits = audit.parser_digits_audit(tmp_root, list(spec.BAR_MODELS), {"fixture": load_parents(tmp_root)["fixture"]})
+    digits["datasets"]["fixture"]["qwen3.5-27b"]["multiquery"].update(kept_lines_losing_digits=2, queries=1, qids=["q001"])
+    digits["total"] = {"kept_lines_losing_digits": 2, "model_query_pairs": 1}
+    path.write_text(json.dumps({"parser_digits": digits}))
+    try:
+        text = report.llm_query_arms_table(tmp_root)
+        assert ("from 2 kept LLM lines in 1 (model, query) pairs: fixture v1, all questions qwen3.5:27b multi-query alternatives: "
+                "2 of 272 kept lines, in 1 queries; none in any other dataset, model or kind.") in text
+        assert text.index("LLM fallbacks (") < text.index("Kept but altered") < text.index("The qwen3.5:122b stretch:")
+        rows = evidence._llm_query_claims(tmp_root)
+        mq = [r for r in rows if "multiquery[qwen3.5-27b]" in r["claim"]]
+        assert mq and all("parser stripped, used as altered and not re-measured: fixture v1, all questions 2 of 272" in r["not_shown"] for r in mq)
+        assert not any("parser stripped" in r["not_shown"] for r in rows if "hyde[" in r["claim"] or "corrective[" in r["claim"])
+    finally:
+        path.unlink()
+
+
 def test_one_evidence_row_per_measured_arm_of_the_two_bar_models(fixture_pipeline, tmp_root):
     from app.eval.evidence import _llm_query_claims
 

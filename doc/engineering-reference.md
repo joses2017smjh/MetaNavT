@@ -1421,6 +1421,7 @@ Decomposition with each sub-question reranked against itself is below zero on Fi
 Multi-query expansion covers zero on SciFact and FiQA at both of its placements for both models; with no reranker it is below zero on the fixture's held-out half for qwen3.5:27b.
 The cross-encoder itself covers zero against P0 on SciFact, +0.0159 [-0.0073, +0.0402], and is above zero on FiQA and on the fixture's held-out half.<!-- num: bench/results/beir_scifact_llm_query_arms.json#/scopes/test/comparisons/0/ndcg@10/delta; #/scopes/test/comparisons/0/ndcg@10/lo; #/scopes/test/comparisons/0/ndcg@10/hi -->
 The memorisation audit finds no HyDE passage that shares a run of 13 or more words verbatim with a relevant BEIR document, and few fixture outputs that hold a gold answer (gemma4:26b's HyDE passages, 4 of the 80 simple factual questions) or name a gold path; pretraining exposure stays unknown.<!-- num: bench/results/llm_query_audit.json#/beir_verbatim/scifact/span; #/fixture/answers/models/gemma4-26b/hyde/hits; #/fixture/answers/models/gemma4-26b/hyde/n -->
+The declared parser's numbering-and-bullet strip also removes leading digits that belong to the text ("401k plan" becomes "k plan"): the audit counts 16 kept multi-query alternatives altered that way, in 15 (model, query) pairs, on SciFact 1 for qwen3.5:27b and 1 for gemma4:26b and on FiQA 4 and 10, and none among the sub-questions or on the fixture; the scored rows used them as altered, and a corrected parser would be a second attempt, so their effect is not measured.<!-- num: bench/results/llm_query_audit.json#/parser_digits/total/kept_lines_losing_digits; #/parser_digits/total/model_query_pairs; #/parser_digits/datasets/scifact/qwen3.5-27b/multiquery/kept_lines_losing_digits; #/parser_digits/datasets/scifact/gemma4-26b/multiquery/kept_lines_losing_digits; #/parser_digits/datasets/fiqa/qwen3.5-27b/multiquery/kept_lines_losing_digits; #/parser_digits/datasets/fiqa/gemma4-26b/multiquery/kept_lines_losing_digits -->
 One defect of the frozen decision code is left as it is: the generated HyDE sentence prints the name as "hyDE"; changing that code after the declaration would make a second attempt.
 
 **What this does not show.** Answer quality: these are rankings only, and the
@@ -1434,7 +1435,9 @@ to BEIR or to this repository, which the audit bounds only for verbatim copying
 and path mentions. A stronger first stage or reranker: bge-small and
 bge-reranker-v2-m3 only, and stronger ones may leave less room. Multi-query
 after the reranker, corrective before it, combinations of techniques, more than
-one corrective round: not measured. No correction for multiplicity.
+one corrective round: not measured. What the kept lines whose leading digits the
+frozen parser stripped did to any interval: counted by the audit, not measured.
+No correction for multiplicity.
 
 ## The API serves the benchmarked pipeline
 

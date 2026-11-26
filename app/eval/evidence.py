@@ -1101,6 +1101,12 @@ def _llm_query_claims(root: Path = ROOT) -> list[dict]:
                 fx = ((audit.get("fixture") or {}).get("answers") or {}).get("models", {}).get(tag, {}).get(row["technique"] if row["technique"] != "corrective" else "rewrite")
                 if fx:
                     audit_note = f"audit: {fx['hits']} of {fx['n']} of its fixture outputs contain the gold answer (bench/results/llm_query_audit.json); "
+                digits = audit.get("parser_digits")
+                if digits and row["technique"] in ("multiquery", "decompose"):
+                    parts = [f"{every[d]} {x['kept_lines_losing_digits']} of {x['kept_lines']}" for d in measured
+                             if (x := ((digits["datasets"].get(d) or {}).get(tag) or {}).get(row["technique"]))]
+                    audit_note += (f"kept LLM lines whose leading digits the declared (frozen) parser stripped, used as altered and not "
+                                   f"re-measured: {', '.join(parts)} (audit parser_digits); ")
             out.append({
                 "claim": (f"{spec.MODELS[tag]['name']}: {spec.TECHNIQUE_NAMES[row['technique']]} {phrase[row['placement']]}, `{row['config']}` minus "
                           f"`{row['parent']}`, paired delta in nDCG@10 on the three datasets of M46's declared bar"),
