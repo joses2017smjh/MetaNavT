@@ -378,7 +378,7 @@ a change on purpose: `make bench-baseline`, review
 Keep the committed corpus when comparing against the published table. Use
 `make freeze-corpus` only when intentionally rebuilding that benchmark input.
 
-GitHub does not run `doc/demo.html` (it shows the source, which is why that link looked dead). The GIFs below are the preview. After clone: `open doc/demo.html`. The chrome is the app: `#121212`, lavender / gold / sky / pink radials from [`globals.css`](../.frontend/app/globals.css).
+GitHub does not run `doc/demo.html` (it shows the source, which is why that link looked dead). The GIFs below are the preview. After clone: `open doc/demo.html`. The chrome is the web client's earlier dark look (`#121212`, lavender / gold / sky / pink radials); the client itself now has a light palette ([`globals.css`](../.frontend/app/globals.css)).
 
 ---
 
@@ -2844,6 +2844,22 @@ links to the repository and the README's benchmark tables. Every request goes to
 `apiFetch`, and whatever the API returns is rendered as text. `.frontend/tests/demo.test.tsx` checks the switch,
 search, an answer with its citations, each reason, the quota and input refusals and the origin against a mocked API;
 `tests/api/test_public_demo.py` checks that the page's limits and paths are the routes'.
+
+**The page's sections.** In both modes the page is laid out in sections under a navigation bar that links each one
+(`.frontend/app/components/home-switch.tsx`): first what the API serves (Search and Ask on the demo page; Chat and
+Files otherwise), then Dataset, Pipeline and Capabilities. Dataset and Pipeline
+(`.frontend/app/components/system/`) show what the same `/health` answer says, read once at load: the files and
+chunks in the index, the chunker and the pipeline label; then, one stage at a time, the route, the lexical backend
+(`ts_rank_cd` named as PostgreSQL's full-text rank, not BM25), the embedder and the dense search's settings, the
+fusion, and the reranker (a server without one is said to serve the fused order, a fallback), and on the demo page
+the answer stage, with the note that answers are not evaluated here. A field the answer does not have is shown as
+"not reported": the page holds no value of its own for any of them, and when `/health` is not a JSON object the two
+sections and their links are left out. Capabilities lists what the project does and where each part lives (the
+public demo, the full application, the repository), marks the ones the API behind the page serves, and carries no
+measurement. `.frontend/tests/sections.test.tsx` checks the links, the values, the fallbacks' wording and the marks
+against a mocked API. The look is in `.frontend/app/globals.css` and `.frontend/tailwind.config.ts` (a light
+palette; a serif for headings, a sans for text and a mono for paths, scores and excerpts, which
+`.frontend/app/layout.tsx` downloads at build time, so the browser asks no font host for them).
 
 The deploy contract, the names the production Compose file, the AWS ECS stack and the single host set
 (`ORIGIN_VERIFY_SECRET` on the single host only: the ECS stack's load balancer checks CloudFront's header itself):
