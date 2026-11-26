@@ -402,6 +402,88 @@ distill-train: ## train one student by the declared recipe: STUDENT=student-mini
 distill-manifest: ## the students' weights sha256, recipe, loss curve and reference logits, from their checkpoints (CHECKPOINTS=<dir>) -> bench/distill/students.json
 	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS)
 
+# ---- M51 Phase 2: the two students retrained by M43's RECIPE with only max_length 256 (attempt 2; declared in
+# app/eval/small_rerankers_shapes.py PHASE2 before any M51 row ran). Reads M43's synthetic queries and teacher scores
+# only: no test query, gold question or label. The checkpoints are not committed; the manifest is.
+.PHONY: distill-train-ml256 distill-manifest-ml256
+distill-train-ml256: ## M51 Phase 2: retrain one student at max_length 256 as attempt 2 under the tag <student>-ml256 (STUDENT=student-minilm-l6|student-minilm-l12, CHECKPOINTS=<dir>; TRAIN_MICRO=n; TRAIN_MAX_STEPS=n is a smoke run the manifest refuses; needs .[ml] and a GPU) -> $(CHECKPOINTS)/$(STUDENT)-ml256/ (not committed)
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.distill_train train --student $(STUDENT) --max-length 256 --attempt 2 --tag $(STUDENT)-ml256 --data-dir $(BEIR_DATA_DIR) --checkpoint-dir $(CHECKPOINTS) $(if $(TRAIN_MICRO),--micro-lists $(TRAIN_MICRO)) $(if $(TRAIN_MAX_STEPS),--max-steps $(TRAIN_MAX_STEPS))
+
+distill-manifest-ml256: ## M51 Phase 2: the retrained students' weights sha256, recipe, loss curve, training device and reference logits, from their checkpoints (CHECKPOINTS=<dir>; refuses a smoke run, a dirty tree or another attempt) -> bench/distill/students_ml256.json
+	$(PYTHON) -m app.eval.distill_train manifest --checkpoint-dir $(CHECKPOINTS) --students student-minilm-l6-ml256,student-minilm-l12-ml256 --attempt 2 --out bench/distill/students_ml256.json
+
+# ---- M51: the small rerankers at cheaper shapes (app/eval/small_rerankers_shapes.py) ----
+# The grid (6 models x depth 5/10/20 x max_length 256/512), the budget bands, the families and the answer levels were
+# declared before any row at a new shape was measured; these two targets are CPU-only and read committed files.
+.PHONY: small-rerankers-shapes-mde small-rerankers-shapes-exposure
+small-rerankers-shapes-mde: ## the design-time Bonferroni half-widths (F1 k=6, F2 k=16) of the paired nDCG@10 delta, from M43's committed sidecars (CPU, seconds) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --mde
+
+small-rerankers-shapes-exposure: ## which BEIR SciFact / FiQA test queries have a relevant document among the students' synthetic source documents (CPU; needs BEIR_DATA_DIR) -> bench/results/small_rerankers_shapes_exposure.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --exposure --data-dir $(BEIR_DATA_DIR)
+
+# The rows (GPU): every model at every shape over hybrid@bge-small, the parent recomputed, the six 20/512 rows checked
+# against M43's committed rows (the anchors). OUT= writes elsewhere (the replicate: *_shapes_rep.json); ROWS=anchors
+# runs only the parent and the six 20/512 rows on BEIR (the smoke). CHECKPOINTS=<dir> holds the students' checkpoints.
+.PHONY: small-rerankers-shapes-check small-rerankers-shapes-smoke bench-small-rerankers-shapes bench-beir-small-rerankers-shapes bench-beir-fiqa-small-rerankers-shapes
+small-rerankers-shapes-check: ## load the six models at max_length 256 and 512 (fp32), check each pin, read loaded_max_length and the dtype back and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --check $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+small-rerankers-shapes-smoke: ## fixture v1: the parent and the six 20/512 rows against M43's file (three scopes), every other shape on the tune half only with the depth and truncation invariants pass/fail; writes nothing (needs .[ml] and a GPU; CHECKPOINTS=<dir>) -> stdout
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --smoke $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-small-rerankers-shapes: ## fixture v1 at every shape: held-out half (the bar), tune half, all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --out $(or $(OUT),bench/results/small_rerankers_shapes.json) $(if $(MODELS),--models $(MODELS)) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS))
+
+bench-beir-small-rerankers-shapes: ## BEIR SciFact at every shape (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>; ROWS=anchors) -> bench/results/beir_scifact_small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-shapes --rows $(or $(ROWS),all) --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_scifact_small_rerankers_shapes.json)
+
+bench-beir-fiqa-small-rerankers-shapes: ## BEIR FiQA at every shape (needs .[ml] and a GPU; CHECKPOINTS=<dir>; OUT=<file>; ROWS=anchors) -> bench/results/beir_fiqa_small_rerankers_shapes.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-shapes --rows $(or $(ROWS),all) --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_shapes.json)
+
+# From the committed files (CPU, no model): the anchors, the frontier (quality x indicative cost per cell and the
+# answer per family), every number again from the sidecars, the bar, and the replicate against the result.
+.PHONY: small-rerankers-shapes-anchors small-rerankers-shapes-frontier small-rerankers-shapes-rescore small-rerankers-shapes-bar small-rerankers-shapes-replicate
+small-rerankers-shapes-anchors: ## the parent and the six 20/512 rows of each shapes file against M43's committed rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
+	$(PYTHON) -m app.eval.small_rerankers_shapes --anchors $(FILES)
+
+small-rerankers-shapes-frontier: ## per cell its band, indicative cost and deltas (95% and the family's Bonferroni level), and the F1 / F2 answers, from the committed files (CPU) -> bench/results/small_rerankers_shapes_frontier.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier
+
+small-rerankers-shapes-rescore: ## recompute every interval, per-row total and invariant of the three shapes files from their sidecars, and the frontier from them (CPU, no model, no dataset); exit 1 unless all equal
+	$(PYTHON) -m app.eval.small_rerankers_shapes --rescore
+
+small-rerankers-shapes-bar: ## print the 36 cells and both family answers from the frontier file -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --bar
+
+small-rerankers-shapes-replicate: ## the replicate's files (*_shapes_rep.json, the other device) against the result's, row by row (CPU) -> bench/results/small_rerankers_shapes_replicate.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --replicate
+
+# M51 Phase 2 rows: the two students retrained at 256 (attempt 2) at depth 5/10/20 x max_length 256, beside the
+# attempt-1 students and their inits at the same shapes (the anchors: they must equal the committed shapes rows).
+# CHECKPOINTS=<attempt-1 dir>, ML256_CHECKPOINTS=<attempt-2 dir>; the CPU targets read the committed files only.
+.PHONY: small-rerankers-ml256-check bench-small-rerankers-ml256 bench-beir-small-rerankers-ml256 bench-beir-fiqa-small-rerankers-ml256 small-rerankers-ml256-anchors small-rerankers-ml256-frontier small-rerankers-ml256-bar
+small-rerankers-ml256-check: ## Phase 2: load the attempt-2 students, the attempt-1 students and their inits at max_length 256, check each pin and run the load-and-score check (needs .[ml]; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>) -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --check --phase2 $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS))
+
+bench-small-rerankers-ml256: ## Phase 2 on fixture v1: held-out half, tune half, all 136 questions (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.small_rerankers_shapes --phase2 --out $(or $(OUT),bench/results/small_rerankers_ml256.json) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS))
+
+bench-beir-small-rerankers-ml256: ## Phase 2 on BEIR SciFact (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/beir_scifact_small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_scifact_small_rerankers_ml256.json)
+
+bench-beir-fiqa-small-rerankers-ml256: ## Phase 2 on BEIR FiQA (needs .[ml] and a GPU; CHECKPOINTS=<dir>, ML256_CHECKPOINTS=<dir>; OUT=<file>) -> bench/results/beir_fiqa_small_rerankers_ml256.json
+	BGE_ALLOW_DOWNLOAD=1 $(PYTHON) -m app.eval.beir --ladder small-rerankers-ml256 --dataset fiqa --data-dir $(BEIR_DATA_DIR) $(if $(CHECKPOINTS),--checkpoint-dir $(CHECKPOINTS)) $(if $(ML256_CHECKPOINTS),--ml256-checkpoint-dir $(ML256_CHECKPOINTS)) --out $(or $(OUT),bench/results/beir_fiqa_small_rerankers_ml256.json)
+
+small-rerankers-ml256-anchors: ## Phase 2: the parent, the attempt-1 students and their inits at 5/10/20 x 256 of each Phase-2 file against M51's committed shapes rows (FILES=<results files>; default the three committed) -> stdout, exit 1 on a metric difference
+	$(PYTHON) -m app.eval.small_rerankers_shapes --phase2 --anchors $(FILES)
+
+small-rerankers-ml256-frontier: ## Phase 2: per attempt-2 cell its cost (the attempt-1 row's), deltas vs no reranker (95% and F3's Bonferroni level), vs the attempt-1 student and vs the init, and the F3 answer (CPU) -> bench/results/small_rerankers_ml256_frontier.json
+	$(PYTHON) -m app.eval.small_rerankers_shapes --frontier --phase2
+
+small-rerankers-ml256-bar: ## Phase 2: print the six attempt-2 cells and the F3 answer from its frontier file -> stdout
+	$(PYTHON) -m app.eval.small_rerankers_shapes --bar --phase2
+
 # ---- M49: late interaction (ColBERT MaxSim) on text, measured or retired (app/eval/late_interaction.py) ----
 # The bar, the rows, the tripwire and the models were declared in that module (commit 26585e8) before any row ran. Each
 # dataset runs in two parts, each its own results file: PART=primary (the parents, the two named models in both roles,

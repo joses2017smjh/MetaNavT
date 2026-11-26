@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-late-interaction")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-late-interaction"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-small-rerankers-shapes", "bench-late-interaction"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: the RL search policy, trained once
 FRONTIER_FILE = "bench/results/frontier.json"
@@ -101,6 +101,8 @@ SOURCES = {
     "bench-rerank-arms": RERANK_ARMS_FILE,
     "search-policy": SEARCH_POLICY_FILE,
     "bench-small-rerankers": f"{SMALL_RERANKERS_FILE}, {BEIR_SMALL_RERANKERS_FILE}, {BEIR_FIQA_SMALL_RERANKERS_FILE}, {SMALL_RERANKERS_CPU_FILE} and bench/distill/",
+    "bench-small-rerankers-shapes": ("bench/results/small_rerankers_shapes_frontier.json, the three small_rerankers_shapes results files, "
+                                     "small_rerankers_shapes_exposure.json and small_rerankers_shapes_replicate.json"),
     "bench-late-interaction": "bench/results/late_interaction*.json, bench/results/beir_*_late_interaction*.json and bench/results/late_interaction_runs/",
 }
 NEURAL_REFERENCE = "bm25_only"
@@ -3109,6 +3111,244 @@ def small_rerankers_table(root: Path | None) -> str:
     return "\n".join(lines)
 
 
+# M51: the same small rerankers at cheaper shapes (app/eval/small_rerankers_shapes.py): the frontier file holds the
+# cells, their bands, their family-level intervals and the answers; the three results files the runs.
+SMALL_RERANKERS_SHAPES_FIGURE = "doc/figures/small-rerankers-shapes.svg"
+SHAPE_DATASETS = (("fixture", "fixture held-out"), ("scifact", "SciFact"), ("fiqa", "FiQA"))
+SHAPE_FILES = (("fixture", "fixture v1"), ("scifact", "SciFact"), ("fiqa", "FiQA"))  # a whole run or file, not the held-out half
+SHAPE_VERDICT = {"win": "win", "tie": "tie", "loss": "**loss**", None: "—"}
+
+
+def _shape_cell(block: dict | None, word: str | None) -> str:
+    return f"{_delta4(block)} {SHAPE_VERDICT[word]}" if block else "not run"
+
+
+def fixture_near_twins(root: Path | None) -> dict | None:
+    """M43's near-twin count for fixture v1 (bench/distill/queries.meta.json): of the synthetic fixture queries the
+    filter checked, how many reach the lowest bge-small cosine it counted to a gold question. M43's evidence rows and
+    M51's block and evidence rows all quote this one figure, so they cannot disagree."""
+    near = (((_load(root, DISTILL_QUERIES_META) or {}).get("near_duplicates") or {}).get("by_corpus") or {}).get("fixture")
+    at = ((near or {}).get("at_other_thresholds") or {}).get("cosine_at_least")
+    if not at:
+        return None
+    low = min(at, key=float)
+    return {"n": at[low], "checked": near["checked"], "cosine": low}
+
+
+def _near_twin_line(root: Path | None, who: str) -> list[str]:
+    t = fixture_near_twins(root)
+    if not t:
+        return []
+    return ["", f"M43's near-twin caveat on {who} fixture cells: the students were trained on synthetic queries over every fixture chunk (never a "
+                f"gold question or label), and those queries sit close to fixture v1's templated gold questions: {t['n']} of {t['checked']} reach "
+                f"bge-small cosine {t['cosine']} to one (`{DISTILL_QUERIES_META}`). A student's fixture win says less than its SciFact and FiQA rows."]
+
+
+def _training_lines(root: Path | None, manifest: dict) -> tuple[str, str]:
+    """(where each attempt-2 student trained, against where attempt 1 trained its twin; the distillation targets)."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    before = (_load(root, DISTILL_STUDENTS) or {}).get("students") or {}
+    trained, targets = [], []
+    for tag, e in (manifest.get("students") or {}).items():
+        twin = shapes.PHASE2["students"].get(tag)
+        device, was = e.get("training_device"), (((before.get(twin) or {}).get("machine") or {}).get("device_name"))
+        part = f"`{tag}` on {device}, epoch {e.get('chosen_epoch')} kept"
+        if was:
+            part += f", where attempt 1 trained `{twin}` on {was}" + (" (the same device class)" if was == device else ": a second difference beside max_length")
+        trained.append(part)
+        target = (e.get("recipe") or {}).get("targets")
+        if target and target not in targets:
+            targets.append(target)
+    return "; ".join(trained), " / ".join(targets)
+
+
+def _ml256_lines(root: Path | None, named) -> list[str]:
+    """M51 Phase 2: the students retrained at max_length 256 (attempt 2), their family F3 and its answer, each cell
+    against no reranker, against the attempt-1 student and against the init; or that no Phase-2 result is committed."""
+    from app.eval import small_rerankers_shapes as shapes
+
+    front = _load(root, shapes.ML256_FRONTIER_FILE)
+    head = f"**Phase 2** ({shapes.PHASE2['label']}; family F3, its own answer, never merged into F1 or F2)"
+    if not front:
+        return ["", head + ": no result committed. Both students above were trained at max_length 512, so a loss at 256 may be a train/test length mismatch."]
+    a = front["answers"]["F3"]
+    blobs = {d: _load(root, rel) for d, rel in shapes.ML256_RESULTS.items()}
+    manifest = _load(root, shapes.PHASE2["manifest"]) or {}
+    trained, targets = _training_lines(root, manifest)
+    runs = "; ".join(f"{label}: {_device(blobs[d])}, results sha {_sha(blobs[d])}" for d, label in SHAPE_FILES if blobs.get(d))
+    out = ["", head + f": **F3 answer: {a['answer']}**{named(a)} (the {a['k']} attempt-2 cells whose attempt-1 twin is under-indicative-budget; "
+                      f"Bonferroni percentiles {a['percentiles'][0]:g} / {a['percentiles'][1]:g}). Both students were retrained once by M43's recipe "
+                      f"with only the recipe's max_length changed to 256 ({trained}), and run beside the attempt-1 students and their inits at the same shapes ({runs}). "
+                      + (f"The distillation targets did not change: {targets} (the manifest's `recipe.targets`), so only the student's own input "
+                         "is cut at 256. " if targets else "")
+                      + "A cell's cost is the same-architecture attempt-1 row's (same architecture, tokenizer and cap), not measured again.", "",
+           "| cell | cost of the attempt-1 row: p95 ms / peak MiB | band | " + " | ".join(f"{label}: Δ vs no reranker" for _, label in SHAPE_DATASETS)
+           + " | F3-level verdicts | vs the attempt-1 student: " + ", ".join(label for _, label in SHAPE_DATASETS) + " | vs the init: " + ", ".join(label for _, label in SHAPE_DATASETS) + " |",
+           "|---|---:|---|" + "---:|" * len(SHAPE_DATASETS) + "---|---|---|"]
+    for c in front["cells"]:
+        cost = c["indicative_cpu"]
+        cells = " | ".join(_shape_cell(c["datasets"][d].get("vs_parent"), c["datasets"][d].get("verdict")) for d, _ in SHAPE_DATASETS)
+        fam = ", ".join(shapes.verdict(c["datasets"][d]["adjusted"]["F3"]) or "—" for d, _ in SHAPE_DATASETS) if c["families"] else "—"
+        vs1 = "; ".join(_delta4(c["datasets"][d].get("vs_attempt_1")) for d, _ in SHAPE_DATASETS)
+        vsi = "; ".join(_delta4(c["datasets"][d].get("vs_init")) for d, _ in SHAPE_DATASETS)
+        out.append(f"| `{c['tag']}` {c['depth']}/{c['max_length']} | {cost['p95_ms']:,.1f} / {cost['peak_mib']:,} | {c['band']} | {cells} | {fam} | {vs1} | {vsi} |")
+    out += _near_twin_line(root, "the retrained students'")
+    notes = []
+    for d, label in SHAPE_FILES:
+        x = (front.get("anchors") or {}).get(d) or {}
+        good = x.get("all") if d == "fixture" else x.get("metrics_equal")
+        n = (x.get("scopes") or {}).get("held_out", {}).get("n_compared") if d == "fixture" else x.get("n_compared")
+        notes.append(f"{label} {n} rows {'equal' if good else 'DIFFER'}" + (f" (ranking-only differences: {_and([f'`{r}`' for r in x['ranking_differences']])})" if x.get("ranking_differences") else ""))
+    diffs = front.get("anchor_per_query_differences_vs_m51") or {}
+    out += ["", "The anchors (the parent, the attempt-1 students and their inits at the same shapes, against the committed shapes rows): " + "; ".join(notes)
+            + "; per-query values differing: " + ", ".join(f"{label} {diffs.get(d, '?')}" for d, label in SHAPE_FILES)
+            + f". Results: " + " · ".join(f"[{rel}]({rel})" for rel in (*shapes.ML256_RESULTS.values(), shapes.ML256_FRONTIER_FILE, shapes.PHASE2["manifest"])) + "."]
+    return out
+
+
+def small_rerankers_shapes_table(root: Path | None) -> str:
+    """M51: every model at every shape (depth 5/10/20 x max_length 256/512) against the unreranked hybrid on the three
+    datasets, with its indicative CPU cost and band, the answer per family, the cost of cheapening against the served
+    shape, the anchors, the replicate and what the block does not show."""
+    from app.eval import small_rerankers as sr
+    from app.eval import small_rerankers_shapes as shapes
+
+    front = _load(root, shapes.FRONTIER_FILE)
+    if not front:
+        return (f"_{shapes.FRONTIER_FILE} is missing; run `make bench-small-rerankers-shapes`, `make bench-beir-small-rerankers-shapes` and "
+                f"`make bench-beir-fiqa-small-rerankers-shapes` (GPU), then `make small-rerankers-shapes-frontier`._")
+    blobs = {d: _load(root, rel) for d, rel in shapes.RESULTS.items()}
+    exposure = (_load(root, shapes.EXPOSURE_FILE) or {}).get("datasets", {})
+    rep = _load(root, shapes.REPLICATE_FILE)
+    rules, limit = shapes.BAND_RULES, front["limit_mib"]
+    runs = "; ".join(f"{label}: `{cmd}`, {_device(blobs[d])}, results sha {_sha(blobs[d])}" for (d, label), cmd in
+                     zip(SHAPE_FILES, ("make bench-small-rerankers-shapes", "make bench-beir-small-rerankers-shapes", "make bench-beir-fiqa-small-rerankers-shapes"))
+                     if blobs.get(d))
+    f1, f2 = front["answers"]["F1"], front["answers"]["F2"]
+    named = lambda a: (": " + _and([f"`{c}`" for c in a["cells"]])) if a["cells"] and a["answer"] != "NO" else ""  # noqa: E731
+    exp = (f"{exposure['scifact']['n_exposed_queries']} of {exposure['scifact']['n_test_queries']} SciFact and "
+           f"{exposure['fiqa']['n_exposed_queries']} of {exposure['fiqa']['n_test_queries']} FiQA test queries, and every fixture question"
+           if exposure.get("scifact") and exposure.get("fiqa") else "see the exposure file")
+    lines = [
+        f"M43 measured the small rerankers at one shape, the single host's (the fused top {sr.SHAPE['rerank_top']} at max_length "
+        f"{sr.SHAPE['max_length']}), where every model is over the api container's {limit} MiB on the indicative CPU. This block asks one question "
+        f"of the cheaper shapes: **is there any shape that beats no reranker on all three datasets and is under the indicative HPC-CPU budget?** "
+        f"Six models at depth {_and([str(d) for d in shapes.DEPTHS])} and max_length {_and([str(m) for m in shapes.MAX_LENGTHS])}, fp32, over "
+        f"`{shapes.PARENT}` ({runs}). The grid, the bands, the families and the answer levels were committed before any row at a new shape ran "
+        f"(`app/eval/small_rerankers_shapes.py`; git order is the proof); this search follows M43's failed search at the served shape.",
+        "",
+        f"**Bands** (quality-blind, from `{shapes.CPU_FILE}` and `api_memory_mib` = {limit} MiB in `{shapes.LIMIT_FILE}`): under-indicative-budget is "
+        f"p95 ≤ {rules['p95_ms_under']:g} ms and peak ≤ {rules['headroom']:g} × {limit} MiB; borderline is p95 ≤ {rules['p95_ms_borderline']:g} ms "
+        f"and peak ≤ {limit} MiB; everything else is over budget. They are budgets on one HPC CPU (Xeon Silver 4114, 2 torch threads), "
+        f"**not host budgets**: the t3.small can be more than twice as slow, and no band says a shape fits the host.",
+        "",
+        f"**The answer.** F1, the {front['answers']['F1']['k']} under-indicative-budget cells (the headline, Bonferroni level at percentiles "
+        f"{f1['percentiles'][0]:g} / {f1['percentiles'][1]:g}): **{f1['answer']}**{named(f1)}. F2, F1 plus the borderline cells "
+        f"({f2['k']} cells, percentiles {f2['percentiles'][0]:g} / {f2['percentiles'][1]:g}): **{f2['answer']}**{named(f2)}; F2 never modifies F1. "
+        f"Each family controls its own family-wise error at 5%; the families are not jointly controlled. YES needs a cell's family-level interval "
+        f"above zero on all three datasets; PASSES PER CELL, NOT AFTER ADJUSTMENT is a cell above zero on all three at 95% only; NO needs every "
+        f"cell of the family to lose somewhere at 95%; NOT SHOWN at this n is none of those, and it is not evidence that the cheap shapes do not help.",
+        "",
+        "| model | depth / max_length | indicative p95 ms / peak MiB | band | " + " | ".join(f"{label}: Δ nDCG@10 vs no reranker [95% CI]" for _, label in SHAPE_DATASETS)
+        + " | wins all three at 95% | family-level verdicts (fixture, SciFact, FiQA) | student's exposure (fixture, SciFact, FiQA) |",
+        "|---|---|---:|---|" + "---:|" * len(SHAPE_DATASETS) + ":---:|---|---|",
+    ]
+    for c in front["cells"]:
+        cost = c["indicative_cpu"]
+        cells = " | ".join(_shape_cell(c["datasets"][d].get("vs_parent"), c["datasets"][d].get("verdict")) for d, _ in SHAPE_DATASETS)
+        fam = "; ".join(f"{f}: " + ", ".join(shapes.verdict(c["datasets"][d]["adjusted"][f]) or "—" for d, _ in SHAPE_DATASETS) for f in c["families"]) or "—"
+        seen = (f"all, {exposure['scifact']['n_exposed_queries']}/{exposure['scifact']['n_test_queries']}, "
+                f"{exposure['fiqa']['n_exposed_queries']}/{exposure['fiqa']['n_test_queries']}") if c["tag"] in sr.STUDENTS and exposure.get("fiqa") else "—"
+        lines.append(f"| {c['tag']} | {c['depth']} / {c['max_length']} | {cost['p95_ms']:,.1f} / {cost['peak_mib']:,} | {c['band']} | {cells} | "
+                     f"{'**yes**' if c['passes_at_95'] else 'no'} | {fam} | {seen} |")
+    lines += _near_twin_line(root, "the students'")
+    lines += ["", "The cost of cheapening: each cell against the same model at the served 20/512 shape, paired, 95% (descriptive, no "
+                  "adjustment, not part of the answer; an interval covering zero is no measured difference, not equivalence, least of all at n = 68), "
+                  "and a student against the published model it started from at the same shape:", "",
+              "| cell | " + " | ".join(f"vs 20/512, {label}" for _, label in SHAPE_DATASETS) + " | " + " | ".join(f"student vs init, {label}" for _, label in SHAPE_DATASETS) + " |",
+              "|---|" + "---:|" * (2 * len(SHAPE_DATASETS))]
+    for c in front["cells"]:
+        if (c["depth"], c["max_length"]) == shapes.ANCHOR and c["tag"] not in sr.STUDENTS:
+            continue
+        anchor = " | ".join(_delta4(c["datasets"][d].get("vs_20_512")) for d, _ in SHAPE_DATASETS)
+        init = " | ".join(_delta4(c["datasets"][d].get("vs_init")) for d, _ in SHAPE_DATASETS)
+        lines.append(f"| `{c['tag']}` {c['depth']}/{c['max_length']} | {anchor} | {init} |")
+    sens = [c for c in front["cells"] if "F1" in c["families"] or (c["tag"] in sr.STUDENTS and c["families"])]
+    if sens:
+        lines += ["", "Sensitivity checks declared with the bar (descriptive, computed on a CPU from the sidecars; they never change an answer): "
+                      "the paired sign-flip permutation p-value of each F1 cell's nDCG@10 delta (20,000 sign draws, seed 0), and each student "
+                      "cell's delta re-read on the BEIR test queries with no relevant document among the students' training documents:", "",
+                  "| cell | band | sign-flip p: fixture held-out, SciFact, FiQA | SciFact without exposed queries [95% CI] | FiQA without exposed queries [95% CI] |",
+                  "|---|---|---|---:|---:|"]
+        for c in sens:
+            ps = ", ".join(f"{c['datasets'][d]['sign_flip_p']:.5f}" for d, _ in SHAPE_DATASETS) if "F1" in c["families"] else "—"
+            ex = [(c["datasets"][d].get("exposure_excluded") or None) for d in ("scifact", "fiqa")]
+            lines.append(f"| `{c['tag']}` {c['depth']}/{c['max_length']} | {c['band']} | {ps} | "
+                         + " | ".join(f"{_delta4(e)} (n = {e['n']})" if e else "—" for e in ex) + " |")
+    cut = {d: sum((c["datasets"][d].get("truncated_pairs") or {}).get("total", 0) for c in front["cells"] if c["max_length"] == 256) for d, _ in SHAPE_FILES}
+    same = {d: sum(1 for c in front["cells"] if c["max_length"] == 256 and c["datasets"][d].get("n_queries_ranked_unlike_512") == 0) for d, _ in SHAPE_FILES}
+    lines += ["", "What the 256-token cap did: reranked pairs cut at 256 tokens, summed over the 18 cap-256 cells and over every question "
+              "of each run (on the fixture both halves, while the deltas above are the held-out half's), "
+              + "; ".join(f"{label} {cut[d]:,}" for d, label in SHAPE_FILES)
+              + "; cap-256 cells that rank every query as their 512 twin: " + "; ".join(f"{label} {same[d]} of 18" for d, label in SHAPE_FILES)
+              + ". On the fixture no pair is longer than 256 tokens, so there the cap measures nothing and every 256 row ranks as its 512 row."]
+    notes = []
+    for d, label in SHAPE_FILES:
+        a = (front.get("anchors") or {}).get(d) or {}
+        if d == "fixture":
+            ok = a.get("all")
+            notes.append(f"{label}: the parent and the six 20/512 rows equal M43's committed rows in every scope" if ok else f"{label}: the anchors differ ({a})")
+        else:
+            ok = a.get("metrics_equal")
+            diff = a.get("ranking_differences") or []
+            notes.append(f"{label}: {a.get('n_compared')} rows equal M43's in every metric, interval and parent delta" if ok else f"{label}: the anchors differ ({a})")
+            if diff:
+                notes[-1] += f"; ranking-only differences (every metric equal): {_and([f'`{n}`' for n in diff])}"
+    diffs = front.get("anchor_per_query_differences_vs_m43") or {}
+    lines += ["", "Do the recomputed rows reproduce M43's? " + "; ".join(notes) + ". Per-query values of the anchor rows that differ from M43's sidecars: "
+              + ", ".join(f"{label} {diffs.get(d, '?')}" for d, label in SHAPE_FILES) + "."]
+    if rep:
+        parts = [f"{label} {e['rows_fields_equal']} of {len(e['rows'])} rows equal in every field, {sum(r['per_query_metric_values_differ'] for r in e['rows'].values())} per-query "
+                 f"values and {sum(r['ranking_hashes_differ'] for r in e['rows'].values())} rankings differ" for d, label in SHAPE_FILES
+                 for e in [rep["datasets"].get(d) or {}] if e.get("compared")]
+        devices = {e.get("replicate_device") for e in rep["datasets"].values() if e.get("compared")}
+        lines += ["", f"The replicate (the same commit on {_and(sorted(d for d in devices if d)) or 'the other device'}; never a result row): " + "; ".join(parts) + "."]
+    else:
+        lines += ["", "The replicate on the other device class (RTX 8000) has not been committed; the rows above are one device's."]
+    lines += _ml256_lines(root, named)
+    if front.get("host_commands"):
+        lines += ["", "The owner's host timing for the F1 cells, printed here and never run (a student is timed by the published model it started from: the same cost):", "",
+                  "```", *front["host_commands"], "```"]
+    if root is None or (Path(root) / SMALL_RERANKERS_SHAPES_FIGURE).exists():
+        lines += ["", f"![Paired change in nDCG@10 against no reranker for each cell, against its indicative CPU p95, one panel per dataset, with the band edges]({SMALL_RERANKERS_SHAPES_FIGURE})",
+                  "", "*`make figures`, from the frontier file: quality from the GPU runs, cost from the indicative CPU file.*"]
+    from app.eval.served_stack import COMPOSE_API_ENV
+
+    others = [t for t in sr.CANDIDATES if t not in shapes.MODELS]
+    cpu = _load(root, shapes.CPU_FILE) or {}
+    peaks = [min((s["memory_mib"]["VmHWM"] for e in cpu.get("results") or [] if e["tag"] == t for s in e["shapes"]), default=None) for t in others]
+    other_line = (f"The other M43 candidates ({_and([f'`{t}`' for t in others])}) are not re-measured: their cheapest committed peaks "
+                  f"({_and([f'{p:,}' for p in peaks])} MiB in `{shapes.CPU_FILE}`) are over {limit:,} MiB at every shape. "
+                  if others and all(p is not None for p in peaks) else "")
+    students_line = ("The attempt-1 students at 256 as trained: both were trained at 512, so their 256 rows above may carry a train/test length "
+                     "mismatch; Phase 2 above retrains them at 256 (attempt 2, its own family). "
+                     if _load(root, shapes.ML256_FRONTIER_FILE) else "Students trained at 256 (both were trained at 512; Phase 2 measures it). ")
+    lines += ["", "**What this does not show.** Host timing and memory (the serving bar, unrun): the t3.small's 2 vCPUs are two hyperthreads of one core in "
+                  "standard credit mode, and the CPU file ran the CUDA torch wheel; one request at a time; worst-case latency (every passage cut at the cap). "
+                  "The cap on the fixture (no pair exceeds 256 tokens). " + students_line +
+                  f"A student result on an unseen corpus: the students read documents of all three test corpora ({exp} have a relevant document among them), never a query or a label. "
+                  "The publishers' and the teacher's training data are not audited for overlap with BEIR. Equivalence to the served shape. " + other_line +
+                  f"The final context: the served path passes the top `RERANK_TOP_N` passages on ({COMPOSE_API_ENV['RERANK_TOP_N']} in docker-compose.yml); "
+                  "nDCG@10 is the measured proxy. "
+                  "Seed variance: one inference run, one training run per student. Quantised or ONNX serving, fp16 on CPU, another first stage, the real corpus, "
+                  "answer quality.",
+              "", "Results: " + " · ".join(f"[{rel}]({rel})" for rel in (*shapes.RESULTS.values(), shapes.FRONTIER_FILE, shapes.EXPOSURE_FILE))
+              + (f" · [{shapes.REPLICATE_FILE}]({shapes.REPLICATE_FILE})" if rep else "")
+              + " (each run with its per-query sidecar; `make small-rerankers-shapes-rescore` recomputes every interval, total, invariant and the frontier on a CPU)."]
+    return "\n".join(lines)
+
+
 # ---- M49: late interaction (ColBERT MaxSim) on text, against hybrid@bge-small (app/eval/late_interaction.py)
 
 LATE_INTERACTION_CPU_FILE = "bench/results/late_interaction_cpu.json"
@@ -3489,6 +3729,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
         "search-policy": search_policy_table(_load(root, SEARCH_POLICY_FILE)),
         "bench-small-rerankers": small_rerankers_table(root),
+        "bench-small-rerankers-shapes": small_rerankers_shapes_table(root),
         "bench-late-interaction": late_interaction_table(root),
     }
 

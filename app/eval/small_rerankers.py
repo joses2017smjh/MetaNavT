@@ -303,11 +303,80 @@ def _ms(samples: list[float]) -> dict[str, float]:
     return {"p50_ms": round(float(np.percentile(samples, 50)), 3), "p95_ms": round(float(np.percentile(samples, 95)), 3), "n": len(samples)}
 
 
+def rerank_rows(gold: list, fused: list[list[tuple[Any, float]]], rows: list[tuple[str, str, int, int]], *, resolve=None, load=None,
+                device: str = "auto", parent: list[list[str]] | None = None, check_cap: bool = False, count_tokens=None,
+                checkpoint_dir: Path | str | None = None) -> tuple[dict[str, list[list[str]]], dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Rerank fixture v1's fused lists once per row of `rows`, each (row name, tag, depth, max_length), with a tag's rows
+    at one cap next to each other: every (tag, cap) is loaded once, as serving loads it (max_length at load), passes
+    M41's load-and-score check, ranks its rows and is released. Per row and question the fused top `depth` chunks are
+    reranked and the tail keeps the fused order; the list is then deduplicated to files (rerank_arms._paths).
+
+    Returns (orders, infos, loads): per row name, each question's file list; per row name, what the row records (the
+    load record, its depth, the rerank latency on this run's device, how many questions' top 10 differ from `parent`'s);
+    per "tag|cap", the load record. `load` (tests) replaces the loader: (tag, max_length) -> (model, record).
+    check_cap (M51): stop unless the loaded model's token cap reads back as the row's max_length. count_tokens (M51):
+    (model, question, passages) -> each pair's token count; per row and question, the number of reranked pairs longer
+    than the cap is kept under infos[name]["_truncated_pairs"], counted outside the timed rerank."""
+    import time
+
+    from app.eval.models_2026 import check_reranker, free_gpu
+    from app.eval.provenance import model_device, model_provenance
+    from app.eval.rerank_arms import _paths
+    from app.retrieval.rerank import CrossEncoderReranker, cross_encoder_provenance, get_cross_encoder
+
+    resolve = resolve or resolver(checkpoint_dir)
+    orders: dict[str, list[list[str]]] = {}
+    infos: dict[str, dict[str, Any]] = {}
+    loads: dict[str, dict[str, Any]] = {}
+    groups: list[list[tuple[str, str, int, int]]] = []
+    for row in rows:  # consecutive rows of one (tag, cap) share a load; checked before anything is loaded
+        if groups and (groups[-1][0][1], groups[-1][0][3]) == (row[1], row[3]):
+            groups[-1].append(row)
+        elif any((g[0][1], g[0][3]) == (row[1], row[3]) for g in groups):
+            raise ValueError(f"the rows of {row[1]} at max_length {row[3]} are not next to each other: it would be loaded twice")
+        else:
+            groups.append([row])
+    for group in groups:
+        tag, cap = group[0][1], group[0][3]
+        key = f"{tag}|{cap}"
+        if load is not None:
+            model, record = load(tag, cap)
+        else:
+            source, record, after_load = resolve(tag)
+            model = get_cross_encoder(source, precision=SHAPE["precision"], max_length=cap, device=None if device == "auto" else device, raise_errors=True)
+            record = {**model_provenance(model_of(tag) if tag not in STUDENTS else tag, "reranker"), **record, **(after_load(model) if after_load else {})}
+        head = {**record, "loaded": True, "device": model_device(model), "precision": SHAPE["precision"], "max_length": cap}
+        tail = {**cross_encoder_provenance(model), "load_and_score": check_reranker(model, tag)}
+        if check_cap and tail.get("loaded_max_length") != cap:
+            raise RuntimeError(f"{tag}: loaded_max_length reads back {tail.get('loaded_max_length')!r}, the row asks for {cap}")
+        loads[key] = {**head, **tail}
+        rerank = CrossEncoderReranker(model=model, model_name=tag, precision=SHAPE["precision"], max_length=cap)
+        for name, _, top, _ in group:
+            if gold:
+                rerank(gold[0].question, fused[0][:top])  # warm-up: CUDA kernels; scoring is deterministic
+            latency, orders[name], truncated = [], [], []
+            for q, pairs in zip(gold, fused):
+                t0 = time.perf_counter()
+                ranked = list(rerank(q.question, pairs[:top])) + pairs[top:]  # the tail keeps the fused order
+                latency.append((time.perf_counter() - t0) * 1000.0)
+                orders[name].append(_paths(ranked))
+                if count_tokens is not None:  # outside the timed rerank
+                    truncated.append(sum(1 for n in count_tokens(model, q.question, [c.text for c, _ in pairs[:top]]) if n > cap))
+            info = {**head, "depth": top, **tail, "rerank_latency": {**_ms(latency), "note": "per question on this run's device, after one warm-up question: not the server"}}
+            if parent is not None:
+                info["n_top10_differs_from_parent"] = sum(1 for a, b in zip(orders[name], parent) if a[:10] != b[:10])
+            if count_tokens is not None:
+                info["_truncated_pairs"] = truncated
+            infos[name] = info
+        del model, rerank
+        free_gpu()
+    return orders, infos, loads
+
+
 def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, checkpoint_dir: Path | str | None = None, device: str = "auto",
                 retrieve_k: int = 50, load=None, embedder: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     """(the results blob, its per-question sidecar) for fixture v1. `load` (tests) replaces the model loader:
     tag -> (model, record); `embedder` replaces bge-small."""
-    import time
     from datetime import datetime, timezone
 
     from app.eval.corpus import load_manifest, verify_manifest
@@ -315,10 +384,9 @@ def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, chec
     from app.eval.harness import BGE_SMALL, CI_METRICS
     from app.eval.index_loader import build_index, mtime_provenance
     from app.eval.metrics import aggregate_retrieval
-    from app.eval.models_2026 import check_embedder, check_reranker, free_gpu, reproduces
+    from app.eval.models_2026 import check_embedder, reproduces
     from app.eval.provenance import command_line, device_info, git_sha, git_state, model_device, model_provenance, run_provenance, sha256_file
     from app.eval.rerank_arms import _paths, split_questions
-    from app.retrieval.rerank import CrossEncoderReranker, cross_encoder_provenance, get_cross_encoder
 
     root = root or Path(__file__).resolve().parents[2]
     started = git_state(root)  # before anything is written (run_provenance)
@@ -338,33 +406,10 @@ def run_fixture(root: Path | None = None, *, tags: list[str] | None = None, chec
     tags = list(tags) if tags is not None else [t for t in reranker_tags() if t not in STUDENTS or (root / STUDENT_MANIFEST).exists()]
     resolve = resolver(checkpoint_dir, root)
     top = SHAPE["rerank_top"]
-    rerankers: dict[str, dict[str, Any]] = {}
-    for tag in tags:
-        if load is not None:
-            model, record = load(tag)
-        else:
-            source, record, after_load = resolve(tag)
-            model = get_cross_encoder(source, precision=SHAPE["precision"], max_length=SHAPE["max_length"],
-                                      device=None if device == "auto" else device, raise_errors=True)
-            record = {**model_provenance(model_of(tag) if tag not in STUDENTS else tag, "reranker"), **record,
-                      **(after_load(model) if after_load else {})}
-        info = {**record, "loaded": True, "device": model_device(model), "precision": SHAPE["precision"], "max_length": SHAPE["max_length"],
-                "depth": top, **cross_encoder_provenance(model), "load_and_score": check_reranker(model, tag)}
-        rerank = CrossEncoderReranker(model=model, model_name=tag, precision=SHAPE["precision"], max_length=SHAPE["max_length"])
-        if gold:
-            rerank(gold[0].question, fused[0][:top])  # warm-up: CUDA kernels; scoring is deterministic
-        name, latency = row_name(tag), []
-        orders[name] = []
-        for q, pairs in zip(gold, fused):
-            t0 = time.perf_counter()
-            ranked = list(rerank(q.question, pairs[:top])) + pairs[top:]  # the tail keeps the fused order
-            latency.append((time.perf_counter() - t0) * 1000.0)
-            orders[name].append(_paths(ranked))
-        info["rerank_latency"] = {**_ms(latency), "note": "per question on this run's device, after one warm-up question: not the server"}
-        info["n_top10_differs_from_parent"] = sum(1 for a, b in zip(orders[name], orders[PARENT]) if a[:10] != b[:10])
-        rerankers[tag] = info
-        del model, rerank
-        free_gpu()
+    ranked, infos, _ = rerank_rows(gold, fused, [(row_name(tag), tag, top, SHAPE["max_length"]) for tag in tags], resolve=resolve,
+                                   load=(lambda tag, cap: load(tag)) if load is not None else None, device=device, parent=orders[PARENT])
+    orders.update(ranked)
+    rerankers: dict[str, dict[str, Any]] = {tag: infos[row_name(tag)] for tag in tags}
 
     def rows_of(ids):
         return [{"id": gold[i].id, "category": gold[i].category, "relevant": gold[i].relevant_ids()} for i in ids]

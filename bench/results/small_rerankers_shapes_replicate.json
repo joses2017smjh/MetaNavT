@@ -1,0 +1,621 @@
+{
+  "git_sha": "eba759b",
+  "git_head": "eba759b55b8679c15843678bc16a4d28cfdbe992",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/per_question.py": "04fd21dd79390d0ae457cdd5924a25f57309c96538fc90e2615465ad130df689",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/small_rerankers.py": "723f7f81c64d37bb77ff7a44bea32ce4e4364efbb1624ada88479165d206bc79",
+    "app/eval/small_rerankers_shapes.py": "89280ce9107e0b221d393dc6fe4bbb73132749455ef02d2c1f563991c485bb47"
+  },
+  "timestamp": "2026-11-25T22:28:10.853454+00:00",
+  "command": "python -m app.eval.small_rerankers_shapes --replicate",
+  "label": "M51 replicate: the same commit on the other device class, compared with the result; never a result row",
+  "inputs_sha256": {
+    "bench/results/small_rerankers_shapes.json": "1c1ca52bced70ae17a5465f5171bae93f450505a5b9b94927d527e5d5ce38d24",
+    "bench/results/small_rerankers_shapes.per_query.json": "b329341555d2890b9e69997c38bd2afa217250ce7054fbd1f2769a985431f0c5",
+    "bench/results/small_rerankers_shapes_rep.json": "bfa9e70bc85147ec7f15b8543abccaf8286546c6cc511240e52009e279b93b0e",
+    "bench/results/small_rerankers_shapes_rep.per_query.json": "dcdb8f85a58de863bb21cc20295281d8e8ad5535e78e9e534e7283f4689b5227",
+    "bench/results/beir_scifact_small_rerankers_shapes.json": "f7c5918f83a5d784d360c3060921f0e77bee91adc7fa52af2b171a090c1953d7",
+    "bench/results/beir_scifact_small_rerankers_shapes.per_query.json": "7387a58ae0cfcc93434deadab8cc6cadc69ab82ce343431a4f9620cfe59711de",
+    "bench/results/beir_scifact_small_rerankers_shapes_rep.json": "22e78e08f135d4bec9da535d30b85cf6ff884307a2856e683114685bc976ff12",
+    "bench/results/beir_scifact_small_rerankers_shapes_rep.per_query.json": "d0994af883562d16e8155d13322897c57d8eb60ce3346287f43fe1cbb0c811b6",
+    "bench/results/beir_fiqa_small_rerankers_shapes.json": "55f351e9764b285e984969764f88b13a268d78054bdaf921992876570f3ab368",
+    "bench/results/beir_fiqa_small_rerankers_shapes.per_query.json": "39a5ef5c8d6fdb145d3c48eb6e34ca9109915d1c5d319b4db6c2f2452f0b7ec3",
+    "bench/results/beir_fiqa_small_rerankers_shapes_rep.json": "3afbd99e5b430e2cd6810160704e749029572bd3dbed5c9f6ff3bcd4e6c9da2e",
+    "bench/results/beir_fiqa_small_rerankers_shapes_rep.per_query.json": "92f00782a94daf2d0885752cd664ec9343149d96d948badb87a2e7e4034de0ea"
+  },
+  "datasets": {
+    "fixture": {
+      "compared": true,
+      "result_device": "NVIDIA GeForce RTX 2080 Ti",
+      "replicate_device": "Quadro RTX 8000",
+      "result_git_sha": "43a1e0b",
+      "replicate_git_sha": "43a1e0b",
+      "rows_fields_equal": 37,
+      "rows": {
+        "hybrid@bge-small": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        }
+      }
+    },
+    "scifact": {
+      "compared": true,
+      "result_device": "NVIDIA GeForce RTX 2080 Ti",
+      "replicate_device": "Quadro RTX 8000",
+      "result_git_sha": "43a1e0b",
+      "replicate_git_sha": "43a1e0b",
+      "rows_fields_equal": 37,
+      "rows": {
+        "hybrid@bge-small": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        }
+      }
+    },
+    "fiqa": {
+      "compared": true,
+      "result_device": "NVIDIA GeForce RTX 2080 Ti",
+      "replicate_device": "Quadro RTX 8000",
+      "result_git_sha": "43a1e0b",
+      "replicate_git_sha": "43a1e0b",
+      "rows_fields_equal": 37,
+      "rows": {
+        "hybrid@bge-small": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l6@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+minilm-l12@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l6@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+student-minilm-l12@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+gte-modernbert-base@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-256/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top5": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top10": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        },
+        "hybrid+bge-rerank@bge-small/fp32-512/top20": {
+          "fields_equal": true,
+          "per_query_metric_values_differ": 0,
+          "ranking_hashes_differ": 0
+        }
+      }
+    }
+  },
+  "does_not_show": [
+    "which device is right: a difference says the ranking is device-sensitive at near-ties, not which run is correct",
+    "anything about the host: both devices are GPUs"
+  ]
+}
