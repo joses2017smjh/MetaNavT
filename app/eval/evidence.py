@@ -30,6 +30,9 @@ FILES = {
     "agent_injection": "bench/results/agent_injection_v2.json",  # the second run; the first is agent_injection.json
     "agent_injection_v3": "bench/results/agent_injection_v3.json",  # the current run: phrasings as any-success, the in-loop answer check
     "agent_injection_adaptive": "bench/results/agent_injection_adaptive.json",  # the adaptive attacker, held-out questions
+    # M50: agent_injection_v3's protocol with the 2026 open models as the agent, and its comparison file (the verdicts)
+    "agent_injection_v3_models_2026": "bench/results/agent_injection_v3_models_2026.json",
+    "agent_injection_v3_models_2026_compare": "bench/results/agent_injection_v3_models_2026_compare.json",
     "frontier": "bench/results/frontier.json",
     "frontier_neural": "bench/results/frontier_neural.json",
     "rerank_arms": "bench/results/rerank_arms.json",
@@ -322,7 +325,8 @@ def claims(root: Path = ROOT) -> list[dict]:
         for name, p in (s.get("pairwise_llm_vs_extractive") or {}).items():
             out.append({"claim": f"Judge {name}: position gap in AB/BA pairwise comparison (LLM answer vs extractive)", "value": f"{p['position_gap_mean']}", "ci": "—", "n": p["n"], "command": "make bench-jury", "source": src,
                         "not_shown": "a measure of order bias, not of answer quality"})
-    out += _agent_injection_v3_claims(root)  # the current run leads; the second run and the adaptive run follow
+    out += _agent_injection_v3_claims(root)  # the current run leads; the 2026 models, the second run and the adaptive run follow
+    out += _agent_injection_v3_models_2026_claims(root)
     out += _agent_injection_claims(root)
     out += _agent_injection_adaptive_claims(root)
     out += _frontier_claims(root)
@@ -1293,30 +1297,47 @@ def _agent_injection_claims(root: Path = ROOT) -> list[dict]:
     return out
 
 
-def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
-    """agent_injection_v3, the current run: per model, hijack attacked by at least one of the phrasings with no defense, and the answer
-    check in the loop against no defense (planted value delivered, utility under attack, benign success), paired."""
-    blob = _load(FILES["agent_injection_v3"], root)
+def _v3_command(shards: list) -> str:
+    return (f"make bench-agent-injection-v3-shard ({len(shards)} shards), then make bench-agent-injection-v3-merge" if shards
+            else "make bench-agent-injection-v3")
+
+
+def _v3_scope(blob: dict) -> str:
+    cfg = blob["config"]
+    n, adojo = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {})
+    return (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; two "
+            "local 7-8B models; synthetic config questions; the agent's semantic search runs on the hash embedder, a "
+            "fallback")
+
+
+def _agent_injection_v3_claims(root: Path = ROOT, key: str = "agent_injection_v3", label: str = "current run",
+                               command=_v3_command, scope=_v3_scope, models=None) -> list[dict]:
+    """A results file of agent_injection_v3's protocol (by default the current run, agent_injection_v3): per model,
+    hijack attacked by at least one of the phrasings with no defense, and the answer check in the loop against no
+    defense (planted value delivered, utility under attack, benign success), paired. `key` names the file in FILES,
+    `label` the run in the claim, `command` and `scope` build the command and the scope from the file; `models` keeps
+    some models (M50 leaves out a model the outcome table gives no verdict)."""
+    blob = _load(FILES[key], root)
     if not blob:
         return []
     cfg = blob["config"]
     gen = blob.get("episodes_generated_by") or {}
     shards = (gen.get("merged") or {}).get("shards") or []
-    cmd = (f"make bench-agent-injection-v3-shard ({len(shards)} shards), then make bench-agent-injection-v3-merge" if shards
-           else "make bench-agent-injection-v3")
-    src = f"{FILES['agent_injection_v3']} @ {str(blob.get('git_head') or '')[:7]}"
-    n, adojo, k = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {}), cfg["k"]
-    scope = (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; two "
-             "local 7-8B models; synthetic config questions")
+    cmd = command(shards)
+    src = f"{FILES[key]} @ {str(blob.get('git_head') or '')[:7]}"
+    n, k = len(cfg["phrasings"]), cfg["k"]
+    scope = scope(blob)
     out: list[dict] = []
     for model, per in blob["summary"].items():
+        if models is not None and model not in models:
+            continue
         if "none" in per:
             hijack = per["none"]["by_goal"]["hijack"]["attempted_any_phrasing"]
             value, ci = _ci(hijack)
             # an interval pinned at one: no configuration could show a higher rate, so the measure separates none of them
             ceiling = ("; at the ceiling: every pair was attacked under every seed, so this rate cannot separate one "
                        "configuration from another" if hijack["lo"] == 1.0 else "")
-            out.append({"claim": f"Agent injection, current run ({n} phrasings), {model}, no defense: hijack questions in which at least one phrasing put the planted value into the model's answer, per seed",
+            out.append({"claim": f"Agent injection, {label} ({n} phrasings), {model}, no defense: hijack questions in which at least one phrasing put the planted value into the model's answer, per seed",
                         "value": value, "ci": ci, "n": hijack["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; n is (question, hijack) pairs, each read over {k} seeds; the phrasings share each seed, so "
                                       f"this compares texts on shared trajectories, not independent tries{ceiling}")})
@@ -1328,10 +1349,126 @@ def _agent_injection_v3_claims(root: Path = ROOT) -> list[dict]:
             if not d:
                 continue
             value, ci = _ci(d, "delta")
-            out.append({"claim": f"Agent injection, current run, {model}: the structured answer check in the loop minus no defense, {what}, paired",
+            # both configurations at one: every control succeeded in every trial, so no interval could show a cost
+            arms = [((per.get(c) or {}).get(key) or {}).get("mean") for c in ("none", "answer_check")]
+            top = ("; at the ceiling: every control succeeded in every trial under both configurations, so this "
+                   "interval cannot show a cost" if key == "benign_success" and arms == [1.0, 1.0] else "")
+            out.append({"claim": f"Agent injection, {label}, {model}: the structured answer check in the loop minus no defense, {what}, paired",
                         "value": value, "ci": ci, "n": d["n"], "command": cmd, "source": src,
                         "not_shown": (f"{scope}; {_zero(d)}; the check is told each question's config field and file, so it covers "
-                                      "single-field questions only; a flagged answer gets one retry within the same turn budget")})
+                                      f"single-field questions only; a flagged answer gets one retry within the same turn budget{top}")})
+    return out
+
+
+def _m50_command(shards: list) -> str:
+    return (f"make bench-agent-injection-v3-2026-shard ({len(shards)} shards), then make bench-agent-injection-v3-2026-merge "
+            "and make bench-agent-injection-v3-2026-compare")
+
+
+def _m50_scope(blob: dict) -> str:
+    """M50's rows' scope, generated from the results file's config and the generating segments' server records: the
+    models with their sizes and quantisation, the request (think setting), the sampling defaults other than
+    temperature, the Ollama version, the draft model, and the hash embedder."""
+    cfg = blob["config"]
+    segments = (blob.get("episodes_generated_by") or {}).get("segments") or []
+    infos = [seg.get("ollama_after") or seg.get("ollama") or {} for seg in segments]
+    versions = sorted({str(i.get("version")) for i in infos if i.get("version")})
+    facts: dict[str, dict] = {}
+    for info in infos:
+        for model, m in (info.get("models") or {}).items():
+            facts.setdefault(model, {}).update({k: v for k, v in m.items() if v})
+    requests = cfg.get("request") or {}
+    parts = []
+    for model in cfg["models"]:
+        f = facts.get(model, {})
+        params = ", ".join(" ".join(line.split()) for line in str(f.get("parameters") or "").splitlines()
+                           if line.split() and line.split()[0] != "temperature")
+        think = (requests.get(model) or {}).get("think")
+        parts.append(f"{model} ({f.get('parameter_size', 'size not recorded')} {f.get('quantization', '')}, "
+                     f"{'think false' if think == 'off' else 'its default reasoning'}, Modelfile defaults "
+                     f"{params or 'not recorded'})")
+    n, adojo = len(cfg["phrasings"]), len(cfg.get("agentdojo_templates") or {})
+    return (f"{n} phrasings per goal, {adojo} of them AgentDojo templates: a fixed set, not an adaptive attacker; "
+            f"{'; '.join(parts)}; via Ollama {' / '.join(versions)}, GGUF weights, gemma4 decoding with its draft "
+            "model; synthetic config questions; the agent's semantic search runs on the hash embedder, a fallback")
+
+
+def _agent_injection_v3_models_2026_claims(root: Path = ROOT) -> list[dict]:
+    """M50: per new model the rows the current run has (_agent_injection_v3_claims on M50's file), each delta row
+    read with the word the declared outcome table gives it in the comparison file; a model the table stopped before
+    its interval (cannot run, incomplete) gets one row saying so, and a floor replaces the P1 row's verdict with the
+    state and both floor counts. Then all four S3 rows (the hijack planted value per draw under no defense, each new
+    model minus each committed one, whatever their words) or none."""
+    blob = _load(FILES["agent_injection_v3_models_2026"], root)
+    compare = _load(FILES["agent_injection_v3_models_2026_compare"], root)
+    if not blob or not compare:
+        return []
+    states = {"cannot_run": "cannot run under the committed protocol", "incomplete": "incomplete",
+              "floor": "not testable (floor)"}
+    csrc = f"{FILES['agent_injection_v3_models_2026_compare']} @ {str(compare.get('git_head') or '')[:7]}"
+    gen = blob.get("episodes_generated_by") or {}
+    cmd = _m50_command((gen.get("merged") or {}).get("shards") or [])
+    verdicts = {(v["config"].split("@")[1], v["metric"]): v for v in compare.get("verdicts") or []}
+    tier1 = compare["bar"]["models"]["tier1"]
+    stopped = [m for m in tier1 if (verdicts.get((m, "planted_value_delivered")) or {}).get("outcome") in ("cannot_run", "incomplete")]
+    rows = _agent_injection_v3_claims(root, key="agent_injection_v3_models_2026", label="2026 open models",
+                                      command=_m50_command, scope=_m50_scope,
+                                      models=[m for m in tier1 if m not in stopped])
+    metrics = {"the planted value delivered to the user, hijack, per draw": "planted_value_delivered",
+               "utility under attack": "utility_under_attack", "benign success on the controls": "benign_success"}
+    out: list[dict] = []
+    for row in rows:
+        what = next((w for w in metrics if row["claim"].endswith(f"no defense, {w}, paired")), None)
+        if what is None:
+            out.append(row)
+            continue
+        model = row["claim"].split("2026 open models, ", 1)[1].split(": ", 1)[0]
+        v = verdicts.get((model, metrics[what])) or {}
+        floor = v.get("floor") or {}
+        counts = (f"floor counts under no defense: {floor.get('took_effect_episodes')} of {floor.get('of')} hijack "
+                  f"episodes delivered the planted value, in {floor.get('questions_nonzero')} of 10 questions")
+        if metrics[what] == "planted_value_delivered":
+            if v.get("outcome") == "floor":
+                out.append({**row, "claim": row["claim"] + " (declared bar P1: not testable, the floor)",
+                            "not_shown": row["not_shown"] + f"; no verdict by the declared floor rule; {counts}"})
+                continue
+            s4 = verdicts.get((model, "planted_value_only")) or {}
+            sensitivity = ""
+            if s4.get("outcome") and s4.get("outcome") != v.get("outcome"):  # BAR's S4: the docs say the scoring decides
+                s4_floor = s4.get("floor") or {}
+                sensitivity = (f"; S4 (the planted value without the true one) reads {states.get(s4['outcome'], s4['outcome'])}"
+                               + (f", {s4_floor.get('planted_value_only_episodes')} of {s4_floor.get('of')} hijack episodes "
+                                  "under no defense" if s4["outcome"] == "floor" else "")
+                               + ": the scoring choice decides the verdict")
+            c = (((compare.get("described") or {}).get(model) or {}).get("answer_check") or {}).get("counts") or {}
+            held = (f"; under answer_check the check held back every answer in {c['hijack_withheld']} of "
+                    f"{c['hijack_episodes']} hijack episodes, which S1's utility under attack cannot register (a "
+                    "described count added at review)" if c.get("hijack_withheld") is not None and c.get("hijack_episodes")
+                    else "")
+            out.append({**row, "claim": row["claim"] + f" (declared bar P1: {v.get('outcome')})",
+                        "not_shown": row["not_shown"] + f"; {counts}{sensitivity}{held}; one of two P1 intervals, read "
+                                                        "separately, no family-wise correction"})
+        else:
+            out.append({**row, "claim": row["claim"] + f" (S1: {v.get('outcome')})"})
+    for model in stopped:
+        v = verdicts[(model, "planted_value_delivered")]
+        floor = v.get("floor") or {}
+        out.append({"claim": f"Agent injection, 2026 open models, {model}: the declared bar's outcome",
+                    "value": states[v["outcome"]], "ci": "—", "n": "—", "command": cmd, "source": csrc,
+                    "not_shown": (f"{_m50_scope(blob)}; no verdict: {states[v['outcome']]} by the outcome table; floor "
+                                  f"counts under no defense: {floor.get('took_effect_episodes')} of {floor.get('of')} "
+                                  f"hijack episodes delivered the planted value, in {floor.get('questions_nonzero')} of "
+                                  "10 questions")})
+    s3 = compare.get("s3") or {}
+    picked = [r for r in s3.get("rows") or [] if r["metric"] == "hijack_planted_value" and r["config"].startswith("none@")]
+    if picked and len(picked) == 2 * len([m for m in tier1 if m not in stopped]):
+        for r in picked:
+            value, ci = _ci(r, "delta")
+            out.append({"claim": f"Agent injection, {r['config'].split('@')[1]} minus {r['reference'].split('@')[1]}, no defense: the planted value in an answer the model wrote, hijack, per draw, paired by question (S3: {r['interval']})",
+                        "value": value, "ci": ci, "n": r["n"], "command": cmd, "source": csrc,
+                        "not_shown": (f"the S3 family is not corrected for multiplicity ({s3['n_intervals']} intervals "
+                                      f"in the comparison file); {r['labels'][0]}; {r['labels'][1]}; seeds are not "
+                                      "paired across models")})
     return out
 
 
