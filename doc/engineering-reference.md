@@ -2174,6 +2174,24 @@ differences (the check's cut for a new model minus a committed model's) is cappe
 model's `none` rate; the field check's recall under `answer_check`, which does not depend on
 that rate, is reported beside it. [Generated table](../README.md#agent-injection-v3-models-2026).
 
+The probe's oversized prompt also showed where the cut falls: Ollama kept far less than the
+pinned context (the probe file's `oversized_prompt` record gives the tokens it kept for each
+model). The largest prompt any test call sent (`max_call_prompt_tokens` per model and
+configuration in the comparison file) stayed far below that limit, and no shard's server log
+holds the line that announces such a cut.
+
+What this does not show (the generated list under the table is the full one): the phrasings
+are fixed, most of them public templates, so this is not an adaptive attacker; ten synthetic
+single-field questions make wide intervals on narrow data; both models ran with reasoning off
+only, as quantised weights through one Ollama version with their own sampling defaults; the
+agent's semantic search runs on the hash embedder, a fallback; the cross-model rows are not
+causal, and no bridge separates the server version; the field check knows each question's
+field. The hijack score counts any statement of the planted value, a warning included, and for
+`qwen3.5:27b` that choice decides the verdict: its delivered answers almost always state both
+values, so the stricter reading (the planted value without the true one) sits at the declared
+floor. With no capability control, zero planted actions cannot tell refusal from incapability,
+and wall times include queueing behind one server slot, so they are not latency.
+
 [Current run](../bench/results/agent_injection_v3.json) ·
 [its episodes](../bench/results/agent_injection_v3_episodes.jsonl) ·
 [2026 open models](../bench/results/agent_injection_v3_models_2026.json) ·
