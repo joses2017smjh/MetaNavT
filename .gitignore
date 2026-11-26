@@ -153,6 +153,25 @@ bench/results/agent_injection_adaptive_tune/
 !bench/results/beir_fiqa_small_rerankers.json
 !bench/results/beir_fiqa_small_rerankers.per_query.json
 !bench/results/small_rerankers_cpu.json
+# M48: bge-small adapted on M43's synthetic queries, each results file with its per-query sidecar (make
+# bench-adapted-embedders, bench-beir-adapted-embedders, bench-beir-fiqa-adapted-embedders; BASE=1 for the bge-base
+# files), its indicative CPU cost and the CPU fixture re-run (never read against the bar). The checkpoints are not
+# committed; bench/distill/embedders.json records their sha256.
+!bench/results/adapted_embedders.json
+!bench/results/adapted_embedders.per_query.json
+!bench/results/beir_scifact_adapted_embedders.json
+!bench/results/beir_scifact_adapted_embedders.per_query.json
+!bench/results/beir_fiqa_adapted_embedders.json
+!bench/results/beir_fiqa_adapted_embedders.per_query.json
+!bench/results/adapted_embedders_cpu.json
+!bench/results/adapted_embedders_cpu_rerun.json
+!bench/results/adapted_embedders_cpu_rerun.per_query.json
+!bench/results/adapted_embedders_base.json
+!bench/results/adapted_embedders_base.per_query.json
+!bench/results/beir_scifact_adapted_embedders_base.json
+!bench/results/beir_scifact_adapted_embedders_base.per_query.json
+!bench/results/beir_fiqa_adapted_embedders_base.json
+!bench/results/beir_fiqa_adapted_embedders_base.per_query.json
 
 # Task-local service and Slurm logs stay out of the measured evidence commit.
 bench/results/revamp_20261007/**/*.log

@@ -532,6 +532,16 @@ def test_the_readme_block_keeps_every_arm_and_reads_the_bar_off_the_files(tmp_pa
     assert "**What this does not show.**" in text and "Fixture reading:" in text and "The verdict is read on seed 0 alone" in text
 
 
+def test_the_readme_bar_line_names_a_lost_dataset_by_its_label(tmp_path):
+    from app.eval.report import adapted_embedders_table
+
+    _docs_root(tmp_path, gain=-0.3)
+    table = ae.bar_table(tmp_path)
+    assert table["losses"] == ["fixture"] and table["outcome"] == "does not pass"
+    text = adapted_embedders_table(tmp_path)
+    assert "A recorded loss on fixture v1, held-out." in text and "A recorded loss on fixture." not in text
+
+
 def test_evidence_rows_only_where_an_interval_excludes_zero_and_say_what_they_do_not_show(tmp_path):
     from app.eval.evidence import _adapted_embedder_claims
 

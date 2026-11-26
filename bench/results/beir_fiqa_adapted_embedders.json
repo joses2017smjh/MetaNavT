@@ -1,0 +1,3733 @@
+{
+  "dataset": "BEIR/fiqa",
+  "split": "test",
+  "url": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/fiqa.zip",
+  "zip_sha256": "32c7df99ed21252fdfb2cf3f5673502a8d245ee0c44c4a133570d92ce2b3ad02",
+  "expected_zip_sha256": "32c7df99ed21252fdfb2cf3f5673502a8d245ee0c44c4a133570d92ce2b3ad02",
+  "files_sha256": {
+    "corpus.jsonl": "ff593e4df9933955dc3af83be0c3fa28ac7465f627e08c2e53593e734d506517",
+    "queries.jsonl": "eede1e61d4a0188940239b53ebc2da91f577a6a34679c812d1eb9090c29877bc",
+    "qrels/test.tsv": "6adc2a640dcdd22bb8b3858f89107adef2a7c3db20a63550dfa7a0f71e379e44"
+  },
+  "corpus_sha256": "f66ef26f25dae42254b1494d4672e6b0118709ee62cee13b763d99d25066356a",
+  "runner_sha256": "6dcd160f7fb0a4bd72f2e4884eb63a13f0ee601f1e3cf2fd350d42b90b67d311",
+  "n_docs": 57638,
+  "n_queries": 648,
+  "full_split_queries": 648,
+  "query_selection": "full split",
+  "document_text": "title + ' ' + text",
+  "published": null,
+  "relevance": "graded linear-gain nDCG (trec_eval/BEIR); binary-positive Recall/MRR; ignore identical query/document ids",
+  "latency_note": "per-query stats exclude build (index, doc embeddings, model load; see build_ms) and one warm-up query",
+  "git_sha": "5cc9660",
+  "git_head": "5cc96602d218e03f9f714d1c3314958dca849dde",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/chunking/__init__.py": "d796358cfd5aeac4b6f559898fb281b577305d33e52906b07e3a8a665d862915",
+    "app/chunking/contextual.py": "0b1a0f55edf2be92bd39a1004ea64f47bb74254c35fff41ec8be5aafc538cac8",
+    "app/chunking/late.py": "bb07ec1d6a9b6dc25ca83e9c828d259ce8f34925f50a2239485919e43b15d9ce",
+    "app/chunking/structure.py": "f4b6d0850b17cd12c6de4a4b59e35dad892caf2c7d8996401292d892ce511e00",
+    "app/eval/__init__.py": "3332aa654e6befa8981b54ec9cb808d9b6803682c6f9c1c3409e82b5ce571ed1",
+    "app/eval/adapted_embedders.py": "f2838f0eb1cd9eff7be84a3dd7633cfb55e6c5a05e5bf2d3a4f367d151b22b2e",
+    "app/eval/beir.py": "6dcd160f7fb0a4bd72f2e4884eb63a13f0ee601f1e3cf2fd350d42b90b67d311",
+    "app/eval/distill_queries.py": "152aa0c3adfa4ad7657b9fc07e736085d5569b11c1f6df3a768dc0d77748e828",
+    "app/eval/distill_teacher.py": "b57b4bf8fefd80c68b5417ed2e015e269df76d965b3694745e7f7c286c3f1880",
+    "app/eval/distill_train.py": "084981daaa0c56cb31e6a103de0877a5cac752f584cf34368708efa457600704",
+    "app/eval/embedder_train.py": "2259a0bf837e97a11d1e27cefcf0732cc8e605b39257818e472458da4811a4ac",
+    "app/eval/hashing.py": "ab8a37c77121bb22a72ec736688e3ee4fbeac47806316381ad7e3520c428cc61",
+    "app/eval/index_loader.py": "b04d7d600968a046ff144c545a4b8771a856bb64b76fb2374f8ffe468f43cc59",
+    "app/eval/ingest.py": "2b8a4b5de40f80060da8351fd62c3482987166be27cc4a0513322e7394975a39",
+    "app/eval/latency.py": "43c812e9be95a384a420af42f98b3995a1f7c15705d273cf7e4e4dc2dd709f7d",
+    "app/eval/metrics.py": "e7b028d54a4ae05785d4a82de39377b652d9ce51361dffe59f06a65fb32e80d6",
+    "app/eval/models_2026.py": "3d215bb853a95c6c588a4b1f35319d3e1d070b6a74abd9b84c940ba55de65344",
+    "app/eval/provenance.py": "56963010d9392e9c77410276c44c64d3181052b5317948183173177b290f47dd",
+    "app/eval/reindex.py": "ff16904e06f6aa4978d042f0c986ccdd1784d28153df2091e0effaf551154241",
+    "app/eval/small_rerankers.py": "f98655495b24f0c97c220e2570e5ff84bba0fa17fbfc55934f1a8908b789423f",
+    "app/eval/stats.py": "694a4d97d5f60507603c6fa6a23721793873a38b96e20244f17372f70de0fba2",
+    "app/retrieval/__init__.py": "0d478e504a3325d2c818b264fd28073be758b8fd9d54c204f968a6a141e661fc",
+    "app/retrieval/bm25.py": "0afeb3ca3cace94ca657c51f7bc6077b2e544010d42e9f323433c0c7a66c08bd",
+    "app/retrieval/context.py": "2bf73982126f3eb04ba7b69649b81cdbb33fd60eb7038c06432ef59a42d7e510",
+    "app/retrieval/embedders.py": "bb37ef6b453f192a07b7115ad0de5c775d9f2dd8df42306649d34756ac758c9b",
+    "app/retrieval/fuse.py": "53477c3526982fafc0c928f66655ff7be9e212719356db9cc05b062cb6b300f0",
+    "app/retrieval/hybrid.py": "c44c759dd9f12f025aeacf8287728a8c1c6731ee47de69bbae86f0b4a462d386",
+    "app/retrieval/rerank.py": "e9e277fa7ee78271d1958e42915ecb78b9c0c669a87a78ab0b30424220d93c67",
+    "app/retrieval/router.py": "66eaf42eaa501558622f5e08d687f9792cb46d428172257f3c1ba854c3a8a2d1",
+    "app/retrieval/types.py": "1a6fffe1539e3b303841ed7c8924803f959d7d5486d7482b43c0a10f403e91a2"
+  },
+  "timestamp": "2026-11-26T08:11:30.578146+00:00",
+  "command": "HF_HOME=<path>/hf_cache CUDA_VISIBLE_DEVICES=0 python -m app.eval.beir --ladder adapted-embedders --dataset fiqa --data-dir <path>/data --checkpoint-dir <path>/checkpoints --out bench/results/beir_fiqa_adapted_embedders.json",
+  "device": {
+    "requested": "auto",
+    "python": "3.11.16",
+    "platform": "Linux-5.14.0-687.66.1.el9_8.x86_64-x86_64-with-glibc2.34",
+    "cpu_count": 48,
+    "cpu_model": "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "device": "cuda",
+    "device_name": "Quadro RTX 8000",
+    "threads": 1,
+    "sentence_transformers": "6.1.0"
+  },
+  "bootstrap": {
+    "method": "percentile bootstrap over queries, one index matrix shared by all configs (paired deltas)",
+    "rng": "numpy.random.RandomState.randint",
+    "seed": 0,
+    "n_boot": 2000,
+    "n_queries": 648,
+    "level": 0.95,
+    "comparisons": [
+      {
+        "row": "hybrid@bge-small-marginmse",
+        "other": "dense@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": -0.0231,
+          "lo": -0.0402,
+          "hi": -0.007
+        },
+        "recall@10": {
+          "delta": -0.0138,
+          "lo": -0.0359,
+          "hi": 0.0093
+        },
+        "recall@100": {
+          "delta": -0.0029,
+          "lo": -0.0186,
+          "hi": 0.0122
+        }
+      },
+      {
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small-marginmse-nofixture",
+        "ndcg@10": {
+          "delta": -0.0259,
+          "lo": -0.043,
+          "hi": -0.0103
+        },
+        "recall@10": {
+          "delta": -0.0195,
+          "lo": -0.0423,
+          "hi": 0.0032
+        },
+        "recall@100": {
+          "delta": 0.0069,
+          "lo": -0.0071,
+          "hi": 0.0215
+        }
+      },
+      {
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "dense@bge-small-marginmse-s1",
+        "ndcg@10": {
+          "delta": -0.0211,
+          "lo": -0.0384,
+          "hi": -0.0053
+        },
+        "recall@10": {
+          "delta": -0.0082,
+          "lo": -0.0303,
+          "hi": 0.0145
+        },
+        "recall@100": {
+          "delta": -0.0013,
+          "lo": -0.0163,
+          "hi": 0.0137
+        }
+      },
+      {
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "dense@bge-small-marginmse-s2",
+        "ndcg@10": {
+          "delta": -0.0261,
+          "lo": -0.0429,
+          "hi": -0.0101
+        },
+        "recall@10": {
+          "delta": -0.0268,
+          "lo": -0.0497,
+          "hi": -0.0041
+        },
+        "recall@100": {
+          "delta": -0.0018,
+          "lo": -0.0173,
+          "hi": 0.0134
+        }
+      },
+      {
+        "row": "hybrid@bge-small-mnrl",
+        "other": "dense@bge-small-mnrl",
+        "ndcg@10": {
+          "delta": 0.0287,
+          "lo": 0.0121,
+          "hi": 0.0448
+        },
+        "recall@10": {
+          "delta": 0.0344,
+          "lo": 0.0116,
+          "hi": 0.0561
+        },
+        "recall@100": {
+          "delta": 0.0307,
+          "lo": 0.0114,
+          "hi": 0.0506
+        }
+      },
+      {
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": 0.0032,
+          "lo": -0.0026,
+          "hi": 0.0093
+        },
+        "recall@10": {
+          "delta": 0.0053,
+          "lo": -0.007,
+          "hi": 0.0179
+        },
+        "recall@100": {
+          "delta": -0.0087,
+          "lo": -0.0165,
+          "hi": -0.0011
+        }
+      },
+      {
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": 0.0004,
+          "lo": -0.0051,
+          "hi": 0.0057
+        },
+        "recall@10": {
+          "delta": -0.0003,
+          "lo": -0.0085,
+          "hi": 0.0078
+        },
+        "recall@100": {
+          "delta": 0.0012,
+          "lo": -0.0066,
+          "hi": 0.0092
+        }
+      },
+      {
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": -0.0003,
+          "lo": -0.0061,
+          "hi": 0.0055
+        },
+        "recall@10": {
+          "delta": -0.0069,
+          "lo": -0.0184,
+          "hi": 0.0037
+        },
+        "recall@100": {
+          "delta": -0.0012,
+          "lo": -0.0069,
+          "hi": 0.0041
+        }
+      },
+      {
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": 0.0017,
+          "lo": -0.0026,
+          "hi": 0.006
+        },
+        "recall@10": {
+          "delta": -0.0013,
+          "lo": -0.0093,
+          "hi": 0.0072
+        },
+        "recall@100": {
+          "delta": 0.0004,
+          "lo": -0.0069,
+          "hi": 0.0077
+        }
+      },
+      {
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": 0.0017,
+          "lo": -0.0045,
+          "hi": 0.0078
+        },
+        "recall@10": {
+          "delta": 0.0047,
+          "lo": -0.0077,
+          "hi": 0.0167
+        },
+        "recall@100": {
+          "delta": 0.0022,
+          "lo": -0.0055,
+          "hi": 0.0099
+        }
+      },
+      {
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small-marginmse",
+        "ndcg@10": {
+          "delta": -0.0013,
+          "lo": -0.0059,
+          "hi": 0.0034
+        },
+        "recall@10": {
+          "delta": -0.0082,
+          "lo": -0.0171,
+          "hi": 0.0001
+        },
+        "recall@100": {
+          "delta": 0.0033,
+          "lo": -0.0029,
+          "hi": 0.0101
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "config": "bm25",
+      "parent": null,
+      "settings": {
+        "name": "bm25",
+        "mode": "bm25",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": null,
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": null,
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.2369,
+        "recall@10": 0.2988,
+        "recall@100": 0.5402,
+        "mrr@10": 0.2963,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 22.39,
+          "p95_ms": 52.32,
+          "mean_ms": 24.82
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 22.41,
+          "p95_ms": 52.35,
+          "mean_ms": 24.85
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 101217.87,
+        "total_ms": 101217.87
+      },
+      "wall_ms": 16137.13,
+      "models": {},
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "ce9db937c544d0fafce8c518290f296188dbcb1d817824149fff37894e14da42",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.2369,
+          "lo": 0.2127,
+          "hi": 0.2588
+        },
+        "recall@10": {
+          "mean": 0.2988,
+          "lo": 0.2695,
+          "hi": 0.3254
+        },
+        "recall@100": {
+          "mean": 0.5402,
+          "lo": 0.5089,
+          "hi": 0.5703
+        }
+      },
+      "delta_vs_bm25": null,
+      "delta_vs_parent": null
+    },
+    {
+      "config": "dense@bge-small",
+      "parent": "bm25",
+      "settings": {
+        "name": "dense@bge-small",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "bm25",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3848,
+        "recall@10": 0.4396,
+        "recall@100": 0.6866,
+        "mrr@10": 0.465,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.89,
+          "p95_ms": 9.24,
+          "mean_ms": 8.91
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 21.08,
+          "p95_ms": 21.58,
+          "mean_ms": 21.08
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 30.03,
+          "p95_ms": 30.68,
+          "mean_ms": 30.03
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 10302.41,
+        "doc_embeddings_ms": 116344.88,
+        "total_ms": 126647.29
+      },
+      "wall_ms": 19504.91,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "pinned_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": true,
+            "max_abs_difference": 6.258487701416016e-07
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "bbd13fb58b30d6ad99d8505fd4e2342bfb8c052ab34e0276efcb07b43389f8fd",
+      "trec_gz": {
+        "run": "bench/results/beir_fiqa_adapted_embedders_trec/dense-bge-small.run.gz",
+        "run_gz_sha256": "9231414e95e088717691c37bd974c799dff116af258bf307ca1286165b7c6968",
+        "decompresses_to": "the text whose sha256 is ranking_sha256",
+        "qrels": "bench/results/beir_fiqa_adapted_embedders_trec/qrels.txt.gz",
+        "qrels_gz_sha256": "52fc4955e7b1af2aa1fd9806208ebd5d333a4a2f1d7bda20c9857393a7fe3284",
+        "query_order": "bench/results/beir_fiqa_adapted_embedders_trec/query_ids.json",
+        "query_order_sha256": "d1a537c13424e50ed10f8bb277ba20d9b0ac1032c84cebec6133d68d511f4637"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3848,
+          "lo": 0.3559,
+          "hi": 0.4111
+        },
+        "recall@10": {
+          "mean": 0.4396,
+          "lo": 0.4081,
+          "hi": 0.469
+        },
+        "recall@100": {
+          "mean": 0.6866,
+          "lo": 0.6577,
+          "hi": 0.7142
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1479,
+          "lo": 0.1239,
+          "hi": 0.1729
+        },
+        "recall@10": {
+          "delta": 0.1408,
+          "lo": 0.113,
+          "hi": 0.1699
+        },
+        "recall@100": {
+          "delta": 0.1463,
+          "lo": 0.1166,
+          "hi": 0.1763
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1479,
+          "lo": 0.1239,
+          "hi": 0.1729
+        },
+        "recall@10": {
+          "delta": 0.1408,
+          "lo": 0.113,
+          "hi": 0.1699
+        },
+        "recall@100": {
+          "delta": 0.1463,
+          "lo": 0.1166,
+          "hi": 0.1763
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "st:BAAI/bge-small-en-v1.5",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3645,
+        "recall@10": 0.4365,
+        "recall@100": 0.6911,
+        "mrr@10": 0.438,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 25.44,
+          "p95_ms": 56.35,
+          "mean_ms": 27.93
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.95,
+          "p95_ms": 9.27,
+          "mean_ms": 8.99
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 21.16,
+          "p95_ms": 21.71,
+          "mean_ms": 21.18
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.13,
+          "p95_ms": 0.14,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 55.93,
+          "p95_ms": 86.69,
+          "mean_ms": 58.28
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.0,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.0
+      },
+      "wall_ms": 37804.9,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "BAAI/bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "neural": true,
+          "pinned_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.871201,
+            "cosine_other": 0.41797,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": true,
+            "max_abs_difference": 6.258487701416016e-07
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "b3b06feeb09f4315c1f9b628c53dd5e7c1471dd1c4b05b194cf36addbc86609f",
+      "trec_gz": {
+        "run": "bench/results/beir_fiqa_adapted_embedders_trec/hybrid-bge-small.run.gz",
+        "run_gz_sha256": "0c0d0dfd6524db2d4560c838bc2f3074113678a55620f5e0622a0a076bed6284",
+        "decompresses_to": "the text whose sha256 is ranking_sha256",
+        "qrels": "bench/results/beir_fiqa_adapted_embedders_trec/qrels.txt.gz",
+        "qrels_gz_sha256": "52fc4955e7b1af2aa1fd9806208ebd5d333a4a2f1d7bda20c9857393a7fe3284",
+        "query_order": "bench/results/beir_fiqa_adapted_embedders_trec/query_ids.json",
+        "query_order_sha256": "d1a537c13424e50ed10f8bb277ba20d9b0ac1032c84cebec6133d68d511f4637"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3645,
+          "lo": 0.336,
+          "hi": 0.3895
+        },
+        "recall@10": {
+          "mean": 0.4365,
+          "lo": 0.4052,
+          "hi": 0.4655
+        },
+        "recall@100": {
+          "mean": 0.6911,
+          "lo": 0.662,
+          "hi": 0.7177
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1276,
+          "lo": 0.1105,
+          "hi": 0.1442
+        },
+        "recall@10": {
+          "delta": 0.1377,
+          "lo": 0.1135,
+          "hi": 0.1619
+        },
+        "recall@100": {
+          "delta": 0.1508,
+          "lo": 0.1283,
+          "hi": 0.1741
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0204,
+          "lo": -0.0394,
+          "hi": -0.002
+        },
+        "recall@10": {
+          "delta": -0.0032,
+          "lo": -0.0266,
+          "hi": 0.0192
+        },
+        "recall@100": {
+          "delta": 0.0045,
+          "lo": -0.0131,
+          "hi": 0.023
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small-marginmse",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small-marginmse",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3588,
+        "recall@10": 0.4268,
+        "recall@100": 0.6667,
+        "mrr@10": 0.4335,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.9,
+          "p95_ms": 9.26,
+          "mean_ms": 8.9
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.92,
+          "p95_ms": 21.42,
+          "mean_ms": 20.92
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 29.89,
+          "p95_ms": 30.53,
+          "mean_ms": 29.85
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 625.92,
+        "doc_embeddings_ms": 116838.96,
+        "total_ms": 117464.88
+      },
+      "wall_ms": 19383.32,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "3308f464eb5b7c6805f12bf0240777d0bf9849c3bb0c45d651a313959a2ed89d",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.929436,
+            "cosine_other": 0.594811,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "73829b95c4ae67bc0255107fa3e40c8579a3aab95609204421ada2d3e9e17e81",
+      "trec_gz": {
+        "run": "bench/results/beir_fiqa_adapted_embedders_trec/dense-bge-small-marginmse.run.gz",
+        "run_gz_sha256": "a5a4c751cd665b61f0ab96370502a37c7733518d9d9bf48d39856bb58ee48360",
+        "decompresses_to": "the text whose sha256 is ranking_sha256",
+        "qrels": "bench/results/beir_fiqa_adapted_embedders_trec/qrels.txt.gz",
+        "qrels_gz_sha256": "52fc4955e7b1af2aa1fd9806208ebd5d333a4a2f1d7bda20c9857393a7fe3284",
+        "query_order": "bench/results/beir_fiqa_adapted_embedders_trec/query_ids.json",
+        "query_order_sha256": "d1a537c13424e50ed10f8bb277ba20d9b0ac1032c84cebec6133d68d511f4637"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3588,
+          "lo": 0.3299,
+          "hi": 0.384
+        },
+        "recall@10": {
+          "mean": 0.4268,
+          "lo": 0.395,
+          "hi": 0.4571
+        },
+        "recall@100": {
+          "mean": 0.6667,
+          "lo": 0.6378,
+          "hi": 0.695
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1219,
+          "lo": 0.0993,
+          "hi": 0.1449
+        },
+        "recall@10": {
+          "delta": 0.128,
+          "lo": 0.0991,
+          "hi": 0.1563
+        },
+        "recall@100": {
+          "delta": 0.1265,
+          "lo": 0.1007,
+          "hi": 0.1523
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.026,
+          "lo": -0.0417,
+          "hi": -0.0108
+        },
+        "recall@10": {
+          "delta": -0.0128,
+          "lo": -0.0344,
+          "hi": 0.0083
+        },
+        "recall@100": {
+          "delta": -0.0198,
+          "lo": -0.0387,
+          "hi": -0.0009
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small-marginmse",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small-marginmse",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3357,
+        "recall@10": 0.413,
+        "recall@100": 0.6638,
+        "mrr@10": 0.4101,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 25.48,
+          "p95_ms": 56.09,
+          "mean_ms": 27.97
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 9.03,
+          "p95_ms": 9.36,
+          "mean_ms": 9.07
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 21.11,
+          "p95_ms": 21.53,
+          "mean_ms": 21.11
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.13,
+          "p95_ms": 0.14,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 55.89,
+          "p95_ms": 86.73,
+          "mean_ms": 58.33
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 37838.98,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "3308f464eb5b7c6805f12bf0240777d0bf9849c3bb0c45d651a313959a2ed89d",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.929436,
+            "cosine_other": 0.594811,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "d7220091e3196517906bbf61d467781b68f94580898a79bcdc42897928b55750",
+      "trec_gz": {
+        "run": "bench/results/beir_fiqa_adapted_embedders_trec/hybrid-bge-small-marginmse.run.gz",
+        "run_gz_sha256": "527298499b16cf6be98ac6a8301ad0b88178e652d982913a82dec68e7e51c06e",
+        "decompresses_to": "the text whose sha256 is ranking_sha256",
+        "qrels": "bench/results/beir_fiqa_adapted_embedders_trec/qrels.txt.gz",
+        "qrels_gz_sha256": "52fc4955e7b1af2aa1fd9806208ebd5d333a4a2f1d7bda20c9857393a7fe3284",
+        "query_order": "bench/results/beir_fiqa_adapted_embedders_trec/query_ids.json",
+        "query_order_sha256": "d1a537c13424e50ed10f8bb277ba20d9b0ac1032c84cebec6133d68d511f4637"
+      },
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3357,
+          "lo": 0.3078,
+          "hi": 0.3599
+        },
+        "recall@10": {
+          "mean": 0.413,
+          "lo": 0.3816,
+          "hi": 0.4421
+        },
+        "recall@100": {
+          "mean": 0.6638,
+          "lo": 0.6341,
+          "hi": 0.6917
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0988,
+          "lo": 0.0841,
+          "hi": 0.1133
+        },
+        "recall@10": {
+          "delta": 0.1142,
+          "lo": 0.0915,
+          "hi": 0.1367
+        },
+        "recall@100": {
+          "delta": 0.1235,
+          "lo": 0.1025,
+          "hi": 0.1454
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0287,
+          "lo": -0.039,
+          "hi": -0.0184
+        },
+        "recall@10": {
+          "delta": -0.0234,
+          "lo": -0.0387,
+          "hi": -0.0083
+        },
+        "recall@100": {
+          "delta": -0.0273,
+          "lo": -0.0447,
+          "hi": -0.0101
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small-marginmse-nofixture",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small-marginmse-nofixture",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse-nofixture",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.362,
+        "recall@10": 0.4321,
+        "recall@100": 0.6581,
+        "mrr@10": 0.4364,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.88,
+          "p95_ms": 9.22,
+          "mean_ms": 8.91
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.75,
+          "p95_ms": 21.16,
+          "mean_ms": 20.77
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 29.69,
+          "p95_ms": 30.27,
+          "mean_ms": 29.71
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 614.23,
+        "doc_embeddings_ms": 117040.57,
+        "total_ms": 117654.8
+      },
+      "wall_ms": 19296.08,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse-nofixture",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "20bbf9003bac7665c700fe3dfecfbb7b67abe6ec31d4c9c80ba402b55520b0c6",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.930291,
+            "cosine_other": 0.61308,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "70f80e04498b3d0833088a8da05eed03849c9e408d57ae1e1f8e90c127ba0be8",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.362,
+          "lo": 0.3333,
+          "hi": 0.3884
+        },
+        "recall@10": {
+          "mean": 0.4321,
+          "lo": 0.4003,
+          "hi": 0.4624
+        },
+        "recall@100": {
+          "mean": 0.6581,
+          "lo": 0.6296,
+          "hi": 0.6864
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1251,
+          "lo": 0.1024,
+          "hi": 0.1475
+        },
+        "recall@10": {
+          "delta": 0.1334,
+          "lo": 0.1051,
+          "hi": 0.1619
+        },
+        "recall@100": {
+          "delta": 0.1178,
+          "lo": 0.0922,
+          "hi": 0.1441
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0229,
+          "lo": -0.0381,
+          "hi": -0.0084
+        },
+        "recall@10": {
+          "delta": -0.0075,
+          "lo": -0.028,
+          "hi": 0.0125
+        },
+        "recall@100": {
+          "delta": -0.0285,
+          "lo": -0.0473,
+          "hi": -0.0091
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small-marginmse-nofixture",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small-marginmse-nofixture",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse-nofixture",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3361,
+        "recall@10": 0.4127,
+        "recall@100": 0.665,
+        "mrr@10": 0.4133,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 25.71,
+          "p95_ms": 55.78,
+          "mean_ms": 27.96
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.98,
+          "p95_ms": 9.28,
+          "mean_ms": 9.0
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.75,
+          "p95_ms": 21.15,
+          "mean_ms": 20.76
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.13,
+          "p95_ms": 0.14,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 55.82,
+          "p95_ms": 85.71,
+          "mean_ms": 57.9
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 37559.82,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse-nofixture",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "20bbf9003bac7665c700fe3dfecfbb7b67abe6ec31d4c9c80ba402b55520b0c6",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.930291,
+            "cosine_other": 0.61308,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "cdc0cd283ba4a324f137cd21afb4f5c1befb91d5042a5ee6326ae9f21efca77f",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3361,
+          "lo": 0.3081,
+          "hi": 0.3603
+        },
+        "recall@10": {
+          "mean": 0.4127,
+          "lo": 0.3805,
+          "hi": 0.4417
+        },
+        "recall@100": {
+          "mean": 0.665,
+          "lo": 0.6357,
+          "hi": 0.6924
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0992,
+          "lo": 0.084,
+          "hi": 0.1139
+        },
+        "recall@10": {
+          "delta": 0.1139,
+          "lo": 0.0909,
+          "hi": 0.1364
+        },
+        "recall@100": {
+          "delta": 0.1247,
+          "lo": 0.1041,
+          "hi": 0.1465
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0283,
+          "lo": -0.0382,
+          "hi": -0.0182
+        },
+        "recall@10": {
+          "delta": -0.0238,
+          "lo": -0.0379,
+          "hi": -0.009
+        },
+        "recall@100": {
+          "delta": -0.0261,
+          "lo": -0.0416,
+          "hi": -0.0103
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small-marginmse-s1",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small-marginmse-s1",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse-s1",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3585,
+        "recall@10": 0.4199,
+        "recall@100": 0.6655,
+        "mrr@10": 0.4351,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.76,
+          "p95_ms": 9.06,
+          "mean_ms": 8.77
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.6,
+          "p95_ms": 21.02,
+          "mean_ms": 20.59
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 29.44,
+          "p95_ms": 29.91,
+          "mean_ms": 29.39
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 688.91,
+        "doc_embeddings_ms": 117386.63,
+        "total_ms": 118075.54
+      },
+      "wall_ms": 19088.4,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse-s1",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "07aeb015e477b0f85110370d570916c3566d1de44c0e61a22b223dfc86edc0e9",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.926925,
+            "cosine_other": 0.602363,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "4ad0b25c1e21e8b9e968e93e3985489eb5329f2ee739d7a5c8be2e54098789d8",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3585,
+          "lo": 0.3301,
+          "hi": 0.3839
+        },
+        "recall@10": {
+          "mean": 0.4199,
+          "lo": 0.3879,
+          "hi": 0.4499
+        },
+        "recall@100": {
+          "mean": 0.6655,
+          "lo": 0.6365,
+          "hi": 0.6936
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1216,
+          "lo": 0.0986,
+          "hi": 0.1455
+        },
+        "recall@10": {
+          "delta": 0.1211,
+          "lo": 0.0929,
+          "hi": 0.1493
+        },
+        "recall@100": {
+          "delta": 0.1252,
+          "lo": 0.0999,
+          "hi": 0.1505
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0263,
+          "lo": -0.0414,
+          "hi": -0.0116
+        },
+        "recall@10": {
+          "delta": -0.0197,
+          "lo": -0.0416,
+          "hi": 0.0019
+        },
+        "recall@100": {
+          "delta": -0.0211,
+          "lo": -0.0397,
+          "hi": -0.0026
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small-marginmse-s1",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small-marginmse-s1",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse-s1",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3375,
+        "recall@10": 0.4118,
+        "recall@100": 0.6642,
+        "mrr@10": 0.415,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 24.98,
+          "p95_ms": 55.02,
+          "mean_ms": 27.39
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.78,
+          "p95_ms": 9.07,
+          "mean_ms": 8.8
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.52,
+          "p95_ms": 20.98,
+          "mean_ms": 20.52
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.12,
+          "p95_ms": 0.14,
+          "mean_ms": 0.12
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 54.63,
+          "p95_ms": 84.51,
+          "mean_ms": 56.89
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 36900.72,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse-s1",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "07aeb015e477b0f85110370d570916c3566d1de44c0e61a22b223dfc86edc0e9",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.926925,
+            "cosine_other": 0.602363,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "b06a1b0524437a84248dc6c6057f01e6042aae4b7e95f8b2be942d661f7965ca",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3375,
+          "lo": 0.3092,
+          "hi": 0.3618
+        },
+        "recall@10": {
+          "mean": 0.4118,
+          "lo": 0.3799,
+          "hi": 0.4412
+        },
+        "recall@100": {
+          "mean": 0.6642,
+          "lo": 0.6344,
+          "hi": 0.6911
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1005,
+          "lo": 0.0855,
+          "hi": 0.1151
+        },
+        "recall@10": {
+          "delta": 0.113,
+          "lo": 0.0899,
+          "hi": 0.1349
+        },
+        "recall@100": {
+          "delta": 0.1239,
+          "lo": 0.103,
+          "hi": 0.1462
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.027,
+          "lo": -0.0366,
+          "hi": -0.0172
+        },
+        "recall@10": {
+          "delta": -0.0247,
+          "lo": -0.0398,
+          "hi": -0.009
+        },
+        "recall@100": {
+          "delta": -0.0269,
+          "lo": -0.043,
+          "hi": -0.0097
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small-marginmse-s2",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small-marginmse-s2",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse-s2",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3605,
+        "recall@10": 0.4315,
+        "recall@100": 0.6689,
+        "mrr@10": 0.4334,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.73,
+          "p95_ms": 9.07,
+          "mean_ms": 8.72
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.63,
+          "p95_ms": 21.07,
+          "mean_ms": 20.6
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 29.43,
+          "p95_ms": 29.99,
+          "mean_ms": 29.36
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 780.84,
+        "doc_embeddings_ms": 116927.1,
+        "total_ms": 117707.94
+      },
+      "wall_ms": 19066.46,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse-s2",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "d3c0a1a0c0a1a77b59b1e5e1ae836b9b46829de2b65a2a2e1a391c1abc58095e",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.928356,
+            "cosine_other": 0.6087,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "bb5c3c3009a5eb88954dac83262c5289e59052d41d400dcee9a04ed5173b2cb3",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3605,
+          "lo": 0.3308,
+          "hi": 0.3858
+        },
+        "recall@10": {
+          "mean": 0.4315,
+          "lo": 0.3993,
+          "hi": 0.4618
+        },
+        "recall@100": {
+          "mean": 0.6689,
+          "lo": 0.6395,
+          "hi": 0.6969
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.1236,
+          "lo": 0.1006,
+          "hi": 0.1468
+        },
+        "recall@10": {
+          "delta": 0.1328,
+          "lo": 0.1035,
+          "hi": 0.1613
+        },
+        "recall@100": {
+          "delta": 0.1287,
+          "lo": 0.1027,
+          "hi": 0.1548
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.0243,
+          "lo": -0.0395,
+          "hi": -0.0099
+        },
+        "recall@10": {
+          "delta": -0.0081,
+          "lo": -0.0283,
+          "hi": 0.0126
+        },
+        "recall@100": {
+          "delta": -0.0177,
+          "lo": -0.0363,
+          "hi": 0.0013
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small-marginmse-s2",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small-marginmse-s2",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-marginmse-s2",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3344,
+        "recall@10": 0.4048,
+        "recall@100": 0.6671,
+        "mrr@10": 0.4115,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 25.66,
+          "p95_ms": 55.55,
+          "mean_ms": 27.98
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.83,
+          "p95_ms": 9.12,
+          "mean_ms": 8.84
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.71,
+          "p95_ms": 21.12,
+          "mean_ms": 20.72
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.12,
+          "p95_ms": 0.13,
+          "mean_ms": 0.12
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 55.5,
+          "p95_ms": 85.42,
+          "mean_ms": 57.72
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 37440.19,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-marginmse-s2",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "d3c0a1a0c0a1a77b59b1e5e1ae836b9b46829de2b65a2a2e1a391c1abc58095e",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.928356,
+            "cosine_other": 0.6087,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "c6359c64183b535a7b367e1bbd6b0e5bbec02ffb6efca3c65b32bf19affa0c04",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3344,
+          "lo": 0.3062,
+          "hi": 0.3589
+        },
+        "recall@10": {
+          "mean": 0.4048,
+          "lo": 0.3737,
+          "hi": 0.4343
+        },
+        "recall@100": {
+          "mean": 0.6671,
+          "lo": 0.6366,
+          "hi": 0.6942
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0975,
+          "lo": 0.0828,
+          "hi": 0.112
+        },
+        "recall@10": {
+          "delta": 0.106,
+          "lo": 0.0829,
+          "hi": 0.1285
+        },
+        "recall@100": {
+          "delta": 0.1269,
+          "lo": 0.1052,
+          "hi": 0.1485
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.0301,
+          "lo": -0.0398,
+          "hi": -0.0196
+        },
+        "recall@10": {
+          "delta": -0.0317,
+          "lo": -0.0464,
+          "hi": -0.0166
+        },
+        "recall@100": {
+          "delta": -0.024,
+          "lo": -0.0408,
+          "hi": -0.0079
+        }
+      }
+    },
+    {
+      "config": "dense@bge-small-mnrl",
+      "parent": "dense@bge-small",
+      "settings": {
+        "name": "dense@bge-small-mnrl",
+        "mode": "dense",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-mnrl",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "dense@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.2948,
+        "recall@10": 0.3507,
+        "recall@100": 0.6162,
+        "mrr@10": 0.361,
+        "n_queries": 648
+      },
+      "latency": {
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.74,
+          "p95_ms": 9.06,
+          "mean_ms": 8.76
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 20.98,
+          "p95_ms": 21.4,
+          "mean_ms": 20.98
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 29.77,
+          "p95_ms": 30.33,
+          "mean_ms": 29.77
+        }
+      },
+      "build_ms": {
+        "embedder_load_ms": 694.26,
+        "doc_embeddings_ms": 117094.49,
+        "total_ms": 117788.75
+      },
+      "wall_ms": 19334.68,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-mnrl",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "6fdc7c3f21dafcfc80646604d1e671f13fdda74b661b151e1963903aef3e93fb",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.848488,
+            "cosine_other": 0.134842,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "2d61863f82847f6c2989c6bb4c15b3d513856aa3fdc8e4ef1e38938b1e4149dd",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.2948,
+          "lo": 0.2678,
+          "hi": 0.3203
+        },
+        "recall@10": {
+          "mean": 0.3507,
+          "lo": 0.3197,
+          "hi": 0.3801
+        },
+        "recall@100": {
+          "mean": 0.6162,
+          "lo": 0.5856,
+          "hi": 0.6451
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0579,
+          "lo": 0.0359,
+          "hi": 0.0818
+        },
+        "recall@10": {
+          "delta": 0.0519,
+          "lo": 0.0253,
+          "hi": 0.0812
+        },
+        "recall@100": {
+          "delta": 0.0759,
+          "lo": 0.0465,
+          "hi": 0.1062
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "dense@bge-small",
+        "ndcg@10": {
+          "delta": -0.09,
+          "lo": -0.1075,
+          "hi": -0.0725
+        },
+        "recall@10": {
+          "delta": -0.0889,
+          "lo": -0.1131,
+          "hi": -0.0657
+        },
+        "recall@100": {
+          "delta": -0.0704,
+          "lo": -0.0921,
+          "hi": -0.048
+        }
+      }
+    },
+    {
+      "config": "hybrid@bge-small-mnrl",
+      "parent": "hybrid@bge-small",
+      "settings": {
+        "name": "hybrid@bge-small-mnrl",
+        "mode": "hybrid",
+        "analyzer": "beir",
+        "k1": 0.9,
+        "b": 0.4,
+        "embedder": "ft:bge-small-mnrl",
+        "reranker": null,
+        "rerank_top": 20,
+        "k": 100,
+        "rrf_k": 60,
+        "parent": "hybrid@bge-small",
+        "precision": "fp32",
+        "max_length": null,
+        "query_instruction": null
+      },
+      "retrieval": {
+        "ndcg@10": 0.3235,
+        "recall@10": 0.3851,
+        "recall@100": 0.6469,
+        "mrr@10": 0.3946,
+        "n_queries": 648
+      },
+      "latency": {
+        "bm25": {
+          "n": 648,
+          "p50_ms": 26.46,
+          "p95_ms": 58.29,
+          "mean_ms": 29.25
+        },
+        "embed": {
+          "n": 648,
+          "p50_ms": 8.86,
+          "p95_ms": 9.14,
+          "mean_ms": 8.89
+        },
+        "dense": {
+          "n": 648,
+          "p50_ms": 21.1,
+          "p95_ms": 21.49,
+          "mean_ms": 21.1
+        },
+        "fuse": {
+          "n": 648,
+          "p50_ms": 0.13,
+          "p95_ms": 0.14,
+          "mean_ms": 0.13
+        },
+        "total": {
+          "n": 648,
+          "p50_ms": 56.58,
+          "p95_ms": 88.51,
+          "mean_ms": 59.43
+        }
+      },
+      "build_ms": {
+        "bm25_index_ms": 0.01,
+        "embedder_load_ms": 0.0,
+        "doc_embeddings_ms": 0.0,
+        "total_ms": 0.01
+      },
+      "wall_ms": 38548.31,
+      "models": {
+        "embedder": {
+          "role": "embedder",
+          "model": "bge-small-mnrl",
+          "init": "BAAI/bge-small-en-v1.5",
+          "init_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "weights_sha256": "6fdc7c3f21dafcfc80646604d1e671f13fdda74b661b151e1963903aef3e93fb",
+          "attempt": 1,
+          "manifest": "bench/distill/embedders.json",
+          "revision": null,
+          "neural": true,
+          "reference_check": {
+            "texts": 4,
+            "max_abs_difference": 0.0,
+            "tolerance": 0.0001
+          },
+          "dim": 384,
+          "device": "cuda:0",
+          "query_instruction": null,
+          "query_prompt_name": null,
+          "query_prompt": null,
+          "dtype_requested": null,
+          "dtype": "torch.float32",
+          "batch_size": null,
+          "max_seq_length": 512,
+          "snapshot_view": null,
+          "load_and_score": {
+            "query": "What is the capital of China?",
+            "cosine_answer": 0.848488,
+            "cosine_other": 0.134842,
+            "passed": true
+          },
+          "doc_embeddings": "computed in this run, on this run's device (the shared cache is never read for rows)",
+          "doc_embeddings_vs_cache": {
+            "cache_file_found": false
+          }
+        }
+      },
+      "metric_cross_check": {
+        "status": "not_run",
+        "reason": "pytrec_eval not installed",
+        "implementation": "pytrec_eval/trec_eval"
+      },
+      "trec": null,
+      "ranking_sha256": "98cebb4648b5f63813c0c2523a0c7fbf2781de05828c8c8bfd5a4f9286c21aa4",
+      "ci": {
+        "ndcg@10": {
+          "mean": 0.3235,
+          "lo": 0.2947,
+          "hi": 0.3481
+        },
+        "recall@10": {
+          "mean": 0.3851,
+          "lo": 0.3522,
+          "hi": 0.4135
+        },
+        "recall@100": {
+          "mean": 0.6469,
+          "lo": 0.617,
+          "hi": 0.6754
+        }
+      },
+      "delta_vs_bm25": {
+        "reference": "bm25",
+        "ndcg@10": {
+          "delta": 0.0866,
+          "lo": 0.0698,
+          "hi": 0.1036
+        },
+        "recall@10": {
+          "delta": 0.0863,
+          "lo": 0.0629,
+          "hi": 0.11
+        },
+        "recall@100": {
+          "delta": 0.1066,
+          "lo": 0.0853,
+          "hi": 0.1291
+        }
+      },
+      "delta_vs_parent": {
+        "reference": "hybrid@bge-small",
+        "ndcg@10": {
+          "delta": -0.041,
+          "lo": -0.0534,
+          "hi": -0.0291
+        },
+        "recall@10": {
+          "delta": -0.0514,
+          "lo": -0.0693,
+          "hi": -0.0333
+        },
+        "recall@100": {
+          "delta": -0.0442,
+          "lo": -0.0608,
+          "hi": -0.0272
+        }
+      }
+    }
+  ],
+  "adapted_embedders": {
+    "bar": {
+      "name": "M48's bar: the adapted small embedder",
+      "row": "hybrid@bge-small-marginmse",
+      "parent": "hybrid@bge-small",
+      "metric": "ndcg@10",
+      "passes": "the paired nDCG@10 delta of hybrid@bge-small-marginmse against hybrid@bge-small has a 95% interval whose lower end is strictly above zero (the stored 4-decimal lower end > 0; a stored 0.0 is not above zero) on fixture v1's held-out half (68 questions) AND on BEIR SciFact test (300) AND on BEIR FiQA test (648)",
+      "datasets": {
+        "fixture": 68,
+        "scifact": 300,
+        "fiqa": 648
+      },
+      "one_seed": "the verdict is read on seed 0 alone, because what would be served is one checkpoint; seeds 1 and 2 are reported beside it",
+      "parent_rule": "hybrid@bge-small recomputed in the same run, on the same device, from the same code path; on BEIR its document matrix is computed in that run, never read from the shared cache",
+      "hybrid": "BM25 plus the embedder fused by RRF, k = 60, equal weights, exactly as the committed hybrid@bge-small rows build it; fixture: the harness settings (retrieve_k 50, router, reranker and staleness off, mtimes from the manifest); BEIR: the runner's hybrid@bge-small config with the embedder swapped",
+      "held_out": "fixture v1: the test half of app.eval.rerank_arms.split_questions; no choice of any kind is made on the tune half, whose rows and the all-136 rows are reported beside it; BEIR: the test split",
+      "read_from": [
+        "bench/results/adapted_embedders.json (scope held_out)",
+        "bench/results/beir_scifact_adapted_embedders.json",
+        "bench/results/beir_fiqa_adapted_embedders.json"
+      ],
+      "which_run": "the first complete eval run per dataset at the C3 (manifest) commit; a re-run for any reason goes to <name>_rerun<k>.json and never replaces it; a defect found later is recorded beside the first run's verdict",
+      "interval": "percentile bootstrap over queries, paired, 2000 resamples, seed 0 (app/eval/stats.py); one index matrix per dataset and scope, shared by every row",
+      "outcomes": {
+        "passes": "above zero on all three",
+        "does not pass": "any measured leg not above zero; a leg whose upper end is below zero is also a recorded loss",
+        "open": "a leg is not measured and no measured leg fails; an open bar is not passed",
+        "not run": "the bar row was not trained by the cutoff; no other arm is read in its place"
+      },
+      "multiple_testing": "one pre-declared conjunctive test (intersection-union): three two-sided 95% intervals whose lower ends must all be above zero give an overall one-sided level of at most 2.5%; every other delta is descriptive and labelled exploratory",
+      "secondary": [
+        "dense@bge-small-marginmse (fixture dense_only@) against the base dense row on the same three datasets",
+        "if its arm runs, the same bar form for hybrid@bge-base-marginmse against hybrid@bge-base",
+        "the mean delta over the bar recipe's seeds that ran (0 to 2), beside the seed-0 verdict"
+      ],
+      "llm_judge": "no metric uses an LLM judge; the teacher's logits are training targets and the validation loss only"
+    },
+    "arms": {
+      "bge-small-marginmse": {
+        "init": "bge-small",
+        "loss": "marginmse",
+        "training_set": "all",
+        "seed": 0,
+        "role": "bar",
+        "about": "the bar row: bge-small fine-tuned by the MarginMSE recipe on all three corpora's training lists",
+        "status": "trained",
+        "weights_sha256": "3308f464eb5b7c6805f12bf0240777d0bf9849c3bb0c45d651a313959a2ed89d",
+        "selection": {
+          "chosen_epoch": 4,
+          "epochs": 4,
+          "chosen_is_last": true,
+          "beats_epoch_0": true,
+          "validation_before_training": 11.407859,
+          "validation_curve": [
+            4.558565,
+            4.338443,
+            4.330581,
+            4.314011
+          ],
+          "statement": "epoch 4 of 4 kept (the lowest validation loss on the held-out documents' synthetic queries); the chosen epoch is the last one: the validation curve had not flattened; the chosen epoch beats epoch 0's validation loss (the untrained init)"
+        }
+      },
+      "bge-small-marginmse-nofixture": {
+        "init": "bge-small",
+        "loss": "marginmse",
+        "training_set": "beir",
+        "seed": 0,
+        "role": "control",
+        "about": "control, fixture training data vs none: SciFact + FiQA only (9,396 lists; its own s); its fixture rows are zero-shot transfer. It differs from the bar row in s, in the number of lists (1,175 vs 1,261 steps per epoch) and in a two-corpus mix: confounded by all three",
+        "status": "trained",
+        "weights_sha256": "20bbf9003bac7665c700fe3dfecfbb7b67abe6ec31d4c9c80ba402b55520b0c6",
+        "selection": {
+          "chosen_epoch": 4,
+          "epochs": 4,
+          "chosen_is_last": true,
+          "beats_epoch_0": true,
+          "validation_before_training": 12.964039,
+          "validation_curve": [
+            6.000897,
+            5.799429,
+            5.748947,
+            5.730296
+          ],
+          "statement": "epoch 4 of 4 kept (the lowest validation loss on the held-out documents' synthetic queries); the chosen epoch is the last one: the validation curve had not flattened; the chosen epoch beats epoch 0's validation loss (the untrained init)"
+        }
+      },
+      "bge-small-marginmse-s1": {
+        "init": "bge-small",
+        "loss": "marginmse",
+        "training_set": "all",
+        "seed": 1,
+        "role": "seed",
+        "about": "exploratory: the bar recipe with seed 1 (seed spread)",
+        "status": "trained",
+        "weights_sha256": "07aeb015e477b0f85110370d570916c3566d1de44c0e61a22b223dfc86edc0e9",
+        "selection": {
+          "chosen_epoch": 4,
+          "epochs": 4,
+          "chosen_is_last": true,
+          "beats_epoch_0": true,
+          "validation_before_training": 11.407859,
+          "validation_curve": [
+            4.523171,
+            4.348082,
+            4.299223,
+            4.29473
+          ],
+          "statement": "epoch 4 of 4 kept (the lowest validation loss on the held-out documents' synthetic queries); the chosen epoch is the last one: the validation curve had not flattened; the chosen epoch beats epoch 0's validation loss (the untrained init)"
+        }
+      },
+      "bge-small-marginmse-s2": {
+        "init": "bge-small",
+        "loss": "marginmse",
+        "training_set": "all",
+        "seed": 2,
+        "role": "seed",
+        "about": "exploratory: the bar recipe with seed 2 (seed spread)",
+        "status": "trained",
+        "weights_sha256": "d3c0a1a0c0a1a77b59b1e5e1ae836b9b46829de2b65a2a2e1a391c1abc58095e",
+        "selection": {
+          "chosen_epoch": 4,
+          "epochs": 4,
+          "chosen_is_last": true,
+          "beats_epoch_0": true,
+          "validation_before_training": 11.407859,
+          "validation_curve": [
+            4.589158,
+            4.380346,
+            4.26105,
+            4.257773
+          ],
+          "statement": "epoch 4 of 4 kept (the lowest validation loss on the held-out documents' synthetic queries); the chosen epoch is the last one: the validation curve had not flattened; the chosen epoch beats epoch 0's validation loss (the untrained init)"
+        }
+      },
+      "bge-small-mnrl": {
+        "init": "bge-small",
+        "loss": "mnrl",
+        "training_set": "all",
+        "seed": 0,
+        "role": "loss",
+        "about": "exploratory, the loss not chosen: a hand-written MultipleNegativesRankingLoss with doc-id masking, on the lists where the teacher ranks the source first",
+        "status": "trained",
+        "weights_sha256": "6fdc7c3f21dafcfc80646604d1e671f13fdda74b661b151e1963903aef3e93fb",
+        "selection": {
+          "chosen_epoch": 4,
+          "epochs": 4,
+          "chosen_is_last": true,
+          "beats_epoch_0": true,
+          "validation_before_training": 1.641391,
+          "validation_curve": [
+            0.233534,
+            0.204434,
+            0.208823,
+            0.194249
+          ],
+          "statement": "epoch 4 of 4 kept (the lowest validation loss on the held-out documents' synthetic queries); the chosen epoch is the last one: the validation curve had not flattened; the chosen epoch beats epoch 0's validation loss (the untrained init)"
+        }
+      }
+    },
+    "bar_outcome_rule": "this file holds one leg of the bar (bar_leg, written after its rows); the bar's outcome word over the three files (passes / does not pass / open / not run) is bar_table's reading of the three declared files (make adapted-embedders-bar, the README block); one leg not above zero is enough for 'does not pass'",
+    "attempt": 1,
+    "recipe": {
+      "data": "bench/distill/queries.jsonl.gz and teacher_scores.jsonl.gz as committed by M43, never regenerated; the trainer refuses to run if either file's sha256 differs from its meta; every training id must be in queries.jsonl.gz with split train",
+      "train_lists": {
+        "fixture": 691,
+        "scifact": 4267,
+        "fiqa": 5129
+      },
+      "validation_lists": {
+        "fixture": 42,
+        "scifact": 223,
+        "fiqa": 270
+      },
+      "teacher": "mixedbread-ai/mxbai-rerank-large-v2 (not re-run): its raw logits, fp32, max_length 512, one per candidate",
+      "list": "the fused top 20 of hybrid@bge-small for a synthetic query, plus its source document when it is not among them, in the committed order",
+      "student_score": "s * cos(E(q), E(d)): E is the SentenceTransformer forward (Transformer, CLS pooling, Normalize) on the model's own preprocess() output, the path encode() takes, so training and serving cut a long passage at the same token; each unique text is tokenized once; queries and documents bare (no prompt)",
+      "scale": "s is fixed per init and training set before training, by a label-free rule: s = std(t_i - t_j) / std(c_i - c_j), numpy std with ddof 0 in float64, pooled over every pair i < j (the list's committed order) of every training list of that training set, t the teacher's logit and c the init model's cosine; recorded with 1/s and the epoch-0 validation loss in bench/distill/embedder_scale.json",
+      "loss": "MarginMSE over every pair of one list: the mean over i < j of ((s_i - s_j) - (t_i - t_j))^2, s the student's score and t the teacher's logit (M43's definition); the first step is checked, torch against numpy",
+      "lists_per_step": 8,
+      "epochs": 4,
+      "steps_per_epoch": "ceil(training lists / lists_per_step)",
+      "optimizer": "AdamW, betas (0.9, 0.999), no weight decay on biases and LayerNorm weights",
+      "learning_rate": 2e-05,
+      "weight_decay": 0.01,
+      "schedule": "linear warm-up over the first 10% of the steps, then linear decay to zero",
+      "warmup_fraction": 0.1,
+      "max_grad_norm": 1.0,
+      "corpus_mixing": "each list of a step comes from a corpus drawn with probability proportional to the square root of that corpus's number of training lists; inside a corpus lists are drawn without replacement and reshuffled when exhausted",
+      "precision": "float32 throughout: torch.backends.cuda.matmul.allow_tf32 False and float32 matmul precision 'highest'; both, with torch.backends.cudnn.allow_tf32, recorded in training.json and every results header",
+      "memory": "micro_lists (M43) on a GPU under 40 GB, recorded per resume segment: a memory setting, never a hyper-parameter",
+      "validation": "the synthetic queries of the held-out source documents (M43's split field): never a gold question, a tune-half question or a BEIR query",
+      "selection": "the epoch end (1 to 4) with the lowest macro validation MarginMSE (each corpus's mean list loss, then the mean over the arm's corpora); ties go to the earlier epoch; whether the chosen epoch is the last is recorded; the source document's mean rank inside its validation list is recorded per epoch as a diagnostic and is not used",
+      "seeds": "0 for every arm; 1 and 2 for the bar recipe only, as an exploratory spread",
+      "prompts": null,
+      "mnrl": {
+        "formula": "cross-entropy over 20 * cos(q, every in-batch candidate), query to document (sentence-transformers 6.1 MultipleNegativesRankingLoss defaults), hand-written so that it can mask",
+        "scale": 20.0,
+        "lists": "only the lists where the teacher ranks the source document first; the source is the positive",
+        "hard_negatives": 7,
+        "hard_negative_rule": "the teacher's bottom half of the list (the 10 lowest-scored candidates of a 20- or 21-candidate list), the first 7 of those in the list's order",
+        "queries_per_batch": 32,
+        "batches": "all 32 queries from one corpus, the corpus drawn with probability proportional to the square root of its eligible lists; no source document twice in a batch: a list whose source is already in the batch is deferred to that corpus's next batch, never dropped; deferrals counted per epoch",
+        "mask": "for each anchor, every in-batch candidate whose doc id equals the anchor's own positive doc id scores -inf, except the anchor's own positive column; masked entries counted per epoch",
+        "steps_per_epoch": "ceil(eligible training lists / queries_per_batch)",
+        "selection": "the epoch end with the lowest masked loss on the validation lists where the teacher ranks the source first, in batches built once with seed 0 (each corpus's mean, then the mean over corpora)",
+        "hardware": "a card of 40 GB or more, no micro-batching; resumed only onto such a card"
+      }
+    },
+    "inits": {
+      "bge-small": {
+        "model": "BAAI/bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "licence": "mit",
+        "embedder": "st:BAAI/bge-small-en-v1.5"
+      },
+      "bge-base": {
+        "model": "BAAI/bge-base-en-v1.5",
+        "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+        "licence": "mit",
+        "embedder": "st:BAAI/bge-base-en-v1.5",
+        "optional": true
+      }
+    },
+    "encoding": {
+      "pooling": "cls",
+      "normalize": true,
+      "max_seq_length": 512,
+      "do_lower_case": true,
+      "dtype": "float32",
+      "query_prompt": null,
+      "document_prompt": null
+    },
+    "declarations_sha256": "e49481400ca9236f5f75ded29555478bf2d42d960693f51c2d7c7e9014d31093",
+    "rows": [
+      "bm25",
+      "dense@bge-small",
+      "hybrid@bge-small",
+      "dense@bge-small-marginmse",
+      "hybrid@bge-small-marginmse",
+      "dense@bge-small-marginmse-nofixture",
+      "hybrid@bge-small-marginmse-nofixture",
+      "dense@bge-small-marginmse-s1",
+      "hybrid@bge-small-marginmse-s1",
+      "dense@bge-small-marginmse-s2",
+      "hybrid@bge-small-marginmse-s2",
+      "dense@bge-small-mnrl",
+      "hybrid@bge-small-mnrl"
+    ],
+    "m43": {
+      "queries": {
+        "sha256": "58403d7a108ebb88c388906820b02fe43afa50e8b12110e7850cfe68514da050",
+        "n": 10622,
+        "fields": "id, corpus, doc_id, form, query, split"
+      },
+      "teacher_scores": {
+        "name": "teacher_scores.jsonl.gz",
+        "sha256": "fb1972427a2159e3140f61a4a17c1af261360ffd1da81e88f78888cb4f707705",
+        "n": 10622,
+        "fields": "id, corpus, candidates (fused order, the source appended last when absent), source_rank (1-based in the fused top; null: appended), scores (the teacher's raw logits, one per candidate)"
+      },
+      "teacher": {
+        "model": "mixedbread-ai/mxbai-rerank-large-v2",
+        "revision": "ca7e1ee484c37c0ddd8d178a9a5c33cec575c5e6",
+        "precision": "fp32",
+        "max_length": 512,
+        "scores": "raw logits (no activation)"
+      },
+      "query_writer": {
+        "model": "gemma4:12b",
+        "revision": "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+        "ollama_version": "0.40.16",
+        "options": {
+          "temperature": 0.0,
+          "seed": 0,
+          "num_ctx": 4096,
+          "num_predict": 600
+        },
+        "request": {
+          "think": false,
+          "format": "json"
+        }
+      },
+      "prompt_sha256": "ae1734aacc541e2dbd1bcf9337c40df77406ae4c2ff1bd1ced18bca09f0d7140",
+      "near_duplicates": {
+        "fixture": {
+          "checked": 779,
+          "dropped": 46,
+          "cosine_at_least": {
+            "0.80": 390,
+            "0.85": 178,
+            "0.90": 46,
+            "0.95": 7
+          }
+        },
+        "scifact": {
+          "checked": 4498,
+          "dropped": 8,
+          "cosine_at_least": {
+            "0.80": 207,
+            "0.85": 49,
+            "0.90": 8,
+            "0.95": 0
+          }
+        },
+        "fiqa": {
+          "checked": 5400,
+          "dropped": 1,
+          "cosine_at_least": {
+            "0.80": 257,
+            "0.85": 32,
+            "0.90": 1,
+            "0.95": 0
+          }
+        }
+      },
+      "near_duplicate_rule": "dropped if normalised-equal, token Jaccard >= 0.7 or bge-small cosine >= 0.90 against any of the 1,084 test queries (M43)"
+    },
+    "twins_file": {
+      "file": "bench/distill/embedder_twins.json",
+      "sha256": "803c23e6c7e848ca75c1be7bd2fee094ff434803d083e5467260a38b2226a629"
+    },
+    "manifest": {
+      "file": "bench/distill/embedders.json",
+      "sha256": "6f52ee372075e8404b9aa2580d4c908ef7adb95377c4ab4c22fc90453082bcfe",
+      "arms_sha256": {
+        "bge-small-marginmse": "5e0b42a51c70f7de204acb9445fe6531ab845436191ace936d813bb6386bd544",
+        "bge-small-marginmse-nofixture": "d3917ad633efedab6db578d4d6abf6427fb091aa47485d4ce1991a41d97142d3",
+        "bge-small-marginmse-s1": "a864b5d4881e95d0225f4fcb64a1a6d20656ee0420c81f6382936aa1da3c33d1",
+        "bge-small-marginmse-s2": "eea897f4349d49080c6c3f058e5df91a853902de0823dc3389acab9f2c7968c2",
+        "bge-small-mnrl": "fb47da2a18588a28ee3c8ea6698da79a9d880113ea0412005740a9a5a64f1cd9"
+      }
+    },
+    "tf32": {
+      "cuda.matmul.allow_tf32": false,
+      "float32_matmul_precision": "highest",
+      "cudnn.allow_tf32": true
+    },
+    "device": "Quadro RTX 8000",
+    "tf32_note": "torch.backends.cudnn.allow_tf32 is recorded as torch sets it; it governs cuDNN convolutions only, and this encoder has none, so it does not touch these numbers (TF32 also exists only on Ampere and newer cards)",
+    "llm_judge": "no metric uses an LLM judge",
+    "mnrl_twins": "bge-small-mnrl's twin flags are against the all-three query set, a superset of what it trained on: an upper bound",
+    "mnrl_seen_documents": "bge-small-mnrl's BEIR seen-document flags are computed from every training list, a superset of the lists it trained on (those where the teacher ranks the source first): an upper bound",
+    "load_and_score": "every embedder first ranks the check's answer above an unrelated passage with the loaded instance, or the run stops (app/eval/models_2026.py); an adapted one also reproduces its manifest's reference embeddings",
+    "exploratory": "every delta other than the bar row's hybrid delta on the three datasets is descriptive and exploratory",
+    "served_defaults_changed": false,
+    "not_shown": [
+      "not the live host's quality: the host embeds queries with LlamaIndex's bge instruction (compose sets no EMBEDDING_QUERY_INSTRUCTION); every row here embeds bare queries, and nothing here is deployed",
+      "not the host's latency: HPC timings are indicative (adapted_embedders_cpu.json); the structural identity is the argument",
+      "not transfer to an unseen corpus: the bar row read the documents of all three test corpora in training (unsupervised domain adaptation, as GPL); only the control's fixture rows measure transfer, on one small templated corpus",
+      "not re-measurable from a clone: every interval re-scores from the per-query sidecar on a CPU, and nDCG recomputes from the committed TREC runs where they exist, but the checkpoints are not committed",
+      "not card-independent on FiQA: rankings are specific to the card they ran on; M41 found that bge-small's own FiQA rankings differ between cards (near-tied documents swapping adjacent places below the top ten, with no metric change); how far an adapted model's rankings move across cards is not measured",
+      "not a clean 'what the fixture data added': the control differs from the bar row in its scale s, in its number of training lists (9,396 vs 10,087; 1,175 vs 1,261 steps an epoch) and in its two-corpus square-root-of-size mix; the control-vs-bar delta is confounded by all three",
+      "not label-free in the strict sense: the teacher's and bge-small's own training data are unknown and may include these benchmarks' train splits",
+      "not GPL itself: gemma4:12b queries, an mxbai-rerank-large-v2 teacher, a cosine model with a fixed scale and about 5k steps",
+      "not variance-robust: one run per arm, except the bar recipe, which ran with 3 seeds (0, 1, 2); the bar is read on seed 0 alone",
+      "no reranked rows: the served shape has no reranker",
+      "no comparison with Qwen3 or harrier except across runs (their rows are in other files, from other runs), so no paired delta"
+    ],
+    "subgroups": [
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0279,
+        "ndcg@10": {
+          "delta": -0.0279,
+          "lo": -0.0551,
+          "hi": -0.0014
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0253,
+        "ndcg@10": {
+          "delta": -0.0253,
+          "lo": -0.0442,
+          "hi": -0.0065
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.021,
+        "ndcg@10": {
+          "delta": -0.021,
+          "lo": -0.0386,
+          "hi": -0.003
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0315,
+        "ndcg@10": {
+          "delta": -0.0315,
+          "lo": -0.0435,
+          "hi": -0.02
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0256,
+        "ndcg@10": {
+          "delta": -0.0256,
+          "lo": -0.0516,
+          "hi": -0.0002
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0219,
+        "ndcg@10": {
+          "delta": -0.0219,
+          "lo": -0.0402,
+          "hi": -0.0037
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0175,
+        "ndcg@10": {
+          "delta": -0.0175,
+          "lo": -0.0359,
+          "hi": -0.001
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0322,
+        "ndcg@10": {
+          "delta": -0.0322,
+          "lo": -0.0445,
+          "hi": -0.0206
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0306,
+        "ndcg@10": {
+          "delta": -0.0306,
+          "lo": -0.0577,
+          "hi": -0.0047
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0248,
+        "ndcg@10": {
+          "delta": -0.0248,
+          "lo": -0.0433,
+          "hi": -0.0064
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0156,
+        "ndcg@10": {
+          "delta": -0.0156,
+          "lo": -0.033,
+          "hi": 0.0022
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0311,
+        "ndcg@10": {
+          "delta": -0.0311,
+          "lo": -0.0427,
+          "hi": -0.0194
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0248,
+        "ndcg@10": {
+          "delta": -0.0248,
+          "lo": -0.0521,
+          "hi": 0.0013
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0241,
+        "ndcg@10": {
+          "delta": -0.0241,
+          "lo": -0.0425,
+          "hi": -0.0054
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0226,
+        "ndcg@10": {
+          "delta": -0.0226,
+          "lo": -0.0409,
+          "hi": -0.0041
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0327,
+        "ndcg@10": {
+          "delta": -0.0327,
+          "lo": -0.0452,
+          "hi": -0.021
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.1016,
+        "ndcg@10": {
+          "delta": -0.1016,
+          "lo": -0.1408,
+          "hi": -0.0688
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0859,
+        "ndcg@10": {
+          "delta": -0.0859,
+          "lo": -0.1063,
+          "hi": -0.0658
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 171,
+        "delta": -0.0341,
+        "ndcg@10": {
+          "delta": -0.0341,
+          "lo": -0.0559,
+          "hi": -0.0144
+        }
+      },
+      {
+        "split": "twin_cosine_0.80",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 477,
+        "delta": -0.0435,
+        "ndcg@10": {
+          "delta": -0.0435,
+          "lo": -0.0581,
+          "hi": -0.0287
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": 0.0041,
+        "ndcg@10": {
+          "delta": 0.0041,
+          "lo": -0.0398,
+          "hi": 0.0529
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0274,
+        "ndcg@10": {
+          "delta": -0.0274,
+          "lo": -0.0427,
+          "hi": -0.0116
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": -0.0006,
+        "ndcg@10": {
+          "delta": -0.0006,
+          "lo": -0.0423,
+          "hi": 0.0437
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0301,
+        "ndcg@10": {
+          "delta": -0.0301,
+          "lo": -0.0401,
+          "hi": -0.0198
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": 0.0145,
+        "ndcg@10": {
+          "delta": 0.0145,
+          "lo": -0.0276,
+          "hi": 0.0662
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0246,
+        "ndcg@10": {
+          "delta": -0.0246,
+          "lo": -0.0393,
+          "hi": -0.0096
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": 0.028,
+        "ndcg@10": {
+          "delta": 0.028,
+          "lo": -0.0198,
+          "hi": 0.0855
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.031,
+        "ndcg@10": {
+          "delta": -0.031,
+          "lo": -0.0406,
+          "hi": -0.021
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": -0.0079,
+        "ndcg@10": {
+          "delta": -0.0079,
+          "lo": -0.0532,
+          "hi": 0.0405
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0272,
+        "ndcg@10": {
+          "delta": -0.0272,
+          "lo": -0.0424,
+          "hi": -0.0113
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": 0.0067,
+        "ndcg@10": {
+          "delta": 0.0067,
+          "lo": -0.0332,
+          "hi": 0.0491
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0286,
+        "ndcg@10": {
+          "delta": -0.0286,
+          "lo": -0.0385,
+          "hi": -0.0186
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": 0.014,
+        "ndcg@10": {
+          "delta": 0.014,
+          "lo": -0.0371,
+          "hi": 0.0763
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0261,
+        "ndcg@10": {
+          "delta": -0.0261,
+          "lo": -0.0412,
+          "hi": -0.011
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": -0.0011,
+        "ndcg@10": {
+          "delta": -0.0011,
+          "lo": -0.0449,
+          "hi": 0.0456
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0314,
+        "ndcg@10": {
+          "delta": -0.0314,
+          "lo": -0.0416,
+          "hi": -0.0214
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": -0.0992,
+        "ndcg@10": {
+          "delta": -0.0992,
+          "lo": -0.1503,
+          "hi": -0.054
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.0896,
+        "ndcg@10": {
+          "delta": -0.0896,
+          "lo": -0.1078,
+          "hi": -0.0711
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 29,
+        "delta": 0.0024,
+        "ndcg@10": {
+          "delta": 0.0024,
+          "lo": -0.0487,
+          "hi": 0.0647
+        }
+      },
+      {
+        "split": "twin_cosine_0.85",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 619,
+        "delta": -0.043,
+        "ndcg@10": {
+          "delta": -0.043,
+          "lo": -0.055,
+          "hi": -0.0308
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": 0.0089,
+        "ndcg@10": {
+          "delta": 0.0089,
+          "lo": -0.0345,
+          "hi": 0.0531
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0289,
+        "ndcg@10": {
+          "delta": -0.0289,
+          "lo": -0.0457,
+          "hi": -0.0132
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": -0.0022,
+        "ndcg@10": {
+          "delta": -0.0022,
+          "lo": -0.0358,
+          "hi": 0.0339
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.031,
+        "ndcg@10": {
+          "delta": -0.031,
+          "lo": -0.0414,
+          "hi": -0.0206
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": 0.0164,
+        "ndcg@10": {
+          "delta": 0.0164,
+          "lo": -0.0224,
+          "hi": 0.0561
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0261,
+        "ndcg@10": {
+          "delta": -0.0261,
+          "lo": -0.0427,
+          "hi": -0.0101
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": -0.0161,
+        "ndcg@10": {
+          "delta": -0.0161,
+          "lo": -0.0475,
+          "hi": 0.0142
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0294,
+        "ndcg@10": {
+          "delta": -0.0294,
+          "lo": -0.0392,
+          "hi": -0.0191
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": 0.0168,
+        "ndcg@10": {
+          "delta": 0.0168,
+          "lo": -0.0248,
+          "hi": 0.0558
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0299,
+        "ndcg@10": {
+          "delta": -0.0299,
+          "lo": -0.0469,
+          "hi": -0.014
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": -0.0048,
+        "ndcg@10": {
+          "delta": -0.0048,
+          "lo": -0.0405,
+          "hi": 0.0316
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0289,
+        "ndcg@10": {
+          "delta": -0.0289,
+          "lo": -0.0388,
+          "hi": -0.019
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": 0.0088,
+        "ndcg@10": {
+          "delta": 0.0088,
+          "lo": -0.0331,
+          "hi": 0.0516
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0271,
+        "ndcg@10": {
+          "delta": -0.0271,
+          "lo": -0.0434,
+          "hi": -0.0114
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": -0.0103,
+        "ndcg@10": {
+          "delta": -0.0103,
+          "lo": -0.0477,
+          "hi": 0.0269
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0317,
+        "ndcg@10": {
+          "delta": -0.0317,
+          "lo": -0.0416,
+          "hi": -0.0217
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": -0.075,
+        "ndcg@10": {
+          "delta": -0.075,
+          "lo": -0.1279,
+          "hi": -0.0234
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0913,
+        "ndcg@10": {
+          "delta": -0.0913,
+          "lo": -0.1111,
+          "hi": -0.0733
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 50,
+        "delta": -0.0393,
+        "ndcg@10": {
+          "delta": -0.0393,
+          "lo": -0.0684,
+          "hi": -0.0123
+        }
+      },
+      {
+        "split": "relevant_is_training_source",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 598,
+        "delta": -0.0411,
+        "ndcg@10": {
+          "delta": -0.0411,
+          "lo": -0.0543,
+          "hi": -0.0284
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0268,
+        "ndcg@10": {
+          "delta": -0.0268,
+          "lo": -0.0425,
+          "hi": -0.0103
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0213,
+        "ndcg@10": {
+          "delta": -0.0213,
+          "lo": -0.0656,
+          "hi": 0.0235
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0249,
+        "ndcg@10": {
+          "delta": -0.0249,
+          "lo": -0.035,
+          "hi": -0.0144
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0527,
+        "ndcg@10": {
+          "delta": -0.0527,
+          "lo": -0.089,
+          "hi": -0.0191
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0218,
+        "ndcg@10": {
+          "delta": -0.0218,
+          "lo": -0.037,
+          "hi": -0.007
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse-nofixture",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0294,
+        "ndcg@10": {
+          "delta": -0.0294,
+          "lo": -0.0754,
+          "hi": 0.0174
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.026,
+        "ndcg@10": {
+          "delta": -0.026,
+          "lo": -0.0358,
+          "hi": -0.016
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse-nofixture",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0428,
+        "ndcg@10": {
+          "delta": -0.0428,
+          "lo": -0.0791,
+          "hi": -0.0083
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0236,
+        "ndcg@10": {
+          "delta": -0.0236,
+          "lo": -0.0392,
+          "hi": -0.0081
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse-s1",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0434,
+        "ndcg@10": {
+          "delta": -0.0434,
+          "lo": -0.0908,
+          "hi": 0.0026
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0224,
+        "ndcg@10": {
+          "delta": -0.0224,
+          "lo": -0.0319,
+          "hi": -0.0129
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse-s1",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0557,
+        "ndcg@10": {
+          "delta": -0.0557,
+          "lo": -0.0913,
+          "hi": -0.0203
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0215,
+        "ndcg@10": {
+          "delta": -0.0215,
+          "lo": -0.0368,
+          "hi": -0.0063
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-marginmse-s2",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.042,
+        "ndcg@10": {
+          "delta": -0.042,
+          "lo": -0.0912,
+          "hi": 0.0065
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0257,
+        "ndcg@10": {
+          "delta": -0.0257,
+          "lo": -0.0357,
+          "hi": -0.0153
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-marginmse-s2",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0574,
+        "ndcg@10": {
+          "delta": -0.0574,
+          "lo": -0.0905,
+          "hi": -0.0255
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0948,
+        "ndcg@10": {
+          "delta": -0.0948,
+          "lo": -0.1139,
+          "hi": -0.0776
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "dense@bge-small-mnrl",
+        "other": "dense@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0599,
+        "ndcg@10": {
+          "delta": -0.0599,
+          "lo": -0.1146,
+          "hi": -0.0054
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "flagged",
+        "n": 559,
+        "delta": -0.0439,
+        "ndcg@10": {
+          "delta": -0.0439,
+          "lo": -0.0563,
+          "hi": -0.031
+        }
+      },
+      {
+        "split": "relevant_in_training_list",
+        "row": "hybrid@bge-small-mnrl",
+        "other": "hybrid@bge-small",
+        "group": "not flagged",
+        "n": 89,
+        "delta": -0.0225,
+        "ndcg@10": {
+          "delta": -0.0225,
+          "lo": -0.0626,
+          "hi": 0.0153
+        }
+      }
+    ],
+    "seed_mean": {
+      "seeds": [
+        "bge-small-marginmse",
+        "bge-small-marginmse-s1",
+        "bge-small-marginmse-s2"
+      ],
+      "n_seeds": 3,
+      "row": "the per-query mean of hybrid@bge-small-marginmse, hybrid@bge-small-marginmse-s1, hybrid@bge-small-marginmse-s2",
+      "other": "hybrid@bge-small",
+      "ndcg@10": {
+        "delta": -0.0286,
+        "lo": -0.0381,
+        "hi": -0.0187
+      },
+      "label": "exploratory (M44's form); the bar is read on seed 0 alone"
+    },
+    "subgroup_note": "descriptive only (BEIR): twins at bge-small cosine 0.80 / 0.85 to the arm's training and validation queries; seen-document flags from qrels and the committed lists",
+    "bar_leg": {
+      "row": "hybrid@bge-small-marginmse",
+      "parent": "hybrid@bge-small",
+      "dataset": "fiqa",
+      "scope": "test",
+      "metric": "ndcg@10",
+      "measured": true,
+      "delta": -0.0287,
+      "lo": -0.039,
+      "hi": -0.0184,
+      "lo_above_zero": false,
+      "verdict": "below zero",
+      "outcome_from_this_leg": "does not pass: this leg's stored lower end is not above zero; its upper end is below zero, a recorded loss"
+    },
+    "file_role": "a path the bar reads (BAR['read_from']): read against the bar only when written by the first complete eval run of its dataset at the C3 (manifest) commit, and only as a run of the committed checkpoints (file_problems)"
+  },
+  "reproduces": [
+    {
+      "file": "bench/results/beir_fiqa.json",
+      "git_sha": "32972cf",
+      "device": "Quadro RTX 8000",
+      "compared": "every field of each row's retrieval block (rounded means; by category on the fixture), [committed, this run] where they differ",
+      "rows": {
+        "bm25": {
+          "equal": true,
+          "ranking_equal": true
+        },
+        "dense@bge-small": {
+          "equal": true,
+          "ranking_equal": false
+        },
+        "hybrid@bge-small": {
+          "equal": true,
+          "ranking_equal": false
+        }
+      },
+      "all": false
+    }
+  ]
+}

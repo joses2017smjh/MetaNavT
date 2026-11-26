@@ -19,8 +19,8 @@ from pathlib import Path
 FULL = "hybrid+rerank+router+staleness"
 ROUTER_OFF, ROUTER_ON = "hybrid+rerank", "hybrid+rerank+router"
 REFERENCE = "bm25_only"
-BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers")
-FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers"), "doc/demo.html": ("demo-stats",)}
+BLOCKS = ("bench-headline", "bench-table", "demo-stats", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-adapted-embedders")
+FILES = {"README.md": ("bench-headline", "bench-table", "bench-rrf-sweep-hash", "bench-neural", "bench-file-depth", "bench-models-2026", "bench-models-2026-cpu", "bench-beir", "bench-beir-bm25", "bench-beir-fiqa", "bench-beir-models-2026", "bench-beir-fiqa-models-2026", "bench-served-scale", "bench-pgvector-hnsw", "bench-parity", "api-latency", "bench-jury", "bench-jury-v3", "agent-injection", "agent-injection-v3", "agent-injection-adaptive", "bench-frontier", "bench-frontier-neural", "bench-rerank-arms", "search-policy", "bench-small-rerankers", "bench-adapted-embedders"), "doc/demo.html": ("demo-stats",)}
 RERANK_ARMS_FILE = "bench/results/rerank_arms.json"
 SEARCH_POLICY_FILE = "bench/results/search_policy.json"  # M44: the RL search policy, trained once
 FRONTIER_FILE = "bench/results/frontier.json"
@@ -101,6 +101,9 @@ SOURCES = {
     "bench-rerank-arms": RERANK_ARMS_FILE,
     "search-policy": SEARCH_POLICY_FILE,
     "bench-small-rerankers": f"{SMALL_RERANKERS_FILE}, {BEIR_SMALL_RERANKERS_FILE}, {BEIR_FIQA_SMALL_RERANKERS_FILE}, {SMALL_RERANKERS_CPU_FILE} and bench/distill/",
+    "bench-adapted-embedders": ("bench/results/adapted_embedders.json, bench/results/beir_scifact_adapted_embedders.json, "
+                                "bench/results/beir_fiqa_adapted_embedders.json, bench/results/adapted_embedders_cpu.json, the *_adapted_embedders_base.json "
+                                "files and bench/distill/"),
 }
 NEURAL_REFERENCE = "bm25_only"
 ADDED_COMPONENTS = ("hybrid+rerank", "hybrid+rerank+router", FULL)  # the ablation chain after plain RRF
@@ -3287,7 +3290,7 @@ def adapted_embedders_table(root: Path | None) -> str:
         f"**The bar, declared before any run** (`app/eval/adapted_embedders.py`): `hybrid@{ae.BAR_ARM}` (seed 0) passes iff its paired "
         f"nDCG@10 delta against `hybrid@bge-small` has a 95% interval above zero on fixture v1's held-out half and on SciFact and on FiQA, read "
         f"from the first complete run of each. **Outcome: {table['outcome']}.**"
-        + (f" A recorded loss on {_and(table['losses'])}." if table["losses"] else "")
+        + (f" A recorded loss on {_and([dict(ADAPTED_DATASETS)[d] for d in table['losses']])}." if table["losses"] else "")
         + f" The legs: " + "; ".join(f"{label} {_delta(legs.get(d), 4)} ({verdict(legs.get(d)) if legs.get(d) else 'not measured'})" for d, label in ADAPTED_DATASETS) + "."
         + (" **Refused, not read** (not a run of the committed checkpoints): " + " ".join(refused) if refused else "")
         + (" **Flagged** (read; recorded beside its verdict): " + " ".join(flagged) if flagged else ""),
@@ -3361,8 +3364,10 @@ def adapted_embedders_table(root: Path | None) -> str:
                   "row here embeds them bare. Transfer to an unseen corpus: only the control's fixture rows measure it, on one small templated "
                   "corpus. Re-measurement from a clone: every interval re-scores from the per-query sidecars (`make adapted-embedders-rescore`) "
                   "and nDCG recomputes from the committed TREC runs, but the checkpoints are not in the repository. Card independence on FiQA: "
-                  "the rankings are specific to the card they ran on; bge-small's own FiQA rankings differ between cards (near-tied documents "
-                  "swapping adjacent places below the top ten), and how far an adapted model's rankings move across cards is not measured. "
+                  "the rankings are specific to the run they came from: bge-small's own FiQA rankings differ between cards (M41: near-tied "
+                  "documents swapping adjacent places below the top ten) and can differ between runs on the same card model (the reproduction "
+                  "lines above say whether this run's base rows rank every query as the committed runs do); how far an adapted model's rankings "
+                  "move across cards is not measured. "
                   f"Variance: {variance}. A clean \"what the fixture data added\": the control-vs-bar delta is confounded by s, the number of "
                   "training lists and the corpus mix. A paired comparison with Qwen3 or harrier: their rows come from other runs. GPL "
                   "itself: other queries, another teacher, a cosine model with a fixed scale and about 5k steps.",
@@ -3407,6 +3412,7 @@ def render(blob: dict, root: Path | None = None) -> dict[str, str]:
         "bench-rerank-arms": rerank_arms_table(_load(root, RERANK_ARMS_FILE)),
         "search-policy": search_policy_table(_load(root, SEARCH_POLICY_FILE)),
         "bench-small-rerankers": small_rerankers_table(root),
+        "bench-adapted-embedders": adapted_embedders_table(root),
     }
 
 
